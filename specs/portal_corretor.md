@@ -1435,6 +1435,12 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-52 | Não implementar ajuda, bug, sugestão e "sobre"; o Assistente usa os `docs/` da app como base | Tela de ajuda própria | A plataforma já oferece o widget |
 | D-53 | Um ingresso `wh` por conta, configurado como endereço alternativo do número do corretor na Meta | Um endereço único com tabela de roteamento | A conta vem do próprio ingresso; nenhuma tabela fora do RLS |
 | D-54 | Specs ficam em `specs/` na raiz do repositório (fora do pacote); `apps/portal_corretor/docs/` é a documentação da app em produção | Specs dentro de `docs/` da app | O pacote da plataforma exclui `specs/`; `docs/` alimenta a ajuda |
+| D-55 | `vitrine_publica` é a única tabela não segregada: só o que o corretor publicou, sem dado pessoal; Minha Página, ficha e seleção leem dela (18/10, revisão contra o SDK 100) | Rota pública lendo tabela segregada | O SDK 100 não oferece caminho: sem conta resolvida o RLS devolve zero linhas e `comConta` só existe em contexto de sistema (P-33) |
+| D-56 | Portal do Cliente no MVP por link com token, página pública sem login; ações por `wh` (revisa D-23 para o MVP) | Cliente como usuário externo com login | Como externo, o cliente ficaria preso a um só corretor, enxergaria os eventos da conta e exigiria a política multi-usuário da instância |
+| D-57 | Avisos ao corretor pela tela Início e por e-mail | `req.notificacoes` | Usuário externo não tem notificações no shell |
+| D-58 | Base do Assistente gerada no build a partir de `apps/portal_corretor/docs/` | Assistente de documentação do shell; tabela de ajuda | A app não tem leitura dos próprios docs em runtime |
+| D-59 | WhatsApp espera P-31 e P-32 no SDK publicado; parceiro (caminho B) só por nova decisão do dono | Adotar parceiro já | Decisão do dono |
+| D-60 | Canva com conta e credenciais providas pelo dono até o bloco 8; sem elas, o Estúdio começa pelo motor interno (D-35) | Bloquear o bloco 8 | A plataforma não tem integração com o Canva: a app integra por `fetch()` |
 
 ## 17. Pendências
 
@@ -1476,6 +1482,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | P-34 | ~~Contato e anúncio como dados da app~~ — confirmado pelo dono em 18/10 | — |
 | P-35 | Corretor que entra numa imobiliária (externo pertence a uma conta só) — tratar só na fase 4 | Fase 4 |
 | P-36 | Frontend da app pode abrir o cadastro incorporado hospedado da Meta e o OAuth do Instagram por redirecionamento e receber o retorno numa sub-rota da app? | MVP |
+| P-37 | Prévia de link (Open Graph) das páginas públicas: o SDK 100 monta a página no navegador e não oferece metadados por página | Fase 2 |
 
 **Soluções das dependências do MVP:** seção 9.8 (Meta, hora marcada, webhook, chamadas externas) e 9.4 (Canva).
 
