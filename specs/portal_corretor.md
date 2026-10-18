@@ -164,7 +164,7 @@ specs/                  esta spec, o plano e os anexos (fora do pacote da app)
 CLAUDE.md               instruções permanentes para as sessões de implementação
 ```
 
-Build com esbuild (frontend ESM com `@urbiverso/ui` externo; backend self-contained), empacote `portal_corretor-<versao>.urbiapp.tgz`, release pela ferramenta do SDK, instalação em Admin › Instaláveis › Apps. **Teste na instância intermediária** (não na de desenvolvimento). Pisos iniciais propostos: `sdk_min: 94`, `shell_min: "0.56.25"` (**superados por `sdk_min: 100`, `shell_min: "0.56.37"` — plano, R.2**) (rotas pessoais, `incrementar`, `destinatarios`, `formato`/`intervalo`); a implementação ajusta ao que realmente usar.
+Build com esbuild (frontend ESM com `@urbiverso/ui` externo; backend self-contained), empacote `portal_corretor-<versao>.urbiapp.tgz`, release pela ferramenta do SDK, instalação em Admin › Instaláveis › Apps. **Teste na instância intermediária** (não na de desenvolvimento). Pisos iniciais propostos: `sdk_min: 94`, `shell_min: "0.56.25"` (rotas pessoais, `incrementar`, `destinatarios`, `formato`/`intervalo`) — **superados por `sdk_min: 100`, `shell_min: "0.56.37"` (plano, R.2)**; a implementação ajusta ao que realmente usar.
 
 ### 4.2 Frameworks usados
 
@@ -215,7 +215,7 @@ Build com esbuild (frontend ESM com `@urbiverso/ui` externo; backend self-contai
 | Equipe da plataforma (operação, suporte) | interno (`colaborador`) | — | roles de equipe `operacao` e `suporte`; `suporte` com `acesso_irrestrito` só quando autorizado (P-19) |
 | Admin da app | interno com nível `admin` | — | Config, Lixeira, IA, Webhooks, Rotinas |
 
-Manifesto (no MVP, sem o papel `cliente` — D-56): `aceita_externos: true`, `permissao_padrao_externo: "escrita"`, `roles_externos.escrita: { corretor, cliente }`, `provisiona_externos.papel_externo: "corretor"` (o corretor convida os próprios clientes) e `provisiona_externos.papel: "operacao"` (a equipe convida corretores). Toda rota decide por `rolesApp` e escopa por `usuario.id`; nunca por `tipo` ou `natureza`.
+Manifesto (desenho completo; **no MVP sai o papel `cliente`, o `roles_externos` fica só com `corretor` e o corretor não convida clientes — D-56**): `aceita_externos: true`, `permissao_padrao_externo: "escrita"`, `roles_externos.escrita: { corretor, cliente }`, `provisiona_externos.papel_externo: "corretor"` (o corretor convida os próprios clientes) e `provisiona_externos.papel: "operacao"` (a equipe convida corretores). Toda rota decide por `rolesApp` e escopa por `usuario.id`; nunca por `tipo` ou `natureza`.
 
 > **Revisto para o MVP por D-56:** o cliente acessa o Portal do Cliente por link com token, página pública sem login, e age por `wh`; sem papel `cliente`, sem convite de cliente e sem `roles_externos.cliente` no MVP. O texto a seguir fica como desenho de fase posterior.
 
@@ -230,8 +230,8 @@ Vários corretores usam o mesmo app, cada um com seus imóveis e seus clientes. 
 | Camada | Como se garante |
 |---|---|
 | Entre corretores | **Proibição absoluta, garantida pelo banco:** cada corretor é uma conta; todas as tabelas `segregada_por_conta: true` → RLS forçado no PostgreSQL. Nenhuma rota, listener, rotina ou IA consegue ler ou gravar linha de outra conta, nem por erro de código. Nenhuma tabela da app fica fora do regime, **exceto `vitrine_publica` (D-55)**: só o que o corretor publicou, sem dado pessoal |
-| Corretor × cliente na mesma conta | Toda tabela `acesso_externo: "restrito"` (sem CRUD genérico); rotas próprias: role `corretor` lê a conta, role `cliente` lê **só** o que está em `itens_cliente` com o `usuario.id` dele |
-| Entre clientes do mesmo corretor | Mesmo filtro por `usuario.id` em `itens_cliente` |
+| Corretor × cliente na mesma conta | Toda tabela `acesso_externo: "restrito"` (sem CRUD genérico); rotas próprias: role `corretor` lê a conta, role `cliente` lê **só** o que está em `itens_cliente` com o `usuario.id` dele **No MVP (D-56) o cliente não tem conta: vê só o que o link com token dele alcança.** |
+| Entre clientes do mesmo corretor | Mesmo filtro por `usuario.id` em `itens_cliente` **No MVP (D-56) o cliente não tem conta: vê só o que o link com token dele alcança.** |
 | Público anônimo | Rotas públicas só devolvem o que tem `visibilidade = publico`, sem dado pessoal |
 | IA | Contexto montado pelo app só com dados da conta e, para o cliente, só com o que ele recebeu |
 | Fornecedores com conta da plataforma (Canva, render) | Pasta e prefixo por conta; `canva_vinculos` (9.4) |
@@ -1483,7 +1483,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | P-33 | Confirmar no SDK: handler `wh` lê o contexto do ingresso (conta); listener grava com `dados.comConta`; rota pública lê tabelas segregadas (senão `vitrine_publica`) (`specs/pedidos_ao_shell.md`, item 3) | MVP, blocos 0 e 5 — **conferido no SDK 100** (plano, R.1): contexto e evento segregado sim; rota pública não → `vitrine_publica` (D-55) |
 | P-34 | ~~Contato e anúncio como dados da app~~ — confirmado pelo dono em 18/10 | — |
 | P-35 | Corretor que entra numa imobiliária (externo pertence a uma conta só) — tratar só na fase 4 | Fase 4 |
-| P-36 | Frontend da app pode abrir o cadastro incorporado hospedado da Meta e o OAuth do Instagram por redirecionamento e receber o retorno numa sub-rota da app? | MVP — sub-rota e query têm contrato (`overview.md` § Navegação SPA); o redirecionamento da Meta é testado no bloco 0 (plano, R.6) |
+| P-36 | Frontend da app pode abrir o cadastro incorporado hospedado da Meta e o OAuth do Instagram por redirecionamento e receber o retorno numa sub-rota da app? | MVP — em parte: a sub-rota vem do path e a query se lê em `window.location.search` (`overview.md` § Navegação SPA); o redirecionamento da Meta é testado no bloco 0 (plano, R.6) |
 | P-37 | Prévia de link (Open Graph) das páginas públicas: o SDK 100 monta a página no navegador e não oferece metadados por página | Fase 2 |
 
 **Soluções das dependências do MVP:** seção 9.8 (Meta, hora marcada, webhook, chamadas externas) e 9.4 (Canva).
