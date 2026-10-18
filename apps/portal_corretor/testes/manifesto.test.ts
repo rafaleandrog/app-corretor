@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 
-// O `pnpm test` roda na pasta da app.
+// O `pnpm test` roda na pasta da app (a CI usa `pnpm -r run test`, que entra em cada pacote).
 const pasta = process.cwd();
 const ler = (caminho: string) => JSON.parse(readFileSync(resolve(pasta, caminho), 'utf8'));
 const manifesto = ler('manifesto.json');

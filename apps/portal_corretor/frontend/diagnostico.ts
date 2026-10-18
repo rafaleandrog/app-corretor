@@ -19,7 +19,7 @@ export class PortalCorretorDiagnostico extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
-    const resto = window.location.pathname.replace(/^\/portal_corretor\/p/, '');
+    const resto = window.location.pathname.replace(/^\/portal_corretor\/p(?=\/|$)/, '');
     try {
       const r = await urbiVerso.api(`/pub/portal_corretor/diagnostico${resto}${window.location.search}`, { anonimo: true });
       this.resposta = JSON.stringify(r);

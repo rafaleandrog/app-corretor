@@ -5,8 +5,7 @@ descricao: Escritório digital do corretor de imóveis — o que já existe nest
 
 # Portal do Corretor
 
-O Portal do Corretor será o escritório digital do corretor de imóveis: clientes e funil com IA,
-WhatsApp pelo app, conteúdo para o Instagram, página própria e um portal simples para cada cliente.
+App do corretor de imóveis. Nesta versão existe só o esqueleto descrito abaixo.
 
 ## O que existe nesta versão (0.1.0)
 
@@ -20,14 +19,15 @@ continuar, avise pelo botão de ajuda.
 Esta versão traz duas peças só para a equipe conferir a instalação; ambas saem quando as telas de
 verdade chegarem:
 
-- **Página pública** em `/portal_corretor/p` (sem login). Abra também `/portal_corretor/p/teste` e
-  `/portal_corretor/p?c=teste`: a página mostra o endereço com que abriu e o que a rota pública
-  `/api/pub/portal_corretor/diagnostico` respondeu. Não mostra dado nenhum.
-- **Linha "Endereço desta tela"** na tela do app: abra `/portal_corretor/retorno?code=teste` para
-  ver se o app recebe a sub-rota e os parâmetros (usado mais tarde no retorno das conexões com a
-  Meta).
+- **Página pública** em `/portal_corretor/p` (sem login): mostra o endereço com que abriu e o que a
+  rota pública `/api/pub/portal_corretor/diagnostico` respondeu. Não mostra dado nenhum. A equipe
+  também tenta `/portal_corretor/p/teste` e `/portal_corretor/p?c=teste` — é uma **verificação**:
+  a plataforma não garante que esses endereços abram a mesma página, e o resultado decide o formato
+  do endereço público do corretor.
+- **Linha "Endereço desta tela"** na tela do app: ao abrir `/portal_corretor/retorno?code=teste`,
+  ela mostra `/retorno?code=teste` (usado mais tarde no retorno das conexões com a Meta).
 
-Ainda não há cadastros, permissões próprias, páginas públicas, integrações nem uso de IA. Cada
+Fora a página de diagnóstico, ainda não há cadastros, permissões próprias, páginas públicas, integrações nem uso de IA. Cada
 funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Serviços externos

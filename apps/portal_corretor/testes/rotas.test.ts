@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import type { AddressInfo } from 'node:net';
 import { rotas, rotasPublicas } from '../backend/rotas';
+import manifesto from '../manifesto.json';
 
 async function chamar(router: express.Router, caminho: string) {
   const app = express().use(router);
@@ -19,7 +20,7 @@ async function chamar(router: express.Router, caminho: string) {
 test('GET /status devolve nome e versão do manifesto', async () => {
   const { status, corpo } = await chamar(rotas, '/status');
   assert.equal(status, 200);
-  assert.deepEqual(corpo, { nome: 'Portal do Corretor', versao: '0.1.0' });
+  assert.deepEqual(corpo, { nome: manifesto.nome, versao: manifesto.versao });
 });
 
 test('diagnóstico público ecoa segmento extra e query', async () => {

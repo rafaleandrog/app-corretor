@@ -11,7 +11,7 @@
 | Slug / schema | `portal_corretor` (snake_case, vira o schema PostgreSQL) |
 | Instância-alvo | Pinguim (teste). Produção: qualquer instância que instale o app (D-02) |
 | Base | MVP "Portal do Corretor · laboratório Urbiverso UP/Urbitá" v2; `specs/stack_funcional.md`; `specs/referencias.md`; direção do dono em 17/10/2026 (duas rodadas) |
-| Piso de shell / SDK | Proposto `shell_min: "0.56.25"`, `sdk_min: 94` (4.1); confirmar na implementação |
+| Piso de shell / SDK | Proposto `shell_min: "0.56.25"`, `sdk_min: 94` (4.1); confirmar na implementação **Superado:** `sdk_min: 100`, `shell_min: "0.56.37"` (plano, R.2; SDK instalado) |
 | Data | 18/10/2026 |
 
 **Convenções do texto.** `D-nn` é decisão registrada (seção 16). `P-nn` é pendência (seção 17) e marca, no ponto do texto, tudo que depende de resposta. **[plataforma]** marca afirmação sobre o UrbiVerso que a implementação ainda confere no SDK instalado; as regras da seção 4 vêm do resumo dos frameworks de 18/10/2026. "Conta" é o espaço de trabalho de um corretor autônomo, de uma imobiliária ou de uma incorporadora. "Cliente" é sempre o cliente **do corretor** (comprador ou proprietário), nunca o corretor. Valores em dinheiro estão sempre em centavos de real no banco. Ausência de dado é `null` no banco e frase na tela, nunca zero.
@@ -33,7 +33,7 @@ O corretor faz o que exige gente: visitar, negociar, fechar. O resto o app faz o
 | **Plataforma** | Operador do app na instância (UrbiVerso / UP-Urbitá ou quem instalar) | Usuário interno da instância [plataforma] | Planos, cotas, contas de corretores, suporte, métricas agregadas de uso, base de ajuda do Assistente | Conteúdo das conversas e dados dos clientes do corretor, salvo pedido de suporte autorizado pelo dono da conta (P-19) |
 | **Conta do corretor** | Corretor autônomo; ou imobiliária com dono, gestor e corretores | Usuário da plataforma, membro da conta | Tudo da própria carteira; o gestor vê a equipe | Clientes de outras contas |
 | **Agentes da conta** | Assistente do Corretor, Mensageiro e agentes de bastidor | Lógica do backend da app (não são usuários da plataforma); autoria registrada | Só o que a seção 10 permite | O que o corretor não permitiu |
-| **Clientes do corretor** | Comprador, proprietário | **Usuário externo** por link enviado pelo WhatsApp, sem instalar nada (D-23) | Só o que é dele: imóveis enviados, visitas, documentos, conversa, andamento; o proprietário vê o imóvel dele | Outros clientes, notas internas, comissão interna, dados do outro lado da negociação |
+| **Clientes do corretor** | Comprador, proprietário | **Usuário externo** por link enviado pelo WhatsApp, sem instalar nada (D-23) | Só o que é dele: imóveis enviados, visitas, documentos, conversa, andamento; o proprietário vê o imóvel dele | Outros clientes, notas internas, comissão interna, dados do outro lado da negociação **No MVP: link com token, sem login (D-56).** |
 | **Parceiros** | Corretores de outras contas, incorporadoras | Usuário da plataforma em outra conta, ou externo | O negócio ou o imóvel compartilhado | Clientes e proprietários do outro |
 
 ### 2.3 Visão do corretor
@@ -164,17 +164,17 @@ specs/                  esta spec, o plano e os anexos (fora do pacote da app)
 CLAUDE.md               instruções permanentes para as sessões de implementação
 ```
 
-Build com esbuild (frontend ESM com `@urbiverso/ui` externo; backend self-contained), empacote `portal_corretor-<versao>.urbiapp.tgz`, release pela ferramenta do SDK, instalação em Admin › Instaláveis › Apps. **Teste na instância intermediária** (não na de desenvolvimento). Pisos iniciais propostos: `sdk_min: 94`, `shell_min: "0.56.25"` (rotas pessoais, `incrementar`, `destinatarios`, `formato`/`intervalo`); a implementação ajusta ao que realmente usar.
+Build com esbuild (frontend ESM com `@urbiverso/ui` externo; backend self-contained), empacote `portal_corretor-<versao>.urbiapp.tgz`, release pela ferramenta do SDK, instalação em Admin › Instaláveis › Apps. **Teste na instância intermediária** (não na de desenvolvimento). Pisos iniciais propostos: `sdk_min: 94`, `shell_min: "0.56.25"` (**superados por `sdk_min: 100`, `shell_min: "0.56.37"` — plano, R.2**) (rotas pessoais, `incrementar`, `destinatarios`, `formato`/`intervalo`); a implementação ajusta ao que realmente usar.
 
 ### 4.2 Frameworks usados
 
 | Framework | Uso no app |
 |---|---|
 | Dados (`schema.json`, `req.dados`) | Todas as tabelas, **todas** `segregada_por_conta: true` e `acesso_externo: "restrito"` (acesso só por rotas próprias); `soft_delete` nas de negócio; `busca_texto` em contatos e anúncios; `sql_declarado` para o funil por coorte |
-| Usuários, permissões, contas | Corretor e clientes como usuários **externos** da conta do corretor, diferenciados por `roles_externos`; equipe da plataforma como usuários internos com `roles` (4.4) |
+| Usuários, permissões, contas | Corretor e clientes como usuários **externos** da conta do corretor, diferenciados por `roles_externos`; equipe da plataforma como usuários internos com `roles` (4.4) **No MVP o cliente não é usuário (D-56).** |
 | Arquivos (coluna `arquivo`, `req.arquivos`) | Fotos, vídeos, documentos, artes; upload em 2 passos; download por rota própria com `req.arquivos.url` |
 | Barramento (`req.eventos`, `reagir`) | Todos os eventos da seção 13, `segregado_por_conta: true`; **`agendar`** para tudo que tem hora marcada (publicação, lembrete, vencimento) |
-| Notificações | `req.notificacoes.notificar` ao corretor (inbox e push) |
+| Notificações | `req.notificacoes.notificar` ao corretor (inbox e push) **Revisto por D-57: Início + e-mail.** |
 | Webhooks (`wh`) | Entrada do WhatsApp e do Instagram (Meta), formulários e reações das páginas públicas, retorno de render |
 | Rotas e páginas públicas | Minha Página, ficha pública do imóvel, seleção (só GET; envios por `wh`) |
 | Rotinas | Diárias, semanais e mensais da seção 8 |
@@ -211,11 +211,13 @@ Build com esbuild (frontend ESM com `@urbiverso/ui` externo; backend self-contai
 | Quem | Tipo na plataforma | Conta | Papel na app |
 |---|---|---|---|
 | Corretor autônomo | `externo` | A conta dele (criada pela instância ou por convite da equipe) | role externo `corretor` |
-| Cliente do corretor (comprador, proprietário) | `externo` | A **mesma** conta do corretor que o convidou | role externo `cliente` (perfil comprador/proprietário em dado) |
+| Cliente do corretor (comprador, proprietário) | `externo` | A **mesma** conta do corretor que o convidou | role externo `cliente` (perfil comprador/proprietário em dado) **No MVP: sem conta; acesso por link com token (D-56).** |
 | Equipe da plataforma (operação, suporte) | interno (`colaborador`) | — | roles de equipe `operacao` e `suporte`; `suporte` com `acesso_irrestrito` só quando autorizado (P-19) |
 | Admin da app | interno com nível `admin` | — | Config, Lixeira, IA, Webhooks, Rotinas |
 
-Manifesto: `aceita_externos: true`, `permissao_padrao_externo: "escrita"`, `roles_externos.escrita: { corretor, cliente }`, `provisiona_externos.papel_externo: "corretor"` (o corretor convida os próprios clientes) e `provisiona_externos.papel: "operacao"` (a equipe convida corretores). Toda rota decide por `rolesApp` e escopa por `usuario.id`; nunca por `tipo` ou `natureza`.
+Manifesto (no MVP, sem o papel `cliente` — D-56): `aceita_externos: true`, `permissao_padrao_externo: "escrita"`, `roles_externos.escrita: { corretor, cliente }`, `provisiona_externos.papel_externo: "corretor"` (o corretor convida os próprios clientes) e `provisiona_externos.papel: "operacao"` (a equipe convida corretores). Toda rota decide por `rolesApp` e escopa por `usuario.id`; nunca por `tipo` ou `natureza`.
+
+> **Revisto para o MVP por D-56:** o cliente acessa o Portal do Cliente por link com token, página pública sem login, e age por `wh`; sem papel `cliente`, sem convite de cliente e sem `roles_externos.cliente` no MVP. O texto a seguir fica como desenho de fase posterior.
 
 **Como o cliente entra (D-23 revista):** o corretor envia pelo WhatsApp o convite da plataforma; o cliente cria o acesso no primeiro clique (e-mail e senha, conforme o shell) e passa a ver o **Portal do Cliente** como tela da app, no celular. Seleções avulsas e a Minha Página continuam como páginas públicas sem login (11.3). Se o shell vier a oferecer acesso por link mágico, o atrito some (P-20).
 
@@ -227,7 +229,7 @@ Vários corretores usam o mesmo app, cada um com seus imóveis e seus clientes. 
 
 | Camada | Como se garante |
 |---|---|
-| Entre corretores | **Proibição absoluta, garantida pelo banco:** cada corretor é uma conta; todas as tabelas `segregada_por_conta: true` → RLS forçado no PostgreSQL. Nenhuma rota, listener, rotina ou IA consegue ler ou gravar linha de outra conta, nem por erro de código. Nenhuma tabela da app fica fora do regime |
+| Entre corretores | **Proibição absoluta, garantida pelo banco:** cada corretor é uma conta; todas as tabelas `segregada_por_conta: true` → RLS forçado no PostgreSQL. Nenhuma rota, listener, rotina ou IA consegue ler ou gravar linha de outra conta, nem por erro de código. Nenhuma tabela da app fica fora do regime, **exceto `vitrine_publica` (D-55)**: só o que o corretor publicou, sem dado pessoal |
 | Corretor × cliente na mesma conta | Toda tabela `acesso_externo: "restrito"` (sem CRUD genérico); rotas próprias: role `corretor` lê a conta, role `cliente` lê **só** o que está em `itens_cliente` com o `usuario.id` dele |
 | Entre clientes do mesmo corretor | Mesmo filtro por `usuario.id` em `itens_cliente` |
 | Público anônimo | Rotas públicas só devolvem o que tem `visibilidade = publico`, sem dado pessoal |
@@ -299,7 +301,7 @@ Cliente (role `cliente`): só **Meu atendimento** (Portal do Cliente).
 | `meta_app_id` | string | App registrado na Meta (titular em P-26) |
 | `meta_app_secret` | string `secret` | Validação de assinatura dos webhooks e troca de tokens |
 | `meta_config_cadastro_whatsapp` | string | Configuração do cadastro incorporado |
-| `canva_client_id` / `canva_client_secret` | string / `secret` | Integração Canva da plataforma |
+| `canva_client_id` / `canva_client_secret` | string / `secret` | Integração Canva da plataforma (a plataforma não tem integração Canva: a app integra por `fetch()` — D-60) |
 | `canva_pasta_raiz` | string | Pasta raiz das contas no Canva |
 | `prazo_primeiro_atendimento_min` | numero | Padrão 5 |
 | `cota_mensal_ia_padrao`, `cota_mensal_artes_padrao` | numero | Cotas por conta até haver planos |
@@ -1403,7 +1405,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-20 | Contato importado sem consentimento só recebe modelo de reengajamento | Agente fala livremente | LGPD |
 | D-21 | Etapas configuráveis por conta com probabilidade | Etapas fixas do MVP | Imobiliárias têm funis próprios; previsão ponderada |
 | D-22 | Ranking público entre corretores continua fora | Gamificação | Decisão do MVP mantida |
-| D-23 | Cliente do corretor é usuário externo da conta do corretor, convidado pelo WhatsApp; seleções avulsas e Minha Página continuam públicas sem login (revista na 0.6) | Link com token sem conta | A plataforma isola o externo por conta; o acesso por senha é o do shell |
+| D-23 | Cliente do corretor é usuário externo da conta do corretor, convidado pelo WhatsApp; seleções avulsas e Minha Página continuam públicas sem login (revista na 0.6) | Link com token sem conta | A plataforma isola o externo por conta; o acesso por senha é o do shell **Revista para o MVP por D-56.** |
 | D-24 | Corretor tem experiência completa no computador e no celular; cliente é celular primeiro | Corretor só no celular | Análise de funil e conteúdo pede tela grande; atendimento pede celular |
 | D-25 | O WhatsApp do relacionamento passa pelo app, conectado por cadastro incorporado com coexistência | Integração por terceiros não oficiais | Histórico, IA e métricas dependem disso; coexistência mantém o aplicativo do corretor |
 | D-26 | Instagram primeiro, com conta Business; Facebook e demais redes depois | Todas as redes no MVP | Foco do dono; mesma aprovação da Meta do WhatsApp |
@@ -1427,7 +1429,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-44 | Artes pelo Canva Enterprise da plataforma como serviço prestado ao corretor, sem acesso dele ao Canva | Exigir aval escrito do Canva antes | Decisão do dono: a plataforma é a produtora do conteúdo |
 | D-45 | Toda arte e legenda fica na biblioteca do Estúdio, baixável quantas vezes o corretor quiser | Arquivo só no momento da geração | Permite agendar por fora a qualquer hora |
 | D-46 | Contato (lead) e anúncio são dados comerciais da app, no schema da app, segregados por RLS (confirmado pelo dono em 18/10); vínculo opcional a `pessoas` e `imobiliario`; unidades de empreendimento no módulo `imobiliario` | Usar os módulos como cadastro principal | Lead sem CPF; unicidade global de telefone e e-mail no módulo quebraria o isolamento entre corretores; corretor em instância sem o módulo |
-| D-47 | Corretor e cliente são usuários externos da conta do corretor, diferenciados por `roles_externos` (`corretor`, `cliente`); toda tabela segregada e restrita | Corretor como colaborador interno | Isolamento por RLS entre corretores; o cliente entra como externo, como o dono pediu |
+| D-47 | Corretor e cliente são usuários externos da conta do corretor, diferenciados por `roles_externos` (`corretor`, `cliente`); toda tabela segregada e restrita | Corretor como colaborador interno | Isolamento por RLS entre corretores; o cliente entra como externo, como o dono pediu **No MVP só o corretor é externo (D-56).** |
 | D-48 | Mensageiro responde só em texto; áudio recebido é transcrito (fase 3) | Responder em áudio | A IA da plataforma não oferece voz sintética e proíbe chamar provedor direto |
 | D-49 | Agendamentos por `req.eventos.agendar` | Relógio externo ou só rotina | Recurso nativo com precisão de minuto |
 | D-50 | IA em chamada única com JSON Schema; o app executa as ações | Agente com uso de ferramentas | Regra da plataforma; trilha clara |
@@ -1437,7 +1439,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-54 | Specs ficam em `specs/` na raiz do repositório (fora do pacote); `apps/portal_corretor/docs/` é a documentação da app em produção | Specs dentro de `docs/` da app | O pacote da plataforma exclui `specs/`; `docs/` alimenta a ajuda |
 | D-55 | `vitrine_publica` é a única tabela não segregada: só o que o corretor publicou, sem dado pessoal; Minha Página, ficha e seleção leem dela (18/10, revisão contra o SDK 100) | Rota pública lendo tabela segregada | O SDK 100 não oferece caminho: sem conta resolvida o RLS devolve zero linhas e `comConta` só existe em contexto de sistema (P-33) |
 | D-56 | Portal do Cliente no MVP por link com token, página pública sem login; ações por `wh` (revisa D-23 para o MVP) | Cliente como usuário externo com login | Como externo, o cliente ficaria preso a um só corretor, enxergaria os eventos da conta e exigiria a política multi-usuário da instância |
-| D-57 | Avisos ao corretor pela tela Início e por e-mail | `req.notificacoes` | Usuário externo não tem notificações no shell |
+| D-57 | Avisos ao corretor pela tela Início e por e-mail | `req.notificacoes` | O shell do externo não mostra notificações (`permissoes.md`); a entrega a externos depende do opt-in "notifica externos" por tipo, ligado pelo admin (`barramento.md`), e pode somar-se depois |
 | D-58 | Base do Assistente gerada no build a partir de `apps/portal_corretor/docs/` | Assistente de documentação do shell; tabela de ajuda | A app não tem leitura dos próprios docs em runtime |
 | D-59 | WhatsApp espera P-31 e P-32 no SDK publicado; parceiro (caminho B) só por nova decisão do dono | Adotar parceiro já | Decisão do dono |
 | D-60 | Canva com conta e credenciais providas pelo dono até o bloco 8; sem elas, o Estúdio começa pelo motor interno (D-35) | Bloquear o bloco 8 | A plataforma não tem integração com o Canva: a app integra por `fetch()` |
@@ -1476,12 +1478,12 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | P-28 | ~~Relógio externo~~ — encerrada: desnecessário com `agendar` | — |
 | P-29 | Parceiro de soluções da Meta (só se o registro próprio não for o caminho) e custo dele | Fase 2 |
 | P-30 | A plataforma serve HTML exportado do Canva como página pública? | Fase 6 |
-| P-31 | Shell: `wh` responder o `GET` de verificação da Meta (`specs/pedidos_ao_shell.md`, item 1) | **MVP, bloco 6** |
-| P-32 | Shell: handler `wh` recebe corpo cru e cabeçalhos (`specs/pedidos_ao_shell.md`, item 2) | **MVP, bloco 6** |
-| P-33 | Confirmar no SDK: handler `wh` lê o contexto do ingresso (conta); listener grava com `dados.comConta`; rota pública lê tabelas segregadas (senão `vitrine_publica`) (`specs/pedidos_ao_shell.md`, item 3) | MVP, blocos 0 e 5 |
+| P-31 | Shell: `wh` responder o `GET` de verificação da Meta (`specs/pedidos_ao_shell.md`, item 1) | **MVP, bloco 6** — **conferido no SDK 100: não existe** (plano, R.1) |
+| P-32 | Shell: handler `wh` recebe corpo cru e cabeçalhos (`specs/pedidos_ao_shell.md`, item 2) | **MVP, bloco 6** — **conferido no SDK 100: não existe** (plano, R.1) |
+| P-33 | Confirmar no SDK: handler `wh` lê o contexto do ingresso (conta); listener grava com `dados.comConta`; rota pública lê tabelas segregadas (senão `vitrine_publica`) (`specs/pedidos_ao_shell.md`, item 3) | MVP, blocos 0 e 5 — **conferido no SDK 100** (plano, R.1): contexto e evento segregado sim; rota pública não → `vitrine_publica` (D-55) |
 | P-34 | ~~Contato e anúncio como dados da app~~ — confirmado pelo dono em 18/10 | — |
 | P-35 | Corretor que entra numa imobiliária (externo pertence a uma conta só) — tratar só na fase 4 | Fase 4 |
-| P-36 | Frontend da app pode abrir o cadastro incorporado hospedado da Meta e o OAuth do Instagram por redirecionamento e receber o retorno numa sub-rota da app? | MVP |
+| P-36 | Frontend da app pode abrir o cadastro incorporado hospedado da Meta e o OAuth do Instagram por redirecionamento e receber o retorno numa sub-rota da app? | MVP — sub-rota e query têm contrato (`overview.md` § Navegação SPA); o redirecionamento da Meta é testado no bloco 0 (plano, R.6) |
 | P-37 | Prévia de link (Open Graph) das páginas públicas: o SDK 100 monta a página no navegador e não oferece metadados por página | Fase 2 |
 
 **Soluções das dependências do MVP:** seção 9.8 (Meta, hora marcada, webhook, chamadas externas) e 9.4 (Canva).

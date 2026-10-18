@@ -13,15 +13,15 @@ Telas, funções, permissões, caminhos e automações prontos, testados pela eq
 | # | Bloco | Spec | Depende de | Pronto quando | Status |
 |---|---|---|---|---|---|
 | 0 | **Verificação e esqueleto da plataforma:** conferir no SDK os itens [plataforma] e `specs/pedidos_ao_shell.md` (itens 1 a 3); definir `shell_min`/`sdk_min`; repositório, build, empacote e instalação vazia na instância intermediária; abrir a issue | 4, 5, 9.0, 9.8, pedidos | — | App vazia instala pelo `.urbiapp.tgz`; relatório dos itens do shell entregue ao dono | [~] código pronto (`apps/portal_corretor` 0.1.0, PR aberto); falta o dono instalar na instância e conferir o diagnóstico (R.6) |
-| 1 | **Contas, papéis e isolamento:** roles e `roles_externos`, convite de corretor e de cliente, `perfil_conta`, `perfis_corretor`, `configuracoes_conta`, `itens_cliente`, semente idempotente (2 corretores, 2 clientes), **teste de isolamento automatizado** | 4.4, 4.5, 5, 6.0, 6.1, 6.15, 12.2 | 0 | Teste de isolamento passa; cada papel vê só o que deve | [ ] |
+| 1 | **Contas, papéis e isolamento:** roles e `roles_externos`, convite de corretor e de cliente, `perfil_conta`, `perfis_corretor`, `configuracoes_conta`, `itens_cliente`, semente idempotente (2 corretores, 2 clientes), **teste de isolamento automatizado** | 4.4, 4.5, 5, 6.0, 6.1, 6.15, 12.2 | 0 | Teste de isolamento passa; cada papel vê só o que deve | [ ] — ajustado por R.2 e D-56: no MVP sem convite nem papel de cliente |
 | 2 | **CRM:** contatos, negócios, etapas configuráveis, linha do tempo, tarefas, agenda, visitas, importação CSV, exportação; tela Clientes | 6.2, 7.1, 7.4, 11.1, 12.1 | 1 | Cadastrar, mover, importar e exportar; telas no computador e no celular | [ ] |
 | 3 | **Imóveis (anúncios) e empreendimentos:** fotos (upload em 2 passos), descrição por IA, qualidade, autorização anexada, visibilidade; tela Imóveis | 6.3, 6.12, 10.6, 11.1 | 1 | Imóvel com fotos em menos de 3 min; qualidade calculada; só públicos aparecem fora | [ ] |
-| 4 | **Funil e números:** quadro, temperatura com motivo, próxima abordagem (playbook semeado), fila do dia, envios rastreados, Início, Desempenho, KPIs | 6.12, 6.15, 10.4, 11.1, 11.2 | 2, 3 | KPIs batem com conferência manual sobre a semente; fila do dia ordenada | [ ] |
+| 4 | **Funil e números:** quadro, temperatura com motivo, próxima abordagem (playbook semeado), fila do dia, envios rastreados, Início, Desempenho, KPIs | 6.12, 6.15, 10.4, 11.1, 11.2 | 2, 3 | KPIs batem com conferência manual sobre a semente; fila do dia ordenada | [ ] (R.2: inclui o link rastreado `/l/:codigo`) |
 | 5 | **Páginas públicas e Portal do Cliente:** Minha Página (editor por blocos), ficha pública, seleção com reação, formulário por `wh`; Portal do Cliente (role `cliente`) no celular | 6.15, 7.2, 7.3, 11.1, 11.3 | 3, 4 | Visitante envia contato pela página; cliente vê só o que recebeu | [ ] |
 | 6 | **WhatsApp:** conexão (cadastro incorporado hospedado, coexistência), ingresso `wh` por conta e endereço alternativo do número, validação de assinatura, caixa de conversas, envio de imóvel/seleção/arquivo/link, modelos, janela de 24 h | 9.0, 9.1, 9.8, pedidos | 2, 5; pedidos 1 e 2 resolvidos | Conta de teste conecta; mensagem de ida e volta pelo app | [!] P-31 e P-32 não existem no SDK 100 (R.1) |
 | 7 | **Mensageiro:** configuração em 5 passos, permissões por ação, conversa de teste, listener com IA, ações executadas pelo app, passagem ao corretor, custo, modo degradado | 10.3, 10.6, 10.7, 10.8 | 6 | Mensagem de teste às 22 h respondida em segundos, 3 imóveis enviados, visita marcada; passagem no Início | [!] depende do 6 |
 | 8 | **Estúdio e Instagram:** marca, pedido em texto ou voz, IA → Canva (fila de renderização, pasta por conta), biblioteca de arquivos, aprovação manual e por janela, **agendar** (`req.eventos.agendar`), **publicar agora**, **baixar arquivos**; conexão do Instagram | 9.2, 9.4, 10.5, 11.1 | 3; Canva da plataforma configurado | Pacote de lançamento publicado numa conta de teste no horário agendado | [ ] |
-| 9 | **Assistente do Corretor:** chat em todas as telas com base nos `docs/` da app, ajuda a decidir, ações com confirmação (lembretes, tarefas, agendamento de posts) | 10.2, 11.1 | 2–8 | Responde as 30 perguntas do roteiro; ação só com confirmação | [ ] |
+| 9 | **Assistente do Corretor:** chat em todas as telas com base nos `docs/` da app, ajuda a decidir, ações com confirmação (lembretes, tarefas, agendamento de posts) | 10.2, 11.1 | 2–8 | Responde as 30 perguntas do roteiro; ação só com confirmação | [ ] (R.4: a parte sem WhatsApp anda depois do 8) |
 | 10 | **Fechamento do MVP:** roteiros de 15.1 executados e registrados; ajustes; docs da app completos | 15.1, 18 | 0–9 | Os 7 critérios de 15.1 cumpridos; dono aprova o MVP interno | [ ] |
 
 **Em paralelo, fora do código (dono):** decidir o caminho do registro na Meta (P-26) e, se for o A, iniciar verificação da empresa e revisão do app; termos de uso e política de privacidade.
@@ -80,7 +80,7 @@ Conferida em 18/10/2026 contra `@urbiverso/sdk` **100.0.0** (shell **0.56.37**, 
 | P-33 · contexto do ingresso no handler | Sim | `wh.md`: `req.wh.contexto` | ok |
 | P-33 · evento segregado com `{conta_id}` e listener com `comConta` | Sim | `barramento.md` § Eventos segregados; `contas.md` § Escrita em várias contas | ok; o handler **não grava nada** (o `req.dados` dele falha fechado): valida, publica e responde |
 | P-33 · rota pública lê tabela segregada | **Não** | `contas.md`: sem conta resolvida → zero linhas; `comConta` só em SISTEMA | `vitrine_publica` **não segregada** (decisão R.3-1) |
-| P-36 · retorno do OAuth/cadastro numa sub-rota | Não documentado | — | Testar na instância no bloco 0 |
+| P-36 · retorno do OAuth/cadastro numa sub-rota | Em parte | `overview.md` § Navegação SPA: sub-rota pelo path, query em `window.location.search` | Testar na instância o redirecionamento da Meta (bloco 0, R.6) |
 
 **Bloqueados enquanto P-31/P-32 não saem:** bloco 6, bloco 7 (depende do 6), a parte do 9 que age no WhatsApp e o fechamento (10). Alternativa (caminho B, parceiro Meta) só por decisão do dono.
 
@@ -89,14 +89,14 @@ Conferida em 18/10/2026 contra `@urbiverso/sdk` **100.0.0** (shell **0.56.37**, 
 | # | Ajuste | Motivo (SDK) |
 |---|---|---|
 | 0 | Pisos `sdk_min: 100`, `shell_min: "0.56.37"` (não 94/0.56.25). Confirmar que a instância intermediária roda shell ≥ 0.56.37 | KIT.md: "copie; não chute"; a spec já usa `urbi-planilha` (SDK 98) e `urbi-card` com ícone (SDK 100) |
-| 0 | Identidade `rafaleandrog/app-corretor::portal_corretor` | `obsolescencias.json`: manifesto sem identidade reprova a partir de 28/10/2026 |
+| 0 | Identidade `rafaleandrog/app-corretor::portal_corretor` | `obsolescencias.json`: manifesto sem identidade já é erro desde 13/10 e reprova a partir de 28/10/2026 |
 | 0 | Testar na instância: página pública com parâmetro (`/p/joao` ou `/p?c=joao`) e retorno de redirecionamento numa sub-rota autenticada (P-36) | Catálogo de páginas públicas é por caminho fixo; segmento dinâmico não documentado |
 | 0 | Release pelo `release.yml` do kit (ele chama o `urbi-release`); secret `URBIVERSO_PACKAGES_TOKEN` no repositório | `apps-em-repo-proprio.md` § Release |
 | 1 | Corretor convidado por `req.shell.externos.convidar({email, contaNome})` (uma conta nova por corretor); o **papel `corretor` é atribuído depois pelo admin da app** (o convite não leva papel) | `contas.md` § Superfície; `PROVISIONA_SEM_PAPEL` |
 | 1 | Contas e usuários da semente criados **à mão** na instância; `aoIniciar` só semeia dados nas contas de demonstração (`comConta`) | Migração e `aoIniciar` não criam conta nem usuário |
 | 1 | "Teste de isolamento automatizado" redefinido: (a) testes unitários das rotas com `req.dados` simulado, em todo PR — papel certo/errado, cliente só vê `itens_cliente`; (b) roteiro HTTP na instância com os 4 usuários de teste, a cada bloco | O SDK não traz banco de teste para app; o RLS só se prova na instância |
 | 1 | Payload de evento segregado **sem dado pessoal** | O externo da conta (cliente) lista os eventos segregados da conta (`barramento.md`) |
-| 1 | Avisos ao corretor pela tela Início + e-mail (não `req.notificacoes`) | `permissoes.md`: externo "sem notificações" |
+| 1 | Avisos ao corretor pela tela Início + e-mail (não `req.notificacoes`) | `permissoes.md`: o shell do externo não mostra notificações; entrega a externo só com opt-in por tipo (`barramento.md`) |
 | 2–3 | Remoção por **rota própria** que chama `req.dados.remover` (o `PATCH …/remover` genérico fica trancado por `restrito`); `DELETE` do corretor vira essa rota | `banco-de-dados.md`; externo tem teto `escrita` |
 | 2–3 | Ids inteiros (não uuid); download de foto por rota própria com `req.arquivos.url` | `banco-de-dados.md` |
 | 3 | Descrição por IA depende dos slots de IA autorizados para a app pelo admin | `ia.md` |
