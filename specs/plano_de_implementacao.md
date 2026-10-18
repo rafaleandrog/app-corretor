@@ -12,7 +12,7 @@ Telas, funções, permissões, caminhos e automações prontos, testados pela eq
 
 | # | Bloco | Spec | Depende de | Pronto quando | Status |
 |---|---|---|---|---|---|
-| 0 | **Verificação e esqueleto da plataforma:** conferir no SDK os itens [plataforma] e `specs/pedidos_ao_shell.md` (itens 1 a 3); definir `shell_min`/`sdk_min`; repositório, build, empacote e instalação vazia na instância intermediária; abrir a issue | 4, 5, 9.0, 9.8, pedidos | — | App vazia instala pelo `.urbiapp.tgz`; relatório dos itens do shell entregue ao dono | [~] |
+| 0 | **Verificação e esqueleto da plataforma:** conferir no SDK os itens [plataforma] e `specs/pedidos_ao_shell.md` (itens 1 a 3); definir `shell_min`/`sdk_min`; repositório, build, empacote e instalação vazia na instância intermediária; abrir a issue | 4, 5, 9.0, 9.8, pedidos | — | App vazia instala pelo `.urbiapp.tgz`; relatório dos itens do shell entregue ao dono | [~] código pronto (`apps/portal_corretor` 0.1.0, PR aberto); falta o dono instalar na instância e conferir o diagnóstico (R.6) |
 | 1 | **Contas, papéis e isolamento:** roles e `roles_externos`, convite de corretor e de cliente, `perfil_conta`, `perfis_corretor`, `configuracoes_conta`, `itens_cliente`, semente idempotente (2 corretores, 2 clientes), **teste de isolamento automatizado** | 4.4, 4.5, 5, 6.0, 6.1, 6.15, 12.2 | 0 | Teste de isolamento passa; cada papel vê só o que deve | [ ] |
 | 2 | **CRM:** contatos, negócios, etapas configuráveis, linha do tempo, tarefas, agenda, visitas, importação CSV, exportação; tela Clientes | 6.2, 7.1, 7.4, 11.1, 12.1 | 1 | Cadastrar, mover, importar e exportar; telas no computador e no celular | [ ] |
 | 3 | **Imóveis (anúncios) e empreendimentos:** fotos (upload em 2 passos), descrição por IA, qualidade, autorização anexada, visibilidade; tela Imóveis | 6.3, 6.12, 10.6, 11.1 | 1 | Imóvel com fotos em menos de 3 min; qualidade calculada; só públicos aparecem fora | [ ] |
@@ -63,6 +63,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
 | 18/10/2026 | Preparação | Repositório criado com o kit 100.3.16, specs e CLAUDE.md; revisão de viabilidade contra o SDK 100 aprovada (R.1–R.5); decisões D-55 a D-60 | — | Bloco 0 |
+| 18/10/2026 | 0 | Esqueleto `apps/portal_corretor` 0.1.0: manifesto (identidade, pisos 100/0.56.37), rota `/status`, tela inicial, página pública e linha de diagnóstico, testes (manifesto e rotas), `docs/README.md`; empacotador limpo | (este PR) | Dono instala e confere R.6; depois bloco 1 |
 
 ---
 
@@ -139,3 +140,10 @@ Conferida em 18/10/2026 contra `@urbiverso/sdk` **100.0.0** (shell **0.56.37**, 
 | Contas de teste do WhatsApp como testadoras | Bloco 6 |
 | Roteiro das 30 perguntas do Assistente | Bloco 9 |
 | P-26 (caminho A/B/C) e, se A, verificação da empresa e revisão do app; termos e privacidade | Em paralelo; obrigatório na fase 2 |
+
+### R.6 Conferência do bloco 0 na instância (dono, depois de instalar)
+
+1. Admin › Instaláveis › Apps → instalar `portal_corretor` (do repositório, depois do release, ou por upload do `dist/portal_corretor-0.1.0.urbiapp.tgz`). Deve instalar sem `422`.
+2. Abrir o app: aparece "Portal do Corretor em construção · Versão 0.1.0".
+3. Abrir `/portal_corretor/retorno?code=teste`: a linha "Endereço desta tela" mostra `/portal_corretor/retorno?code=teste` (P-36 ok) — ou o app não abre (P-36 precisa de outro caminho).
+4. Sem login, abrir `/portal_corretor/p`, `/portal_corretor/p/teste` e `/portal_corretor/p?c=teste`: anotar quais abrem a página e o que a rota pública respondeu. Decide se a Minha Página usa `/p/<slug>` ou `/p?c=<slug>`.
