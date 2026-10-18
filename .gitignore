@@ -1,0 +1,6 @@
+node_modules/
+dist/
+apps/*/backend/rotas.js
+apps/*/frontend/index.js
+modulos/*/backend/modulo.js
+modulos/*/frontend/modulo.js

@@ -1,0 +1,8 @@
+{
+  "nome": "Olá, mundo",
+  "versao": "0.1.0",
+  "descricao": "App de exemplo: cumprimenta quem está logado.",
+  "identidade": "rafaleandrog/app-corretor::ola_mundo",
+  "shell_min": "0.56.37",
+  "sdk_min": 100
+}

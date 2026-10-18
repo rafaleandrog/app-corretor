@@ -1,0 +1,22 @@
+packages:
+  - 'apps/*'
+  - 'modulos/*/backend'
+
+# Versões compartilhadas pelas apps e módulos, num lugar só. Cada pacote referencia
+# `catalog:`. O @urbiverso/sdk fica em versão EXATA, sem ^: o major dele é o
+# sdk_min que a app declara, então subir é ato deliberado.
+catalog:
+  '@types/express': ^4.17.21
+  '@types/node': ^20.14.0
+  '@urbiverso/sdk': '100.0.0'
+  esbuild: ^0.24.0
+  express: ^4.21.0
+  lit: ^3.2.0
+  typescript: ^5.6.0
+
+# O esbuild traz o binário da plataforma por optionalDependency, então o script
+# de pós-instalação dele não faz falta — e sem esta linha o pnpm avisa em
+# amarelo que "ignorou scripts de build" na primeira instalação, que para quem
+# não é desenvolvedor parece defeito.
+allowBuilds:
+  esbuild: false

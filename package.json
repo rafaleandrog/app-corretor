@@ -1,0 +1,13 @@
+{
+  "name": "apps-urbiverso",
+  "private": true,
+  "description": "Apps e módulos urbiverso deste repositório, distribuídos como releases .urbiapp.tgz / .urbimod.tgz",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "build": "pnpm -r build",
+    "empacotar": "pnpm -r empacotar"
+  }
+}
