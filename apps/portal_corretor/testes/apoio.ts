@@ -253,6 +253,8 @@ export interface Ator {
   papeis: string[];
   /** Nível do usuário na app; padrão `escrita`. */
   nivel?: string;
+  /** Contas visíveis de quem atende várias (leitura do conjunto); `conta` vira a de escrita (`X-Conta`). */
+  contas?: number[];
   /** Outros helpers do request (`arquivos`, `ia`), quando o teste precisa deles. */
   extras?: Record<string, unknown>;
 }
@@ -273,11 +275,11 @@ export async function comServidor<T>(
       nivelApp: ator.nivel ?? 'escrita',
       rolesApp: ator.papeis,
       permissoesApps: {},
-      resolucao: ator.conta === null ? 'negar' : 'escopado',
-      contas: ator.conta === null ? [] : [ator.conta],
+      resolucao: ator.conta === null && !ator.contas ? 'negar' : 'escopado',
+      contas: ator.contas ?? (ator.conta === null ? [] : [ator.conta]),
       contaEscrita: ator.conta ?? undefined,
     };
-    (req as any).dados = banco.dados(ator.conta);
+    (req as any).dados = banco.dados(ator.conta, !!ator.contas);
     (req as any).shell = shell;
     Object.assign(req, ator.extras ?? {});
     next();

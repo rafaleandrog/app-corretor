@@ -106,3 +106,28 @@ test('conta não informada (várias contas, sem X-Conta) diz o que fazer', async
     assert.match(r.corpo.mensagem, /seletor/);
   });
 });
+
+test('quem atende várias contas só enxerga e só mexe na conta ativa', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, semShell, async (chamar) => {
+    assert.equal((await chamar('POST', '/contatos', { nome: 'Ana da 100', telefone: '(61) 99999-0001' })).status, 201);
+  });
+  await comServidor(rotas, B, banco, semShell, async (chamar) => {
+    assert.equal((await chamar('POST', '/contatos', { nome: 'Bia da 200', telefone: '(61) 99999-0002' })).status, 201);
+  });
+  const atendente: Ator = { usuario: 8, conta: 100, contas: [100, 200], papeis: ['corretor'] };
+  await comServidor(rotas, atendente, banco, semShell, async (chamar) => {
+    const r = await chamar('GET', '/contatos');
+    assert.deepEqual(r.corpo.dados.map((c: any) => c.nome), ['Ana da 100']);
+  });
+  await comServidor(rotas, { ...atendente, conta: 200 }, banco, semShell, async (chamar) => {
+    const r = await chamar('GET', '/contatos');
+    assert.deepEqual(r.corpo.dados.map((c: any) => c.nome), ['Bia da 200']);
+  });
+  // Sem conta ativa declarada: nada de lista misturada, e a resposta diz o que fazer.
+  await comServidor(rotas, { ...atendente, conta: null }, banco, semShell, async (chamar) => {
+    const r = await chamar('GET', '/contatos');
+    assert.equal(r.status, 400);
+    assert.equal(r.corpo.codigo, 'CONTA_NAO_INFORMADA');
+  });
+});

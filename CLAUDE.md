@@ -40,6 +40,13 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 4. PR com `Closes #<issue>` quando houver issue. **Merge só com autorização expressa do dono na conversa.**
 5. Termine a sessão dizendo o que ficou pronto, o que ficou pendente e qual é o próximo bloco.
 
+## Armadilhas já encontradas
+
+- **Mudou algo em `apps/portal_corretor/docs/`?** Rode `pnpm ajuda` na pasta da app e commite `comum/ajuda-gerada.ts`; sem isso o teste da base de ajuda derruba o CI.
+- **Reiniciar a branch depois de um merge:** `git fetch origin main` antes de `git checkout -B <branch> origin/main`, senão a branch nasce sem o PR anterior.
+- **Telas chamam o app por `chamarApi`/`chamarFetch`** (`frontend/apoio.ts`), nunca por `urbiVerso.api`/`fetch` direto: é isso que manda a conta ativa em `X-Conta` para quem atende várias contas (um teste confere).
+- **Rotas leem e gravam só por `req.dados`:** com várias contas ele vem restrito à conta ativa nas tabelas segregadas (`backend/escopo.ts`; tabela não segregada, como `vitrine_publica`, passa sem escopo). Verbos sem escopo possível (`travessia`, `*Varios`, `criarOuAtualizar`, `limpar*`, e sempre `sqlDeclarado` e `comConta`) falham alto com várias contas; não crie outro caminho de leitura.
+
 ## Regras que não se quebram
 
 - **Isolamento:** toda tabela com `segregada_por_conta: true` e `acesso_externo: "restrito"`. Nenhuma tabela fora do RLS, com uma exceção decidida pelo dono: `vitrine_publica` (D-55), só com o que o corretor publicou e sem dado pessoal. Acesso só por rotas próprias, checando role (`corretor`, `cliente`, `operacao`, `suporte`) e escopando por `usuario.id`. Recurso de outra conta responde "não encontrado". O teste de isolamento (spec 4.5) roda em todo PR.
