@@ -166,7 +166,7 @@ test('rotina diária esfria quem ficou 7 dias sem contato, só uma vez e por con
   const r4 = await rotinas.reclassificar_contatos(quebrada);
   assert.equal(r4.ok, false);
   assert.equal(r4.resultado.trocados, 1, 'a conta B foi processada');
-  assert.match(r4.erro, /conta 100/);
+  assert.match(String((r4 as { erro?: string }).erro), /conta 100/);
 });
 
 test('isolamento do funil: B não vê quadro, fila nem playbook de A, e não age nos contatos de A', async () => {
