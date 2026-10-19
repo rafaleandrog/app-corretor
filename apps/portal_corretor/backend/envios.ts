@@ -4,10 +4,11 @@ import { randomBytes } from 'node:crypto';
 import { assincrono, erro, guardarCorretor } from './acesso';
 import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
+import { criarLink } from './vitrine';
 
 // Envios (bloco 4b, spec 6.15): o histórico de tudo que o corretor mandou a cada cliente. Nesta
-// versão o envio é registrado pelo corretor (ele manda pelo próprio WhatsApp); o link rastreado
-// com contagem de cliques chega com as páginas públicas (bloco 5), que são o destino do link.
+// versão o envio é registrado pelo corretor (ele manda pelo próprio WhatsApp). Com a página no ar e
+// o imóvel publicado, a mensagem leva o link rastreado, que abre a ficha pública e conta o clique (bloco 5).
 export const enviosRotas: Router = Router();
 guardarCorretor(enviosRotas, ['/envios']);
 
@@ -38,6 +39,7 @@ enviosRotas.post(
     if (nid && (!negocio || negocio.contato_id !== cid)) return erro(res, 422, 'DADOS_INVALIDOS', 'Negócio não encontrado para este cliente.');
     const descricao = typeof req.body?.descricao === 'string' ? req.body.descricao.trim().slice(0, 300) || null : null;
     const agora = new Date().toISOString();
+    const codigoLink = randomBytes(6).toString('base64url');
     const envio = await dados.criar('envios', {
       contato_id: cid,
       negocio_id: nid,
@@ -46,8 +48,7 @@ enviosRotas.post(
       canal,
       autor_tipo: 'humano',
       descricao,
-      // Código curto reservado para o link rastreado (bloco 5); ainda não há página de destino.
-      link_rastreado: randomBytes(6).toString('base64url'),
+      link_rastreado: codigoLink,
       enviado_em: agora,
       cliques: 0,
     });
@@ -55,12 +56,14 @@ enviosRotas.post(
     await registrar(dados, req, { tipo: 'envio.registrado', alvo_tipo: 'contato', alvo_id: cid!, contato_id: cid!, resumo: `Enviado por ${canal}: ${oQue}` });
     await dados.atualizar('contatos', cid!, { ultimo_contato_em: agora });
     await reclassificar(dados, cid!);
+    // Link rastreado só quando o imóvel está na página pública; sem ele, a mensagem segue sem link.
+    const link = imovel ? await criarLink(req, codigoLink, imovel.id).catch(() => null) : null;
     // Texto pronto para o corretor colar no WhatsApp (sem dado do proprietário nem endereço completo).
     const primeiroNome = String(contato.nome).split(' ')[0];
     const mensagem = imovel
-      ? `Olá, ${primeiroNome}! Separei este imóvel para você: ${imovel.titulo ?? imovel.tipo} em ${[imovel.bairro, imovel.cidade].filter(Boolean).join(', ')}, ${reais(imovel.preco_c)}. Posso te mandar mais fotos ou marcar uma visita?`
+      ? `Olá, ${primeiroNome}! Separei este imóvel para você: ${imovel.titulo ?? imovel.tipo} em ${[imovel.bairro, imovel.cidade].filter(Boolean).join(', ')}, ${reais(imovel.preco_c)}.${link ? ` Fotos e detalhes: ${link}` : ''} Posso te mandar mais fotos ou marcar uma visita?`
       : null;
-    res.status(201).json({ envio, mensagem });
+    res.status(201).json({ envio, mensagem, link });
   }),
 );
 

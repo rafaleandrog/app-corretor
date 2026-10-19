@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.6.0)
+## O que existe nesta versão (0.7.0)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -19,12 +19,14 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Agenda** | Atividades pendentes dos próximos 14 dias |
 | Corretor | **Imóveis › Minha carteira** | Imóveis com fotos, qualidade do anúncio, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Imóveis › Empreendimentos** | Lançamentos com materiais e as unidades da carteira |
+| Corretor | **Minha página** | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
+| Visitante | **Página e ficha pública** (sem login) | A página do corretor e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
 | Corretor | **Ajustes › Funil e abordagens** | As etapas de cada funil, a chance de fechar e a abordagem por etapa e temperatura |
 | Corretor | **Ajustes › Conta e marca** | Seus dados, os dados da conta e as regras de atendimento — ver [Conta e ajustes](conta-e-ajustes.md) |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
-Ainda não há páginas públicas nem integrações. A IA aparece só nos imóveis (descrição e leitura de fotos), quando liberada pelo administrador. Cada
-funcionalidade passa a constar aqui na versão em que chegar.
+Ainda não há integrações (WhatsApp, Instagram). A IA aparece nos imóveis (descrição e leitura de fotos) e na Minha página (textos), quando
+liberada pelo administrador. Cada funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Papéis
 
@@ -35,19 +37,11 @@ funcionalidade passa a constar aqui na versão em que chegar.
 
 Sem o papel, a tela mostra "Esta área não está liberada para você" e diz qual papel pedir.
 
-### Página de diagnóstico (temporária)
+### Endereço recebido (diagnóstico)
 
-Duas peças existem só para a equipe conferir a instalação e saem quando as telas de verdade
-chegarem:
-
-- **Página pública** em `/portal_corretor/p` (sem login): mostra o endereço com que abriu e o que a
-  rota pública `/api/pub/portal_corretor/diagnostico` respondeu. Não mostra dado nenhum. A equipe
-  também tenta `/portal_corretor/p/teste` e `/portal_corretor/p?c=teste` — é uma **verificação**:
-  a plataforma não garante que esses endereços abram a mesma página, e o resultado decide o formato
-  do endereço público do corretor.
-- **Endereço recebido**: ao abrir um endereço que o app não conhece, como
-  `/portal_corretor/retorno?code=teste`, a tela "Página não encontrada" mostra
-  `/retorno?code=teste` (usado mais tarde no retorno das conexões com a Meta).
+Ao abrir um endereço que o app não conhece, como `/portal_corretor/retorno?code=teste`, a tela
+"Página não encontrada" mostra `/retorno?code=teste`. Serve para a equipe conferir o retorno das
+conexões com a Meta, quando elas chegarem.
 
 ## Para o administrador da instância
 
@@ -58,6 +52,9 @@ chegarem:
 
 - **Rotina:** "Temperatura dos contatos" (diária) esfria quem passou 7 dias sem contato. O horário
   e o liga-desliga ficam em Configurações da app › Rotinas (admin da app); sem ajuste, roda às 06:00 UTC.
+
+- **Páginas públicas e webhooks:** a página do corretor, a ficha do imóvel, o formulário e o link
+  rastreado — ver [Minha página, ficha pública e link rastreado](minha-pagina.md#para-o-administrador-da-instância).
 
 ## Serviços externos
 

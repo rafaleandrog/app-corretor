@@ -25,6 +25,7 @@ import {
 } from '../comum/imoveis';
 import { normalizarPapeis } from '../comum/crm';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { tentarSincronizar } from './vitrine';
 
 // Imóveis (anúncios), mídias, autorizações de venda e empreendimentos (bloco 3). Tabelas
 // segregadas por conta; arquivos servidos só por URL assinada gerada aqui (tabela `restrito`).
@@ -139,6 +140,7 @@ imoveisRotas.get(
     if (typeof req.query.situacao === 'string' && (SITUACOES_IMOVEL as readonly string[]).includes(req.query.situacao)) filtros.situacao = req.query.situacao;
     const eid = id(req.query.empreendimento_id);
     if (eid) filtros.empreendimento_id = eid;
+    if (req.query.publicado_pagina === 'true') filtros.publicado_pagina = true;
     const busca = typeof req.query.busca === 'string' ? req.query.busca.trim().slice(0, 100) : '';
     const pagina = Math.min(Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1), 1000);
     const r = await req.dados!.listar('imoveis', {
@@ -295,6 +297,8 @@ imoveisRotas.patch(
       const imovel = await dados.atualizar('imoveis', iid!, mudar);
       if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
       await marcarProprietario(dados, novoProprietario);
+      // A vitrine pública acompanha o anúncio (bloco 5).
+      await tentarSincronizar(req, imovel.id);
       res.json(imovel);
     } catch (e) {
       if (violouUnico(e)) return erro(res, 409, 'CODIGO_REPETIDO', 'Já existe um imóvel com este código.');
@@ -312,6 +316,7 @@ imoveisRotas.patch(
     // Sai da página antes de sair da lista; mídias e autorizações ficam (soft delete).
     await dados.atualizar('imoveis', iid, { publicado_pagina: false });
     await dados.remover('imoveis', iid, req.contexto!.usuario.id);
+    await tentarSincronizar(req, iid);
     res.json({ ok: true });
   }),
 );
@@ -350,6 +355,7 @@ imoveisRotas.post(
         // Documento (autorização, matrícula) nunca é público; o resto nasce público.
         publica: tipo === 'documento' ? false : req.body?.publica !== false,
       });
+      await tentarSincronizar(req, imovel.id);
       res.status(201).json({ ...midia, url: await url(req, midia.arquivo) });
     } catch (e) {
       const r = uploadRecusado(e);
@@ -375,6 +381,7 @@ imoveisRotas.put(
     await dados.transaction(async (trx) => {
       for (const [ordem, mid] of lista.entries()) await trx.atualizar('imovel_midias', mid!, { ordem });
     });
+    await tentarSincronizar(req, imovel.id);
     res.json({ ok: true });
   }),
 );
@@ -415,6 +422,7 @@ imoveisRotas.patch(
     }
     if ((mudar.tipo ?? midia.tipo) === 'documento' && (mudar.publica ?? midia.publica)) mudar.publica = false;
     const salva = Object.keys(mudar).length ? await req.dados!.atualizar('imovel_midias', midia.id, mudar) : midia;
+    await tentarSincronizar(req, imovel!.id);
     res.json(salva);
   }),
 );
@@ -430,6 +438,7 @@ imoveisRotas.patch(
     if (usa) return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização assinada. Revogue ou troque o documento antes.');
     // Apagar de verdade leva o arquivo para a fila de exclusão (arquivos.md).
     await dados.deletar('imovel_midias', midia.id);
+    await tentarSincronizar(req, imovel!.id);
     res.json({ ok: true });
   }),
 );
@@ -461,6 +470,7 @@ imoveisRotas.post(
       // A legenda da IA só preenche a vazia: a do corretor nunca é trocada.
       ...(midia.legenda || !legenda ? {} : { legenda }),
     });
+    if (!midia.legenda && legenda) await tentarSincronizar(req, imovel!.id);
     res.json(salva);
   }),
 );
@@ -512,6 +522,7 @@ imoveisRotas.post(
       await marcarProprietario(trx, p.contato);
       return nova;
     });
+    await tentarSincronizar(req, imovel.id);
     res.status(201).json(aut);
   }),
 );
@@ -545,6 +556,7 @@ imoveisRotas.patch(
       return erro(res, 422, 'DOCUMENTO_OBRIGATORIO', 'Anexe o documento assinado antes de marcar a autorização como assinada.');
     }
     const aut = await dados.atualizar('autorizacoes_venda', aid!, mudar);
+    await tentarSincronizar(req, atual.imovel_id);
     res.json(aut);
   }),
 );

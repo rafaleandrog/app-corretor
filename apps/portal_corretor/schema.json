@@ -1505,6 +1505,127 @@
           "imovel_id"
         ]
       ]
+    },
+    "paginas_corretor": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{endereco}",
+      "colunas": {
+        "chave": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "conta",
+          "opcoes": [
+            "conta"
+          ],
+          "unico": true
+        },
+        "endereco": {
+          "tipo": "texto",
+          "limite": 40,
+          "obrigatorio": true,
+          "formato": "^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$"
+        },
+        "nome_exibicao": {
+          "tipo": "texto",
+          "limite": 120,
+          "obrigatorio": true
+        },
+        "tema": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "oceano",
+          "opcoes": [
+            "oceano",
+            "mata",
+            "grafite",
+            "terracota",
+            "vinho"
+          ]
+        },
+        "blocos": {
+          "tipo": "json",
+          "obrigatorio": true
+        },
+        "publicada_em": {
+          "tipo": "datahora"
+        },
+        "gerada_por_ia": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "ingresso_formulario_id": {
+          "tipo": "inteiro"
+        },
+        "url_formulario": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "ingresso_clique_id": {
+          "tipo": "inteiro"
+        },
+        "url_clique": {
+          "tipo": "texto",
+          "limite": 300
+        }
+      }
+    },
+    "vitrine_publica": {
+      "segregada_por_conta": false,
+      "acesso_externo": "restrito",
+      "id_legivel": "{chave}",
+      "colunas": {
+        "conta": {
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "pagina",
+            "imovel",
+            "link"
+          ]
+        },
+        "chave": {
+          "tipo": "texto",
+          "limite": 80,
+          "obrigatorio": true
+        },
+        "codigo": {
+          "tipo": "texto",
+          "limite": 30
+        },
+        "dados": {
+          "tipo": "json",
+          "obrigatorio": true
+        },
+        "publicado_em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        }
+      },
+      "unicos": [
+        [
+          "tipo",
+          "chave"
+        ]
+      ],
+      "indices": [
+        [
+          "conta",
+          "tipo"
+        ],
+        [
+          "conta",
+          "codigo"
+        ]
+      ]
     }
   }
 }

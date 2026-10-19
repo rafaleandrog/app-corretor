@@ -2,7 +2,6 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import './diagnostico.js';
 import './telas/inicio.js';
 import './telas/conta.js';
 import './telas/corretores.js';
@@ -17,6 +16,9 @@ import './telas/empreendimentos.js';
 import './telas/ficha-empreendimento.js';
 import './telas/funil.js';
 import './telas/desempenho.js';
+import './telas/pagina.js';
+import './publico/pagina-publica.js';
+import './publico/link.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -42,6 +44,7 @@ const TELAS: Record<string, Tela> = {
     render: (id) => html`<pc-tela-ficha-empreendimento .empreendimentoId=${Number(id)}></pc-tela-ficha-empreendimento>`,
   },
   '/desempenho': { titulo: 'Desempenho', papel: 'corretor', render: () => html`<pc-tela-desempenho></pc-tela-desempenho>` },
+  '/pagina': { titulo: 'Minha página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
   '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
   '/ajustes/funil': { titulo: 'Funil e abordagens', papel: 'corretor', render: () => html`<pc-tela-funil-ajustes></pc-tela-funil-ajustes>` },

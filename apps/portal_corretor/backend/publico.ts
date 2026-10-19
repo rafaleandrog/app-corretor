@@ -1,0 +1,260 @@
+import '@urbiverso/sdk/express';
+import { Router, type Request, type Response } from 'express';
+import { createHash } from 'node:crypto';
+import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
+import { ETAPAS_PADRAO } from '../comum/crm';
+import { iso, MARCO_PADRAO } from '../comum/funil';
+import { validarLead } from '../comum/pagina';
+import { reclassificar } from './inteligencia';
+
+// Superfícies públicas do bloco 5 (paginas-publicas.md, wh.md, D-55):
+// - rotas GET anônimas que leem só a vitrine pública (a página, a ficha do imóvel, o link);
+// - webhooks recorrentes por conta (formulário de contato e clique no link), que só validam,
+//   publicam um evento segregado com a conta do ingresso e respondem — o `req.dados` do handler
+//   de wh não serve em app segregada (contas.md § Modo de conexão);
+// - listeners que gravam na conta do evento, por `comConta` (contexto SISTEMA).
+
+type Linha = Record<string, any>;
+const TTL_FOTO = 6 * 3600;
+
+export const rotasPublicas: Router = Router();
+
+async function vitrine(dados: HelperDados, filtros: Record<string, unknown>) {
+  const r = await dados.listar('vitrine_publica', { filtros, por_pagina: 1 });
+  return r.dados[0] ?? null;
+}
+
+async function urlFoto(req: Request, arquivo: number | undefined): Promise<string | null> {
+  if (!arquivo || !req.arquivos) return null;
+  try {
+    return await req.arquivos.url(arquivo, TTL_FOTO);
+  } catch {
+    return null; // foto que saiu não derruba a página
+  }
+}
+
+/** Autorização vencida desde a última publicação: o anúncio some sozinho (data civil, fuso de Brasília). */
+const hoje = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+const noPrazo = (l: Linha | null) => !!l && (!l.dados?.vigente_ate || String(l.dados.vigente_ate) >= hoje());
+
+const texto = (v: unknown, limite: number) => (typeof v === 'string' ? v.trim().slice(0, limite) : '');
+const naoEncontrado = (res: Response) => res.status(404).json({ erro: true, codigo: 'NAO_ENCONTRADO', mensagem: 'Página não encontrada.' });
+
+/** Página do corretor com os cartões dos imóveis publicados. */
+rotasPublicas.get('/vitrine/pagina', async (req, res, next) => {
+  try {
+    const endereco = texto(req.query.c, 40).toLowerCase();
+    const pagina = endereco ? await vitrine(req.dados!, { tipo: 'pagina', chave: endereco }) : null;
+    if (!pagina) return naoEncontrado(res);
+    const imoveis = await req.dados!.varrerTudo('vitrine_publica', { filtros: { tipo: 'imovel', conta: pagina.conta }, ordenar: 'publicado_em', ordem: 'desc', maximo: 2000 });
+    const cartoes = await Promise.all(
+      imoveis.filter(noPrazo).map(async (l) => {
+        const im = l.dados as Linha;
+        return {
+          codigo: im.codigo, titulo: im.titulo, tipo: im.tipo, situacao: im.situacao, preco_c: im.preco_c,
+          bairro: im.bairro, cidade: im.cidade, quartos: im.quartos, area_util_m2: im.area_util_m2 ?? im.area_total_m2, vagas: im.vagas,
+          capa: await urlFoto(req, im.fotos?.[0]?.arquivo),
+        };
+      }),
+    );
+    res.json({ pagina: pagina.dados, imoveis: cartoes });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/** Ficha pública de um imóvel da página. */
+rotasPublicas.get('/vitrine/imovel', async (req, res, next) => {
+  try {
+    const endereco = texto(req.query.c, 40).toLowerCase();
+    const codigo = texto(req.query.i, 30);
+    const pagina = endereco && codigo ? await vitrine(req.dados!, { tipo: 'pagina', chave: endereco }) : null;
+    const linha = pagina ? await vitrine(req.dados!, { tipo: 'imovel', conta: pagina.conta, codigo }) : null;
+    if (!pagina || !noPrazo(linha)) return naoEncontrado(res);
+    const { vigente_ate: _prazo, ...im } = linha!.dados as Linha;
+    const fotos = await Promise.all((im.fotos ?? []).map(async (f: Linha) => ({ url: await urlFoto(req, f.arquivo), legenda: f.legenda ?? null })));
+    res.json({ pagina: pagina.dados, imovel: { ...im, fotos: fotos.filter((f) => f.url) } });
+  } catch (e) {
+    next(e);
+  }
+});
+
+/** Link rastreado: para onde vai e onde contar o clique (a contagem entra pelo wh `clique_link`). */
+rotasPublicas.get('/vitrine/link', async (req, res, next) => {
+  try {
+    const codigo = texto(req.query.c, 24);
+    const link = codigo ? await vitrine(req.dados!, { tipo: 'link', chave: codigo }) : null;
+    if (!link) return naoEncontrado(res);
+    const imovel = link.dados?.imovel_chave ? await vitrine(req.dados!, { tipo: 'imovel', conta: link.conta, chave: link.dados.imovel_chave }) : null;
+    const pagina = imovel ? await vitrine(req.dados!, { tipo: 'pagina', conta: link.conta }) : null;
+    res.json({
+      destino: imovel && noPrazo(imovel) && pagina ? `/portal_corretor/p?c=${encodeURIComponent(pagina.chave)}&i=${encodeURIComponent(imovel.codigo)}` : null,
+      url_clique: link.dados?.url_clique ?? null,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+// ---------- Webhooks ----------
+
+/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Só o hash do IP, nunca gravado. */
+const janelas = new Map<string, number[]>();
+export function dentroDoLimite(chave: string, maximo: number, agora = Date.now()): boolean {
+  const recentes = (janelas.get(chave) ?? []).filter((t) => agora - t < 60_000);
+  if (recentes.length >= maximo) {
+    janelas.set(chave, recentes);
+    return false;
+  }
+  recentes.push(agora);
+  janelas.set(chave, recentes);
+  if (janelas.size > 5000) for (const [k, v] of janelas) if (!v.some((t) => agora - t < 60_000)) janelas.delete(k);
+  return true;
+}
+export function limparLimites() {
+  janelas.clear();
+}
+
+function origem(req: Request): string {
+  const encaminhado = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
+  return createHash('sha256').update(encaminhado || req.ip || 'desconhecido').digest('hex').slice(0, 16);
+}
+
+const contaDoIngresso = (req: Request) => {
+  const c = Number((req.wh?.contexto as Linha | null)?.conta_id);
+  return Number.isInteger(c) && c > 0 ? c : null;
+};
+
+export const webhooks = {
+  /** Formulário da página e da ficha (7.3): honeypot `site`, limite por IP, consentimento obrigatório. */
+  formulario_lead: async (req: Request, res: Response) => {
+    const conta = contaDoIngresso(req);
+    if (!conta) return res.status(404).json({ erro: true, codigo: 'NAO_ENCONTRADO', mensagem: 'Formulário indisponível.' });
+    const corpo = (req.body ?? {}) as Record<string, unknown>;
+    // Robô preencheu o campo escondido: responde como sucesso e não faz nada.
+    if (typeof corpo.site === 'string' && corpo.site.trim()) return res.json({ ok: true });
+    if (!dentroDoLimite(`lead:${conta}:${origem(req)}`, 3)) {
+      return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitos envios seguidos. Espere um minuto e tente de novo.' });
+    }
+    const v = validarLead(corpo);
+    if (!v.ok) return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: 'Confira o formulário.', detalhes: v.erros });
+    await req.eventos!.publicar(
+      'lead_recebido',
+      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null },
+      { conta_id: conta },
+    );
+    res.json({ ok: true });
+  },
+
+  /** Clique no link rastreado: só conta, sem dado do visitante. */
+  clique_link: async (req: Request, res: Response) => {
+    const conta = contaDoIngresso(req);
+    const codigo = texto((req.body as Linha | undefined)?.codigo, 24);
+    if (!conta || !codigo) return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: 'Link inválido.' });
+    if (dentroDoLimite(`clique:${conta}:${origem(req)}`, 30)) await req.eventos!.publicar('link_clicado', { codigo }, { conta_id: conta });
+    res.json({ ok: true });
+  },
+};
+
+// ---------- Listeners ----------
+
+interface EventoConta {
+  id?: number;
+  payload: Record<string, any>;
+  conta_id?: number | null;
+}
+
+/** Quem responde pelo lead: quem gerou o ingresso (publicou a página), ou o primeiro corretor ativo da conta. */
+async function responsavel(dados: HelperDados, conta: number, sugerido: unknown): Promise<number | null> {
+  const perfis = await dados.varrerTudo('perfis_corretor', { filtros: { conta_id: conta }, maximo: 200 });
+  const ativos = perfis.filter((p) => p.ativo !== false);
+  const s = Number(sugerido);
+  if (ativos.some((p) => p.usuario_id === s)) return s;
+  return ativos[0]?.usuario_id ?? (Number.isInteger(s) && s > 0 ? s : null);
+}
+
+/**
+ * Lead da página (7.3): cria ou une o contato pelo telefone (ou e-mail), abre negócio "Novo" se
+ * ele não tem negócio de compra em andamento, registra o consentimento e a linha do tempo.
+ * Em SISTEMA a leitura enxerga todas as contas: toda leitura filtra a conta do evento.
+ */
+export async function aoReceberLead(evento: EventoConta, ctx: ContextoListener) {
+  const conta = evento.conta_id;
+  if (!conta || !ctx.dados?.comConta) return;
+  const p = evento.payload;
+  await ctx.dados.comConta(conta, async (trx) => {
+    const agora = new Date().toISOString();
+    const chave = p.telefone ? { telefone: p.telefone } : { email: p.email };
+    let contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, ...chave }, maximo: 1 }))[0] ?? null;
+    // Mesmo envio repetido em poucos minutos (duplo clique, reenvio): não duplica nada.
+    if (contato) {
+      const recentes = await trx.varrerTudo('linha_do_tempo', { filtros: { conta_id: conta, contato_id: contato.id, tipo: 'lead.recebido' }, maximo: 50 });
+      const limite = new Date(Date.now() - 5 * 60_000).toISOString();
+      if (recentes.some((l) => (iso(l.ocorrido_em) ?? '') >= limite && (l.dados as Linha | null)?.mensagem === (p.mensagem ?? null))) return;
+    }
+    const dono = await responsavel(trx, conta, p.responsavel_id);
+    if (!dono) throw new Error('conta sem corretor ativo para receber o lead');
+    const origens = await trx.varrerTudo('origens', { filtros: { conta_id: conta, canal: 'pagina' }, maximo: 50 });
+    const origem = origens.find((o) => !o.campanha) ?? (await trx.criar('origens', { canal: 'pagina', campanha: null }));
+    if (!contato) {
+      contato = await trx.criar('contatos', {
+        nome: p.nome, telefone: p.telefone ?? null, email: p.email ?? null, papeis: 'comprador',
+        responsavel_id: dono, origem_id: origem.id, ultimo_contato_em: agora, consentimento_em: agora,
+      });
+    } else {
+      await trx.atualizar('contatos', contato.id, { ultimo_contato_em: agora, consentimento_em: agora, ...(contato.email || !p.email ? {} : { email: p.email }) });
+    }
+    await trx.criar('consentimentos', { contato_id: contato.id, texto_versao: 'formulario-v1', canal: 'pagina', registrado_por_id: null, aceito_em: agora });
+    // Imóvel citado (ficha pública): liga o negócio a ele, se ainda for da conta.
+    const imovel = p.imovel_codigo ? (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, codigo: p.imovel_codigo }, maximo: 1 }))[0] : null;
+    const negocios = await trx.varrerTudo('negocios', { filtros: { conta_id: conta, contato_id: contato.id, pipeline: 'compra' }, maximo: 100 });
+    let etapas = await trx.varrerTudo('etapas_funil', { filtros: { conta_id: conta, pipeline: 'compra' }, maximo: 200 });
+    // Conta que nunca abriu o funil: semeia as etapas padrão, como a primeira leitura do app faria.
+    if (!etapas.length) {
+      for (const e of ETAPAS_PADRAO) await trx.criar('etapas_funil', { ...e, ativa: true, marco: MARCO_PADRAO[e.nome] ?? null });
+      etapas = await trx.varrerTudo('etapas_funil', { filtros: { conta_id: conta, pipeline: 'compra' }, maximo: 200 });
+    }
+    const abertas = new Set(etapas.filter((e) => e.tipo === 'aberta').map((e) => e.id));
+    let negocioId: number | null = negocios.find((n) => abertas.has(n.etapa_id))?.id ?? null;
+    const novo = etapas.filter((e) => e.tipo === 'aberta' && e.ativa !== false).sort((a, b) => a.ordem - b.ordem)[0];
+    if (!negocioId && novo) {
+      const n = await trx.criar('negocios', {
+        contato_id: contato.id, titulo: `Compra — ${p.nome}`.slice(0, 200), pipeline: 'compra', etapa_id: novo.id, etapa_desde: agora,
+        responsavel_id: dono, origem_id: origem.id, imovel_id: imovel?.id ?? null, marco_max: novo.marco ?? MARCO_PADRAO[novo.nome] ?? null,
+      });
+      negocioId = n.id;
+    }
+    const onde = imovel ? `pela ficha do ${imovel.codigo}` : 'pela sua página';
+    await trx.criar('linha_do_tempo', {
+      tipo: 'lead.recebido', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, autor_id: null, autor_papel: 'sistema',
+      resumo: `Pediu contato ${onde}${p.mensagem ? `: ${String(p.mensagem).slice(0, 200)}` : ''}`.slice(0, 300),
+      dados: { origem: p.origem, imovel_codigo: p.imovel_codigo ?? null, mensagem: p.mensagem ?? null, negocio_id: negocioId }, ocorrido_em: agora,
+    });
+    await reclassificar(trx, contato.id);
+  });
+}
+
+/** Clique no link: soma no envio da conta e registra o primeiro na linha do tempo. */
+export async function aoClicarLink(evento: EventoConta, ctx: ContextoListener) {
+  const conta = evento.conta_id;
+  if (!conta || !ctx.dados?.comConta) return;
+  const codigo = String(evento.payload.codigo ?? '');
+  await ctx.dados.comConta(conta, async (trx) => {
+    const envio = (await trx.varrerTudo('envios', { filtros: { conta_id: conta, link_rastreado: codigo }, maximo: 1 }))[0];
+    if (!envio) return;
+    const agora = new Date().toISOString();
+    const primeiro = !envio.primeiro_clique_em;
+    await trx.atualizar('envios', envio.id, { cliques: (envio.cliques ?? 0) + 1, ...(primeiro ? { primeiro_clique_em: agora } : {}) });
+    if (primeiro) {
+      await trx.criar('linha_do_tempo', {
+        tipo: 'envio.aberto', alvo_tipo: 'contato', alvo_id: envio.contato_id, contato_id: envio.contato_id, autor_id: null, autor_papel: 'sistema',
+        resumo: `Abriu o link que você mandou${envio.imovel_codigo ? ` (${envio.imovel_codigo})` : ''}`, dados: { envio_id: envio.id }, ocorrido_em: agora,
+      });
+    }
+  });
+}
+
+export const reagir = {
+  lead_recebido: aoReceberLead,
+  link_clicado: aoClicarLink,
+};

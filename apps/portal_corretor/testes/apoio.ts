@@ -15,6 +15,10 @@ const DATAHORA: Record<string, Set<string>> = Object.fromEntries(
     new Set(['criado_em', 'atualizado_em', 'removido_em', ...Object.entries(def.colunas).filter(([, c]) => c.tipo === 'datahora').map(([n]) => n)]),
   ]),
 );
+/** Tabelas fora da segregação (D-55): sem RLS, sem carimbo de conta. */
+const GLOBAIS = new Set(
+  Object.entries((schema as { tabelas: Record<string, { segregada_por_conta?: boolean }> }).tabelas).filter(([, d]) => d.segregada_por_conta === false).map(([t]) => t),
+);
 /** Cópia da linha como o `req.dados` devolve: `datahora` vira `Date`. */
 /** Gravação como o framework faz: `Date` vira ISO. */
 const comoGravado = (d: Record<string, unknown>) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]));
@@ -40,12 +44,22 @@ export class BancoFalso {
     return this.tabelas.get(tabela)!;
   }
 
-  /** Helper `req.dados` de uma conta (null = resolução NEGAR: lê vazio, escrita negada). */
-  dados(conta: number | null): any {
+  /**
+   * Helper `req.dados` de uma conta (null = resolução NEGAR: lê vazio, escrita negada). Tabela não
+   * segregada é vista inteira e gravada sem conta. `leituraGlobal` imita o SISTEMA dentro do
+   * `comConta`: lê todas as contas e grava na conta do bloco.
+   */
+  dados(conta: number | null, leituraGlobal = false): any {
     const banco = this;
     const visiveis = (tabela: string, removidos = false) =>
-      conta === null ? [] : banco.linhas(tabela).filter((l) => l.conta_id === conta && (removidos || !l.removido_em));
+      GLOBAIS.has(tabela) || leituraGlobal
+        ? banco.linhas(tabela).filter((l) => removidos || !l.removido_em)
+        : conta === null
+          ? []
+          : banco.linhas(tabela).filter((l) => l.conta_id === conta && (removidos || !l.removido_em));
+    let tabelaAtual = '';
     const exigirConta = () => {
+      if (GLOBAIS.has(tabelaAtual)) return;
       if (conta === null) throw Object.assign(new Error('CONTA_ACESSO_NEGADO'), { codigo: 'CONTA_ACESSO_NEGADO' });
     };
     const semReservado = (d: Record<string, unknown>) => {
@@ -68,7 +82,8 @@ export class BancoFalso {
       for (const unico of banco.unicos[tabela] ?? []) {
         const cols = unico.split('+');
         if (cols.some((c) => linha[c] === null || linha[c] === undefined)) continue;
-        if (visiveis(tabela).some((l) => l.id !== linha.id && cols.every((c) => l[c] === linha[c]))) {
+        const vizinhas = GLOBAIS.has(tabela) ? visiveis(tabela) : banco.linhas(tabela).filter((l) => l.conta_id === linha.conta_id && !l.removido_em);
+        if (vizinhas.some((l) => l.id !== linha.id && cols.every((c) => l[c] === linha[c]))) {
           throw Object.assign(new Error(`unico ${tabela}.${unico}`), { code: '23505' });
         }
       }
@@ -88,14 +103,16 @@ export class BancoFalso {
         return l ? comoLido(tabela, l) : null;
       },
       async remover(tabela: string, id: number, por?: number) {
+        tabelaAtual = tabela;
         exigirConta();
         const alvo = visiveis(tabela).find((l) => l.id === id);
         return alvo ? Object.assign(alvo, { removido_em: new Date().toISOString(), removido_por_id: por ?? null }) : null;
       },
       async deletar(tabela: string, id: number) {
+        tabelaAtual = tabela;
         exigirConta();
         const linhas = banco.linhas(tabela);
-        const i = linhas.findIndex((l) => l.id === id && l.conta_id === conta);
+        const i = linhas.findIndex((l) => l.id === id && (GLOBAIS.has(tabela) || l.conta_id === conta));
         if (i < 0) return false;
         linhas.splice(i, 1);
         return true;
@@ -107,16 +124,18 @@ export class BancoFalso {
         return visiveis(tabela).some((l) => casa(l, filtros));
       },
       async criar(tabela: string, d: Record<string, unknown>) {
+        tabelaAtual = tabela;
         exigirConta();
         semReservado(d);
         const agora = new Date().toISOString();
-        const linha = { criado_em: agora, atualizado_em: agora, ...comoGravado(d), id: banco.seq + 1, conta_id: conta! } as Linha;
+        const linha = { criado_em: agora, atualizado_em: agora, ...comoGravado(d), id: banco.seq + 1, ...(GLOBAIS.has(tabela) ? {} : { conta_id: conta! }) } as Linha;
         colide(tabela, linha);
         banco.seq++;
         banco.linhas(tabela).push(linha);
         return comoLido(tabela, linha);
       },
       async atualizar(tabela: string, id: number, d: Record<string, unknown>) {
+        tabelaAtual = tabela;
         exigirConta();
         semReservado(d);
         const alvo = visiveis(tabela).find((l) => l.id === id);
@@ -125,6 +144,7 @@ export class BancoFalso {
         return comoLido(tabela, Object.assign(alvo, comoGravado(d), { atualizado_em: new Date().toISOString() }));
       },
       async criarOuAtualizar(tabela: string, chave: string[], d: Record<string, unknown>) {
+        tabelaAtual = tabela;
         exigirConta();
         semReservado(d);
         const alvo = visiveis(tabela).find((l) => chave.every((c) => l[c] === d[c]));
@@ -147,7 +167,8 @@ export class BancoFalso {
           return todas(tabela).filter((l) => !l.removido_em && casa(l, op.filtros)).map((l) => comoLido(tabela, l));
         },
         async comConta(id: number, fn: (trx: any) => Promise<void>) {
-          const trx = banco.dados(id);
+          if (!contas.some((c) => c.id === id)) throw Object.assign(new Error('conta inativa'), { codigo: 'CONTA_INVALIDA' });
+          const trx = banco.dados(id, true);
           trx.existe = async (tabela: string, filtros: Record<string, unknown>) =>
             todas(tabela).some((l) => Object.entries(filtros).every(([k, v]) => String(l[k]) === String(v)));
           return fn(trx);

@@ -50,8 +50,8 @@ a mensagem pronta para colar no WhatsApp (nome do cliente, título, bairro e pre
 proprietário nem o endereço completo). O envio conta como contato com o cliente e entra na linha
 do tempo. A ficha do imóvel mostra a quem ele foi enviado.
 
-O link rastreado (saber se o cliente abriu) chega com as páginas públicas, que são o destino do
-link.
+Com a Minha página no ar e o imóvel publicado, a mensagem leva um link rastreado: a ficha do
+cliente mostra quantas vezes ele abriu — ver [Minha página, ficha pública e link rastreado](minha-pagina.md#link-rastreado).
 
 ## Dados de demonstração
 
