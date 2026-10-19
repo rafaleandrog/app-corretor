@@ -202,3 +202,18 @@ Executado pela equipe na instância intermediária, com a app instalada pelo pac
 
 Tudo do MVP está na `main`, com a versão 0.1.0. Quando o dono mandar: Actions → `release.yml` → Run workflow, alvo `portal_corretor`. O secret `URBIVERSO_PACKAGES_TOKEN` precisa estar nos secrets do repositório (KIT.md). Depois: instalar na instância intermediária e executar o R.8. Se alguma instância de teste tiver uma versão interna maior instalada à mão (pacote do `dist/`), desinstale antes, porque 0.1.0 é menor.
 
+
+### R.10 Roteiro de QA: admin do app com 2 contas (issue #34)
+
+Pré-requisitos: 0.1.4 ou posterior instalada; uma segunda conta de teste (`qa-…`) com o admin (ou o QA Principal) como membro; Instagram fora do roteiro enquanto a instância não o configurar (#30).
+
+1. **Seletor:** com 2 contas aparece **Conta** no alto das telas; com 1 não aparece.
+2. **Escrita:** Início, Funil, Funil e abordagens, Minha página e Conexões abrem sem erro de conta, em cada uma das duas contas.
+3. **Isolamento:** criar contato e imóvel na conta A; trocar para a B e conferir que não aparecem em Clientes, Imóveis, Funil nem Desempenho; voltar à A e conferir que continuam lá (#31).
+4. **Sem conta ativa (API):** chamada sem `X-Conta` responde `400 CONTA_NAO_INFORMADA` com a orientação.
+5. **Papéis:** o admin alcança as telas de corretor e a de Corretores (equipe); um usuário com papel só de corretor não alcança Corretores.
+6. **Perfil corretor:** convite aceito de um externo de teste; conferir que ele só vê a própria conta.
+7. **Fixtures:** importar CSV, subir fotos e autorização num imóvel, enviar seleção e abrir o Portal do Cliente pelo link.
+8. **Tela:** percorrer o menu no computador e no celular e registrar erros visíveis.
+
+Registrar o resultado no relatório da skill `qa` e abrir issue para o que quebrar.
