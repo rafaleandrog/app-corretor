@@ -16,6 +16,7 @@ const ESTADO: Record<string, { cor: string; rotulo: string }> = {
   rascunho: { cor: 'padrao', rotulo: 'rascunho' },
   aprovada: { cor: 'sucesso', rotulo: 'aprovada' },
   agendada: { cor: 'info', rotulo: 'agendada' },
+  publicando: { cor: 'info', rotulo: 'publicando…' },
   publicada: { cor: 'sucesso', rotulo: 'publicada' },
   rejeitada: { cor: 'alerta', rotulo: 'rejeitada' },
   erro: { cor: 'erro', rotulo: 'com erro' },
@@ -344,7 +345,7 @@ export class PcTelaEstudio extends LitElement {
   private peca(p: Linha) {
     const estado = ESTADO[p.estado] ?? ESTADO.rascunho;
     const capa = p.arquivos?.[0]?.url ?? '';
-    const travada = ['agendada', 'publicada'].includes(p.estado);
+    const travada = ['agendada', 'publicando', 'publicada'].includes(p.estado);
     return html`<urbi-linha quebrar>
       <urbi-avatar nome=${p.titulo} foto=${capa} icone=${capa ? '' : 'fa-solid fa-image'} tamanho="64"></urbi-avatar>
       <urbi-stack>
@@ -374,7 +375,7 @@ export class PcTelaEstudio extends LitElement {
             : ''}
           ${p.estado === 'rascunho' && this.janela ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-plus" @click=${() => this.agendar(p)}>Agendar (aprova na hora)</urbi-botao>` : ''}
           ${p.estado === 'agendada' ? html`<urbi-botao pequeno variante="secundario" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/cancelar-agendamento`), 'Agendamento cancelado.')}>Cancelar agendamento</urbi-botao>` : ''}
-          ${['aprovada', 'agendada', 'erro'].includes(p.estado) ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-check-double" @click=${() => this.publiqueiFora(p)}>Publiquei por fora</urbi-botao>` : ''}
+          ${['aprovada', 'agendada', 'publicando', 'erro'].includes(p.estado) ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-check-double" @click=${() => this.publiqueiFora(p)}>Publiquei por fora</urbi-botao>` : ''}
           ${p.estado === 'publicada' && p.permalink ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(p.permalink, '_blank', 'noopener')}>Ver no Instagram</urbi-botao>` : ''}
           ${p.estado === 'aprovada' ? html`<urbi-botao pequeno variante="secundario" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/rejeitar`), 'Peça devolvida.')}>Rejeitar</urbi-botao>` : ''}
           ${travada ? '' : html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-trash" ariaLabel="Remover peça" title="Remover" @click=${() => this.remover(p)}></urbi-botao>`}

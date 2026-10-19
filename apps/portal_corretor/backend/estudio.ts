@@ -253,7 +253,7 @@ estudioRotas.patch(
   assincrono(async (req, res) => {
     const p = await pecaOu404(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
-    if (['agendada', 'publicada'].includes(p.estado)) return erro(res, 409, 'PECA_TRAVADA', 'Peça agendada ou publicada não muda. Duplique ou cancele o agendamento.');
+    if (['agendada', 'publicando', 'publicada'].includes(p.estado)) return erro(res, 409, 'PECA_TRAVADA', 'Peça agendada, em publicação ou publicada não muda. Duplique ou cancele o agendamento.');
     const c = req.body ?? {};
     const mudar: Record<string, unknown> = {};
     if ('titulo' in c) mudar.titulo = texto(c.titulo, 80) || p.titulo;
@@ -261,7 +261,8 @@ estudioRotas.patch(
     if ('legenda' in c) mudar.legenda = texto(c.legenda, 2200) || null;
     if ('hashtags' in c) mudar.hashtags = texto(c.hashtags, 600) || null;
     if ('destaques' in c) mudar.destaques = (Array.isArray(c.destaques) ? c.destaques : []).map((d: unknown) => texto(d, 24)).filter(Boolean).slice(0, 4);
-    if (p.estado === 'aprovada' || p.estado === 'rejeitada') Object.assign(mudar, { estado: 'rascunho', aprovada_em: null, aprovada_por_id: null });
+    // Texto novo pede nova aprovação, inclusive na peça que falhou ao publicar (estava aprovada).
+    if (['aprovada', 'rejeitada', 'erro'].includes(p.estado)) Object.assign(mudar, { estado: 'rascunho', aprovada_em: null, aprovada_por_id: null, erro: null });
     res.json(await req.dados!.atualizar('pecas', p.id, mudar));
   }),
 );
@@ -275,7 +276,7 @@ estudioRotas.put(
   assincrono(async (req, res) => {
     const p = await pecaOu404(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
-    if (['agendada', 'publicada'].includes(p.estado)) return erro(res, 409, 'PECA_TRAVADA', 'Peça agendada ou publicada não muda.');
+    if (['agendada', 'publicando', 'publicada'].includes(p.estado)) return erro(res, 409, 'PECA_TRAVADA', 'Peça agendada, em publicação ou publicada não muda.');
     const uploads = (Array.isArray(req.body?.upload_ids) ? req.body.upload_ids : []).map(id);
     const limite = p.formato === 'carrossel' ? MAX_SLIDES : 1;
     if (!uploads.length || uploads.some((u: number | null) => !u) || uploads.length > limite) {
@@ -326,7 +327,7 @@ estudioRotas.post(
     const p = await pecaOu404(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
     if (p.estado === 'publicada') return erro(res, 409, 'ESTADO_INVALIDO', 'Peça publicada não volta.');
-    if (p.estado === 'agendada') return erro(res, 409, 'PECA_AGENDADA', 'Cancele o agendamento antes de rejeitar.');
+    if (p.estado === 'agendada' || p.estado === 'publicando') return erro(res, 409, 'PECA_AGENDADA', 'Cancele o agendamento antes de rejeitar (peça em publicação não volta).');
     res.json(await req.dados!.atualizar('pecas', p.id, { estado: 'rejeitada', aprovada_em: null, aprovada_por_id: null }));
   }),
 );
@@ -336,7 +337,7 @@ estudioRotas.patch(
   assincrono(async (req, res) => {
     const p = await pecaOu404(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
-    if (p.estado === 'agendada') return erro(res, 409, 'PECA_AGENDADA', 'Cancele o agendamento antes de remover.');
+    if (p.estado === 'agendada' || p.estado === 'publicando') return erro(res, 409, 'PECA_AGENDADA', 'Cancele o agendamento antes de remover (peça em publicação espera o resultado).');
     await req.dados!.remover('pecas', p.id, req.contexto!.usuario.id);
     res.json({ id: p.id, removido: true });
   }),

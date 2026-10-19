@@ -27,7 +27,7 @@ export const ROTULO_OBJETIVO: Record<Objetivo, string> = {
 export const SELO: Record<Objetivo, string | null> = { novo_imovel: 'NOVIDADE', baixou_preco: 'BAIXOU O PREÇO', vendido: 'VENDIDO', visita_aberta: 'VISITA ABERTA', destaque: null };
 
 export const ESTILOS = ['moderno', 'classico', 'minimalista'] as const;
-export const ESTADOS_PECA = ['rascunho', 'aprovada', 'agendada', 'publicada', 'rejeitada', 'erro'] as const;
+export const ESTADOS_PECA = ['rascunho', 'aprovada', 'agendada', 'publicando', 'publicada', 'rejeitada', 'erro'] as const;
 
 type Resultado<T> = { ok: true; dados: T } | { ok: false; erros: string[] };
 const HEX = /^#[0-9a-fA-F]{6}$/;

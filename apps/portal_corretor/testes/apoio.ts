@@ -64,9 +64,9 @@ export class BancoFalso {
         ? banco.linhas(tabela).filter((l) => removidos || !l.removido_em)
         : conta === null
           ? []
-          : banco.linhas(tabela).filter((l) => l.conta_id === conta && (removidos || !l.removido_em));
+          : banco.linhas(tabela).filter((l) => Number(l.conta_id) === conta && (removidos || !l.removido_em));
     // Escrita é sempre endereçada: mesmo com leitura global (SISTEMA), só a linha da conta do bloco.
-    const gravaveis = (tabela: string) => (GLOBAIS.has(tabela) || !leituraGlobal ? visiveis(tabela) : visiveis(tabela).filter((l) => l.conta_id === conta));
+    const gravaveis = (tabela: string) => (GLOBAIS.has(tabela) || !leituraGlobal ? visiveis(tabela) : visiveis(tabela).filter((l) => Number(l.conta_id) === conta));
     let tabelaAtual = '';
     const exigirConta = () => {
       if (GLOBAIS.has(tabelaAtual)) return;
@@ -115,7 +115,7 @@ export class BancoFalso {
       /** A única porta do segredo (banco-de-dados.md § revelar); outra conta ou vazio → null. */
       async revelar(tabela: string, id: number, coluna: string) {
         if (!SEGREDOS[tabela]?.has(coluna)) throw new Error(`VOCABULARIO_INVALIDO: ${tabela}.${coluna} não é segredo`);
-        const l = (leituraGlobal ? banco.linhas(tabela).filter((x) => x.conta_id === conta) : visiveis(tabela)).find((x) => x.id === id && !x.removido_em);
+        const l = (leituraGlobal ? banco.linhas(tabela).filter((x) => Number(x.conta_id) === conta) : visiveis(tabela)).find((x) => x.id === id && !x.removido_em);
         const v = l?.[coluna];
         return typeof v === 'string' && v ? v : null;
       },
@@ -129,7 +129,7 @@ export class BancoFalso {
         tabelaAtual = tabela;
         exigirConta();
         const linhas = banco.linhas(tabela);
-        const i = linhas.findIndex((l) => l.id === id && (GLOBAIS.has(tabela) || l.conta_id === conta));
+        const i = linhas.findIndex((l) => l.id === id && (GLOBAIS.has(tabela) || Number(l.conta_id) === conta));
         if (i < 0) return false;
         linhas.splice(i, 1);
         return true;
@@ -159,6 +159,14 @@ export class BancoFalso {
         if (!alvo) return null;
         colide(tabela, { ...alvo, ...comoGravado(d) });
         return comoLido(tabela, Object.assign(alvo, comoGravado(d), { atualizado_em: new Date().toISOString() }));
+      },
+      /** Escrita condicionada (banco-de-dados.md): grava só se a linha casa com `condicoes`; senão null. */
+      async atualizarSe(tabela: string, id: number, d: Record<string, unknown>, condicoes: Record<string, unknown>) {
+        tabelaAtual = tabela;
+        exigirConta();
+        const alvo = gravaveis(tabela).find((l) => l.id === id);
+        if (!alvo || !casa(alvo, condicoes)) return null;
+        return helper.atualizar(tabela, id, d);
       },
       async criarOuAtualizar(tabela: string, chave: string[], d: Record<string, unknown>) {
         tabelaAtual = tabela;

@@ -3,6 +3,7 @@ import { Router, type Request } from 'express';
 import type { ContextoListener, HelperDados, ParametroHelper } from '@urbiverso/sdk';
 import { checarPeca } from '../comum/estudio';
 import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
+import { iso } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { contaDoRequest } from './vitrine';
 
@@ -102,8 +103,11 @@ export async function publicar(p: { formato: string; legenda: string }, urls: st
 }
 publicar.esperaMs = 3000;
 
+/** Abre uma unidade de escrita: `req.dados` direto na rota; `comConta` curto no listener. */
+type Abrir = <T>(fn: (dados: HelperDados) => Promise<T>) => Promise<T>;
+
 interface Ambiente {
-  dados: HelperDados;
+  abrir: Abrir;
   arquivos?: { url(id: number, ttl: number): Promise<string> };
   shell: { urlApp(sub: string): string };
 }
@@ -114,6 +118,13 @@ function legendaComCreci(p: Linha, creci: string | null): string {
   return creci && !legenda.includes(creci) ? [legenda, `CRECI ${creci}`].filter(Boolean).join('\n\n') : legenda;
 }
 
+/**
+ * Story não leva legenda no Instagram: o CRECI tem que estar na arte. Só o gerador do app garante
+ * isso (rodapé com nome e CRECI); arte do Canva ou enviada vai pelo Instagram, com "Publiquei por fora".
+ */
+export const STORY_SEM_CRECI = 'Story com arte do Canva ou enviada não é publicado pelo app: o story não leva legenda, e o app não confere o CRECI na arte. Confira a arte, publique pelo Instagram e use "Publiquei por fora".';
+const storySemCreci = (p: Linha) => p.formato === 'story' && p.motor !== 'interno';
+
 async function creciDaConta(dados: HelperDados, conta: number, usuario: number | null): Promise<string | null> {
   const perfis = await dados.varrerTudo('perfis_corretor', { filtros: { conta_id: conta }, maximo: 50 });
   const eu = perfis.find((x) => x.usuario_id === usuario && x.creci) ?? perfis.find((x) => x.creci);
@@ -121,44 +132,83 @@ async function creciDaConta(dados: HelperDados, conta: number, usuario: number |
   return eu?.creci ?? contaLinha?.creci_juridico ?? null;
 }
 
+async function janelaLigada(dados: HelperDados, conta: number): Promise<boolean> {
+  const config = (await dados.varrerTudo('configuracoes_conta', { filtros: { conta_id: conta, chave: 'conta' }, maximo: 1 }))[0];
+  return config?.modo_aprovacao_conteudo === 'janela';
+}
+
+/** De onde a publicação parte: a escrita condicionada só reserva a peça se ela ainda está assim. */
+interface Origem {
+  estado: 'aprovada' | 'erro' | 'agendada';
+  /** Agendamento que disparou (listener): outro agendamento da mesma peça não publica por este. */
+  agendamento_id?: number | null;
+}
+
 /**
- * Confere e publica uma peça da conta: as checagens da aprovação de novo (o mundo pode ter mudado
- * desde então), a conexão e o token. Grava publicada ou erro; devolve a peça.
+ * Publica uma peça da conta, em três passos para não segurar transação durante a Meta:
+ * 1. reserva a peça (`publicando`) por escrita condicionada ao estado de origem — duas abas, o
+ *    agendamento e o "publicar agora" não publicam duas vezes — e refaz as checagens da aprovação;
+ * 2. chama a Meta, fora de qualquer transação;
+ * 3. grava publicada ou erro.
+ * Devolve a peça, ou `null` se ela não estava mais no estado de origem.
  */
-export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number, usuario: number | null): Promise<Linha> {
-  const { dados } = amb;
-  const p = (await dados.varrerTudo('pecas', { filtros: { conta_id: conta, id: pecaId }, maximo: 1 }))[0];
-  if (!p) throw new ErroInstagram('Peça não encontrada.', 'NAO_ENCONTRADO');
-  const falhar = async (mensagem: string) => {
-    await dados.atualizar('pecas', p.id, { estado: 'erro', erro: mensagem.slice(0, 300), agendamento_id: null });
-    return { ...p, estado: 'erro', erro: mensagem };
-  };
-  const urls = await urlsDaPeca(dados, amb.arquivos, amb.shell, conta, p.id);
-  const creci = await creciDaConta(dados, conta, usuario);
-  let vigente = false;
-  if (p.imovel_id) {
-    const auts = await dados.varrerTudo('autorizacoes_venda', { filtros: { conta_id: conta, imovel_id: p.imovel_id }, maximo: 200 });
-    const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-    vigente = auts.some((a) => autorizacaoVigente(a as Autorizacao, hoje));
-  }
-  // A checagem roda sobre o texto que vai ser publicado, já com o CRECI: nada é cortado depois.
-  const legenda = legendaComCreci(p, creci);
-  const checagem = checarPeca({ formato: p.formato, objetivo: p.objetivo, legenda: legenda || null, hashtags: p.hashtags ?? null, arquivos: urls.length }, { creci, imovel: !!p.imovel_id, autorizacaoVigente: vigente });
-  if (!checagem.ok) return falhar(`Não publicada: ${checagem.pendencias.join(' ')}`);
-  const canal = await conexao(dados, conta);
-  if (!canal) return falhar('Não publicada: o Instagram não está conectado (Ajustes › Conexões).');
-  const token = await dados.revelar('canais_sociais', canal.id, 'token');
-  if (!token) return falhar('Não publicada: reconecte o Instagram (Ajustes › Conexões).');
+export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number, usuario: number | null, origem: Origem): Promise<Linha | null> {
+  const falha = (mensagem: string) => ({ estado: 'erro', erro: mensagem.slice(0, 300), agendamento_id: null, agendada_para: null });
+  const prep = await amb.abrir(async (dados) => {
+    const guarda: Record<string, unknown> = { conta_id: conta, estado: origem.estado };
+    if (origem.agendamento_id) guarda.agendamento_id = origem.agendamento_id;
+    const p = await dados.atualizarSe('pecas', pecaId, { estado: 'publicando', erro: null }, guarda);
+    if (!p) return null;
+    const recusar = async (mensagem: string) => ({ fim: await dados.atualizar('pecas', p.id, falha(mensagem)) });
+    if (storySemCreci(p)) return recusar(`Não publicada: ${STORY_SEM_CRECI}`);
+    // Aprovação por janela: vale só se a conta ainda está nesse modo e se as checagens passarem.
+    const aprovar = !p.aprovada_em;
+    if (aprovar && !(origem.estado === 'agendada' && (await janelaLigada(dados, conta)))) {
+      return recusar('Não publicada: a peça não está aprovada (a aprovação por janela foi desligada). Aprove e publique.');
+    }
+    const urls = await urlsDaPeca(dados, amb.arquivos, amb.shell, conta, p.id);
+    const creci = await creciDaConta(dados, conta, usuario);
+    let vigente = false;
+    if (p.imovel_id) {
+      const auts = await dados.varrerTudo('autorizacoes_venda', { filtros: { conta_id: conta, imovel_id: p.imovel_id }, maximo: 200 });
+      const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      vigente = auts.some((a) => autorizacaoVigente(a as Autorizacao, hoje));
+    }
+    // A checagem roda sobre o texto que vai ser publicado, já com o CRECI: nada é cortado depois.
+    const legenda = legendaComCreci(p, creci);
+    const checagem = checarPeca({ formato: p.formato, objetivo: p.objetivo, legenda: legenda || null, hashtags: p.hashtags ?? null, arquivos: urls.length }, { creci, imovel: !!p.imovel_id, autorizacaoVigente: vigente });
+    if (!checagem.ok) return recusar(`Não publicada: ${checagem.pendencias.join(' ')}`);
+    const canal = await conexao(dados, conta);
+    if (!canal) return recusar('Não publicada: o Instagram não está conectado (Ajustes › Conexões).');
+    const token = await dados.revelar('canais_sociais', canal.id, 'token');
+    if (!token) return recusar('Não publicada: reconecte o Instagram (Ajustes › Conexões).');
+    return { p, aprovar, canal, token, urls, texto: [legenda, p.hashtags ?? ''].filter(Boolean).join('\n\n') };
+  });
+  if (!prep) return null;
+  if ('fim' in prep) return prep.fim;
+  const { p, aprovar, canal, token, urls, texto } = prep;
+  let resultado: Record<string, unknown>;
+  let tokenInvalido = false;
   try {
-    const r = await publicar({ formato: p.formato, legenda: [legenda, p.hashtags ?? ''].filter(Boolean).join('\n\n') }, urls, canal.conta_externa_id, token);
+    const r = await publicar({ formato: p.formato, legenda: texto }, urls, canal.conta_externa_id, token);
     const agora = new Date().toISOString();
-    await dados.atualizar('pecas', p.id, { estado: 'publicada', publicada_em: agora, publicacao_id: r.id, permalink: r.permalink, publicada_por: 'api', erro: null, agendamento_id: null });
-    return { ...p, estado: 'publicada', publicada_em: agora, permalink: r.permalink };
+    resultado = {
+      estado: 'publicada', publicada_em: agora, publicacao_id: r.id, permalink: r.permalink, publicada_por: 'api', erro: null, agendamento_id: null,
+      ...(aprovar ? { aprovada_em: agora } : {}),
+    };
   } catch (e) {
-    if (!(e instanceof ErroInstagram)) throw e;
-    if (e.codigo === 'TOKEN_INVALIDO') await dados.atualizar('canais_sociais', canal.id, { ultimo_erro: 'Acesso vencido ou revogado: reconecte.' });
-    return falhar(e.message);
+    if (!(e instanceof ErroInstagram)) {
+      // Falha nossa (rede, bug): a peça não fica presa em "publicando".
+      await amb.abrir((dados) => dados.atualizar('pecas', p.id, falha('Não foi possível publicar agora. Confira no Instagram antes de tentar de novo.')));
+      throw e;
+    }
+    tokenInvalido = e.codigo === 'TOKEN_INVALIDO';
+    resultado = falha(e.message);
   }
+  return amb.abrir(async (dados) => {
+    if (tokenInvalido) await dados.atualizar('canais_sociais', canal.id, { ultimo_erro: 'Acesso vencido ou revogado: reconecte.' });
+    return dados.atualizar('pecas', p.id, resultado);
+  });
 }
 
 // ---------- Rotas do corretor ----------
@@ -214,7 +264,8 @@ instagramRotas.post(
       const longo = await chamar(`https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(app.segredo)}&access_token=${encodeURIComponent(curto.access_token)}`);
       const eu = await chamar(`${GRAPH}/me?fields=user_id,username,account_type&access_token=${encodeURIComponent(longo.access_token)}`);
       const tipo = String(eu.account_type ?? '').toUpperCase();
-      if (tipo && !['BUSINESS', 'MEDIA_CREATOR', 'CREATOR'].includes(tipo)) {
+      // Sem tipo não dá para saber se é profissional: recusa, como a conta pessoal.
+      if (!['BUSINESS', 'MEDIA_CREATOR', 'CREATOR'].includes(tipo)) {
         return erro(res, 422, 'CONTA_PESSOAL', 'Esta é uma conta pessoal. No Instagram, mude para conta profissional (Comercial, para publicar stories) e conecte de novo.');
       }
       const agora = new Date().toISOString();
@@ -256,9 +307,11 @@ instagramRotas.post(
   assincrono(async (req, res) => {
     const p = await pecaDaConta(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
-    if (p.estado !== 'aprovada' && p.estado !== 'erro') return erro(res, 409, 'ESTADO_INVALIDO', 'Aprove a peça antes de publicar.');
-    if (p.estado === 'erro' && !p.aprovada_em) return erro(res, 409, 'ESTADO_INVALIDO', 'Aprove a peça antes de publicar.');
-    const r = await publicarPeca({ dados: req.dados!, arquivos: req.arquivos, shell: req.shell! }, contaDoRequest(req), p.id, req.contexto!.usuario.id);
+    // Peça com erro volta a publicar só se ainda está aprovada (editar a devolve para rascunho).
+    if (!(p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em))) return erro(res, 409, 'ESTADO_INVALIDO', 'Aprove a peça antes de publicar.');
+    const dados = req.dados!;
+    const r = await publicarPeca({ abrir: (fn) => fn(dados), arquivos: req.arquivos, shell: req.shell! }, contaDoRequest(req), p.id, req.contexto!.usuario.id, { estado: p.estado });
+    if (!r) return erro(res, 409, 'PECA_MUDOU', 'A peça mudou ou já está sendo publicada. Atualize a tela.');
     if (r.estado !== 'publicada') return erro(res, 422, 'NAO_PUBLICADA', r.erro ?? 'Não foi possível publicar.');
     res.json(r);
   }),
@@ -277,19 +330,25 @@ instagramRotas.post(
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
     const config = await primeiro(dados, 'configuracoes_conta', { chave: 'conta' });
     const janela = config?.modo_aprovacao_conteudo === 'janela';
-    if (!(p.estado === 'aprovada' || (janela && p.estado === 'rascunho'))) {
+    if (!(p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em) || (janela && p.estado === 'rascunho'))) {
       return erro(res, 409, 'ESTADO_INVALIDO', janela ? 'Só rascunho ou peça aprovada é agendada.' : 'Aprove a peça antes de agendar.');
     }
     const quando = typeof req.body?.quando === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(req.body.quando) ? new Date(req.body.quando) : null;
     if (!quando || Number.isNaN(quando.getTime())) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o dia e a hora.');
     if (quando.getTime() < Date.now() + 5 * 60_000) return erro(res, 422, 'DADOS_INVALIDOS', 'Agende com pelo menos 5 minutos de antecedência.');
     if (quando.getTime() > Date.now() + 90 * DIA) return erro(res, 422, 'DADOS_INVALIDOS', 'Agende para os próximos 90 dias.');
+    if (storySemCreci(p)) return erro(res, 422, 'STORY_SEM_CRECI', STORY_SEM_CRECI);
     if (!(await conexao(dados, contaDoRequest(req)))) {
       return erro(res, 409, 'INSTAGRAM_DESCONECTADO', 'Conecte o Instagram (Ajustes › Conexões) para agendar no app. Sem conexão, baixe a arte e agende no Instagram.');
     }
-    const r = await req.eventos!.agendar('publicacao_programada', { peca_id: p.id }, { em: quando });
-    await dados.atualizar('pecas', p.id, { estado: 'agendada', agendada_para: quando.toISOString(), agendamento_id: Number(r.id), erro: null });
-    res.json(await dados.buscar('pecas', p.id));
+    const r = await req.eventos!.agendar('publicacao_programada', { peca_id: p.id, agendada_para: quando.toISOString() }, { em: quando });
+    // Grava só se a peça não mudou desde a leitura (outra aba publicou ou agendou): senão desfaz o agendamento.
+    const gravada = await dados.atualizarSe('pecas', p.id, { estado: 'agendada', agendada_para: quando.toISOString(), agendamento_id: Number(r.id), erro: null }, { estado: p.estado });
+    if (!gravada) {
+      await req.eventos!.cancelarAgendamento(Number(r.id)).catch(() => undefined);
+      return erro(res, 409, 'PECA_MUDOU', 'A peça mudou enquanto você agendava. Atualize a tela.');
+    }
+    res.json(gravada);
   }),
 );
 
@@ -300,8 +359,12 @@ instagramRotas.post(
     const p = await pecaDaConta(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
     if (p.estado !== 'agendada') return erro(res, 409, 'ESTADO_INVALIDO', 'A peça não está agendada.');
-    if (p.agendamento_id) await req.eventos!.cancelarAgendamento(p.agendamento_id).catch(() => undefined); // já disparado: o listener confere o estado
-    res.json(await dados.atualizar('pecas', p.id, { estado: p.aprovada_em ? 'aprovada' : 'rascunho', agendada_para: null, agendamento_id: null }));
+    // Primeiro a peça (condicionada: se o listener já a reservou, a publicação segue e o cancelar recusa);
+    // depois o agendamento. Se cancelar o evento falhar, o listener o ignora: o agendamento_id não bate mais.
+    const voltou = await dados.atualizarSe('pecas', p.id, { estado: p.aprovada_em ? 'aprovada' : 'rascunho', agendada_para: null, agendamento_id: null }, { estado: 'agendada', agendamento_id: p.agendamento_id ?? null });
+    if (!voltou) return erro(res, 409, 'PECA_MUDOU', 'A peça já está sendo publicada. Atualize a tela.');
+    if (p.agendamento_id) await req.eventos!.cancelarAgendamento(p.agendamento_id).catch(() => undefined);
+    res.json(voltou);
   }),
 );
 
@@ -315,8 +378,10 @@ instagramRotas.post(
     if (p.estado === 'publicada') return erro(res, 409, 'ESTADO_INVALIDO', 'A peça já está publicada.');
     const link = typeof req.body?.link === 'string' ? req.body.link.trim() : '';
     if (link && !/^https:\/\/(www\.)?instagram\.com\//.test(link)) return erro(res, 422, 'DADOS_INVALIDOS', 'Cole o link do post do Instagram (https://www.instagram.com/…).');
+    const marcada = await dados.atualizarSe('pecas', p.id, { estado: 'publicada', publicada_em: new Date().toISOString(), permalink: link.slice(0, 300) || null, publicada_por: 'fora', agendamento_id: null, erro: null }, { estado: p.estado });
+    if (!marcada) return erro(res, 409, 'PECA_MUDOU', 'A peça mudou. Atualize a tela.');
     if (p.agendamento_id) await req.eventos!.cancelarAgendamento(p.agendamento_id).catch(() => undefined);
-    res.json(await dados.atualizar('pecas', p.id, { estado: 'publicada', publicada_em: new Date().toISOString(), permalink: link.slice(0, 300) || null, publicada_por: 'fora', agendamento_id: null, erro: null }));
+    res.json(marcada);
   }),
 );
 
@@ -327,17 +392,28 @@ interface EventoConta {
   conta_id?: number | null;
 }
 
-/** Hora de publicar uma peça agendada; peça cancelada, rejeitada ou já publicada é ignorada (idempotente). */
+/** Atraso máximo para publicar um agendamento (o barramento entrega o atrasado quando volta do ar). */
+export const ATRASO_MAXIMO_MS = 6 * 3600_000;
+
+/**
+ * Hora de publicar uma peça agendada. Idempotente: publica só se a peça ainda está agendada por
+ * este mesmo agendamento (`agendada_para` do evento = o da peça; reserva condicionada ao
+ * `agendamento_id`). Reentrega, cancelamento e reagendamento não publicam de novo.
+ */
 export async function aoPublicacaoProgramada(evento: EventoConta, ctx: ContextoListener) {
-  const conta = evento.conta_id;
-  if (!conta || !ctx.dados?.comConta) return;
-  await ctx.dados.comConta(conta, async (trx) => {
-    const p = (await trx.varrerTudo('pecas', { filtros: { conta_id: conta, id: evento.payload.peca_id }, maximo: 1 }))[0];
-    if (!p || p.estado !== 'agendada') return;
-    // Aprovação por janela: chegou a hora sem rejeição, vale como aprovada (as checagens rodam no publicar).
-    if (!p.aprovada_em) await trx.atualizar('pecas', p.id, { aprovada_em: new Date().toISOString() });
-    await publicarPeca({ dados: trx, arquivos: ctx.arquivos, shell: ctx.shell }, conta, p.id, null);
-  });
+  const conta = evento.conta_id ? Number(evento.conta_id) : null;
+  const comConta = ctx.dados?.comConta;
+  if (!conta || !comConta) return;
+  const pecaId = Number(evento.payload.peca_id);
+  const p = await comConta(conta, async (trx) => (await trx.varrerTudo('pecas', { filtros: { conta_id: conta, id: pecaId }, maximo: 1 }))[0]);
+  if (!p || p.estado !== 'agendada' || !p.agendamento_id) return;
+  const marcada = iso(p.agendada_para);
+  if (!marcada || marcada !== evento.payload.agendada_para) return;
+  if (Date.now() - new Date(marcada).getTime() > ATRASO_MAXIMO_MS) {
+    await comConta(conta, (trx) => trx.atualizarSe('pecas', p.id, { estado: 'erro', erro: 'Não publicada na hora marcada (o sistema estava fora do ar). Publique agora ou agende de novo.', agendamento_id: null, agendada_para: null }, { estado: 'agendada', agendamento_id: p.agendamento_id }));
+    return;
+  }
+  await publicarPeca({ abrir: (fn) => comConta(conta, fn), arquivos: ctx.arquivos, shell: ctx.shell }, conta, p.id, null, { estado: 'agendada', agendamento_id: Number(p.agendamento_id) });
 }
 
 /** Renova os tokens que vencem em até 10 dias (o de longa duração vale 60 e renova enquanto válido). */
@@ -349,9 +425,16 @@ export async function renovarTokensInstagram(ctx: ContextoListener) {
   let renovados = 0;
   const falhas: string[] = [];
   for (const c of canais) {
-    if (!ativas.has(c.conta_id)) continue;
+    // BIGINT pode chegar como texto: compara e aponta a conta como número.
+    const conta = Number(c.conta_id);
+    if (!ativas.has(conta)) continue;
+    // Vencido não renova mais: avisa uma vez e espera o corretor reconectar, sem falhar a rotina todo dia.
+    if (c.token_expira_em && new Date(c.token_expira_em as string).getTime() < Date.now()) {
+      if (!c.ultimo_erro) await ctx.dados.comConta(conta, (trx) => trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'O acesso venceu: reconecte o Instagram.' }));
+      continue;
+    }
     try {
-      await ctx.dados.comConta(c.conta_id, async (trx) => {
+      await ctx.dados.comConta(conta, async (trx) => {
         const token = await trx.revelar('canais_sociais', c.id, 'token');
         if (!token) return;
         try {

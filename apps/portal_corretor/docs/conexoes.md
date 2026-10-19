@@ -31,8 +31,9 @@ de publicar.
 1. **Crie um app na Meta** (developers.facebook.com) com o produto **Instagram** e a opção "API do
    Instagram com login do Instagram". Ele pode ficar em **modo de desenvolvimento**. Nesse modo, só
    contas adicionadas como testadoras conectam, o que basta para o MVP.
-2. **URI de redirecionamento:** cadastre o endereço que a tela de Conexões mostra a um admin. É
-   `https://<instância>/portal_corretor/ajustes/conexoes`.
+2. **URI de redirecionamento:** cadastre `https://<instância>/portal_corretor/ajustes/conexoes`.
+   Enquanto a conexão não está configurada, a tela de Conexões de um corretor mostra esse endereço
+   exato, com o botão **Copiar endereço**.
 3. **Permissões pedidas pelo app:** `instagram_business_basic` e
    `instagram_business_content_publish`.
 4. **Parâmetros:** em Configurações da app › Parâmetros, preencha `meta_app_id` (o ID do app) e

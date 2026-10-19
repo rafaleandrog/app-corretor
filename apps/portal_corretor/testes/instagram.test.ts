@@ -150,26 +150,32 @@ test('agendar: aprovação manual exige aprovada; janela agenda o rascunho; o li
     const ag = await chamar('POST', `/estudio/pecas/${p.id}/agendar`, { quando });
     assert.equal(ag.status, 200, JSON.stringify(ag.corpo));
     assert.equal(ev.agendados[0].tipo, 'publicacao_programada');
-    assert.deepEqual(ev.agendados[0].payload, { peca_id: p.id });
+    assert.deepEqual(ev.agendados[0].payload, { peca_id: p.id, agendada_para: quando });
     assert.equal(ev.agendados[0].em.toISOString(), quando);
     assert.equal(banco.linhas('pecas').find((x) => x.id === p.id)!.estado, 'agendada');
     assert.equal((await chamar('PATCH', `/estudio/pecas/${p.id}`, { titulo: 'x' })).status, 409, 'agendada não muda');
     // Cancelar volta para aprovada; agendar de novo.
     await chamar('POST', `/estudio/pecas/${p.id}/cancelar-agendamento`);
     assert.deepEqual([banco.linhas('pecas').find((x) => x.id === p.id)!.estado, ev.cancelados], ['aprovada', [1]]);
-    await chamar('POST', `/estudio/pecas/${p.id}/agendar`, { quando });
+    await chamar('POST', `/estudio/pecas/${p.id}/agendar`, { quando: new Date(Date.parse(quando) - 3600e3).toISOString() });
     // Rascunho não agenda na aprovação manual.
     const rascunho = (await chamar('POST', '/estudio/pedido', { pedido: 'institucional', formatos: ['post_1x1'] })).corpo.pecas[0];
     assert.equal((await chamar('POST', `/estudio/pecas/${rascunho.id}/agendar`, { quando })).corpo.codigo, 'ESTADO_INVALIDO');
   });
   const ctx = { ...banco.ctxSistema([{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }]), arquivos, shell };
+  const atual = ev.agendados[1].payload;
   // Evento da conta errada: nada acontece.
-  await reagir.publicacao_programada({ payload: { peca_id: pecaId }, conta_id: 200 }, ctx as any);
+  await reagir.publicacao_programada({ payload: atual, conta_id: 200 }, ctx as any);
   assert.equal(banco.linhas('pecas').find((x) => x.id === pecaId)!.estado, 'agendada');
-  await reagir.publicacao_programada({ payload: { peca_id: pecaId }, conta_id: 100 }, ctx as any);
+  // Evento do agendamento cancelado (o cancelar pode ter falhado): não publica pelo agendamento novo.
+  await reagir.publicacao_programada({ payload: ev.agendados[0].payload, conta_id: 100 }, ctx as any);
+  assert.equal(banco.linhas('pecas').find((x) => x.id === pecaId)!.estado, 'agendada', 'agendamento antigo não publica');
+  await reagir.publicacao_programada({ payload: { ...atual, agendada_para: new Date(Date.now() + 9e6).toISOString() }, conta_id: 100 }, ctx as any);
+  assert.equal(banco.linhas('pecas').find((x) => x.id === pecaId)!.estado, 'agendada', 'outro horário não publica');
+  await reagir.publicacao_programada({ payload: atual, conta_id: 100 }, ctx as any);
   assert.equal(banco.linhas('pecas').find((x) => x.id === pecaId)!.estado, 'publicada');
   // Entrega repetida (at-least-once): já publicada, ignora.
-  await reagir.publicacao_programada({ payload: { peca_id: pecaId }, conta_id: 100 }, ctx as any);
+  await reagir.publicacao_programada({ payload: atual, conta_id: 100 }, ctx as any);
   assert.equal(banco.linhas('pecas').find((x) => x.id === pecaId)!.publicacao_id, 'm1');
 
   // Aprovação por janela: o rascunho com arte agenda e é aprovado na hora.
@@ -182,7 +188,7 @@ test('agendar: aprovação manual exige aprovada; janela agenda o rascunho; o li
     const ag = await chamar('POST', `/estudio/pecas/${r.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() });
     assert.equal(ag.status, 200, JSON.stringify(ag.corpo));
   });
-  await reagir.publicacao_programada({ payload: { peca_id: janelaId }, conta_id: 100 }, ctx as any);
+  await reagir.publicacao_programada({ payload: ev.agendados[ev.agendados.length - 1].payload, conta_id: 100 }, ctx as any);
   const j = banco.linhas('pecas').find((x) => x.id === janelaId)!;
   assert.equal(j.estado, 'publicada');
   assert.ok(j.aprovada_em, 'aprovada pela janela');
@@ -212,4 +218,83 @@ test('publiquei por fora e renovação dos tokens', async () => {
   assert.equal(r.ok, true);
   assert.equal(banco.linhas('canais_sociais')[0].token, 'longo-2');
   assert.ok(String(banco.linhas('canais_sociais')[0].token_expira_em) > new Date(Date.now() + 50 * 86400e3).toISOString());
+});
+
+test('revisão: peça editada pede nova aprovação, story do Canva não sai pela API, publicar duas vezes não duplica', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const chamadas = metaFalsa();
+  const ev = eventosFalsos();
+  await comServidor(rotas, ator(100, { eventos: ev }), banco, shell, async (chamar) => {
+    const p = await pecaAprovada(chamar);
+    // Sem conexão: a publicação falha e a peça fica com erro, ainda aprovada.
+    assert.equal((await chamar('POST', `/estudio/pecas/${p.id}/publicar`)).corpo.codigo, 'NAO_PUBLICADA');
+    // Editar a peça com erro a devolve para rascunho: o texto novo não vai ao ar sem aprovação.
+    await chamar('PATCH', `/estudio/pecas/${p.id}`, { legenda: 'TEXTO NUNCA APROVADO' });
+    const editada = banco.linhas('pecas').find((x) => x.id === p.id)!;
+    assert.deepEqual([editada.estado, editada.aprovada_em], ['rascunho', null]);
+    await chamar('POST', '/conexoes/instagram/retorno', { code: 'x' });
+    assert.equal((await chamar('POST', `/estudio/pecas/${p.id}/publicar`)).corpo.codigo, 'ESTADO_INVALIDO');
+
+    // Story com arte do Canva: não agenda nem publica pela API (o CRECI teria de estar na arte).
+    const story = await pecaAprovada(chamar, 'story', '61977770002');
+    await chamar('PUT', `/estudio/pecas/${story.id}/arquivos`, { upload_ids: [31], motor: 'canva_ia' });
+    await chamar('POST', `/estudio/pecas/${story.id}/aprovar`);
+    assert.equal((await chamar('POST', `/estudio/pecas/${story.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() })).corpo.codigo, 'STORY_SEM_CRECI');
+    const st = await chamar('POST', `/estudio/pecas/${story.id}/publicar`);
+    assert.match(st.corpo.mensagem, /Publiquei por fora/);
+    assert.equal(chamadas.filter((c) => c.url.endsWith('/media_publish')).length, 0);
+
+    // Duas abas publicam ao mesmo tempo: uma publica, a outra recebe "a peça mudou".
+    const dupla = await pecaAprovada(chamar, 'post_1x1', '61977770003');
+    const [a, b] = await Promise.all([chamar('POST', `/estudio/pecas/${dupla.id}/publicar`), chamar('POST', `/estudio/pecas/${dupla.id}/publicar`)]);
+    assert.deepEqual([a.status, b.status].sort(), [200, 409]);
+    assert.equal(chamadas.filter((c) => c.url.endsWith('/media_publish')).length, 1);
+    // Peça em publicação ou publicada não agenda nem cancela.
+    assert.equal((await chamar('POST', `/estudio/pecas/${dupla.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() })).status, 409);
+
+    // Agendamento entregue com atraso grande (sistema fora do ar): vira erro, não publica tarde.
+    const tarde = await pecaAprovada(chamar, 'post_1x1', '61977770004');
+    await chamar('POST', `/estudio/pecas/${tarde.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() });
+    const linha = banco.linhas('pecas').find((x) => x.id === tarde.id)!;
+    const velho = new Date(Date.now() - 7 * 3600e3).toISOString();
+    linha.agendada_para = velho;
+    const ctx = { ...banco.ctxSistema([{ id: 100, nome: 'A' }]), arquivos, shell };
+    await reagir.publicacao_programada({ payload: { peca_id: tarde.id, agendada_para: velho }, conta_id: 100 }, ctx as any);
+    assert.equal(linha.estado, 'erro');
+    assert.match(linha.erro, /hora marcada/);
+  });
+});
+
+test('revisão: janela desligada não aprova sozinha; rotina aceita conta como texto e não insiste em token vencido', async () => {
+  const banco = new BancoFalso(UNICOS);
+  metaFalsa();
+  const ev = eventosFalsos();
+  banco.linhas('configuracoes_conta').push({ id: 9999, conta_id: 100, chave: 'conta', modo_aprovacao_conteudo: 'janela', janela_aprovacao_horas: 24 } as any);
+  let id = 0;
+  await comServidor(rotas, ator(100, { eventos: ev }), banco, shell, async (chamar) => {
+    await pecaAprovada(chamar);
+    await chamar('POST', '/conexoes/instagram/retorno', { code: 'x' });
+    const r = (await chamar('POST', '/estudio/pedido', { pedido: 'institucional', formatos: ['post_1x1'] })).corpo.pecas[0];
+    id = r.id;
+    await chamar('PUT', `/estudio/pecas/${r.id}/arquivos`, { upload_ids: [21] });
+    assert.equal((await chamar('POST', `/estudio/pecas/${r.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() })).status, 200);
+  });
+  // O corretor voltou para a aprovação manual antes da hora: o rascunho não sai.
+  banco.linhas('configuracoes_conta').find((c) => c.id === 9999)!.modo_aprovacao_conteudo = 'manual';
+  const ctx = { ...banco.ctxSistema([{ id: 100, nome: 'A' }]), arquivos, shell };
+  await reagir.publicacao_programada({ payload: ev.agendados[ev.agendados.length - 1].payload, conta_id: 100 }, ctx as any);
+  const p = banco.linhas('pecas').find((x) => x.id === id)!;
+  assert.deepEqual([p.estado, p.aprovada_em ?? null], ['erro', null]);
+
+  // conta_id como texto (BIGINT): a rotina renova mesmo assim.
+  const canal = banco.linhas('canais_sociais')[0];
+  canal.conta_id = '100' as any;
+  canal.token_expira_em = new Date(Date.now() + 3 * 86400e3).toISOString();
+  assert.match((await rotinas.renovar_tokens_instagram(banco.ctxSistema([{ id: 100, nome: 'A' }]) as any)).resultado.resumo, /^1 conexão/);
+  // Vencido: avisa e não falha a rotina.
+  canal.conta_id = 100 as any;
+  canal.token_expira_em = new Date(Date.now() - 86400e3).toISOString();
+  const r = await rotinas.renovar_tokens_instagram(banco.ctxSistema([{ id: 100, nome: 'A' }]) as any);
+  assert.equal(r.ok, true);
+  assert.match(String(banco.linhas('canais_sociais')[0].ultimo_erro), /venceu/);
 });

@@ -98,6 +98,15 @@ export class PcTelaConexoes extends LitElement {
     }
   }
 
+  private async copiarRetorno() {
+    try {
+      await navigator.clipboard.writeText(this.dados!.retorno);
+      urbiVerso.notificar('Endereço copiado.', 'sucesso');
+    } catch {
+      urbiVerso.notificar('Não deu para copiar: selecione o endereço e copie à mão.', 'erro');
+    }
+  }
+
   render() {
     if (this.falha) return html`<urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner>`;
     if (!this.dados) return html`<urbi-loading></urbi-loading>`;
@@ -119,7 +128,9 @@ export class PcTelaConexoes extends LitElement {
           : this.dados.disponivel
             ? html`<urbi-prosa>Conecte a sua conta profissional do Instagram para publicar e agendar pelo Estúdio. O login é feito no próprio Instagram.</urbi-prosa>
                 <urbi-botao icone="fa-brands fa-instagram" ?carregando=${this.ocupado} @click=${() => this.conectar()}>Conectar Instagram</urbi-botao>`
-            : html`<urbi-banner variante="info">A conexão com o Instagram ainda não foi configurada pela equipe da plataforma. Enquanto isso, baixe as artes no Estúdio e publique pelo Instagram.</urbi-banner>`}
+            : html`<urbi-banner variante="info">A conexão com o Instagram ainda não foi configurada pela equipe da plataforma. Enquanto isso, baixe as artes no Estúdio e publique pelo Instagram.</urbi-banner>
+                <urbi-prosa papel="secundario">Para a equipe, endereço de retorno a cadastrar no app da Meta: ${this.dados.retorno}</urbi-prosa>
+                <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-copy" @click=${() => this.copiarRetorno()}>Copiar endereço</urbi-botao>`}
       </urbi-card>
       <urbi-card titulo="WhatsApp" icone="fa-brands fa-whatsapp">
         <urbi-prosa papel="secundario">Chega numa próxima versão (depende de ajustes da plataforma).</urbi-prosa>
