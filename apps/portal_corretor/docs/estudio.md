@@ -124,7 +124,8 @@ aprovação. Para impedir, cancele o agendamento.
 **Enquanto publica,** a peça fica **publicando…** e não pode ser editada, agendada nem cancelada.
 Assim, dois cliques (ou o agendamento e um "Publicar agora") não publicam duas vezes. Se ela
 continuar "publicando…" por mais de 15 minutos (a publicação foi interrompida), use **Ainda
-publicando? Destravar**. A peça fica com erro, ainda aprovada: confira no Instagram se o post saiu.
+publicando? Destravar**. A peça fica com erro (ainda aprovada, salvo o rascunho da aprovação por
+janela, que volta a pedir **Aprovar**): confira no Instagram se o post saiu.
 Se saiu, use **Publiquei por fora**. Se não, publique de novo.
 
 **Quando não sai:** a peça fica **com erro** e mostra o motivo, por exemplo "o Instagram não está
