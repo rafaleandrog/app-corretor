@@ -83,6 +83,8 @@ cliente e o local. Clicar nela abre a Agenda.
 - Visita marcada para dali a menos tempo que o prazo também não gera.
 - Mudar o prazo (ou desligar com 0) vale na hora para os lembretes que ainda não saíram; com outro
   prazo, as visitas já marcadas ficam sem lembrete, e as próximas usam o prazo novo.
+- Se a plataforma estiver fora do ar na hora do lembrete e só voltar mais de meia hora depois, ele
+  não sai.
 
 O lembrete para o cliente, pelo WhatsApp, chega com o Mensageiro.
 
