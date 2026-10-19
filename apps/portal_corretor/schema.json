@@ -1974,6 +1974,25 @@
         "erro": {
           "tipo": "texto",
           "limite": 300
+        },
+        "agendamento_id": {
+          "tipo": "inteiro"
+        },
+        "publicacao_id": {
+          "tipo": "texto",
+          "limite": 40
+        },
+        "permalink": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "publicada_por": {
+          "tipo": "texto",
+          "limite": 12,
+          "opcoes": [
+            "api",
+            "fora"
+          ]
         }
       },
       "soft_delete": true,
@@ -2021,6 +2040,70 @@
           "peca_id",
           "ordem"
         ]
+      ]
+    },
+    "canais_sociais": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{usuario}",
+      "colunas": {
+        "rede": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "instagram",
+          "opcoes": [
+            "instagram"
+          ]
+        },
+        "conta_externa_id": {
+          "tipo": "texto",
+          "limite": 40,
+          "obrigatorio": true
+        },
+        "usuario": {
+          "tipo": "texto",
+          "limite": 60
+        },
+        "tipo_conta": {
+          "tipo": "texto",
+          "limite": 20
+        },
+        "token": {
+          "tipo": "segredo"
+        },
+        "token_expira_em": {
+          "tipo": "datahora"
+        },
+        "conectado_em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        },
+        "conectado_por_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular"
+        },
+        "desconectado_em": {
+          "tipo": "datahora"
+        },
+        "ultimo_erro": {
+          "tipo": "texto",
+          "limite": 300
+        }
+      },
+      "unicos": [
+        {
+          "colunas": [
+            "rede"
+          ],
+          "onde": [
+            {
+              "coluna": "desconectado_em",
+              "operador": "nulo"
+            }
+          ]
+        }
       ]
     }
   }

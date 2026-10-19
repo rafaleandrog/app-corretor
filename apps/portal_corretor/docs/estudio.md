@@ -5,8 +5,9 @@ descricao: Peças para o Instagram (post, carrossel, story) com a marca do corre
 
 # Estúdio de conteúdo
 
-O **Estúdio** cria peças para o Instagram com a marca do corretor. Na versão 0.9.0 ele cria,
-aprova e deixa baixar as peças. Agendar e publicar direto no Instagram chegam na próxima versão.
+O **Estúdio** cria peças para o Instagram com a marca do corretor e publica de três jeitos:
+publicar agora, agendar no app ou baixar a arte e publicar por fora. Para os dois primeiros, a
+conta do Instagram precisa estar conectada em [Conexões](conexoes.md).
 
 ## Sua marca
 
@@ -96,3 +97,28 @@ Canva IA ou arte enviada) e a situação: rascunho, aprovada, rejeitada.
 Mudar os textos ou a arte de uma peça aprovada a devolve para rascunho: o que muda precisa de
 nova aprovação. "Enviar arte pronta" pede confirmação antes de trocar a arte. A biblioteca mostra
 as 200 peças mais recentes.
+
+## Publicar
+
+| Modo | Como funciona |
+|---|---|
+| **Publicar agora** | Peça aprovada vai na hora para o Instagram conectado. O app confere a peça de novo (CRECI, autorização vigente, arte, limites) antes de publicar |
+| **Agendar** | Escolha dia e hora, de 5 minutos a 90 dias à frente. Na hora, o app confere e publica. **Cancelar agendamento** devolve a peça para aprovada |
+| **Baixar e publicar por fora** | Baixe a arte em **Ver arte**, copie a **Legenda** e publique pelo Instagram ou pelo Meta Business Suite (que agendam por conta própria). Depois use **Publiquei por fora**, com o link do post se quiser |
+
+**Como sai no Instagram:**
+- **Carrossel:** um item por slide.
+- **Story:** sai sem legenda (o Instagram não usa).
+- **Legenda:** leva as hashtags e o CRECI.
+
+Publicada pela API, a peça mostra **Ver no Instagram**. A API do Instagram **não apaga**
+publicações: para tirar um post, apague pelo próprio Instagram.
+
+**Aprovação por janela:** com "Publica sozinho se eu não responder na janela", escolhido em Ajustes
+› Conta e marca, um rascunho também pode ser agendado. Na hora, ele é aprovado e publicado se
+passar nas checagens. Para impedir, cancele o agendamento.
+
+**Quando não sai:** a peça fica **com erro** e mostra o motivo, por exemplo "o Instagram não está
+conectado", "reconecte o Instagram" ou o que o Instagram respondeu. Resolva e use **Publicar
+agora** de novo.
+

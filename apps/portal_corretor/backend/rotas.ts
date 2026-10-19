@@ -12,6 +12,7 @@ import { demoRotas } from './demo';
 import { paginaRotas } from './pagina';
 import { clienteRotas } from './cliente';
 import { estudioRotas } from './estudio';
+import { instagramRotas, renovarTokensInstagram } from './instagram';
 
 export { aoIniciar } from './semente';
 // Páginas públicas, webhooks de entrada e listeners do bloco 5.
@@ -20,6 +21,7 @@ export { rotasPublicas, webhooks, reagir } from './publico';
 // Rotinas declaradas no manifesto; o horário é do admin (rotinas.md).
 export const rotinas = {
   reclassificar_contatos: reclassificarContatos,
+  renovar_tokens_instagram: renovarTokensInstagram,
 };
 
 export const rotas: Router = Router();
@@ -41,3 +43,4 @@ rotas.use(demoRotas);
 rotas.use(paginaRotas);
 rotas.use(clienteRotas);
 rotas.use(estudioRotas);
+rotas.use(instagramRotas);

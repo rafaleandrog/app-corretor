@@ -7,6 +7,7 @@ import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
 import { reclassificar } from './inteligencia';
 import { publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
+import { aoPublicacaoProgramada } from './instagram';
 
 // Superfícies públicas do bloco 5 (paginas-publicas.md, wh.md, D-55):
 // - rotas GET anônimas que leem só a vitrine pública (a página, a ficha do imóvel, o link);
@@ -458,4 +459,5 @@ export const reagir = {
   link_clicado: aoClicarLink,
   reacao_recebida: aoReceberReacao,
   acao_cliente_recebida: aoReceberAcaoCliente,
+  publicacao_programada: aoPublicacaoProgramada,
 };

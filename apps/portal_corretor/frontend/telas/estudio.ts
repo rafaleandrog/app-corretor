@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { FORMATOS, OBJETIVOS, ROTULO_FORMATO, ROTULO_OBJETIVO, type Formato, type ImovelArte } from '../../comum/estudio';
-import { dataHora, enviar, mensagemDeErro, subirArquivo } from '../apoio';
+import { dataHora, enviar, juntarDataHora, mensagemDeErro, subirArquivo } from '../apoio';
 import { gerarArte, type MarcaArte } from '../estudio/motor';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -37,6 +37,8 @@ export class PcTelaEstudio extends LitElement {
   @state() private falha: string | null = null;
   @state() private trabalhando: string | null = null;
   @state() private ouvindo = false;
+  /** Aprovação por janela (Ajustes › Conta e marca): o rascunho pode ser agendado. */
+  @state() private janela = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -46,9 +48,10 @@ export class PcTelaEstudio extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      const [p, m] = await Promise.all([urbiVerso.api('/estudio/pecas'), urbiVerso.api('/estudio/marca')]);
+      const [p, m, c] = await Promise.all([urbiVerso.api('/estudio/pecas'), urbiVerso.api('/estudio/marca'), urbiVerso.api('/conta').catch(() => null)]);
       this.pecas = p.dados;
       this.marca = m;
+      this.janela = c?.configuracoes?.modo_aprovacao_conteudo === 'janela';
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -263,6 +266,46 @@ export class PcTelaEstudio extends LitElement {
     }
   }
 
+  private async agendar(p: Linha) {
+    const amanha = new Date(Date.now() + 86400e3).toLocaleDateString('sv-SE');
+    const v = await urbiVerso.formulario({
+      titulo: 'Agendar no Instagram',
+      mensagem: 'Na hora marcada o app confere a peça de novo e publica na sua conta conectada.',
+      campos: [
+        { nome: 'dia', tipo: 'data', rotulo: 'Dia', obrigatorio: true, valor: amanha },
+        { nome: 'hora', tipo: 'texto', rotulo: 'Hora (HH:MM)', obrigatorio: true, valor: '09:00' },
+      ],
+      rotuloConfirmar: 'Agendar',
+    });
+    if (!v) return;
+    await this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/agendar`, { quando: juntarDataHora(v.dia, v.hora) }), 'Peça agendada.');
+  }
+
+  private async publicar(p: Linha) {
+    const ok = await urbiVerso.confirmar({ titulo: 'Publicar agora', mensagem: 'A peça vai para o Instagram conectado. A API do Instagram não apaga publicações depois.', rotuloConfirmar: 'Publicar' });
+    if (!ok) return;
+    this.trabalhando = 'Publicando no Instagram…';
+    try {
+      await enviar('POST', `/estudio/pecas/${p.id}/publicar`);
+      urbiVerso.notificar('Publicada no Instagram.', 'sucesso');
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi publicada', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      this.trabalhando = null;
+      await this.carregar();
+    }
+  }
+
+  private async publiqueiFora(p: Linha) {
+    const v = await urbiVerso.formulario({
+      titulo: 'Publiquei por fora',
+      mensagem: 'Publicou pelo Instagram ou pelo Meta Business Suite? Registre aqui para o Estúdio saber.',
+      campos: [{ nome: 'link', tipo: 'texto', rotulo: 'Link do post (opcional)', placeholder: 'https://www.instagram.com/p/…' }],
+      rotuloConfirmar: 'Registrar',
+    });
+    if (v) await this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/publicada-fora`, { link: v.link }), 'Registrado como publicado.');
+  }
+
   private async remover(p: Linha) {
     const ok = await urbiVerso.confirmar({ titulo: 'Remover peça', mensagem: 'A peça sai do Estúdio.', rotuloConfirmar: 'Remover', perigo: true });
     if (ok) await this.acao(() => enviar('PATCH', `/estudio/pecas/${p.id}/remover`), 'Peça removida.');
@@ -309,6 +352,9 @@ export class PcTelaEstudio extends LitElement {
           <urbi-prosa>${p.titulo}</urbi-prosa>
           <urbi-badge cor=${estado.cor}>${estado.rotulo}</urbi-badge>
         </urbi-linha>
+        ${p.estado === 'agendada' ? html`<urbi-prosa papel="secundario">Agendada para ${dataHora(p.agendada_para)}</urbi-prosa>` : ''}
+        ${p.estado === 'publicada' ? html`<urbi-prosa papel="secundario">Publicada em ${dataHora(p.publicada_em)}${p.publicada_por === 'fora' ? ' (por fora)' : ''}</urbi-prosa>` : ''}
+        ${p.estado === 'erro' && p.erro ? html`<urbi-prosa papel="secundario">${p.erro}</urbi-prosa>` : ''}
         <urbi-prosa papel="fraco">${ROTULO_FORMATO[p.formato as Formato] ?? p.formato} · ${ROTULO_OBJETIVO[p.objetivo as keyof typeof ROTULO_OBJETIVO] ?? p.objetivo}${p.imovel_codigo ? ` · ${p.imovel_codigo}` : ''} · ${MOTOR[p.motor] ?? p.motor} · ${dataHora(p.criado_em)}</urbi-prosa>
         <urbi-linha quebrar>
           ${(p.arquivos ?? []).map((a: Linha, i: number) => html`<urbi-visualizador-arquivo pequeno variante="fantasma" rotulo=${p.arquivos.length > 1 ? `Ver ${i + 1}` : 'Ver arte'} url=${a.url ?? ''} nome=${`${p.titulo} ${i + 1}.jpg`} mime="image/jpeg"></urbi-visualizador-arquivo>`)}
@@ -322,6 +368,14 @@ export class PcTelaEstudio extends LitElement {
           ${p.estado === 'rascunho' || p.estado === 'rejeitada'
             ? html`<urbi-botao pequeno icone="fa-solid fa-check" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/aprovar`), 'Peça aprovada.')}>Aprovar</urbi-botao>`
             : ''}
+          ${p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em)
+            ? html`<urbi-botao pequeno icone="fa-brands fa-instagram" ?carregando=${!!this.trabalhando} @click=${() => this.publicar(p)}>Publicar agora</urbi-botao>
+                <urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-plus" @click=${() => this.agendar(p)}>Agendar</urbi-botao>`
+            : ''}
+          ${p.estado === 'rascunho' && this.janela ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-plus" @click=${() => this.agendar(p)}>Agendar (aprova na hora)</urbi-botao>` : ''}
+          ${p.estado === 'agendada' ? html`<urbi-botao pequeno variante="secundario" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/cancelar-agendamento`), 'Agendamento cancelado.')}>Cancelar agendamento</urbi-botao>` : ''}
+          ${['aprovada', 'agendada', 'erro'].includes(p.estado) ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-check-double" @click=${() => this.publiqueiFora(p)}>Publiquei por fora</urbi-botao>` : ''}
+          ${p.estado === 'publicada' && p.permalink ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(p.permalink, '_blank', 'noopener')}>Ver no Instagram</urbi-botao>` : ''}
           ${p.estado === 'aprovada' ? html`<urbi-botao pequeno variante="secundario" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/rejeitar`), 'Peça devolvida.')}>Rejeitar</urbi-botao>` : ''}
           ${travada ? '' : html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-trash" ariaLabel="Remover peça" title="Remover" @click=${() => this.remover(p)}></urbi-botao>`}
         </urbi-linha>

@@ -19,6 +19,13 @@ const DATAHORA: Record<string, Set<string>> = Object.fromEntries(
 const GLOBAIS = new Set(
   Object.entries((schema as { tabelas: Record<string, { segregada_por_conta?: boolean }> }).tabelas).filter(([, d]) => d.segregada_por_conta === false).map(([t]) => t),
 );
+/** Colunas `segredo` por tabela: toda leitura devolve a máscara; só `revelar` dá o valor. */
+const SEGREDOS: Record<string, Set<string>> = Object.fromEntries(
+  Object.entries((schema as { tabelas: Record<string, { colunas: Record<string, { tipo: string }> }> }).tabelas).map(([t, def]) => [
+    t,
+    new Set(Object.entries(def.colunas).filter(([, c]) => c.tipo === 'segredo').map(([n]) => n)),
+  ]),
+);
 /** Cópia da linha como o `req.dados` devolve: `datahora` vira `Date`. */
 /** Gravação como o framework faz: `Date` vira ISO. */
 const comoGravado = (d: Record<string, unknown>) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]));
@@ -27,6 +34,7 @@ function comoLido(tabela: string, l: Record<string, any>) {
   const cols = DATAHORA[tabela];
   const r: Record<string, any> = { ...l };
   if (cols) for (const c of cols) if (typeof r[c] === 'string') r[c] = new Date(r[c]);
+  for (const c of SEGREDOS[tabela] ?? []) if (c in r) r[c] = { configurado: r[c] !== null && r[c] !== undefined && r[c] !== '' };
   return r;
 }
 
@@ -103,6 +111,13 @@ export class BancoFalso {
       async buscar(tabela: string, id: number) {
         const l = visiveis(tabela).find((x) => x.id === id);
         return l ? comoLido(tabela, l) : null;
+      },
+      /** A única porta do segredo (banco-de-dados.md § revelar); outra conta ou vazio → null. */
+      async revelar(tabela: string, id: number, coluna: string) {
+        if (!SEGREDOS[tabela]?.has(coluna)) throw new Error(`VOCABULARIO_INVALIDO: ${tabela}.${coluna} não é segredo`);
+        const l = (leituraGlobal ? banco.linhas(tabela).filter((x) => x.conta_id === conta) : visiveis(tabela)).find((x) => x.id === id && !x.removido_em);
+        const v = l?.[coluna];
+        return typeof v === 'string' && v ? v : null;
       },
       async remover(tabela: string, id: number, por?: number) {
         tabelaAtual = tabela;
