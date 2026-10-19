@@ -1444,6 +1444,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-59 | WhatsApp espera P-31 e P-32 no SDK publicado; parceiro (caminho B) só por nova decisão do dono | Adotar parceiro já | Decisão do dono |
 | D-60 | Canva com conta e credenciais providas pelo dono até o bloco 8; sem elas, o Estúdio começa pelo motor interno (D-35) | Bloquear o bloco 8 | A plataforma não tem integração com o Canva: a app integra por `fetch()` |
 | D-61 | Equipe da plataforma (papel `operacao`) tem no `nav` o grupo "Equipe da plataforma › Corretores"; quem só tem `operacao` abre o Início direto nessa tela | Tela de equipe só em `telas_config` | A equipe convida corretores pelo app (provisionamento por convite) e não tem carteira própria |
+| D-62 | **Agenda** entra no `nav` do corretor (entre Clientes e Ajustes) já no bloco 2, como lista por dia das atividades pendentes dos próximos 14 dias (19/10, bloco 2) | Agenda só dentro do Início e da ficha do contato | Visitas e retornos são o dia a dia do corretor; o Início do bloco 4 continua mostrando as do dia. Lista por dia segue a lacuna de calendário (11.5) |
 
 ## 17. Pendências
 

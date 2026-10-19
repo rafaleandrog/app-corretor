@@ -1,25 +1,43 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './diagnostico.js';
 import './telas/inicio.js';
 import './telas/conta.js';
 import './telas/corretores.js';
+import './telas/clientes.js';
+import './telas/ficha-contato.js';
+import './telas/agenda.js';
+import './telas/funil-ajustes.js';
+import './telas/importar.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
 interface Tela {
   titulo: string;
   papel: 'corretor' | 'operacao';
-  render: () => unknown;
+  render: (param?: string) => unknown;
 }
 
-// Uma entrada por rota do `nav`. A tela só abre para quem tem o papel; o backend barra de novo.
+// Uma entrada por rota. A tela só abre para quem tem o papel; o backend barra de novo.
 const TELAS: Record<string, Tela> = {
   '/': { titulo: 'Início', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` },
+  '/clientes': { titulo: 'Clientes', papel: 'corretor', render: () => html`<pc-tela-clientes></pc-tela-clientes>` },
+  '/clientes/importar': { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
+  '/clientes/:id': { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
+  '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
+  '/ajustes/funil': { titulo: 'Funil', papel: 'corretor', render: () => html`<pc-tela-funil-ajustes></pc-tela-funil-ajustes>` },
   '/corretores': { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
+
+/** Rota exata primeiro; depois as de parâmetro numérico (`/clientes/:id`). */
+function resolver(sub: string): { tela?: Tela; param?: string } {
+  if (TELAS[sub]) return { tela: TELAS[sub] };
+  const m = sub.match(/^\/clientes\/(\d+)$/);
+  return m ? { tela: TELAS['/clientes/:id'], param: m[1] } : {};
+}
 
 /** `/conta/` e `/conta` são a mesma tela; a raiz continua `/`. */
 const normalizar = (sub: string) => (sub.length > 1 ? sub.replace(/\/+$/, '') : sub) || '/';
@@ -59,7 +77,7 @@ export class AppPortalCorretor extends LitElement {
     window.removeEventListener('urbi:contexto-app', this.aoMudarContexto);
   }
 
-  private conteudo(tela: Tela | undefined) {
+  private conteudo(tela: Tela | undefined, param?: string) {
     if (!this.carregado) return html`<urbi-loading></urbi-loading>`;
     if (!tela) {
       // O endereço recebido fica visível de propósito: é o diagnóstico do retorno de redirecionamento
@@ -72,13 +90,14 @@ export class AppPortalCorretor extends LitElement {
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-lock" mensagem="Esta área não está liberada para você"
         submensagem="Ela é do papel ${quem}. Peça ao administrador do app para atribuir o papel em Configurações › Usuários."></urbi-estado-vazio>`;
     }
-    return tela.render();
+    // `keyed` pelo endereço: trocar de cliente recria a tela em vez de reaproveitar o estado.
+    return keyed(this.sub, tela.render(param));
   }
 
   render() {
     // A equipe da plataforma não tem carteira: no Início ela cai direto na lista de corretores.
     const soEquipe = !this.papeis.includes('corretor') && this.papeis.includes('operacao');
-    const tela = this.sub === '/' && soEquipe ? TELAS['/corretores'] : TELAS[this.sub];
-    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.conteudo(tela)}</urbi-shell-page>`;
+    const { tela, param } = this.sub === '/' && soEquipe ? { tela: TELAS['/corretores'], param: undefined } : resolver(this.sub);
+    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.conteudo(tela, param)}</urbi-shell-page>`;
   }
 }

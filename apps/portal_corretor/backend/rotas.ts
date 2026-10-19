@@ -2,6 +2,7 @@ import '@urbiverso/sdk/express';
 import { Router } from 'express';
 import manifesto from '../manifesto.json';
 import { contaRotas } from './conta';
+import { crmRotas } from './crm';
 import { equipeRotas } from './equipe';
 
 export { aoIniciar } from './semente';
@@ -16,6 +17,7 @@ rotas.get('/status', (_req, res) => {
 
 rotas.use('/conta', contaRotas);
 rotas.use('/equipe', equipeRotas);
+rotas.use(crmRotas);
 
 // Diagnóstico do bloco 0 (sai no bloco 5): devolve o caminho e a query com que a rota pública foi
 // chamada, para confirmar na instância se /pub aceita segmento extra e query. Não lê dado nenhum.

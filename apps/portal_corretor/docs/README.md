@@ -8,15 +8,18 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.2.0)
+## O que existe nesta versão (0.3.0)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
 | Corretor | **Início** | Mostra o que falta para começar (nome da conta, CRECI, telefone) |
+| Corretor | **Clientes** | Contatos, ficha com negócios, notas, consentimento e linha do tempo; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) |
+| Corretor | **Agenda** | Atividades pendentes dos próximos 14 dias |
+| Corretor | **Ajustes › Funil** | As etapas de cada funil e a chance de fechar |
 | Corretor | **Ajustes › Conta e marca** | Seus dados, os dados da conta e as regras de atendimento — ver [Conta e ajustes](conta-e-ajustes.md) |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
-Ainda não há clientes, imóveis, funil, páginas públicas, integrações nem uso de IA. Cada
+Ainda não há imóveis, quadro do funil, páginas públicas, integrações nem uso de IA. Cada
 funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Papéis
