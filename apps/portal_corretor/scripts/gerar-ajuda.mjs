@@ -12,7 +12,7 @@ export function gerarArtigos(dir) {
   const artigos = [];
   for (const arquivo of readdirSync(dir).filter((f) => f.endsWith('.md')).sort()) {
     const slug = arquivo.replace(/\.md$/, '').toLowerCase();
-    let texto = readFileSync(join(dir, arquivo), 'utf8').replace(/\r\n/g, '\n');
+    let texto = readFileSync(join(dir, arquivo), 'utf8').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
     const fm = texto.match(/^---\n([\s\S]*?)\n---\n/);
     const titulo = fm?.[1].match(/^titulo:\s*(.+)$/m)?.[1].trim() ?? slug;
     if (fm) texto = texto.slice(fm[0].length);

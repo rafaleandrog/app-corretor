@@ -19,7 +19,7 @@ import './telas/desempenho.js';
 import './telas/pagina.js';
 import './telas/estudio.js';
 import './telas/conexoes.js';
-import './telas/assistente.js';
+import { lembrarTela } from './telas/assistente.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
 import './publico/selecao.js';
@@ -50,6 +50,7 @@ const TELAS: Record<string, Tela> = {
   '/desempenho': { titulo: 'Desempenho', papel: 'corretor', render: () => html`<pc-tela-desempenho></pc-tela-desempenho>` },
   '/pagina': { titulo: 'Minha página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
   '/estudio': { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
+  '/assistente': { titulo: 'Assistente', papel: 'corretor', render: () => html`<pc-tela-assistente expandir></pc-tela-assistente>` },
   '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
   '/ajustes/conexoes': { titulo: 'Conexões', papel: 'corretor', render: () => html`<pc-tela-conexoes></pc-tela-conexoes>` },
@@ -89,8 +90,11 @@ export class AppPortalCorretor extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    lembrarTela(this.sub);
     this.cancelarRota = urbiVerso.escutarRota((sub) => {
       this.sub = normalizar(sub);
+      // O Assistente responde pela tela em que o corretor estava antes de abri-lo.
+      lembrarTela(this.sub);
     });
     this.aoMudarContexto();
     window.addEventListener('urbi:contexto-app', this.aoMudarContexto);
@@ -123,9 +127,6 @@ export class AppPortalCorretor extends LitElement {
     // A equipe da plataforma não tem carteira: no Início ela cai direto na lista de corretores.
     const soEquipe = !this.papeis.includes('corretor') && this.papeis.includes('operacao');
     const { tela, param } = this.sub === '/' && soEquipe ? { tela: TELAS['/corretores'], param: undefined } : resolver(this.sub);
-    // O Assistente (bloco 9) fica em todas as telas do corretor, fora da troca de tela: a conversa
-    // continua ao navegar.
-    const assistente = this.carregado && this.papeis.includes('corretor') ? html`<pc-assistente .tela=${this.sub}></pc-assistente>` : '';
-    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.conteudo(tela, param)}</urbi-shell-page>${assistente}`;
+    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.conteudo(tela, param)}</urbi-shell-page>`;
   }
 }

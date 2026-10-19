@@ -1,13 +1,14 @@
 ---
 titulo: Assistente do Corretor
-descricao: O chat que fica em todas as telas — tira dúvidas pelo manual do app, ajuda a decidir quem atender e cria lembretes ou agenda peças, sempre com a sua confirmação.
+descricao: O chat do menu Assistente — tira dúvidas pelo manual do app, ajuda a decidir quem atender e cria lembretes ou agenda peças, sempre com a sua confirmação.
 ---
 
 # Assistente do Corretor
 
-O botão **Assistente** fica no canto de baixo, em todas as telas do corretor. Ele abre um chat. Dá
-para perguntar por escrito ou ditar, pelo microfone, quando a transcrição de voz estiver liberada.
-A conversa continua enquanto você troca de tela.
+O **Assistente** fica no menu do app, logo abaixo do Início, e abre um chat. Dá para perguntar por
+escrito ou ditar pelo microfone, quando a transcrição de voz estiver liberada.
+- Ele responde pensando na tela em que você estava antes de abri-lo.
+- Se você sair e voltar, a conversa continua lá, enquanto o app estiver aberto.
 
 ## O que ele responde
 
@@ -20,11 +21,11 @@ A conversa continua enquanto você troca de tela.
 **A resposta:**
 - Diz em que artigo do manual se baseou e tem o link **abrir a documentação**.
 - Quando é algo que se faz numa tela, mostra o botão **Abrir** com o nome da tela.
-- Se o manual não cobre o assunto, ele diz que não sabe e indica o menu **?** › Reportar bug ou
-  Fazer sugestão. Ele não inventa funcionalidade.
+- Se o manual não cobre o assunto, ele diz que não sabe e sugere falar com a equipe da plataforma
+  que deu o seu acesso. Ele não inventa funcionalidade.
 
-Na ficha do cliente, o botão **Perguntar ao Assistente** abre o chat já sobre aquele cliente. O
-nome dele aparece no topo, e **Tirar** volta à conversa geral.
+Na ficha do cliente, o botão **Perguntar ao Assistente** abre o Assistente já sobre aquele cliente.
+O nome dele aparece no topo, e **Tirar** volta à conversa geral.
 
 ## O que ele faz, com confirmação
 
@@ -47,8 +48,9 @@ Para esses casos, ele explica onde você mesmo faz.
 
 ## Sem IA
 
-Se a IA do Assistente não estiver liberada pelo administrador, o chat vira uma **busca no manual**.
-Ele mostra os artigos mais próximos da sua pergunta. As ações e as decisões precisam da IA.
+Se a IA do Assistente não estiver liberada pelo administrador, ou não responder naquela hora, o chat
+vira uma **busca no manual**. Ele mostra os artigos mais próximos da sua pergunta. As ações e as
+decisões precisam da IA.
 
 ## Privacidade
 
@@ -60,5 +62,11 @@ A IA recebe:
 - os títulos das peças do Estúdio;
 - os trechos do manual ligados à pergunta.
 
-Sobre um cliente em foco, vão a temperatura, o perfil de busca e os resumos do histórico. **Telefone
-e e-mail não vão.** Cliente anonimizado não entra.
+Sobre um cliente em foco, vão a temperatura, o perfil de busca e os resumos do histórico.
+- **Telefone e e-mail não vão.** Nem as colunas, nem os números e endereços escritos em notas ou na
+  mensagem do formulário: o app troca esses trechos por "[telefone]" e "[e-mail]".
+- Cliente anonimizado não entra.
+
+O que vem de outras pessoas (o nome e a mensagem de quem preencheu o formulário, por exemplo) é
+tratado como dado, não como ordem. A resposta da IA aparece sem imagens nem links. O único link é o
+da documentação, posto pelo app.
