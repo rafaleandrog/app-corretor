@@ -46,7 +46,10 @@ export class PcTelaPagina extends LitElement {
   @state() private salvando = false;
 
   private async salvar(mudancas: Partial<Visao['pagina']>, extra: Record<string, unknown> = {}) {
-    if (this.salvando) return false;
+    if (this.salvando) {
+      urbiVerso.notificar('Aguarde: a mudança anterior ainda está sendo salva.', 'info');
+      return false;
+    }
     const p = { ...this.visao!.pagina, ...mudancas };
     this.salvando = true;
     try {

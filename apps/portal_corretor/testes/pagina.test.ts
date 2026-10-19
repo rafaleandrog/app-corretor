@@ -22,7 +22,7 @@ const shell = {
   },
   gerarIngressoWh: async ({ webhook, contexto }: { webhook: string; contexto: { conta_id: number } }) => {
     ingressos++;
-    return { url: `https://corretor.exemplo/api/wh/portal_corretor/wh_${webhook}_${contexto.conta_id}`, ingresso_id: ingressos, token: 'wh_x', expira_em: null };
+    return { url: `https://corretor.exemplo/api/wh/portal_corretor/wh_${webhook}_${contexto.conta_id}_${ingressos}`, ingresso_id: ingressos, token: 'wh_x', expira_em: null };
   },
 };
 
@@ -281,6 +281,7 @@ test('link rastreado: envio de imóvel publicado leva o link; o clique conta no 
   limparLimites();
   const banco = new BancoFalso(UNICOS);
   let codigo = '';
+  let urlAntiga = '';
   await comServidor(rotas, A, banco, shell, async (chamar) => {
     const { im } = await imovelAnunciado(chamar, 'Apto com vista', '61911110003');
     const cliente = (await chamar('POST', '/contatos', { nome: 'Rita Souza', telefone: '61988881111' })).corpo;
@@ -299,7 +300,8 @@ test('link rastreado: envio de imóvel publicado leva o link; o clique conta no 
     const l = await chamar('GET', `/vitrine/link?c=${codigo}`);
     assert.equal(l.status, 200);
     assert.match(l.corpo.destino, /^\/portal_corretor\/p\?c=usuario-1&i=IM-/);
-    assert.match(l.corpo.url_clique, /wh_clique_link_100$/);
+    assert.match(l.corpo.url_clique, /wh_clique_link_100_\d+$/);
+    urlAntiga = l.corpo.url_clique;
     assert.equal((await chamar('GET', '/vitrine/link?c=naoexiste')).status, 404);
   });
   const clique = await chamarWebhook('clique_link', 100, { codigo });
@@ -311,6 +313,24 @@ test('link rastreado: envio de imóvel publicado leva o link; o clique conta no 
   await reagir.link_clicado({ payload: { codigo }, conta_id: 200 }, ctx);
   const envio = banco.linhas('envios').find((e) => e.link_rastreado === codigo)!;
   assert.equal(envio.cliques, 2);
+  // Tirar do ar e publicar de novo: o link antigo volta a abrir e conta no endereço novo.
+  await comServidor(rotas, A, banco, shell, async (chamar) => {
+    await chamar('POST', '/pagina/despublicar');
+  });
+  await comServidor(rotasPublicas, VISITANTE, banco, {}, async (chamar) => {
+    const fora = (await chamar('GET', `/vitrine/link?c=${codigo}`)).corpo;
+    assert.deepEqual([fora.destino, fora.url_clique], [null, null], 'fora do ar: indisponível e nada a contar');
+  });
+  await comServidor(rotas, A, banco, shell, async (chamar) => {
+    await chamar('POST', '/pagina/publicar');
+  });
+  const novaUrl = banco.linhas('paginas_corretor').find((l) => l.conta_id === 100)!.url_clique;
+  await comServidor(rotasPublicas, VISITANTE, banco, {}, async (chamar) => {
+    const volta = (await chamar('GET', `/vitrine/link?c=${codigo}`)).corpo;
+    assert.match(volta.destino, /^\/portal_corretor\/p\?c=usuario-1&i=IM-/);
+    assert.equal(volta.url_clique, novaUrl);
+    assert.notEqual(novaUrl, urlAntiga, 'o endereço revogado não é mais usado');
+  });
   assert.ok(envio.primeiro_clique_em);
   assert.equal(banco.linhas('linha_do_tempo').filter((l) => l.tipo === 'envio.aberto').length, 1, 'só o primeiro clique entra na linha do tempo');
 });

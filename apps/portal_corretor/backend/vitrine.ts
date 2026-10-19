@@ -68,7 +68,7 @@ export async function sincronizarImovel(req: Request, imovelId: number): Promise
   const chave = chaveImovel(conta, imovelId);
   const pagina = await paginaPublicada(dados, conta);
   const lido = await dados.buscar('imoveis', imovelId);
-  const im = lido && lido.conta_id === conta ? lido : null;
+  const im = lido && Number(lido.conta_id) === conta ? lido : null; // BIGINT pode chegar como texto
   let entra = false;
   let midias: Linha[] = [];
   let autorizacoes: Linha[] = [];
@@ -116,6 +116,9 @@ export async function conteudoPagina(req: Request, pagina: Linha) {
     cor: TEMAS[pagina.tema]?.cor ?? TEMAS.oceano.cor,
     blocos: (pagina.blocos as Bloco[]).filter((b) => b.ativo),
     url_formulario: pagina.url_formulario ?? null,
+    // Lida pelos links rastreados na hora do clique: republicar a página troca o endereço de entrada
+    // e os links enviados antes passam a contar no novo.
+    url_clique: pagina.url_clique ?? null,
   };
 }
 
@@ -181,6 +184,6 @@ export async function criarLink(req: Request, codigoLink: string, imovelId: numb
   if (!pagina?.url_clique || !origemPublica(pagina.url_clique)) return null;
   const naVitrine = (await linhasDaConta(dados, conta, 'imovel', { chave: chaveImovel(conta, imovelId) }))[0];
   if (!naVitrine) return null;
-  await gravar(dados, conta, 'link', codigoLink, naVitrine.codigo, { imovel_chave: naVitrine.chave, url_clique: pagina.url_clique });
+  await gravar(dados, conta, 'link', codigoLink, naVitrine.codigo, { imovel_chave: naVitrine.chave });
   return `${origemPublica(pagina.url_clique)}/portal_corretor/l?c=${encodeURIComponent(codigoLink)}`;
 }

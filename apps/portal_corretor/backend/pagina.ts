@@ -131,7 +131,9 @@ paginaRotas.post(
       // Outra conta publicou o mesmo endereço no mesmo instante: esta continua fora do ar.
       await desfazer(async () => {
         await dados.atualizar('paginas_corretor', p.id, { publicada_em: p.publicada_em ?? null });
-        await despublicarTudo(dados, conta);
+        // Já estava no ar: a vitrine volta a ser a do endereço gravado; senão, fica vazia.
+        if (p.publicada_em) await sincronizarTudo(req);
+        else await despublicarTudo(dados, conta);
       });
       return erro(res, 409, 'ENDERECO_EM_USO', 'Este endereço acabou de ser escolhido por outra página. Escolha outro.');
     }
@@ -158,7 +160,15 @@ paginaRotas.post(
       // Fora do ar, o formulário e a contagem de cliques param de receber: os endereços de entrada
       // são revogados e nascem de novo na próxima publicação.
       for (const [webhook, id] of [['formulario_lead', p.ingresso_formulario_id], ['clique_link', p.ingresso_clique_id]] as const) {
-        if (id) await req.shell!.revogarIngressoWh({ webhook, ingresso_id: id });
+        if (!id) continue;
+        try {
+          await req.shell!.revogarIngressoWh({ webhook, ingresso_id: id });
+        } catch (e) {
+          // Ingresso ou webhook que já não existem: nada a revogar, e a página sai do ar mesmo assim.
+          const codigo = (e as { codigo?: string })?.codigo;
+          if (codigo !== 'WH_INGRESSO_NAO_ENCONTRADO' && codigo !== 'WH_NAO_ENCONTRADO') throw e;
+          console.warn(`[portal_corretor] página: ingresso ${id} de ${webhook} não encontrado ao revogar`);
+        }
       }
       await dados.atualizar('paginas_corretor', p.id, { publicada_em: null, ingresso_formulario_id: null, url_formulario: null, ingresso_clique_id: null, url_clique: null });
     }

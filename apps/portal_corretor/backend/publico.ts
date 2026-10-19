@@ -79,17 +79,20 @@ rotasPublicas.get('/vitrine/imovel', async (req, res, next) => {
   }
 });
 
-/** Link rastreado: para onde vai e onde contar o clique (a contagem entra pelo wh `clique_link`). */
+/**
+ * Link rastreado: para onde vai e onde contar o clique (a contagem entra pelo wh `clique_link`).
+ * O endereço de contagem é o da página no ar agora; sem página no ar, nada a contar.
+ */
 rotasPublicas.get('/vitrine/link', async (req, res, next) => {
   try {
     const codigo = texto(req.query.c, 24);
     const link = codigo ? await vitrine(req.dados!, { tipo: 'link', chave: codigo }) : null;
     if (!link) return naoEncontrado(res);
     const imovel = link.dados?.imovel_chave ? await vitrine(req.dados!, { tipo: 'imovel', conta: link.conta, chave: link.dados.imovel_chave }) : null;
-    const pagina = imovel ? await vitrine(req.dados!, { tipo: 'pagina', conta: link.conta }) : null;
+    const pagina = await vitrine(req.dados!, { tipo: 'pagina', conta: link.conta });
     res.json({
       destino: imovel && noPrazo(imovel) && pagina ? `/portal_corretor/p?c=${encodeURIComponent(pagina.chave)}&i=${encodeURIComponent(imovel.codigo)}` : null,
-      url_clique: link.dados?.url_clique ?? null,
+      url_clique: pagina?.dados?.url_clique ?? null,
     });
   } catch (e) {
     next(e);
@@ -115,7 +118,11 @@ export function limparLimites() {
   janelas.clear();
 }
 
-/** Origem do envio: `req.ip`, que segue o proxy confiável do shell (o primeiro X-Forwarded-For é do cliente e se falsifica). */
+/**
+ * Origem do envio: `req.ip` (o primeiro X-Forwarded-For é do cliente e se falsifica). Se o shell não
+ * declarar o proxy confiável, `req.ip` é o do balanceador e o limite passa a valer por conta —
+ * confirmação pedida em specs/pedidos_ao_shell.md.
+ */
 function origem(req: Request): string {
   return createHash('sha256').update(req.ip || 'desconhecido').digest('hex').slice(0, 16);
 }

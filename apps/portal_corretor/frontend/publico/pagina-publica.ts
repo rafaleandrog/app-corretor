@@ -82,7 +82,10 @@ export class PcPaginaPublica extends LitElement {
     }
   }
 
-  private async abrirFoto(url: string) {
+  private origemFoco: HTMLElement | null = null;
+
+  private async abrirFoto(url: string, origem: HTMLElement) {
+    this.origemFoco = origem;
     this.foto = url;
     await this.updateComplete;
     this.renderRoot.querySelector<HTMLButtonElement>('.tela-cheia button')?.focus();
@@ -90,6 +93,8 @@ export class PcPaginaPublica extends LitElement {
 
   private fecharFoto() {
     this.foto = null;
+    // O foco volta para a foto que abriu a tela cheia.
+    this.origemFoco?.focus();
   }
 
   private bloco(tipo: Bloco['tipo']) {
@@ -232,7 +237,11 @@ export class PcPaginaPublica extends LitElement {
           ? html`<div class="galeria">${im.fotos.map(
               (f: { url: string; legenda: string | null }, n: number) =>
                 html`<img src=${f.url} alt=${f.legenda ?? `Foto ${n + 1} do imóvel`} loading="lazy" role="button" tabindex="0"
-                  @click=${() => this.abrirFoto(f.url)} @keydown=${(e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && this.abrirFoto(f.url)} />`,
+                  @click=${(e: Event) => this.abrirFoto(f.url, e.currentTarget as HTMLElement)} @keydown=${(e: KeyboardEvent) => {
+                    if (e.key !== 'Enter' && e.key !== ' ') return;
+                    e.preventDefault();
+                    this.abrirFoto(f.url, e.currentTarget as HTMLElement);
+                  }} />`,
             )}</div>`
           : nothing}
         <section>

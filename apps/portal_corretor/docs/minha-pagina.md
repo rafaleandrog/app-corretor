@@ -30,8 +30,9 @@ ou no computador:
   revisa antes de usar. Sem a IA liberada, o botão avisa e os textos são escritos à mão.
 - **Publicar** põe a página no ar. **Atualizar agora** refaz a página com o estado atual dos
   imóveis e do perfil. **Tirar do ar** faz a página e as fichas pararem de abrir; o formulário e
-  a contagem de cliques param de receber, e uma nova publicação cria endereços de entrada novos
-  (links enviados antes passam a mostrar "Imóvel indisponível").
+  a contagem de cliques param de receber, e os links enviados mostram "Imóvel indisponível".
+  Publicar de novo cria endereços de entrada novos, e os links enviados antes voltam a abrir e a
+  contar.
 
 O nome, o CRECI e o telefone de WhatsApp da página vêm do perfil de quem salva ou publica a página
 (Ajustes › Conta e marca). Mudou o CRECI ou o telefone? Use **Atualizar agora**.
