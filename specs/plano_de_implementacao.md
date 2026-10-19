@@ -80,7 +80,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | 19/10/2026 | 10a | Lembrete de visita: `configuracoes_conta.lembrete_visita_horas` (24, 0 desliga), `atividades.lembrete_enviado_para`, evento segregado `lembrete_visita` agendado ao criar e remarcar a visita, listener idempotente que notifica o responsável (`ctx.notificacoes`); roteiro de fechamento do MVP (R.8); 3 testes novos (95); versão 0.12.0; D-77 | #23 | Revisão do PR; roteiro R.8 na instância |
 | 19/10/2026 | 10a | Revisão do PR #23 (rodada 1): o listener confere o prazo na hora (0 desliga o que já estava agendado; prazo trocado não lembra na hora velha), visita que já passou não é lembrada, gravação condicionada (`atualizarSe`), PATCH só reagenda se a hora, o status ou o tipo mudarem, PUT sem o campo mantém o valor gravado, `intervalo` no schema; 97 testes | #23 | Rodada 2 |
 | 19/10/2026 | 10b | Merge dos PRs #2 e #13 a #22 na `main` (ordem do dono); D-78 (0.1.0 sem WhatsApp e Mensageiro); versão volta a 0.1.0 (D-69); plano fechado | #24 | Release 0.1.0 por ordem do dono; R.8 na instância |
-| 19/10/2026 | 10b | Admin do app vale por todos os papéis (#26); paleta única nas páginas públicas e no canvas, aviso de tokens de 34 para 2 literais (#27); versão 0.1.1 | #26, #27 | Release 0.1.1 por ordem do dono; R.8 na instância |
+| 19/10/2026 | 10b | Seletor de conta e cabeçalho `X-Conta` em todas as chamadas das telas (admin com várias contas via erro "conta destino inequívoca" em Início, Funil, Minha página, Conexões); versão 0.1.2 | #28 | Release 0.1.2 por ordem do dono; QA como admin |
 
 ---
 

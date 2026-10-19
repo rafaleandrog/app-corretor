@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
@@ -20,6 +20,7 @@ import './telas/pagina.js';
 import './telas/estudio.js';
 import './telas/conexoes.js';
 import { lembrarTela, renderAssistente } from './telas/assistente.js';
+import { contaAtiva, contasDoUsuario, escolherConta } from './apoio.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
 import './publico/selecao.js';
@@ -75,6 +76,8 @@ export class AppPortalCorretor extends LitElement {
   @state() private sub = normalizar(urbiVerso.subRota());
   @state() private carregado = false;
   @state() private papeis: string[] = [];
+  @state() private contas: { id: number; nome: string }[] = [];
+  @state() private conta: number | null = null;
   private cancelarRota?: () => void;
   // Contexto chega assíncrono: até `carregado`, roles vazias são falta de resposta, não de acesso.
   private aoMudarContexto = () => {
@@ -82,7 +85,22 @@ export class AppPortalCorretor extends LitElement {
     this.carregado = ctx.carregado ?? false;
     // Admin do app vale por todos os papéis (o SDK não os entrega a ele): precisa ver e configurar tudo.
     this.papeis = ctx.nivel === 'admin' ? ['corretor', 'operacao'] : (ctx.roles ?? []);
+    this.contas = contasDoUsuario();
+    this.conta = contaAtiva();
   };
+
+  // Quem atende várias contas escolhe em qual está; a tela é recriada para recarregar daquela conta.
+  private aoEscolherConta = (e: CustomEvent) => {
+    escolherConta(Number(e.detail.valor));
+    this.conta = contaAtiva();
+  };
+
+  private seletorDeConta() {
+    if (this.contas.length < 2) return nothing;
+    return html`<urbi-select label="Conta" valor=${String(this.conta ?? '')}
+      .opcoes=${this.contas.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+      @urbi:select-change=${this.aoEscolherConta}></urbi-select>`;
+  }
 
   // Réplica local do contrato `:host` de tela raiz (ui.md § Cadeia de altura). App plugável não
   // importa `estiloPagina` de @urbiverso/ui; layout, respiro e tipografia ficam nos primitivos.
@@ -122,13 +140,13 @@ export class AppPortalCorretor extends LitElement {
         submensagem="Ela é do papel ${quem}. Peça ao administrador do app para atribuir o papel em Configurações › Usuários."></urbi-estado-vazio>`;
     }
     // `keyed` pelo endereço: trocar de cliente recria a tela em vez de reaproveitar o estado.
-    return keyed(this.sub, tela.render(param, this));
+    return keyed(`${this.sub}|${this.conta}`, tela.render(param, this));
   }
 
   render() {
     // A equipe da plataforma não tem carteira: no Início ela cai direto na lista de corretores.
     const soEquipe = !this.papeis.includes('corretor') && this.papeis.includes('operacao');
     const { tela, param } = this.sub === '/' && soEquipe ? { tela: TELAS['/corretores'], param: undefined } : resolver(this.sub);
-    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.conteudo(tela, param)}</urbi-shell-page>`;
+    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.seletorDeConta()}${this.conteudo(tela, param)}</urbi-shell-page>`;
   }
 }

@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -42,7 +42,7 @@ export class PcTelaDesempenho extends LitElement {
     const geracao = ++this.geracao;
     this.falha = null;
     try {
-      const r = await urbiVerso.api(`/numeros?dias=${this.dias}`);
+      const r = await chamarApi(`/numeros?dias=${this.dias}`);
       if (geracao === this.geracao) this.dados = r;
     } catch (e) {
       if (geracao === this.geracao) this.falha = (e as Error).message;

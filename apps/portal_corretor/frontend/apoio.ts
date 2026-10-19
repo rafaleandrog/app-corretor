@@ -5,8 +5,49 @@ declare const urbiVerso: UrbiVersoAPI;
 // Apoio comum das telas: chamada com corpo JSON, mensagem de erro com os detalhes da validação e
 // formatação de data e dinheiro em pt-BR.
 
+// Conta ativa de escrita. Quem tem várias contas (o admin do app, por exemplo) precisa dizer em qual
+// grava: o shell só aceita escrita em tabela segregada com `X-Conta` (contas.md § Escrita com N
+// contas). Com uma conta só, o shell resolve sozinho e nenhum cabeçalho é enviado.
+const CHAVE_CONTA = 'portal_corretor:conta';
+
+export function contasDoUsuario(): { id: number; nome: string }[] {
+  const c = urbiVerso.contexto().conta;
+  return c && c.contaEscrita === undefined ? c.contas : [];
+}
+
+/** Conta escolhida no seletor, se ainda for uma das do usuário; senão a primeira da lista. */
+export function contaAtiva(): number | null {
+  const contas = contasDoUsuario();
+  if (!contas.length) return null;
+  let salva = 0;
+  try {
+    salva = Number(localStorage.getItem(CHAVE_CONTA));
+  } catch {
+    /* sem armazenamento: vale a primeira */
+  }
+  return contas.find((c) => c.id === salva)?.id ?? contas[0].id;
+}
+
+export function escolherConta(id: number) {
+  try {
+    localStorage.setItem(CHAVE_CONTA, String(id));
+  } catch {
+    /* só não lembra da escolha */
+  }
+}
+
+function comConta(opcoes: RequestInit = {}): RequestInit {
+  const conta = contaAtiva();
+  if (conta === null) return opcoes;
+  return { ...opcoes, headers: { ...Object.fromEntries(new Headers(opcoes.headers).entries()), 'X-Conta': String(conta) } };
+}
+
+/** `urbiVerso.api` com a conta ativa declarada. Use em toda rota autenticada do app. */
+export const chamarApi = (rota: string, opcoes?: RequestInit) => urbiVerso.api(rota, comConta(opcoes));
+export const chamarFetch = (rota: string, opcoes?: RequestInit) => urbiVerso.fetch(rota, comConta(opcoes));
+
 export async function enviar(metodo: 'POST' | 'PUT' | 'PATCH', rota: string, corpo?: unknown) {
-  return urbiVerso.api(rota, {
+  return chamarApi(rota, {
     method: metodo,
     body: corpo === undefined ? undefined : JSON.stringify(corpo),
     headers: { 'Content-Type': 'application/json' },
@@ -95,7 +136,7 @@ export const opcoes = (rotulos: Record<string, string>) => Object.entries(rotulo
 export async function subirArquivo(tabela: string, coluna: string, arquivo: File): Promise<number> {
   const form = new FormData();
   form.append('arquivo', arquivo);
-  const r = await urbiVerso.api(`/dados/portal_corretor/${tabela}/__upload?coluna=${coluna}`, { method: 'POST', body: form });
+  const r = await chamarApi(`/dados/portal_corretor/${tabela}/__upload?coluna=${coluna}`, { method: 'POST', body: form });
   return r.upload_id;
 }
 

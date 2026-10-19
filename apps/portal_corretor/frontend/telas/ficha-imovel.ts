@@ -1,21 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import {
-  corQualidade,
-  data,
-  dataHora,
-  enviar,
-  formularioEnviar,
-  mensagemDeErro,
-  opcoes,
-  reais,
-  ROTULO_AMBIENTE,
-  ROTULO_TIPO_IMOVEL,
-  ROTULO_TIPO_MIDIA,
-  SITUACAO_IMOVEL,
-  subirArquivo,
-} from '../apoio.js';
+import { chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -60,13 +46,13 @@ export class PcTelaFichaImovel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
-    void urbiVerso.api('/imoveis/ia').then((r) => (this.ia = r), () => undefined);
+    void chamarApi('/imoveis/ia').then((r) => (this.ia = r), () => undefined);
   }
 
   private async carregar() {
     this.falha = null;
     try {
-      const [ficha, envios] = await Promise.all([urbiVerso.api(`/imoveis/${this.imovelId}`), urbiVerso.api(`/envios?imovel_id=${this.imovelId}`).catch(() => ({ dados: [] }))]);
+      const [ficha, envios] = await Promise.all([chamarApi(`/imoveis/${this.imovelId}`), chamarApi(`/envios?imovel_id=${this.imovelId}`).catch(() => ({ dados: [] }))]);
       this.ficha = ficha;
       this.envios = envios.dados;
     } catch (e) {
@@ -198,8 +184,8 @@ export class PcTelaFichaImovel extends LitElement {
   // ---------- Dados e situação ----------
 
   private async opcoesVinculos() {
-    if (!this.contatos.length) this.contatos = (await urbiVerso.api('/contatos?papel=proprietario')).dados;
-    if (!this.empreendimentos.length) this.empreendimentos = (await urbiVerso.api('/empreendimentos')).dados;
+    if (!this.contatos.length) this.contatos = (await chamarApi('/contatos?papel=proprietario')).dados;
+    if (!this.empreendimentos.length) this.empreendimentos = (await chamarApi('/empreendimentos')).dados;
   }
 
   private async editar() {

@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { ROTULO_BLOCO, type Bloco } from '../../comum/pagina';
-import { dataHora, enviar, mensagemDeErro } from '../apoio';
+import { chamarApi, dataHora, enviar, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -31,7 +31,7 @@ export class PcTelaPagina extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.visao = await urbiVerso.api('/pagina');
+      this.visao = await chamarApi('/pagina');
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -91,7 +91,7 @@ export class PcTelaPagina extends LitElement {
   }
 
   private async camposDestaques(b: Bloco): Promise<CampoFormulario[]> {
-    const r = await urbiVerso.api('/imoveis?publicado_pagina=true&por_pagina=50');
+    const r = await chamarApi('/imoveis?publicado_pagina=true&por_pagina=50');
     const lista = (r.dados ?? []).filter((i: any) => i.publicado_pagina);
     if (!lista.length) return [];
     return lista.map((i: any) => ({ nome: `im_${i.codigo}`, tipo: 'booleano', rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}`, valor: (b.codigos ?? []).includes(i.codigo) }));
