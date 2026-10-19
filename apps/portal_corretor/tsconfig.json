@@ -12,5 +12,5 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["frontend/**/*", "backend/**/*", "testes/**/*"]
+  "include": ["frontend/**/*", "backend/**/*", "comum/**/*", "testes/**/*"]
 }
