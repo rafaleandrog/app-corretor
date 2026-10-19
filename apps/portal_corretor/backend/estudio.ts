@@ -310,11 +310,12 @@ estudioRotas.post(
     const arquivos = await req.dados!.listar('peca_arquivos', { filtros: { peca_id: p.id }, por_pagina: 1 });
     const imovel = await imovelDaPeca(req, p.imovel_id ?? null);
     const meuCreci = await creci(req);
-    const checagem = checarPeca(campos(p, arquivos.total), { creci: meuCreci, imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
-    if (!checagem.ok) return erro(res, 422, 'CHECAGEM_PENDENTE', 'Antes de aprovar, resolva:', checagem.pendencias);
     // CRECI na legenda (10.5): a arte do Canva ou enviada pode vir sem ele, então a legenda garante.
+    // Entra antes da checagem, para o limite de 2.200 valer para o texto que vai ser publicado.
     const legenda = p.legenda ?? '';
-    const comCreci = meuCreci && !legenda.includes(meuCreci) ? `${legenda}${legenda ? '\n\n' : ''}CRECI ${meuCreci}`.slice(0, 2200) : legenda;
+    const comCreci = meuCreci && !legenda.includes(meuCreci) ? `${legenda}${legenda ? '\n\n' : ''}CRECI ${meuCreci}` : legenda;
+    const checagem = checarPeca({ ...campos(p, arquivos.total), legenda: comCreci }, { creci: meuCreci, imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
+    if (!checagem.ok) return erro(res, 422, 'CHECAGEM_PENDENTE', 'Antes de aprovar, resolva:', checagem.pendencias);
     res.json(await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id }));
   }),
 );

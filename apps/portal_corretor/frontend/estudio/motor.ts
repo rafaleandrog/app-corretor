@@ -187,7 +187,8 @@ function capa(ctx: CanvasRenderingContext2D, w: number, h: number, foto: HTMLIma
   const altura = Math.min(bloco + 220, h - faixa);
   const grad = ctx.createLinearGradient(0, h - faixa - altura, 0, h - faixa);
   grad.addColorStop(0, 'rgba(12,16,20,0)');
-  grad.addColorStop(0.35, ESCURO);
+  // O escuro pleno começa no topo do bloco de texto, para o título não ficar sobre a parte clara.
+  grad.addColorStop(Math.min(220 / altura, 0.6), ESCURO);
   grad.addColorStop(1, 'rgba(12,16,20,0.92)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, h - faixa - altura, w, altura);
