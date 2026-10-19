@@ -47,7 +47,7 @@ corretor e as da equipe, sem precisar de papel atribuído (o papel `corretor` é
 dado a quem é da equipe). Como as tabelas são segregadas por conta, para usar as telas do corretor o
 admin precisa estar associado a uma conta (Admin › Contas); sem conta, a tela explica isso. Quem está em
 mais de uma conta vê o seletor **Conta** no alto das telas e trabalha na conta escolhida (a escolha fica
-lembrada no navegador); com uma conta só, o seletor não aparece. Com várias contas, listas, fichas e números mostram só a conta escolhida, e uma chamada sem a conta ativa é recusada com a orientação de escolhê-la.
+lembrada no navegador); com uma conta só, o seletor não aparece. Com várias contas, listas, fichas e números mostram só a conta escolhida, e uma chamada sem a conta ativa é recusada com a orientação de escolhê-la (a lista de convites da equipe não depende de conta).
 
 ### Endereço recebido (diagnóstico)
 

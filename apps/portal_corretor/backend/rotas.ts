@@ -34,11 +34,13 @@ rotas.get('/status', (_req, res) => {
   res.json({ nome: manifesto.nome, versao: manifesto.versao });
 });
 
+// A equipe só usa `req.shell` (convites), sem tabela do app: não depende de conta ativa.
+rotas.use('/equipe', equipeRotas);
+
 // Tudo abaixo roda na conta ativa de quem atende várias contas (escopo.ts).
 rotas.use(escopoDeConta);
 
 rotas.use('/conta', contaRotas);
-rotas.use('/equipe', equipeRotas);
 rotas.use(crmRotas);
 rotas.use(imoveisRotas);
 rotas.use(funilRotas);

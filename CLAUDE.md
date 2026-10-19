@@ -45,7 +45,7 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 - **Mudou algo em `apps/portal_corretor/docs/`?** Rode `pnpm ajuda` na pasta da app e commite `comum/ajuda-gerada.ts`; sem isso o teste da base de ajuda derruba o CI.
 - **Reiniciar a branch depois de um merge:** `git fetch origin main` antes de `git checkout -B <branch> origin/main`, senão a branch nasce sem o PR anterior.
 - **Telas chamam o app por `chamarApi`/`chamarFetch`** (`frontend/apoio.ts`), nunca por `urbiVerso.api`/`fetch` direto: é isso que manda a conta ativa em `X-Conta` para quem atende várias contas (um teste confere).
-- **Rotas leem e gravam só por `req.dados`:** com várias contas ele já vem restrito à conta ativa (`backend/escopo.ts`); não crie outro caminho de leitura.
+- **Rotas leem e gravam só por `req.dados`:** com várias contas ele vem restrito à conta ativa nas tabelas segregadas (`backend/escopo.ts`; tabela não segregada, como `vitrine_publica`, passa sem escopo). Verbos sem escopo possível (`travessia`, `*Varios`, `criarOuAtualizar`, `sqlDeclarado`) falham alto com várias contas; não crie outro caminho de leitura.
 
 ## Regras que não se quebram
 
