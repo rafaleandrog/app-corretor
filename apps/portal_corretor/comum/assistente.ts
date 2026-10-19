@@ -45,8 +45,9 @@ export function termos(texto: string): string[] {
     .filter((t) => t.length >= 3 && !PARADAS.has(t))
     // Plural para singular (seleções → selecao, imóveis → imovel, stories → story), depois o radical
     // por prefixo de 5 letras: "convido", "convidar" e "convite" casam.
-    .map((t) => (t.length > 3 ? t.replace(/coes$/, 'cao').replace(/(oes|aes)$/, 'ao').replace(/eis$/, 'el').replace(/ais$/, 'al').replace(/ies$/, 'y').replace(/ns$/, 'm').replace(/([^s])s$/, '$1') : t))
-    .map((t) => t.slice(0, 5));
+    .map((t) => (t.length > 3 ? t.replace(/coes$/, 'cao').replace(/(oes|aes)$/, 'ao').replace(/eis$/, 'el').replace(/ais$/, 'al').replace(/ies$/, 'y').replace(/([^aeou])is$/, '$1il').replace(/ns$/, 'm').replace(/([^s])s$/, '$1') : t))
+    // "contato" não pode virar "conta" (Conta e ajustes).
+    .map((t) => (t.startsWith('contat') ? 'contato' : t.slice(0, 5)));
 }
 
 interface Indice {
@@ -210,8 +211,15 @@ export function artigoParaContexto(a: Achado, limite = 1500): string {
  */
 export function mascarar(texto: unknown): string {
   return String(texto ?? '')
-    .replace(/[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}/gi, '[e-mail]')
-    .replace(/\+?\(?\d{2,3}\)?[\s.-]?\d{4,5}[\s.-]?\d{4}\b/g, '[telefone]');
+    .replace(/[^\s@<>()]+\s?@\s?[^\s@<>()]+\.[a-z]{2,}/gi, '[e-mail]')
+    .replace(/\+?\(?\d[\d\s().-]{6,}\d/g, (trecho, pos: number, tudo: string) => {
+      const digitos = trecho.replace(/\D/g, '').length;
+      // Telefone tem de 8 a 13 dígitos; data ISO, CEP e valor em reais ficam como estão.
+      if (digitos < 8 || digitos > 13) return trecho;
+      if (/^\d{4}-\d{2}-\d{2}/.test(trecho) || /^\d{5}-\d{3}$/.test(trecho.trim())) return trecho;
+      if (/R\$\s*$/.test(tudo.slice(Math.max(0, pos - 4), pos))) return trecho;
+      return '[telefone]';
+    });
 }
 
 /** Resposta da IA sem imagens nem links (o texto pode ter vindo de dado de terceiro); o app põe os dele. */
@@ -220,7 +228,9 @@ export function respostaSegura(texto: string): string {
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/<[^>]+>/g, '')
-    .replace(/\bhttps?:\/\/\S+/gi, '[link removido]')
+    .replace(/\b(?:https?|ftp):\/\/\S+/gi, '[link removido]')
+    .replace(/\bwww\.\S+/gi, '[link removido]')
+    .replace(/\b[\w-]+(?:\.[\w-]+)+\/\S*/g, '[link removido]')
     .trim();
 }
 
@@ -228,4 +238,17 @@ export function respostaSegura(texto: string): string {
 export function deslocamento(fuso: string, d = new Date()): string {
   const nome = new Intl.DateTimeFormat('en-US', { timeZone: fuso, timeZoneName: 'longOffset' }).formatToParts(d).find((p) => p.type === 'timeZoneName')?.value ?? 'GMT-03:00';
   return nome === 'GMT' ? '+00:00' : nome.replace('GMT', '');
+}
+
+/** Fuso da conta, se for válido; senão o padrão (Brasília). */
+export function fusoValido(fuso: unknown): string {
+  if (typeof fuso === 'string' && fuso) {
+    try {
+      new Intl.DateTimeFormat('pt-BR', { timeZone: fuso });
+      return fuso;
+    } catch {
+      /* cai no padrão */
+    }
+  }
+  return 'America/Sao_Paulo';
 }

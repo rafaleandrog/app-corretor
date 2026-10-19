@@ -19,7 +19,7 @@ import './telas/desempenho.js';
 import './telas/pagina.js';
 import './telas/estudio.js';
 import './telas/conexoes.js';
-import { lembrarTela } from './telas/assistente.js';
+import { lembrarTela, renderAssistente } from './telas/assistente.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
 import './publico/selecao.js';
@@ -29,7 +29,8 @@ declare const urbiVerso: UrbiVersoAPI;
 interface Tela {
   titulo: string;
   papel: 'corretor' | 'operacao';
-  render: (param?: string) => unknown;
+  /** `app` é o componente raiz: telas montadas direto no body da página pedem redesenho a ele. */
+  render: (param?: string, app?: LitElement) => unknown;
 }
 
 // Uma entrada por rota. A tela só abre para quem tem o papel; o backend barra de novo.
@@ -50,7 +51,7 @@ const TELAS: Record<string, Tela> = {
   '/desempenho': { titulo: 'Desempenho', papel: 'corretor', render: () => html`<pc-tela-desempenho></pc-tela-desempenho>` },
   '/pagina': { titulo: 'Minha página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
   '/estudio': { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
-  '/assistente': { titulo: 'Assistente', papel: 'corretor', render: () => html`<pc-tela-assistente expandir></pc-tela-assistente>` },
+  '/assistente': { titulo: 'Assistente', papel: 'corretor', render: (_p, app) => renderAssistente(() => app?.requestUpdate()) },
   '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
   '/ajustes/conexoes': { titulo: 'Conexões', papel: 'corretor', render: () => html`<pc-tela-conexoes></pc-tela-conexoes>` },
@@ -120,7 +121,7 @@ export class AppPortalCorretor extends LitElement {
         submensagem="Ela é do papel ${quem}. Peça ao administrador do app para atribuir o papel em Configurações › Usuários."></urbi-estado-vazio>`;
     }
     // `keyed` pelo endereço: trocar de cliente recria a tela em vez de reaproveitar o estado.
-    return keyed(this.sub, tela.render(param));
+    return keyed(this.sub, tela.render(param, this));
   }
 
   render() {
