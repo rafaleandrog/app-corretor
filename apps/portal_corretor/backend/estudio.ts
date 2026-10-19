@@ -307,7 +307,8 @@ estudioRotas.post(
   assincrono(async (req, res) => {
     const p = await pecaOu404(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
-    if (p.estado !== 'rascunho' && p.estado !== 'rejeitada') return erro(res, 409, 'ESTADO_INVALIDO', 'Só rascunho é aprovado.');
+    // Peça com erro sem aprovação (veio da janela e falhou nas checagens) também pode ser aprovada.
+    if (!(p.estado === 'rascunho' || p.estado === 'rejeitada' || (p.estado === 'erro' && !p.aprovada_em))) return erro(res, 409, 'ESTADO_INVALIDO', 'Só rascunho é aprovado.');
     const arquivos = await req.dados!.listar('peca_arquivos', { filtros: { peca_id: p.id }, por_pagina: 1 });
     const imovel = await imovelDaPeca(req, p.imovel_id ?? null);
     const meuCreci = await creci(req);

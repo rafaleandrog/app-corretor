@@ -134,8 +134,24 @@ export class BancoFalso {
         linhas.splice(i, 1);
         return true;
       },
+      /** Transação: se `fn` lança, desfaz tudo o que ela gravou (no lugar, mantendo as referências). */
       async transaction(fn: (trx: any) => Promise<unknown>) {
-        return fn(helper);
+        const foto = [...banco.tabelas].map(([t, ls]) => ({ t, ls: ls.slice(), copias: ls.map((l) => ({ ...l })) }));
+        try {
+          return await fn(helper);
+        } catch (e) {
+          const vistas = new Set(foto.map((f) => f.t));
+          for (const [t, ls] of banco.tabelas) if (!vistas.has(t)) ls.length = 0;
+          for (const { t, ls, copias } of foto) {
+            const atual = banco.linhas(t);
+            atual.length = 0;
+            ls.forEach((l, i) => {
+              for (const k of Object.keys(l)) delete (l as Record<string, unknown>)[k];
+              atual.push(Object.assign(l, copias[i]));
+            });
+          }
+          throw e;
+        }
       },
       async existe(tabela: string, filtros: Record<string, unknown>) {
         return visiveis(tabela).some((l) => casa(l, filtros));
@@ -164,6 +180,8 @@ export class BancoFalso {
       async atualizarSe(tabela: string, id: number, d: Record<string, unknown>, condicoes: Record<string, unknown>) {
         tabelaAtual = tabela;
         exigirConta();
+        // DSL estrito (banco-de-dados.md): condição sem valor (null, undefined) lança, não vira IS NULL.
+        for (const [k, v] of Object.entries(condicoes)) if (v === null || v === undefined) throw Object.assign(new Error(`condição sem valor: ${k}`), { codigo: 'VOCABULARIO_INVALIDO' });
         const alvo = gravaveis(tabela).find((l) => l.id === id);
         if (!alvo || !casa(alvo, condicoes)) return null;
         return helper.atualizar(tabela, id, d);

@@ -122,12 +122,16 @@ passar nas checagens e se a conta ainda estiver nesse modo. Se não passar, fica
 aprovação. Para impedir, cancele o agendamento.
 
 **Enquanto publica,** a peça fica **publicando…** e não pode ser editada, agendada nem cancelada.
-Assim, dois cliques (ou o agendamento e um "Publicar agora") não publicam duas vezes.
+Assim, dois cliques (ou o agendamento e um "Publicar agora") não publicam duas vezes. Se ela
+continuar "publicando…" por mais de 15 minutos (a publicação foi interrompida), use **Ainda
+publicando? Destravar**. A peça fica com erro, ainda aprovada: confira no Instagram se o post saiu.
+Se saiu, use **Publiquei por fora**. Se não, publique de novo.
 
 **Quando não sai:** a peça fica **com erro** e mostra o motivo, por exemplo "o Instagram não está
 conectado", "reconecte o Instagram" ou o que o Instagram respondeu. Resolva e use **Publicar
 agora** ou **Agendar** de novo. Se você editar os textos de uma peça com erro, ela volta a
-rascunho e precisa de nova aprovação.
+rascunho e precisa de nova aprovação. Peça da aprovação por janela que não passou nas checagens
+fica com erro e sem aprovação: resolva e use **Aprovar**.
 
 **Agendamento atrasado:** se a plataforma ficar fora do ar e só voltar mais de 6 horas depois da
 hora marcada, a peça não é publicada atrasada: fica com erro, para você decidir.

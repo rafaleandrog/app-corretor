@@ -298,3 +298,55 @@ test('revisão: janela desligada não aprova sozinha; rotina aceita conta como t
   assert.equal(r.ok, true);
   assert.match(String(banco.linhas('canais_sociais')[0].ultimo_erro), /venceu/);
 });
+
+test('revisão 2: falha depois da reserva desfaz; destravar só depois de 15 min; resultado não apaga "publiquei por fora"', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const chamadas = metaFalsa();
+  const arquivoSumiu = { url: async () => { throw new Error('arquivo sumiu'); } };
+  let pid = 0;
+  await comServidor(rotas, ator(100), banco, shell, async (chamar) => {
+    const p = await pecaAprovada(chamar);
+    pid = p.id;
+    await chamar('POST', '/conexoes/instagram/retorno', { code: 'x' });
+  });
+  // Erro inesperado depois da reserva: a transação desfaz e a peça continua aprovada.
+  await comServidor(rotas, ator(100, { arquivos: arquivoSumiu }), banco, shell, async (chamar) => {
+    // Erro sem código vira o 500 do Express (HTML): basta não ter respondido 200.
+    const r = await chamar('POST', `/estudio/pecas/${pid}/publicar`).catch(() => null);
+    assert.notEqual(r?.status, 200);
+  });
+  const linha = banco.linhas('pecas').find((x) => x.id === pid)!;
+  assert.equal(linha.estado, 'aprovada', 'não fica presa em publicando');
+  await comServidor(rotas, ator(100), banco, shell, async (chamar) => {
+    // Publicação interrompida (processo caiu durante a Meta): destravar espera 15 min.
+    linha.estado = 'publicando';
+    linha.atualizado_em = new Date().toISOString();
+    assert.equal((await chamar('POST', `/estudio/pecas/${pid}/destravar`)).corpo.codigo, 'AINDA_PUBLICANDO');
+    linha.atualizado_em = new Date(Date.now() - 20 * 60e3).toISOString();
+    const d = await chamar('POST', `/estudio/pecas/${pid}/destravar`);
+    assert.deepEqual([d.status, d.corpo.estado, !!d.corpo.aprovada_em], [200, 'erro', true]);
+    assert.match(d.corpo.erro, /Confira no Instagram/);
+    // O corretor marca "Publiquei por fora" enquanto a Meta responde: o resultado não sobrescreve.
+    const original = http.fetch;
+    http.fetch = async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/media_publish')) Object.assign(linha, { estado: 'publicada', publicada_por: 'fora' });
+      return original(url, init);
+    };
+    const r = await chamar('POST', `/estudio/pecas/${pid}/publicar`);
+    http.fetch = original;
+    assert.equal(r.status, 200);
+    assert.deepEqual([linha.estado, linha.publicada_por], ['publicada', 'fora']);
+    assert.equal(chamadas.filter((c) => c.url.endsWith('/media_publish')).length, 1);
+  });
+});
+
+test('revisão 2: peça da janela que falhou nas checagens pode ser aprovada de novo', async () => {
+  const banco = new BancoFalso(UNICOS);
+  metaFalsa();
+  await comServidor(rotas, ator(100), banco, shell, async (chamar) => {
+    const p = await pecaAprovada(chamar);
+    Object.assign(banco.linhas('pecas').find((x) => x.id === p.id)!, { estado: 'erro', aprovada_em: null, erro: 'Não publicada: autorização vencida.' });
+    const ok = await chamar('POST', `/estudio/pecas/${p.id}/aprovar`);
+    assert.deepEqual([ok.status, ok.corpo.estado], [200, 'aprovada']);
+  });
+});
