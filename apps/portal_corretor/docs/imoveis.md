@@ -31,8 +31,8 @@ endereço da página).
 ### Fotos e arquivos
 
 Cada arquivo tem tipo (foto, vídeo, planta, tour, documento), legenda e a marca "pode aparecer no
-anúncio". **Documento nunca aparece no anúncio**, mesmo marcado, e o documento de uma autorização
-não pode virar foto nem ser apagado. Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
+anúncio". **Documento nunca aparece no anúncio**, mesmo marcado; o documento de uma autorização
+não pode virar foto nem ficar público, e o de uma autorização assinada não pode ser apagado. Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
 ver, editar e apagar (apagar é de vez, para liberar o espaço). As fotos são mostradas por um link temporário, que vale uma
 hora.
 

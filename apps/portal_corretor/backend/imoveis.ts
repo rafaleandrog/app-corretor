@@ -114,8 +114,20 @@ function lerObjeto(conteudo: unknown): Record<string, unknown> | null {
  */
 function falhaIa(res: Response, e: unknown, mensagem: string) {
   const codigo = (e as { codigo?: string })?.codigo;
-  if (!codigo) throw e;
+  // Sem código, ou slot fora do manifesto (bug do app, ia.md): não vira "IA indisponível".
+  if (!codigo || codigo === 'SLOT_INVALIDO') throw e;
   return erro(res, 503, 'IA_INDISPONIVEL', codigo === 'SLOT_NAO_CONFIGURADO' ? 'A IA não está liberada para o app agora.' : mensagem);
+}
+
+/** `estadoSlot` sem custo; falha da sonda conta como indisponível, salvo slot fora do manifesto. */
+async function sondar(req: Request, slot: string) {
+  if (!req.ia) return null;
+  try {
+    return await req.ia.estadoSlot(slot);
+  } catch (e) {
+    if ((e as { codigo?: string })?.codigo === 'SLOT_INVALIDO') throw e;
+    return null;
+  }
 }
 
 // ---------- Imóveis ----------
@@ -429,7 +441,7 @@ imoveisRotas.post(
     const midia = imovel ? await midiaDoImovel(req, imovel.id) : null;
     if (!midia) return erro(res, 404, 'NAO_ENCONTRADO', 'Arquivo não encontrado.');
     if (midia.tipo !== 'foto') return erro(res, 422, 'DADOS_INVALIDOS', 'Só fotos são lidas.');
-    const estado = req.ia ? await req.ia.estadoSlot('fotos').catch(() => null) : null;
+    const estado = await sondar(req, 'fotos');
     if (!estado?.efetivo) return erro(res, 503, 'IA_INDISPONIVEL', 'A leitura de fotos não está disponível agora.');
     let bruto: Record<string, unknown> | null;
     try {
@@ -460,7 +472,7 @@ imoveisRotas.post(
     if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
     const falta = podeGerarDescricao(imovel);
     if (falta) return erro(res, 422, 'DADOS_INSUFICIENTES', falta);
-    const estado = req.ia ? await req.ia.estadoSlot('conteudo').catch(() => null) : null;
+    const estado = await sondar(req, 'conteudo');
     if (!estado?.efetivo) return erro(res, 503, 'IA_INDISPONIVEL', 'A escrita com IA não está disponível agora. Escreva a descrição à mão.');
     const midias = await req.dados!.listar('imovel_midias', { filtros: { imovel_id: imovel.id, tipo: 'foto' }, por_pagina: 100 });
     const ambientes = midias.dados.map((m) => m.ia_ambiente).filter(Boolean) as string[];
@@ -493,9 +505,13 @@ imoveisRotas.post(
     const p = await proprietario(dados, req.body?.proprietario_id ?? imovel.proprietario_id);
     if ('erro' in p || !p.id) return erro(res, 422, 'DADOS_INVALIDOS', 'erro' in p ? p.erro : 'Escolha o proprietário que assina a autorização.');
     const situacao = v.dados.situacao === 'assinada' ? 'rascunho' : (v.dados.situacao ?? 'rascunho'); // assinar pede documento: rota de PATCH
-    const aut = await dados.criar('autorizacoes_venda', { ...v.dados, situacao, imovel_id: iid, proprietario_id: p.id });
-    if (!imovel.proprietario_id) await dados.atualizar('imoveis', imovel.id, { proprietario_id: p.id });
-    await marcarProprietario(dados, p.contato);
+    // Autorização, proprietário do imóvel e papel do contato juntos: retry não duplica pela metade.
+    const aut = await dados.transaction(async (trx) => {
+      const nova = await trx.criar('autorizacoes_venda', { ...v.dados, situacao, imovel_id: iid, proprietario_id: p.id });
+      if (!imovel.proprietario_id) await trx.atualizar('imoveis', imovel.id, { proprietario_id: p.id });
+      await marcarProprietario(trx, p.contato);
+      return nova;
+    });
     res.status(201).json(aut);
   }),
 );
