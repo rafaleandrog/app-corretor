@@ -14,14 +14,19 @@ export const contaRotas: Router = Router();
 
 contaRotas.use(exigirPapel('corretor'));
 
+// Sem conta resolvida o RLS devolve zero linhas e a escrita é negada: a tela explica em vez de
+// mostrar formulário vazio ou um 403 do framework.
+contaRotas.use((req, res, next) => {
+  if (req.contexto?.resolucao === 'negar') {
+    return erro(res, 409, 'SEM_CONTA', 'Seu usuário não está associado a nenhuma conta. Fale com a equipe da plataforma.');
+  }
+  next();
+});
+
 contaRotas.get(
   '/',
   assincrono(async (req, res) => {
     const dados = req.dados!;
-    // Sem conta resolvida o RLS devolve zero linhas: a tela explica em vez de mostrar formulário vazio.
-    if (req.contexto?.resolucao === 'negar') {
-      return erro(res, 409, 'SEM_CONTA', 'Seu usuário não está associado a nenhuma conta. Fale com a equipe da plataforma.');
-    }
     const [perfil, configuracoes, meuPerfil] = await Promise.all([
       primeiro(dados, 'perfil_conta', { chave: 'conta' }),
       primeiro(dados, 'configuracoes_conta', { chave: 'conta' }),

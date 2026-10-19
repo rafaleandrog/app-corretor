@@ -120,3 +120,31 @@ test('semente segue para as outras contas quando uma falha, e avisa no fim', asy
   assert.equal(banco.linhas('perfil_conta').length, 1);
   assert.equal(banco.linhas('perfil_conta')[0].nome, 'Boa');
 });
+
+test('sem conta resolvida, a escrita também recebe a explicação SEM_CONTA', async () => {
+  await comServidor(rotas, { usuario: 5, conta: null, papeis: ['corretor'] }, new BancoFalso(UNICOS), {}, async (chamar) => {
+    const r = await chamar('PUT', '/conta/perfil', { nome: 'X' });
+    assert.equal(r.status, 409);
+    assert.equal(r.corpo.codigo, 'SEM_CONTA');
+  });
+});
+
+test('linha que some durante a gravação é falha, não sucesso com a linha antiga', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const dados = banco.dados(100);
+  await dados.criar('perfil_conta', { chave: 'conta', nome: 'Antiga' });
+  dados.atualizar = async () => null;
+  await assert.rejects(salvarUnico(dados, 'perfil_conta', { chave: 'conta' }, { nome: 'Nova' }), /sumiu/);
+});
+
+test('código de erro desconhecido sem status segue como falha interna', async () => {
+  const app = express();
+  app.get('/c', assincrono(async () => { throw Object.assign(new Error('bug'), { codigo: 'VOCABULARIO_INVALIDO' }); }));
+  const servidor = app.listen(0);
+  try {
+    const porta = (servidor.address() as { port: number }).port;
+    assert.equal((await fetch(`http://127.0.0.1:${porta}/c`)).status, 500);
+  } finally {
+    servidor.close();
+  }
+});

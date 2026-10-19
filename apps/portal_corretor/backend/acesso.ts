@@ -24,11 +24,16 @@ export function assincrono(fn: (req: Request, res: Response) => Promise<unknown>
   return (req: Request, res: Response, next: NextFunction) => {
     fn(req, res).catch((e: unknown) => {
       const falha = e as { codigo?: string; status?: number; message?: string; code?: string };
-      // ErroProvisionamento (convites) traz `codigo` e, pela doc, `status` (contas.md § Superfície);
-      // o tipo do SDK só declara `codigo`, então sem `status` a recusa vira 400 sem perder o código.
+      // Erro com `codigo` + `status` (provisionamento, eixo de conta) já diz o HTTP certo. O tipo do
+      // SDK só declara `codigo` no ErroProvisionamento: para essas famílias, sem `status`, vira 400
+      // sem perder o código. Outro `codigo` sem `status` é erro de programação e segue como 500.
       if (typeof falha?.codigo === 'string') {
-        const status = typeof falha.status === 'number' ? falha.status : 400;
-        return erro(res, status, falha.codigo, falha.message ?? 'Não foi possível concluir.');
+        if (typeof falha.status === 'number') {
+          return erro(res, falha.status, falha.codigo, falha.message ?? 'Não foi possível concluir.');
+        }
+        if (/^(PROVISIONA|CONVITE|PLANO|DESPROVISIONA|EMAIL_SISTEMA)_/.test(falha.codigo)) {
+          return erro(res, 400, falha.codigo, falha.message ?? 'Não foi possível concluir.');
+        }
       }
       // Violação de CHECK (`formato`/`intervalo` do schema) chega crua do banco.
       if (falha?.code === '23514') return erro(res, 422, 'DADOS_INVALIDOS', 'Um dos valores está fora do formato aceito.');
@@ -55,14 +60,21 @@ export async function salvarUnico(
   filtros: Record<string, unknown>,
   valores: Record<string, unknown>,
 ): Promise<Record<string, any>> {
+  // `atualizar` devolve `null` quando a linha sumiu entre a leitura e a escrita: aí nada foi
+  // gravado, e responder com a linha antiga mentiria (banco-de-dados.md § Não encontrado).
+  const atualizarOuFalhar = async (id: number) => {
+    const linha = await dados.atualizar(tabela, id, valores);
+    if (!linha) throw new Error(`${tabela} ${id}: a linha sumiu durante a gravação`);
+    return linha;
+  };
   const atual = await primeiro(dados, tabela, filtros);
-  if (atual) return (await dados.atualizar(tabela, atual.id, valores)) ?? atual;
+  if (atual) return atualizarOuFalhar(atual.id);
   try {
     return await dados.criar(tabela, { ...filtros, ...valores });
   } catch (e) {
     if ((e as { code?: string })?.code !== '23505') throw e;
     const vencedora = await primeiro(dados, tabela, filtros);
     if (!vencedora) throw e;
-    return (await dados.atualizar(tabela, vencedora.id, valores)) ?? vencedora;
+    return atualizarOuFalhar(vencedora.id);
   }
 }

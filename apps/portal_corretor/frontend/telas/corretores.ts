@@ -31,27 +31,54 @@ export class PcTelaCorretores extends LitElement {
   @state() private total = 0;
   @state() private pagina = 1;
   @state() private carregando = true;
+  @state() private buscandoMais = false;
   @state() private falha: string | null = null;
+  @state() private falhaMais: string | null = null;
+  // Cada carregamento recebe um número; resposta de um carregamento anterior é descartada.
+  private geracao = 0;
 
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
   }
 
-  /** Recarrega do zero (`mais` = false) ou anexa a próxima página de 50. */
-  private async carregar(mais = false) {
-    this.carregando = !mais;
+  /** Recarrega a lista do zero; invalida qualquer "Mostrar mais" em voo. */
+  private async carregar() {
+    const geracao = ++this.geracao;
+    this.carregando = true;
+    this.buscandoMais = false;
     this.falha = null;
-    const pagina = mais ? this.pagina + 1 : 1;
+    this.falhaMais = null;
+    try {
+      const r = await urbiVerso.api('/equipe/convites?pagina=1');
+      if (geracao !== this.geracao) return;
+      this.convites = r.convites;
+      this.total = r.total;
+      this.pagina = 1;
+    } catch (e) {
+      if (geracao === this.geracao) this.falha = (e as Error).message;
+    } finally {
+      if (geracao === this.geracao) this.carregando = false;
+    }
+  }
+
+  /** Anexa a próxima página de 50. Um por vez; a falha não apaga o que já está na tela. */
+  private async mostrarMais() {
+    if (this.buscandoMais || this.carregando) return;
+    const geracao = this.geracao;
+    const pagina = this.pagina + 1;
+    this.buscandoMais = true;
+    this.falhaMais = null;
     try {
       const r = await urbiVerso.api(`/equipe/convites?pagina=${pagina}`);
-      this.convites = mais ? [...this.convites, ...r.convites] : r.convites;
+      if (geracao !== this.geracao) return;
+      this.convites = [...this.convites, ...r.convites];
       this.total = r.total;
       this.pagina = pagina;
     } catch (e) {
-      this.falha = (e as Error).message;
+      if (geracao === this.geracao) this.falhaMais = (e as Error).message;
     } finally {
-      this.carregando = false;
+      if (geracao === this.geracao) this.buscandoMais = false;
     }
   }
 
@@ -68,7 +95,7 @@ export class PcTelaCorretores extends LitElement {
     if (!valores) return;
     try {
       const r = await urbiVerso.api('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
-      if (r?.aviso) await urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso });
+      if (r?.aviso) await urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' });
       else urbiVerso.notificar('Convite enviado.', 'sucesso');
       await this.carregar();
     } catch (e) {
@@ -134,9 +161,16 @@ export class PcTelaCorretores extends LitElement {
           </urbi-banner>`
         : html`<urbi-tabela responsivo="multiline" .colunas=${this.colunas()} .linhas=${this.convites} ?carregando=${this.carregando}
             mensagem-vazio="Nenhum convite enviado ainda. Use “Convidar corretor”."></urbi-tabela>
-          ${faltam > 0
-            ? html`<urbi-botao variante="secundario" bloco @click=${() => this.carregar(true)}>Mostrar mais (${faltam} restantes)</urbi-botao>`
-            : ''}`}
+          ${this.falhaMais
+            ? html`<urbi-banner variante="erro">
+                Não foi possível trazer mais convites: ${this.falhaMais}
+                <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.mostrarMais()}>Tentar de novo</urbi-botao>
+              </urbi-banner>`
+            : faltam > 0
+              ? html`<urbi-botao variante="secundario" bloco ?carregando=${this.buscandoMais} @click=${() => this.mostrarMais()}>
+                  Mostrar mais (${faltam} restantes)
+                </urbi-botao>`
+              : ''}`}
     </urbi-stack>`;
   }
 }

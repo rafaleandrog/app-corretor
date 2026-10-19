@@ -13,7 +13,7 @@ Telas, funções, permissões, caminhos e automações prontos, testados pela eq
 | # | Bloco | Spec | Depende de | Pronto quando | Status |
 |---|---|---|---|---|---|
 | 0 | **Verificação e esqueleto da plataforma:** conferir no SDK os itens [plataforma] e `specs/pedidos_ao_shell.md` (itens 1 a 3); definir `shell_min`/`sdk_min`; repositório, build, empacote e instalação vazia na instância intermediária; abrir a issue | 4, 5, 9.0, 9.8, pedidos | — | App vazia instala pelo `.urbiapp.tgz`; relatório dos itens do shell entregue ao dono | [~] código pronto (PR #2; o app segue no PR #13, versão 0.2.0); falta o dono instalar na instância e conferir o diagnóstico (R.6) |
-| 1 | **Contas, papéis e isolamento:** roles e `roles_externos`, convite de corretor e de cliente, `perfil_conta`, `perfis_corretor`, `configuracoes_conta`, `itens_cliente`, semente idempotente (2 corretores, 2 clientes), **teste de isolamento automatizado** | 4.4, 4.5, 5, 6.0, 6.1, 6.15, 12.2 | 0 | Teste de isolamento passa; cada papel vê só o que deve | [~] código pronto (issue #3, PR #13): papéis `corretor`/`operacao`, convite de corretor, `perfil_conta`, `perfis_corretor`, `configuracoes_conta`, semente "(demo)", 21 testes de isolamento, regras e robustez; falta o roteiro na instância (R.6). `itens_cliente` foi para o bloco 5 (D-56); foto e marca para o bloco 8 |
+| 1 | **Contas, papéis e isolamento:** roles e `roles_externos`, convite de corretor e de cliente, `perfil_conta`, `perfis_corretor`, `configuracoes_conta`, `itens_cliente`, semente idempotente (2 corretores, 2 clientes), **teste de isolamento automatizado** | 4.4, 4.5, 5, 6.0, 6.1, 6.15, 12.2 | 0 | Teste de isolamento passa; cada papel vê só o que deve | [~] código pronto (issue #3, PR #13): papéis `corretor`/`operacao`, convite de corretor, `perfil_conta`, `perfis_corretor`, `configuracoes_conta`, semente "(demo)", 24 testes de isolamento, regras e robustez; falta o roteiro na instância (R.6). `itens_cliente` foi para o bloco 5 (D-56); foto e marca para o bloco 8 |
 | 2 | **CRM:** contatos, negócios, etapas configuráveis, linha do tempo, tarefas, agenda, visitas, importação CSV, exportação; tela Clientes | 6.2, 7.1, 7.4, 11.1, 12.1 | 1 | Cadastrar, mover, importar e exportar; telas no computador e no celular | [ ] |
 | 3 | **Imóveis (anúncios) e empreendimentos:** fotos (upload em 2 passos), descrição por IA, qualidade, autorização anexada, visibilidade; tela Imóveis | 6.3, 6.12, 10.6, 11.1 | 1 | Imóvel com fotos em menos de 3 min; qualidade calculada; só públicos aparecem fora | [ ] |
 | 4 | **Funil e números:** quadro, temperatura com motivo, próxima abordagem (playbook semeado), fila do dia, envios rastreados, Início, Desempenho, KPIs | 6.12, 6.15, 10.4, 11.1, 11.2 | 2, 3 | KPIs batem com conferência manual sobre a semente; fila do dia ordenada | [ ] (R.2: inclui o link rastreado `/l/:codigo`) |
@@ -63,7 +63,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
 | 18/10/2026 | Preparação | Repositório criado com o kit 100.3.16, specs e CLAUDE.md; revisão de viabilidade contra o SDK 100 aprovada (R.1–R.5); decisões D-55 a D-60 | — | Bloco 0 |
-| 18/10/2026 | 0 | Esqueleto `apps/portal_corretor` 0.1.0: manifesto (identidade, pisos 100/0.56.37), rota `/status`, tela inicial, página pública e linha de diagnóstico, testes (manifesto e rotas), `docs/README.md`; empacotador limpo | (este PR) | Dono instala e confere R.6; depois bloco 1 |
+| 18/10/2026 | 0 | Esqueleto `apps/portal_corretor` 0.1.0: manifesto (identidade, pisos 100/0.56.37), rota `/status`, tela inicial, página pública e linha de diagnóstico, testes (manifesto e rotas), `docs/README.md`; empacotador limpo | #2 | Dono instala e confere R.6; depois bloco 1 |
 | 19/10/2026 | 1 | Contas e papéis: manifesto com `roles` (`operacao`), `roles_externos` (`corretor`), `provisiona_externos`; tabelas da conta; telas Início, Conta e marca, Corretores; testes de isolamento com banco simulado; revisão em 2 rodadas | #13 | Roteiro R.6/R.7 na instância; bloco 2 |
 
 ---
@@ -145,7 +145,7 @@ Conferida em 18/10/2026 contra `@urbiverso/sdk` **100.0.0** (shell **0.56.37**, 
 
 ### R.6 Conferência do bloco 0 na instância (dono, depois de instalar)
 
-1. Admin › Instaláveis › Apps → instalar `portal_corretor` (do repositório, depois do release, ou por upload do `dist/portal_corretor-0.1.0.urbiapp.tgz`). Deve instalar sem `422`.
+1. Admin › Instaláveis › Apps → instalar `portal_corretor` (do repositório, depois do release, ou por upload do `dist/portal_corretor-<versão>.urbiapp.tgz` gerado pelo `pnpm -r empacotar`, hoje 0.2.0). Deve instalar sem `422`.
 2. Abrir o app como corretor: aparece o Início pedindo para completar a conta (versão 0.2.0 em diante; na 0.1.0 era "Portal do Corretor em construção").
 3. Abrir `/portal_corretor/retorno?code=teste`: a tela "Página não encontrada" mostra "Endereço recebido: /retorno?code=teste" (P-36 ok) — ou o app não abre (P-36 precisa de outro caminho).
 4. Sem login, abrir `/portal_corretor/p`, `/portal_corretor/p/teste` e `/portal_corretor/p?c=teste`: anotar quais abrem a página e o que a rota pública respondeu. Decide se a Minha Página usa `/p/<slug>` ou `/p?c=<slug>`.
