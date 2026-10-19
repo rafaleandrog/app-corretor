@@ -22,6 +22,7 @@ interface Ficha {
   contato: Linha;
   negocios: Linha[];
   atividades: Linha[];
+  visitas: Linha[];
   linha_do_tempo: Linha[];
   consentimento: Linha | null;
 }
@@ -102,17 +103,29 @@ export class PcTelaFichaContato extends LitElement {
     );
   }
 
-  private novoNegocio() {
+  /** Imóveis da carteira para escolher no negócio e na visita (os 50 mais recentes, com busca). */
+  private async opcoesImoveis() {
+    try {
+      const r = await urbiVerso.api('/imoveis');
+      return [{ valor: '', rotulo: 'Nenhum' }, ...r.dados.map((i: Linha) => ({ valor: String(i.id), rotulo: `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`, textoBusca: i.bairro ?? '' }))];
+    } catch {
+      return [{ valor: '', rotulo: 'Nenhum' }];
+    }
+  }
+
+  private async novoNegocio() {
+    const imoveis = await this.opcoesImoveis();
     void formularioEnviar(
       'Novo negócio',
       [
         { nome: 'pipeline', tipo: 'selecao', rotulo: 'Tipo', valor: 'compra', opcoes: [{ valor: 'compra', rotulo: 'Compra (o cliente quer comprar)' }, { valor: 'venda_captacao', rotulo: 'Venda (o cliente quer vender)' }] },
         { nome: 'titulo', tipo: 'texto', rotulo: 'Título (opcional)', placeholder: 'Ex.: Apartamento 3 quartos na Asa Norte' },
         { nome: 'valor_estimado', tipo: 'numero', rotulo: 'Valor estimado (R$, opcional)', min: 0 },
+        { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel (opcional)', valor: '', pesquisavel: true, opcoes: imoveis },
       ],
       'POST',
       '/negocios',
-      (v) => ({ ...v, contato_id: this.contatoId }),
+      (v) => ({ ...v, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, contato_id: this.contatoId }),
     ).then((r) => this.depois(r));
   }
 
@@ -134,7 +147,8 @@ export class PcTelaFichaContato extends LitElement {
     }
   }
 
-  private novaAtividade() {
+  private async novaAtividade() {
+    const imoveis = await this.opcoesImoveis();
     void formularioEnviar(
       'Agendar',
       [
@@ -143,10 +157,30 @@ export class PcTelaFichaContato extends LitElement {
         { nome: 'dia', tipo: 'data', rotulo: 'Dia', obrigatorio: true },
         { nome: 'hora', tipo: 'texto', rotulo: 'Hora', valor: '09:00' },
         { nome: 'local', tipo: 'texto', rotulo: 'Local (visita ou reunião)' },
+        { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel visitado (só para visita)', valor: '', pesquisavel: true, opcoes: imoveis },
       ],
       'POST',
       '/atividades',
-      (v) => ({ tipo: v.tipo, titulo: v.titulo, quando: juntarDataHora(v.dia, v.hora), local: v.local, contato_id: this.contatoId }),
+      (v) => ({
+        tipo: v.tipo, titulo: v.titulo, quando: juntarDataHora(v.dia, v.hora), local: v.local, contato_id: this.contatoId,
+        imovel_id: v.tipo === 'visita' && v.imovel_id ? Number(v.imovel_id) : undefined,
+      }),
+    ).then((r) => this.depois(r));
+  }
+
+  private retornoVisita(a: Linha) {
+    const v = this.ficha!.visitas.find((x: Linha) => x.atividade_id === a.id);
+    void formularioEnviar(
+      'Retorno da visita',
+      [
+        { nome: 'nota', tipo: 'selecao', rotulo: 'O cliente gostou?', valor: v?.feedback_nota ? String(v.feedback_nota) : null,
+          opcoes: [{ valor: '5', rotulo: '5 — adorou' }, { valor: '4', rotulo: '4 — gostou' }, { valor: '3', rotulo: '3 — mais ou menos' }, { valor: '2', rotulo: '2 — não gostou' }, { valor: '1', rotulo: '1 — descartou' }] },
+        { nome: 'texto', tipo: 'texto_longo', rotulo: 'O que ele disse', valor: v?.feedback_texto ?? '' },
+        { nome: 'compartilhar', tipo: 'booleano', rotulo: 'Pode compartilhar com o proprietário (sem o nome do cliente)', valor: v?.compartilhar_com_proprietario ?? true },
+      ],
+      'POST',
+      `/visitas/${a.id}/feedback`,
+      (x) => ({ ...x, nota: x.nota ? Number(x.nota) : null }),
     ).then((r) => this.depois(r));
   }
 
@@ -183,6 +217,12 @@ export class PcTelaFichaContato extends LitElement {
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
+  }
+
+  /** Imóvel e nota da visita, para a linha da agenda. */
+  private visitaDe(a: Linha) {
+    const v = this.ficha!.visitas.find((x: Linha) => x.atividade_id === a.id);
+    return v ? ` · ${v.imovel_codigo ?? 'imóvel'}${v.feedback_nota ? ` · nota ${v.feedback_nota}/5` : ''}` : '';
   }
 
   private acao(rotulo: string, icone: string, fn: () => void) {
@@ -229,7 +269,7 @@ export class PcTelaFichaContato extends LitElement {
         ${this.acao('Novo negócio', 'fa-solid fa-plus', () => this.novoNegocio())}
         ${negocios.length
           ? html`<urbi-lista separador .itens=${negocios} .render_item=${(n: Linha) => html`<urbi-linha justificar="entre" quebrar>
-                <urbi-prosa>${n.titulo} · ${reais(n.valor_estimado_c)}</urbi-prosa>
+                <urbi-prosa>${n.titulo} · ${reais(n.valor_estimado_c)}${n.imovel_codigo ? ` · ${n.imovel_codigo}` : ""}</urbi-prosa>
                 <urbi-linha>
                   <urbi-badge cor=${n.etapa_tipo === 'ganha' ? 'sucesso' : n.etapa_tipo === 'perdida' ? 'padrao' : 'info'}>${n.etapa_nome}</urbi-badge>
                   <urbi-botao variante="texto" pequeno @click=${() => this.moverEtapa(n)}>Mudar etapa</urbi-botao>
@@ -241,10 +281,15 @@ export class PcTelaFichaContato extends LitElement {
         ${this.acao('Agendar', 'fa-solid fa-plus', () => this.novaAtividade())}
         ${atividades.length
           ? html`<urbi-lista separador .itens=${atividades} .render_item=${(a: Linha) => html`<urbi-linha justificar="entre" quebrar>
-                <urbi-prosa>${ROTULO_TIPO_ATIVIDADE[a.tipo]}: ${a.titulo} · ${dataHora(a.quando)}${a.local ? ` · ${a.local}` : ''}</urbi-prosa>
-                ${a.status === 'pendente'
-                  ? html`<urbi-botao variante="texto" pequeno @click=${() => this.concluir(a)}>Marcar feito</urbi-botao>`
-                  : html`<urbi-badge>${STATUS_ATIVIDADE[a.status]}</urbi-badge>`}
+                <urbi-prosa>${ROTULO_TIPO_ATIVIDADE[a.tipo]}: ${a.titulo} · ${dataHora(a.quando)}${a.local ? ` · ${a.local}` : ''}${this.visitaDe(a)}</urbi-prosa>
+                <urbi-linha>
+                  ${this.ficha!.visitas.some((v: Linha) => v.atividade_id === a.id)
+                    ? html`<urbi-botao variante="texto" pequeno @click=${() => this.retornoVisita(a)}>Retorno</urbi-botao>`
+                    : ''}
+                  ${a.status === 'pendente'
+                    ? html`<urbi-botao variante="texto" pequeno @click=${() => this.concluir(a)}>Marcar feito</urbi-botao>`
+                    : html`<urbi-badge>${STATUS_ATIVIDADE[a.status]}</urbi-badge>`}
+                </urbi-linha>
               </urbi-linha>`}></urbi-lista>
             ${pendentes.length ? '' : html`<urbi-prosa papel="dica">Nada pendente.</urbi-prosa>`}`
           : html`<urbi-prosa papel="dica">Nada agendado. Marque uma ligação, visita ou reunião.</urbi-prosa>`}

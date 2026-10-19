@@ -384,6 +384,549 @@
         ]
       ]
     },
+    "empreendimentos": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "soft_delete": true,
+      "id_legivel": "{nome}",
+      "colunas": {
+        "nome": {
+          "tipo": "texto",
+          "limite": 120,
+          "obrigatorio": true
+        },
+        "construtora": {
+          "tipo": "texto",
+          "limite": 120
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 12,
+          "obrigatorio": true,
+          "padrao": "vertical",
+          "opcoes": [
+            "loteamento",
+            "vertical",
+            "horizontal"
+          ]
+        },
+        "fase": {
+          "tipo": "texto",
+          "limite": 12,
+          "obrigatorio": true,
+          "padrao": "lancamento",
+          "opcoes": [
+            "lancamento",
+            "obras",
+            "pronto"
+          ]
+        },
+        "cidade": {
+          "tipo": "texto",
+          "limite": 80
+        },
+        "regiao": {
+          "tipo": "texto",
+          "limite": 80
+        },
+        "endereco": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "descricao": {
+          "tipo": "texto_longo"
+        },
+        "tipologias": {
+          "tipo": "texto_longo"
+        },
+        "preco_min_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "preco_max_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        }
+      },
+      "unicos": [
+        {
+          "colunas": [
+            "nome"
+          ],
+          "onde": [
+            {
+              "coluna": "removido_em",
+              "operador": "nulo"
+            }
+          ]
+        }
+      ]
+    },
+    "empreendimento_materiais": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{titulo}",
+      "colunas": {
+        "empreendimento_id": {
+          "tipo": "referencia",
+          "tabela_ref": "empreendimentos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "arquivo": {
+          "tipo": "arquivo",
+          "obrigatorio": true,
+          "mimes": [
+            "application/pdf",
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+          ],
+          "tamanho_max_mb": 25
+        },
+        "titulo": {
+          "tipo": "texto",
+          "limite": 120,
+          "obrigatorio": true
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "outro",
+          "opcoes": [
+            "planta",
+            "tabela",
+            "memorial",
+            "book",
+            "outro"
+          ]
+        },
+        "publico": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": true
+        }
+      },
+      "indices": [
+        [
+          "empreendimento_id"
+        ]
+      ]
+    },
+    "imoveis": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "soft_delete": true,
+      "id_legivel": "{codigo}",
+      "colunas": {
+        "codigo": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true
+        },
+        "titulo": {
+          "tipo": "texto",
+          "limite": 120
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 12,
+          "obrigatorio": true,
+          "opcoes": [
+            "casa",
+            "apartamento",
+            "lote",
+            "sala",
+            "loja",
+            "galpao",
+            "rural",
+            "outro"
+          ]
+        },
+        "finalidade": {
+          "tipo": "texto",
+          "limite": 16,
+          "obrigatorio": true,
+          "padrao": "venda",
+          "opcoes": [
+            "venda",
+            "venda_e_locacao"
+          ]
+        },
+        "situacao": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "rascunho",
+          "opcoes": [
+            "rascunho",
+            "captacao",
+            "ativo",
+            "reservado",
+            "vendido",
+            "suspenso",
+            "encerrado"
+          ]
+        },
+        "proprietario_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as proprietario_nome"
+          ]
+        },
+        "origem_estoque": {
+          "tipo": "texto",
+          "limite": 14,
+          "obrigatorio": true,
+          "padrao": "carteira",
+          "opcoes": [
+            "carteira",
+            "rede",
+            "incorporadora"
+          ]
+        },
+        "empreendimento_id": {
+          "tipo": "referencia",
+          "tabela_ref": "empreendimentos",
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as empreendimento_nome"
+          ]
+        },
+        "preco_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "condominio_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "iptu_anual_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "area_util_m2": {
+          "tipo": "decimal",
+          "precisao": 10,
+          "escala": 2,
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "area_total_m2": {
+          "tipo": "decimal",
+          "precisao": 10,
+          "escala": 2,
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "quartos": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0,
+            "max": 99
+          }
+        },
+        "suites": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0,
+            "max": 99
+          }
+        },
+        "banheiros": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0,
+            "max": 99
+          }
+        },
+        "vagas": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0,
+            "max": 99
+          }
+        },
+        "bairro": {
+          "tipo": "texto",
+          "limite": 80
+        },
+        "cidade": {
+          "tipo": "texto",
+          "limite": 80
+        },
+        "uf": {
+          "tipo": "texto",
+          "limite": 2,
+          "formato": "^[A-Z]{2}$"
+        },
+        "endereco": {
+          "tipo": "json"
+        },
+        "endereco_publico": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "bairro",
+          "opcoes": [
+            "completo",
+            "bairro",
+            "regiao"
+          ]
+        },
+        "lat": {
+          "tipo": "decimal",
+          "precisao": 9,
+          "escala": 6,
+          "intervalo": {
+            "min": -90,
+            "max": 90
+          }
+        },
+        "lng": {
+          "tipo": "decimal",
+          "precisao": 9,
+          "escala": 6,
+          "intervalo": {
+            "min": -180,
+            "max": 180
+          }
+        },
+        "caracteristicas": {
+          "tipo": "texto_longo"
+        },
+        "descricao": {
+          "tipo": "texto_longo"
+        },
+        "publicado_pagina": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "compartilhado_rede": {
+          "tipo": "texto",
+          "limite": 12,
+          "obrigatorio": true,
+          "padrao": "nao",
+          "opcoes": [
+            "nao",
+            "conexoes",
+            "rede_aberta"
+          ]
+        }
+      },
+      "unicos": [
+        {
+          "colunas": [
+            "codigo"
+          ],
+          "onde": [
+            {
+              "coluna": "removido_em",
+              "operador": "nulo"
+            }
+          ]
+        }
+      ],
+      "indices": [
+        [
+          "situacao"
+        ],
+        [
+          "proprietario_id"
+        ]
+      ]
+    },
+    "imovel_midias": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{tipo}",
+      "colunas": {
+        "imovel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imoveis",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "arquivo": {
+          "tipo": "arquivo",
+          "obrigatorio": true,
+          "mimes": [
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "video/mp4",
+            "application/pdf"
+          ],
+          "tamanho_max_mb": 25
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "foto",
+          "opcoes": [
+            "foto",
+            "video",
+            "planta",
+            "tour",
+            "documento"
+          ]
+        },
+        "ordem": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0,
+            "max": 9999
+          },
+          "obrigatorio": true,
+          "padrao": 0
+        },
+        "legenda": {
+          "tipo": "texto",
+          "limite": 200
+        },
+        "publica": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": true
+        },
+        "gerada_por_ia": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "rotulo_ia": {
+          "tipo": "texto",
+          "limite": 60
+        },
+        "ia_ambiente": {
+          "tipo": "texto",
+          "limite": 40
+        },
+        "ia_nota": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0,
+            "max": 10
+          }
+        }
+      },
+      "indices": [
+        [
+          "imovel_id",
+          "ordem"
+        ]
+      ]
+    },
+    "autorizacoes_venda": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "AV-{id}",
+      "colunas": {
+        "imovel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imoveis",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "codigo as imovel_codigo"
+          ]
+        },
+        "proprietario_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as proprietario_nome"
+          ]
+        },
+        "exclusiva": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "inicio": {
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        "fim": {
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        "comissao_pct": {
+          "tipo": "decimal",
+          "precisao": 5,
+          "escala": 2,
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 0,
+            "max": 100
+          }
+        },
+        "preco_autorizado_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          },
+          "obrigatorio": true
+        },
+        "permite_parceria": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "permite_placa": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "permite_portais": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "documento_midia_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imovel_midias",
+          "ao_deletar": "anular"
+        },
+        "situacao": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "rascunho",
+          "opcoes": [
+            "rascunho",
+            "enviada",
+            "assinada",
+            "vencida",
+            "revogada"
+          ]
+        }
+      },
+      "indices": [
+        [
+          "imovel_id"
+        ]
+      ]
+    },
     "negocios": {
       "segregada_por_conta": true,
       "acesso_externo": "restrito",
@@ -474,6 +1017,14 @@
         },
         "perdido_em": {
           "tipo": "datahora"
+        },
+        "imovel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imoveis",
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "codigo as imovel_codigo"
+          ]
         }
       },
       "indices": [
@@ -638,6 +1189,53 @@
         [
           "alvo_tipo",
           "alvo_id"
+        ]
+      ]
+    },
+    "visitas": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "Visita {id}",
+      "colunas": {
+        "atividade_id": {
+          "tipo": "referencia",
+          "tabela_ref": "atividades",
+          "obrigatorio": true,
+          "unico": true,
+          "ao_deletar": "restringir"
+        },
+        "imovel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imoveis",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "codigo as imovel_codigo",
+            "titulo as imovel_titulo"
+          ]
+        },
+        "feedback_nota": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 1,
+            "max": 5
+          }
+        },
+        "feedback_texto": {
+          "tipo": "texto_longo"
+        },
+        "compartilhar_com_proprietario": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": true
+        },
+        "feedback_em": {
+          "tipo": "datahora"
+        }
+      },
+      "indices": [
+        [
+          "imovel_id"
         ]
       ]
     }

@@ -19,6 +19,20 @@ export function exigirPapel(...papeis: Papel[]): RequestHandler {
   };
 }
 
+/**
+ * Guardas da área do corretor num router montado na raiz: papel `corretor` e conta resolvida.
+ * Valem só nos prefixos dados, para não alcançar as rotas dos outros routers.
+ */
+export function guardarCorretor(router: { use: (caminho: string[], h: RequestHandler) => unknown }, prefixos: string[]) {
+  router.use(prefixos, exigirPapel('corretor'));
+  router.use(prefixos, (req, res, next) => {
+    if (req.contexto?.resolucao === 'negar') {
+      return erro(res, 409, 'SEM_CONTA', 'Seu usuário não está associado a nenhuma conta. Fale com a equipe da plataforma.');
+    }
+    next();
+  });
+}
+
 /** Express 4 não captura promessa rejeitada: todo handler assíncrono passa por aqui. */
 export function assincrono(fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {

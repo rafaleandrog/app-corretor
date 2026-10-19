@@ -87,3 +87,41 @@ export const ROTULO_MOTIVO_PERDA: Record<string, string> = {
   outro: 'Outro',
 };
 export const opcoes = (rotulos: Record<string, string>) => Object.entries(rotulos).map(([valor, rotulo]) => ({ valor, rotulo }));
+
+/**
+ * Passo 1 do upload (arquivos.md): manda o arquivo para o staging da coluna e devolve o
+ * `upload_id`, que vale 10 minutos. O passo 2 é a rota do app que grava a linha com ele.
+ */
+export async function subirArquivo(tabela: string, coluna: string, arquivo: File): Promise<number> {
+  const form = new FormData();
+  form.append('arquivo', arquivo);
+  const r = await urbiVerso.api(`/dados/portal_corretor/${tabela}/__upload?coluna=${coluna}`, { method: 'POST', body: form });
+  return r.upload_id;
+}
+
+export const ROTULO_TIPO_IMOVEL: Record<string, string> = {
+  casa: 'Casa',
+  apartamento: 'Apartamento',
+  lote: 'Lote ou terreno',
+  sala: 'Sala comercial',
+  loja: 'Loja',
+  galpao: 'Galpão',
+  rural: 'Rural',
+  outro: 'Outro',
+};
+export const SITUACAO_IMOVEL: Record<string, { rotulo: string; cor: string }> = {
+  rascunho: { rotulo: 'Rascunho', cor: 'padrao' },
+  captacao: { rotulo: 'Em captação', cor: 'info' },
+  ativo: { rotulo: 'Ativo', cor: 'sucesso' },
+  reservado: { rotulo: 'Reservado', cor: 'alerta' },
+  vendido: { rotulo: 'Vendido', cor: 'info' },
+  suspenso: { rotulo: 'Suspenso', cor: 'alerta' },
+  encerrado: { rotulo: 'Encerrado', cor: 'padrao' },
+};
+export const ROTULO_TIPO_MIDIA: Record<string, string> = { foto: 'Foto', video: 'Vídeo', planta: 'Planta', tour: 'Tour', documento: 'Documento' };
+export const ROTULO_AMBIENTE: Record<string, string> = {
+  fachada: 'Fachada', sala: 'Sala', cozinha: 'Cozinha', quarto: 'Quarto', banheiro: 'Banheiro', varanda: 'Varanda',
+  area_lazer: 'Área de lazer', vista: 'Vista', garagem: 'Garagem', planta: 'Planta', outro: 'Outro',
+};
+/** Cor do selo de qualidade (0–100). */
+export const corQualidade = (nota: number) => (nota >= 80 ? 'sucesso' : nota >= 50 ? 'alerta' : 'erro');
