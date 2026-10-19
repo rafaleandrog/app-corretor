@@ -79,9 +79,10 @@ O detalhe da visita (imóvel visitado e retorno do cliente) fica na ficha do im�
 **Lembrete de visita:** um dia antes de cada visita pendente (ou no prazo escolhido em Ajustes ›
 Conta e marca › Atendimento), você recebe uma notificação na plataforma com a visita, a hora, o
 cliente e o local. Clicar nela abre a Agenda.
-- Remarcar a visita remarca o lembrete.
 - Visita feita, cancelada ou removida antes da hora não gera lembrete.
 - Visita marcada para dali a menos tempo que o prazo também não gera.
+- Mudar o prazo (ou desligar com 0) vale na hora para os lembretes que ainda não saíram; com outro
+  prazo, as visitas já marcadas ficam sem lembrete, e as próximas usam o prazo novo.
 
 O lembrete para o cliente, pelo WhatsApp, chega com o Mensageiro.
 

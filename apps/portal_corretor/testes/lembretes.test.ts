@@ -49,6 +49,14 @@ test('lembrete de visita: agenda antes da visita, notifica o responsável uma ve
   await reagir.lembrete_visita({ payload: ev.agendados[0].payload, conta_id: 100 }, ctx as any);
   await reagir.lembrete_visita({ payload: ev.agendados[1].payload, conta_id: 200 }, ctx as any);
   assert.equal(notificacoes.length, 0);
+  // Fora da hora do lembrete (24 h antes da visita, com folga de 30 min) não notifica.
+  await reagir.lembrete_visita({ payload: ev.agendados[1].payload, conta_id: 100 }, ctx as any);
+  assert.equal(notificacoes.length, 0, 'disparo fora da hora do prazo');
+  // Na hora: a visita passa a ser daqui a 24 h (como se o tempo tivesse andado até o lembrete).
+  const linha = banco.linhas('atividades').find((x) => x.id === visitaId)!;
+  const naHora = new Date(Date.now() + 24 * 3600e3 + 60e3).toISOString();
+  linha.quando = naHora;
+  ev.agendados[1].payload = { atividade_id: visitaId, quando: naHora };
   await reagir.lembrete_visita({ payload: ev.agendados[1].payload, conta_id: '100' }, ctx as any);
   assert.equal(notificacoes.length, 1);
   assert.equal(notificacoes[0].usuario, 1);
@@ -57,13 +65,43 @@ test('lembrete de visita: agenda antes da visita, notifica o responsável uma ve
   // Reentrega (at-least-once) não notifica de novo.
   await reagir.lembrete_visita({ payload: ev.agendados[1].payload, conta_id: 100 }, ctx as any);
   assert.equal(notificacoes.length, 1);
-  // Visita feita antes do lembrete: nada.
+  // Lembrete desligado depois de agendado: o disparo não notifica.
+  const outra = new Date(Date.now() + 24 * 3600e3 + 120e3).toISOString();
   await comServidor(rotas, A, banco, {}, async (chamar) => {
-    await chamar('PATCH', `/atividades/${visitaId}`, { quando: quando });
+    await chamar('PATCH', `/atividades/${visitaId}`, { quando: outra });
+    await chamar('PUT', '/conta/configuracoes', { ...CONFIGURACOES_PADRAO, lembrete_visita_horas: 0 });
+  });
+  await reagir.lembrete_visita({ payload: { atividade_id: visitaId, quando: outra }, conta_id: 100 }, ctx as any);
+  assert.equal(notificacoes.length, 1, '0 desliga também o que já estava agendado');
+  // Visita feita antes do lembrete: nada (mesmo com o lembrete religado).
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    await chamar('PUT', '/conta/configuracoes', { ...CONFIGURACOES_PADRAO, lembrete_visita_horas: 24 });
     await chamar('PATCH', `/atividades/${visitaId}`, { status: 'feita' });
   });
-  await reagir.lembrete_visita({ payload: { atividade_id: visitaId, quando }, conta_id: 100 }, ctx as any);
+  await reagir.lembrete_visita({ payload: { atividade_id: visitaId, quando: outra }, conta_id: 100 }, ctx as any);
   assert.equal(notificacoes.length, 1);
+  // Visita que já passou (disparo atrasado): nada.
+  linha.status = 'pendente';
+  linha.quando = new Date(Date.now() - 3600e3).toISOString();
+  await reagir.lembrete_visita({ payload: { atividade_id: visitaId, quando: linha.quando }, conta_id: 100 }, ctx as any);
+  assert.equal(notificacoes.length, 1);
+});
+
+test('lembrete: PATCH sem mudar a hora não reagenda; PUT sem o campo mantém o valor gravado', async () => {
+  const banco = new BancoFalso({ configuracoes_conta: ['chave'] });
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const quando = new Date(Date.now() + 3 * 86400e3).toISOString();
+    const v = (await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita', quando })).corpo;
+    await chamar('PATCH', `/atividades/${v.id}`, { quando, titulo: 'Visita 2' });
+    await chamar('PATCH', `/atividades/${v.id}`, { status: 'pendente' });
+    assert.equal(ev.agendados.length, 1, 'mesma hora e mesmo status não reagendam');
+    await chamar('PUT', '/conta/configuracoes', { ...CONFIGURACOES_PADRAO, lembrete_visita_horas: 0 });
+    const { lembrete_visita_horas: _, ...antigo } = { ...CONFIGURACOES_PADRAO } as Record<string, unknown>;
+    await chamar('PUT', '/conta/configuracoes', antigo);
+    assert.equal((await chamar('GET', '/conta')).corpo.configuracoes.lembrete_visita_horas, 0);
+  });
 });
 
 test('lembrete desligado (0) não agenda', async () => {

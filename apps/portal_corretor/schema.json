@@ -154,7 +154,11 @@
         "lembrete_visita_horas": {
           "tipo": "inteiro",
           "obrigatorio": true,
-          "padrao": 24
+          "padrao": 24,
+          "intervalo": {
+            "min": 0,
+            "max": 168
+          }
         }
       }
     },

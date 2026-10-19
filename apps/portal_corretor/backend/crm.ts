@@ -16,7 +16,7 @@ import { gerarCsv } from '../comum/csv';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { encerrarAcessosDoCliente, tentarPortal } from './portal';
-import { MARCO_PADRAO } from '../comum/funil';
+import { iso, MARCO_PADRAO } from '../comum/funil';
 import { marcoMaisAvancado } from '../comum/numeros';
 import { programarLembreteVisita } from './lembretes';
 
@@ -547,7 +547,10 @@ crmRotas.patch(
     }
     if (atual.tipo === 'visita') await tentarPortal(dados, req.contexto?.contaEscrita, atual.contato_id);
     // Remarcou, reabriu ou virou visita: agenda o lembrete da nova hora (o da hora velha é ignorado).
-    if (v.dados.quando || v.dados.status || v.dados.tipo) await programarLembreteVisita(req, atividade);
+    const remarcou = v.dados.quando !== undefined && iso(v.dados.quando) !== iso(atual.quando);
+    const reabriu = v.dados.status === 'pendente' && atual.status !== 'pendente';
+    const virouVisita = v.dados.tipo === 'visita' && atual.tipo !== 'visita';
+    if (remarcou || reabriu || virouVisita) await programarLembreteVisita(req, atividade);
     res.json(atividade);
   }),
 );

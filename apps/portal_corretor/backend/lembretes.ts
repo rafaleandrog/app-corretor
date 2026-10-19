@@ -31,6 +31,9 @@ export async function programarLembreteVisita(req: Request, atividade: Linha | n
   }
 }
 
+/** Folga entre a hora do disparo e a do lembrete (atraso de entrega do agendamento). */
+export const TOLERANCIA_MS = 30 * 60_000;
+
 interface EventoConta {
   payload: Record<string, any>;
   conta_id?: number | string | null;
@@ -45,7 +48,15 @@ export async function aoLembreteVisita(evento: EventoConta, ctx: ContextoListene
     const a = (await trx.varrerTudo('atividades', { filtros: { conta_id: conta, id: Number(evento.payload.atividade_id) }, maximo: 1 }))[0];
     if (!a || a.removido_em || a.tipo !== 'visita' || a.status !== 'pendente') return null;
     if (iso(a.quando) !== quando || iso(a.lembrete_enviado_para) === quando) return null;
-    await trx.atualizar('atividades', a.id, { lembrete_enviado_para: quando });
+    // Visita que já passou (disparo atrasado) não é lembrada.
+    if (Date.now() >= Date.parse(quando)) return null;
+    // O prazo vale na hora: desligado (0) ou trocado depois do agendamento, este disparo não notifica.
+    const config = (await trx.varrerTudo('configuracoes_conta', { filtros: { conta_id: conta, chave: 'conta' }, maximo: 1 }))[0];
+    const horas = Number(config?.lembrete_visita_horas ?? CONFIGURACOES_PADRAO.lembrete_visita_horas);
+    if (!horas || Math.abs(Date.now() - (Date.parse(quando) - horas * 3600_000)) > TOLERANCIA_MS) return null;
+    // Gravação condicionada: dois disparos ao mesmo tempo não notificam duas vezes.
+    const guarda = a.lembrete_enviado_para ? { lembrete_enviado_para: iso(a.lembrete_enviado_para) } : { 'lembrete_enviado_para[nulo]': 'true' };
+    if (!(await trx.atualizarSe('atividades', a.id, { lembrete_enviado_para: quando }, guarda))) return null;
     const contato = a.contato_id ? (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: a.contato_id }, maximo: 1 }))[0] : null;
     return { ...a, contato_nome: contato && !contato.anonimizado_em ? contato.nome : null };
   });
