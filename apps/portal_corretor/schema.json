@@ -1791,6 +1791,237 @@
           ]
         }
       ]
+    },
+    "marca_conta": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "chave": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "conta",
+          "opcoes": [
+            "conta"
+          ],
+          "unico": true
+        },
+        "cor_primaria": {
+          "tipo": "texto",
+          "limite": 7,
+          "obrigatorio": true,
+          "padrao": "#0b5394",
+          "formato": "^#[0-9a-fA-F]{6}$"
+        },
+        "cor_secundaria": {
+          "tipo": "texto",
+          "limite": 7,
+          "obrigatorio": true,
+          "padrao": "#f2b705",
+          "formato": "^#[0-9a-fA-F]{6}$"
+        },
+        "estilo": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "moderno",
+          "opcoes": [
+            "moderno",
+            "classico",
+            "minimalista"
+          ]
+        },
+        "assinatura": {
+          "tipo": "texto",
+          "limite": 60
+        }
+      }
+    },
+    "marca_arquivos": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "tipo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "logo",
+            "foto"
+          ]
+        },
+        "arquivo": {
+          "tipo": "arquivo",
+          "obrigatorio": true,
+          "mimes": [
+            "image/png",
+            "image/jpeg",
+            "image/webp"
+          ],
+          "tamanho_max_mb": 10
+        }
+      },
+      "unicos": [
+        [
+          "tipo"
+        ]
+      ]
+    },
+    "pecas": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{titulo}",
+      "colunas": {
+        "imovel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imoveis",
+          "ao_deletar": "anular",
+          "campos_incluir": [
+            "codigo as imovel_codigo"
+          ]
+        },
+        "formato": {
+          "tipo": "texto",
+          "limite": 12,
+          "obrigatorio": true,
+          "opcoes": [
+            "post_1x1",
+            "post_4x5",
+            "carrossel",
+            "story"
+          ]
+        },
+        "objetivo": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "destaque",
+          "opcoes": [
+            "novo_imovel",
+            "baixou_preco",
+            "vendido",
+            "visita_aberta",
+            "destaque"
+          ]
+        },
+        "pedido": {
+          "tipo": "texto",
+          "limite": 1000
+        },
+        "titulo": {
+          "tipo": "texto",
+          "limite": 80,
+          "obrigatorio": true
+        },
+        "chamada": {
+          "tipo": "texto",
+          "limite": 120
+        },
+        "destaques": {
+          "tipo": "json"
+        },
+        "legenda": {
+          "tipo": "texto_longo"
+        },
+        "hashtags": {
+          "tipo": "texto",
+          "limite": 600
+        },
+        "motor": {
+          "tipo": "texto",
+          "limite": 12,
+          "obrigatorio": true,
+          "padrao": "interno",
+          "opcoes": [
+            "interno",
+            "canva_ia",
+            "upload"
+          ]
+        },
+        "estado": {
+          "tipo": "texto",
+          "limite": 12,
+          "obrigatorio": true,
+          "padrao": "rascunho",
+          "opcoes": [
+            "rascunho",
+            "aprovada",
+            "agendada",
+            "publicada",
+            "rejeitada",
+            "erro"
+          ]
+        },
+        "gerada_por_ia": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "aprovada_em": {
+          "tipo": "datahora"
+        },
+        "aprovada_por_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular"
+        },
+        "agendada_para": {
+          "tipo": "datahora"
+        },
+        "publicada_em": {
+          "tipo": "datahora"
+        },
+        "erro": {
+          "tipo": "texto",
+          "limite": 300
+        }
+      },
+      "soft_delete": true,
+      "indices": [
+        [
+          "estado",
+          "agendada_para"
+        ],
+        [
+          "imovel_id"
+        ]
+      ]
+    },
+    "peca_arquivos": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "peca_id": {
+          "tipo": "referencia",
+          "tabela_ref": "pecas",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "arquivo": {
+          "tipo": "arquivo",
+          "obrigatorio": true,
+          "mimes": [
+            "image/jpeg",
+            "image/png"
+          ],
+          "tamanho_max_mb": 15
+        },
+        "ordem": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 0,
+          "intervalo": {
+            "min": 0,
+            "max": 20
+          }
+        }
+      },
+      "indices": [
+        [
+          "peca_id",
+          "ordem"
+        ]
+      ]
     }
   }
 }

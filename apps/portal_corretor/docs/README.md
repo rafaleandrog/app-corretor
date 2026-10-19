@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.8.0)
+## O que existe nesta versão (0.9.0)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -19,6 +19,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Agenda** | Atividades pendentes dos próximos 14 dias |
 | Corretor | **Imóveis › Minha carteira** | Imóveis com fotos, qualidade do anúncio, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Imóveis › Empreendimentos** | Lançamentos com materiais e as unidades da carteira |
+| Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA, artes montadas pelo app ou feitas no Canva IA, aprovação e download — ver [Estúdio de conteúdo](estudio.md) |
 | Corretor | **Minha página** | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
 | Visitante | **Página e ficha pública** (sem login) | A página do corretor e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
 | Corretor | **Clientes › ficha › Seleções e portal** | Monta seleções de imóveis e gera o link do portal do cliente — ver [Seleções e Portal do Cliente](selecoes-e-portal.md) |
@@ -27,8 +28,8 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Ajustes › Conta e marca** | Seus dados, os dados da conta e as regras de atendimento — ver [Conta e ajustes](conta-e-ajustes.md) |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
-Ainda não há integrações (WhatsApp, Instagram). A IA aparece nos imóveis (descrição e leitura de fotos) e na Minha página (textos), quando
-liberada pelo administrador. Cada funcionalidade passa a constar aqui na versão em que chegar.
+Ainda não há integrações (WhatsApp, Instagram). A IA aparece nos imóveis (descrição e leitura de fotos), na Minha página e no Estúdio (textos),
+quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Papéis
 

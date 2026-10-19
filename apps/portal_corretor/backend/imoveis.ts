@@ -62,7 +62,7 @@ async function temCreci(dados: HelperDados): Promise<boolean> {
 }
 
 /** Erro de `upload_id` recusado pelo framework (vencido, de outro usuário, destino errado). */
-function uploadRecusado(e: unknown): { status: number; mensagem: string } | null {
+export function uploadRecusado(e: unknown): { status: number; mensagem: string } | null {
   const c = (e as { codigo?: string })?.codigo;
   if (!c?.startsWith('ARQUIVOS_')) return null;
   return {
