@@ -14,6 +14,7 @@ import { clienteRotas } from './cliente';
 import { estudioRotas } from './estudio';
 import { instagramRotas, renovarTokensInstagram } from './instagram';
 import { assistenteRotas } from './assistente';
+import { escopoDeConta } from './escopo';
 
 export { aoIniciar } from './semente';
 // Páginas públicas, webhooks de entrada e listeners do bloco 5.
@@ -32,6 +33,9 @@ export const rotas: Router = Router();
 rotas.get('/status', (_req, res) => {
   res.json({ nome: manifesto.nome, versao: manifesto.versao });
 });
+
+// Tudo abaixo roda na conta ativa de quem atende várias contas (escopo.ts).
+rotas.use(escopoDeConta);
 
 rotas.use('/conta', contaRotas);
 rotas.use('/equipe', equipeRotas);

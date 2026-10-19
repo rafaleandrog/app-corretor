@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.3; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.4; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -47,7 +47,7 @@ corretor e as da equipe, sem precisar de papel atribuído (o papel `corretor` é
 dado a quem é da equipe). Como as tabelas são segregadas por conta, para usar as telas do corretor o
 admin precisa estar associado a uma conta (Admin › Contas); sem conta, a tela explica isso. Quem está em
 mais de uma conta vê o seletor **Conta** no alto das telas e trabalha na conta escolhida (a escolha fica
-lembrada no navegador); com uma conta só, o seletor não aparece.
+lembrada no navegador); com uma conta só, o seletor não aparece. Com várias contas, listas, fichas e números mostram só a conta escolhida, e uma chamada sem a conta ativa é recusada com a orientação de escolhê-la.
 
 ### Endereço recebido (diagnóstico)
 

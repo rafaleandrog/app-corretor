@@ -82,6 +82,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | 19/10/2026 | 10b | Merge dos PRs #2 e #13 a #22 na `main` (ordem do dono); D-78 (0.1.0 sem WhatsApp e Mensageiro); versão volta a 0.1.0 (D-69); plano fechado | #24 | Release 0.1.0 por ordem do dono; R.8 na instância |
 | 19/10/2026 | 10b | Seletor de conta e cabeçalho `X-Conta` em todas as chamadas das telas (admin com várias contas via erro "conta destino inequívoca" em Início, Funil, Minha página, Conexões); versão 0.1.2 | #28 | Release 0.1.2 por ordem do dono; QA como admin |
 | 19/10/2026 | 10b | Achados do QA como admin (#28): erro de conta não informada diz o que fazer; mensagem de probabilidade das etapas corrigida; versão 0.1.3 | #29 | Release 0.1.3 por ordem do dono; QA com 2+ contas; Instagram sem configuração na instância (pedido ao dono) |
+| 19/10/2026 | 10b | Escopo da conta ativa em `req.dados` para quem atende várias contas (`backend/escopo.ts`); chamada sem `X-Conta` recusada com orientação; teste de isolamento com 2 contas; versão 0.1.4 | #36 | Release 0.1.4 por ordem do dono; issue #32 (leitura que escreve) |
 
 ---
 
