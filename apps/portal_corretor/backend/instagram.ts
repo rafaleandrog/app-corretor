@@ -29,9 +29,10 @@ export class ErroInstagram extends Error {
 async function chamar(url: string, init?: RequestInit): Promise<Linha> {
   let r: Response;
   try {
-    r = await http.fetch(url, init);
+    // Limite por chamada: a publicação inteira precisa acabar bem antes dos 15 min do "destravar".
+    r = await http.fetch(url, { ...init, signal: AbortSignal.timeout(publicar.limiteChamadaMs) });
   } catch {
-    throw new ErroInstagram('O Instagram não respondeu agora. Tente de novo em instantes.', 'INSTAGRAM_FORA');
+    throw new ErroInstagram('O Instagram não respondeu a tempo. Confira no Instagram antes de tentar de novo.', 'INSTAGRAM_FORA');
   }
   const corpo = (await r.json().catch(() => ({}))) as Linha;
   if (!r.ok || corpo.error) {
@@ -71,8 +72,8 @@ async function urlsDaPeca(dados: HelperDados, arquivos: { url(id: number, ttl: n
 }
 
 /** Espera o contêiner ficar pronto (publicar antes do processamento falha, 9.2). */
-async function aguardarConteiner(id: string, token: string) {
-  for (let i = 0; i < 10; i++) {
+async function aguardarConteiner(id: string, token: string, prazo: number) {
+  for (let i = 0; i < 10 && Date.now() < prazo; i++) {
     const r = await chamar(`${GRAPH}/${id}?fields=status_code&access_token=${encodeURIComponent(token)}`);
     if (r.status_code === 'FINISHED') return;
     if (r.status_code === 'ERROR' || r.status_code === 'EXPIRED') throw new ErroInstagram('O Instagram não conseguiu processar a imagem.', 'INSTAGRAM_RECUSOU');
@@ -85,23 +86,27 @@ async function aguardarConteiner(id: string, token: string) {
 export async function publicar(p: { formato: string; legenda: string }, urls: string[], igUser: string, token: string): Promise<{ id: string; permalink: string | null }> {
   if (!urls.length) throw new ErroInstagram('A peça não tem arte.', 'SEM_ARTE');
   const t = encodeURIComponent(token);
+  const prazo = Date.now() + publicar.prazoTotalMs;
   let criacao: string;
   if (p.formato === 'carrossel' && urls.length > 1) {
     const filhos: string[] = [];
     for (const u of urls) filhos.push((await chamar(`${GRAPH}/${igUser}/media`, form({ image_url: u, is_carousel_item: 'true', access_token: token }))).id);
-    for (const f of filhos) await aguardarConteiner(f, token);
+    for (const f of filhos) await aguardarConteiner(f, token, prazo);
     criacao = (await chamar(`${GRAPH}/${igUser}/media`, form({ media_type: 'CAROUSEL', children: filhos.join(','), caption: p.legenda, access_token: token }))).id;
   } else if (p.formato === 'story') {
     criacao = (await chamar(`${GRAPH}/${igUser}/media`, form({ image_url: urls[0], media_type: 'STORIES', access_token: token }))).id;
   } else {
     criacao = (await chamar(`${GRAPH}/${igUser}/media`, form({ image_url: urls[0], caption: p.legenda, access_token: token }))).id;
   }
-  await aguardarConteiner(criacao, token);
+  await aguardarConteiner(criacao, token, prazo);
   const publicada = await chamar(`${GRAPH}/${igUser}/media_publish`, form({ creation_id: criacao, access_token: token }));
   const link = await chamar(`${GRAPH}/${publicada.id}?fields=permalink&access_token=${t}`).catch(() => ({}) as Linha);
   return { id: String(publicada.id), permalink: (link as Linha).permalink ?? null };
 }
 publicar.esperaMs = 3000;
+publicar.limiteChamadaMs = 30_000;
+/** Prazo para os contêineres ficarem prontos: bem abaixo dos 15 min do "destravar". */
+publicar.prazoTotalMs = 6 * 60_000;
 
 /** Abre uma unidade de escrita: `req.dados` direto na rota; `comConta` curto no listener. */
 type Abrir = <T>(fn: (dados: HelperDados) => Promise<T>) => Promise<T>;
