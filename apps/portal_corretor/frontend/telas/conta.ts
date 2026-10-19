@@ -12,6 +12,7 @@ interface DadosConta {
     validade_selecao_dias: number;
     modo_aprovacao_conteudo: string;
     janela_aprovacao_horas: number;
+    lembrete_visita_horas: number;
   };
   meu_perfil: { creci: string | null; telefone: string | null; creci_situacao: string };
 }
@@ -89,6 +90,7 @@ export class PcTelaConta extends LitElement {
       { nome: 'validade_selecao_dias', tipo: 'numero', rotulo: 'Validade da seleção enviada (dias)', obrigatorio: true, min: 1, max: 365, valor: c.validade_selecao_dias },
       { nome: 'modo_aprovacao_conteudo', tipo: 'selecao', rotulo: 'Aprovação de conteúdo', opcoes: [{ valor: 'manual', rotulo: 'Eu aprovo cada peça' }, { valor: 'janela', rotulo: 'Publica sozinho se eu não responder na janela' }], valor: c.modo_aprovacao_conteudo },
       { nome: 'janela_aprovacao_horas', tipo: 'numero', rotulo: 'Janela de aprovação (horas)', obrigatorio: true, min: 1, max: 168, valor: c.janela_aprovacao_horas },
+      { nome: 'lembrete_visita_horas', tipo: 'numero', rotulo: 'Lembrete de visita (horas antes; 0 desliga)', obrigatorio: true, min: 0, max: 168, valor: c.lembrete_visita_horas },
     ]);
   }
 
@@ -128,7 +130,8 @@ export class PcTelaConta extends LitElement {
         <urbi-prosa papel="secundario">
           Primeiro atendimento em até ${c.prazo_primeiro_atendimento_min} min · cliente parado após ${c.dias_cliente_parado} dias ·
           seleção vale ${c.validade_selecao_dias} dias ·
-          ${c.modo_aprovacao_conteudo === 'janela' ? `conteúdo publica sozinho após ${c.janela_aprovacao_horas} h sem resposta` : 'você aprova cada peça'}
+          ${c.modo_aprovacao_conteudo === 'janela' ? `conteúdo publica sozinho após ${c.janela_aprovacao_horas} h sem resposta` : 'você aprova cada peça'} ·
+          ${c.lembrete_visita_horas ? `lembrete ${c.lembrete_visita_horas} h antes de cada visita` : 'sem lembrete de visita'}
         </urbi-prosa>
       </urbi-card>
     </urbi-stack>`;

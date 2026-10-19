@@ -150,6 +150,15 @@
         },
         "horario_atendimento": {
           "tipo": "json"
+        },
+        "lembrete_visita_horas": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 24,
+          "intervalo": {
+            "min": 0,
+            "max": 168
+          }
         }
       }
     },
@@ -1167,6 +1176,9 @@
           "tipo": "booleano",
           "obrigatorio": true,
           "padrao": false
+        },
+        "lembrete_enviado_para": {
+          "tipo": "datahora"
         }
       },
       "indices": [

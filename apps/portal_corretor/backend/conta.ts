@@ -53,7 +53,10 @@ contaRotas.put(
 contaRotas.put(
   '/configuracoes',
   assincrono(async (req, res) => {
-    const v = validarConfiguracoes(req.body ?? {});
+    // Corpo sem um campo (tela antiga em cache) mantém o valor gravado, não volta ao padrão.
+    const atual = await primeiro(req.dados!, 'configuracoes_conta', { chave: 'conta' });
+    const corpo = { ...(atual?.lembrete_visita_horas !== undefined && atual?.lembrete_visita_horas !== null ? { lembrete_visita_horas: atual.lembrete_visita_horas } : {}), ...(req.body ?? {}) };
+    const v = validarConfiguracoes(corpo);
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira as configurações.', v.erros);
     const linha = await salvarUnico(req.dados!, 'configuracoes_conta', { chave: 'conta' }, { ...v.dados });
     res.json(linha);

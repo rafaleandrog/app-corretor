@@ -34,9 +34,9 @@ editar.
 | Validade da seleção enviada | 14 dias | Por quanto tempo o link de uma seleção de imóveis vale |
 | Aprovação de conteúdo | Você aprova cada peça | Ou: publica sozinho se você não responder na janela |
 | Janela de aprovação | 24 horas | Usada quando a aprovação é por janela |
+| Lembrete de visita | 24 horas antes | Notificação para você antes de cada visita pendente; 0 desliga |
 
-Enquanto você não salvar, valem os padrões. Os ajustes passam a ter efeito à medida que as
-funcionalidades chegam (funil, seleções, Estúdio).
+Enquanto você não salvar, valem os padrões.
 
 ## A marca
 
