@@ -42,7 +42,7 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 
 ## Regras que não se quebram
 
-- **Isolamento:** toda tabela com `segregada_por_conta: true` e `acesso_externo: "restrito"`. Nenhuma tabela fora do RLS. Acesso só por rotas próprias, checando role (`corretor`, `cliente`, `operacao`, `suporte`) e escopando por `usuario.id`. Recurso de outra conta responde "não encontrado". O teste de isolamento (spec 4.5) roda em todo PR.
+- **Isolamento:** toda tabela com `segregada_por_conta: true` e `acesso_externo: "restrito"`. Nenhuma tabela fora do RLS, com uma exceção decidida pelo dono: `vitrine_publica` (D-55), só com o que o corretor publicou e sem dado pessoal. Acesso só por rotas próprias, checando role (`corretor`, `cliente`, `operacao`, `suporte`) e escopando por `usuario.id`. Recurso de outra conta responde "não encontrado". O teste de isolamento (spec 4.5) roda em todo PR.
 - **Cliente** vê só o que está em `itens_cliente` com o `usuario.id` dele.
 - **Sem SQL cru**, sem pool, sem importar código do shell ou de outra app.
 - **UI só com primitivos `urbi-*` e tokens**; lacunas como exceção nomeada no mesmo PR (spec 11.5). Páginas públicas têm CSS próprio.
