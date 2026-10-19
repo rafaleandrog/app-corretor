@@ -38,6 +38,11 @@
         "creci_juridico": {
           "tipo": "texto",
           "limite": 20
+        },
+        "demo": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
         }
       }
     },
@@ -1061,6 +1066,23 @@
           "campos_incluir": [
             "codigo as imovel_codigo"
           ]
+        },
+        "marco_max": {
+          "tipo": "texto",
+          "limite": 20,
+          "opcoes": [
+            "novo",
+            "atendimento",
+            "qualificado",
+            "visita",
+            "visitou",
+            "proposta",
+            "documentacao",
+            "contato",
+            "avaliacao",
+            "autorizacao",
+            "anunciado"
+          ]
         }
       },
       "indices": [
@@ -1381,6 +1403,106 @@
         [
           "etapa_id",
           "temperatura"
+        ]
+      ]
+    },
+    "envios": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{tipo}",
+      "colunas": {
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as contato_nome"
+          ]
+        },
+        "negocio_id": {
+          "tipo": "referencia",
+          "tabela_ref": "negocios",
+          "ao_deletar": "anular"
+        },
+        "imovel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imoveis",
+          "ao_deletar": "anular",
+          "campos_incluir": [
+            "codigo as imovel_codigo",
+            "titulo as imovel_titulo"
+          ]
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "opcoes": [
+            "imovel",
+            "selecao",
+            "arquivo",
+            "link_portal",
+            "simulacao",
+            "localizacao",
+            "mensagem_modelo",
+            "peca",
+            "mensagem"
+          ]
+        },
+        "canal": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "whatsapp",
+          "opcoes": [
+            "whatsapp",
+            "email",
+            "portal",
+            "presencial"
+          ]
+        },
+        "autor_tipo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "humano",
+          "opcoes": [
+            "humano",
+            "mensageiro"
+          ]
+        },
+        "descricao": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "link_rastreado": {
+          "tipo": "texto",
+          "limite": 24
+        },
+        "enviado_em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        },
+        "primeiro_clique_em": {
+          "tipo": "datahora"
+        },
+        "cliques": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 0,
+          "intervalo": {
+            "min": 0
+          }
+        }
+      },
+      "indices": [
+        [
+          "contato_id",
+          "enviado_em"
+        ],
+        [
+          "imovel_id"
         ]
       ]
     }

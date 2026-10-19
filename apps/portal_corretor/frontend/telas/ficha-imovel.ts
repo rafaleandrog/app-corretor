@@ -49,6 +49,7 @@ const mais = (dias: number) => new Date(Date.now() + dias * 86400e3).toLocaleDat
 export class PcTelaFichaImovel extends LitElement {
   @property({ type: Number }) imovelId = 0;
   @state() private ficha: Ficha | null = null;
+  @state() private envios: Linha[] = [];
   @state() private falha: string | null = null;
   @state() private ia = { fotos: false, conteudo: false };
   @state() private enviando: string | null = null;
@@ -65,7 +66,9 @@ export class PcTelaFichaImovel extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.ficha = await urbiVerso.api(`/imoveis/${this.imovelId}`);
+      const [ficha, envios] = await Promise.all([urbiVerso.api(`/imoveis/${this.imovelId}`), urbiVerso.api(`/envios?imovel_id=${this.imovelId}`).catch(() => ({ dados: [] }))]);
+      this.ficha = ficha;
+      this.envios = envios.dados;
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -517,6 +520,14 @@ export class PcTelaFichaImovel extends LitElement {
                   : html`<urbi-prosa papel="fraco">Sem retorno registrado.</urbi-prosa>`}
               </urbi-stack>`}></urbi-lista>`
           : html`<urbi-prosa papel="dica">Nenhuma visita. Agende pela ficha do cliente, escolhendo este imóvel.</urbi-prosa>`}
+      </urbi-card>
+      <urbi-card titulo="Enviado a" icone="fa-solid fa-paper-plane">
+        ${this.envios.length
+          ? html`<urbi-lista separador .itens=${this.envios} .render_item=${(e: Linha) => html`<urbi-linha justificar="entre" quebrar>
+                <urbi-prosa>${e.contato_nome ?? 'Cliente'} · ${dataHora(e.enviado_em)}</urbi-prosa>
+                <urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${e.contato_id}`)}>Ver cliente</urbi-botao>
+              </urbi-linha>`}></urbi-lista>`
+          : html`<urbi-prosa papel="dica">Ainda não foi enviado a nenhum cliente. Registre o envio pela ficha do cliente.</urbi-prosa>`}
       </urbi-card>
       <urbi-card titulo="Negócios" icone="fa-solid fa-handshake">
         ${negocios.length

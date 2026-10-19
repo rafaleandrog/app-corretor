@@ -2,9 +2,10 @@ import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import type { ContextoListener } from '@urbiverso/sdk';
 import { CANAIS_ABORDAGEM, iso, ordenarFila, TEMPERATURAS, type TipoFila } from '../comum/funil';
-import { assincrono, erro, guardarCorretor } from './acesso';
+import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { etapasDaConta, registrar } from './crm';
 import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
+import { numerosDaSemana } from './numeros';
 
 // Funil (bloco 4): quadro por etapa, playbook de abordagens, fila do dia do Início e a rotina que
 // esfria quem ficou sem contato. Tudo segregado por conta pelo `req.dados`.
@@ -227,7 +228,12 @@ funilRotas.get(
     // Um contato aparece uma vez, no motivo mais urgente.
     const vistos = new Set<number>();
     const fila = ordenarFila(itens).filter((i) => (vistos.has(i.contato_id) ? false : (vistos.add(i.contato_id), true)));
-    res.json({ fila, total: fila.length });
+    // A faixa da semana é complementar: se o cálculo falhar, a fila do dia continua de pé.
+    const semana = await numerosDaSemana(dados).catch(() => null);
+    // A demonstração só se oferece em conta de teste ainda sem nenhum contato.
+    const perfil = await primeiro(dados, 'perfil_conta', { chave: 'conta' });
+    const demo_disponivel = !!perfil?.demo && !(await dados.listar('contatos', { por_pagina: 1 })).total;
+    res.json({ fila, total: fila.length, semana, demo_disponivel });
   }),
 );
 

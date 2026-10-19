@@ -16,6 +16,17 @@ import { gerarCsv } from '../comum/csv';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { MARCO_PADRAO } from '../comum/funil';
+import { marcoMaisAvancado } from '../comum/numeros';
+
+const marcoDe = (e: Record<string, any> | null | undefined): string | null => (e ? (e.marco ?? MARCO_PADRAO[e.nome] ?? null) : null);
+
+/** Comissão chega em % (6 ou "6,5") e sai como fração (0,065); vazio = sem comissão. */
+function comissao(v: unknown): number | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(String(v).replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? Math.round((n / 100) * 10000) / 10000 : NaN;
+}
 
 // CRM do corretor (bloco 2): contatos, negócios, atividades e etapas do funil. Todas as tabelas
 // são segregadas por conta; no MVP cada conta tem um corretor, que é o responsável de tudo.
@@ -355,8 +366,12 @@ crmRotas.post(
     const titulo = (typeof req.body?.titulo === 'string' && req.body.titulo.trim()) || (pipeline === 'compra' ? `Compra — ${contato.nome}` : `Venda — ${contato.nome}`);
     const iid = id(req.body?.imovel_id);
     if (iid && !(await dados.buscar('imoveis', iid))) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
+    const pct = comissao(req.body?.comissao);
+    if (Number.isNaN(pct)) return erro(res, 422, 'DADOS_INVALIDOS', 'Comissão: de 0 a 100%.');
     const negocio = await dados.criar('negocios', {
       imovel_id: iid,
+      comissao_pct: pct ?? null,
+      marco_max: marcoDe(primeira),
       contato_id: cid,
       titulo: titulo.slice(0, 200),
       pipeline,
@@ -389,6 +404,11 @@ crmRotas.patch(
       if (Number.isNaN(v)) return erro(res, 422, 'DADOS_INVALIDOS', 'Valor estimado inválido.');
       mudar.valor_estimado_c = v;
     }
+    if ('comissao' in (req.body ?? {})) {
+      const pct = comissao(req.body.comissao);
+      if (Number.isNaN(pct)) return erro(res, 422, 'DADOS_INVALIDOS', 'Comissão: de 0 a 100%.');
+      mudar.comissao_pct = pct;
+    }
     if ('imovel_id' in (req.body ?? {})) {
       const iid = id(req.body.imovel_id);
       if (req.body.imovel_id !== null && req.body.imovel_id !== '' && (!iid || !(await dados.buscar('imoveis', iid)))) {
@@ -406,6 +426,8 @@ crmRotas.patch(
         return erro(res, 422, 'MOTIVO_OBRIGATORIO', 'Informe o motivo da perda.');
       }
       Object.assign(mudar, {
+        // O marco mais avançado alcançado não volta quando o negócio recua (números, spec 11.2).
+        marco_max: marcoMaisAvancado(atual.pipeline, atual.marco_max ?? marcoDe(await dados.buscar('etapas_funil', atual.etapa_id)), marcoDe(etapa)),
         etapa_id: etapaId,
         etapa_desde: agora(),
         ganho_em: etapa.tipo === 'ganha' ? agora() : null,
