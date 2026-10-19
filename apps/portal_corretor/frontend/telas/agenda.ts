@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { enviar, mensagemDeErro, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { chamarApi, enviar, mensagemDeErro, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -24,7 +24,7 @@ export class PcTelaAgenda extends LitElement {
     this.falha = null;
     const ate = new Date(Date.now() + 14 * 86400e3);
     try {
-      const r = await urbiVerso.api(`/atividades?status=pendente&ate=${encodeURIComponent(ate.toISOString())}`);
+      const r = await chamarApi(`/atividades?status=pendente&ate=${encodeURIComponent(ate.toISOString())}`);
       this.atividades = r.dados;
       this.total = r.total ?? r.dados.length;
     } catch (e) {

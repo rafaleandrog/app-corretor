@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
+import { chamarApi } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -50,7 +51,7 @@ export class PcTelaCorretores extends LitElement {
     this.falha = null;
     this.falhaMais = null;
     try {
-      const r = await urbiVerso.api('/equipe/convites?pagina=1');
+      const r = await chamarApi('/equipe/convites?pagina=1');
       if (geracao !== this.geracao) return;
       this.convites = r.convites;
       this.total = r.total;
@@ -70,7 +71,7 @@ export class PcTelaCorretores extends LitElement {
     this.buscandoMais = true;
     this.falhaMais = null;
     try {
-      const r = await urbiVerso.api(`/equipe/convites?pagina=${pagina}`);
+      const r = await chamarApi(`/equipe/convites?pagina=${pagina}`);
       if (geracao !== this.geracao) return;
       this.convites = [...this.convites, ...r.convites];
       this.total = r.total;
@@ -94,7 +95,7 @@ export class PcTelaCorretores extends LitElement {
     });
     if (!valores) return;
     try {
-      const r = await urbiVerso.api('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
+      const r = await chamarApi('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
       if (r?.aviso) await urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' });
       else urbiVerso.notificar('Convite enviado.', 'sucesso');
       await this.carregar();
@@ -108,7 +109,7 @@ export class PcTelaCorretores extends LitElement {
     const ok = await urbiVerso.confirmar({ titulo: 'Revogar convite', mensagem: `O link enviado para ${c.email} deixa de funcionar.`, rotuloConfirmar: 'Revogar' });
     if (!ok) return;
     try {
-      await urbiVerso.api(`/equipe/convites/${c.id}/revogar`, { method: 'POST' });
+      await chamarApi(`/equipe/convites/${c.id}/revogar`, { method: 'POST' });
       await this.carregar();
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: (e as Error).message });

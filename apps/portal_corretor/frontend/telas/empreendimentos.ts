@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { formularioEnviar, reais } from '../apoio.js';
+import { chamarApi, formularioEnviar, reais } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -30,7 +30,7 @@ export class PcTelaEmpreendimentos extends LitElement {
     const geracao = ++this.geracao;
     this.falha = null;
     try {
-      const r = await urbiVerso.api(`/empreendimentos${this.busca ? `?busca=${encodeURIComponent(this.busca)}` : ''}`);
+      const r = await chamarApi(`/empreendimentos${this.busca ? `?busca=${encodeURIComponent(this.busca)}` : ''}`);
       if (geracao === this.geracao) this.lista = r.dados; // resposta velha não sobrescreve a nova
     } catch (e) {
       if (geracao === this.geracao) this.falha = (e as Error).message;

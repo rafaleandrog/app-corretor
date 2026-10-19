@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
+import { chamarApi } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -44,7 +45,7 @@ export class PcTelaConta extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.dados = await urbiVerso.api('/conta');
+      this.dados = await chamarApi('/conta');
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -55,7 +56,7 @@ export class PcTelaConta extends LitElement {
     const valores = await urbiVerso.formulario({ titulo, campos });
     if (!valores) return;
     try {
-      await urbiVerso.api(rota, { method: 'PUT', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
+      await chamarApi(rota, { method: 'PUT', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
       urbiVerso.notificar('Salvo.', 'sucesso');
       await this.carregar();
     } catch (e) {

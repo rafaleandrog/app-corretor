@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { dataHora, formularioEnviar, opcoes, ROTULO_PAPEL } from '../apoio.js';
+import { chamarApi, chamarFetch, dataHora, formularioEnviar, opcoes, ROTULO_PAPEL } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -44,7 +44,7 @@ export class PcTelaClientes extends LitElement {
     this.carregando = true;
     this.falha = null;
     try {
-      const r = await urbiVerso.api(`/contatos?${this.filtros}`);
+      const r = await chamarApi(`/contatos?${this.filtros}`);
       if (geracao !== this.geracao) return;
       this.contatos = r.dados;
       this.total = r.total;
@@ -95,7 +95,7 @@ export class PcTelaClientes extends LitElement {
 
   private async exportar() {
     try {
-      const r = await urbiVerso.fetch('/contatos/exportar');
+      const r = await chamarFetch('/contatos/exportar');
       if (!r.ok) throw new Error('A exportação falhou.');
       const url = URL.createObjectURL(await r.blob());
       const a = document.createElement('a');

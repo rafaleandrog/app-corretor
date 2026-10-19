@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { corQualidade, formularioEnviar, opcoes, reais, ROTULO_TIPO_IMOVEL, SITUACAO_IMOVEL } from '../apoio.js';
+import { chamarApi, corQualidade, formularioEnviar, opcoes, reais, ROTULO_TIPO_IMOVEL, SITUACAO_IMOVEL } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -40,7 +40,7 @@ export class PcTelaImoveis extends LitElement {
     this.carregando = true;
     this.falha = null;
     try {
-      const r = await urbiVerso.api(`/imoveis?${this.filtros}`);
+      const r = await chamarApi(`/imoveis?${this.filtros}`);
       if (geracao !== this.geracao) return;
       this.imoveis = r.dados;
       this.total = r.total;

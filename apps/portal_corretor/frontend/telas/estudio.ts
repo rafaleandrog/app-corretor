@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { FORMATOS, OBJETIVOS, ROTULO_FORMATO, ROTULO_OBJETIVO, type Formato, type ImovelArte } from '../../comum/estudio';
-import { dataHora, enviar, juntarDataHora, mensagemDeErro, subirArquivo } from '../apoio';
+import { chamarApi, dataHora, enviar, juntarDataHora, mensagemDeErro, subirArquivo } from '../apoio';
 import { gerarArte, type MarcaArte } from '../estudio/motor';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -49,7 +49,7 @@ export class PcTelaEstudio extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      const [p, m, c] = await Promise.all([urbiVerso.api('/estudio/pecas'), urbiVerso.api('/estudio/marca'), urbiVerso.api('/conta').catch(() => null)]);
+      const [p, m, c] = await Promise.all([chamarApi('/estudio/pecas'), chamarApi('/estudio/marca'), chamarApi('/conta').catch(() => null)]);
       this.pecas = p.dados;
       this.marca = m;
       this.janela = c?.configuracoes?.modo_aprovacao_conteudo === 'janela';
@@ -62,7 +62,7 @@ export class PcTelaEstudio extends LitElement {
     const lista: Linha[] = [];
     for (const situacao of ['ativo', 'reservado']) {
       for (let pagina = 1; pagina <= 20; pagina++) {
-        const r = await urbiVerso.api(`/imoveis?situacao=${situacao}&pagina=${pagina}`);
+        const r = await chamarApi(`/imoveis?situacao=${situacao}&pagina=${pagina}`);
         lista.push(...(r.dados ?? []));
         if (pagina >= (r.paginas ?? 1)) break;
       }
@@ -184,7 +184,7 @@ export class PcTelaEstudio extends LitElement {
   private async refazer(p: Linha) {
     this.trabalhando = 'Montando a arte…';
     try {
-      const f = await urbiVerso.api(`/estudio/pecas/${p.id}`);
+      const f = await chamarApi(`/estudio/pecas/${p.id}`);
       this.marca = f.marca;
       await this.montar(f.peca, f.imovel);
       urbiVerso.notificar('Arte refeita.', 'sucesso');
@@ -215,7 +215,7 @@ export class PcTelaEstudio extends LitElement {
   /** Canva IA (D-74): copia a instrução, abre as fotos para anexar e o Canva numa aba; a arte volta por "Enviar arte". */
   private async canva(p: Linha) {
     try {
-      const r = await urbiVerso.api(`/estudio/pecas/${p.id}/canva`);
+      const r = await chamarApi(`/estudio/pecas/${p.id}/canva`);
       try {
         await navigator.clipboard.writeText(r.prompt);
       } catch {

@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { data, enviar, mensagemDeErro } from '../apoio';
+import { chamarApi, data, enviar, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -41,7 +41,7 @@ export class PcSelecoesCliente extends LitElement {
     // Troca rápida de cliente: só a resposta do último pedido vale.
     const meu = ++this.pedido;
     try {
-      const [s, p] = await Promise.all([urbiVerso.api(`/selecoes?contato_id=${this.contatoId}`), urbiVerso.api(`/contatos/${this.contatoId}/portal`)]);
+      const [s, p] = await Promise.all([chamarApi(`/selecoes?contato_id=${this.contatoId}`), chamarApi(`/contatos/${this.contatoId}/portal`)]);
       if (meu !== this.pedido) return;
       this.selecoes = s.dados;
       this.portal = p;
@@ -74,7 +74,7 @@ export class PcSelecoesCliente extends LitElement {
       // Só ativos e reservados, todas as páginas (a lista vem de 50 em 50).
       for (const situacao of ['ativo', 'reservado']) {
         for (let pagina = 1; pagina <= 20; pagina++) {
-          const r = await urbiVerso.api(`/imoveis?situacao=${situacao}&pagina=${pagina}`);
+          const r = await chamarApi(`/imoveis?situacao=${situacao}&pagina=${pagina}`);
           anunciaveis.push(...(r.dados ?? []).filter((i: Linha) => i.autorizacao_vigente));
           if (pagina >= (r.paginas ?? 1)) break;
         }

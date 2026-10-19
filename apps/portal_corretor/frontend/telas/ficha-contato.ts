@@ -3,19 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
 import { abrirAssistenteSobre } from './assistente.js';
-import {
-  data,
-  dataHora,
-  enviar,
-  formularioEnviar,
-  juntarDataHora,
-  mensagemDeErro,
-  opcoes,
-  reais,
-  ROTULO_MOTIVO_PERDA,
-  ROTULO_PAPEL,
-  ROTULO_TIPO_ATIVIDADE,
-} from '../apoio.js';
+import { chamarApi, data, dataHora, enviar, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -53,10 +41,10 @@ export class PcTelaFichaContato extends LitElement {
     this.falha = null;
     try {
       const [ficha, etapas, envios] = await Promise.all([
-        urbiVerso.api(`/contatos/${this.contatoId}`),
-        urbiVerso.api('/funil/etapas'),
+        chamarApi(`/contatos/${this.contatoId}`),
+        chamarApi('/funil/etapas'),
         // O histórico de envios é complementar: se falhar, a ficha abre sem ele.
-        urbiVerso.api(`/envios?contato_id=${this.contatoId}`).catch(() => ({ dados: [] })),
+        chamarApi(`/envios?contato_id=${this.contatoId}`).catch(() => ({ dados: [] })),
       ]);
       this.ficha = ficha;
       this.etapas = etapas.etapas;
@@ -119,7 +107,7 @@ export class PcTelaFichaContato extends LitElement {
   /** Imóveis da carteira para escolher no negócio e na visita (os 50 mais recentes, com busca). */
   private async opcoesImoveis() {
     try {
-      const r = await urbiVerso.api('/imoveis');
+      const r = await chamarApi('/imoveis');
       return [{ valor: '', rotulo: 'Nenhum' }, ...r.dados.map((i: Linha) => ({ valor: String(i.id), rotulo: `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`, textoBusca: i.bairro ?? '' }))];
     } catch {
       return [{ valor: '', rotulo: 'Nenhum' }];

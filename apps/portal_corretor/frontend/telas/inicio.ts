@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { dataHora, enviar, mensagemDeErro, reais } from '../apoio.js';
+import { chamarApi, dataHora, enviar, mensagemDeErro, reais } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -40,7 +40,7 @@ export class PcTelaInicio extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      const [conta, inicio] = await Promise.all([urbiVerso.api('/conta'), urbiVerso.api('/inicio')]);
+      const [conta, inicio] = await Promise.all([chamarApi('/conta'), chamarApi('/inicio')]);
       const falta: string[] = [];
       if (!conta.perfil) falta.push('o nome da conta');
       if (!conta.meu_perfil?.creci) falta.push('o seu CRECI');

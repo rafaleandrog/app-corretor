@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { enviar, formularioEnviar, mensagemDeErro, reais, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
+import { chamarApi, enviar, formularioEnviar, mensagemDeErro, reais, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
 import { FASE, faixa, TIPO_EMPREENDIMENTO } from './empreendimentos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -27,7 +27,7 @@ export class PcTelaFichaEmpreendimento extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.ficha = await urbiVerso.api(`/empreendimentos/${this.empreendimentoId}`);
+      this.ficha = await chamarApi(`/empreendimentos/${this.empreendimentoId}`);
     } catch (e) {
       this.falha = (e as Error).message;
     }

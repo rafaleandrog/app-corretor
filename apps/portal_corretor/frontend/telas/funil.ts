@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { enviar, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, enviar, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -31,7 +31,7 @@ export class PcTelaFunil extends LitElement {
     const geracao = ++this.geracao;
     this.falha = null;
     try {
-      const r = await urbiVerso.api(`/funil/quadro?${this.filtros}`);
+      const r = await chamarApi(`/funil/quadro?${this.filtros}`);
       if (geracao === this.geracao) this.quadro = r;
     } catch (e) {
       if (geracao === this.geracao) this.falha = (e as Error).message;

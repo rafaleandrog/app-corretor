@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { data, dataHora, enviar, mensagemDeErro } from '../apoio';
+import { chamarApi, data, dataHora, enviar, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -62,7 +62,7 @@ export class PcTelaConexoes extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.dados = await urbiVerso.api('/conexoes');
+      this.dados = await chamarApi('/conexoes');
     } catch (e) {
       this.falha = (e as Error).message;
     }
