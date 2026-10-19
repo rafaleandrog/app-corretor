@@ -11,7 +11,8 @@ export type Linha = Record<string, any> & { id: number; conta_id: number };
 export class BancoFalso {
   private seq = 0;
   readonly tabelas = new Map<string, Linha[]>();
-  // Colunas `unico` por tabela, compostas com a conta (como no schema segregado).
+  // Únicos por tabela, compostos com a conta (como no schema segregado). Composto: 'pipeline+nome'.
+  // Valem no criar e no atualizar, entre as linhas vivas (como o único parcial em removido_em nulo).
   constructor(private unicos: Record<string, string[]> = {}) {}
 
   linhas(tabela: string): Linha[] {
@@ -42,6 +43,15 @@ export class BancoFalso {
       }
       return r;
     };
+    const colide = (tabela: string, linha: Linha) => {
+      for (const unico of banco.unicos[tabela] ?? []) {
+        const cols = unico.split('+');
+        if (cols.some((c) => linha[c] === null || linha[c] === undefined)) continue;
+        if (visiveis(tabela).some((l) => l.id !== linha.id && cols.every((c) => l[c] === linha[c]))) {
+          throw Object.assign(new Error(`unico ${tabela}.${unico}`), { code: '23505' });
+        }
+      }
+    };
     const helper = {
       async listar(tabela: string, op: OpcoesFalsas = {}) {
         const r = consultar(tabela, op);
@@ -70,12 +80,9 @@ export class BancoFalso {
       async criar(tabela: string, d: Record<string, unknown>) {
         exigirConta();
         semReservado(d);
-        const linha = { ...d, id: ++banco.seq, conta_id: conta! } as Linha;
-        for (const col of banco.unicos[tabela] ?? []) {
-          if (linha[col] !== null && linha[col] !== undefined && visiveis(tabela).some((l) => l[col] === linha[col])) {
-            throw Object.assign(new Error(`unico ${tabela}.${col}`), { code: '23505' });
-          }
-        }
+        const linha = { ...d, id: banco.seq + 1, conta_id: conta! } as Linha;
+        colide(tabela, linha);
+        banco.seq++;
         banco.linhas(tabela).push(linha);
         return { ...linha };
       },
@@ -83,7 +90,9 @@ export class BancoFalso {
         exigirConta();
         semReservado(d);
         const alvo = visiveis(tabela).find((l) => l.id === id);
-        return alvo ? { ...Object.assign(alvo, d) } : null;
+        if (!alvo) return null;
+        colide(tabela, { ...alvo, ...d });
+        return { ...Object.assign(alvo, d) };
       },
       async criarOuAtualizar(tabela: string, chave: string[], d: Record<string, unknown>) {
         exigirConta();

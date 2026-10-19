@@ -37,6 +37,7 @@ const id = (v: unknown) => {
   return Number.isInteger(n) && n > 0 ? n : null;
 };
 const agora = () => new Date().toISOString();
+const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
 
 /** Uma linha na linha do tempo do contato: o histórico do app (o barramento é efêmero). */
 export async function registrar(
@@ -58,13 +59,22 @@ async function origem(dados: HelperDados, canal: unknown, campanha: unknown): Pr
   const c = typeof canal === 'string' && (CANAIS as readonly string[]).includes(canal) ? canal : null;
   if (!c) return null;
   const camp = typeof campanha === 'string' && campanha.trim() ? campanha.trim().slice(0, 200) : null;
-  const atual = await primeiro(dados, 'origens', camp ? { canal: c, campanha: camp } : { canal: c, 'campanha[nulo]': 'true' });
+  // Igualdade em texto livre fatia o valor na vírgula (banco-de-dados.md): busca por `[busca]`,
+  // que não fatia, e confere a igualdade exata aqui.
+  const achar = async () => {
+    const r = await dados.listar('origens', {
+      filtros: camp ? { canal: c, 'campanha[busca]': camp } : { canal: c, 'campanha[nulo]': 'true' },
+      por_pagina: 200,
+    });
+    return r.dados.find((o) => (o.campanha ?? null) === camp) ?? null;
+  };
+  const atual = await achar();
   if (atual) return atual.id;
   try {
     return (await dados.criar('origens', { canal: c, campanha: camp })).id;
   } catch (e) {
-    if ((e as { code?: string })?.code !== '23505') throw e;
-    return (await primeiro(dados, 'origens', camp ? { canal: c, campanha: camp } : { canal: c, 'campanha[nulo]': 'true' }))?.id ?? null;
+    if (!violouUnico(e)) throw e;
+    return (await achar())?.id ?? null;
   }
 }
 
@@ -125,7 +135,14 @@ crmRotas.post(
       if (existente) return erro(res, 409, 'DUPLICATA', `Já existe um contato com este telefone: ${existente.nome}.`, [String(existente.id)]);
     }
     const origem_id = await origem(dados, req.body?.origem_canal ?? 'outro', req.body?.origem_campanha);
-    const contato = await dados.criar('contatos', { ...v.dados, responsavel_id: eu(req), origem_id, ultimo_contato_em: agora() });
+    let contato;
+    try {
+      contato = await dados.criar('contatos', { ...v.dados, responsavel_id: eu(req), origem_id, ultimo_contato_em: agora() });
+    } catch (e) {
+      // Outro cadastro com o mesmo telefone entrou entre a conferência e a gravação.
+      if (violouUnico(e)) return erro(res, 409, 'DUPLICATA', 'Já existe um contato com este telefone.');
+      throw e;
+    }
     await registrar(dados, req, { tipo: 'contato.criado', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: 'Contato cadastrado' });
     res.status(201).json(contato);
   }),
@@ -161,29 +178,42 @@ crmRotas.post(
     const origem_id = await origem(dados, 'importacao', arquivo);
     const relatorio = { criados: 0, unidos: 0, pulados: 0, rejeitados: [] as { linha: number; motivo: string }[] };
     for (const [i, bruta] of linhas.entries()) {
-      const v = validarContato({ papeis: 'comprador', ...bruta });
+      // Linha da planilha como o corretor a vê: a 1 é o cabeçalho.
+      const linha = i + 2;
+      const rejeitar = (motivo: string) => relatorio.rejeitados.push({ linha, motivo });
+      const v = validarContato(bruta ?? {});
       if (!v.ok) {
-        relatorio.rejeitados.push({ linha: i + 1, motivo: v.erros.join(' ') });
+        rejeitar(v.erros.join(' '));
         continue;
       }
-      // Duplicata por telefone, depois por e-mail (spec 12.1).
-      const existente =
-        (v.dados.telefone && (await primeiro(dados, 'contatos', { telefone: v.dados.telefone }))) ||
-        (v.dados.email && (await primeiro(dados, 'contatos', { email: v.dados.email }))) ||
-        null;
-      if (!existente) {
-        // Importado entra sem consentimento: o Mensageiro só fala com ele por modelo aprovado (D-20).
-        const c = await dados.criar('contatos', { ...v.dados, responsavel_id: eu(req), origem_id });
-        await registrar(dados, req, { tipo: 'contato.importado', alvo_tipo: 'contato', alvo_id: c.id, contato_id: c.id, resumo: `Importado de ${arquivo ?? 'planilha'}` });
-        relatorio.criados++;
-      } else if (modo === 'pular') {
-        relatorio.pulados++;
-      } else {
-        const novos = Object.fromEntries(
-          Object.entries(v.dados).filter(([k, val]) => val !== null && (modo === 'sobrescrever' || existente[k] === null || existente[k] === '')),
-        );
-        if (Object.keys(novos).length) await dados.atualizar('contatos', existente.id, novos);
-        relatorio.unidos++;
+      // Papel ausente na planilha não é dado: não sobrescreve o de quem já existe.
+      const semPapel = bruta?.papeis === undefined || bruta?.papeis === null || bruta?.papeis === '';
+      if (semPapel) delete v.dados.papeis;
+      try {
+        // Duplicata por telefone; se o telefone não achar ninguém (ou não houver), pelo e-mail (spec 12.1).
+        const existente =
+          (v.dados.telefone && (await primeiro(dados, 'contatos', { telefone: v.dados.telefone }))) ||
+          (v.dados.email && (await primeiro(dados, 'contatos', { email: v.dados.email }))) ||
+          null;
+        if (!existente) {
+          // Importado entra sem consentimento: o Mensageiro só fala com ele por modelo aprovado (D-20).
+          // A data da importação conta como último contato, para o filtro "parados há N dias" o alcançar.
+          const c = await dados.criar('contatos', { papeis: 'comprador', ...v.dados, responsavel_id: eu(req), origem_id, ultimo_contato_em: agora() });
+          await registrar(dados, req, { tipo: 'contato.importado', alvo_tipo: 'contato', alvo_id: c.id, contato_id: c.id, resumo: `Importado de ${arquivo ?? 'planilha'}` });
+          relatorio.criados++;
+        } else if (modo === 'pular') {
+          relatorio.pulados++;
+        } else {
+          const novos: Record<string, unknown> = Object.fromEntries(
+            Object.entries(v.dados).filter(([k, val]) => val !== null && (modo === 'sobrescrever' || existente[k] === null || existente[k] === '')),
+          );
+          if (Object.keys(novos).length) await dados.atualizar('contatos', existente.id, novos);
+          relatorio.unidos++;
+        }
+      } catch (e) {
+        // Uma linha que esbarra num único (gravação simultânea) não derruba as outras.
+        if (!violouUnico(e)) throw e;
+        rejeitar('Já existe um contato com este telefone.');
       }
     }
     res.json(relatorio);
@@ -220,7 +250,13 @@ crmRotas.patch(
       const outro = await primeiro(dados, 'contatos', { telefone: v.dados.telefone });
       if (outro) return erro(res, 409, 'DUPLICATA', `Já existe um contato com este telefone: ${outro.nome}.`, [String(outro.id)]);
     }
-    const contato = await dados.atualizar('contatos', cid!, v.dados);
+    let contato;
+    try {
+      contato = await dados.atualizar('contatos', cid!, v.dados);
+    } catch (e) {
+      if (violouUnico(e)) return erro(res, 409, 'DUPLICATA', 'Já existe um contato com este telefone.');
+      throw e;
+    }
     if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     if ('proximo_passo' in v.dados || 'proximo_passo_em' in v.dados) {
       await registrar(dados, req, { tipo: 'contato.proximo_passo', alvo_tipo: 'contato', alvo_id: cid!, contato_id: cid!, resumo: `Próximo passo: ${contato.proximo_passo ?? 'nenhum'}` });
@@ -392,7 +428,8 @@ crmRotas.get(
     if (typeof req.query.status === 'string' && ['pendente', 'feita', 'cancelada', 'nao_compareceu'].includes(req.query.status)) {
       filtros.status = req.query.status;
     }
-    const r = await req.dados!.listar('atividades', { filtros, ordenar: 'quando', ordem: 'asc', por_pagina: 100 });
+    // Literal no backend é obedecido (banco-de-dados.md); a tela avisa quando `total` passa disso.
+    const r = await req.dados!.listar('atividades', { filtros, ordenar: 'quando', ordem: 'asc', por_pagina: 500 });
     res.json(r);
   }),
 );
@@ -475,6 +512,8 @@ crmRotas.put(
     const atuais = await etapasDaConta(dados, pipeline);
     const porId = new Map(atuais.map((e) => [e.id, e]));
     for (const e of v.dados) if (e.id && !porId.has(e.id)) return erro(res, 422, 'DADOS_INVALIDOS', 'Etapa de outro funil ou inexistente.');
+    const ids = v.dados.map((e) => e.id).filter(Boolean);
+    if (new Set(ids).size !== ids.length) return erro(res, 422, 'DADOS_INVALIDOS', 'A mesma etapa aparece duas vezes.');
     const mantidas = new Set(v.dados.map((e) => e.id).filter(Boolean));
     await dados.transaction(async (trx) => {
       // Etapa que saiu da lista não é apagada (pode haver negócio nela): fica inativa, com nome livre.

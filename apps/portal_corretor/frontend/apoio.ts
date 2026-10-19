@@ -47,12 +47,19 @@ export const data = (iso: string | null | undefined) => (iso ? new Date(iso).toL
 export const reais = (centavos: number | null | undefined) =>
   centavos === null || centavos === undefined ? '—' : (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-/** `datetime-local`/texto do formulário para ISO; o formulário não tem campo de data e hora. */
+/**
+ * Dia (campo data) e hora (texto "HH:MM") para ISO; o formulário não tem campo de data e hora.
+ * Sem dia: null. Sem hora: 09:00. Hora fora do padrão devolve o texto cru, que o backend recusa
+ * com mensagem, em vez de salvar sem data calado.
+ */
 export function juntarDataHora(dia: unknown, hora: unknown): string | null {
   if (typeof dia !== 'string' || !dia) return null;
-  const h = typeof hora === 'string' && /^\d{1,2}:\d{2}$/.test(hora.trim()) ? hora.trim() : '09:00';
-  const d = new Date(`${dia}T${h.padStart(5, '0')}:00`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+  const bruta = typeof hora === 'string' ? hora.trim() : '';
+  const m = /^(\d{1,2})[:h](\d{2})?$/.exec(bruta);
+  if (bruta && (!m || Number(m[1]) > 23 || Number(m[2] ?? 0) > 59)) return `${dia} ${bruta}`;
+  const h = m ? `${m[1].padStart(2, '0')}:${m[2] ?? '00'}` : '09:00';
+  const d = new Date(`${dia}T${h}:00`);
+  return Number.isNaN(d.getTime()) ? `${dia} ${bruta}` : d.toISOString();
 }
 
 export const ROTULO_PAPEL: Record<string, string> = {

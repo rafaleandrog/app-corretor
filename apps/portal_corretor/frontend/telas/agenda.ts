@@ -13,6 +13,7 @@ type Atividade = Record<string, any>;
 export class PcTelaAgenda extends LitElement {
   @state() private atividades: Atividade[] | null = null;
   @state() private falha: string | null = null;
+  @state() private total = 0;
 
   connectedCallback() {
     super.connectedCallback();
@@ -25,6 +26,7 @@ export class PcTelaAgenda extends LitElement {
     try {
       const r = await urbiVerso.api(`/atividades?status=pendente&ate=${encodeURIComponent(ate.toISOString())}`);
       this.atividades = r.dados;
+      this.total = r.total ?? r.dados.length;
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -66,12 +68,14 @@ export class PcTelaAgenda extends LitElement {
   }
 
   render() {
-    if (this.falha) {
-      return html`<urbi-banner variante="erro">
-        ${this.falha}
-        <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
-      </urbi-banner>`;
-    }
+    const banner = this.falha
+      ? html`<urbi-banner variante="erro">
+          ${this.falha}
+          <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
+        </urbi-banner>`
+      : '';
+    // Falha ao recarregar mantém a lista que já estava na tela.
+    if (this.falha && !this.atividades) return banner;
     if (!this.atividades) return html`<urbi-loading></urbi-loading>`;
     if (!this.atividades.length) {
       return html`<urbi-estado-vazio icone="fa-solid fa-calendar-check" mensagem="Nada pendente nos próximos 14 dias"
@@ -80,6 +84,10 @@ export class PcTelaAgenda extends LitElement {
     const grupos = new Map<string, Atividade[]>();
     for (const a of this.atividades) grupos.set(this.dia(a.quando), [...(grupos.get(this.dia(a.quando)) ?? []), a]);
     return html`<urbi-stack>
+      ${banner}
+      ${this.total > this.atividades.length
+        ? html`<urbi-banner variante="alerta">Mostrando ${this.atividades.length} de ${this.total} pendências. Conclua ou cancele as atrasadas para ver as demais.</urbi-banner>`
+        : ''}
       ${[...grupos].map(
         ([dia, itens]) => html`<urbi-card titulo=${dia} icone=${dia === 'Atrasadas' ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-calendar-day'}>
           <urbi-lista separador .itens=${itens} .render_item=${(a: Atividade) => this.item(a)}></urbi-lista>

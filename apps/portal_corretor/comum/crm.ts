@@ -7,6 +7,7 @@ export const CANAIS = [
   'rede', 'incorporadora', 'placa', 'evento', 'importacao', 'outro',
 ] as const;
 export const PIPELINES = ['compra', 'venda_captacao'] as const;
+export const TEMPERATURAS = ['frio', 'morno', 'quente'] as const;
 export const TIPOS_ATIVIDADE = ['tarefa', 'ligacao', 'mensagem', 'visita', 'reuniao', 'retorno'] as const;
 export const STATUS_ATIVIDADE = ['pendente', 'feita', 'cancelada', 'nao_compareceu'] as const;
 export const MOTIVOS_PERDA = ['preco', 'localizacao', 'financiamento', 'desistiu', 'comprou_com_outro', 'sem_resposta', 'outro'] as const;
@@ -55,6 +56,7 @@ export interface DadosContato {
   email: string | null;
   papeis: string;
   observacoes: string | null;
+  temperatura: string | null;
   proximo_passo: string | null;
   proximo_passo_em: string | null;
 }
@@ -76,7 +78,7 @@ function dataHora(v: unknown, campo: string, erros: string[]): string | null {
  */
 export function validarContato(corpo: Record<string, unknown>, parcial = false): Resultado<Partial<DadosContato>> {
   const erros: string[] = [];
-  for (const c of ['nome', 'telefone', 'email', 'observacoes', 'proximo_passo', 'proximo_passo_em']) {
+  for (const c of ['nome', 'telefone', 'email', 'observacoes', 'temperatura', 'proximo_passo', 'proximo_passo_em']) {
     const v = corpo[c];
     if (v !== undefined && v !== null && typeof v !== 'string') erros.push(`O campo ${c} deve ser texto.`);
   }
@@ -99,6 +101,11 @@ export function validarContato(corpo: Record<string, unknown>, parcial = false):
     const papeis = !parcial && (corpo.papeis === undefined || corpo.papeis === null || corpo.papeis === '') ? ['comprador'] : normalizarPapeis(corpo.papeis);
     if (!papeis.length) erros.push('Escolha ao menos um papel (comprador, proprietário, investidor, parceiro ou fornecedor).');
     dados.papeis = papeis.join(',');
+  }
+  if ('temperatura' in corpo) {
+    // Classificação manual do corretor; o motivo e a sugestão automática chegam com o funil (bloco 4).
+    dados.temperatura = texto(corpo.temperatura) || null;
+    if (dados.temperatura && !(TEMPERATURAS as readonly string[]).includes(dados.temperatura)) erros.push('Temperatura inválida (frio, morno ou quente).');
   }
   if (tem('observacoes')) dados.observacoes = typeof corpo.observacoes === 'string' ? corpo.observacoes.trim() || null : null;
   if (tem('proximo_passo')) dados.proximo_passo = opcional(corpo.proximo_passo, 300);
@@ -138,6 +145,7 @@ export function validarAtividade(corpo: Record<string, unknown>, parcial = false
 export function reaisParaCentavos(v: unknown): number | null | undefined {
   if (v === undefined) return undefined;
   if (v === null || v === '') return null;
+  if (typeof v === 'string' && !/\d/.test(v)) return NaN;
   const n =
     typeof v === 'number'
       ? v
@@ -170,6 +178,10 @@ export function validarEtapas(pipeline: Pipeline, lista: unknown): Resultado<(Et
   if (conta('aberta') < 1) erros.push('Deixe ao menos uma etapa em andamento.');
   if (conta('ganha') !== 1) erros.push('Tenha exatamente uma etapa de negócio ganho.');
   if (conta('perdida') !== 1) erros.push('Tenha exatamente uma etapa de negócio perdido.');
+  const primeiraFinal = etapas.findIndex((e) => e.tipo !== 'aberta');
+  if (primeiraFinal >= 0 && etapas.slice(primeiraFinal).some((e) => e.tipo === 'aberta')) {
+    erros.push('As etapas de ganho e de perda ficam no fim do funil, depois das etapas em andamento.');
+  }
   if (erros.length) return { ok: false, erros };
   return { ok: true, dados: etapas };
 }

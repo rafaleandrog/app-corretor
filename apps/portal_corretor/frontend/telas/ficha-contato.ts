@@ -66,6 +66,13 @@ export class PcTelaFichaContato extends LitElement {
         { nome: 'telefone', tipo: 'texto', rotulo: 'Telefone (WhatsApp)', valor: c.telefone ?? '' },
         { nome: 'email', tipo: 'texto', rotulo: 'E-mail', valor: c.email ?? '' },
         { nome: 'papeis', tipo: 'texto', rotulo: 'Papéis (separe por vírgula)', valor: c.papeis.split(',').map((p: string) => ROTULO_PAPEL[p] ?? p).join(', ') },
+        {
+          nome: 'temperatura',
+          tipo: 'selecao',
+          rotulo: 'Temperatura',
+          valor: c.temperatura ?? '',
+          opcoes: [{ valor: '', rotulo: 'Sem classificação' }, { valor: 'frio', rotulo: 'Frio' }, { valor: 'morno', rotulo: 'Morno' }, { valor: 'quente', rotulo: 'Quente' }],
+        },
         { nome: 'observacoes', tipo: 'texto_longo', rotulo: 'Observações', valor: c.observacoes ?? '' },
       ],
       'PATCH',
@@ -183,16 +190,19 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   render() {
-    if (this.falha) {
-      return html`<urbi-banner variante="erro">
-        ${this.falha}
-        <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
-      </urbi-banner>`;
-    }
+    const banner = this.falha
+      ? html`<urbi-banner variante="erro">
+          ${this.falha}
+          <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
+        </urbi-banner>`
+      : '';
+    // Falha ao recarregar depois de uma ação mantém a ficha que já estava na tela.
+    if (this.falha && !this.ficha) return banner;
     if (!this.ficha) return html`<urbi-loading></urbi-loading>`;
     const { contato: c, negocios, atividades, linha_do_tempo, consentimento } = this.ficha;
     const pendentes = atividades.filter((a) => a.status === 'pendente');
     return html`<urbi-stack>
+      ${banner}
       <urbi-linha justificar="entre" quebrar>
         <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/clientes')}>Clientes</urbi-botao>
         <urbi-linha>
@@ -204,7 +214,7 @@ export class PcTelaFichaContato extends LitElement {
         ${this.acao('Editar contato', 'fa-solid fa-pen', () => this.editar())}
         <urbi-prosa>${[c.telefone, c.email].filter(Boolean).join(' · ') || 'sem telefone nem e-mail'}</urbi-prosa>
         <urbi-prosa papel="secundario">
-          ${c.papeis.split(',').map((p: string) => ROTULO_PAPEL[p] ?? p).join(', ')} · chegou por ${c.origem_canal ?? 'origem não informada'}${c.origem_campanha ? ` (${c.origem_campanha})` : ''}
+          ${c.papeis.split(',').map((p: string) => ROTULO_PAPEL[p] ?? p).join(', ')}${c.temperatura ? ` · ${c.temperatura}` : ''} · chegou por ${c.origem_canal ?? 'origem não informada'}${c.origem_campanha ? ` (${c.origem_campanha})` : ''}
           · cadastrado em ${data(c.criado_em)}
         </urbi-prosa>
         ${c.observacoes ? html`<urbi-prosa papel="dica" pre>${c.observacoes}</urbi-prosa>` : ''}
