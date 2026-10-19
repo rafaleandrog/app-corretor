@@ -47,8 +47,8 @@ numerosRotas.get(
     const dados = req.dados!;
     const negocios = await negociosParaNumeros(dados);
     const p = periodos(dias);
-    const visitas = await dados.listar('atividades', { filtros: { tipo: 'visita', status: 'feita', 'quando[gte]': p.anterior.de, 'quando[lt]': p.atual.ate }, por_pagina: 5000 });
-    const contaVisitas = (de: string, ate: string) => visitas.dados.filter((a) => {
+    const visitas = await dados.varrerTudo('atividades', { filtros: { tipo: 'visita', status: 'feita', 'quando[gte]': p.anterior.de, 'quando[lt]': p.atual.ate }, maximo: 50000 });
+    const contaVisitas = (de: string, ate: string) => visitas.filter((a) => {
       const q = iso(a.quando);
       return !!q && q >= de && q < ate;
     }).length;
@@ -64,7 +64,7 @@ numerosRotas.get(
   }),
 );
 
-/** Faixa da semana do Início (11.1): novos contatos, visitas feitas, propostas e previsão. */
+/** Faixa da semana do Início (11.1, D-68): novos contatos, leads, visitas feitas e comissão prevista. */
 export async function numerosDaSemana(dados: HelperDados) {
   const de = new Date(Date.now() - 7 * DIA).toISOString();
   const [contatos, visitas, negocios] = await Promise.all([

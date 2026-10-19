@@ -23,7 +23,10 @@ cada um, conta até onde ele chegou, mesmo que depois tenha recuado ou sido perd
 | Conversão total | Ganhos sobre leads |
 
 "Chegar a uma etapa" vale pelo papel da etapa no funil, não pelo nome: renomear "Visitou" não
-muda a conta. Etapa criada pelo corretor não entra nessas taxas. Sem leads, as taxas aparecem
+muda a conta. Etapa criada pelo corretor não tem papel próprio: o negócio continua contado nos
+leads e vale o papel mais avançado que ele já alcançou nas etapas padrão. Para negócios abertos
+antes desta versão, o app só sabe a etapa atual: um negócio desses que já foi perdido não conta
+como tendo chegado a visita ou proposta. Sem leads, as taxas aparecem
 como "—".
 
 **Resultados.** Vendas (ganhos no período), VGV (soma do valor estimado das vendas), ciclo médio
@@ -54,7 +57,9 @@ link.
 
 Nas contas de teste (nome terminado em "(demo)"), o Início oferece **Gerar dados de
 demonstração** enquanto a conta não tem nenhum contato. Ele cria 10 clientes com origem, 10
-negócios, 2 imóveis e 2 visitas, com o próprio corretor como responsável.
+negócios, 2 imóveis e 2 visitas, com o próprio corretor como responsável. Origens que já
+existem são reaproveitadas e os imóveis recebem o próximo código livre. Se alguma etapa padrão
+foi renomeada ou removida, o app avisa qual é e não grava nada.
 
 ### Conferência manual (últimos 30 dias, logo depois de gerar)
 

@@ -48,7 +48,7 @@ export class PcTelaInicio extends LitElement {
       this.pendente = falta;
       this.fila = inicio.fila;
       this.semana = inicio.semana ?? null;
-      this.demo = !!conta.perfil?.demo;
+      this.demo = !!inicio.demo_disponivel;
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -124,7 +124,7 @@ export class PcTelaInicio extends LitElement {
             <urbi-kpi rotulo="Comissão prevista" formato="texto" .valor=${this.semana.previsao_c === null ? '—' : reais(this.semana.previsao_c)}></urbi-kpi>
           </urbi-grid>`
         : ''}
-      ${this.demo && !this.fila.length && !this.semana?.novos_contatos
+      ${this.demo
         ? html`<urbi-banner variante="info">
             Esta é uma conta de teste. Quer ver o app com dados? Gera 10 clientes, negócios em várias etapas, 2 imóveis e visitas.
             <urbi-botao slot="acao" pequeno ?carregando=${this.gerando} @click=${() => this.gerarDemo()}>Gerar dados de demonstração</urbi-botao>

@@ -66,7 +66,7 @@ export class PcTelaFichaImovel extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      const [ficha, envios] = await Promise.all([urbiVerso.api(`/imoveis/${this.imovelId}`), urbiVerso.api(`/envios?imovel_id=${this.imovelId}`)]);
+      const [ficha, envios] = await Promise.all([urbiVerso.api(`/imoveis/${this.imovelId}`), urbiVerso.api(`/envios?imovel_id=${this.imovelId}`).catch(() => ({ dados: [] }))]);
       this.ficha = ficha;
       this.envios = envios.dados;
     } catch (e) {

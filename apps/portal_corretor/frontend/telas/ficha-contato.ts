@@ -53,7 +53,8 @@ export class PcTelaFichaContato extends LitElement {
       const [ficha, etapas, envios] = await Promise.all([
         urbiVerso.api(`/contatos/${this.contatoId}`),
         urbiVerso.api('/funil/etapas'),
-        urbiVerso.api(`/envios?contato_id=${this.contatoId}`),
+        // O histórico de envios é complementar: se falhar, a ficha abre sem ele.
+        urbiVerso.api(`/envios?contato_id=${this.contatoId}`).catch(() => ({ dados: [] })),
       ]);
       this.ficha = ficha;
       this.etapas = etapas.etapas;
@@ -270,8 +271,11 @@ export class PcTelaFichaContato extends LitElement {
     try {
       const r = await enviar('POST', '/envios', { ...v, contato_id: this.contatoId, imovel_id: v.imovel_id ? Number(v.imovel_id) : null });
       await this.carregar();
-      if (r.mensagem) await urbiVerso.alertar({ titulo: 'Mensagem pronta para colar', mensagem: r.mensagem, tipo: 'sucesso' });
-      else urbiVerso.notificar('Envio registrado.', 'sucesso');
+      if (r.mensagem) {
+        const copiada = await navigator.clipboard?.writeText(r.mensagem).then(() => true, () => false);
+        if (copiada) urbiVerso.notificar('Envio registrado. A mensagem foi copiada: é só colar no WhatsApp.', 'sucesso');
+        else await urbiVerso.alertar({ titulo: 'Mensagem pronta para colar', mensagem: r.mensagem, tipo: 'sucesso' });
+      } else urbiVerso.notificar('Envio registrado.', 'sucesso');
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
