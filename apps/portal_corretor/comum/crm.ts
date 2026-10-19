@@ -171,7 +171,7 @@ export function validarEtapas(pipeline: Pipeline, lista: unknown): Resultado<(Et
     if (nomes.has(nome.toLowerCase())) erros.push(`Etapa "${nome}" repetida.`);
     nomes.add(nome.toLowerCase());
     if (!['aberta', 'ganha', 'perdida'].includes(tipo)) erros.push(`Etapa "${nome}": tipo inválido.`);
-    if (!(probabilidade >= 0 && probabilidade <= 1)) erros.push(`Etapa "${nome}": probabilidade de 0 a 100%.`);
+    if (!(probabilidade >= 0 && probabilidade <= 1)) erros.push(`Etapa "${nome}": probabilidade entre 0 e 1 (0 a 100%).`);
     const id = Number.isInteger(e.id) ? (e.id as number) : undefined;
     return { id, pipeline, nome, tipo, ordem, probabilidade: Math.round(probabilidade * 100) / 100 };
   });

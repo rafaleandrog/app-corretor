@@ -81,6 +81,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | 19/10/2026 | 10a | Revisão do PR #23 (rodada 1): o listener confere o prazo na hora (0 desliga o que já estava agendado; prazo trocado não lembra na hora velha), visita que já passou não é lembrada, gravação condicionada (`atualizarSe`), PATCH só reagenda se a hora, o status ou o tipo mudarem, PUT sem o campo mantém o valor gravado, `intervalo` no schema; 97 testes | #23 | Rodada 2 |
 | 19/10/2026 | 10b | Merge dos PRs #2 e #13 a #22 na `main` (ordem do dono); D-78 (0.1.0 sem WhatsApp e Mensageiro); versão volta a 0.1.0 (D-69); plano fechado | #24 | Release 0.1.0 por ordem do dono; R.8 na instância |
 | 19/10/2026 | 10b | Seletor de conta e cabeçalho `X-Conta` em todas as chamadas das telas (admin com várias contas via erro "conta destino inequívoca" em Início, Funil, Minha página, Conexões); versão 0.1.2 | #28 | Release 0.1.2 por ordem do dono; QA como admin |
+| 19/10/2026 | 10b | Achados do QA como admin (#28): erro de conta não informada diz o que fazer; mensagem de probabilidade das etapas corrigida; versão 0.1.3 | #29 | Release 0.1.3 por ordem do dono; QA com 2+ contas; Instagram sem configuração na instância (pedido ao dono) |
 
 ---
 
