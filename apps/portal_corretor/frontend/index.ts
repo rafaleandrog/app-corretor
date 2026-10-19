@@ -18,6 +18,7 @@ import './telas/funil.js';
 import './telas/desempenho.js';
 import './telas/pagina.js';
 import './telas/estudio.js';
+import './telas/conexoes.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
 import './publico/selecao.js';
@@ -50,6 +51,7 @@ const TELAS: Record<string, Tela> = {
   '/estudio': { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
   '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
+  '/ajustes/conexoes': { titulo: 'Conexões', papel: 'corretor', render: () => html`<pc-tela-conexoes></pc-tela-conexoes>` },
   '/ajustes/funil': { titulo: 'Funil e abordagens', papel: 'corretor', render: () => html`<pc-tela-funil-ajustes></pc-tela-funil-ajustes>` },
   '/corretores': { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };

@@ -27,7 +27,7 @@ export const ROTULO_OBJETIVO: Record<Objetivo, string> = {
 export const SELO: Record<Objetivo, string | null> = { novo_imovel: 'NOVIDADE', baixou_preco: 'BAIXOU O PREÇO', vendido: 'VENDIDO', visita_aberta: 'VISITA ABERTA', destaque: null };
 
 export const ESTILOS = ['moderno', 'classico', 'minimalista'] as const;
-export const ESTADOS_PECA = ['rascunho', 'aprovada', 'agendada', 'publicada', 'rejeitada', 'erro'] as const;
+export const ESTADOS_PECA = ['rascunho', 'aprovada', 'agendada', 'publicando', 'publicada', 'rejeitada', 'erro'] as const;
 
 type Resultado<T> = { ok: true; dados: T } | { ok: false; erros: string[] };
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -226,7 +226,8 @@ export function checarPeca(p: { formato: string; legenda: string | null; hashtag
   if (ctx.imovel && p.objetivo !== 'vendido' && !ctx.autorizacaoVigente) pendencias.push('O imóvel precisa de autorização de venda vigente para ser anunciado.');
   if (!p.arquivos) pendencias.push('Gere ou envie a arte antes de aprovar.');
   if (p.formato === 'carrossel' && p.arquivos === 1) pendencias.push('O carrossel precisa de pelo menos 2 imagens.');
-  const total = `${p.legenda ?? ''}\n${p.hashtags ?? ''}`;
+  // Mesmo separador da publicação (legenda, linha em branco, hashtags).
+  const total = [p.legenda ?? '', p.hashtags ?? ''].filter(Boolean).join('\n\n');
   if (total.length > 2200) pendencias.push('A legenda passa de 2.200 caracteres (limite do Instagram).');
   if ((p.hashtags ?? '').split(/\s+/).filter((h) => h.startsWith('#')).length > 30) pendencias.push('Mais de 30 hashtags (limite do Instagram).');
   return { ok: !pendencias.length, pendencias };

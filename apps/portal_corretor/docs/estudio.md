@@ -5,8 +5,9 @@ descricao: Peças para o Instagram (post, carrossel, story) com a marca do corre
 
 # Estúdio de conteúdo
 
-O **Estúdio** cria peças para o Instagram com a marca do corretor. Na versão 0.9.0 ele cria,
-aprova e deixa baixar as peças. Agendar e publicar direto no Instagram chegam na próxima versão.
+O **Estúdio** cria peças para o Instagram com a marca do corretor e publica de três jeitos:
+publicar agora, agendar no app ou baixar a arte e publicar por fora. Para os dois primeiros, a
+conta do Instagram precisa estar conectada em [Conexões](conexoes.md).
 
 ## Sua marca
 
@@ -96,3 +97,43 @@ Canva IA ou arte enviada) e a situação: rascunho, aprovada, rejeitada.
 Mudar os textos ou a arte de uma peça aprovada a devolve para rascunho: o que muda precisa de
 nova aprovação. "Enviar arte pronta" pede confirmação antes de trocar a arte. A biblioteca mostra
 as 200 peças mais recentes.
+
+## Publicar
+
+| Modo | Como funciona |
+|---|---|
+| **Publicar agora** | Peça aprovada vai na hora para o Instagram conectado. O app confere a peça de novo (CRECI, autorização vigente, arte, limites) antes de publicar |
+| **Agendar** | Escolha dia e hora, de 5 minutos a 90 dias à frente. Na hora, o app confere e publica. **Cancelar agendamento** devolve a peça para aprovada (ou para rascunho, se ela foi agendada pela aprovação por janela) |
+| **Baixar e publicar por fora** | Baixe a arte em **Ver arte**, copie a **Legenda** e publique pelo Instagram ou pelo Meta Business Suite (que agendam por conta própria). Depois use **Publiquei por fora**, com o link do post se quiser |
+
+**Como sai no Instagram:**
+- **Carrossel:** um item por slide.
+- **Story:** sai sem legenda (o Instagram não usa). Por isso o CRECI precisa estar na arte, e o app
+  só publica e agenda story com arte do **gerador do app**, que traz o CRECI no rodapé. Story com
+  arte do Canva ou enviada: confira a arte, publique pelo Instagram e use **Publiquei por fora**.
+- **Legenda:** leva as hashtags e o CRECI.
+
+Publicada pela API, a peça mostra **Ver no Instagram**. A API do Instagram **não apaga**
+publicações: para tirar um post, apague pelo próprio Instagram.
+
+**Aprovação por janela:** com "Publica sozinho se eu não responder na janela", escolhido em Ajustes
+› Conta e marca, um rascunho também pode ser agendado. Na hora, ele é aprovado e publicado se
+passar nas checagens e se a conta ainda estiver nesse modo. Se não passar, fica com erro e sem
+aprovação. Para impedir, cancele o agendamento.
+
+**Enquanto publica,** a peça fica **publicando…** e não pode ser editada, agendada nem cancelada.
+Assim, dois cliques (ou o agendamento e um "Publicar agora") não publicam duas vezes. Se ela
+continuar "publicando…" por mais de 15 minutos (a publicação foi interrompida), use **Ainda
+publicando? Destravar**. A peça fica com erro (ainda aprovada, salvo o rascunho da aprovação por
+janela, que volta a pedir **Aprovar**): confira no Instagram se o post saiu.
+Se saiu, use **Publiquei por fora**. Se não, publique de novo.
+
+**Quando não sai:** a peça fica **com erro** e mostra o motivo, por exemplo "o Instagram não está
+conectado", "reconecte o Instagram" ou o que o Instagram respondeu. Resolva e use **Publicar
+agora** ou **Agendar** de novo. Se você editar os textos de uma peça com erro, ela volta a
+rascunho e precisa de nova aprovação. Peça da aprovação por janela que não passou nas checagens
+fica com erro e sem aprovação: resolva e use **Aprovar**.
+
+**Agendamento atrasado:** se a plataforma ficar fora do ar e só voltar mais de 6 horas depois da
+hora marcada, a peça não é publicada atrasada: fica com erro, para você decidir.
+

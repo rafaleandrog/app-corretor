@@ -19,6 +19,13 @@ const DATAHORA: Record<string, Set<string>> = Object.fromEntries(
 const GLOBAIS = new Set(
   Object.entries((schema as { tabelas: Record<string, { segregada_por_conta?: boolean }> }).tabelas).filter(([, d]) => d.segregada_por_conta === false).map(([t]) => t),
 );
+/** Colunas `segredo` por tabela: toda leitura devolve a máscara; só `revelar` dá o valor. */
+const SEGREDOS: Record<string, Set<string>> = Object.fromEntries(
+  Object.entries((schema as { tabelas: Record<string, { colunas: Record<string, { tipo: string }> }> }).tabelas).map(([t, def]) => [
+    t,
+    new Set(Object.entries(def.colunas).filter(([, c]) => c.tipo === 'segredo').map(([n]) => n)),
+  ]),
+);
 /** Cópia da linha como o `req.dados` devolve: `datahora` vira `Date`. */
 /** Gravação como o framework faz: `Date` vira ISO. */
 const comoGravado = (d: Record<string, unknown>) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]));
@@ -27,6 +34,7 @@ function comoLido(tabela: string, l: Record<string, any>) {
   const cols = DATAHORA[tabela];
   const r: Record<string, any> = { ...l };
   if (cols) for (const c of cols) if (typeof r[c] === 'string') r[c] = new Date(r[c]);
+  for (const c of SEGREDOS[tabela] ?? []) if (c in r) r[c] = { configurado: r[c] !== null && r[c] !== undefined && r[c] !== '' };
   return r;
 }
 
@@ -56,9 +64,9 @@ export class BancoFalso {
         ? banco.linhas(tabela).filter((l) => removidos || !l.removido_em)
         : conta === null
           ? []
-          : banco.linhas(tabela).filter((l) => l.conta_id === conta && (removidos || !l.removido_em));
+          : banco.linhas(tabela).filter((l) => Number(l.conta_id) === conta && (removidos || !l.removido_em));
     // Escrita é sempre endereçada: mesmo com leitura global (SISTEMA), só a linha da conta do bloco.
-    const gravaveis = (tabela: string) => (GLOBAIS.has(tabela) || !leituraGlobal ? visiveis(tabela) : visiveis(tabela).filter((l) => l.conta_id === conta));
+    const gravaveis = (tabela: string) => (GLOBAIS.has(tabela) || !leituraGlobal ? visiveis(tabela) : visiveis(tabela).filter((l) => Number(l.conta_id) === conta));
     let tabelaAtual = '';
     const exigirConta = () => {
       if (GLOBAIS.has(tabelaAtual)) return;
@@ -104,6 +112,13 @@ export class BancoFalso {
         const l = visiveis(tabela).find((x) => x.id === id);
         return l ? comoLido(tabela, l) : null;
       },
+      /** A única porta do segredo (banco-de-dados.md § revelar); outra conta ou vazio → null. */
+      async revelar(tabela: string, id: number, coluna: string) {
+        if (!SEGREDOS[tabela]?.has(coluna)) throw new Error(`VOCABULARIO_INVALIDO: ${tabela}.${coluna} não é segredo`);
+        const l = (leituraGlobal ? banco.linhas(tabela).filter((x) => Number(x.conta_id) === conta) : visiveis(tabela)).find((x) => x.id === id && !x.removido_em);
+        const v = l?.[coluna];
+        return typeof v === 'string' && v ? v : null;
+      },
       async remover(tabela: string, id: number, por?: number) {
         tabelaAtual = tabela;
         exigirConta();
@@ -114,13 +129,29 @@ export class BancoFalso {
         tabelaAtual = tabela;
         exigirConta();
         const linhas = banco.linhas(tabela);
-        const i = linhas.findIndex((l) => l.id === id && (GLOBAIS.has(tabela) || l.conta_id === conta));
+        const i = linhas.findIndex((l) => l.id === id && (GLOBAIS.has(tabela) || Number(l.conta_id) === conta));
         if (i < 0) return false;
         linhas.splice(i, 1);
         return true;
       },
+      /** Transação: se `fn` lança, desfaz tudo o que ela gravou (no lugar, mantendo as referências). */
       async transaction(fn: (trx: any) => Promise<unknown>) {
-        return fn(helper);
+        const foto = [...banco.tabelas].map(([t, ls]) => ({ t, ls: ls.slice(), copias: ls.map((l) => ({ ...l })) }));
+        try {
+          return await fn(helper);
+        } catch (e) {
+          const vistas = new Set(foto.map((f) => f.t));
+          for (const [t, ls] of banco.tabelas) if (!vistas.has(t)) ls.length = 0;
+          for (const { t, ls, copias } of foto) {
+            const atual = banco.linhas(t);
+            atual.length = 0;
+            ls.forEach((l, i) => {
+              for (const k of Object.keys(l)) delete (l as Record<string, unknown>)[k];
+              atual.push(Object.assign(l, copias[i]));
+            });
+          }
+          throw e;
+        }
       },
       async existe(tabela: string, filtros: Record<string, unknown>) {
         return visiveis(tabela).some((l) => casa(l, filtros));
@@ -144,6 +175,16 @@ export class BancoFalso {
         if (!alvo) return null;
         colide(tabela, { ...alvo, ...comoGravado(d) });
         return comoLido(tabela, Object.assign(alvo, comoGravado(d), { atualizado_em: new Date().toISOString() }));
+      },
+      /** Escrita condicionada (banco-de-dados.md): grava só se a linha casa com `condicoes`; senão null. */
+      async atualizarSe(tabela: string, id: number, d: Record<string, unknown>, condicoes: Record<string, unknown>) {
+        tabelaAtual = tabela;
+        exigirConta();
+        // DSL estrito (banco-de-dados.md): condição sem valor (null, undefined) lança, não vira IS NULL.
+        for (const [k, v] of Object.entries(condicoes)) if (v === null || v === undefined) throw Object.assign(new Error(`condição sem valor: ${k}`), { codigo: 'VOCABULARIO_INVALIDO' });
+        const alvo = gravaveis(tabela).find((l) => l.id === id);
+        if (!alvo || !casa(alvo, condicoes)) return null;
+        return helper.atualizar(tabela, id, d);
       },
       async criarOuAtualizar(tabela: string, chave: string[], d: Record<string, unknown>) {
         tabelaAtual = tabela;

@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.9.0",
+  "versao": "0.10.0",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -92,6 +92,10 @@
           "rota": "/conta"
         },
         {
+          "titulo": "Conexões",
+          "rota": "/ajustes/conexoes"
+        },
+        {
           "titulo": "Funil e abordagens",
           "rota": "/ajustes/funil"
         }
@@ -112,6 +116,11 @@
     "reclassificar_contatos": {
       "titulo": "Temperatura dos contatos",
       "descricao": "Recalcula a temperatura de quem ficou sem contato (esfria depois de 7 dias)",
+      "frequencia": "diaria"
+    },
+    "renovar_tokens_instagram": {
+      "titulo": "Conexões do Instagram",
+      "descricao": "Renova o acesso ao Instagram das contas antes de vencer (60 dias)",
       "frequencia": "diaria"
     }
   },
@@ -291,6 +300,31 @@
       "api": "selecoes",
       "rota": "clientes",
       "segregado_por_conta": true
+    },
+    "publicacao_programada": {
+      "descricao": "Chegou a hora de publicar uma peça agendada no Instagram.",
+      "campos": [
+        "peca_id",
+        "agendada_para"
+      ],
+      "conteudo": "Publicação agendada do Estúdio",
+      "api": "estudio/pecas/{peca_id}",
+      "rota": "estudio",
+      "segregado_por_conta": true
+    }
+  },
+  "parametros": {
+    "meta_app_id": {
+      "tipo": "string",
+      "nullable": true,
+      "padrao": null,
+      "descricao": "ID do app registrado na Meta (Instagram API com login do Instagram)"
+    },
+    "meta_app_secret": {
+      "tipo": "string",
+      "secret": true,
+      "nullable": true,
+      "descricao": "Chave secreta do app da Meta (troca e renovação de tokens do Instagram)"
     }
   }
 }
