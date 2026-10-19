@@ -366,14 +366,16 @@ export class PcTelaEstudio extends LitElement {
                 <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-rotate" ?carregando=${!!this.trabalhando} @click=${() => this.refazer(p)}>Refazer arte</urbi-botao>
                 <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-wand-magic-sparkles" @click=${() => this.canva(p)}>Canva IA</urbi-botao>
                 <urbi-seletor-arquivo accept="image/jpeg,image/png" ?multiplo=${p.formato === 'carrossel'} dica="Enviar arte pronta (JPG ou PNG)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArte(p, e)}></urbi-seletor-arquivo>`}
-          ${p.estado === 'rascunho' || p.estado === 'rejeitada'
+          ${p.estado === 'rascunho' || p.estado === 'rejeitada' || (p.estado === 'erro' && !p.aprovada_em)
             ? html`<urbi-botao pequeno icone="fa-solid fa-check" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/aprovar`), 'Peça aprovada.')}>Aprovar</urbi-botao>`
             : ''}
-          ${p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em)
+          ${(p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em)) && !(p.formato === 'story' && p.motor !== 'interno')
             ? html`<urbi-botao pequeno icone="fa-brands fa-instagram" ?carregando=${!!this.trabalhando} @click=${() => this.publicar(p)}>Publicar agora</urbi-botao>
                 <urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-plus" @click=${() => this.agendar(p)}>Agendar</urbi-botao>`
             : ''}
-          ${p.estado === 'rascunho' && this.janela ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-plus" @click=${() => this.agendar(p)}>Agendar (aprova na hora)</urbi-botao>` : ''}
+          ${p.formato === 'story' && p.motor !== 'interno' && ['aprovada', 'erro'].includes(p.estado) ? html`<urbi-prosa papel="dica">Story com arte do Canva ou enviada: confira o CRECI na arte, publique pelo Instagram e use "Publiquei por fora".</urbi-prosa>` : ''}
+          ${p.estado === 'publicando' ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-unlock" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/destravar`), 'Peça destravada: confira no Instagram.')}>Ainda publicando? Destravar</urbi-botao>` : ''}
+          ${p.estado === 'rascunho' && this.janela && !(p.formato === 'story' && p.motor !== 'interno') ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-plus" @click=${() => this.agendar(p)}>Agendar (aprova na hora)</urbi-botao>` : ''}
           ${p.estado === 'agendada' ? html`<urbi-botao pequeno variante="secundario" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/cancelar-agendamento`), 'Agendamento cancelado.')}>Cancelar agendamento</urbi-botao>` : ''}
           ${['aprovada', 'agendada', 'publicando', 'erro'].includes(p.estado) ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-check-double" @click=${() => this.publiqueiFora(p)}>Publiquei por fora</urbi-botao>` : ''}
           ${p.estado === 'publicada' && p.permalink ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(p.permalink, '_blank', 'noopener')}>Ver no Instagram</urbi-botao>` : ''}

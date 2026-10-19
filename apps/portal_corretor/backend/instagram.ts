@@ -155,7 +155,8 @@ interface Origem {
 export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number, usuario: number | null, origem: Origem): Promise<Linha | null> {
   const falha = (mensagem: string) => ({ estado: 'erro', erro: mensagem.slice(0, 300), agendamento_id: null, agendada_para: null });
   const prep = await amb.abrir(async (dados) => {
-    const guarda: Record<string, unknown> = { conta_id: conta, estado: origem.estado };
+    // A conta já está no endereçamento da escrita (RLS na rota, `comConta` no listener).
+    const guarda: Record<string, unknown> = { estado: origem.estado };
     if (origem.agendamento_id) guarda.agendamento_id = origem.agendamento_id;
     const p = await dados.atualizarSe('pecas', pecaId, { estado: 'publicando', erro: null }, guarda);
     if (!p) return null;
@@ -199,7 +200,7 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
   } catch (e) {
     if (!(e instanceof ErroInstagram)) {
       // Falha nossa (rede, bug): a peça não fica presa em "publicando".
-      await amb.abrir((dados) => dados.atualizar('pecas', p.id, falha('Não foi possível publicar agora. Confira no Instagram antes de tentar de novo.')));
+      await amb.abrir((dados) => dados.atualizarSe('pecas', p.id, falha('Não foi possível publicar agora. Confira no Instagram antes de tentar de novo.'), { estado: 'publicando' }));
       throw e;
     }
     tokenInvalido = e.codigo === 'TOKEN_INVALIDO';
@@ -207,7 +208,8 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
   }
   return amb.abrir(async (dados) => {
     if (tokenInvalido) await dados.atualizar('canais_sociais', canal.id, { ultimo_erro: 'Acesso vencido ou revogado: reconecte.' });
-    return dados.atualizar('pecas', p.id, resultado);
+    // Condicionada: se o corretor marcou "Publiquei por fora" (ou destravou) no meio, a marca dele fica.
+    return (await dados.atualizarSe('pecas', p.id, resultado, { estado: 'publicando' })) ?? (await dados.buscar('pecas', p.id));
   });
 }
 
@@ -310,7 +312,8 @@ instagramRotas.post(
     // Peça com erro volta a publicar só se ainda está aprovada (editar a devolve para rascunho).
     if (!(p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em))) return erro(res, 409, 'ESTADO_INVALIDO', 'Aprove a peça antes de publicar.');
     const dados = req.dados!;
-    const r = await publicarPeca({ abrir: (fn) => fn(dados), arquivos: req.arquivos, shell: req.shell! }, contaDoRequest(req), p.id, req.contexto!.usuario.id, { estado: p.estado });
+    // Cada fase numa transação: falha depois da reserva a desfaz, e a peça não fica presa em "publicando".
+    const r = await publicarPeca({ abrir: (fn) => dados.transaction(fn), arquivos: req.arquivos, shell: req.shell! }, contaDoRequest(req), p.id, req.contexto!.usuario.id, { estado: p.estado });
     if (!r) return erro(res, 409, 'PECA_MUDOU', 'A peça mudou ou já está sendo publicada. Atualize a tela.');
     if (r.estado !== 'publicada') return erro(res, 422, 'NAO_PUBLICADA', r.erro ?? 'Não foi possível publicar.');
     res.json(r);
@@ -365,6 +368,27 @@ instagramRotas.post(
     if (!voltou) return erro(res, 409, 'PECA_MUDOU', 'A peça já está sendo publicada. Atualize a tela.');
     if (p.agendamento_id) await req.eventos!.cancelarAgendamento(p.agendamento_id).catch(() => undefined);
     res.json(voltou);
+  }),
+);
+
+/** Tempo sem resposta para a peça "publicando" poder ser destravada (a publicação leva até uns 3 min). */
+export const DESTRAVAR_APOS_MS = 15 * 60_000;
+
+/**
+ * Saída honesta para a publicação interrompida (processo reiniciou durante a Meta): depois de 15 min
+ * em "publicando", a peça vai para erro, aprovada, com o aviso de conferir no Instagram.
+ */
+instagramRotas.post(
+  '/estudio/pecas/:id/destravar',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const p = await pecaDaConta(req);
+    if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
+    if (p.estado !== 'publicando') return erro(res, 409, 'ESTADO_INVALIDO', 'A peça não está em publicação.');
+    const desde = new Date(Date.now() - DESTRAVAR_APOS_MS).toISOString();
+    const r = await dados.atualizarSe('pecas', p.id, { estado: 'erro', erro: 'A publicação foi interrompida. Confira no Instagram: se o post saiu, use "Publiquei por fora"; se não, publique de novo.' }, { estado: 'publicando', 'atualizado_em[lt]': desde });
+    if (!r) return erro(res, 409, 'AINDA_PUBLICANDO', 'A publicação ainda pode estar em andamento. Espere alguns minutos e atualize a tela.');
+    res.json(r);
   }),
 );
 
@@ -430,7 +454,9 @@ export async function renovarTokensInstagram(ctx: ContextoListener) {
     if (!ativas.has(conta)) continue;
     // Vencido não renova mais: avisa uma vez e espera o corretor reconectar, sem falhar a rotina todo dia.
     if (c.token_expira_em && new Date(c.token_expira_em as string).getTime() < Date.now()) {
-      if (!c.ultimo_erro) await ctx.dados.comConta(conta, (trx) => trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'O acesso venceu: reconecte o Instagram.' }));
+      if (!c.ultimo_erro) {
+        await ctx.dados.comConta(conta, (trx) => trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'O acesso venceu: reconecte o Instagram.' })).catch((e: Error) => falhas.push(`conta ${conta}: ${e.message}`));
+      }
       continue;
     }
     try {
