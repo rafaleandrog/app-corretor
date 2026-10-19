@@ -226,7 +226,8 @@ export function checarPeca(p: { formato: string; legenda: string | null; hashtag
   if (ctx.imovel && p.objetivo !== 'vendido' && !ctx.autorizacaoVigente) pendencias.push('O imóvel precisa de autorização de venda vigente para ser anunciado.');
   if (!p.arquivos) pendencias.push('Gere ou envie a arte antes de aprovar.');
   if (p.formato === 'carrossel' && p.arquivos === 1) pendencias.push('O carrossel precisa de pelo menos 2 imagens.');
-  const total = `${p.legenda ?? ''}\n${p.hashtags ?? ''}`;
+  // Mesmo separador da publicação (legenda, linha em branco, hashtags).
+  const total = [p.legenda ?? '', p.hashtags ?? ''].filter(Boolean).join('\n\n');
   if (total.length > 2200) pendencias.push('A legenda passa de 2.200 caracteres (limite do Instagram).');
   if ((p.hashtags ?? '').split(/\s+/).filter((h) => h.startsWith('#')).length > 30) pendencias.push('Mais de 30 hashtags (limite do Instagram).');
   return { ok: !pendencias.length, pendencias };

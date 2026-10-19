@@ -108,11 +108,10 @@ interface Ambiente {
   shell: { urlApp(sub: string): string };
 }
 
-/** Legenda final: texto, hashtags e o CRECI (10.5: CRECI na peça ou na legenda). */
-function legendaFinal(p: Linha, creci: string | null): string {
-  const partes = [p.legenda ?? '', p.hashtags ?? ''];
-  if (creci && !String(p.legenda ?? '').includes(creci)) partes.push(`CRECI ${creci}`);
-  return partes.filter(Boolean).join('\n\n').slice(0, 2200);
+/** Legenda com o CRECI (10.5: CRECI na peça ou na legenda), acrescentado se faltar. */
+function legendaComCreci(p: Linha, creci: string | null): string {
+  const legenda = String(p.legenda ?? '');
+  return creci && !legenda.includes(creci) ? [legenda, `CRECI ${creci}`].filter(Boolean).join('\n\n') : legenda;
 }
 
 async function creciDaConta(dados: HelperDados, conta: number, usuario: number | null): Promise<string | null> {
@@ -142,14 +141,16 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
     const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
     vigente = auts.some((a) => autorizacaoVigente(a as Autorizacao, hoje));
   }
-  const checagem = checarPeca({ formato: p.formato, objetivo: p.objetivo, legenda: p.legenda ?? null, hashtags: p.hashtags ?? null, arquivos: urls.length }, { creci, imovel: !!p.imovel_id, autorizacaoVigente: vigente });
+  // A checagem roda sobre o texto que vai ser publicado, já com o CRECI: nada é cortado depois.
+  const legenda = legendaComCreci(p, creci);
+  const checagem = checarPeca({ formato: p.formato, objetivo: p.objetivo, legenda: legenda || null, hashtags: p.hashtags ?? null, arquivos: urls.length }, { creci, imovel: !!p.imovel_id, autorizacaoVigente: vigente });
   if (!checagem.ok) return falhar(`Não publicada: ${checagem.pendencias.join(' ')}`);
   const canal = await conexao(dados, conta);
   if (!canal) return falhar('Não publicada: o Instagram não está conectado (Ajustes › Conexões).');
   const token = await dados.revelar('canais_sociais', canal.id, 'token');
   if (!token) return falhar('Não publicada: reconecte o Instagram (Ajustes › Conexões).');
   try {
-    const r = await publicar({ formato: p.formato, legenda: legendaFinal(p, creci) }, urls, canal.conta_externa_id, token);
+    const r = await publicar({ formato: p.formato, legenda: [legenda, p.hashtags ?? ''].filter(Boolean).join('\n\n') }, urls, canal.conta_externa_id, token);
     const agora = new Date().toISOString();
     await dados.atualizar('pecas', p.id, { estado: 'publicada', publicada_em: agora, publicacao_id: r.id, permalink: r.permalink, publicada_por: 'api', erro: null, agendamento_id: null });
     return { ...p, estado: 'publicada', publicada_em: agora, permalink: r.permalink };
