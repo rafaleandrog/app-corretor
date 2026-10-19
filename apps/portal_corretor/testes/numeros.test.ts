@@ -100,6 +100,7 @@ test('demonstração convive com imóvel e origem já cadastrados e explica etap
     assert.equal(g.status, 201);
     const codigos = banco.linhas('imoveis').filter((i) => i.conta_id === 300).map((i) => i.codigo).sort();
     assert.deepEqual(codigos, ['IM-0001', 'IM-0002', 'IM-0003']);
+    assert.equal(banco.linhas('origens').filter((o) => o.conta_id === 300 && o.canal === 'portal').length, 1, 'origem existente reaproveitada');
   });
   await comServidor(rotas, D, banco, {}, async (chamar) => {
     await chamar('GET', '/funil/etapas?pipeline=compra'); // semeia as etapas padrão
