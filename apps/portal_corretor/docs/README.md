@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.12.0)
+## O que existe nesta versão (0.1.0, primeira versão)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -30,7 +30,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Ajustes › Conta e marca** | Seus dados, os dados da conta e as regras de atendimento — ver [Conta e ajustes](conta-e-ajustes.md) |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
-Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp ainda não. A IA aparece no Assistente, nos imóveis (descrição e leitura de fotos), na Minha página e no Estúdio (textos),
+Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, nos imóveis (descrição e leitura de fotos), na Minha página e no Estúdio (textos),
 quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Papéis
