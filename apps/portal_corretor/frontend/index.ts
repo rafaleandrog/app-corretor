@@ -19,6 +19,7 @@ import './telas/desempenho.js';
 import './telas/pagina.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
+import './publico/selecao.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 

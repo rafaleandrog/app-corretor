@@ -33,9 +33,12 @@ test('manifesto e backend andam juntos: rotas públicas, webhooks, eventos e pá
   assert.deepEqual(Object.keys(backend.webhooks).sort(), Object.keys(m.webhooks).sort(), 'um handler por webhook declarado');
   assert.deepEqual(Object.keys(backend.reagir).sort(), Object.keys(m.eventos).sort(), 'um listener por evento declarado');
   for (const e of Object.values(m.eventos) as any[]) assert.equal(e.segregado_por_conta, true, 'evento da conta é segregado');
-  const fonte = (await import('node:fs')).readFileSync(new URL('../frontend/publico/pagina-publica.ts', import.meta.url), 'utf8') +
-    (await import('node:fs')).readFileSync(new URL('../frontend/publico/link.ts', import.meta.url), 'utf8');
+  const fs = await import('node:fs');
+  const pasta = new URL('../frontend/publico/', import.meta.url);
+  const fonte = fs.readdirSync(pasta).map((f) => fs.readFileSync(new URL(f, pasta), 'utf8')).join('\n');
   for (const p of Object.values(m.paginas_publicas) as any[]) assert.ok(fonte.includes(`@customElement('${p.componente}')`), `componente ${p.componente}`);
   // Campo pessoal do formulário nunca fica no log do webhook (wh.md § descartar).
   for (const c of ['nome', 'telefone', 'email', 'mensagem']) assert.equal(m.webhooks.formulario_lead.campos[c].descartar, true, c);
+  assert.equal(m.webhooks.reacao_selecao.campos.comentario.descartar, true);
+  assert.equal(m.webhooks.acao_cliente.campos.texto.descartar, true);
 });
