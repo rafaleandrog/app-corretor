@@ -108,6 +108,13 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
     assert.equal((banco.linhas('pecas').find((p) => p.id === pecaId)!.legenda.match(/DF-12345-F/g) ?? []).length, 1);
     await chamar('PATCH', `/estudio/pecas/${pecaId}`, { chamada: 'Nova chamada' });
+    // O CRECI entra antes da checagem: legenda no limite com o CRECI acrescentado não passa.
+    const linha = banco.linhas('pecas').find((p) => p.id === pecaId)!;
+    const original = linha.legenda;
+    linha.legenda = 'a'.repeat(2200 - (linha.hashtags ?? '').length - 1 - 5);
+    const estouro = await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
+    assert.equal(estouro.corpo.codigo, 'CHECAGEM_PENDENTE', 'legenda + CRECI acima de 2.200 é recusada');
+    linha.legenda = original;
     // Pacote do Canva IA: instrução e fotos públicas.
     const canva = (await chamar('GET', `/estudio/pecas/${pecaId}/canva`)).corpo;
     assert.match(canva.prompt, /CRECI DF-12345-F/);
