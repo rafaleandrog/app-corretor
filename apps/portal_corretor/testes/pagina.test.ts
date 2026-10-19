@@ -373,11 +373,12 @@ test('quem atende 2 contas publica, edita e despublica a vitrine na conta ativa 
     assert.equal(noAr('pagina').length, 1);
     assert.equal(noAr('imovel').length, 1);
     // Editar o anúncio atualiza a linha pública por id, e tirar da página apaga (os dois verbos por id).
-    await chamar('PATCH', `/imoveis/${im.id}/midias/${foto.id}`, { publica: false });
+    assert.equal(noAr('imovel')[0].dados.fotos.length, 1, 'a foto pública está na vitrine antes da edição');
+    assert.equal((await chamar('PATCH', `/imoveis/${im.id}/midias/${foto.id}`, { publica: false })).status, 200);
     assert.equal(noAr('imovel')[0].dados.fotos.length, 0, 'a edição chegou à vitrine');
-    await chamar('PATCH', `/imoveis/${im.id}`, { publicado_pagina: false });
+    assert.equal((await chamar('PATCH', `/imoveis/${im.id}`, { publicado_pagina: false })).status, 200);
     assert.equal(noAr('imovel').length, 0, 'retirar o imóvel apaga a linha pública');
-    await chamar('POST', '/pagina/despublicar');
+    assert.equal((await chamar('POST', '/pagina/despublicar')).status, 200);
     assert.equal(banco.linhas('vitrine_publica').filter((l) => l.conta === 100).length, 0, 'despublicar apaga tudo da conta');
   });
 });

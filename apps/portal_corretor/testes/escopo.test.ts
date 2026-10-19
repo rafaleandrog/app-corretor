@@ -66,7 +66,7 @@ function falso(linhas: Record<string, Linha[]>) {
     },
     async incrementar(t: string, id: number, inc: Record<string, number>) {
       const l = achar(t, id);
-      if (!l) return null;
+      if (!l || l.removido_em) return null;
       for (const [k, v] of Object.entries(inc)) l[k] = (l[k] ?? 0) + v;
       return l;
     },
