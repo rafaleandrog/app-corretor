@@ -53,6 +53,10 @@ export function assincrono(fn: (req: Request, res: Response) => Promise<unknown>
       // SDK só declara `codigo` no ErroProvisionamento: para essas famílias, sem `status`, vira 400
       // sem perder o código. Outro `codigo` sem `status` é erro de programação e segue como 500.
       if (typeof falha?.codigo === 'string') {
+        // Quem atende várias contas precisa declarar a ativa (`X-Conta`); a tela faz isso pelo seletor.
+        if (falha.codigo === 'CONTA_NAO_INFORMADA') {
+          return erro(res, 400, falha.codigo, 'Você atende mais de uma conta: escolha a conta no seletor do alto da tela (ou envie o cabeçalho X-Conta).');
+        }
         if (typeof falha.status === 'number') {
           return erro(res, falha.status, falha.codigo, falha.message ?? 'Não foi possível concluir.');
         }

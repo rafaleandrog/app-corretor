@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { Router } from 'express';
+import { assincrono } from '../backend/acesso';
 import { rotas } from '../backend/rotas';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
@@ -89,5 +91,18 @@ test('admin do app alcança as áreas de todos os papéis, mesmo sem papel atrib
   await comServidor(rotas, admin, new BancoFalso(UNICOS), { externos: { listarConvites: async () => ({ convites: [], total: 0 }) } }, async (chamar) => {
     assert.equal((await chamar('GET', '/conta')).status, 200);
     assert.equal((await chamar('GET', '/equipe/convites')).status, 200);
+  });
+});
+
+test('conta não informada (várias contas, sem X-Conta) diz o que fazer', async () => {
+  const roteador = Router();
+  roteador.get('/x', assincrono(async () => {
+    throw Object.assign(new Error('Escrita em tabela segregada exige conta destino inequívoca'), { codigo: 'CONTA_NAO_INFORMADA', status: 400 });
+  }));
+  await comServidor(roteador, A, new BancoFalso(UNICOS), semShell, async (chamar) => {
+    const r = await chamar('GET', '/x');
+    assert.equal(r.status, 400);
+    assert.equal(r.corpo.codigo, 'CONTA_NAO_INFORMADA');
+    assert.match(r.corpo.mensagem, /seletor/);
   });
 });
