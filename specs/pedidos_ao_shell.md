@@ -25,6 +25,10 @@ Ajustes pequenos e gerais que o app precisa da plataforma. Servem a qualquer app
 
 O formulário da Minha Página limita 3 envios por minuto por origem usando `req.ip` (o primeiro `X-Forwarded-For` é do cliente e se falsifica). Os docs do SDK não dizem se o shell declara o proxy confiável (`trust proxy`) para os handlers de `wh`. Sem isso, `req.ip` é o endereço do balanceador e o limite passa a valer para a conta inteira. **Pedido:** confirmar o comportamento ou expor no `req.wh` um endereço de origem confiável.
 
+## 5. Assistente da app em todas as telas e canal de suporte do externo (bloco 9, P-39)
+
+A spec 10.2 pede o Assistente "em qualquer tela (botão fixo)". O contrato de UI proíbe `position: fixed` e altura própria na tela, e não há primitivo de painel lateral ou flutuante que a app possa abrir sobre as próprias telas. Por isso, no MVP, o Assistente é um item do menu (D-76). Pedido: um primitivo, ou um slot no `urbi-shell-page`, para um painel de chat fixo da app. E, para o corretor (externo, shell reduzido, sem "Reportar bug"), um caminho de suporte que a app possa indicar quando o Assistente não sabe responder.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

@@ -45,6 +45,11 @@
       "icone": "fa-solid fa-house"
     },
     {
+      "titulo": "Assistente",
+      "rota": "/assistente",
+      "icone": "fa-solid fa-comments"
+    },
+    {
       "titulo": "Funil",
       "rota": "/funil",
       "icone": "fa-solid fa-filter"

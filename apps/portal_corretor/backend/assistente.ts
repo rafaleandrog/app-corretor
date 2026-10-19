@@ -3,6 +3,9 @@ import { Router, type Request } from 'express';
 import {
   artigoParaContexto,
   buscarArtigos,
+  deslocamento,
+  mascarar,
+  respostaSegura,
   INSTRUCAO_ASSISTENTE,
   SCHEMA_RESPOSTA,
   TELAS_APP,
@@ -15,8 +18,9 @@ import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { filaDoDia } from './funil';
 
 // Assistente do Corretor (bloco 9, spec 10.2). Responde pela ajuda (docs/ da app, D-58) e pelo
-// estado da conta; propõe ações que o corretor confirma na tela. Nada é executado aqui: a ação
-// confirmada vai pelas rotas de sempre (POST /atividades, agendar peça), que validam de novo.
+// estado da conta; propõe ações que o corretor confirma na tela. A ação não é executada aqui: a
+// confirmada vai pelas rotas de sempre (POST /atividades, agendar peça), que validam de novo. (A
+// fila do dia semeia as etapas e o playbook padrão na primeira vez, como o Início.)
 export const assistenteRotas = Router();
 guardarCorretor(assistenteRotas, ['/assistente']);
 
@@ -61,23 +65,22 @@ async function contextoContato(req: Request, contatoId: number): Promise<{ texto
   const linha = await dados.listar('linha_do_tempo', { filtros: { contato_id: c.id }, ordenar: 'ocorrido_em', ordem: 'desc', por_pagina: 8 });
   const perfil = c.perfil_busca && typeof c.perfil_busca === 'object' ? JSON.stringify(c.perfil_busca).slice(0, 400) : null;
   return {
-    nome: c.nome,
+    nome: mascarar(c.nome),
     texto: [
-      `Contato #${c.id}: ${c.nome}`,
-      `Temperatura: ${c.temperatura ?? 'sem classificação'}${c.temperatura_motivo ? ` (${c.temperatura_motivo})` : ''}`,
+      `Contato #${c.id}: ${mascarar(c.nome)}`,
+      `Temperatura: ${c.temperatura ?? 'sem classificação'}${c.temperatura_motivo ? ` (${mascarar(c.temperatura_motivo)})` : ''}`,
       `Último contato: ${iso(c.ultimo_contato_em) ?? 'nunca'}`,
-      c.proximo_passo ? `Próximo passo: ${c.proximo_passo}${c.proximo_passo_em ? ` em ${iso(c.proximo_passo_em)}` : ''}` : null,
-      perfil ? `Perfil de busca: ${perfil}` : null,
-      linha.dados.length ? `Histórico recente:\n${linha.dados.map((l) => `- ${iso(l.ocorrido_em)?.slice(0, 10)}: ${String(l.resumo ?? l.tipo).slice(0, 160)}`).join('\n')}` : null,
+      c.proximo_passo ? `Próximo passo: ${mascarar(c.proximo_passo)}${c.proximo_passo_em ? ` em ${iso(c.proximo_passo_em)}` : ''}` : null,
+      perfil ? `Perfil de busca: ${mascarar(perfil)}` : null,
+      linha.dados.length ? `Histórico recente:\n${linha.dados.map((l) => `- ${iso(l.ocorrido_em)?.slice(0, 10)}: ${mascarar(String(l.resumo ?? l.tipo).slice(0, 160))}`).join('\n')}` : null,
     ].filter(Boolean).join('\n'),
   };
 }
 
-function artigosDaResposta(achados: Achado[], citados: unknown, naoSei: boolean) {
+/** Só os artigos que a IA citou e que estavam entre os enviados: nada de artigo sem relação. */
+function artigosDaResposta(achados: Achado[], citados: unknown) {
   const ids = Array.isArray(citados) ? citados.filter((x): x is string => typeof x === 'string') : [];
-  let lista = achados.filter((a) => ids.includes(a.id));
-  if (!lista.length && !naoSei && achados[0]) lista = [achados[0]];
-  return lista.map(({ id, slug, titulo, secao }) => ({ id, slug, titulo, secao }));
+  return achados.filter((a) => ids.includes(a.id)).map(({ id, slug, titulo, secao }) => ({ id, slug, titulo, secao }));
 }
 
 assistenteRotas.post(
@@ -93,20 +96,19 @@ assistenteRotas.post(
     const ultimoMeu = [...historico].reverse().find((h: { autor: string }) => h.autor === 'Corretor')?.texto ?? '';
     const achados = buscarArtigos(`${pergunta} ${ultimoMeu}`, tela, 5);
 
-    if (!(await iaDisponivel(req))) {
-      // Sem IA, o Assistente vira busca na ajuda: os artigos mais próximos e a tela de cada um.
+    // Sem IA (ou se ela falhar na hora), o Assistente vira busca na ajuda: os artigos mais próximos.
+    const soAjuda = (motivo: string) => {
       const lista = achados.slice(0, 3);
       return res.json({
         sem_ia: true,
-        resposta: lista.length
-          ? 'A IA do Assistente não está liberada agora. Pela ajuda, estes artigos falam do assunto:'
-          : 'A IA do Assistente não está liberada agora e não achei nada na ajuda com essas palavras. Tente outras palavras ou abra a documentação.',
+        resposta: lista.length ? `${motivo} Pela ajuda, estes artigos falam do assunto:` : `${motivo} Não achei nada na ajuda com essas palavras: tente outras palavras ou abra a documentação.`,
         artigos: lista.map(({ id, slug, titulo, secao }) => ({ id, slug, titulo, secao })),
         tela: null,
         acao: null,
         nao_sei: !lista.length,
       });
-    }
+    };
+    if (!(await iaDisponivel(req))) return soAjuda('A IA do Assistente não está liberada agora.');
 
     const dados = req.dados!;
     const fuso = req.contexto?.fuso || 'America/Sao_Paulo';
@@ -120,21 +122,21 @@ assistenteRotas.post(
       recentes('rascunho'),
     ]);
     const pecas = { dados: [...aprovadas.dados, ...rascunhos.dados] };
-    const contatos = new Map<number, string>(fila.slice(0, 10).map((i) => [i.contato_id, i.contato_nome]));
+    const contatos = new Map<number, string>(fila.slice(0, 10).map((i) => [i.contato_id, mascarar(i.contato_nome)]));
     if (foco && contatoId) contatos.set(contatoId, foco.nome);
     const mapaPecas = new Map(pecas.dados.map((p) => [p.id as number, { titulo: String(p.titulo ?? `Peça ${p.id}`), estado: String(p.estado) }]));
     const agora = new Date();
     const contexto = [
-      `AGORA: ${agora.toLocaleString('pt-BR', { timeZone: fuso })} (fuso ${fuso}; ISO ${agora.toISOString()})`,
+      `AGORA: ${agora.toLocaleString('pt-BR', { timeZone: fuso })} (fuso ${fuso}, deslocamento ${deslocamento(fuso, agora)}; ISO ${agora.toISOString()})`,
       `TELA ATUAL: ${TELAS_APP[tela]?.nome ?? 'Início'}`,
       `ESTADO DA CONTA:\n${estado}`,
       fila.length
-        ? `FILA DO DIA (mais urgente primeiro):\n${fila.slice(0, 10).map((i) => `- contato #${i.contato_id} ${i.contato_nome} · ${i.tipo} · ${i.temperatura ?? 'sem temperatura'} · ${i.texto}`).join('\n')}`
+        ? `FILA DO DIA (mais urgente primeiro):\n${fila.slice(0, 10).map((i) => `- contato #${i.contato_id} ${mascarar(i.contato_nome)} · ${i.tipo} · ${i.temperatura ?? 'sem temperatura'} · ${mascarar(i.texto)}`).join('\n')}`
         : 'FILA DO DIA: vazia.',
       foco ? `CONTATO EM FOCO:\n${foco.texto}` : null,
-      mapaPecas.size ? `PEÇAS DO ESTÚDIO:\n${[...mapaPecas].map(([id, p]) => `- #${id} ${p.titulo} (${p.estado})`).join('\n')}` : null,
+      mapaPecas.size ? `PEÇAS DO ESTÚDIO:\n${[...mapaPecas].map(([id, p]) => `- #${id} ${mascarar(p.titulo)} (${p.estado})`).join('\n')}` : null,
       achados.length ? `ARTIGOS DA AJUDA:\n${achados.map((a) => artigoParaContexto(a)).join('\n\n')}` : 'ARTIGOS DA AJUDA: nenhum ligado à pergunta.',
-      historico.length ? `CONVERSA ATÉ AGORA:\n${historico.map((h: { autor: string; texto: string }) => `${h.autor}: ${h.texto}`).join('\n')}` : null,
+      historico.length ? `CONVERSA ATÉ AGORA:\n${historico.map((h: { autor: string; texto: string }) => `${h.autor}: ${mascarar(h.texto)}`).join('\n')}` : null,
       `PERGUNTA DO CORRETOR: ${pergunta}`,
     ].filter(Boolean).join('\n\n');
 
@@ -144,17 +146,17 @@ assistenteRotas.post(
     } catch (e) {
       const codigo = (e as { codigo?: string })?.codigo;
       if (!codigo || codigo === 'SLOT_INVALIDO') throw e;
-      return erro(res, 503, 'IA_INDISPONIVEL', 'O Assistente não conseguiu responder agora. Tente de novo em instantes.');
+      return soAjuda('A IA do Assistente não respondeu agora.');
     }
     const d = (r.dados ?? {}) as Record<string, unknown>;
     const naoSei = d.nao_sei === true;
     const sub = typeof d.tela === 'string' && TELAS_APP[d.tela] ? d.tela : null;
     res.json({
       sem_ia: false,
-      resposta: texto(d.resposta, 2000) || 'Não consegui montar uma resposta. Pode perguntar de outro jeito?',
-      artigos: artigosDaResposta(achados, d.artigos, naoSei),
+      resposta: respostaSegura(texto(d.resposta, 2000)) || 'Não consegui montar uma resposta. Pode perguntar de outro jeito?',
+      artigos: artigosDaResposta(achados, d.artigos),
       tela: sub ? { sub, nome: TELAS_APP[sub].nome } : null,
-      acao: validarAcao(d.acao, { contatos, pecas: mapaPecas, agora }),
+      acao: validarAcao(d.acao, { contatos, pecas: mapaPecas, agora, fuso }),
       nao_sei: naoSei,
     });
   }),

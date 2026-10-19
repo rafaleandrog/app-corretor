@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
-import { ABRIR_ASSISTENTE, type AbrirAssistente } from './assistente.js';
+import { abrirAssistenteSobre } from './assistente.js';
 import {
   data,
   dataHora,
@@ -296,8 +296,7 @@ export class PcTelaFichaContato extends LitElement {
   /** Abre o Assistente sobre este contato (spec 11.1: "perguntar ao Assistente sobre este cliente"). */
   private perguntarAssistente() {
     const c = this.ficha!.contato;
-    const detalhe: AbrirAssistente = { contato_id: c.id, contato_nome: c.nome };
-    window.dispatchEvent(new CustomEvent(ABRIR_ASSISTENTE, { detail: detalhe }));
+    abrirAssistenteSobre({ id: c.id, nome: c.nome });
   }
 
   render() {

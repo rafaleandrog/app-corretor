@@ -24,7 +24,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Visitante | **Página e ficha pública** (sem login) | A página do corretor e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
 | Corretor | **Clientes › ficha › Seleções e portal** | Monta seleções de imóveis e gera o link do portal do cliente — ver [Seleções e Portal do Cliente](selecoes-e-portal.md) |
 | Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | Reage aos imóveis (gostei, não gostei, quero visitar), vê as visitas, pede para remarcar e manda mensagem ao corretor |
-| Corretor | **Assistente** (botão em todas as telas) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
+| Corretor | **Assistente** (menu) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
 | Corretor | **Ajustes › Funil e abordagens** | As etapas de cada funil, a chance de fechar e a abordagem por etapa e temperatura |
 | Corretor | **Ajustes › Conexões** | Conecta o Instagram para publicar e agendar pelo Estúdio — ver [Conexões (Instagram)](conexoes.md) |
 | Corretor | **Ajustes › Conta e marca** | Seus dados, os dados da conta e as regras de atendimento — ver [Conta e ajustes](conta-e-ajustes.md) |
