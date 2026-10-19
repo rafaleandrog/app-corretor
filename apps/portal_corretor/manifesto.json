@@ -1,10 +1,51 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.0",
+  "versao": "0.2.0",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
   "sdk_min": 100,
+  "aceita_externos": true,
+  "roles": {
+    "escrita": {
+      "operacao": "Equipe da plataforma: convida corretores e acompanha os convites"
+    }
+  },
+  "roles_externos": {
+    "escrita": {
+      "corretor": "Corretor: usa o app inteiro na própria conta"
+    }
+  },
+  "provisiona_externos": {
+    "papel": "operacao"
+  },
+  "nav": [
+    {
+      "titulo": "Início",
+      "rota": "/",
+      "icone": "fa-solid fa-house"
+    },
+    {
+      "titulo": "Ajustes",
+      "icone": "fa-solid fa-sliders",
+      "itens": [
+        {
+          "titulo": "Conta e marca",
+          "rota": "/conta"
+        }
+      ]
+    },
+    {
+      "titulo": "Equipe da plataforma",
+      "icone": "fa-solid fa-users-gear",
+      "itens": [
+        {
+          "titulo": "Corretores",
+          "rota": "/corretores"
+        }
+      ]
+    }
+  ],
   "rotas_publicas": [
     "/diagnostico"
   ],

@@ -1,0 +1,40 @@
+{
+  "tabelas": {
+    "perfil_conta": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{nome}",
+      "colunas": {
+        "chave": { "tipo": "texto", "limite": 10, "obrigatorio": true, "padrao": "conta", "opcoes": ["conta"], "unico": true },
+        "tipo": { "tipo": "texto", "limite": 30, "obrigatorio": true, "padrao": "corretor_autonomo", "opcoes": ["corretor_autonomo", "imobiliaria", "incorporadora"] },
+        "nome": { "tipo": "texto", "limite": 200, "obrigatorio": true },
+        "documento": { "tipo": "texto", "limite": 20 },
+        "creci_juridico": { "tipo": "texto", "limite": 20 }
+      }
+    },
+    "perfis_corretor": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "usuario_id": { "tipo": "referencia", "tabela_ref": "shell.usuarios", "obrigatorio": true, "unico": true, "ao_deletar": "restringir", "campos_incluir": ["nome as usuario_nome"] },
+        "creci": { "tipo": "texto", "limite": 20, "formato": "^[A-Z]{2}-[0-9]{1,6}-[FJ]$" },
+        "creci_situacao": { "tipo": "texto", "limite": 20, "obrigatorio": true, "padrao": "nao_verificado", "opcoes": ["nao_verificado", "verificado", "irregular"] },
+        "telefone": { "tipo": "texto", "limite": 16, "formato": "^[+][1-9][0-9]{7,14}$" },
+        "ativo": { "tipo": "booleano", "obrigatorio": true, "padrao": true }
+      }
+    },
+    "configuracoes_conta": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "chave": { "tipo": "texto", "limite": 10, "obrigatorio": true, "padrao": "conta", "opcoes": ["conta"], "unico": true },
+        "prazo_primeiro_atendimento_min": { "tipo": "inteiro", "obrigatorio": true, "padrao": 5, "intervalo": { "min": 1, "max": 1440 } },
+        "dias_cliente_parado": { "tipo": "inteiro", "obrigatorio": true, "padrao": 7, "intervalo": { "min": 1, "max": 365 } },
+        "validade_selecao_dias": { "tipo": "inteiro", "obrigatorio": true, "padrao": 14, "intervalo": { "min": 1, "max": 365 } },
+        "modo_aprovacao_conteudo": { "tipo": "texto", "limite": 10, "obrigatorio": true, "padrao": "manual", "opcoes": ["manual", "janela"] },
+        "janela_aprovacao_horas": { "tipo": "inteiro", "obrigatorio": true, "padrao": 24, "intervalo": { "min": 1, "max": 168 } },
+        "horario_atendimento": { "tipo": "json" }
+      }
+    }
+  }
+}
