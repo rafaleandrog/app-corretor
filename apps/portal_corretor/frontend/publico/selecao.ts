@@ -36,17 +36,17 @@ async function postar(url: string, corpo: unknown): Promise<{ ok: boolean; mensa
 
 const estiloSelecao = css`
   .reacoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .reacoes button { min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid #c4ccd3; background: #fff; color: var(--texto); font: inherit; cursor: pointer; }
-  .reacoes button[aria-pressed='true'] { background: var(--acento); border-color: var(--acento); color: #fff; font-weight: 600; }
-  .item { background: #fff; border: 1px solid var(--linha); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+  .reacoes button { min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--borda-campo); background: var(--papel); color: var(--texto); font: inherit; cursor: pointer; }
+  .reacoes button[aria-pressed='true'] { background: var(--acento); border-color: var(--acento); color: var(--papel); font-weight: 600; }
+  .item { background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
   .item .corpo { padding: 14px; }
   .item .galeria { border-radius: 0; }
   .item .galeria img { border-radius: 0; }
-  .sem-foto { aspect-ratio: 4 / 3; background: #dde3e8; }
-  .agenda li { list-style: none; background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .sem-foto { aspect-ratio: 4 / 3; background: var(--foto-vazia); }
+  .agenda li { list-style: none; background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
   .agenda { padding: 0; margin: 0; }
   .numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .numeros div { background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 10px 6px; text-align: center; overflow-wrap: anywhere; }
+  .numeros div { background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 6px; text-align: center; overflow-wrap: anywhere; }
   .numeros strong { display: block; font-size: 1.15rem; }
   .aviso-item { margin-top: 8px; font-size: 0.92rem; }
 `;

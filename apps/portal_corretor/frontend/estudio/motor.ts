@@ -21,8 +21,10 @@ export interface MarcaArte {
   logo_url: string | null;
 }
 
-const BRANCO = '#ffffff';
-const ESCURO = 'rgba(12, 16, 20, 0.78)';
+// Canvas não lê `var(--token)`: a arte exportada tem paleta própria, montada por canais numéricos.
+const rgba = (r: number, g: number, b: number, a = 1) => `color(srgb ${r / 255} ${g / 255} ${b / 255} / ${a})`;
+const BRANCO = rgba(255, 255, 255);
+const ESCURO = rgba(12, 16, 20, 0.78);
 
 function carregar(url: string | null): Promise<HTMLImageElement | null> {
   if (!url) return Promise.resolve(null);
@@ -108,7 +110,7 @@ function contraste(hex: string): string {
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
   const b = n & 255;
-  return 0.299 * r + 0.587 * g + 0.114 * b > 160 ? '#14181c' : BRANCO;
+  return 0.299 * r + 0.587 * g + 0.114 * b > 160 ? rgba(20, 24, 28) : BRANCO;
 }
 
 function rodape(ctx: CanvasRenderingContext2D, marca: MarcaArte, logo: HTMLImageElement | null, w: number, h: number, faixa: number) {
@@ -148,7 +150,7 @@ function chips(ctx: CanvasRenderingContext2D, itens: string[], marca: MarcaArte,
       cy += 64;
     }
     if (desenhar) {
-      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillStyle = rgba(255, 255, 255, 0.18);
       retangulo(ctx, cx, cy, w, 52, 26);
       ctx.fill();
       ctx.fillStyle = BRANCO;
@@ -186,10 +188,10 @@ function capa(ctx: CanvasRenderingContext2D, w: number, h: number, foto: HTMLIma
   let y = base - bloco + lhTitulo * 0.8;
   const altura = Math.min(bloco + 220, h - faixa);
   const grad = ctx.createLinearGradient(0, h - faixa - altura, 0, h - faixa);
-  grad.addColorStop(0, 'rgba(12,16,20,0)');
+  grad.addColorStop(0, rgba(12, 16, 20, 0));
   // O escuro pleno começa no topo do bloco de texto, para o título não ficar sobre a parte clara.
   grad.addColorStop(Math.min(220 / altura, 0.6), ESCURO);
-  grad.addColorStop(1, 'rgba(12,16,20,0.92)');
+  grad.addColorStop(1, rgba(12, 16, 20, 0.92));
   ctx.fillStyle = grad;
   ctx.fillRect(0, h - faixa - altura, w, altura);
   selo(ctx, peca.objetivo, marca, 56, story ? 120 : 56);
