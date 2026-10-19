@@ -4,6 +4,7 @@ import {
   artigoParaContexto,
   buscarArtigos,
   deslocamento,
+  fusoValido,
   mascarar,
   respostaSegura,
   INSTRUCAO_ASSISTENTE,
@@ -111,7 +112,7 @@ assistenteRotas.post(
     if (!(await iaDisponivel(req))) return soAjuda('A IA do Assistente não está liberada agora.');
 
     const dados = req.dados!;
-    const fuso = req.contexto?.fuso || 'America/Sao_Paulo';
+    const fuso = fusoValido(req.contexto?.fuso);
     const contatoId = Number.isInteger(req.body?.contato_id) ? (req.body.contato_id as number) : null;
     const recentes = (estado: string) => dados.listar('pecas', { filtros: { estado }, ordenar: 'criado_em', ordem: 'desc', por_pagina: 10 });
     const [estado, fila, foco, aprovadas, rascunhos] = await Promise.all([

