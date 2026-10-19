@@ -11,6 +11,7 @@ import { enviosRotas } from './envios';
 import { demoRotas } from './demo';
 import { paginaRotas } from './pagina';
 import { clienteRotas } from './cliente';
+import { estudioRotas } from './estudio';
 
 export { aoIniciar } from './semente';
 // Páginas públicas, webhooks de entrada e listeners do bloco 5.
@@ -39,3 +40,4 @@ rotas.use(enviosRotas);
 rotas.use(demoRotas);
 rotas.use(paginaRotas);
 rotas.use(clienteRotas);
+rotas.use(estudioRotas);
