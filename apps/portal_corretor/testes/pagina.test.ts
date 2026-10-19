@@ -360,3 +360,25 @@ test('quem não é corretor não mexe na página', async () => {
     assert.equal((await chamar('GET', '/pagina')).status, 409, 'corretor sem conta');
   });
 });
+
+test('quem atende 2 contas publica, edita e despublica a vitrine na conta ativa (tabela não segregada sob o escopo de conta)', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const atendente: Ator = { usuario: 8, conta: 100, contas: [100, 200], papeis: ['corretor'], extras: { arquivos } };
+  await comServidor(rotas, atendente, banco, shell, async (chamar) => {
+    const { im, foto } = await imovelAnunciado(chamar, 'Apto do atendente', '61933330001');
+    const inicial = (await chamar('GET', '/pagina')).corpo.pagina;
+    assert.equal((await chamar('PUT', '/pagina', { ...inicial, endereco: 'atendente', nome_exibicao: 'Atendente' })).status, 200);
+    assert.equal((await chamar('POST', '/pagina/publicar')).status, 200);
+    const noAr = (tipo: string) => banco.linhas('vitrine_publica').filter((l) => l.conta === 100 && l.tipo === tipo);
+    assert.equal(noAr('pagina').length, 1);
+    assert.equal(noAr('imovel').length, 1);
+    // Editar o anúncio atualiza a linha pública por id, e tirar da página apaga (os dois verbos por id).
+    assert.equal(noAr('imovel')[0].dados.fotos.length, 1, 'a foto pública está na vitrine antes da edição');
+    assert.equal((await chamar('PATCH', `/imoveis/${im.id}/midias/${foto.id}`, { publica: false })).status, 200);
+    assert.equal(noAr('imovel')[0].dados.fotos.length, 0, 'a edição chegou à vitrine');
+    assert.equal((await chamar('PATCH', `/imoveis/${im.id}`, { publicado_pagina: false })).status, 200);
+    assert.equal(noAr('imovel').length, 0, 'retirar o imóvel apaga a linha pública');
+    assert.equal((await chamar('POST', '/pagina/despublicar')).status, 200);
+    assert.equal(banco.linhas('vitrine_publica').filter((l) => l.conta === 100).length, 0, 'despublicar apaga tudo da conta');
+  });
+});

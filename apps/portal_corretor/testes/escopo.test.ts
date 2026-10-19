@@ -60,13 +60,27 @@ function falso(linhas: Record<string, Linha[]>) {
     async limparTabela() {
       return 0;
     },
+    async atualizarSe(t: string, id: number, d: Linha, condicoes: Linha) {
+      const l = achar(t, id);
+      return l && !l.removido_em && Object.entries(condicoes).every(([k, v]) => l[k] === v) ? Object.assign(l, d) : null;
+    },
+    async incrementar(t: string, id: number, inc: Record<string, number>) {
+      const l = achar(t, id);
+      if (!l || l.removido_em) return null;
+      for (const [k, v] of Object.entries(inc)) l[k] = (l[k] ?? 0) + v;
+      return l;
+    },
+    async revelar(t: string, id: number, coluna: string) {
+      const l = achar(t, id);
+      return l && !l.removido_em ? (l[coluna] ?? null) : null;
+    },
   };
   return { dados, chamadas };
 }
 const base = () => ({
   contatos: [
-    { id: 1, conta_id: 100, nome: 'Ana' },
-    { id: 2, conta_id: 200, nome: 'Bia' },
+    { id: 1, conta_id: 100, nome: 'Ana', visitas: 0, segredo: 'da-100' },
+    { id: 2, conta_id: 200, nome: 'Bia', visitas: 0, segredo: 'da-200' },
   ],
   vitrine_publica: [{ id: 10, conta: 100, tipo: 'pagina', chave: 'ana', dados: { v: 1 } }],
 });
@@ -117,4 +131,16 @@ test('transaction entrega o trx escopado; verbos sem escopo falham alto nas tabe
   assert.throws(() => (d as any).sqlDeclarado('qualquer_consulta', {}), /não tem escopo de conta/);
   assert.throws(() => (d as any).comConta(200, async () => {}), /não tem escopo de conta/);
   assert.throws(() => (d as any).limparTabela('contatos'), /não tem escopo de conta/);
+});
+
+test('atualizarSe, incrementar e revelar só alcançam linha da conta ativa', async () => {
+  const { dados } = falso(base());
+  const d = escoparPorConta(dados, 100);
+  assert.equal((await d.atualizarSe('contatos', 1, { nome: 'Ana 3' }, { nome: 'Ana' }))!.nome, 'Ana 3');
+  assert.equal(await d.atualizarSe('contatos', 2, { nome: 'X' }, { nome: 'Bia' }), null);
+  assert.equal((await d.incrementar('contatos', 1, { visitas: 2 }))!.visitas, 2);
+  assert.equal(await d.incrementar('contatos', 2, { visitas: 2 }), null);
+  assert.equal(await d.revelar('contatos', 1, 'segredo'), 'da-100');
+  assert.equal(await d.revelar('contatos', 2, 'segredo'), null, 'segredo de outra conta não sai');
+  assert.equal((await dados.buscar('contatos', 2)).visitas, 0, 'a linha da outra conta ficou intacta');
 });

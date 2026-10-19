@@ -22,7 +22,7 @@ Telas, funções, permissões, caminhos e automações prontos, testados pela eq
 | 7 | **Mensageiro:** configuração em 5 passos, permissões por ação, conversa de teste, listener com IA, ações executadas pelo app, passagem ao corretor, custo, modo degradado | 10.3, 10.6, 10.7, 10.8 | 6 | Mensagem de teste às 22 h respondida em segundos, 3 imóveis enviados, visita marcada; passagem no Início | [!] fora do 0.1.0 (D-78): depende do 6 |
 | 8 | **Estúdio e Instagram:** marca, pedido em texto ou voz, IA → Canva (fila de renderização, pasta por conta), biblioteca de arquivos, aprovação manual e por janela, **agendar** (`req.eventos.agendar`), **publicar agora**, **baixar arquivos**; conexão do Instagram | 9.2, 9.4, 10.5, 11.1 | 3; Canva da plataforma configurado | Pacote de lançamento publicado numa conta de teste no horário agendado | [x] código pronto e na `main` (PRs #2 e #13 a #22); a conferência na instância é o roteiro R.8 |
 | 9 | **Assistente do Corretor:** chat em todas as telas com base nos `docs/` da app, ajuda a decidir, ações com confirmação (lembretes, tarefas, agendamento de posts) | 10.2, 11.1 | 2–8 | Responde as 30 perguntas do roteiro; ação só com confirmação | [x] código pronto e na `main` (PRs #2 e #13 a #22); a conferência na instância é o roteiro R.8 |
-| 10 | **Fechamento do MVP:** roteiros de 15.1 executados e registrados; ajustes; docs da app completos | 15.1, 18 | 0–9 | Os 7 critérios de 15.1 cumpridos; dono aprova o MVP interno | [~] código pronto e na `main` (PRs #23 e #24): lembrete de visita, roteiro R.8 e versão 0.1.0; falta executar o R.8 na instância depois do release |
+| 10 | **Fechamento do MVP:** roteiros de 15.1 executados e registrados; ajustes; docs da app completos | 15.1, 18 | 0–9 | Os 7 critérios de 15.1 cumpridos; dono aprova o MVP interno | [~] código pronto e na `main` (PRs #23, #24, #26 a #29, #36 e #37): versão 0.1.4 com admin de todos os papéis, seletor de conta, escopo da conta ativa e tokens de tema; falta executar o R.8 e o R.10 na instância depois do release |
 
 **Em paralelo, fora do código (dono):** decidir o caminho do registro na Meta (P-26) e, se for o A, iniciar verificação da empresa e revisão do app; termos de uso e política de privacidade.
 
@@ -80,9 +80,11 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | 19/10/2026 | 10a | Lembrete de visita: `configuracoes_conta.lembrete_visita_horas` (24, 0 desliga), `atividades.lembrete_enviado_para`, evento segregado `lembrete_visita` agendado ao criar e remarcar a visita, listener idempotente que notifica o responsável (`ctx.notificacoes`); roteiro de fechamento do MVP (R.8); 3 testes novos (95); versão 0.12.0; D-77 | #23 | Revisão do PR; roteiro R.8 na instância |
 | 19/10/2026 | 10a | Revisão do PR #23 (rodada 1): o listener confere o prazo na hora (0 desliga o que já estava agendado; prazo trocado não lembra na hora velha), visita que já passou não é lembrada, gravação condicionada (`atualizarSe`), PATCH só reagenda se a hora, o status ou o tipo mudarem, PUT sem o campo mantém o valor gravado, `intervalo` no schema; 97 testes | #23 | Rodada 2 |
 | 19/10/2026 | 10b | Merge dos PRs #2 e #13 a #22 na `main` (ordem do dono); D-78 (0.1.0 sem WhatsApp e Mensageiro); versão volta a 0.1.0 (D-69); plano fechado | #24 | Release 0.1.0 por ordem do dono; R.8 na instância |
+| 19/10/2026 | 10b | Admin do app vale por todos os papéis, no backend e nas telas (#26); paleta única nas páginas públicas e no canvas do Estúdio, aviso de tokens de tema de 34 para 2 literais (#27); versão 0.1.1 | #26, #27 | Release 0.1.1 por ordem do dono |
 | 19/10/2026 | 10b | Seletor de conta e cabeçalho `X-Conta` em todas as chamadas das telas (admin com várias contas via erro "conta destino inequívoca" em Início, Funil, Minha página, Conexões); versão 0.1.2 | #28 | Release 0.1.2 por ordem do dono; QA como admin |
 | 19/10/2026 | 10b | Achados do QA como admin (#28): erro de conta não informada diz o que fazer; mensagem de probabilidade das etapas corrigida; versão 0.1.3 | #29 | Release 0.1.3 por ordem do dono; QA com 2+ contas; Instagram sem configuração na instância (pedido ao dono) |
 | 19/10/2026 | 10b | Escopo da conta ativa em `req.dados` para quem atende várias contas (`backend/escopo.ts`); chamada sem `X-Conta` recusada com orientação; teste de isolamento com 2 contas; versão 0.1.4 | #36 | Release 0.1.4 por ordem do dono; issue #32 (leitura que escreve) |
+| 19/10/2026 | 10b | Revisão do PR #36 pela skill `revisar-pr-apps` (2 rodadas, motor nativo; Codex sem login e Kimi sem rede nesta sessão): achou bloqueante próprio (`vitrine_publica`, tabela não segregada, sob o escopo de conta), consertado antes do merge; decisão D-79; merge sem o CI do GitHub (job preso na fila, sem rodar nenhum passo; validação local equivalente: typecheck, build, testes e empacotamento; relato da sessão), relatórios das 2 rodadas nos comentários [1](https://github.com/rafaleandrog/app-corretor/pull/36#issuecomment-6271477529) e [2](https://github.com/rafaleandrog/app-corretor/pull/36#issuecomment-6271576078) do PR #36; testes de fechamento (vitrine ponta a ponta com 2 contas, `atualizarSe`/`incrementar`/`revelar`); pendências em R.11 | #36, #37 | Release 0.1.4 por ordem do dono; R.10 na instância |
 
 ---
 
@@ -217,3 +219,15 @@ Pré-requisitos: 0.1.4 ou posterior instalada; uma segunda conta de teste (`qa-�
 8. **Tela:** percorrer o menu no computador e no celular e registrar erros visíveis.
 
 Registrar o resultado no relatório da skill `qa` e abrir issue para o que quebrar.
+
+
+### R.11 Pendências abertas (19/10/2026)
+
+| Item | O que falta | De quem |
+|---|---|---|
+| #30 Instagram não configurado na homologação | Cadastrar as credenciais da app Meta na instância (conta de teste da equipe) e reexecutar o QA de Conexões e Estúdio | Dono / equipe da plataforma |
+| #32 Etapas do funil semeadas dentro de GET | O erro de conta nas telas está resolvido (D-79 + seletor). Resta a escrita dentro de leitura. Mudar isso altera o que um corretor novo vê em Funil e Ajustes, então exige decisão: semear no primeiro acesso (hoje) ou por chamada explícita da tela. **Não alterado sem decisão e sem QA em instância** | Dono |
+| #33 Avaliar o app como admin | Decidir conta de demonstração por instância e "ver como cliente" (muda o que o admin vê) | Dono |
+| #34 Lacunas de QA | Segunda conta de teste, versão instalada, perfil corretor, fixtures e tela: roteiro R.10 | Dono autoriza; sessão de QA executa |
+| #35 Armadilhas de processo | Resolvidos no #36: aviso no `CLAUDE.md` e teste do `X-Conta`. Restam: tokens de tema (2 literais, heurística), atualização automática da instância e `X-Conta` malformado (403 no shell) | Equipe da plataforma |
+| Motores da revisão | Codex: `codex login status` diz "Not logged in" nesta sessão (instalado, sem login). Kimi: `api.moonshot.ai` negado pela rede do ambiente | Dono (ambiente de nuvem) |
