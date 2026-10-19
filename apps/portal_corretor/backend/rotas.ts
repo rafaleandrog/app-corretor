@@ -5,8 +5,14 @@ import { contaRotas } from './conta';
 import { crmRotas } from './crm';
 import { equipeRotas } from './equipe';
 import { imoveisRotas } from './imoveis';
+import { funilRotas, reclassificarContatos } from './funil';
 
 export { aoIniciar } from './semente';
+
+// Rotinas declaradas no manifesto; o horário é do admin (rotinas.md).
+export const rotinas = {
+  reclassificar_contatos: reclassificarContatos,
+};
 
 export const rotas: Router = Router();
 
@@ -20,6 +26,7 @@ rotas.use('/conta', contaRotas);
 rotas.use('/equipe', equipeRotas);
 rotas.use(crmRotas);
 rotas.use(imoveisRotas);
+rotas.use(funilRotas);
 
 // Diagnóstico do bloco 0 (sai no bloco 5): devolve o caminho e a query com que a rota pública foi
 // chamada, para confirmar na instância se /pub aceita segmento extra e query. Não lê dado nenhum.

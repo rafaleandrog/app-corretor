@@ -14,6 +14,8 @@ import {
 } from '../comum/crm';
 import { gerarCsv } from '../comum/csv';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
+import { MARCO_PADRAO } from '../comum/funil';
 
 // CRM do corretor (bloco 2): contatos, negócios, atividades e etapas do funil. Todas as tabelas
 // são segregadas por conta; no MVP cada conta tem um corretor, que é o responsável de tudo.
@@ -77,7 +79,7 @@ export async function etapasDaConta(dados: HelperDados, pipeline?: Pipeline) {
   if (!r.dados.length) {
     for (const e of ETAPAS_PADRAO) {
       try {
-        await dados.criar('etapas_funil', { ...e, ativa: true });
+        await dados.criar('etapas_funil', { ...e, ativa: true, marco: MARCO_PADRAO[e.nome] ?? null });
       } catch (err) {
         if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
       }
@@ -137,7 +139,9 @@ crmRotas.post(
       throw e;
     }
     await registrar(dados, req, { tipo: 'contato.criado', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: 'Contato cadastrado' });
-    res.status(201).json(contato);
+    if (!v.dados.temperatura) await reclassificar(dados, contato.id);
+    else await classificarManual(dados, contato.id, v.dados.temperatura as 'frio' | 'morno' | 'quente', null);
+    res.status(201).json((await dados.buscar('contatos', contato.id)) ?? contato);
   }),
 );
 
@@ -228,7 +232,13 @@ crmRotas.get(
     const consentimento = await primeiro(dados, 'consentimentos', { contato_id: cid, 'revogado_em[nulo]': 'true' });
     const idsVisita = atividades.dados.filter((a) => a.tipo === 'visita').map((a) => a.id);
     const visitas = idsVisita.length ? (await dados.listar('visitas', { filtros: { atividade_id: idsVisita.join(',') }, por_pagina: 100 })).dados : [];
-    res.json({ contato, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento });
+    const etapas = await etapasPorId(dados);
+    const [playbook, classificacoes] = await Promise.all([
+      playbookDaConta(dados, etapas),
+      dados.listar('classificacoes', { filtros: { contato_id: cid }, ordenar: 'em', ordem: 'desc', por_pagina: 10 }),
+    ]);
+    const abordagem = proximaAbordagem(contato, negocios.dados, etapas, playbook);
+    res.json({ contato, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, abordagem, classificacoes: classificacoes.dados });
   }),
 );
 
@@ -245,14 +255,22 @@ crmRotas.patch(
       const outro = await primeiro(dados, 'contatos', { telefone: v.dados.telefone });
       if (outro) return erro(res, 409, 'DUPLICATA', `Já existe um contato com este telefone: ${outro.nome}.`, [String(outro.id)]);
     }
+    // Temperatura escolhida pelo corretor tem histórico próprio e vale até um sinal forte (10.4).
+    const { temperatura, ...resto } = v.dados;
+    const manual = 'temperatura' in v.dados && temperatura !== atual.temperatura;
     let contato;
     try {
-      contato = await dados.atualizar('contatos', cid!, v.dados);
+      contato = await dados.atualizar('contatos', cid!, resto);
     } catch (e) {
       if (violouUnico(e)) return erro(res, 409, 'DUPLICATA', 'Já existe um contato com este telefone.');
       throw e;
     }
     if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
+    if (manual) {
+      const motivo = typeof req.body?.temperatura_motivo === 'string' ? req.body.temperatura_motivo : null;
+      await classificarManual(dados, cid!, (temperatura ?? null) as 'frio' | 'morno' | 'quente' | null, motivo);
+      contato = (await dados.buscar('contatos', cid!)) ?? contato;
+    }
     if ('proximo_passo' in v.dados || 'proximo_passo_em' in v.dados) {
       await registrar(dados, req, { tipo: 'contato.proximo_passo', alvo_tipo: 'contato', alvo_id: cid!, contato_id: cid!, resumo: `Próximo passo: ${contato.proximo_passo ?? 'nenhum'}` });
     }
@@ -283,6 +301,7 @@ crmRotas.post(
     if (!cid || !(await dados.buscar('contatos', cid))) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     await registrar(dados, req, { tipo: 'contato.nota', alvo_tipo: 'contato', alvo_id: cid, contato_id: cid, resumo: texto });
     await dados.atualizar('contatos', cid, { ultimo_contato_em: agora() });
+    await reclassificar(dados, cid);
     res.status(201).json({ ok: true });
   }),
 );
@@ -402,6 +421,7 @@ crmRotas.patch(
         dados: { de: atual.etapa_id, para: etapaId, motivo_perda: mudar.motivo_perda ?? null },
       });
       await dados.atualizar('contatos', atual.contato_id, { ultimo_contato_em: agora() });
+      await reclassificar(dados, atual.contato_id);
     }
     res.json(negocio);
   }),
@@ -467,6 +487,7 @@ crmRotas.post(
     });
     if (atividade.contato_id) {
       await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `Agendado: ${atividade.titulo}` });
+      if (atividade.tipo === 'visita') await reclassificar(dados, atividade.contato_id);
     }
     res.status(201).json(atividade);
   }),
@@ -487,6 +508,7 @@ crmRotas.patch(
       const rotulo: Record<string, string> = { feita: 'Feito', cancelada: 'Cancelado', nao_compareceu: 'Não compareceu', pendente: 'Reaberto' };
       await registrar(dados, req, { tipo: 'atividade.status', alvo_tipo: 'atividade', alvo_id: aid!, contato_id: atual.contato_id, resumo: `${rotulo[v.dados.status as string]}: ${atual.titulo}` });
       if (v.dados.status === 'feita') await dados.atualizar('contatos', atual.contato_id, { ultimo_contato_em: agora() });
+      await reclassificar(dados, atual.contato_id);
     }
     res.json(atividade);
   }),
@@ -527,6 +549,7 @@ crmRotas.post(
         resumo: `Retorno da visita ao ${visita.imovel_codigo ?? 'imóvel'}${nota ? ` (nota ${nota})` : ''}${texto ? `: ${texto}` : ''}`,
       });
       await dados.atualizar('contatos', atividade.contato_id, { ultimo_contato_em: agora() });
+      await reclassificar(dados, atividade.contato_id);
     }
     res.json(salva);
   }),

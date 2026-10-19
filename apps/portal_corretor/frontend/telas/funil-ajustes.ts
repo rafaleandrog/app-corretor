@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { enviar, mensagemDeErro } from '../apoio.js';
+import './playbook.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -131,6 +132,7 @@ export class PcTelaFunilAjustes extends LitElement {
           </urbi-linha>
         </urbi-card>`,
       )}
+      <pc-playbook></pc-playbook>
     </urbi-stack>`;
   }
 }

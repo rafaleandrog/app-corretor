@@ -122,6 +122,10 @@ export class BancoFalso {
     return {
       contas: { listarAtivas: async () => contas },
       dados: {
+        // Leitura SISTEMA enxerga todas as contas (contas.md).
+        async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
+          return todas(tabela).filter((l) => !l.removido_em && casa(l, op.filtros)).map((l) => ({ ...l }));
+        },
         async comConta(id: number, fn: (trx: any) => Promise<void>) {
           const trx = banco.dados(id);
           trx.existe = async (tabela: string, filtros: Record<string, unknown>) =>
