@@ -23,8 +23,19 @@ test('GET /status devolve nome e versão do manifesto', async () => {
   assert.deepEqual(corpo, { nome: manifesto.nome, versao: manifesto.versao });
 });
 
-test('diagnóstico público ecoa segmento extra e query', async () => {
-  const { status, corpo } = await chamar(rotasPublicas, '/diagnostico/joao?c=maria');
-  assert.equal(status, 200);
-  assert.deepEqual(corpo, { caminho: '/diagnostico/joao', query: { c: 'maria' } });
+test('manifesto e backend andam juntos: rotas públicas, webhooks, eventos e páginas', async () => {
+  const backend = await import('../backend/rotas');
+  const m = manifesto as any;
+  for (const caminho of m.rotas_publicas) {
+    const pilha = (rotasPublicas as any).stack.map((c: any) => c.route?.path).filter(Boolean);
+    assert.ok(pilha.some((p: string) => p === caminho || p.startsWith(`${caminho}/`)), `rota pública ${caminho} sem GET`);
+  }
+  assert.deepEqual(Object.keys(backend.webhooks).sort(), Object.keys(m.webhooks).sort(), 'um handler por webhook declarado');
+  assert.deepEqual(Object.keys(backend.reagir).sort(), Object.keys(m.eventos).sort(), 'um listener por evento declarado');
+  for (const e of Object.values(m.eventos) as any[]) assert.equal(e.segregado_por_conta, true, 'evento da conta é segregado');
+  const fonte = (await import('node:fs')).readFileSync(new URL('../frontend/publico/pagina-publica.ts', import.meta.url), 'utf8') +
+    (await import('node:fs')).readFileSync(new URL('../frontend/publico/link.ts', import.meta.url), 'utf8');
+  for (const p of Object.values(m.paginas_publicas) as any[]) assert.ok(fonte.includes(`@customElement('${p.componente}')`), `componente ${p.componente}`);
+  // Campo pessoal do formulário nunca fica no log do webhook (wh.md § descartar).
+  for (const c of ['nome', 'telefone', 'email', 'mensagem']) assert.equal(m.webhooks.formulario_lead.campos[c].descartar, true, c);
 });

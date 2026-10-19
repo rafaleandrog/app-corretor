@@ -9,8 +9,11 @@ import { funilRotas, reclassificarContatos } from './funil';
 import { numerosRotas } from './numeros';
 import { enviosRotas } from './envios';
 import { demoRotas } from './demo';
+import { paginaRotas } from './pagina';
 
 export { aoIniciar } from './semente';
+// Páginas públicas, webhooks de entrada e listeners do bloco 5.
+export { rotasPublicas, webhooks, reagir } from './publico';
 
 // Rotinas declaradas no manifesto; o horário é do admin (rotinas.md).
 export const rotinas = {
@@ -33,11 +36,4 @@ rotas.use(funilRotas);
 rotas.use(numerosRotas);
 rotas.use(enviosRotas);
 rotas.use(demoRotas);
-
-// Diagnóstico do bloco 0 (sai no bloco 5): devolve o caminho e a query com que a rota pública foi
-// chamada, para confirmar na instância se /pub aceita segmento extra e query. Não lê dado nenhum.
-export const rotasPublicas: Router = Router();
-
-rotasPublicas.get(['/diagnostico', '/diagnostico/*'], (req, res) => {
-  res.json({ caminho: req.path, query: req.query });
-});
+rotas.use(paginaRotas);
