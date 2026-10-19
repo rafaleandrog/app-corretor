@@ -51,6 +51,15 @@ function falso(linhas: Record<string, Linha[]>) {
     async travessia() {
       return { dados: [] };
     },
+    async sqlDeclarado() {
+      return [];
+    },
+    async comConta(_conta: number, cb: () => Promise<unknown>) {
+      return cb();
+    },
+    async limparTabela() {
+      return 0;
+    },
   };
   return { dados, chamadas };
 }
@@ -89,7 +98,12 @@ test('soft delete: remover é idempotente e restaurar alcança linha removida da
   assert.equal((await d.remover('contatos', 1))?.removido_em, 'agora');
   assert.equal((await d.remover('contatos', 1))?.id, 1);
   assert.equal((await d.restaurar('contatos', 1))?.removido_em, null);
+  // Linha removida de OUTRA conta: a checagem enxerga removidos, mas não vaza o escopo.
+  const outra = (await d.listar('contatos')).dados.length;
+  await dados.remover('contatos', 2);
   assert.equal(await d.restaurar('contatos', 2), null, 'linha removida de outra conta continua inalcançável');
+  assert.equal(await d.deletar('contatos', 2), false);
+  assert.equal(outra, 1);
 });
 
 test('transaction entrega o trx escopado; verbos sem escopo falham alto nas tabelas segregadas', async () => {
@@ -100,4 +114,7 @@ test('transaction entrega o trx escopado; verbos sem escopo falham alto nas tabe
   });
   assert.throws(() => (d as any).travessia('contatos', {}), /não tem escopo de conta/);
   assert.doesNotThrow(() => (d as any).travessia('vitrine_publica', {}));
+  assert.throws(() => (d as any).sqlDeclarado('qualquer_consulta', {}), /não tem escopo de conta/);
+  assert.throws(() => (d as any).comConta(200, async () => {}), /não tem escopo de conta/);
+  assert.throws(() => (d as any).limparTabela('contatos'), /não tem escopo de conta/);
 });

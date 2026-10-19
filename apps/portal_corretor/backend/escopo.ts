@@ -22,7 +22,9 @@ const LEITURAS_COM_FILTRO = new Set(['listar', 'varrerTudo']);
 const POR_ID = new Set(['atualizar', 'deletar', 'remover', 'restaurar', 'atualizarSe', 'incrementar', 'revelar']);
 // Sem escopo de conta possível aqui: para quem atende várias contas agiriam em todas elas. Nenhuma
 // rota os usa; se alguma passar a usar, falha alto em vez de misturar contas em silêncio.
-const SEM_ESCOPO = new Set(['travessia', 'atualizarVarios', 'removerVarios', 'deletarVarios', 'criarOuAtualizar', 'sqlDeclarado']);
+const SEM_ESCOPO = new Set(['travessia', 'atualizarVarios', 'removerVarios', 'deletarVarios', 'criarOuAtualizar', 'limparColuna', 'limparTabela']);
+// Verbos cujo 1º argumento não é tabela (consulta declarada, bloco de conta): sempre falham alto.
+const NUNCA = new Set(['sqlDeclarado', 'comConta']);
 
 const daConta = (linha: Record<string, any> | null | undefined, conta: number) => !!linha && Number(linha.conta_id) === conta;
 
@@ -35,6 +37,11 @@ export function escoparPorConta(dados: HelperDados, conta: number): HelperDados 
       const chamar = original.bind(alvo);
       if (nome === 'transaction') {
         return (callback: (trx: HelperDados) => Promise<unknown>) => chamar((trx: HelperDados) => callback(escoparPorConta(trx, conta)));
+      }
+      if (NUNCA.has(nome)) {
+        return () => {
+          throw new Error(`req.dados.${nome} não tem escopo de conta: use só em rotina/listener, com a conta explícita (backend/escopo.ts)`);
+        };
       }
       if (SEM_ESCOPO.has(nome)) {
         return (...args: any[]) => {
