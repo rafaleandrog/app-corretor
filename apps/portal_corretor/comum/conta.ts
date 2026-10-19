@@ -25,6 +25,8 @@ export interface Configuracoes {
   validade_selecao_dias: number;
   modo_aprovacao_conteudo: (typeof MODOS_APROVACAO)[number];
   janela_aprovacao_horas: number;
+  /** Horas antes da visita para lembrar o corretor; 0 desliga. */
+  lembrete_visita_horas: number;
 }
 
 export const CONFIGURACOES_PADRAO: Configuracoes = {
@@ -33,6 +35,7 @@ export const CONFIGURACOES_PADRAO: Configuracoes = {
   validade_selecao_dias: 14,
   modo_aprovacao_conteudo: 'manual',
   janela_aprovacao_horas: 24,
+  lembrete_visita_horas: 24,
 };
 
 const texto = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
@@ -120,6 +123,8 @@ export function validarConfiguracoes(corpo: Record<string, unknown>): Resultado<
     validade_selecao_dias: faixa('validade_selecao_dias', 1, 365, 'Validade da seleção (dias)'),
     modo_aprovacao_conteudo: texto(corpo.modo_aprovacao_conteudo) as Configuracoes['modo_aprovacao_conteudo'],
     janela_aprovacao_horas: faixa('janela_aprovacao_horas', 1, 168, 'Janela de aprovação (horas)'),
+    // Configuração gravada antes do campo existir não o traz: vale o padrão.
+    lembrete_visita_horas: corpo.lembrete_visita_horas === undefined ? CONFIGURACOES_PADRAO.lembrete_visita_horas : faixa('lembrete_visita_horas', 0, 168, 'Lembrete de visita (horas antes; 0 desliga)'),
   };
   if (!(MODOS_APROVACAO as readonly string[]).includes(dados.modo_aprovacao_conteudo)) {
     erros.push('Modo de aprovação de conteúdo: manual ou por janela.');

@@ -22,7 +22,7 @@ Telas, funções, permissões, caminhos e automações prontos, testados pela eq
 | 7 | **Mensageiro:** configuração em 5 passos, permissões por ação, conversa de teste, listener com IA, ações executadas pelo app, passagem ao corretor, custo, modo degradado | 10.3, 10.6, 10.7, 10.8 | 6 | Mensagem de teste às 22 h respondida em segundos, 3 imóveis enviados, visita marcada; passagem no Início | [!] depende do 6 |
 | 8 | **Estúdio e Instagram:** marca, pedido em texto ou voz, IA → Canva (fila de renderização, pasta por conta), biblioteca de arquivos, aprovação manual e por janela, **agendar** (`req.eventos.agendar`), **publicar agora**, **baixar arquivos**; conexão do Instagram | 9.2, 9.4, 10.5, 11.1 | 3; Canva da plataforma configurado | Pacote de lançamento publicado numa conta de teste no horário agendado | [~] 8a com código pronto (issue #10, PR #20): marca (cores, estilo, logo, foto), pedido em texto ou voz, textos por IA com JSON Schema (modelo sem IA), artes pelo gerador do app no navegador (post, retrato, carrossel até 5 slides, story) e pelo Canva IA assistido (D-74), pacote de lançamento, aprovação com checagens, biblioteca para baixar. 8b com código pronto (PR #21): conexão do Instagram pelo login do Instagram (D-75), publicar agora, agendar no app com aprovação manual ou por janela, publiquei por fora, renovação diária do acesso; falta o teste real com o app da Meta do dono (P-26 não bloqueia o MVP) |
 | 9 | **Assistente do Corretor:** chat em todas as telas com base nos `docs/` da app, ajuda a decidir, ações com confirmação (lembretes, tarefas, agendamento de posts) | 10.2, 11.1 | 2–8 | Responde as 30 perguntas do roteiro; ação só com confirmação | [~] código pronto (PR #22): chat em todas as telas, base de ajuda gerada de `docs/`, fila do dia e contato em foco, ações `criar_atividade` e `agendar_peca` com confirmação, degradação sem IA; roteiro das 30 perguntas em teste (busca); falta a conferência na instância |
-| 10 | **Fechamento do MVP:** roteiros de 15.1 executados e registrados; ajustes; docs da app completos | 15.1, 18 | 0–9 | Os 7 critérios de 15.1 cumpridos; dono aprova o MVP interno | [ ] |
+| 10 | **Fechamento do MVP:** roteiros de 15.1 executados e registrados; ajustes; docs da app completos | 15.1, 18 | 0–9 | Os 7 critérios de 15.1 cumpridos; dono aprova o MVP interno | [~] 10a pronto (PR #23): lembrete de visita do corretor por notificação; roteiro de fechamento em R.8; falta executar o roteiro na instância e a decisão do dono sobre o WhatsApp no 0.1.0 |
 
 **Em paralelo, fora do código (dono):** decidir o caminho do registro na Meta (P-26) e, se for o A, iniciar verificação da empresa e revisão do app; termos de uso e política de privacidade.
 
@@ -75,6 +75,8 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | 19/10/2026 | 8b | Instagram: `canais_sociais` (token em `segredo`), parâmetros `meta_app_id`/`meta_app_secret`, rotas `/conexoes/*` e publicar/agendar/cancelar/publicada-fora, evento segregado `publicacao_programada` e listener, rotina `renovar_tokens_instagram`, tela Conexões; banco falso com máscara de segredo e `revelar`; 4 testes novos (84 no total); versão 0.10.0; D-75 | #21 | Revisão do PR; bloco 9 |
 | 19/10/2026 | 8b | Revisão do PR #21 (rodada 1): estado `publicando` com reserva por `atualizarSe`, Meta fora de transação, evento com `agendada_para`, story só com arte do gerador, peça com erro editada volta a rascunho, rotina com `conta_id` numérico; 86 testes | #21 | Rodada 2; bloco 9 |
 | 19/10/2026 | 9 | Assistente do Corretor: `scripts/gerar-ajuda.mjs` → `comum/ajuda-gerada.ts`, busca por termos, rota `/assistente/perguntar` (slot `assistente`), `pc-assistente` com `urbi-chat` em todas as telas, "Perguntar ao Assistente" na ficha do contato, ações conferidas e executadas pelas rotas de sempre; `filaDoDia` extraída do Início; docs `assistente.md`; roteiro das 30 perguntas; 4 testes novos (90); versão 0.11.0; D-76, P-38 | #22 | Revisão do PR; bloco 10 |
+| 19/10/2026 | 8b | Revisão do PR #21, rodadas 2 e 3: transação por fase na rota, rota destravar (15 min), resultado condicionado a `publicando`, aprovar peça com erro da janela, limite de 30 s por chamada e 6 min de prazo; banco falso com rollback e DSL estrito; 88 testes; sem bloqueantes | #21 | Merge com ordem do dono |
+| 19/10/2026 | 10a | Lembrete de visita: `configuracoes_conta.lembrete_visita_horas` (24, 0 desliga), `atividades.lembrete_enviado_para`, evento segregado `lembrete_visita` agendado ao criar e remarcar a visita, listener idempotente que notifica o responsável (`ctx.notificacoes`); roteiro de fechamento do MVP (R.8); 3 testes novos (95); versão 0.12.0; D-77 | #23 | Revisão do PR; roteiro R.8 na instância |
 
 ---
 
@@ -166,3 +168,27 @@ Conferida em 18/10/2026 contra `@urbiverso/sdk` **100.0.0** (shell **0.56.37**, 
 - **Gravação de linha única** (conta, configurações, perfil) por leitura + atualização/criação, não por `criarOuAtualizar`: em tabela segregada o SDK não documenta o alvo do upsert (revisão do #13).
 - **Teste de isolamento:** prova que o código depende só de `req.dados` (banco simulado por conta); o RLS de verdade se confere no roteiro abaixo.
 - **Roteiro na instância (somar ao R.6):** com dois corretores de teste em contas "(demo)", cada um edita a própria conta e confirma que não vê a do outro; um usuário só com `operacao` não abre Conta e marca; um usuário sem papel vê "área não liberada" nas duas telas; convite enviado aparece como "Aguardando aceite" e, aceito, como "Aceito".
+
+### R.8 Roteiro de fechamento do MVP (bloco 10, spec 15.1)
+
+Executado pela equipe na instância intermediária, com a app instalada pelo pacote. Registre cada item (data, quem, resultado) na tabela do registro de sessões ou numa issue do bloco 10.
+
+**Antes de começar (dono):**
+- instalar a versão mais recente (`.urbiapp.tgz` do release ou do `dist/`);
+- 2 corretores "(demo)" com o papel `corretor`, 1 usuário com `operacao`;
+- slots de IA `conteudo`, `fotos` e `assistente` autorizados (e o de áudio da plataforma, para o microfone);
+- rotinas `reclassificar_contatos` e `renovar_tokens_instagram` ligadas;
+- app da Meta em desenvolvimento com `meta_app_id`/`meta_app_secret` e as contas de teste do Instagram.
+
+| # | Critério 15.1 | Como conferir | Situação |
+|---|---|---|---|
+| 1 | Telas | Abrir cada tela do corretor no computador e no celular (Início, Funil, Clientes, ficha, Agenda, Imóveis, ficha, Empreendimentos, Desempenho, Minha página, Estúdio, Conexões, Conta e marca, Funil e abordagens, Assistente); ver o estado vazio (conta nova) e o de erro (desligar a IA, desconectar o Instagram). Página pública, ficha do imóvel, seleção e Portal do Cliente no celular | Pronto para conferir |
+| 2 | Caminhos | Sem atalho de desenvolvedor: cadastrar imóvel com fotos e autorização → publicar na Minha página → abrir a ficha pública e mandar o formulário (vira contato no funil) → montar seleção e gerar o portal → cliente reage e pede visita → pacote de lançamento no Estúdio → aprovar → publicar e agendar no Instagram de teste | Pronto, **menos WhatsApp e Mensageiro** (blocos 6 e 7) |
+| 3 | Permissões | Matriz da seção 14 papel por papel; corretor B não abre nada de A pela URL, pelo Assistente (contato em foco) nem pelo link público; usuário só com `operacao` não abre a área do corretor; cliente só vê o próprio portal | Pronto para conferir (24+ testes de isolamento automatizados passam em todo PR) |
+| 4 | Automações | Lembrete de visita (marcar visita para daqui a 25 h e ver a notificação 1 h depois), publicação agendada (agendar para daqui a 10 min), janela de aprovação (modo janela + rascunho agendado), temperatura (rotina), próxima abordagem (fila do Início). Anotar o atraso real de cada disparo | Pronto, menos as automações do Mensageiro |
+| 5 | Números | Carregar os dados de demonstração e conferir à mão funil, conversão e tempo de resposta do Desempenho | Pronto para conferir |
+| 6 | Ajuda | Fazer ao Assistente as 30 perguntas do roteiro (`testes/assistente.test.ts`) e anotar se a resposta está certa e cita o artigo; conferir o link da documentação (P-38) | Pronto para conferir |
+| 7 | Instalação | Instalar e atualizar (versão anterior → atual) sem reprovação | Pronto para conferir |
+
+**Decisão do dono antes do release 0.1.0:** o WhatsApp e o Mensageiro (blocos 6 e 7) estão travados em P-31/P-32 ou na alternativa do parceiro da Meta. Ou o 0.1.0 sai sem eles (critérios 2 e 4 parciais, registrados), ou espera.
+

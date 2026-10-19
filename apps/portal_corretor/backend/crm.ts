@@ -18,6 +18,7 @@ import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, recl
 import { encerrarAcessosDoCliente, tentarPortal } from './portal';
 import { MARCO_PADRAO } from '../comum/funil';
 import { marcoMaisAvancado } from '../comum/numeros';
+import { programarLembreteVisita } from './lembretes';
 
 const marcoDe = (e: Record<string, any> | null | undefined): string | null => (e ? (e.marco ?? MARCO_PADRAO[e.nome] ?? null) : null);
 
@@ -514,6 +515,7 @@ crmRotas.post(
       if (iid) await trx.criar('visitas', { atividade_id: a.id, imovel_id: iid });
       return a;
     });
+    await programarLembreteVisita(req, atividade);
     if (atividade.contato_id) {
       await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `Agendado: ${atividade.titulo}` });
       if (atividade.tipo === 'visita') {
@@ -544,6 +546,8 @@ crmRotas.patch(
       await reclassificar(dados, atual.contato_id);
     }
     if (atual.tipo === 'visita') await tentarPortal(dados, req.contexto?.contaEscrita, atual.contato_id);
+    // Remarcou, reabriu ou virou visita: agenda o lembrete da nova hora (o da hora velha é ignorado).
+    if (v.dados.quando || v.dados.status || v.dados.tipo) await programarLembreteVisita(req, atividade);
     res.json(atividade);
   }),
 );

@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.11.0)
+## O que existe nesta versão (0.12.0)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -16,7 +16,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Desempenho** | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Desempenho, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Funil** | Quadro dos negócios por etapa, com temperatura e abordagem atrasada; arrastar muda a etapa |
 | Corretor | **Clientes** | Contatos, ficha com negócios, notas, consentimento e linha do tempo; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) |
-| Corretor | **Agenda** | Atividades pendentes dos próximos 14 dias |
+| Corretor | **Agenda** | Atividades pendentes dos próximos 14 dias, com lembrete de visita por notificação |
 | Corretor | **Imóveis › Minha carteira** | Imóveis com fotos, qualidade do anúncio, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Imóveis › Empreendimentos** | Lançamentos com materiais e as unidades da carteira |
 | Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA, artes montadas pelo app ou feitas no Canva IA, aprovação e download — ver [Estúdio de conteúdo](estudio.md) |
