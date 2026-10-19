@@ -39,7 +39,8 @@ export class BancoFalso {
       }
       if (op.ordenar) {
         const dir = op.ordem === 'desc' ? -1 : 1;
-        r = [...r].sort((a, b) => (a[op.ordenar!] > b[op.ordenar!] ? dir : a[op.ordenar!] < b[op.ordenar!] ? -dir : 0));
+        const k = op.ordenar;
+        r = [...r].sort((a, b) => (a[k] ?? '') > (b[k] ?? '') ? dir : (a[k] ?? '') < (b[k] ?? '') ? -dir : 0);
       }
       return r;
     };
@@ -71,6 +72,14 @@ export class BancoFalso {
         const alvo = visiveis(tabela).find((l) => l.id === id);
         return alvo ? Object.assign(alvo, { removido_em: new Date().toISOString(), removido_por_id: por ?? null }) : null;
       },
+      async deletar(tabela: string, id: number) {
+        exigirConta();
+        const linhas = banco.linhas(tabela);
+        const i = linhas.findIndex((l) => l.id === id && l.conta_id === conta);
+        if (i < 0) return false;
+        linhas.splice(i, 1);
+        return true;
+      },
       async transaction(fn: (trx: any) => Promise<unknown>) {
         return fn(helper);
       },
@@ -80,7 +89,8 @@ export class BancoFalso {
       async criar(tabela: string, d: Record<string, unknown>) {
         exigirConta();
         semReservado(d);
-        const linha = { ...d, id: banco.seq + 1, conta_id: conta! } as Linha;
+        const agora = new Date().toISOString();
+        const linha = { criado_em: agora, atualizado_em: agora, ...d, id: banco.seq + 1, conta_id: conta! } as Linha;
         colide(tabela, linha);
         banco.seq++;
         banco.linhas(tabela).push(linha);
@@ -92,7 +102,7 @@ export class BancoFalso {
         const alvo = visiveis(tabela).find((l) => l.id === id);
         if (!alvo) return null;
         colide(tabela, { ...alvo, ...d });
-        return { ...Object.assign(alvo, d) };
+        return { ...Object.assign(alvo, d, { atualizado_em: new Date().toISOString() }) };
       },
       async criarOuAtualizar(tabela: string, chave: string[], d: Record<string, unknown>) {
         exigirConta();
@@ -138,7 +148,8 @@ const semAcento = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, 
 function casa(l: Linha, filtros: Record<string, unknown> = {}) {
   return Object.entries(filtros).every(([chave, v]) => {
     const m = chave.match(/^(.+)\[(busca|nulo|lt|gte)\]$/);
-    if (!m) return String(l[chave]) === String(v);
+    // Igualdade com vírgula é lista (IN), como no framework: a vírgula sempre separa.
+    if (!m) return String(v).split(',').includes(String(l[chave]));
     const [, col, op] = m;
     const atual = l[col];
     if (op === 'nulo') return (atual === null || atual === undefined) === (String(v) === 'true');
@@ -152,6 +163,8 @@ export interface Ator {
   usuario: number;
   conta: number | null;
   papeis: string[];
+  /** Outros helpers do request (`arquivos`, `ia`), quando o teste precisa deles. */
+  extras?: Record<string, unknown>;
 }
 
 /** Sobe o router com o contexto de um ator e devolve uma função de chamada HTTP. */
@@ -176,6 +189,7 @@ export async function comServidor<T>(
     };
     (req as any).dados = banco.dados(ator.conta);
     (req as any).shell = shell;
+    Object.assign(req, ator.extras ?? {});
     next();
   });
   app.use(router);

@@ -11,6 +11,10 @@ import './telas/ficha-contato.js';
 import './telas/agenda.js';
 import './telas/funil-ajustes.js';
 import './telas/importar.js';
+import './telas/imoveis.js';
+import './telas/ficha-imovel.js';
+import './telas/empreendimentos.js';
+import './telas/ficha-empreendimento.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -26,17 +30,25 @@ const TELAS: Record<string, Tela> = {
   '/clientes': { titulo: 'Clientes', papel: 'corretor', render: () => html`<pc-tela-clientes></pc-tela-clientes>` },
   '/clientes/importar': { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
   '/clientes/:id': { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
+  '/imoveis': { titulo: 'Minha carteira', papel: 'corretor', render: () => html`<pc-tela-imoveis></pc-tela-imoveis>` },
+  '/imoveis/:id': { titulo: 'Imóvel', papel: 'corretor', render: (id) => html`<pc-tela-ficha-imovel .imovelId=${Number(id)}></pc-tela-ficha-imovel>` },
+  '/empreendimentos': { titulo: 'Empreendimentos', papel: 'corretor', render: () => html`<pc-tela-empreendimentos></pc-tela-empreendimentos>` },
+  '/empreendimentos/:id': {
+    titulo: 'Empreendimento',
+    papel: 'corretor',
+    render: (id) => html`<pc-tela-ficha-empreendimento .empreendimentoId=${Number(id)}></pc-tela-ficha-empreendimento>`,
+  },
   '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
   '/ajustes/funil': { titulo: 'Funil', papel: 'corretor', render: () => html`<pc-tela-funil-ajustes></pc-tela-funil-ajustes>` },
   '/corretores': { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
 
-/** Rota exata primeiro; depois as de parâmetro numérico (`/clientes/:id`). */
+/** Rota exata primeiro; depois as de parâmetro numérico (`/clientes/:id`, `/imoveis/:id`…). */
 function resolver(sub: string): { tela?: Tela; param?: string } {
   if (TELAS[sub]) return { tela: TELAS[sub] };
-  const m = sub.match(/^\/clientes\/(\d+)$/);
-  return m ? { tela: TELAS['/clientes/:id'], param: m[1] } : {};
+  const m = sub.match(/^\/(clientes|imoveis|empreendimentos)\/(\d+)$/);
+  return m ? { tela: TELAS[`/${m[1]}/:id`], param: m[2] } : {};
 }
 
 /** `/conta/` e `/conta` são a mesma tela; a raiz continua `/`. */

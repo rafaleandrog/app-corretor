@@ -1,11 +1,25 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.3.0",
+  "versao": "0.4.0",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
   "sdk_min": 100,
   "aceita_externos": true,
+  "ia": {
+    "slots": {
+      "conteudo": {
+        "titulo": "Conteúdo",
+        "base": "normal",
+        "descricao": "Descrições de imóveis, legendas e textos do Estúdio"
+      },
+      "fotos": {
+        "titulo": "Leitura de fotos",
+        "base": "arquivos",
+        "descricao": "Lê as fotos do imóvel para sugerir capa, ordem e legenda"
+      }
+    }
+  },
   "roles": {
     "escrita": {
       "operacao": "Equipe da plataforma: convida corretores e acompanha os convites"
@@ -34,6 +48,20 @@
       "titulo": "Agenda",
       "rota": "/agenda",
       "icone": "fa-solid fa-calendar-day"
+    },
+    {
+      "titulo": "Imóveis",
+      "icone": "fa-solid fa-building",
+      "itens": [
+        {
+          "titulo": "Minha carteira",
+          "rota": "/imoveis"
+        },
+        {
+          "titulo": "Empreendimentos",
+          "rota": "/empreendimentos"
+        }
+      ]
     },
     {
       "titulo": "Ajustes",

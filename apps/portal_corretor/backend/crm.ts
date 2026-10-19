@@ -13,21 +13,14 @@ import {
   type Pipeline,
 } from '../comum/crm';
 import { gerarCsv } from '../comum/csv';
-import { assincrono, erro, exigirPapel, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 
 // CRM do corretor (bloco 2): contatos, negócios, atividades e etapas do funil. Todas as tabelas
 // são segregadas por conta; no MVP cada conta tem um corretor, que é o responsável de tudo.
 export const crmRotas: Router = Router();
 
 // As guardas valem só nos prefixos do CRM: o router é montado na raiz junto com os outros.
-const PREFIXOS = ['/contatos', '/negocios', '/atividades', '/funil'];
-crmRotas.use(PREFIXOS, exigirPapel('corretor'));
-crmRotas.use(PREFIXOS, (req, res, next) => {
-  if (req.contexto?.resolucao === 'negar') {
-    return erro(res, 409, 'SEM_CONTA', 'Seu usuário não está associado a nenhuma conta. Fale com a equipe da plataforma.');
-  }
-  next();
-});
+guardarCorretor(crmRotas, ['/contatos', '/negocios', '/atividades', '/funil', '/visitas']);
 
 const POR_PAGINA = 50;
 const LIMITE_IMPORTACAO = 2000;
@@ -233,7 +226,9 @@ crmRotas.get(
       dados.listar('linha_do_tempo', { filtros: { contato_id: cid }, ordenar: 'ocorrido_em', ordem: 'desc', por_pagina: 50 }),
     ]);
     const consentimento = await primeiro(dados, 'consentimentos', { contato_id: cid, 'revogado_em[nulo]': 'true' });
-    res.json({ contato, negocios: negocios.dados, atividades: atividades.dados, linha_do_tempo: linha.dados, consentimento });
+    const idsVisita = atividades.dados.filter((a) => a.tipo === 'visita').map((a) => a.id);
+    const visitas = idsVisita.length ? (await dados.listar('visitas', { filtros: { atividade_id: idsVisita.join(',') }, por_pagina: 100 })).dados : [];
+    res.json({ contato, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento });
   }),
 );
 
@@ -337,7 +332,10 @@ crmRotas.post(
     const valor = reaisParaCentavos(req.body?.valor_estimado);
     if (Number.isNaN(valor)) return erro(res, 422, 'DADOS_INVALIDOS', 'Valor estimado inválido.');
     const titulo = (typeof req.body?.titulo === 'string' && req.body.titulo.trim()) || (pipeline === 'compra' ? `Compra — ${contato.nome}` : `Venda — ${contato.nome}`);
+    const iid = id(req.body?.imovel_id);
+    if (iid && !(await dados.buscar('imoveis', iid))) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
     const negocio = await dados.criar('negocios', {
+      imovel_id: iid,
       contato_id: cid,
       titulo: titulo.slice(0, 200),
       pipeline,
@@ -369,6 +367,13 @@ crmRotas.patch(
       const v = reaisParaCentavos(req.body.valor_estimado);
       if (Number.isNaN(v)) return erro(res, 422, 'DADOS_INVALIDOS', 'Valor estimado inválido.');
       mudar.valor_estimado_c = v;
+    }
+    if ('imovel_id' in (req.body ?? {})) {
+      const iid = id(req.body.imovel_id);
+      if (req.body.imovel_id !== null && req.body.imovel_id !== '' && (!iid || !(await dados.buscar('imoveis', iid)))) {
+        return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
+      }
+      mudar.imovel_id = iid;
     }
     let resumo: string | null = null;
     const etapaId = id(req.body?.etapa_id);
@@ -446,12 +451,19 @@ crmRotas.post(
     if (cid && !contato) return erro(res, 422, 'DADOS_INVALIDOS', 'Contato não encontrado.');
     const negocio = nid ? await dados.buscar('negocios', nid) : null;
     if (nid && (!negocio || (cid && negocio.contato_id !== cid))) return erro(res, 422, 'DADOS_INVALIDOS', 'Negócio não encontrado para este contato.');
-    const atividade = await dados.criar('atividades', {
-      status: 'pendente',
-      ...v.dados,
-      contato_id: cid ?? negocio?.contato_id ?? null,
-      negocio_id: nid,
-      responsavel_id: eu(req),
+    // Visita a um imóvel ganha o detalhe em `visitas` (retorno do cliente, compartilhar com o proprietário).
+    const iid = v.dados.tipo === 'visita' ? id(req.body?.imovel_id) : null;
+    if (iid && !(await dados.buscar('imoveis', iid))) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
+    const atividade = await dados.transaction(async (trx) => {
+      const a = await trx.criar('atividades', {
+        status: 'pendente',
+        ...v.dados,
+        contato_id: cid ?? negocio?.contato_id ?? null,
+        negocio_id: nid,
+        responsavel_id: eu(req),
+      });
+      if (iid) await trx.criar('visitas', { atividade_id: a.id, imovel_id: iid });
+      return a;
     });
     if (atividade.contato_id) {
       await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `Agendado: ${atividade.titulo}` });
@@ -488,6 +500,35 @@ crmRotas.patch(
     if (!aid || !(await dados.buscar('atividades', aid))) return erro(res, 404, 'NAO_ENCONTRADO', 'Atividade não encontrada.');
     await dados.remover('atividades', aid, eu(req));
     res.json({ id: aid, removido: true });
+  }),
+);
+
+// ---------- Visitas: retorno do cliente ----------
+
+crmRotas.post(
+  '/visitas/:atividade/feedback',
+  assincrono(async (req, res) => {
+    const aid = id(req.params.atividade);
+    const dados = req.dados!;
+    const atividade = aid ? await dados.buscar('atividades', aid) : null;
+    const visita = atividade ? await primeiro(dados, 'visitas', { atividade_id: aid }) : null;
+    if (!atividade || !visita) return erro(res, 404, 'NAO_ENCONTRADO', 'Visita não encontrada.');
+    const nota = req.body?.nota === undefined || req.body?.nota === null || req.body?.nota === '' ? null : Number(req.body.nota);
+    if (nota !== null && !(Number.isInteger(nota) && nota >= 1 && nota <= 5)) return erro(res, 422, 'DADOS_INVALIDOS', 'Nota de 1 a 5.');
+    const texto = typeof req.body?.texto === 'string' ? req.body.texto.trim().slice(0, 4000) || null : null;
+    if (nota === null && !texto) return erro(res, 422, 'DADOS_INVALIDOS', 'Dê uma nota ou escreva o retorno do cliente.');
+    const compartilhar = req.body?.compartilhar === undefined ? visita.compartilhar_com_proprietario : req.body.compartilhar === true;
+    const salva = await dados.atualizar('visitas', visita.id, { feedback_nota: nota, feedback_texto: texto, compartilhar_com_proprietario: compartilhar, feedback_em: agora() });
+    // Registrar o retorno é sinal de que a visita aconteceu.
+    if (atividade.status === 'pendente') await dados.atualizar('atividades', aid!, { status: 'feita' });
+    if (atividade.contato_id) {
+      await registrar(dados, req, {
+        tipo: 'visita.feedback', alvo_tipo: 'atividade', alvo_id: aid!, contato_id: atividade.contato_id,
+        resumo: `Retorno da visita ao ${visita.imovel_codigo ?? 'imóvel'}${nota ? ` (nota ${nota})` : ''}${texto ? `: ${texto}` : ''}`,
+      });
+      await dados.atualizar('contatos', atividade.contato_id, { ultimo_contato_em: agora() });
+    }
+    res.json(salva);
   }),
 );
 

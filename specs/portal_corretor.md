@@ -1208,7 +1208,7 @@ Telas autenticadas usam só primitivos `urbi-*` e tokens; as páginas públicas 
 | Portal do Cliente | `urbi-card`, `urbi-feed`, `urbi-visualizador-arquivo`, `urbi-botao` |
 | Espelho (fase 5) | `urbi-espelho` |
 
-**Lacunas a registrar como exceção nomeada ou pedir como primitivo novo:** calendário (agenda de visitas e calendário editorial; até lá, lista por dia com `urbi-lista`); pré-visualização da Minha Página dentro do editor (moldura com a página pública); cartão de arte com proporção fixa (1:1, 4:5, 9:16).
+**Lacunas a registrar como exceção nomeada ou pedir como primitivo novo:** calendário (agenda de visitas e calendário editorial; até lá, lista por dia com `urbi-lista`); galeria de fotos (até lá, miniatura com `urbi-avatar` e prévia com `urbi-visualizador-arquivo` — D-65); pré-visualização da Minha Página dentro do editor (moldura com a página pública); cartão de arte com proporção fixa (1:1, 4:5, 9:16).
 
 ## 12. Importação, exportação e migração
 
@@ -1445,6 +1445,10 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-60 | Canva com conta e credenciais providas pelo dono até o bloco 8; sem elas, o Estúdio começa pelo motor interno (D-35) | Bloquear o bloco 8 | A plataforma não tem integração com o Canva: a app integra por `fetch()` |
 | D-61 | Equipe da plataforma (papel `operacao`) tem no `nav` o grupo "Equipe da plataforma › Corretores"; quem só tem `operacao` abre o Início direto nessa tela | Tela de equipe só em `telas_config` | A equipe convida corretores pelo app (provisionamento por convite) e não tem carteira própria |
 | D-62 | **Agenda** entra no `nav` do corretor (entre Clientes e Ajustes) já no bloco 2, como lista por dia das atividades pendentes dos próximos 14 dias (19/10, bloco 2) | Agenda só dentro do Início e da ficha do contato | Visitas e retornos são o dia a dia do corretor; o Início do bloco 4 continua mostrando as do dia. Lista por dia segue a lacuna de calendário (11.5) |
+| D-63 | Imóveis no `nav` como grupo "Imóveis › Minha carteira · Empreendimentos" (Da rede entra na fase 5); empreendimento do corretor simplificado (nome, construtora, tipo, fase, local, faixa de preço, tipologias, descrição) com materiais em `empreendimento_materiais`; as tabelas de incorporadora de 6.9 ficam para o módulo (19/10, bloco 3) | Abas dentro de uma tela; já criar `unidades`, `tabelas_preco` etc. | Duas telas com rota própria são mais simples no celular; 11.1 pede para o MVP só o cadastro do próprio corretor |
+| D-64 | Documento da autorização de venda é uma `imovel_midias` do tipo `documento` (sempre interna), referenciada por `autorizacoes_venda.documento_midia_id`; `vencida` é calculada na leitura (sem rotina por ora); `visitas` sem `pretendente_id` (o contato vem da atividade) nem `ficha_assinada` (fase 3) (19/10, bloco 3) | Coluna `arquivo` na própria autorização | Coluna `arquivo` não obrigatória expira em 90 dias (TTL da plataforma); a mídia obrigatória vive enquanto a linha viver |
+| D-65 | Miniatura de foto nas telas pelo `urbi-avatar` (`foto` + `tamanho`) e prévia pelo `urbi-visualizador-arquivo` — exceção nomeada até existir primitivo de galeria (11.5) (19/10, bloco 3) | CSS próprio de galeria | Telas autenticadas só com primitivos `urbi-*` |
+| D-66 | Mídia do imóvel e material do empreendimento são apagados de vez por `PATCH …/remover` (o arquivo vai para a fila de exclusão); imóvel, contato e empreendimento seguem com soft delete (19/10, bloco 3) | Soft delete em `imovel_midias` | Foto apagada não tem uso e ocupa espaço da conta; a rota do app chama `req.dados.deletar`, que leva os anexos para a fila de exclusão na mesma transação (`banco-de-dados.md`, `arquivos.md`) e o `DELETE` HTTP continua só do admin |
 
 ## 17. Pendências
 
