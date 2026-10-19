@@ -65,7 +65,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | 18/10/2026 | Preparação | Repositório criado com o kit 100.3.16, specs e CLAUDE.md; revisão de viabilidade contra o SDK 100 aprovada (R.1–R.5); decisões D-55 a D-60 | — | Bloco 0 |
 | 18/10/2026 | 0 | Esqueleto `apps/portal_corretor` 0.1.0: manifesto (identidade, pisos 100/0.56.37), rota `/status`, tela inicial, página pública e linha de diagnóstico, testes (manifesto e rotas), `docs/README.md`; empacotador limpo | #2 | Dono instala e confere R.6; depois bloco 1 |
 | 19/10/2026 | 1 | Contas e papéis: manifesto com `roles` (`operacao`), `roles_externos` (`corretor`), `provisiona_externos`; tabelas da conta; telas Início, Conta e marca, Corretores; testes de isolamento com banco simulado; revisão em 2 rodadas | #13 | Roteiro R.6/R.7 na instância; bloco 2 |
-| 19/10/2026 | 2 | CRM: tabelas `origens`, `contatos`, `consentimentos`, `etapas_funil`, `negocios`, `atividades`, `linha_do_tempo`; rotas de contatos, negócios, atividades e funil; importação e exportação CSV; telas Clientes, ficha, Agenda, Ajustes › Funil; 10 testes novos (isolamento do CRM incluso; 39 no total); versão 0.3.0 | a abrir | Revisão do PR; bloco 3 |
+| 19/10/2026 | 2 | CRM: tabelas `origens`, `contatos`, `consentimentos`, `etapas_funil`, `negocios`, `atividades`, `linha_do_tempo`; rotas de contatos, negócios, atividades e funil; importação e exportação CSV; telas Clientes, ficha, Agenda, Ajustes › Funil; 10 testes novos (isolamento do CRM incluso; 39 no total); versão 0.3.0 | #14 | Revisão do PR; bloco 3 |
 
 ---
 
