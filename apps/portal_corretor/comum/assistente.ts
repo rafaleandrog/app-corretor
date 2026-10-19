@@ -230,7 +230,7 @@ export function respostaSegura(texto: string): string {
     .replace(/<[^>]+>/g, '')
     .replace(/\b(?:https?|ftp):\/\/\S+/gi, '[link removido]')
     .replace(/\bwww\.\S+/gi, '[link removido]')
-    .replace(/\b[\w-]+(?:\.[\w-]+)+\/\S*/g, '[link removido]')
+    .replace(/\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\/\S*/gi, '[link removido]')
     .trim();
 }
 
