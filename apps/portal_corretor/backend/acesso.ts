@@ -23,11 +23,15 @@ export function exigirPapel(...papeis: Papel[]): RequestHandler {
 export function assincrono(fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
     fn(req, res).catch((e: unknown) => {
-      const falha = e as { codigo?: string; status?: number; message?: string };
-      // ErroProvisionamento (convites) traz `codigo` e `status` prontos; o resto é falha interna.
-      if (falha?.codigo && typeof falha.status === 'number') {
-        return erro(res, falha.status, falha.codigo, falha.message ?? 'Não foi possível concluir.');
+      const falha = e as { codigo?: string; status?: number; message?: string; code?: string };
+      // ErroProvisionamento (convites) traz `codigo` e, pela doc, `status` (contas.md § Superfície);
+      // o tipo do SDK só declara `codigo`, então sem `status` a recusa vira 400 sem perder o código.
+      if (typeof falha?.codigo === 'string') {
+        const status = typeof falha.status === 'number' ? falha.status : 400;
+        return erro(res, status, falha.codigo, falha.message ?? 'Não foi possível concluir.');
       }
+      // Violação de CHECK (`formato`/`intervalo` do schema) chega crua do banco.
+      if (falha?.code === '23514') return erro(res, 422, 'DADOS_INVALIDOS', 'Um dos valores está fora do formato aceito.');
       next(e);
     });
   };
@@ -37,4 +41,28 @@ export function assincrono(fn: (req: Request, res: Response) => Promise<unknown>
 export async function primeiro(dados: HelperDados, tabela: string, filtros: Record<string, unknown>) {
   const r = await dados.listar(tabela, { filtros, por_pagina: 1 });
   return r.dados[0] ?? null;
+}
+
+/**
+ * Grava a única linha que casa com `filtros` (ex.: a linha da conta, o perfil do usuário): atualiza
+ * se existe, cria se não. Não usa `criarOuAtualizar` porque, em tabela segregada, o único declarado
+ * vira composto com a conta e o SDK não documenta o alvo do upsert nesse caso. A corrida de duas
+ * criações simultâneas cai no único (23505) e vira atualização da linha que venceu.
+ */
+export async function salvarUnico(
+  dados: HelperDados,
+  tabela: string,
+  filtros: Record<string, unknown>,
+  valores: Record<string, unknown>,
+): Promise<Record<string, any>> {
+  const atual = await primeiro(dados, tabela, filtros);
+  if (atual) return (await dados.atualizar(tabela, atual.id, valores)) ?? atual;
+  try {
+    return await dados.criar(tabela, { ...filtros, ...valores });
+  } catch (e) {
+    if ((e as { code?: string })?.code !== '23505') throw e;
+    const vencedora = await primeiro(dados, tabela, filtros);
+    if (!vencedora) throw e;
+    return (await dados.atualizar(tabela, vencedora.id, valores)) ?? vencedora;
+  }
 }

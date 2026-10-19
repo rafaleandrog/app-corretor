@@ -9,10 +9,16 @@ declare const urbiVerso: UrbiVersoAPI;
 @customElement('pc-tela-inicio')
 export class PcTelaInicio extends LitElement {
   @state() private pendente: string[] | null = null;
-  @state() private falhou = false;
+  @state() private falha: string | null = null;
 
-  async connectedCallback() {
+  connectedCallback() {
     super.connectedCallback();
+    void this.carregar();
+  }
+
+  private async carregar() {
+    this.falha = null;
+    this.pendente = null;
     try {
       const r = await urbiVerso.api('/conta');
       const falta: string[] = [];
@@ -20,26 +26,26 @@ export class PcTelaInicio extends LitElement {
       if (!r.meu_perfil?.creci) falta.push('o seu CRECI');
       if (!r.meu_perfil?.telefone) falta.push('o seu telefone');
       this.pendente = falta;
-    } catch {
-      this.falhou = true;
+    } catch (e) {
+      this.falha = (e as Error).message;
     }
   }
 
   render() {
-    if (this.falhou) {
-      return html`<urbi-estado-vazio expandir icone="fa-solid fa-triangle-exclamation" mensagem="Não foi possível carregar o Início"
-        submensagem="Recarregue a página. Se continuar, avise pelo botão de ajuda."></urbi-estado-vazio>`;
+    if (this.falha) {
+      return html`<urbi-banner variante="erro">
+        Não foi possível carregar o Início: ${this.falha}
+        <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
+      </urbi-banner>`;
     }
     if (!this.pendente) return html`<urbi-loading></urbi-loading>`;
     if (this.pendente.length) {
-      return html`<urbi-stack>
-        <urbi-banner variante="info">
-          Para começar, complete ${this.pendente.join(', ')}. O CRECI aparece em todo anúncio e é exigido para publicar.
-          <urbi-botao slot="acao" pequeno href=${urbiVerso.href('/conta')}>Completar agora</urbi-botao>
-        </urbi-banner>
-      </urbi-stack>`;
+      return html`<urbi-banner variante="info">
+        Para começar, complete ${this.pendente.join(', ')} em Conta e marca.
+        <urbi-botao slot="acao" pequeno href=${urbiVerso.href('/conta')}>Completar agora</urbi-botao>
+      </urbi-banner>`;
     }
-    return html`<urbi-estado-vazio expandir icone="fa-solid fa-house" mensagem="Sua conta está pronta"
+    return html`<urbi-estado-vazio icone="fa-solid fa-house" mensagem="Sua conta está pronta"
       submensagem="A fila do dia, os números e os atalhos chegam nas próximas versões."></urbi-estado-vazio>`;
   }
 }

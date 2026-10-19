@@ -44,10 +44,18 @@ export class BancoFalso {
         semReservado(d);
         const linha = { ...d, id: ++banco.seq, conta_id: conta! } as Linha;
         for (const col of banco.unicos[tabela] ?? []) {
-          if (visiveis(tabela).some((l) => l[col] === linha[col])) throw new Error(`23505 unico ${tabela}.${col}`);
+          if (visiveis(tabela).some((l) => l[col] === linha[col])) {
+            throw Object.assign(new Error(`unico ${tabela}.${col}`), { code: '23505' });
+          }
         }
         banco.linhas(tabela).push(linha);
         return linha;
+      },
+      async atualizar(tabela: string, id: number, d: Record<string, unknown>) {
+        exigirConta();
+        semReservado(d);
+        const alvo = visiveis(tabela).find((l) => l.id === id);
+        return alvo ? Object.assign(alvo, d) : null;
       },
       async criarOuAtualizar(tabela: string, chave: string[], d: Record<string, unknown>) {
         exigirConta();

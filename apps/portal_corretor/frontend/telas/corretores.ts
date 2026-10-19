@@ -28,6 +28,8 @@ const data = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 @customElement('pc-tela-corretores')
 export class PcTelaCorretores extends LitElement {
   @state() private convites: Convite[] = [];
+  @state() private total = 0;
+  @state() private pagina = 1;
   @state() private carregando = true;
   @state() private falha: string | null = null;
 
@@ -36,12 +38,16 @@ export class PcTelaCorretores extends LitElement {
     void this.carregar();
   }
 
-  private async carregar() {
-    this.carregando = true;
+  /** Recarrega do zero (`mais` = false) ou anexa a próxima página de 50. */
+  private async carregar(mais = false) {
+    this.carregando = !mais;
     this.falha = null;
+    const pagina = mais ? this.pagina + 1 : 1;
     try {
-      const r = await urbiVerso.api('/equipe/convites');
-      this.convites = r.convites;
+      const r = await urbiVerso.api(`/equipe/convites?pagina=${pagina}`);
+      this.convites = mais ? [...this.convites, ...r.convites] : r.convites;
+      this.total = r.total;
+      this.pagina = pagina;
     } catch (e) {
       this.falha = (e as Error).message;
     } finally {
@@ -61,8 +67,9 @@ export class PcTelaCorretores extends LitElement {
     });
     if (!valores) return;
     try {
-      await urbiVerso.api('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
-      urbiVerso.notificar('Convite enviado.', 'sucesso');
+      const r = await urbiVerso.api('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
+      if (r?.aviso) await urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso });
+      else urbiVerso.notificar('Convite enviado.', 'sucesso');
       await this.carregar();
     } catch (e) {
       const falha = e as Error & { detalhes?: string[] };
@@ -108,6 +115,7 @@ export class PcTelaCorretores extends LitElement {
 
   render() {
     const aceitos = this.convites.filter((c) => c.status === 'resgatado').length;
+    const faltam = this.total - this.convites.length;
     return html`<urbi-stack>
       <urbi-linha justificar="entre" quebrar>
         <urbi-prosa papel="secundario">Cada corretor convidado ganha uma conta própria: ninguém vê os dados de outro.</urbi-prosa>
@@ -115,7 +123,7 @@ export class PcTelaCorretores extends LitElement {
       </urbi-linha>
       ${aceitos
         ? html`<urbi-banner variante="alerta">
-            ${aceitos === 1 ? '1 corretor aceitou' : `${aceitos} corretores aceitaram`} o convite. Confira se cada um já tem o papel
+            Entre os convites listados, ${aceitos === 1 ? '1 foi aceito' : `${aceitos} foram aceitos`}. Confira se cada corretor já tem o papel
             "corretor" em Configurações › Usuários; sem ele o app fica fechado para o corretor.
           </urbi-banner>`
         : ''}
@@ -125,7 +133,10 @@ export class PcTelaCorretores extends LitElement {
             <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
           </urbi-banner>`
         : html`<urbi-tabela responsivo="multiline" .colunas=${this.colunas()} .linhas=${this.convites} ?carregando=${this.carregando}
-            mensagem-vazio="Nenhum convite enviado ainda. Use “Convidar corretor”."></urbi-tabela>`}
+            mensagem-vazio="Nenhum convite enviado ainda. Use “Convidar corretor”."></urbi-tabela>
+          ${faltam > 0
+            ? html`<urbi-botao variante="secundario" bloco @click=${() => this.carregar(true)}>Mostrar mais (${faltam} restantes)</urbi-botao>`
+            : ''}`}
     </urbi-stack>`;
   }
 }

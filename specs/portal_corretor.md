@@ -251,7 +251,7 @@ A plataforma orienta a não criar tabelas próprias de pessoa e imóvel quando o
 
 ## 5. Manifesto
 
-Esboço do conteúdo. A forma exata é a do SDK instalado; a implementação escreve o `manifesto.json` a partir daqui.
+Esboço do conteúdo. A forma exata é a do SDK instalado; a implementação escreve o `manifesto.json` a partir daqui. **Nota da implementação:** `permissao_padrao` e `permissao_padrao_externo` não são campos do manifesto no SDK 100 — são configurados pelo admin da instância em Admin › Instaláveis › Apps (plano, R.5); `versao`, `shell_min` e `sdk_min` vigentes estão no `manifesto.json` da app.
 
 ```json
 {
@@ -1443,6 +1443,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-58 | Base do Assistente gerada no build a partir de `apps/portal_corretor/docs/` | Assistente de documentação do shell; tabela de ajuda | A app não tem leitura dos próprios docs em runtime |
 | D-59 | WhatsApp espera P-31 e P-32 no SDK publicado; parceiro (caminho B) só por nova decisão do dono | Adotar parceiro já | Decisão do dono |
 | D-60 | Canva com conta e credenciais providas pelo dono até o bloco 8; sem elas, o Estúdio começa pelo motor interno (D-35) | Bloquear o bloco 8 | A plataforma não tem integração com o Canva: a app integra por `fetch()` |
+| D-61 | Equipe da plataforma (papel `operacao`) tem no `nav` o grupo "Equipe da plataforma › Corretores"; quem só tem `operacao` abre o Início direto nessa tela | Tela de equipe só em `telas_config` | A equipe convida corretores pelo app (provisionamento por convite) e não tem carteira própria |
 
 ## 17. Pendências
 

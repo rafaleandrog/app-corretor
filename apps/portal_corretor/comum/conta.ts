@@ -38,6 +38,14 @@ export const CONFIGURACOES_PADRAO: Configuracoes = {
 const texto = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 const opcional = (v: unknown): string | null => texto(v) || null;
 
+/** Campo de texto mandado com outro tipo (número, objeto) é erro, não "vazio" — senão apagaria o dado. */
+function exigirTexto(corpo: Record<string, unknown>, campos: string[], erros: string[]) {
+  for (const c of campos) {
+    const v = corpo[c];
+    if (v !== undefined && v !== null && typeof v !== 'string') erros.push(`O campo ${c} deve ser texto.`);
+  }
+}
+
 /** CRECI no formato `UF-nnnnn-F` (pessoa física) ou `-J` (jurídica). Aceita minúsculas e espaços. */
 export function normalizarCreci(v: unknown): string | null {
   const bruto = texto(v).toUpperCase().replace(/\s+/g, '');
@@ -55,17 +63,21 @@ export function creciValido(creci: string): boolean {
 export function normalizarTelefone(v: unknown): string | null {
   const bruto = texto(v);
   if (!bruto) return null;
-  const digitos = bruto.replace(/[^0-9]/g, '');
-  if (bruto.startsWith('+')) return `+${digitos}`;
+  if (bruto.startsWith('+')) return `+${bruto.replace(/[^0-9]/g, '')}`;
+  // Zero de tronco antes do DDD ("061…") é hábito comum no Brasil e não faz parte do número.
+  const digitos = bruto.replace(/[^0-9]/g, '').replace(/^0+/, '');
   return digitos.startsWith('55') && digitos.length >= 12 ? `+${digitos}` : `+55${digitos}`;
 }
 
+/** E.164; no Brasil (+55), DDD sem zero e 8 ou 9 dígitos depois dele (10 ou 11 no total). */
 export function telefoneValido(tel: string): boolean {
+  if (tel.startsWith('+55')) return /^\+55[1-9][1-9][0-9]{8,9}$/.test(tel);
   return /^\+[1-9][0-9]{7,14}$/.test(tel);
 }
 
 export function validarPerfilConta(corpo: Record<string, unknown>): Resultado<PerfilConta> {
   const erros: string[] = [];
+  exigirTexto(corpo, ['nome', 'tipo', 'documento', 'creci_juridico'], erros);
   const nome = texto(corpo.nome);
   if (!nome) erros.push('Informe o nome da conta.');
   if (nome.length > 200) erros.push('O nome da conta tem no máximo 200 caracteres.');
@@ -81,6 +93,7 @@ export function validarPerfilConta(corpo: Record<string, unknown>): Resultado<Pe
 
 export function validarMeuPerfil(corpo: Record<string, unknown>): Resultado<MeuPerfil> {
   const erros: string[] = [];
+  exigirTexto(corpo, ['creci', 'telefone'], erros);
   const creci = normalizarCreci(corpo.creci);
   if (creci && !creciValido(creci)) erros.push('CRECI no formato UF-número-F (ex.: DF-12345-F) ou -J para pessoa jurídica.');
   const telefone = normalizarTelefone(corpo.telefone);

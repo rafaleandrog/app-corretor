@@ -21,10 +21,13 @@ const TELAS: Record<string, Tela> = {
   '/corretores': { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
 
+/** `/conta/` e `/conta` são a mesma tela; a raiz continua `/`. */
+const normalizar = (sub: string) => (sub.length > 1 ? sub.replace(/\/+$/, '') : sub) || '/';
+
 // Tag fixa pela plataforma: `app-` + appId com hífens.
 @customElement('app-portal-corretor')
 export class AppPortalCorretor extends LitElement {
-  @state() private sub = urbiVerso.subRota();
+  @state() private sub = normalizar(urbiVerso.subRota());
   @state() private carregado = false;
   @state() private papeis: string[] = [];
   private cancelarRota?: () => void;
@@ -44,7 +47,7 @@ export class AppPortalCorretor extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.cancelarRota = urbiVerso.escutarRota((sub) => {
-      this.sub = sub;
+      this.sub = normalizar(sub);
     });
     this.aoMudarContexto();
     window.addEventListener('urbi:contexto-app', this.aoMudarContexto);

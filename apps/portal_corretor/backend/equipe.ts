@@ -17,7 +17,7 @@ equipeRotas.get(
   '/convites',
   assincrono(async (req, res) => {
     const status = STATUS.includes(req.query.status as StatusConviteApp) ? (req.query.status as StatusConviteApp) : undefined;
-    const pagina = Math.max(Number(req.query.pagina) || 1, 1);
+    const pagina = Math.min(Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1), 1000);
     const limite = 50;
     const r = await req.shell!.externos.listarConvites({ status, limite, deslocamento: (pagina - 1) * limite });
     res.json({
@@ -47,8 +47,15 @@ equipeRotas.post(
     if (!conta) detalhes.push('Informe o nome da conta do corretor (ex.: o nome dele ou da imobiliária).');
     if (conta.length > 200) detalhes.push('O nome da conta tem no máximo 200 caracteres.');
     if (detalhes.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira o convite.', detalhes);
-    const r = await req.shell!.externos.convidar({ email, contaNome: conta });
-    res.status(201).json({ id: r.conviteId, vigente_ate: r.vigenteAte });
+    try {
+      const r = await req.shell!.externos.convidar({ email, contaNome: conta });
+      res.status(201).json({ id: r.conviteId, vigente_ate: r.vigenteAte });
+    } catch (e) {
+      // O convite existe e vale; só a entrega do e-mail falhou (contas.md § Códigos de erro).
+      // Repetir daria CONVITE_JA_PENDENTE, então a tela avisa em vez de tratar como recusa.
+      if ((e as { codigo?: string })?.codigo !== 'CONVITE_EMAIL_FALHOU') throw e;
+      res.status(202).json({ aviso: 'O convite foi criado, mas o e-mail não saiu. Ele aparece na lista; peça ao corretor para conferir a caixa de spam ou revogue e convide de novo.' });
+    }
   }),
 );
 

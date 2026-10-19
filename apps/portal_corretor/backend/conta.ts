@@ -6,7 +6,7 @@ import {
   validarMeuPerfil,
   validarPerfilConta,
 } from '../comum/conta';
-import { assincrono, erro, exigirPapel, primeiro } from './acesso';
+import { assincrono, erro, exigirPapel, primeiro, salvarUnico } from './acesso';
 
 // Ajustes › Conta e marca. Tudo aqui é da conta do corretor logado: as três tabelas são
 // segregadas por conta (RLS), e o perfil do corretor é escopado também pelo `usuario.id`.
@@ -40,7 +40,7 @@ contaRotas.put(
   assincrono(async (req, res) => {
     const v = validarPerfilConta(req.body ?? {});
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira os dados da conta.', v.erros);
-    const linha = await req.dados!.criarOuAtualizar('perfil_conta', ['chave'], { chave: 'conta', ...v.dados });
+    const linha = await salvarUnico(req.dados!, 'perfil_conta', { chave: 'conta' }, { ...v.dados });
     res.json(linha);
   }),
 );
@@ -50,7 +50,7 @@ contaRotas.put(
   assincrono(async (req, res) => {
     const v = validarConfiguracoes(req.body ?? {});
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira as configurações.', v.erros);
-    const linha = await req.dados!.criarOuAtualizar('configuracoes_conta', ['chave'], { chave: 'conta', ...v.dados });
+    const linha = await salvarUnico(req.dados!, 'configuracoes_conta', { chave: 'conta' }, { ...v.dados });
     res.json(linha);
   }),
 );
@@ -62,10 +62,7 @@ contaRotas.put(
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira seus dados.', v.erros);
     // `usuario_id` vem sempre do contexto, nunca do corpo: o corretor só edita o próprio perfil.
     // `creci_situacao` não é editável por aqui (verificação manual, P-12).
-    const linha = await req.dados!.criarOuAtualizar('perfis_corretor', ['usuario_id'], {
-      usuario_id: req.contexto!.usuario.id,
-      ...v.dados,
-    });
+    const linha = await salvarUnico(req.dados!, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id }, { ...v.dados });
     res.json(linha);
   }),
 );

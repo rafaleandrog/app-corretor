@@ -11,16 +11,17 @@ editar.
 ## Seus dados
 
 - **CRECI** no formato `UF-número-F` (pessoa física) ou `-J` (pessoa jurídica), por exemplo
-  `DF-12345-F`. Pode digitar em minúsculas: o app corrige. O CRECI aparece em todo anúncio e é
-  exigido para publicar.
-- **Telefone (WhatsApp)** com DDD, por exemplo `(61) 99999-9999`. Sem o `+` do país, o app
-  entende que é um número do Brasil.
+  `DF-12345-F`. Pode digitar em minúsculas: o app corrige. Nas próximas versões ele vai aparecer em
+  todo anúncio, onde a lei o exige.
+- **Telefone (WhatsApp)** com DDD, por exemplo `(61) 99999-9999` (o zero antes do DDD pode ficar).
+  Sem o `+` do país, o app entende que é um número do Brasil e exige DDD e 8 ou 9 dígitos.
 - **Situação do CRECI**: começa como "não verificado". A verificação é feita pela equipe da
   plataforma e ainda não tem tela nesta versão.
 
 ## Conta
 
-- **Nome da conta**: o que aparece na sua página e para os seus clientes.
+- **Nome da conta**: o nome com que você trabalha; nas próximas versões aparece na sua página e
+  para os seus clientes.
 - **Tipo**: corretor autônomo, imobiliária ou incorporadora.
 - **CPF ou CNPJ** e **CRECI jurídico** (imobiliária): opcionais.
 
