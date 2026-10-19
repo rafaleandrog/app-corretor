@@ -13,6 +13,7 @@ import { paginaRotas } from './pagina';
 import { clienteRotas } from './cliente';
 import { estudioRotas } from './estudio';
 import { instagramRotas, renovarTokensInstagram } from './instagram';
+import { assistenteRotas } from './assistente';
 
 export { aoIniciar } from './semente';
 // Páginas públicas, webhooks de entrada e listeners do bloco 5.
@@ -44,3 +45,4 @@ rotas.use(paginaRotas);
 rotas.use(clienteRotas);
 rotas.use(estudioRotas);
 rotas.use(instagramRotas);
+rotas.use(assistenteRotas);

@@ -19,6 +19,7 @@ import './telas/desempenho.js';
 import './telas/pagina.js';
 import './telas/estudio.js';
 import './telas/conexoes.js';
+import './telas/assistente.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
 import './publico/selecao.js';
@@ -122,6 +123,9 @@ export class AppPortalCorretor extends LitElement {
     // A equipe da plataforma não tem carteira: no Início ela cai direto na lista de corretores.
     const soEquipe = !this.papeis.includes('corretor') && this.papeis.includes('operacao');
     const { tela, param } = this.sub === '/' && soEquipe ? { tela: TELAS['/corretores'], param: undefined } : resolver(this.sub);
-    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.conteudo(tela, param)}</urbi-shell-page>`;
+    // O Assistente (bloco 9) fica em todas as telas do corretor, fora da troca de tela: a conversa
+    // continua ao navegar.
+    const assistente = this.carregado && this.papeis.includes('corretor') ? html`<pc-assistente .tela=${this.sub}></pc-assistente>` : '';
+    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.conteudo(tela, param)}</urbi-shell-page>${assistente}`;
   }
 }

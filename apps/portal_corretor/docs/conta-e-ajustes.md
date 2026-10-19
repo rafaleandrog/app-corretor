@@ -8,11 +8,11 @@ descricao: Seus dados de corretor, os dados da conta e as regras de atendimento.
 Em **Ajustes › Conta e marca** o corretor mantém três blocos. Cada um tem o botão de lápis para
 editar.
 
-## Seus dados
+## Seus dados: CRECI e telefone
 
-- **CRECI** no formato `UF-número-F` (pessoa física) ou `-J` (pessoa jurídica), por exemplo
-  `DF-12345-F`. Pode digitar em minúsculas: o app corrige. Nas próximas versões ele vai aparecer em
-  todo anúncio, onde a lei o exige.
+- **CRECI**: é aqui que você cadastra. O formato é `UF-número-F` (pessoa física) ou `-J` (pessoa
+  jurídica), por exemplo `DF-12345-F`. Pode digitar em minúsculas: o app corrige. O CRECI vai no
+  rodapé das artes e na legenda das peças do Estúdio. Sem ele, a peça não é aprovada.
 - **Telefone (WhatsApp)** com DDD, por exemplo `(61) 99999-9999` (o zero antes do DDD pode ficar).
   Sem o `+` do país, o app entende que é um número do Brasil e exige DDD e 8 ou 9 dígitos.
 - **Situação do CRECI**: começa como "não verificado". A verificação é feita pela equipe da
