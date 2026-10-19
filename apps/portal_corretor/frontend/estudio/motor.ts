@@ -77,14 +77,24 @@ function escrever(ctx: CanvasRenderingContext2D, texto: string, x: number, y: nu
   return y + ls.length * alturaLinha;
 }
 
+/** Retângulo de cantos arredondados; `roundRect` não existe em navegadores mais antigos. */
+function retangulo(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
 function selo(ctx: CanvasRenderingContext2D, objetivo: Objetivo, marca: MarcaArte, x: number, y: number) {
   const texto = SELO[objetivo];
   if (!texto) return;
   ctx.font = fonte(marca.estilo, 800, 34);
   const w = ctx.measureText(texto).width + 48;
   ctx.fillStyle = marca.cor_secundaria;
-  ctx.beginPath();
-  ctx.roundRect(x, y, w, 64, 32);
+  retangulo(ctx, x, y, w, 64, 32);
   ctx.fill();
   ctx.fillStyle = contraste(marca.cor_secundaria);
   ctx.textBaseline = 'middle';
@@ -125,7 +135,9 @@ function detalhes(im: ImovelArte | null, peca: PecaArte): string[] {
   return [im.area_m2 ? `${im.area_m2} m²` : null, im.quartos ? `${im.quartos} quartos` : null, im.vagas ? `${im.vagas} vagas` : null].filter((x): x is string => !!x);
 }
 
-function chips(ctx: CanvasRenderingContext2D, itens: string[], marca: MarcaArte, x: number, y: number, largura: number) {
+/** Chips dos destaques; com `desenhar` falso só mede (para o layout calcular a altura antes). */
+function chips(ctx: CanvasRenderingContext2D, itens: string[], marca: MarcaArte, x: number, y: number, largura: number, desenhar = true) {
+  if (!itens.length) return y;
   ctx.font = fonte(marca.estilo, 600, 30);
   let cx = x;
   let cy = y;
@@ -135,14 +147,15 @@ function chips(ctx: CanvasRenderingContext2D, itens: string[], marca: MarcaArte,
       cx = x;
       cy += 64;
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.beginPath();
-    ctx.roundRect(cx, cy, w, 52, 26);
-    ctx.fill();
-    ctx.fillStyle = BRANCO;
-    ctx.textBaseline = 'middle';
-    ctx.fillText(t, cx + 20, cy + 27);
-    ctx.textBaseline = 'alphabetic';
+    if (desenhar) {
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      retangulo(ctx, cx, cy, w, 52, 26);
+      ctx.fill();
+      ctx.fillStyle = BRANCO;
+      ctx.textBaseline = 'middle';
+      ctx.fillText(t, cx + 20, cy + 27);
+      ctx.textBaseline = 'alphabetic';
+    }
     cx += w + 14;
   }
   return cy + 52;
@@ -157,7 +170,21 @@ function capa(ctx: CanvasRenderingContext2D, w: number, h: number, foto: HTMLIma
     ctx.fillRect(0, 0, w, h - faixa);
   }
   const story = peca.formato === 'story';
-  const altura = story ? 760 : 470;
+  // Layout de baixo para cima: mede o bloco de texto e o encaixa acima do rodapé (nada fica coberto).
+  const tamTitulo = story ? 78 : 62;
+  const lhTitulo = story ? 88 : 70;
+  ctx.font = fonte(marca.estilo, 800, tamTitulo);
+  const linhasTitulo = linhas(ctx, peca.titulo, w - 112, story ? 3 : 2);
+  const preco = im && peca.objetivo !== 'vendido' ? reaisCurto(im.preco_c) : null;
+  const local = im ? [im.bairro, im.cidade].filter(Boolean).join(', ') : '';
+  const itens = detalhes(im, peca);
+  const altChips = chips(ctx, itens, marca, 56, 0, w - 112, false);
+  ctx.font = fonte(marca.estilo, 700, 40);
+  const linhasChamada = story && peca.chamada ? linhas(ctx, peca.chamada, w - 112, 2) : [];
+  const bloco = linhasTitulo.length * lhTitulo + (preco ? (story ? 80 : 66) : 0) + (local ? 54 : 0) + (altChips ? altChips + 16 : 0) + (linhasChamada.length ? 20 + linhasChamada.length * 50 : 0);
+  const base = h - faixa - 48;
+  let y = base - bloco + lhTitulo * 0.8;
+  const altura = Math.min(bloco + 220, h - faixa);
   const grad = ctx.createLinearGradient(0, h - faixa - altura, 0, h - faixa);
   grad.addColorStop(0, 'rgba(12,16,20,0)');
   grad.addColorStop(0.35, ESCURO);
@@ -165,29 +192,29 @@ function capa(ctx: CanvasRenderingContext2D, w: number, h: number, foto: HTMLIma
   ctx.fillStyle = grad;
   ctx.fillRect(0, h - faixa - altura, w, altura);
   selo(ctx, peca.objetivo, marca, 56, story ? 120 : 56);
-  let y = h - faixa - altura + (story ? 260 : 150);
   ctx.fillStyle = BRANCO;
-  ctx.font = fonte(marca.estilo, 800, story ? 78 : 62);
-  y = escrever(ctx, peca.titulo, 56, y, w - 112, story ? 88 : 70, 3);
-  const preco = im && peca.objetivo !== 'vendido' ? reaisCurto(im.preco_c) : null;
+  ctx.font = fonte(marca.estilo, 800, tamTitulo);
+  linhasTitulo.forEach((l, i) => ctx.fillText(l, 56, y + i * lhTitulo));
+  y += linhasTitulo.length * lhTitulo - lhTitulo * 0.8;
   if (preco) {
     ctx.font = fonte(marca.estilo, 800, story ? 64 : 52);
     ctx.fillStyle = marca.cor_secundaria;
-    ctx.fillText(preco, 56, y + 10);
-    y += story ? 80 : 66;
+    y += story ? 64 : 52;
+    ctx.fillText(preco, 56, y);
+    y += story ? 16 : 14;
   }
-  const local = im ? [im.bairro, im.cidade].filter(Boolean).join(', ') : '';
   if (local) {
     ctx.font = fonte(marca.estilo, 500, 34);
     ctx.fillStyle = BRANCO;
-    ctx.fillText(local, 56, y + 6);
-    y += 54;
+    y += 44;
+    ctx.fillText(local, 56, y);
+    y += 10;
   }
-  y = chips(ctx, detalhes(im, peca), marca, 56, y, w - 112);
-  if (story && peca.chamada) {
+  if (altChips) y = chips(ctx, itens, marca, 56, y + 16, w - 112);
+  if (linhasChamada.length) {
     ctx.font = fonte(marca.estilo, 700, 40);
     ctx.fillStyle = BRANCO;
-    escrever(ctx, peca.chamada, 56, y + 70, w - 112, 50, 2);
+    linhasChamada.forEach((l, i) => ctx.fillText(l, 56, y + 60 + i * 50));
   }
   rodape(ctx, marca, logo, w, h, faixa);
 }
@@ -233,11 +260,16 @@ function paraBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((ok, falha) => canvas.toBlob((b) => (b ? ok(b) : falha(new Error('Não foi possível gerar a imagem.'))), 'image/jpeg', 0.9));
 }
 
-/** Gera as imagens da peça (uma; no carrossel, até 5 slides). */
-export async function gerarArte(peca: PecaArte, im: ImovelArte | null, fotosUrl: string[], marca: MarcaArte): Promise<Blob[]> {
+/**
+ * Gera as imagens da peça (uma; no carrossel, até 5 slides). `fotosFalharam` conta as fotos que não
+ * carregaram (URL vencida, rede): a tela avisa em vez de entregar arte sem foto calada.
+ */
+export async function gerarArte(peca: PecaArte, im: ImovelArte | null, fotosUrl: string[], marca: MarcaArte): Promise<{ imagens: Blob[]; fotosFalharam: number }> {
   const { largura: w, altura: h } = TAMANHO[peca.formato];
-  const [logo, ...fotos] = await Promise.all([carregar(marca.logo_url), ...fotosUrl.slice(0, MAX_SLIDES).map(carregar)]);
+  const pedidas = fotosUrl.slice(0, MAX_SLIDES);
+  const [logo, ...fotos] = await Promise.all([carregar(marca.logo_url), ...pedidas.map(carregar)]);
   const validas = fotos.filter((f): f is HTMLImageElement => !!f);
+  const fotosFalharam = pedidas.length - validas.length;
   const novo = () => {
     const c = document.createElement('canvas');
     c.width = w;
@@ -247,7 +279,7 @@ export async function gerarArte(peca: PecaArte, im: ImovelArte | null, fotosUrl:
   if (peca.formato !== 'carrossel') {
     const c = novo();
     capa(c.getContext('2d')!, w, h, validas[0] ?? null, logo, peca, im, marca);
-    return [await paraBlob(c)];
+    return { imagens: [await paraBlob(c)], fotosFalharam };
   }
   // Carrossel: capa, até 3 fotos com destaque e o slide de contato (no máximo 5).
   const c0 = novo();
@@ -263,5 +295,5 @@ export async function gerarArte(peca: PecaArte, im: ImovelArte | null, fotosUrl:
   const fim = novo();
   slideContato(fim.getContext('2d')!, w, h, logo, peca, marca);
   slides.push(fim);
-  return Promise.all(slides.map(paraBlob));
+  return { imagens: await Promise.all(slides.map(paraBlob)), fotosFalharam };
 }

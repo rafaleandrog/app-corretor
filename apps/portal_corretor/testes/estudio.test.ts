@@ -96,6 +96,7 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     const ok = await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
     assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
     assert.equal(ok.corpo.estado, 'aprovada');
+    assert.match(ok.corpo.legenda, /CRECI DF-12345-F$/, 'a aprovação garante o CRECI na legenda');
     // Arte nova ou texto novo pedem nova aprovação.
     await chamar('PUT', `/estudio/pecas/${pecaId}/arquivos`, { upload_ids: [1002], motor: 'canva_ia' });
     assert.equal(banco.linhas('pecas').find((p) => p.id === pecaId)!.estado, 'rascunho');
@@ -103,6 +104,10 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
     await chamar('PATCH', `/estudio/pecas/${pecaId}`, { titulo: 'Outro título' });
     assert.equal(banco.linhas('pecas').find((p) => p.id === pecaId)!.estado, 'rascunho');
+    // Legenda já com o CRECI não ganha outro.
+    await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
+    assert.equal((banco.linhas('pecas').find((p) => p.id === pecaId)!.legenda.match(/DF-12345-F/g) ?? []).length, 1);
+    await chamar('PATCH', `/estudio/pecas/${pecaId}`, { chamada: 'Nova chamada' });
     // Pacote do Canva IA: instrução e fotos públicas.
     const canva = (await chamar('GET', `/estudio/pecas/${pecaId}/canva`)).corpo;
     assert.match(canva.prompt, /CRECI DF-12345-F/);

@@ -12,15 +12,16 @@ aprova e deixa baixar as peças. Agendar e publicar direto no Instagram chegam n
 
 Em **Sua marca** ficam a cor principal, a cor de apoio, o estilo (moderno, clássico ou
 minimalista), uma assinatura curta opcional (por exemplo "Seu corretor no Lago Sul"), o logo e a
-sua foto. Toda arte sai com o seu nome e o CRECI no rodapé. **Sem CRECI cadastrado** (Ajustes ›
-Conta e marca), a peça não pode ser aprovada.
+sua foto. A arte do gerador do app sai com o seu nome e o CRECI no rodapé, e a legenda de toda peça
+aprovada leva o CRECI (o app acrescenta se faltar, inclusive em arte feita no Canva). **Sem CRECI
+cadastrado** (Ajustes › Conta e marca), a peça não pode ser aprovada.
 
 ## Criar
 
 | Botão | O que faz |
 |---|---|
 | **Novo pedido** | Você escreve o que quer, escolhe o imóvel (ou nenhum, para uma peça institucional), o objetivo e os formatos. Sai uma peça por formato |
-| **Falar o pedido** | O mesmo, ditando. O Chrome e o Edge transcrevem a voz no próprio navegador |
+| **Falar o pedido** | O mesmo, ditando. A transcrição é do próprio navegador (o Chrome e o Edge usam o serviço de voz deles), não da IA da plataforma |
 | **Pacote de lançamento** | Post, carrossel e story de um imóvel, de uma vez |
 
 **Formatos:**
@@ -54,7 +55,8 @@ No carrossel, os slides são:
 3. slide final com a chamada e o contato.
 
 A plataforma não gera imagem por IA: a arte segue um modelo fixo e usa só as fotos reais do
-imóvel.
+imóvel. Se alguma foto não carregar, o app avisa e a arte pode ser refeita. Se a arte de uma
+peça não sair, a peça fica como rascunho para "Refazer arte".
 
 ## Pelo Canva IA
 
@@ -85,11 +87,12 @@ Canva IA ou arte enviada) e a situação: rascunho, aprovada, rejeitada.
 | **Rejeitar** | Devolve a peça aprovada |
 
 **O que a aprovação confere:**
-- o CRECI cadastrado;
+- o CRECI cadastrado (e o põe na legenda, se faltar);
 - a autorização de venda vigente do imóvel (exceto em "Vendido");
 - a arte pronta (no carrossel, pelo menos 2 imagens);
 - a legenda com até 2.200 caracteres;
 - no máximo 30 hashtags.
 
 Mudar os textos ou a arte de uma peça aprovada a devolve para rascunho: o que muda precisa de
-nova aprovação.
+nova aprovação. "Enviar arte pronta" pede confirmação antes de trocar a arte. A biblioteca mostra
+as 200 peças mais recentes.

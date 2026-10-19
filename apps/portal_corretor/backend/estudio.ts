@@ -19,6 +19,7 @@ import {
 } from '../comum/estudio';
 import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
 import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './acesso';
+import { uploadRecusado } from './imoveis';
 import { contaDoRequest } from './vitrine';
 
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74): marca, pedido → textos (IA com JSON Schema,
@@ -43,12 +44,6 @@ async function url(req: Request, arquivo: number | null | undefined): Promise<st
   } catch {
     return null;
   }
-}
-
-/** Upload recusado pelo framework (vencido, de outro usuário, destino errado) vira 4xx com mensagem. */
-function uploadRecusado(e: unknown) {
-  const c = (e as { codigo?: string })?.codigo;
-  return c?.startsWith('ARQUIVOS_') ? 'O arquivo enviado expirou ou não serve para este campo. Envie de novo.' : null;
 }
 
 async function creci(req: Request): Promise<string | null> {
@@ -112,8 +107,8 @@ estudioRotas.post(
       if (atual) await dados.atualizar('marca_arquivos', atual.id, { arquivo: upload });
       else await dados.criar('marca_arquivos', { tipo, arquivo: upload });
     } catch (e) {
-      const msg = uploadRecusado(e);
-      if (msg) return erro(res, 410, 'UPLOAD_RECUSADO', msg);
+      const recusa = uploadRecusado(e);
+      if (recusa) return erro(res, recusa.status, 'UPLOAD_RECUSADO', recusa.mensagem);
       throw e;
     }
     res.json(await marca(req));
@@ -170,7 +165,7 @@ estudioRotas.get(
     if (typeof req.query.estado === 'string' && req.query.estado) filtros.estado = req.query.estado;
     const iid = id(req.query.imovel_id);
     if (iid) filtros.imovel_id = iid;
-    const r = await req.dados!.listar('pecas', { filtros, ordenar: 'criado_em', ordem: 'desc', por_pagina: 60 });
+    const r = await req.dados!.listar('pecas', { filtros, ordenar: 'criado_em', ordem: 'desc', por_pagina: 200 });
     res.json({ ...r, dados: await comArquivos(req, r.dados) });
   }),
 );
@@ -288,17 +283,17 @@ estudioRotas.put(
     }
     const motor = ['interno', 'canva_ia', 'upload'].includes(req.body?.motor) ? req.body.motor : 'upload';
     const dados = req.dados!;
-    const antigos = await dados.varrerTudo('peca_arquivos', { filtros: { peca_id: p.id }, maximo: 50 });
     try {
       await dados.transaction(async (trx) => {
+        // Os antigos são lidos dentro da transação: dois envios seguidos não somam artes.
         // Apagar leva o arquivo antigo para a fila de exclusão (arquivos.md).
-        for (const a of antigos) await trx.deletar('peca_arquivos', a.id);
+        for (const a of await trx.varrerTudo('peca_arquivos', { filtros: { peca_id: p.id }, maximo: 50 })) await trx.deletar('peca_arquivos', a.id);
         for (const [ordem, upload] of uploads.entries()) await trx.criar('peca_arquivos', { peca_id: p.id, arquivo: upload, ordem });
         await trx.atualizar('pecas', p.id, { motor, ...(p.estado === 'aprovada' || p.estado === 'rejeitada' || p.estado === 'erro' ? { estado: 'rascunho', aprovada_em: null, aprovada_por_id: null, erro: null } : {}) });
       });
     } catch (e) {
-      const msg = uploadRecusado(e);
-      if (msg) return erro(res, 410, 'UPLOAD_RECUSADO', msg);
+      const recusa = uploadRecusado(e);
+      if (recusa) return erro(res, recusa.status, 'UPLOAD_RECUSADO', recusa.mensagem);
       throw e;
     }
     const [peca] = await comArquivos(req, [(await dados.buscar('pecas', p.id))!]);
@@ -314,9 +309,13 @@ estudioRotas.post(
     if (p.estado !== 'rascunho' && p.estado !== 'rejeitada') return erro(res, 409, 'ESTADO_INVALIDO', 'Só rascunho é aprovado.');
     const arquivos = await req.dados!.listar('peca_arquivos', { filtros: { peca_id: p.id }, por_pagina: 1 });
     const imovel = await imovelDaPeca(req, p.imovel_id ?? null);
-    const checagem = checarPeca(campos(p, arquivos.total), { creci: await creci(req), imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
+    const meuCreci = await creci(req);
+    const checagem = checarPeca(campos(p, arquivos.total), { creci: meuCreci, imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
     if (!checagem.ok) return erro(res, 422, 'CHECAGEM_PENDENTE', 'Antes de aprovar, resolva:', checagem.pendencias);
-    res.json(await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id }));
+    // CRECI na legenda (10.5): a arte do Canva ou enviada pode vir sem ele, então a legenda garante.
+    const legenda = p.legenda ?? '';
+    const comCreci = meuCreci && !legenda.includes(meuCreci) ? `${legenda}${legenda ? '\n\n' : ''}CRECI ${meuCreci}`.slice(0, 2200) : legenda;
+    res.json(await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id }));
   }),
 );
 
@@ -326,6 +325,7 @@ estudioRotas.post(
     const p = await pecaOu404(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
     if (p.estado === 'publicada') return erro(res, 409, 'ESTADO_INVALIDO', 'Peça publicada não volta.');
+    if (p.estado === 'agendada') return erro(res, 409, 'PECA_AGENDADA', 'Cancele o agendamento antes de rejeitar.');
     res.json(await req.dados!.atualizar('pecas', p.id, { estado: 'rejeitada', aprovada_em: null, aprovada_por_id: null }));
   }),
 );

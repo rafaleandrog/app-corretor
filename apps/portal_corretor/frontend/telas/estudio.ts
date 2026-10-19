@@ -143,11 +143,18 @@ export class PcTelaEstudio extends LitElement {
     this.trabalhando = 'Escrevendo os textos…';
     try {
       const r = await enviar('POST', rota, corpo);
+      const falhas: string[] = [];
       for (const [i, p] of r.pecas.entries()) {
         this.trabalhando = `Montando a arte ${i + 1} de ${r.pecas.length}…`;
-        await this.montar(p, r.imovel);
+        // A peça já existe: se a arte falhar, ela fica como rascunho para "Refazer arte".
+        try {
+          await this.montar(p, r.imovel);
+        } catch (e) {
+          falhas.push(`${p.titulo}: ${mensagemDeErro(e)}`);
+        }
       }
-      urbiVerso.notificar(`${r.pecas.length} peça(s) pronta(s) para revisar${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}.`, 'sucesso');
+      if (falhas.length) await urbiVerso.alertar({ titulo: 'Peças criadas, mas algumas artes não saíram', mensagem: `${falhas.join('\n')}\n\nUse "Refazer arte" na peça.`, tipo: 'alerta' });
+      else urbiVerso.notificar(`${r.pecas.length} peça(s) pronta(s) para revisar${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}.`, 'sucesso');
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível criar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
@@ -158,7 +165,7 @@ export class PcTelaEstudio extends LitElement {
 
   /** Gera a arte no navegador e envia em 2 passos (staging + rota da peça). */
   private async montar(p: Linha, imovel: { arte: ImovelArte; fotos: { url: string }[] } | null) {
-    const blobs = await gerarArte(
+    const { imagens: blobs, fotosFalharam } = await gerarArte(
       { formato: p.formato, objetivo: p.objetivo, titulo: p.titulo, chamada: p.chamada ?? null, destaques: Array.isArray(p.destaques) ? p.destaques : [] },
       imovel?.arte ?? null,
       (imovel?.fotos ?? []).map((f) => f.url),
@@ -167,6 +174,7 @@ export class PcTelaEstudio extends LitElement {
     const uploads: number[] = [];
     for (const [i, b] of blobs.entries()) uploads.push(await subirArquivo('peca_arquivos', 'arquivo', new File([b], `peca-${p.id}-${i + 1}.jpg`, { type: 'image/jpeg' })));
     await enviar('PUT', `/estudio/pecas/${p.id}/arquivos`, { upload_ids: uploads, motor: 'interno' });
+    if (fotosFalharam) urbiVerso.notificar(`${fotosFalharam} foto(s) não carregaram e a arte saiu sem elas. Use "Refazer arte".`, 'info');
   }
 
   private async refazer(p: Linha) {
@@ -227,7 +235,10 @@ export class PcTelaEstudio extends LitElement {
 
   private async enviarArte(p: Linha, e: CustomEvent) {
     const arquivos = ((e.detail.arquivos as File[]) ?? []).slice(0, p.formato === 'carrossel' ? 5 : 1);
-    if (!arquivos.length) return;
+    if (!arquivos.length || this.trabalhando) return;
+    // O seletor também avisa quando um arquivo sai da lista: troca só com confirmação.
+    const ok = await urbiVerso.confirmar({ titulo: 'Trocar a arte', mensagem: `A arte da peça passa a ser ${arquivos.length === 1 ? 'esta imagem' : `estas ${arquivos.length} imagens, nesta ordem`}.`, rotuloConfirmar: 'Trocar' });
+    if (!ok) return;
     this.trabalhando = 'Enviando a arte…';
     try {
       const uploads: number[] = [];
