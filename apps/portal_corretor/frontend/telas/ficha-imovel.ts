@@ -94,7 +94,9 @@ export class PcTelaFichaImovel extends LitElement {
     const novas: Linha[] = [];
     for (const [i, f] of arquivos.entries()) {
       this.enviando = `Enviando ${i + 1} de ${arquivos.length}…`;
-      const tipo = f.type.startsWith('image/') ? 'foto' : f.type.startsWith('video/') ? 'video' : 'documento';
+      // Alguns navegadores mandam `type` vazio: cai na extensão do nome.
+      const mime = f.type || (/\.(jpe?g|png|webp)$/i.test(f.name) ? 'image/' : /\.mp4$/i.test(f.name) ? 'video/' : '');
+      const tipo = mime.startsWith('image/') ? 'foto' : mime.startsWith('video/') ? 'video' : 'documento';
       try {
         const upload_id = await subirArquivo('imovel_midias', 'arquivo', f);
         novas.push(await enviar('POST', `/imoveis/${this.imovelId}/midias`, { upload_id, tipo }));
@@ -242,28 +244,44 @@ export class PcTelaFichaImovel extends LitElement {
           rotulo: 'Proprietário (contatos com papel proprietário)',
           pesquisavel: true,
           valor: im.proprietario_id ? String(im.proprietario_id) : '',
-          opcoes: [{ valor: '', rotulo: 'Sem proprietário' }, ...this.contatos.map((c) => ({ valor: String(c.id), rotulo: c.nome, textoBusca: c.telefone ?? '' }))],
+          opcoes: this.comAtual(
+            [{ valor: '', rotulo: 'Sem proprietário' }, ...this.contatos.map((c) => ({ valor: String(c.id), rotulo: c.nome, textoBusca: c.telefone ?? '' }))],
+            im.proprietario_id,
+            im.proprietario_nome,
+          ),
         },
         {
           nome: 'empreendimento_id',
           tipo: 'selecao',
           rotulo: 'Empreendimento',
           valor: im.empreendimento_id ? String(im.empreendimento_id) : '',
-          opcoes: [{ valor: '', rotulo: 'Nenhum' }, ...this.empreendimentos.map((x) => ({ valor: String(x.id), rotulo: x.nome }))],
+          opcoes: this.comAtual([{ valor: '', rotulo: 'Nenhum' }, ...this.empreendimentos.map((x) => ({ valor: String(x.id), rotulo: x.nome }))], im.empreendimento_id, im.empreendimento_nome),
         },
       ],
       'PATCH',
       `/imoveis/${this.imovelId}`,
-      (v) => ({
-        ...v,
-        endereco: { logradouro: v.logradouro, numero: v.numero, complemento: v.complemento, cep: v.cep },
-        proprietario_id: v.proprietario_id ? Number(v.proprietario_id) : null,
-        empreendimento_id: v.empreendimento_id ? Number(v.empreendimento_id) : null,
-      }),
+      (v) => {
+        const { proprietario_id, empreendimento_id, ...resto } = v;
+        const novoProp = proprietario_id ? Number(proprietario_id) : null;
+        const novoEmp = empreendimento_id ? Number(empreendimento_id) : null;
+        // Vínculos só vão quando mudaram: o que não foi tocado não é reescrito.
+        return {
+          ...resto,
+          endereco: { logradouro: v.logradouro, numero: v.numero, complemento: v.complemento, cep: v.cep },
+          ...(novoProp !== (im.proprietario_id ?? null) ? { proprietario_id: novoProp } : {}),
+          ...(novoEmp !== (im.empreendimento_id ?? null) ? { empreendimento_id: novoEmp } : {}),
+        };
+      },
     ).then((r) => {
       this.contatos = [];
       return this.depois(r);
     });
+  }
+
+  /** Garante a opção atual na seleção, mesmo fora da lista carregada (a seleção abriria vazia). */
+  private comAtual(opcoes: { valor: string; rotulo: string; textoBusca?: string }[], atual: number | null, nome: string | null) {
+    if (!atual || opcoes.some((o) => o.valor === String(atual))) return opcoes;
+    return [{ valor: String(atual), rotulo: nome ?? `Atual (${atual})` }, ...opcoes];
   }
 
   private async situacao() {
@@ -327,7 +345,12 @@ export class PcTelaFichaImovel extends LitElement {
     try {
       await this.opcoesVinculos();
     } catch {
-      /* segue sem a lista */
+      /* segue com o proprietário atual, se houver */
+    }
+    const opcoesProp = this.comAtual(this.contatos.map((c) => ({ valor: String(c.id), rotulo: c.nome, textoBusca: c.telefone ?? '' })), im.proprietario_id, im.proprietario_nome);
+    if (!opcoesProp.length) {
+      await urbiVerso.alertar({ titulo: 'Cadastre o proprietário', mensagem: 'Em Clientes, cadastre quem assina a autorização com o papel "proprietário" e volte aqui.', tipo: 'alerta' });
+      return;
     }
     void formularioEnviar(
       'Autorização de venda',
@@ -339,7 +362,7 @@ export class PcTelaFichaImovel extends LitElement {
           obrigatorio: true,
           pesquisavel: true,
           valor: im.proprietario_id ? String(im.proprietario_id) : null,
-          opcoes: this.contatos.map((c) => ({ valor: String(c.id), rotulo: c.nome, textoBusca: c.telefone ?? '' })),
+          opcoes: opcoesProp,
         },
         { nome: 'inicio', tipo: 'data', rotulo: 'Início', obrigatorio: true, valor: hojeIso() },
         { nome: 'fim', tipo: 'data', rotulo: 'Fim', obrigatorio: true, valor: mais(180) },
@@ -353,7 +376,7 @@ export class PcTelaFichaImovel extends LitElement {
       'POST',
       '/autorizacoes',
       (v) => ({ ...v, imovel_id: this.imovelId, proprietario_id: Number(v.proprietario_id) }),
-      { mensagem: this.contatos.length ? 'Depois de assinada, anexe o documento e marque como assinada.' : 'Cadastre o proprietário em Clientes (papel proprietário) antes.' },
+      { mensagem: 'Depois de assinada, anexe o documento e marque como assinada.' },
     ).then((r) => this.depois(r));
   }
 

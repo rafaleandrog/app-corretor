@@ -6,7 +6,8 @@ descricao: Carteira de imóveis com fotos, qualidade do anúncio, autorização 
 # Imóveis e empreendimentos
 
 Tudo é da conta do corretor: ninguém de outra conta vê, abre ou altera. Endereço de imóvel,
-foto, autorização ou empreendimento de outra conta responde "não encontrado".
+foto, autorização ou empreendimento de outra conta responde "não encontrado"; um vínculo com algo
+de outra conta (proprietário, empreendimento, imóvel, documento) é recusado como "não encontrado".
 
 ## Minha carteira
 
@@ -30,8 +31,9 @@ endereço da página).
 ### Fotos e arquivos
 
 Cada arquivo tem tipo (foto, vídeo, planta, tour, documento), legenda e a marca "pode aparecer no
-anúncio". **Documento nunca aparece no anúncio**, mesmo marcado. Dá para subir, descer, ver,
-editar e apagar (apagar é de vez). As fotos são mostradas por um link temporário, que vale uma
+anúncio". **Documento nunca aparece no anúncio**, mesmo marcado, e o documento de uma autorização
+não pode virar foto nem ser apagado. Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
+ver, editar e apagar (apagar é de vez, para liberar o espaço). As fotos são mostradas por um link temporário, que vale uma
 hora.
 
 ### Qualidade do anúncio (0 a 100)
@@ -52,11 +54,12 @@ Calculada a cada leitura, nunca gravada. A ficha mostra o que falta, na ordem do
 
 **Escrever com IA** sugere título, descrição e destaques a partir dos dados cadastrados e dos
 ambientes vistos nas fotos. A sugestão abre para o corretor revisar; só é salva quando ele
-confirma. A IA não recebe o nome do proprietário, o endereço completo nem a comissão, e é
-instruída a não inventar informação. Sem tipo ou sem área, o app não pede a descrição.
+confirma. A IA não recebe os campos de proprietário, endereço completo e comissão (o título, as
+características e a descrição que o corretor escreveu vão como estão), e é instruída a não
+inventar informação nem citar endereço ou nome. Sem tipo ou sem área, o app não pede a descrição.
 
-Os botões de IA só aparecem quando a plataforma tem a IA liberada para o app (slots **Conteúdo** e
-**Leitura de fotos**, autorizados pelo administrador). Sem ela, tudo funciona à mão.
+Os botões de IA só aparecem quando a IA está liberada para o app. Sem ela, tudo funciona à mão.
+Se a IA falhar ou responder fora do formato, o app avisa e não grava nada.
 
 ### Situação e publicação
 

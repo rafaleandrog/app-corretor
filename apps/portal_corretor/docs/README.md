@@ -49,9 +49,10 @@ chegarem:
 
 ## Para o administrador da instância
 
-- **IA:** em Admin › Instaláveis › Apps › Portal do Corretor › IA, autorize os slots **Conteúdo**
-  (base normal) e **Leitura de fotos** (base arquivos) para ligar a descrição com IA e a leitura das
-  fotos. Sem autorização o app funciona, sem os botões de IA.
+- **IA:** o app declara dois slots próprios, **Conteúdo** (base `normal`) e **Leitura de fotos**
+  (base `arquivos`). Para ligá-los, em Admin › Instaláveis › Apps › Portal do Corretor › IA,
+  autorize as bases `normal` e `arquivos` (chave da plataforma) ou configure uma chave própria em
+  cada slot. Sem isso o app funciona, sem os botões de IA.
 
 ## Serviços externos
 

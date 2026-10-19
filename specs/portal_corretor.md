@@ -1448,3 +1448,96 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-63 | Imóveis no `nav` como grupo "Imóveis › Minha carteira · Empreendimentos" (Da rede entra na fase 5); empreendimento do corretor simplificado (nome, construtora, tipo, fase, local, faixa de preço, tipologias, descrição) com materiais em `empreendimento_materiais`; as tabelas de incorporadora de 6.9 ficam para o módulo (19/10, bloco 3) | Abas dentro de uma tela; já criar `unidades`, `tabelas_preco` etc. | Duas telas com rota própria são mais simples no celular; 11.1 pede para o MVP só o cadastro do próprio corretor |
 | D-64 | Documento da autorização de venda é uma `imovel_midias` do tipo `documento` (sempre interna), referenciada por `autorizacoes_venda.documento_midia_id`; `vencida` é calculada na leitura (sem rotina por ora); `visitas` sem `pretendente_id` (o contato vem da atividade) nem `ficha_assinada` (fase 3) (19/10, bloco 3) | Coluna `arquivo` na própria autorização | Coluna `arquivo` não obrigatória expira em 90 dias (TTL da plataforma); a mídia obrigatória vive enquanto a linha viver |
 | D-65 | Miniatura de foto nas telas pelo `urbi-avatar` (`foto` + `tamanho`) e prévia pelo `urbi-visualizador-arquivo` — exceção nomeada até existir primitivo de galeria (11.5) (19/10, bloco 3) | CSS próprio de galeria | Telas autenticadas só com primitivos `urbi-*` |
+| D-66 | Mídia do imóvel e material do empreendimento são apagados de vez por `PATCH …/remover` (o arquivo vai para a fila de exclusão); imóvel, contato e empreendimento seguem com soft delete (19/10, bloco 3) | Soft delete em `imovel_midias` | Foto apagada não tem uso e ocupa espaço da conta; o SDK admite hard delete por PATCH (`banco-de-dados.md`) e o `DELETE` HTTP continua só do admin |
+
+## 17. Pendências
+
+| Código | Pendência | Bloqueia |
+|---|---|---|
+| P-01 | Frameworks lidos pelo resumo de 18/10/2026; a implementação confere no SDK instalado os itens [plataforma] e define os pisos | Início da fase 1 |
+| P-02 | Nome e acesso ao repositório do app; abrir a issue (Apêndice A) | Commit da spec |
+| P-03 | Prazo de proteção de cliente na rede (proposto 90 dias) | Fase 5 |
+| P-04 | Prazo-alvo de primeiro atendimento (proposto 5 min) | Fase 1 |
+| P-05 | Horário de execução da rotina semanal | Fase 3 |
+| P-06 | ~~Webhook aciona agente em segundos~~ — resolvido: `wh` publica evento, `reagir` processa (9.8 item 3); restam P-31 a P-33 | — |
+| P-07 | ~~Modelo de instância~~ — resolvido: contas da plataforma, um corretor por conta (4.4) | — |
+| P-08 | Provedor de vídeo e de edição de imagem; custo por vídeo | Fase 3 |
+| P-09 | Revisão do app na Meta (WhatsApp e Instagram) concluída, conforme o caminho de P-26 | Fase 2 |
+| P-10 | Controlador dos dados do comprador: a conta que atende (proposto) | Fase 1 |
+| P-11 | Planos, preço e cota de créditos | Fase 1 (cotas), fase 4 (cobrança) |
+| P-12 | Verificação de CRECI: manual com documento, ou consulta por regional | Fase 1 |
+| P-13 | Núcleo UP/Urbitá como fonte de unidades: formato e acesso | Fase 7 |
+| P-14 | Diretoria como papel separado na incorporadora | Fase 5 |
+| P-15 | Prazo de retenção por inatividade (proposto 24 meses) | Fase 1 |
+| P-16 | Rede entre instâncias: protocolo e confiança | Fase 7 |
+| P-17 | Entrada de leads de portais | Fase 6 |
+| P-18 | Provedor de assinatura eletrônica | Fase 6 |
+| P-19 | Acesso da camada Plataforma a dados de uma conta para suporte: regra e registro | Fase 1 |
+| P-20 | Acesso do cliente sem senha (link mágico): o shell oferece ou vai oferecer? | Fase 2 |
+| P-21 | Domínio próprio para a Minha Página | Fase 6 |
+| P-22 | ~~Ação em hora marcada~~ — resolvido por `req.eventos.agendar` (D-49) | — |
+| P-23 | "Editar no Canva" na conta do próprio corretor (integração pública): escopo | Fase 3 |
+| P-24 | ~~Voz sintética~~ — encerrada: a plataforma não oferece; só transcrição (D-48) | — |
+| P-25 | Preço do Mensageiro e cota incluída por plano | Fase 1 (comunicação), fase 4 (cobrança) |
+| P-26 | **Dúvida do dono:** caminho A, B ou C do registro do app na Meta e, se A, qual empresa registra (9.0). Não bloqueia o MVP | Fase 2 |
+| P-27 | ~~Aval escrito do Canva~~ — decidido pelo dono (D-44). Manter apenas a leitura periódica dos termos do Canva | — |
+| P-28 | ~~Relógio externo~~ — encerrada: desnecessário com `agendar` | — |
+| P-29 | Parceiro de soluções da Meta (só se o registro próprio não for o caminho) e custo dele | Fase 2 |
+| P-30 | A plataforma serve HTML exportado do Canva como página pública? | Fase 6 |
+| P-31 | Shell: `wh` responder o `GET` de verificação da Meta (`specs/pedidos_ao_shell.md`, item 1) | **MVP, bloco 6** — **conferido no SDK 100: não existe** (plano, R.1) |
+| P-32 | Shell: handler `wh` recebe corpo cru e cabeçalhos (`specs/pedidos_ao_shell.md`, item 2) | **MVP, bloco 6** — **conferido no SDK 100: não existe** (plano, R.1) |
+| P-33 | Confirmar no SDK: handler `wh` lê o contexto do ingresso (conta); listener grava com `dados.comConta`; rota pública lê tabelas segregadas (senão `vitrine_publica`) (`specs/pedidos_ao_shell.md`, item 3) | MVP, blocos 0 e 5 — **conferido no SDK 100** (plano, R.1): contexto e evento segregado sim; rota pública não → `vitrine_publica` (D-55) |
+| P-34 | ~~Contato e anúncio como dados da app~~ — confirmado pelo dono em 18/10 | — |
+| P-35 | Corretor que entra numa imobiliária (externo pertence a uma conta só) — tratar só na fase 4 | Fase 4 |
+| P-36 | Frontend da app pode abrir o cadastro incorporado hospedado da Meta e o OAuth do Instagram por redirecionamento e receber o retorno numa sub-rota da app? | MVP — em parte: a sub-rota vem do path e a query se lê em `window.location.search` (`overview.md` § Navegação SPA); o redirecionamento da Meta é testado no bloco 0 (plano, R.6) |
+| P-37 | Prévia de link (Open Graph) das páginas públicas: o SDK 100 monta a página no navegador e não oferece metadados por página | Fase 2 |
+
+**Soluções das dependências do MVP:** seção 9.8 (Meta, hora marcada, webhook, chamadas externas) e 9.4 (Canva).
+
+## 18. Testes e critério global de pronto
+
+Por fase: testes de API para toda rota (papel certo passa, papel errado recebe 403, recurso de outra conta responde "não encontrado"); testes de rotina rodando duas vezes no mesmo período sem duplicar; teste de vazamento (parceiro, proprietário e página pública nunca recebem dado de proprietário, comprador, comissão interna); teste de fórmula para cada KPI de 11.2 contra planilha calculada à mão a partir da semente; teste de agente com conversas-roteiro (lead quente, pedido de desconto, pede humano, ofensa, fora do horário, consentimento revogado) verificando passagens e ações proibidas; teste de checagens legais de conteúdo.
+
+Toda funcionalidade nova entra com seu texto em `docs/` da app (ajuda da plataforma e base do Assistente). Toda tela do corretor é verificada no computador e no celular; toda superfície do cliente, primeiro no celular.
+
+Critério global: alguém que nunca falou com o dono implementa cada fase só com esta spec e os docs da plataforma; nenhuma rota sem tela e nenhuma tela sem rota; todo número na tela tem fonte, período e fórmula; ausência é frase; nada referencia capacidade do SDK sem o piso citado (P-01). Quando uma fase vira código, o conteúdo dela sai daqui e migra para `docs/` da app.
+
+## 19. Glossário
+
+**Autorização de venda**: documento em que o proprietário autoriza o corretor a anunciar e vender, com prazo, preço e comissão. **Captação**: conquista de um imóvel para a carteira. **Conta**: tenant do app. **Coorte**: conjunto de negócios criados no mesmo período, acompanhados até o fim. **Entrega**: compromisso do corretor com o proprietário. **Espelho**: mapa de unidades com o estado de cada uma. **Janela de 24 h**: período após a última mensagem do cliente em que o WhatsApp permite texto livre. **Lista de espera**: pedido de aviso quando uma unidade volta a ficar disponível. **Passagem**: transferência da conversa do agente para o humano. **Previsão ponderada**: comissão esperada considerando a probabilidade de cada etapa. **Primeiro atendimento**: tempo entre a primeira mensagem do lead e a primeira resposta. **Seleção**: lista de imóveis enviada a um cliente por link. **VGV**: valor geral de vendas.
+
+---
+
+## Anexo R. Referências de mercado
+
+O que as referências pesquisadas em 17/10/2026 mostram e onde isso entrou na spec.
+
+**R1 · Velocidade de resposta.** Estudo MIT/InsideSales (2007): responder em 5 min torna a qualificação do lead muitas vezes mais provável do que em 30 min. Estudo WAV Group/Weichert (2014): tempo médio de resposta de corretores de cerca de 15 h. Auditoria de 2024 com 74 corretoras americanas: menos de 1 em 10 respondeu em 5 min. No Brasil, levantamento citado da Morada.ai com incorporadoras: primeiro contato em cerca de 5 h e quase metade dos leads sem resposta (fonte secundária). → Princípio 9, D-08, agente `sdr`, cronômetro do Início, KPI de primeiro atendimento.
+
+**R2 · Quem chega primeiro e indicação.** NAR, Profile of Home Buyers and Sellers 2025: a maioria dos compradores entrevista um único corretor; indicação e relacionamento anterior são a principal forma de encontrar corretor, sobretudo entre vendedores. → Agentes `pos_venda` e `reativacao`, rotina `pos_venda`, pedido de indicação.
+
+**R3 · CRMs internacionais.** Follow Up Boss: planos de ação automáticos, listas inteligentes, reatribuição automática de lead não contatado, "pond" de leads compartilhados (help.followupboss.com). Lofty/Chime: site com busca integrada ao CRM, planos inteligentes com mensagem automática nos primeiros minutos, assistente de IA. Homebot: relatório periódico de valorização para clientes antigos, abertura mensal alta, aviso quando ex-cliente põe o imóvel à venda (homebot.ai). → Níveis de autonomia, passagens, relatório anual de valorização, nutrição.
+
+**R4 · Brasil.** Facilita/Sienge: fila de distribuição de leads entre corretores, espelho horizontal e vertical, programa de pontos. CV CRM/Sienge: nota de qualificação do lead, simulador de proposta pela tabela, aviso quando a unidade volta ao mercado (sienge.com.br/blog). DWV: tabelas, materiais e disponibilidade de lançamentos para corretores. Kenlo, Jetimob, Imobzi (referências do MVP): CRM, site, integração com portais, rede de parcerias. → Nota de qualificação (6.12), lista de espera (6.9), módulo Incorporadora, Rede.
+
+**R5 · Economia do corretor e do canal.** Cofeci/DataZAP 2025: cerca de 650 mil corretores no Brasil, poucas transações por corretor por ano em comparação com os EUA, tempo de venda muito maior e renda média baixa (paraibabusiness.com.br). WhatsApp Business Platform: cobrança por mensagem desde 01/07/2025; contas novas no Brasil faturadas em BRL desde julho/2026 (developers.facebook.com); mensagem de utilidade da ordem de centavos de real (fonte secundária). → Princípio 10, consumo por conta, categoria de cobrança gravada em cada mensagem, modo `rascunho` ao atingir cota.
+
+**R6 · Regras legais.** Lei 6.530/78, art. 20: vedado anunciar sem autorização escrita e sem o número de inscrição (creci-sc.gov.br). Código de Ética, Res. COFECI 326/92: vedado desviar cliente e aceitar transação entregue a outro corretor sem ciência escrita (legisweb.com.br). LGPD. → 9.7, D-07, D-17, D-20, 6.14.
+
+**Lacunas do MVP cobertas por estas referências:** cronômetro e reatribuição do primeiro atendimento; lista de espera de unidade; relacionamento pós-venda; simulador pela tabela (fase 6, na proposta); ficha de visita; verificação de CRECI; importação de contatos; custo por origem.
+
+## Apêndice A. Texto da issue
+
+**Título:** Spec do app Portal do Corretor (`portal_corretor`)
+
+**Contexto.** O MVP (laboratório Urbiverso UP/Urbitá v2) validou o fluxo do corretor e do canal comercial. O dono consolidou a visão em 17/10/2026: escritório digital do corretor no computador e no celular, com CRM e funil com IA, WhatsApp pelo app com o Mensageiro (texto; áudio recebido transcrito na fase 3), Assistente do Corretor, Estúdio de Conteúdo com publicação no Instagram, Minha Página e Portal do Cliente como usuário externo; rede, proprietário, metas e comissões nas fases seguintes; independente do núcleo.
+
+**O que precisa ser feito.** Manter `specs/portal_corretor.md` cobrindo as 19 seções do roteiro de spec, com decisões `D-nn` e pendências `P-nn`.
+
+**Critérios de aceite.** Fase 1 implementável só com a spec e os docs; todo KPI com fonte, período e fórmula; toda afirmação de plataforma conferida nos docs com versão citada; nenhuma rota sem tela.
+
+**Notas técnicas.** Multi-conta; restrições de rotina, página pública, geometria e agregados aplicadas (seção 4.3); P-01 bloqueia a fase 1.
+
+## Apêndice B. Implementação
+
+As instruções permanentes das sessões estão em `CLAUDE.md` (raiz do repositório) e a ordem de trabalho, com o status de cada bloco, em `specs/plano_de_implementacao.md`. Os ajustes necessários no shell estão em `specs/pedidos_ao_shell.md`.

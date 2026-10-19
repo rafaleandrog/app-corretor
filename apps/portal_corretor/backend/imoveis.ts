@@ -1,7 +1,8 @@
 import '@urbiverso/sdk/express';
-import { Router, type Request } from 'express';
+import { Router, type Request, type Response } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
 import {
+  AMBIENTES,
   autorizacaoVigente,
   contextoDescricao,
   INSTRUCAO_DESCRICAO,
@@ -32,6 +33,8 @@ guardarCorretor(imoveisRotas, ['/imoveis', '/autorizacoes', '/empreendimentos'])
 
 const POR_PAGINA = 50;
 const TTL_URL = 3600;
+/** Teto de arquivos por imóvel: mantém a listagem (50 imóveis por página) dentro do `maximo` da leitura. */
+const LIMITE_MIDIAS = 80;
 const id = (v: unknown) => {
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
@@ -90,6 +93,29 @@ function resumo(im: Record<string, any>, extra: { midias: any[]; autorizacoes: a
   // Publicável: o que poderá aparecer fora do app (Minha Página, ficha pública) — bloco 5 lê isto.
   const publicavel = im.publicado_pagina && SITUACOES_ANUNCIADAS.includes(im.situacao) && vigente;
   return { qualidade, autorizacao_vigente: vigente, publicavel, fotos_publicas: fotosPublicas };
+}
+
+/** Conteúdo devolvido pela extração (texto JSON ou objeto); `null` se não for um objeto. */
+function lerObjeto(conteudo: unknown): Record<string, unknown> | null {
+  let v = conteudo;
+  if (typeof v === 'string') {
+    try {
+      v = JSON.parse(v);
+    } catch {
+      return null;
+    }
+  }
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+}
+
+/**
+ * Erro do helper de IA (ia.md: "o helper lança exceções que a app deve capturar"): vira 503 com
+ * mensagem do app, sem repassar o texto interno. Erro que não é da IA segue para o tratador.
+ */
+function falhaIa(res: Response, e: unknown, mensagem: string) {
+  const codigo = (e as { codigo?: string })?.codigo;
+  if (!codigo) throw e;
+  return erro(res, 503, 'IA_INDISPONIVEL', codigo === 'SLOT_NAO_CONFIGURADO' ? 'A IA não está liberada para o app agora.' : mensagem);
 }
 
 // ---------- Imóveis ----------
@@ -152,9 +178,12 @@ imoveisRotas.get(
   assincrono(async (req, res) => {
     // Sonda sem custo (estadoSlot): a tela mostra os botões de IA só quando o slot resolve.
     const estado = async (slot: string) => {
+      if (!req.ia) return false;
       try {
-        return !!(req.ia && (await req.ia.estadoSlot(slot)).efetivo);
-      } catch {
+        return !!(await req.ia.estadoSlot(slot)).efetivo;
+      } catch (e) {
+        // Slot fora do manifesto é bug do app, não "IA desligada": não esconde.
+        if ((e as { codigo?: string })?.codigo === 'SLOT_INVALIDO') throw e;
         return false;
       }
     };
@@ -194,15 +223,20 @@ imoveisRotas.get(
   }),
 );
 
-/** Contato da conta que passa a ser o proprietário: ganha o papel `proprietario` se não tiver. */
-async function proprietario(dados: HelperDados, bruto: unknown): Promise<{ id: number | null } | { erro: string }> {
+/** Confere que o proprietário é um contato da conta. Não grava nada: o papel vem depois do sucesso. */
+async function proprietario(dados: HelperDados, bruto: unknown): Promise<{ id: number | null; contato?: Record<string, any> } | { erro: string }> {
   if (bruto === null || bruto === '') return { id: null };
   const cid = id(bruto);
   const contato = cid ? await dados.buscar('contatos', cid) : null;
   if (!contato) return { erro: 'Proprietário não encontrado entre os seus contatos.' };
+  return { id: cid, contato };
+}
+
+/** O contato que passou a ser proprietário ganha o papel `proprietario` se ainda não tinha. */
+async function marcarProprietario(dados: HelperDados, contato?: Record<string, any>) {
+  if (!contato) return;
   const papeis = normalizarPapeis(contato.papeis);
-  if (!papeis.includes('proprietario')) await dados.atualizar('contatos', cid!, { papeis: normalizarPapeis([...papeis, 'proprietario']).join(',') });
-  return { id: cid };
+  if (!papeis.includes('proprietario')) await dados.atualizar('contatos', contato.id, { papeis: normalizarPapeis([...papeis, 'proprietario']).join(',') });
 }
 
 imoveisRotas.patch(
@@ -216,10 +250,12 @@ imoveisRotas.patch(
     const v = validarImovel(corpo, true);
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira o imóvel.', v.erros);
     const mudar: Record<string, unknown> = { ...v.dados };
+    let novoProprietario: Record<string, any> | undefined;
     if ('proprietario_id' in corpo) {
       const p = await proprietario(dados, corpo.proprietario_id);
       if ('erro' in p) return erro(res, 422, 'DADOS_INVALIDOS', p.erro);
       mudar.proprietario_id = p.id;
+      novoProprietario = p.contato;
     }
     if ('empreendimento_id' in corpo) {
       const eid = corpo.empreendimento_id === null || corpo.empreendimento_id === '' ? null : id(corpo.empreendimento_id);
@@ -246,6 +282,7 @@ imoveisRotas.patch(
     try {
       const imovel = await dados.atualizar('imoveis', iid!, mudar);
       if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
+      await marcarProprietario(dados, novoProprietario);
       res.json(imovel);
     } catch (e) {
       if (violouUnico(e)) return erro(res, 409, 'CODIGO_REPETIDO', 'Já existe um imóvel com este código.');
@@ -290,6 +327,7 @@ imoveisRotas.post(
     const tipo = (TIPOS_MIDIA as readonly string[]).includes(req.body?.tipo) ? req.body.tipo : 'foto';
     const dados = req.dados!;
     const ultima = await dados.listar('imovel_midias', { filtros: { imovel_id: imovel.id }, ordenar: 'ordem', ordem: 'desc', por_pagina: 1 });
+    if (ultima.total >= LIMITE_MIDIAS) return erro(res, 409, 'LIMITE_MIDIAS', `Cada imóvel guarda até ${LIMITE_MIDIAS} arquivos. Apague alguns antes.`);
     try {
       const midia = await dados.criar('imovel_midias', {
         imovel_id: imovel.id,
@@ -358,6 +396,11 @@ imoveisRotas.patch(
       mudar.tipo = corpo.tipo;
     }
     if ('publica' in corpo) mudar.publica = corpo.publica === true;
+    // O documento de uma autorização nunca vira foto nem fica público, por nenhum caminho.
+    if ((mudar.tipo !== undefined && mudar.tipo !== 'documento') || mudar.publica === true) {
+      const usa = await primeiro(req.dados!, 'autorizacoes_venda', { documento_midia_id: midia.id });
+      if (usa) return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização: fica sempre interno.');
+    }
     if ((mudar.tipo ?? midia.tipo) === 'documento' && (mudar.publica ?? midia.publica)) mudar.publica = false;
     const salva = Object.keys(mudar).length ? await req.dados!.atualizar('imovel_midias', midia.id, mudar) : midia;
     res.json(salva);
@@ -388,10 +431,17 @@ imoveisRotas.post(
     if (midia.tipo !== 'foto') return erro(res, 422, 'DADOS_INVALIDOS', 'Só fotos são lidas.');
     const estado = req.ia ? await req.ia.estadoSlot('fotos').catch(() => null) : null;
     if (!estado?.efetivo) return erro(res, 503, 'IA_INDISPONIVEL', 'A leitura de fotos não está disponível agora.');
-    const r = await req.ia!.extrairConteudo({ arquivo_id: midia.arquivo }, { instrucao: INSTRUCAO_FOTO, schema: SCHEMA_FOTO, slot: 'fotos' });
-    const bruto = typeof r.conteudo === 'string' ? JSON.parse(r.conteudo || '{}') : r.conteudo;
-    const ambiente = typeof bruto.ambiente === 'string' ? bruto.ambiente.slice(0, 40) : 'outro';
-    const nota = Number.isInteger(bruto.nota) ? Math.min(Math.max(bruto.nota, 0), 10) : null;
+    let bruto: Record<string, unknown> | null;
+    try {
+      const r = await req.ia!.extrairConteudo({ arquivo_id: midia.arquivo }, { instrucao: INSTRUCAO_FOTO, schema: SCHEMA_FOTO, slot: 'fotos' });
+      bruto = lerObjeto(r.conteudo);
+    } catch (e) {
+      return falhaIa(res, e, 'A leitura da foto falhou agora.');
+    }
+    // O app valida a resposta: fora do formato, não grava nada.
+    if (!bruto) return erro(res, 503, 'IA_INDISPONIVEL', 'A leitura da foto voltou fora do formato. Tente de novo.');
+    const ambiente = (AMBIENTES as readonly string[]).includes(bruto.ambiente as string) ? (bruto.ambiente as string) : 'outro';
+    const nota = Number.isInteger(bruto.nota) ? Math.min(Math.max(bruto.nota as number, 0), 10) : null;
     const legenda = typeof bruto.legenda === 'string' ? bruto.legenda.trim().slice(0, 200) : '';
     const salva = await req.dados!.atualizar('imovel_midias', midia.id, {
       ia_ambiente: ambiente,
@@ -414,7 +464,12 @@ imoveisRotas.post(
     if (!estado?.efetivo) return erro(res, 503, 'IA_INDISPONIVEL', 'A escrita com IA não está disponível agora. Escreva a descrição à mão.');
     const midias = await req.dados!.listar('imovel_midias', { filtros: { imovel_id: imovel.id, tipo: 'foto' }, por_pagina: 100 });
     const ambientes = midias.dados.map((m) => m.ia_ambiente).filter(Boolean) as string[];
-    const r = await req.ia!.consultar({ contexto: contextoDescricao(imovel, ambientes), schema: SCHEMA_DESCRICAO, slot: 'conteudo', instrucoes_sistema: INSTRUCAO_DESCRICAO });
+    let r;
+    try {
+      r = await req.ia!.consultar({ contexto: contextoDescricao(imovel, ambientes), schema: SCHEMA_DESCRICAO, slot: 'conteudo', instrucoes_sistema: INSTRUCAO_DESCRICAO });
+    } catch (e) {
+      return falhaIa(res, e, 'A escrita com IA falhou agora. Tente de novo ou escreva à mão.');
+    }
     // Sugestão: não grava. O corretor revisa e salva pela edição do imóvel.
     res.json({
       titulo: String(r.dados.titulo ?? '').slice(0, 120),
@@ -437,9 +492,10 @@ imoveisRotas.post(
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a autorização.', v.erros);
     const p = await proprietario(dados, req.body?.proprietario_id ?? imovel.proprietario_id);
     if ('erro' in p || !p.id) return erro(res, 422, 'DADOS_INVALIDOS', 'erro' in p ? p.erro : 'Escolha o proprietário que assina a autorização.');
-    if (!imovel.proprietario_id) await dados.atualizar('imoveis', imovel.id, { proprietario_id: p.id });
     const situacao = v.dados.situacao === 'assinada' ? 'rascunho' : (v.dados.situacao ?? 'rascunho'); // assinar pede documento: rota de PATCH
     const aut = await dados.criar('autorizacoes_venda', { ...v.dados, situacao, imovel_id: iid, proprietario_id: p.id });
+    if (!imovel.proprietario_id) await dados.atualizar('imoveis', imovel.id, { proprietario_id: p.id });
+    await marcarProprietario(dados, p.contato);
     res.status(201).json(aut);
   }),
 );
@@ -468,7 +524,8 @@ imoveisRotas.patch(
       if (doc && (doc.tipo !== 'documento' || doc.publica)) await dados.atualizar('imovel_midias', doc.id, { tipo: 'documento', publica: false });
     }
     const situacao = (mudar.situacao ?? atual.situacao) as string;
-    if (situacao === 'assinada' && !(mudar.documento_midia_id ?? atual.documento_midia_id)) {
+    const documento = 'documento_midia_id' in mudar ? mudar.documento_midia_id : atual.documento_midia_id;
+    if (situacao === 'assinada' && !documento) {
       return erro(res, 422, 'DOCUMENTO_OBRIGATORIO', 'Anexe o documento assinado antes de marcar a autorização como assinada.');
     }
     const aut = await dados.atualizar('autorizacoes_venda', aid!, mudar);

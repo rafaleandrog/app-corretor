@@ -82,6 +82,9 @@ test('cadastro: código automático, código próprio único, proprietário ganh
     assert.equal((await chamar('POST', '/imoveis', { tipo: 'lote', cidade: 'Brasília', codigo: 'lt-7' })).corpo.codigo, 'LT-7');
     assert.equal((await chamar('POST', '/imoveis', { tipo: 'lote', cidade: 'Brasília', codigo: 'LT-7' })).status, 409);
     const dono = (await chamar('POST', '/contatos', { nome: 'Dona Rosa', telefone: '61988887777' })).corpo;
+    // Recusado (sem autorização para publicar): o contato não ganha o papel.
+    assert.equal((await chamar('PATCH', `/imoveis/${um.corpo.id}`, { proprietario_id: dono.id, publicado_pagina: true })).status, 409);
+    assert.equal(banco.linhas('contatos')[0].papeis, 'comprador');
     assert.equal((await chamar('PATCH', `/imoveis/${um.corpo.id}`, { proprietario_id: dono.id, preco: '1.200.000' })).status, 200);
     assert.equal(banco.linhas('contatos')[0].papeis, 'comprador,proprietario');
     assert.equal(banco.linhas('imoveis')[0].preco_c, 120000000);
@@ -115,6 +118,13 @@ test('anúncio só com autorização assinada, com documento e vigente', async (
     assert.equal(ficha.autorizacoes[0].vigente, true);
     assert.equal(banco.linhas('imoveis')[0].proprietario_id, dono.id, 'a autorização preenche o proprietário');
     assert.equal((await chamar('PATCH', `/imoveis/${im.id}/midias/${doc.id}/remover`)).status, 409, 'documento de autorização assinada');
+    // Nem pela edição o documento vira foto pública.
+    assert.equal((await chamar('PATCH', `/imoveis/${im.id}/midias/${doc.id}`, { tipo: 'foto', publica: true })).corpo.codigo, 'DOCUMENTO_EM_USO');
+    assert.equal((await chamar('PATCH', `/imoveis/${im.id}/midias/${doc.id}`, { publica: true })).status, 409);
+    assert.equal((await chamar('PATCH', `/imoveis/${im.id}/midias/${doc.id}`, { legenda: 'Autorização assinada' })).status, 200);
+    assert.deepEqual([banco.linhas('imovel_midias')[0].tipo, banco.linhas('imovel_midias')[0].publica], ['documento', false]);
+    // Assinada não fica sem documento.
+    assert.equal((await chamar('PATCH', `/autorizacoes/${aut.corpo.id}`, { documento_midia_id: null })).corpo.codigo, 'DOCUMENTO_OBRIGATORIO');
     // Vencida: continua assinada no banco, aparece vencida e o anúncio deixa de ser publicável.
     banco.linhas('autorizacoes_venda')[0].fim = dia(-1);
     banco.linhas('autorizacoes_venda')[0].inicio = dia(-100);
@@ -178,6 +188,30 @@ test('IA: descrição só com tipo e área, sem dados do proprietário; indispon
   });
   await comServidor(rotas, { ...A, extras: { arquivos } }, banco, {}, async (chamar) => {
     assert.equal((await chamar('GET', '/imoveis/ia')).corpo.fotos, false, 'sem req.ia');
+  });
+});
+
+test('IA fora do formato ou com erro degrada para 503, sem gravar', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const respostas: unknown[] = ['isto não é json', 'null', null, JSON.stringify({ ambiente: 'nave', nota: 7, legenda: 'ok' })];
+  const ia = {
+    ...iaLigada(),
+    extrairConteudo: async () => ({ conteudo: respostas.shift() }),
+    consultar: async () => {
+      throw Object.assign(new Error('limite interno 10/min [detalhe do provedor]'), { codigo: 'RATE_LIMIT' });
+    },
+  };
+  await comServidor(rotas, { ...A, extras: { arquivos, ia } }, banco, {}, async (chamar) => {
+    const im = (await chamar('POST', '/imoveis', { tipo: 'casa', cidade: 'Brasília' })).corpo;
+    await chamar('PATCH', `/imoveis/${im.id}`, { area_util_m2: 90 });
+    const m = (await chamar('POST', `/imoveis/${im.id}/midias`, { upload_id: 3 })).corpo;
+    for (let i = 0; i < 3; i++) assert.equal((await chamar('POST', `/imoveis/${im.id}/midias/${m.id}/analisar`)).status, 503);
+    assert.equal(banco.linhas('imovel_midias')[0].ia_ambiente ?? null, null);
+    // Ambiente fora da lista vira "outro".
+    assert.equal((await chamar('POST', `/imoveis/${im.id}/midias/${m.id}/analisar`)).corpo.ia_ambiente, 'outro');
+    const d = await chamar('POST', `/imoveis/${im.id}/descricao`);
+    assert.equal(d.status, 503);
+    assert.ok(!d.corpo.mensagem.includes('provedor'), 'mensagem do app, não a interna');
   });
 });
 
@@ -273,5 +307,6 @@ test('equipe da plataforma não alcança imóveis', async () => {
     assert.equal((await chamar('GET', '/imoveis')).status, 403);
     assert.equal((await chamar('POST', '/empreendimentos', { nome: 'x' })).status, 403);
     assert.equal((await chamar('PATCH', '/autorizacoes/1', {})).status, 403);
+    assert.equal((await chamar('POST', '/visitas/1/feedback', { nota: 3 })).status, 403);
   });
 });

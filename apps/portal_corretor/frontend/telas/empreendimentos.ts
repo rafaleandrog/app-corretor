@@ -19,6 +19,7 @@ export class PcTelaEmpreendimentos extends LitElement {
   @state() private lista: Linha[] | null = null;
   @state() private falha: string | null = null;
   @state() private busca = '';
+  private geracao = 0;
 
   connectedCallback() {
     super.connectedCallback();
@@ -26,11 +27,13 @@ export class PcTelaEmpreendimentos extends LitElement {
   }
 
   private async carregar() {
+    const geracao = ++this.geracao;
     this.falha = null;
     try {
-      this.lista = (await urbiVerso.api(`/empreendimentos${this.busca ? `?busca=${encodeURIComponent(this.busca)}` : ''}`)).dados;
+      const r = await urbiVerso.api(`/empreendimentos${this.busca ? `?busca=${encodeURIComponent(this.busca)}` : ''}`);
+      if (geracao === this.geracao) this.lista = r.dados; // resposta velha não sobrescreve a nova
     } catch (e) {
-      this.falha = (e as Error).message;
+      if (geracao === this.geracao) this.falha = (e as Error).message;
     }
   }
 
