@@ -1,6 +1,6 @@
 import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
-import type { ContextoListener } from '@urbiverso/sdk';
+import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { CANAIS_ABORDAGEM, iso, ordenarFila, TEMPERATURAS, type TipoFila } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { etapasDaConta, registrar } from './crm';
@@ -175,7 +175,7 @@ funilRotas.post(
 
 // ---------- Início: fila do dia ----------
 
-interface ItemFila {
+export interface ItemFila {
   tipo: TipoFila;
   contato_id: number;
   contato_nome: string;
@@ -185,49 +185,55 @@ interface ItemFila {
   atividade_id?: number;
 }
 
+/** Fila do dia da Inteligência do Funil (spec 11.1): um item por contato, no motivo mais urgente. */
+export async function filaDoDia(dados: HelperDados, fuso: string): Promise<ItemFila[]> {
+  const ag = agora();
+  const hoje = limitesDoDia(fuso);
+  const amanha = limitesDoDia(fuso, 1);
+  await etapasDaConta(dados);
+  const etapas = await etapasPorId(dados);
+  const [quentes, negocios, visitas, passos, playbook] = await Promise.all([
+    dados.listar('contatos', { filtros: { temperatura: 'quente', 'ultimo_contato_em[lt]': new Date(Date.now() - DIA).toISOString() }, ordenar: 'ultimo_contato_em', ordem: 'asc', por_pagina: 50 }),
+    dados.varrerTudo('negocios', { maximo: 5000 }),
+    dados.listar('atividades', { filtros: { tipo: 'visita', status: 'pendente', 'quando[gte]': hoje.inicio, 'quando[lt]': amanha.fim }, ordenar: 'quando', ordem: 'asc', por_pagina: 100 }),
+    dados.listar('contatos', { filtros: { 'proximo_passo_em[lt]': ag }, ordenar: 'proximo_passo_em', ordem: 'asc', por_pagina: 50 }),
+    playbookDaConta(dados, etapas),
+  ]);
+  const abertos = negocios.filter((n) => etapas.get(n.etapa_id)?.tipo === 'aberta');
+  // Contatos dos negócios abertos e das visitas, numa leitura (nome e temperatura vêm daqui).
+  const idsContato = [...new Set([...abertos.map((n) => n.contato_id), ...visitas.dados.map((v) => v.contato_id).filter(Boolean)])];
+  const contatos = idsContato.length ? await dados.varrerTudo('contatos', { filtros: { id: idsContato.join(',') }, maximo: 5000 }) : [];
+  const itens: ItemFila[] = [];
+  for (const c of quentes.dados) {
+    itens.push({ tipo: 'quente_sem_resposta', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura, quando: c.ultimo_contato_em, texto: c.temperatura_motivo ?? 'Quente e sem contato há mais de um dia' });
+  }
+  const porId = new Map(contatos.map((c) => [c.id, c]));
+  for (const c of contatos) {
+    const a = proximaAbordagem(c, abertos.filter((n) => n.contato_id === c.id), etapas, playbook);
+    if (a?.vencida) itens.push({ tipo: 'abordagem_vencida', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: a.vence_em, texto: a.abordagem });
+  }
+  for (const v of visitas.dados) {
+    if (!v.contato_id) continue;
+    itens.push({
+      tipo: 'visita', contato_id: v.contato_id, contato_nome: porId.get(v.contato_id)?.nome ?? v.contato_nome ?? '', temperatura: porId.get(v.contato_id)?.temperatura ?? null, quando: v.quando,
+      texto: `${(iso(v.quando) ?? '') < hoje.fim ? 'Hoje' : 'Amanhã'}: ${v.titulo}${v.local ? ` · ${v.local}` : ''}`, atividade_id: v.id,
+    });
+  }
+  for (const c of passos.dados) {
+    itens.push({ tipo: 'proximo_passo', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: c.proximo_passo_em, texto: c.proximo_passo ?? 'Próximo passo combinado' });
+  }
+  // Um contato aparece uma vez, no motivo mais urgente.
+  const vistos = new Set<number>();
+  const fila = ordenarFila(itens).filter((i) => (vistos.has(i.contato_id) ? false : (vistos.add(i.contato_id), true)));
+  return fila;
+}
+
 funilRotas.get(
   '/inicio',
   assincrono(async (req: Request, res) => {
     const dados = req.dados!;
     const fuso = req.contexto?.fuso || 'America/Sao_Paulo';
-    const ag = agora();
-    const hoje = limitesDoDia(fuso);
-    const amanha = limitesDoDia(fuso, 1);
-    await etapasDaConta(dados);
-    const etapas = await etapasPorId(dados);
-    const [quentes, negocios, visitas, passos, playbook] = await Promise.all([
-      dados.listar('contatos', { filtros: { temperatura: 'quente', 'ultimo_contato_em[lt]': new Date(Date.now() - DIA).toISOString() }, ordenar: 'ultimo_contato_em', ordem: 'asc', por_pagina: 50 }),
-      dados.varrerTudo('negocios', { maximo: 5000 }),
-      dados.listar('atividades', { filtros: { tipo: 'visita', status: 'pendente', 'quando[gte]': hoje.inicio, 'quando[lt]': amanha.fim }, ordenar: 'quando', ordem: 'asc', por_pagina: 100 }),
-      dados.listar('contatos', { filtros: { 'proximo_passo_em[lt]': ag }, ordenar: 'proximo_passo_em', ordem: 'asc', por_pagina: 50 }),
-      playbookDaConta(dados, etapas),
-    ]);
-    const abertos = negocios.filter((n) => etapas.get(n.etapa_id)?.tipo === 'aberta');
-    // Contatos dos negócios abertos e das visitas, numa leitura (nome e temperatura vêm daqui).
-    const idsContato = [...new Set([...abertos.map((n) => n.contato_id), ...visitas.dados.map((v) => v.contato_id).filter(Boolean)])];
-    const contatos = idsContato.length ? await dados.varrerTudo('contatos', { filtros: { id: idsContato.join(',') }, maximo: 5000 }) : [];
-    const itens: ItemFila[] = [];
-    for (const c of quentes.dados) {
-      itens.push({ tipo: 'quente_sem_resposta', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura, quando: c.ultimo_contato_em, texto: c.temperatura_motivo ?? 'Quente e sem contato há mais de um dia' });
-    }
-    const porId = new Map(contatos.map((c) => [c.id, c]));
-    for (const c of contatos) {
-      const a = proximaAbordagem(c, abertos.filter((n) => n.contato_id === c.id), etapas, playbook);
-      if (a?.vencida) itens.push({ tipo: 'abordagem_vencida', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: a.vence_em, texto: a.abordagem });
-    }
-    for (const v of visitas.dados) {
-      if (!v.contato_id) continue;
-      itens.push({
-        tipo: 'visita', contato_id: v.contato_id, contato_nome: porId.get(v.contato_id)?.nome ?? v.contato_nome ?? '', temperatura: porId.get(v.contato_id)?.temperatura ?? null, quando: v.quando,
-        texto: `${(iso(v.quando) ?? '') < hoje.fim ? 'Hoje' : 'Amanhã'}: ${v.titulo}${v.local ? ` · ${v.local}` : ''}`, atividade_id: v.id,
-      });
-    }
-    for (const c of passos.dados) {
-      itens.push({ tipo: 'proximo_passo', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: c.proximo_passo_em, texto: c.proximo_passo ?? 'Próximo passo combinado' });
-    }
-    // Um contato aparece uma vez, no motivo mais urgente.
-    const vistos = new Set<number>();
-    const fila = ordenarFila(itens).filter((i) => (vistos.has(i.contato_id) ? false : (vistos.add(i.contato_id), true)));
+    const fila = await filaDoDia(dados, fuso);
     // A faixa da semana é complementar: se o cálculo falhar, a fila do dia continua de pé.
     const semana = await numerosDaSemana(dados).catch(() => null);
     // A demonstração só se oferece em conta de teste ainda sem nenhum contato.

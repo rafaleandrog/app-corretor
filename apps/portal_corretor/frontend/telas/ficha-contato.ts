@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
+import { abrirAssistenteSobre } from './assistente.js';
 import {
   data,
   dataHora,
@@ -292,6 +293,12 @@ export class PcTelaFichaContato extends LitElement {
     return html`<span slot="acoes"><urbi-botao variante="fantasma" pequeno icone=${icone} ariaLabel=${rotulo} title=${rotulo} @click=${fn}></urbi-botao></span>`;
   }
 
+  /** Abre o Assistente sobre este contato (spec 11.1: "perguntar ao Assistente sobre este cliente"). */
+  private perguntarAssistente() {
+    const c = this.ficha!.contato;
+    abrirAssistenteSobre({ id: c.id, nome: c.nome });
+  }
+
   render() {
     const banner = this.falha
       ? html`<urbi-banner variante="erro">
@@ -310,6 +317,7 @@ export class PcTelaFichaContato extends LitElement {
         <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/clientes')}>Clientes</urbi-botao>
         <urbi-linha>
           <urbi-botao variante="secundario" pequeno icone="fa-solid fa-comment" @click=${() => this.nota()}>Registrar contato</urbi-botao>
+          <urbi-botao variante="secundario" pequeno icone="fa-solid fa-comments" @click=${() => this.perguntarAssistente()}>Perguntar ao Assistente</urbi-botao>
           <urbi-botao variante="perigo" pequeno icone="fa-solid fa-trash" @click=${() => this.remover()}>Remover</urbi-botao>
         </urbi-linha>
       </urbi-linha>
