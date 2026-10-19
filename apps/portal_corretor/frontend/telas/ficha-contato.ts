@@ -1,6 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
+import './selecoes-cliente.js';
 import {
   data,
   dataHora,
@@ -368,6 +369,7 @@ export class PcTelaFichaContato extends LitElement {
             ${pendentes.length ? '' : html`<urbi-prosa papel="dica">Nada pendente.</urbi-prosa>`}`
           : html`<urbi-prosa papel="dica">Nada agendado. Marque uma ligação, visita ou reunião.</urbi-prosa>`}
       </urbi-card>
+      <pc-selecoes-cliente .contatoId=${c.id} .nome=${c.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>
       <urbi-card titulo="Tudo que você mandou" icone="fa-solid fa-paper-plane">
         ${this.acao('Registrar envio', 'fa-solid fa-plus', () => void this.registrarEnvio())}
         ${this.envios.length

@@ -10,6 +10,7 @@ import { numerosRotas } from './numeros';
 import { enviosRotas } from './envios';
 import { demoRotas } from './demo';
 import { paginaRotas } from './pagina';
+import { clienteRotas } from './cliente';
 
 export { aoIniciar } from './semente';
 // Páginas públicas, webhooks de entrada e listeners do bloco 5.
@@ -37,3 +38,4 @@ rotas.use(numerosRotas);
 rotas.use(enviosRotas);
 rotas.use(demoRotas);
 rotas.use(paginaRotas);
+rotas.use(clienteRotas);

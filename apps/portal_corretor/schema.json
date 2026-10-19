@@ -1589,7 +1589,9 @@
           "opcoes": [
             "pagina",
             "imovel",
-            "link"
+            "link",
+            "selecao",
+            "portal"
           ]
         },
         "chave": {
@@ -1625,6 +1627,169 @@
           "conta",
           "codigo"
         ]
+      ]
+    },
+    "selecoes": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{titulo}",
+      "colunas": {
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as contato_nome"
+          ]
+        },
+        "titulo": {
+          "tipo": "texto",
+          "limite": 120,
+          "obrigatorio": true
+        },
+        "mensagem": {
+          "tipo": "texto",
+          "limite": 1000
+        },
+        "enviada_em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        },
+        "expira_em": {
+          "tipo": "datahora"
+        },
+        "revogada_em": {
+          "tipo": "datahora"
+        },
+        "ingresso_id": {
+          "tipo": "inteiro"
+        },
+        "url_reacao": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "link": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "criada_por_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular"
+        }
+      },
+      "indices": [
+        [
+          "contato_id",
+          "enviada_em"
+        ]
+      ]
+    },
+    "selecao_itens": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "selecao_id": {
+          "tipo": "referencia",
+          "tabela_ref": "selecoes",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "imovel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imoveis",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "codigo as imovel_codigo",
+            "titulo as imovel_titulo"
+          ]
+        },
+        "ordem": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 0,
+          "intervalo": {
+            "min": 0,
+            "max": 999
+          }
+        },
+        "reacao": {
+          "tipo": "texto",
+          "limite": 20,
+          "opcoes": [
+            "gostei",
+            "nao_gostei",
+            "quero_visitar"
+          ]
+        },
+        "reacao_em": {
+          "tipo": "datahora"
+        },
+        "comentario": {
+          "tipo": "texto",
+          "limite": 300
+        }
+      },
+      "unicos": [
+        [
+          "selecao_id",
+          "imovel_id"
+        ]
+      ]
+    },
+    "acessos_cliente": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "perfil": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "comprador",
+          "opcoes": [
+            "comprador"
+          ]
+        },
+        "ingresso_id": {
+          "tipo": "inteiro"
+        },
+        "url_acoes": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "link": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "criado_por_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular"
+        },
+        "revogado_em": {
+          "tipo": "datahora"
+        }
+      },
+      "unicos": [
+        {
+          "colunas": [
+            "contato_id"
+          ],
+          "onde": [
+            {
+              "coluna": "revogado_em",
+              "operador": "nulo"
+            }
+          ]
+        }
       ]
     }
   }

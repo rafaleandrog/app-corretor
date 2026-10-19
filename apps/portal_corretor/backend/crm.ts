@@ -15,6 +15,7 @@ import {
 import { gerarCsv } from '../comum/csv';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
+import { tentarPortal } from './portal';
 import { MARCO_PADRAO } from '../comum/funil';
 import { marcoMaisAvancado } from '../comum/numeros';
 
@@ -511,7 +512,11 @@ crmRotas.post(
     });
     if (atividade.contato_id) {
       await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `Agendado: ${atividade.titulo}` });
-      if (atividade.tipo === 'visita') await reclassificar(dados, atividade.contato_id);
+      if (atividade.tipo === 'visita') {
+        await reclassificar(dados, atividade.contato_id);
+        // A agenda do portal do cliente mostra as visitas marcadas (bloco 5b).
+        await tentarPortal(dados, req.contexto?.contaEscrita, atividade.contato_id);
+      }
     }
     res.status(201).json(atividade);
   }),
@@ -534,6 +539,7 @@ crmRotas.patch(
       if (v.dados.status === 'feita') await dados.atualizar('contatos', atual.contato_id, { ultimo_contato_em: agora() });
       await reclassificar(dados, atual.contato_id);
     }
+    if (atual.tipo === 'visita') await tentarPortal(dados, req.contexto?.contaEscrita, atual.contato_id);
     res.json(atividade);
   }),
 );
@@ -543,8 +549,10 @@ crmRotas.patch(
   assincrono(async (req, res) => {
     const aid = id(req.params.id);
     const dados = req.dados!;
-    if (!aid || !(await dados.buscar('atividades', aid))) return erro(res, 404, 'NAO_ENCONTRADO', 'Atividade não encontrada.');
-    await dados.remover('atividades', aid, eu(req));
+    const atual = aid ? await dados.buscar('atividades', aid) : null;
+    if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', 'Atividade não encontrada.');
+    await dados.remover('atividades', aid!, eu(req));
+    if (atual.tipo === 'visita') await tentarPortal(dados, req.contexto?.contaEscrita, atual.contato_id);
     res.json({ id: aid, removido: true });
   }),
 );
@@ -574,6 +582,7 @@ crmRotas.post(
       });
       await dados.atualizar('contatos', atividade.contato_id, { ultimo_contato_em: agora() });
       await reclassificar(dados, atividade.contato_id);
+      await tentarPortal(dados, req.contexto?.contaEscrita, atividade.contato_id);
     }
     res.json(salva);
   }),

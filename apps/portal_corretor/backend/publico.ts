@@ -6,6 +6,7 @@ import { ETAPAS_PADRAO } from '../comum/crm';
 import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
 import { reclassificar } from './inteligencia';
+import { marcarReacaoNaVitrine, selecaoValida, sincronizarPortal } from './portal';
 
 // Superfícies públicas do bloco 5 (paginas-publicas.md, wh.md, D-55):
 // - rotas GET anônimas que leem só a vitrine pública (a página, a ficha do imóvel, o link);
@@ -99,6 +100,70 @@ rotasPublicas.get('/vitrine/link', async (req, res, next) => {
   }
 });
 
+// ---------- Seleção e Portal do Cliente (bloco 5b): o token do ingresso é a credencial ----------
+
+const FORMATO_TOKEN = /^wh_[A-Za-z0-9_]{8,80}$/;
+
+/** Contexto do ingresso pelo token, sem consumir (wh.md § Inspecionar); token inválido, vencido ou revogado → `null`. */
+async function contextoDoToken(req: Request, webhook: string, token: string): Promise<Linha | null> {
+  if (!FORMATO_TOKEN.test(token)) return null;
+  try {
+    const r = await req.shell!.inspecionarIngressoWh({ webhook, token });
+    return r.contexto ?? null;
+  } catch (e) {
+    if ((e as { codigo?: string })?.codigo === 'WH_INGRESSO_INVALIDO') return null;
+    throw e;
+  }
+}
+
+const idDe = (v: unknown) => {
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+
+/** Seleção com as URLs das fotos (assinadas na hora); vencida ou fora da vitrine → `null`. */
+async function selecaoPublica(req: Request, conta: number, selecaoId: number) {
+  const linha = await vitrine(req.dados!, { tipo: 'selecao', conta, chave: `${conta}:${selecaoId}` });
+  if (!linha) return null;
+  const s = linha.dados as Linha;
+  if (s.expira_em && String(s.expira_em) <= new Date().toISOString()) return null;
+  const itens = await Promise.all(
+    (s.itens ?? []).map(async (i: Linha) => ({
+      ...i,
+      fotos: (await Promise.all((i.fotos ?? []).map(async (f: Linha) => ({ url: await urlFoto(req, f.arquivo), legenda: f.legenda ?? null })))).filter((f) => f.url),
+    })),
+  );
+  return { id: selecaoId, ...s, itens };
+}
+
+rotasPublicas.get('/vitrine/selecao', async (req, res, next) => {
+  try {
+    const ctx = await contextoDoToken(req, 'reacao_selecao', texto(req.query.t, 90));
+    const conta = idDe(ctx?.conta_id);
+    const selecaoId = idDe(ctx?.selecao_id);
+    const selecao = conta && selecaoId ? await selecaoPublica(req, conta, selecaoId) : null;
+    if (!selecao) return res.status(404).json({ erro: true, codigo: 'NAO_ENCONTRADO', mensagem: 'Seleção expirada ou indisponível.' });
+    res.json({ selecao });
+  } catch (e) {
+    next(e);
+  }
+});
+
+rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
+  try {
+    const ctx = await contextoDoToken(req, 'acao_cliente', texto(req.query.t, 90));
+    const conta = idDe(ctx?.conta_id);
+    const contatoId = idDe(ctx?.contato_id);
+    const portal = conta && contatoId ? await vitrine(req.dados!, { tipo: 'portal', conta, chave: `${conta}:${contatoId}` }) : null;
+    if (!portal) return res.status(404).json({ erro: true, codigo: 'NAO_ENCONTRADO', mensagem: 'Portal indisponível.' });
+    const p = portal.dados as Linha;
+    const selecoes = (await Promise.all((p.selecoes ?? []).map((sid: number) => selecaoPublica(req, conta!, sid)))).filter(Boolean);
+    res.json({ portal: { corretor: p.corretor, url_acoes: p.url_acoes, agenda: p.agenda ?? [], jornada: p.jornada ?? null, selecoes } });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // ---------- Webhooks ----------
 
 /** Limite por origem em memória (7.3: 3 envios por minuto por IP). Só o hash do IP, nunca gravado. */
@@ -127,6 +192,9 @@ function origem(req: Request): string {
   return createHash('sha256').update(req.ip || 'desconhecido').digest('hex').slice(0, 16);
 }
 
+const REACOES = ['gostei', 'nao_gostei', 'quero_visitar'];
+const ROTULO_REACAO: Record<string, string> = { gostei: 'Gostou do', nao_gostei: 'Não gostou do', quero_visitar: 'Quer visitar o' };
+
 const contaDoIngresso = (req: Request) => {
   const c = Number((req.wh?.contexto as Linha | null)?.conta_id);
   return Number.isInteger(c) && c > 0 ? c : null;
@@ -150,6 +218,41 @@ export const webhooks = {
       { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null },
       { conta_id: conta },
     );
+    res.json({ ok: true });
+  },
+
+  /** Reação a um imóvel da seleção (7.3): token válido e imóvel da seleção (o listener confere). */
+  reacao_selecao: async (req: Request, res: Response) => {
+    const ctx = req.wh?.contexto as Linha | null;
+    const conta = contaDoIngresso(req);
+    const selecaoId = idDe(ctx?.selecao_id);
+    const corpo = (req.body ?? {}) as Linha;
+    const codigo = texto(corpo.imovel_codigo, 30);
+    const reacao = REACOES.includes(corpo.reacao) ? (corpo.reacao as string) : null;
+    if (!conta || !selecaoId || !codigo || !reacao) return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: 'Reação inválida.' });
+    if (!dentroDoLimite(`reacao:${conta}:${selecaoId}:${origem(req)}`, 30)) {
+      return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitas reações seguidas. Espere um minuto.' });
+    }
+    await req.eventos!.publicar('reacao_recebida', { selecao_id: selecaoId, imovel_codigo: codigo, reacao, comentario: texto(corpo.comentario, 300) || null }, { conta_id: conta });
+    res.json({ ok: true });
+  },
+
+  /** Ação do cliente no portal: mensagem ao corretor ou pedido de remarcar uma visita. */
+  acao_cliente: async (req: Request, res: Response) => {
+    const ctx = req.wh?.contexto as Linha | null;
+    const conta = contaDoIngresso(req);
+    const contatoId = idDe(ctx?.contato_id);
+    const corpo = (req.body ?? {}) as Linha;
+    const tipo = ['mensagem', 'remarcar'].includes(corpo.tipo) ? (corpo.tipo as string) : null;
+    const mensagem = texto(corpo.texto, 1000) || null;
+    const visita = tipo === 'remarcar' ? idDe(corpo.visita) : null;
+    if (!conta || !contatoId || !tipo || (tipo === 'mensagem' && !mensagem) || (tipo === 'remarcar' && !visita)) {
+      return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: tipo === 'mensagem' ? 'Escreva a mensagem.' : 'Pedido inválido.' });
+    }
+    if (!dentroDoLimite(`acao:${conta}:${contatoId}:${origem(req)}`, 5)) {
+      return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitos envios seguidos. Espere um minuto.' });
+    }
+    await req.eventos!.publicar('acao_cliente_recebida', { contato_id: contatoId, tipo, texto: mensagem, visita }, { conta_id: conta });
     res.json({ ok: true });
   },
 
@@ -277,7 +380,73 @@ export async function aoClicarLink(evento: EventoConta, ctx: ContextoListener) {
   });
 }
 
+/** Tarefa para o corretor, sem repetir uma igual que ainda está pendente. */
+async function tarefa(trx: HelperDados, conta: number, contato: Linha, titulo: string) {
+  const pendentes = await trx.varrerTudo('atividades', { filtros: { conta_id: conta, contato_id: contato.id, tipo: 'tarefa', status: 'pendente' }, maximo: 200 });
+  if (pendentes.some((a) => a.titulo === titulo)) return;
+  await trx.criar('atividades', { tipo: 'tarefa', titulo: titulo.slice(0, 200), contato_id: contato.id, responsavel_id: contato.responsavel_id, quando: new Date().toISOString(), status: 'pendente', criada_por_agente: false });
+}
+
+async function linhaDoTempo(trx: HelperDados, contatoId: number, tipo: string, resumo: string, dados: unknown) {
+  await trx.criar('linha_do_tempo', {
+    tipo, alvo_tipo: 'contato', alvo_id: contatoId, contato_id: contatoId, autor_id: null, autor_papel: 'sistema',
+    resumo: resumo.slice(0, 300), dados, ocorrido_em: new Date().toISOString(),
+  });
+}
+
+/** Reação do cliente: grava no item, avisa na linha do tempo, "quero visitar" vira tarefa. */
+export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener) {
+  const conta = evento.conta_id;
+  if (!conta || !ctx.dados?.comConta) return;
+  const p = evento.payload;
+  await comContaRepetindo(ctx, conta, async (trx) => {
+    const selecao = (await trx.varrerTudo('selecoes', { filtros: { conta_id: conta, id: p.selecao_id }, maximo: 1 }))[0];
+    if (!selecao || !selecaoValida(selecao)) return;
+    const imovel = (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, codigo: p.imovel_codigo }, maximo: 1 }))[0];
+    const item = imovel ? (await trx.varrerTudo('selecao_itens', { filtros: { conta_id: conta, selecao_id: selecao.id, imovel_id: imovel.id }, maximo: 1 }))[0] : null;
+    if (!item) return; // imóvel que não é desta seleção
+    const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: selecao.contato_id }, maximo: 1 }))[0];
+    if (!contato) return;
+    const agora = new Date().toISOString();
+    if (item.reacao !== p.reacao || (p.comentario && p.comentario !== item.comentario)) {
+      await trx.atualizar('selecao_itens', item.id, { reacao: p.reacao, reacao_em: agora, ...(p.comentario ? { comentario: p.comentario } : {}) });
+      await linhaDoTempo(trx, contato.id, 'selecao.reacao', `${ROTULO_REACAO[p.reacao]} ${imovel.codigo}${p.comentario ? `: ${p.comentario}` : ''} (seleção "${selecao.titulo}")`, { selecao_id: selecao.id, imovel_codigo: imovel.codigo, reacao: p.reacao });
+    }
+    if (p.reacao === 'quero_visitar') await tarefa(trx, conta, contato, `Marcar visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
+    await trx.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
+    await reclassificar(trx, contato.id);
+    await marcarReacaoNaVitrine(trx, conta, selecao.id, imovel.codigo, p.reacao);
+    await sincronizarPortal(trx, conta, contato.id);
+  });
+}
+
+/** Mensagem ou pedido de remarcar vindo do portal: linha do tempo e tarefa para o corretor. */
+export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoListener) {
+  const conta = evento.conta_id;
+  if (!conta || !ctx.dados?.comConta) return;
+  const p = evento.payload;
+  await comContaRepetindo(ctx, conta, async (trx) => {
+    const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: p.contato_id }, maximo: 1 }))[0];
+    if (!contato) return;
+    if (p.tipo === 'mensagem') {
+      await linhaDoTempo(trx, contato.id, 'portal.mensagem', `Mensagem pelo portal: ${String(p.texto ?? '').slice(0, 250)}`, { texto: p.texto });
+      await tarefa(trx, conta, contato, 'Responder a mensagem do portal');
+    } else {
+      const visita = (await trx.varrerTudo('atividades', { filtros: { conta_id: conta, id: p.visita, contato_id: contato.id, tipo: 'visita' }, maximo: 1 }))[0];
+      if (!visita) return; // visita que não é deste cliente
+      const quando = iso(visita.quando);
+      const dia = quando ? new Date(quando).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }) : '';
+      await linhaDoTempo(trx, contato.id, 'portal.remarcar', `Pediu para remarcar a visita de ${dia}${p.texto ? `: ${String(p.texto).slice(0, 200)}` : ''}`, { atividade_id: visita.id, texto: p.texto ?? null });
+      await tarefa(trx, conta, contato, `Remarcar visita: ${visita.titulo}`);
+    }
+    await trx.atualizar('contatos', contato.id, { ultimo_contato_em: new Date().toISOString() });
+    await reclassificar(trx, contato.id);
+  });
+}
+
 export const reagir = {
   lead_recebido: aoReceberLead,
   link_clicado: aoClicarLink,
+  reacao_recebida: aoReceberReacao,
+  acao_cliente_recebida: aoReceberAcaoCliente,
 };

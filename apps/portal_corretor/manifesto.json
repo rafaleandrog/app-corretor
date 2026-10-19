@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.7.0",
+  "versao": "0.8.0",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -121,6 +121,14 @@
     "/l": {
       "titulo": "Abrindo o imóvel",
       "componente": "pc-link-rastreado"
+    },
+    "/s": {
+      "titulo": "Imóveis para você",
+      "componente": "pc-selecao-publica"
+    },
+    "/c": {
+      "titulo": "Portal do cliente",
+      "componente": "pc-portal-cliente"
     }
   },
   "webhooks": {
@@ -180,6 +188,50 @@
           "exemplo": "aB3dE9xYz1"
         }
       }
+    },
+    "reacao_selecao": {
+      "modo": "recorrente",
+      "descricao": "Reação do cliente aos imóveis de uma seleção enviada pelo corretor (um endereço por seleção, com validade)",
+      "campos": {
+        "imovel_codigo": {
+          "tipo": "string",
+          "obrigatorio": true,
+          "exemplo": "IM-0001"
+        },
+        "reacao": {
+          "tipo": "string",
+          "obrigatorio": true,
+          "exemplo": "gostei"
+        },
+        "comentario": {
+          "tipo": "string",
+          "obrigatorio": false,
+          "descartar": true,
+          "exemplo": "Gostei da varanda"
+        }
+      }
+    },
+    "acao_cliente": {
+      "modo": "recorrente",
+      "descricao": "Mensagem ou pedido de remarcar visita enviado pelo cliente no portal (um endereço por cliente)",
+      "campos": {
+        "tipo": {
+          "tipo": "string",
+          "obrigatorio": true,
+          "exemplo": "mensagem"
+        },
+        "texto": {
+          "tipo": "string",
+          "obrigatorio": false,
+          "descartar": true,
+          "exemplo": "Posso visitar no sábado?"
+        },
+        "visita": {
+          "tipo": "number",
+          "obrigatorio": false,
+          "exemplo": 42
+        }
+      }
     }
   },
   "eventos": {
@@ -206,6 +258,32 @@
       ],
       "conteudo": "Um cliente abriu o imóvel que você enviou",
       "api": "pagina",
+      "rota": "clientes",
+      "segregado_por_conta": true
+    },
+    "reacao_recebida": {
+      "descricao": "O cliente reagiu a um imóvel de uma seleção (gostou, não gostou ou quer visitar).",
+      "campos": [
+        "selecao_id",
+        "imovel_codigo",
+        "reacao",
+        "comentario"
+      ],
+      "conteudo": "Um cliente reagiu à seleção que você enviou",
+      "api": "selecoes",
+      "rota": "clientes",
+      "segregado_por_conta": true
+    },
+    "acao_cliente_recebida": {
+      "descricao": "O cliente mandou uma mensagem ou pediu para remarcar uma visita pelo portal.",
+      "campos": [
+        "contato_id",
+        "tipo",
+        "texto",
+        "visita"
+      ],
+      "conteudo": "Um cliente escreveu pelo portal",
+      "api": "selecoes",
       "rota": "clientes",
       "segregado_por_conta": true
     }
