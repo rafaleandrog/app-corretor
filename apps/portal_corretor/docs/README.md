@@ -8,11 +8,12 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.5.0)
+## O que existe nesta versão (0.6.0)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
 | Corretor | **Início** | O que fazer hoje (quentes sem resposta, abordagens atrasadas, visitas, próximos passos) e o que falta para começar — ver [Funil, temperatura e fila do dia](funil.md) |
+| Corretor | **Desempenho** | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Desempenho, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Funil** | Quadro dos negócios por etapa, com temperatura e abordagem atrasada; arrastar muda a etapa |
 | Corretor | **Clientes** | Contatos, ficha com negócios, notas, consentimento e linha do tempo; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) |
 | Corretor | **Agenda** | Atividades pendentes dos próximos 14 dias |
@@ -22,7 +23,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Ajustes › Conta e marca** | Seus dados, os dados da conta e as regras de atendimento — ver [Conta e ajustes](conta-e-ajustes.md) |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
-Ainda não há números de desempenho, páginas públicas nem integrações. A IA aparece só nos imóveis (descrição e leitura de fotos), quando liberada pelo administrador. Cada
+Ainda não há páginas públicas nem integrações. A IA aparece só nos imóveis (descrição e leitura de fotos), quando liberada pelo administrador. Cada
 funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Papéis

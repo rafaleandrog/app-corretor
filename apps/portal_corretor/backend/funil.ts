@@ -5,6 +5,7 @@ import { CANAIS_ABORDAGEM, iso, ordenarFila, TEMPERATURAS, type TipoFila } from 
 import { assincrono, erro, guardarCorretor } from './acesso';
 import { etapasDaConta, registrar } from './crm';
 import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
+import { numerosDaSemana } from './numeros';
 
 // Funil (bloco 4): quadro por etapa, playbook de abordagens, fila do dia do Início e a rotina que
 // esfria quem ficou sem contato. Tudo segregado por conta pelo `req.dados`.
@@ -227,7 +228,7 @@ funilRotas.get(
     // Um contato aparece uma vez, no motivo mais urgente.
     const vistos = new Set<number>();
     const fila = ordenarFila(itens).filter((i) => (vistos.has(i.contato_id) ? false : (vistos.add(i.contato_id), true)));
-    res.json({ fila, total: fila.length });
+    res.json({ fila, total: fila.length, semana: await numerosDaSemana(dados) });
   }),
 );
 

@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { dataHora, enviar, mensagemDeErro } from '../apoio.js';
+import { dataHora, enviar, mensagemDeErro, reais } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -28,6 +28,9 @@ export class PcTelaInicio extends LitElement {
   @state() private pendente: string[] | null = null;
   @state() private fila: ItemFila[] | null = null;
   @state() private falha: string | null = null;
+  @state() private semana: Record<string, number | null> | null = null;
+  @state() private demo = false;
+  @state() private gerando = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -44,6 +47,8 @@ export class PcTelaInicio extends LitElement {
       if (!conta.meu_perfil?.telefone) falta.push('o seu telefone');
       this.pendente = falta;
       this.fila = inicio.fila;
+      this.semana = inicio.semana ?? null;
+      this.demo = !!conta.perfil?.demo;
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -56,6 +61,19 @@ export class PcTelaInicio extends LitElement {
       await this.carregar();
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    }
+  }
+
+  private async gerarDemo() {
+    this.gerando = true;
+    try {
+      await enviar('POST', '/demo/semear', {});
+      urbiVerso.notificar('Dados de demonstração criados.', 'sucesso');
+      await this.carregar();
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível gerar', mensagem: mensagemDeErro(e), tipo: 'alerta' });
+    } finally {
+      this.gerando = false;
     }
   }
 
@@ -96,7 +114,22 @@ export class PcTelaInicio extends LitElement {
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-filter" href=${urbiVerso.href('/funil')}>Funil</urbi-botao>
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-plus" href=${urbiVerso.href('/imoveis')}>Imóveis</urbi-botao>
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-day" href=${urbiVerso.href('/agenda')}>Agenda</urbi-botao>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-chart-line" href=${urbiVerso.href('/desempenho')}>Desempenho</urbi-botao>
       </urbi-linha>
+      ${this.semana
+        ? html`<urbi-grid min="140px">
+            <urbi-kpi rotulo="Contatos novos (7 dias)" .valor=${this.semana.novos_contatos ?? 0}></urbi-kpi>
+            <urbi-kpi rotulo="Leads (7 dias)" .valor=${this.semana.leads ?? 0}></urbi-kpi>
+            <urbi-kpi rotulo="Visitas feitas (7 dias)" .valor=${this.semana.visitas ?? 0}></urbi-kpi>
+            <urbi-kpi rotulo="Comissão prevista" formato="texto" .valor=${this.semana.previsao_c === null ? '—' : reais(this.semana.previsao_c)}></urbi-kpi>
+          </urbi-grid>`
+        : ''}
+      ${this.demo && !this.fila.length && !this.semana?.novos_contatos
+        ? html`<urbi-banner variante="info">
+            Esta é uma conta de teste. Quer ver o app com dados? Gera 10 clientes, negócios em várias etapas, 2 imóveis e visitas.
+            <urbi-botao slot="acao" pequeno ?carregando=${this.gerando} @click=${() => this.gerarDemo()}>Gerar dados de demonstração</urbi-botao>
+          </urbi-banner>`
+        : ''}
       <urbi-card titulo="Para hoje" icone="fa-solid fa-list-check">
         ${this.fila.length
           ? html`<urbi-lista separador .itens=${this.fila} .render_item=${(i: ItemFila) => this.item(i)}></urbi-lista>`

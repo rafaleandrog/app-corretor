@@ -38,6 +38,7 @@ const STATUS_ATIVIDADE: Record<string, string> = { pendente: 'Pendente', feita: 
 export class PcTelaFichaContato extends LitElement {
   @property({ type: Number }) contatoId = 0;
   @state() private ficha: Ficha | null = null;
+  @state() private envios: Linha[] = [];
   @state() private etapas: Linha[] = [];
   @state() private falha: string | null = null;
 
@@ -49,9 +50,14 @@ export class PcTelaFichaContato extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      const [ficha, etapas] = await Promise.all([urbiVerso.api(`/contatos/${this.contatoId}`), urbiVerso.api('/funil/etapas')]);
+      const [ficha, etapas, envios] = await Promise.all([
+        urbiVerso.api(`/contatos/${this.contatoId}`),
+        urbiVerso.api('/funil/etapas'),
+        urbiVerso.api(`/envios?contato_id=${this.contatoId}`),
+      ]);
       this.ficha = ficha;
       this.etapas = etapas.etapas;
+      this.envios = envios.dados;
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -125,6 +131,7 @@ export class PcTelaFichaContato extends LitElement {
         { nome: 'pipeline', tipo: 'selecao', rotulo: 'Tipo', valor: 'compra', opcoes: [{ valor: 'compra', rotulo: 'Compra (o cliente quer comprar)' }, { valor: 'venda_captacao', rotulo: 'Venda (o cliente quer vender)' }] },
         { nome: 'titulo', tipo: 'texto', rotulo: 'Título (opcional)', placeholder: 'Ex.: Apartamento 3 quartos na Asa Norte' },
         { nome: 'valor_estimado', tipo: 'numero', rotulo: 'Valor estimado (R$, opcional)', min: 0 },
+        { nome: 'comissao', tipo: 'numero', rotulo: 'Sua comissão (%, opcional)', min: 0, max: 100, step: 0.5 },
         { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel (opcional)', valor: '', pesquisavel: true, opcoes: imoveis },
       ],
       'POST',
@@ -246,6 +253,30 @@ export class PcTelaFichaContato extends LitElement {
     }
   }
 
+  private async registrarEnvio() {
+    const imoveis = await this.opcoesImoveis();
+    const v = await urbiVerso.formulario({
+      titulo: 'Registrar envio',
+      mensagem: 'Anote o que você mandou ao cliente. Com um imóvel, o app prepara a mensagem para você colar no WhatsApp.',
+      campos: [
+        { nome: 'tipo', tipo: 'selecao', rotulo: 'O que mandou', valor: 'imovel', opcoes: [{ valor: 'imovel', rotulo: 'Imóvel' }, { valor: 'arquivo', rotulo: 'Arquivo' }, { valor: 'mensagem', rotulo: 'Mensagem' }, { valor: 'localizacao', rotulo: 'Localização' }] },
+        { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', valor: '', pesquisavel: true, opcoes: imoveis },
+        { nome: 'canal', tipo: 'selecao', rotulo: 'Por onde', valor: 'whatsapp', opcoes: [{ valor: 'whatsapp', rotulo: 'WhatsApp' }, { valor: 'email', rotulo: 'E-mail' }, { valor: 'presencial', rotulo: 'Pessoalmente' }] },
+        { nome: 'descricao', tipo: 'texto', rotulo: 'Detalhe (opcional)' },
+      ],
+      rotuloConfirmar: 'Registrar',
+    });
+    if (!v) return;
+    try {
+      const r = await enviar('POST', '/envios', { ...v, contato_id: this.contatoId, imovel_id: v.imovel_id ? Number(v.imovel_id) : null });
+      await this.carregar();
+      if (r.mensagem) await urbiVerso.alertar({ titulo: 'Mensagem pronta para colar', mensagem: r.mensagem, tipo: 'sucesso' });
+      else urbiVerso.notificar('Envio registrado.', 'sucesso');
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    }
+  }
+
   /** Imóvel e nota da visita, para a linha da agenda. */
   private visitaDe(a: Linha) {
     const v = this.ficha!.visitas.find((x: Linha) => x.atividade_id === a.id);
@@ -332,6 +363,13 @@ export class PcTelaFichaContato extends LitElement {
               </urbi-linha>`}></urbi-lista>
             ${pendentes.length ? '' : html`<urbi-prosa papel="dica">Nada pendente.</urbi-prosa>`}`
           : html`<urbi-prosa papel="dica">Nada agendado. Marque uma ligação, visita ou reunião.</urbi-prosa>`}
+      </urbi-card>
+      <urbi-card titulo="Tudo que você mandou" icone="fa-solid fa-paper-plane">
+        ${this.acao('Registrar envio', 'fa-solid fa-plus', () => void this.registrarEnvio())}
+        ${this.envios.length
+          ? html`<urbi-lista separador .itens=${this.envios} .render_item=${(e: Linha) => html`<urbi-prosa>${e.imovel_codigo ? `${e.imovel_codigo}${e.imovel_titulo ? ` · ${e.imovel_titulo}` : ''}` : (e.descricao ?? e.tipo)}</urbi-prosa>
+                <urbi-prosa papel="fraco">${dataHora(e.enviado_em)} · ${e.canal}${e.cliques ? ` · ${e.cliques} clique(s)` : ''}</urbi-prosa>`}></urbi-lista>`
+          : html`<urbi-prosa papel="dica">Nada registrado. Anote os imóveis e arquivos que mandar: o histórico fica aqui.</urbi-prosa>`}
       </urbi-card>
       <urbi-card titulo="Consentimento" icone="fa-solid fa-shield-halved">
         ${consentimento

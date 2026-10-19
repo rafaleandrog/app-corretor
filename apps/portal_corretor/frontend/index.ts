@@ -16,6 +16,7 @@ import './telas/ficha-imovel.js';
 import './telas/empreendimentos.js';
 import './telas/ficha-empreendimento.js';
 import './telas/funil.js';
+import './telas/desempenho.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -40,6 +41,7 @@ const TELAS: Record<string, Tela> = {
     papel: 'corretor',
     render: (id) => html`<pc-tela-ficha-empreendimento .empreendimentoId=${Number(id)}></pc-tela-ficha-empreendimento>`,
   },
+  '/desempenho': { titulo: 'Desempenho', papel: 'corretor', render: () => html`<pc-tela-desempenho></pc-tela-desempenho>` },
   '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
   '/ajustes/funil': { titulo: 'Funil e abordagens', papel: 'corretor', render: () => html`<pc-tela-funil-ajustes></pc-tela-funil-ajustes>` },

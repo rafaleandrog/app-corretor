@@ -30,13 +30,17 @@ export async function semear(ctx: ContextoListener): Promise<number> {
 async function semearConta(ctx: ContextoListener, conta: { id: number; nome: string }) {
   await ctx.dados!.comConta!(conta.id, async (trx) => {
     // Em contexto SISTEMA a leitura enxerga todas as contas: filtrar `conta_id` é obrigatório.
-    const temPerfil = await trx.existe('perfil_conta', { conta_id: conta.id, chave: 'conta' });
-    if (!temPerfil) {
+    const perfil = (await trx.listar('perfil_conta', { filtros: { conta_id: conta.id, chave: 'conta' }, por_pagina: 1 })).dados[0];
+    if (!perfil) {
       await trx.criar('perfil_conta', {
         chave: 'conta',
         tipo: 'corretor_autonomo',
         nome: conta.nome.trim().slice(0, -SUFIXO_DEMO.length).trim() || conta.nome,
+        demo: true,
       });
+    } else if (!perfil.demo) {
+      // Marca a conta de teste: libera "Gerar dados de demonstração" no Início (bloco 4b).
+      await trx.atualizar('perfil_conta', perfil.id, { demo: true });
     }
     const temConfig = await trx.existe('configuracoes_conta', { conta_id: conta.id, chave: 'conta' });
     if (!temConfig) await trx.criar('configuracoes_conta', { chave: 'conta', ...CONFIGURACOES_PADRAO });
