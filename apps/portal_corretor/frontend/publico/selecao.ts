@@ -45,13 +45,21 @@ const estiloSelecao = css`
   .sem-foto { aspect-ratio: 4 / 3; background: #dde3e8; }
   .agenda li { list-style: none; background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
   .agenda { padding: 0; margin: 0; }
-  .numeros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .numeros div { background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 12px; text-align: center; }
-  .numeros strong { display: block; font-size: 1.4rem; }
+  .numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .numeros div { background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 10px 6px; text-align: center; overflow-wrap: anywhere; }
+  .numeros strong { display: block; font-size: 1.15rem; }
+  .aviso-item { margin-top: 8px; font-size: 0.92rem; }
 `;
 
+/** Estado de envio por imóvel: um envio por vez e o aviso ao lado do próprio imóvel. */
+export interface EstadoReacoes {
+  enviando: Set<string>;
+  avisos: Map<string, { ok: boolean; texto: string }>;
+}
+
 /** Cartão de um imóvel da seleção, com galeria e os botões de reação. */
-function itemSelecao(i: Linha, reagir: ((codigo: string, reacao: string) => void) | null, enviando: string | null): TemplateResult {
+function itemSelecao(i: Linha, reagir: ((codigo: string, reacao: string) => void) | null, estado: EstadoReacoes): TemplateResult {
+  const aviso = estado.avisos.get(i.codigo);
   const detalhes = [
     i.area_util_m2 ?? i.area_total_m2 ? `${i.area_util_m2 ?? i.area_total_m2} m²` : null,
     i.quartos ? `${i.quartos} quarto${i.quartos > 1 ? 's' : ''}` : null,
@@ -68,11 +76,12 @@ function itemSelecao(i: Linha, reagir: ((codigo: string, reacao: string) => void
       ${detalhes.length ? html`<div class="icones">${detalhes.map((d) => html`<span>${d}</span>`)}</div>` : nothing}
       ${i.descricao ? html`<details><summary class="suave">Ver descrição</summary><p class="texto">${i.descricao}</p></details>` : nothing}
       ${reagir
-        ? html`<div class="reacoes" role="group" aria-label="O que você achou deste imóvel?">
+        ? html`<div class="reacoes" role="group" aria-label=${`O que você achou de ${i.titulo ?? i.codigo}?`}>
             ${REACOES.map(
-              (r) => html`<button type="button" aria-pressed=${i.reacao === r.valor ? 'true' : 'false'} ?disabled=${enviando === i.codigo} @click=${() => reagir(i.codigo, r.valor)}>${r.rotulo}</button>`,
+              (r) => html`<button type="button" aria-pressed=${i.reacao === r.valor ? 'true' : 'false'} ?disabled=${estado.enviando.has(i.codigo)} @click=${() => reagir(i.codigo, r.valor)}>${r.rotulo}</button>`,
             )}
-          </div>`
+          </div>
+          ${aviso ? html`<div class="aviso aviso-item ${aviso.ok ? '' : 'erro'}" role=${aviso.ok ? 'status' : 'alert'}>${aviso.texto}</div>` : nothing}`
         : nothing}
     </div>
   </article>`;
@@ -89,19 +98,25 @@ function topo(corretor: Linha | null, texto: string): TemplateResult {
   </header>`;
 }
 
-/** Reação com resposta imediata na tela; se o envio falha, volta ao que era e avisa. */
-async function enviarReacao(selecao: Linha, codigo: string, reacao: string, atualizar: () => void, aviso: (t: string | null) => void) {
+/**
+ * Reação com resposta imediata na tela; um envio por imóvel de cada vez (os botões dele ficam
+ * desligados até a resposta). Se o envio falha, volta ao que era e avisa ao lado do imóvel.
+ */
+async function enviarReacao(selecao: Linha, codigo: string, reacao: string, estado: EstadoReacoes, atualizar: () => void) {
   const item = selecao.itens.find((i: Linha) => i.codigo === codigo);
-  if (!item || !selecao.url_reacao) return;
+  if (!item || !selecao.url_reacao || estado.enviando.has(codigo)) return;
   const antes = item.reacao;
   item.reacao = reacao;
+  estado.enviando.add(codigo);
+  estado.avisos.delete(codigo);
   atualizar();
   const r = await postar(selecao.url_reacao, { imovel_codigo: codigo, reacao });
+  estado.enviando.delete(codigo);
   if (!r.ok) {
     item.reacao = antes;
-    aviso(r.mensagem ?? 'Não foi possível enviar.');
-  } else {
-    aviso(reacao === 'quero_visitar' ? 'Pedido de visita enviado. O corretor vai combinar o horário com você.' : null);
+    estado.avisos.set(codigo, { ok: false, texto: r.mensagem ?? 'Não foi possível enviar.' });
+  } else if (reacao === 'quero_visitar') {
+    estado.avisos.set(codigo, { ok: true, texto: 'Pedido de visita enviado. O corretor vai combinar o horário com você.' });
   }
   atualizar();
 }
@@ -112,7 +127,7 @@ export class PcSelecaoPublica extends LitElement {
 
   @state() private selecao: Linha | null = null;
   @state() private estado: 'carregando' | 'pronto' | 'indisponivel' | 'falha' = 'carregando';
-  @state() private aviso: string | null = null;
+  private reacoes: EstadoReacoes = { enviando: new Set(), avisos: new Map() };
 
   connectedCallback() {
     super.connectedCallback();
@@ -144,9 +159,12 @@ export class PcSelecaoPublica extends LitElement {
           <h2>${s.titulo}</h2>
           ${s.mensagem ? html`<p class="texto">${s.mensagem}</p>` : nothing}
           <p class="suave">Diga o que achou de cada imóvel: o corretor recebe na hora.</p>
-          ${this.aviso ? html`<div class="aviso" role="status">${this.aviso}</div>` : nothing}
         </section>
-        <section>${s.itens.map((i: Linha) => itemSelecao(i, (codigo, reacao) => enviarReacao(s, codigo, reacao, () => this.requestUpdate(), (t) => (this.aviso = t)), null))}</section>
+        <section>
+          ${s.itens.length
+            ? s.itens.map((i: Linha) => itemSelecao(i, (codigo, reacao) => enviarReacao(s, codigo, reacao, this.reacoes, () => this.requestUpdate()), this.reacoes))
+            : html`<p class="suave">Os imóveis desta seleção não estão mais anunciados. Fale com o corretor.</p>`}
+        </section>
       </div>
     `;
   }
@@ -161,6 +179,9 @@ export class PcPortalCliente extends LitElement {
   @state() private aviso: { ok: boolean; texto: string } | null = null;
   @state() private remarcando: number | null = null;
   @state() private enviando = false;
+  /** Onde mostrar o aviso: perto do formulário que enviou. */
+  @state() private avisoEm: string | null = null;
+  private reacoes: EstadoReacoes = { enviando: new Set(), avisos: new Map() };
 
   connectedCallback() {
     super.connectedCallback();
@@ -188,6 +209,7 @@ export class PcPortalCliente extends LitElement {
     this.enviando = true;
     const r = await postar(this.portal!.url_acoes, { ...corpo, ...(texto ? { texto } : {}) });
     this.enviando = false;
+    this.avisoEm = corpo.tipo === 'remarcar' ? `visita-${corpo.visita}` : 'mensagem';
     this.aviso = r.ok ? { ok: true, texto: corpo.tipo === 'remarcar' ? 'Pedido enviado. O corretor vai propor outro horário.' : 'Mensagem enviada ao corretor.' } : { ok: false, texto: r.mensagem ?? 'Não foi possível enviar.' };
     if (r.ok) {
       form.reset();
@@ -202,7 +224,8 @@ export class PcPortalCliente extends LitElement {
     const f = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const titulo = `Visita: ${v.imovel?.titulo ?? v.imovel?.codigo ?? 'imóvel'}`.replace(/[,;\n]/g, ' ');
     const lugar = [v.imovel?.endereco, v.imovel?.bairro, v.imovel?.cidade].filter(Boolean).join(' - ').replace(/[,;\n]/g, ' ');
-    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Portal do Corretor//PT', 'BEGIN:VEVENT', `UID:visita-${v.ref}@portal-corretor`, `DTSTAMP:${f(new Date())}`, `DTSTART:${f(inicio)}`, `DTEND:${f(fim)}`, `SUMMARY:${titulo}`, lugar ? `LOCATION:${lugar}` : '', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n');
+    // Horários em UTC (sufixo Z): o calendário do celular converte para o fuso dele.
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Portal do Corretor//PT', 'BEGIN:VEVENT', `UID:visita-${v.ref}@portal-corretor`, `DTSTAMP:${f(new Date())}`, `DTSTART:${f(inicio)}`, `DTEND:${f(fim)}`, `SUMMARY:${titulo}`, lugar ? `LOCATION:${lugar}` : '', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n') + '\r\n';
     return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
   }
 
@@ -216,6 +239,7 @@ export class PcPortalCliente extends LitElement {
         <a class="botao claro" href=${this.calendario(v)} download="visita.ics">Adicionar ao calendário</a>
         <button class="botao claro" type="button" @click=${() => (this.remarcando = this.remarcando === v.ref ? null : v.ref)}>Pedir para remarcar</button>
       </div>
+      ${this.avisoEm === `visita-${v.ref}` && this.aviso ? html`<div class="aviso aviso-item ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
       ${this.remarcando === v.ref
         ? html`<form @submit=${(e: Event) => this.acao(e, { tipo: 'remarcar', visita: v.ref })}>
             <label>Qual horário fica melhor? (opcional)<textarea name="texto" maxlength="1000"></textarea></label>
@@ -234,7 +258,6 @@ export class PcPortalCliente extends LitElement {
     return html`
       ${topo(p.corretor, 'Olá! Estou no meu portal e queria falar com você.')}
       <div class="conteudo">
-        ${this.aviso ? html`<section><div class="aviso ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div></section>` : nothing}
         <section>
           <h2>Suas visitas</h2>
           ${p.agenda.length ? html`<ul class="agenda">${p.agenda.map((v: Linha) => this.visita(v))}</ul>` : html`<p class="suave">Nenhuma visita marcada.</p>`}
@@ -245,9 +268,7 @@ export class PcPortalCliente extends LitElement {
             ? p.selecoes.map(
                 (s: Linha) => html`<h3>${s.titulo}</h3>
                   ${s.mensagem ? html`<p class="texto">${s.mensagem}</p>` : nothing}
-                  ${s.itens.map((i: Linha) =>
-                    itemSelecao(i, (codigo, reacao) => enviarReacao(s, codigo, reacao, () => this.requestUpdate(), (t) => (this.aviso = t ? { ok: true, texto: t } : null)), null),
-                  )}`,
+                  ${s.itens.map((i: Linha) => itemSelecao(i, (codigo, reacao) => enviarReacao(s, codigo, reacao, this.reacoes, () => this.requestUpdate()), this.reacoes))}`,
               )
             : html`<p class="suave">Quando o corretor separar imóveis para você, eles aparecem aqui.</p>`}
         </section>
@@ -256,6 +277,7 @@ export class PcPortalCliente extends LitElement {
           <div class="caixa">
             <form @submit=${(e: Event) => this.acao(e, { tipo: 'mensagem' })}>
               <label>Mensagem<textarea name="texto" required maxlength="1000"></textarea></label>
+              ${this.avisoEm === 'mensagem' && this.aviso ? html`<div class="aviso ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
               <div><button class="botao" type="submit" ?disabled=${this.enviando}>Enviar</button></div>
             </form>
           </div>

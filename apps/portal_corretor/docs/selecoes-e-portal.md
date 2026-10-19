@@ -25,12 +25,15 @@ O que o cliente vê em cada imóvel:
 - os botões **Gostei**, **Não gostei** e **Quero visitar**.
 
 O que nunca aparece: proprietário, comissão, documentos e endereço além do que o imóvel libera em
-"endereço público". A seleção mostra os imóveis **como estavam no envio**: se o preço mudar, envie
-uma nova.
+"endereço público". A seleção **acompanha o anúncio**: preço, fotos e descrição atualizam sozinhos,
+e o imóvel que deixa de estar anunciado sai da seleção. Isso vale para imóvel vendido, retirado,
+removido ou com a autorização vencida. Se nenhum imóvel restar, o cliente vê um aviso para falar
+com o corretor.
 
 **Quando o cliente reage:**
 - a reação aparece na ficha, ao lado do código do imóvel;
-- entra na linha do tempo, por exemplo "Gostou do IM-0001 (seleção "Casas")";
+- entra na linha do tempo, por exemplo "Gostou do IM-0001 (seleção "Casas")". Mudar de ideia
+  vale a última escolha;
 - conta como contato com o cliente, e a temperatura é recalculada;
 - **Quero visitar** cria a tarefa "Marcar visita: IM-0001 · título", sem repetir se ela já
   estiver pendente.
@@ -65,7 +68,11 @@ O portal mostra:
   tarefa "Remarcar visita: …". A visita em si só muda quando o corretor muda.
 
 O portal acompanha o app: marcar, mudar ou cancelar uma visita, registrar o retorno, enviar ou
-revogar uma seleção atualiza o que o cliente vê.
+revogar uma seleção atualiza o que o cliente vê. "Imóveis recebidos" conta tudo o que foi enviado e
+não revogado, mesmo em seleções já vencidas.
+
+**Cliente removido:** ao remover o contato, o portal e as seleções dele são revogados na hora e
+param de abrir.
 
 **Privacidade (D-73):** o portal não guarda nem mostra o nome, o telefone ou o e-mail do cliente.
 Ele mostra só o que o corretor mandou e as datas das visitas. Quem tiver o link vê o portal, por
@@ -76,10 +83,14 @@ isso o corretor o envia só ao cliente e o revoga se ele for parar em outras mã
 - **Links:** cada link é uma chave da plataforma (o "ingresso" de webhook). A rota pública só
   abre se a chave for válida, não estiver vencida e não tiver sido revogada.
 - **Limites por endereço de internet e por minuto:** 30 reações por seleção e 5 ações no portal.
-- **Registro de chamadas da plataforma:** o comentário da reação e o texto da mensagem nunca
-  ficam lá.
+- **Registro de chamadas da plataforma:** o texto que o cliente escreve (mensagem, pedido de
+  remarcar) nunca fica lá. Ele chega ao app pelos eventos da conta, que só os membros da conta
+  leem, e fica guardado pelo prazo de retenção de eventos da instância, como no formulário da
+  página (D-70).
 - **Contas:** a conta vem sempre da chave, nunca do que o navegador manda. Uma reação ou pedido
   só vale para a seleção, o imóvel ou a visita do próprio cliente.
+- **Links guardados:** o link de cada seleção e do portal fica guardado no app, para o corretor
+  copiar de novo. Quem lê é só o corretor da conta. Para cortar um link, use **Revogar**.
 
 ## Para o administrador da instância
 

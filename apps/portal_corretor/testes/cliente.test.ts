@@ -250,3 +250,90 @@ test('portal do cliente: um link por cliente, agenda e seleções, ações viram
     assert.equal((await chamar('GET', `/vitrine/portal?t=${tokenDe(link)}`)).status, 404);
   });
 });
+
+test('cliente removido: portal e seleções param de abrir; imóvel vendido sai da seleção', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  let linkSelecao = '';
+  let linkPortal = '';
+  let imovelId = 0;
+  let outroImovel = 0;
+  await comServidor(rotas, A, banco, shell, async (chamar) => {
+    const im = await imovelAnunciado(chamar, 'Apto 1', '61933330010');
+    const im2 = await imovelAnunciado(chamar, 'Apto 2', '61933330011');
+    imovelId = im.id;
+    outroImovel = im2.id;
+    const cliente = (await chamar('POST', '/contatos', { nome: 'Rafa Cliente', telefone: '61944440010' })).corpo;
+    linkSelecao = (await chamar('POST', '/selecoes', { contato_id: cliente.id, imovel_ids: [im.id, im2.id] })).corpo.link;
+    linkPortal = (await chamar('POST', `/contatos/${cliente.id}/portal`)).corpo.link;
+    // Imóvel vendido: sai da seleção na hora; o outro continua.
+    await chamar('PATCH', `/imoveis/${im.id}`, { situacao: 'vendido' });
+    const linha = banco.linhas('vitrine_publica').find((l) => l.tipo === 'selecao')!;
+    assert.deepEqual(linha.dados.itens.map((i: any) => i.titulo), ['Apto 2']);
+    // Mudou o preço do outro: a seleção acompanha.
+    await chamar('PATCH', `/imoveis/${im2.id}`, { preco: 1000000 });
+    assert.equal(banco.linhas('vitrine_publica').find((l) => l.tipo === 'selecao')!.dados.itens[0].preco_c, 100000000);
+    assert.equal((await chamar('PATCH', `/contatos/${cliente.id}/remover`)).status, 200);
+  });
+  assert.ok(!shell.ingressos.get(tokenDe(linkSelecao))!.ativo && !shell.ingressos.get(tokenDe(linkPortal))!.ativo, 'ingressos revogados');
+  assert.equal(banco.linhas('vitrine_publica').filter((l) => l.tipo === 'selecao' || l.tipo === 'portal').length, 0);
+  assert.ok(banco.linhas('acessos_cliente').every((a) => a.revogado_em) && banco.linhas('selecoes').every((x) => x.revogada_em));
+  await comServidor(rotasPublicas, VISITANTE, banco, shell, async (chamar) => {
+    assert.equal((await chamar('GET', `/vitrine/selecao?t=${tokenDe(linkSelecao)}`)).status, 404);
+    assert.equal((await chamar('GET', `/vitrine/portal?t=${tokenDe(linkPortal)}`)).status, 404);
+  });
+  assert.ok(imovelId && outroImovel);
+});
+
+test('portal e reações com duas contas populadas: nada cruza; troca de reação; ingresso vencido não abre', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const dados: Record<number, { cliente: number; visita: number; selecao: number; link: string; portal: string; codigo: string }> = {} as any;
+  for (const [ator, tel] of [[A, '6195555000'], [B, '6196666000']] as const) {
+    await comServidor(rotas, ator, banco, shell, async (chamar) => {
+      const im = await imovelAnunciado(chamar, `Casa da conta ${ator.conta}`, `${tel}1`);
+      const cliente = (await chamar('POST', '/contatos', { nome: `Cliente ${ator.conta}`, telefone: `${tel}2` })).corpo;
+      const sel = (await chamar('POST', '/selecoes', { contato_id: cliente.id, imovel_ids: [im.id] })).corpo;
+      const visita = (await chamar('POST', '/atividades', { tipo: 'visita', titulo: `Visita ${ator.conta}`, contato_id: cliente.id, imovel_id: im.id, quando: new Date(Date.now() + 86400e3).toISOString() })).corpo;
+      const portal = (await chamar('POST', `/contatos/${cliente.id}/portal`)).corpo.link;
+      dados[ator.conta!] = { cliente: cliente.id, visita: visita.id, selecao: sel.selecao.id, link: sel.link, portal, codigo: im.codigo };
+    });
+  }
+  // O mesmo código de imóvel nas duas contas (é por conta) não confunde nada.
+  assert.equal(dados[100].codigo, dados[200].codigo);
+  await comServidor(rotasPublicas, VISITANTE, banco, shell, async (chamar) => {
+    const pa = (await chamar('GET', `/vitrine/portal?t=${tokenDe(dados[100].portal)}`)).corpo.portal;
+    assert.deepEqual(pa.agenda.map((v: any) => v.ref), [dados[100].visita]);
+    assert.deepEqual(pa.selecoes.map((x: any) => x.itens[0].titulo), ['Casa da conta 100']);
+    // Token de seleção não abre portal.
+    assert.equal((await chamar('GET', `/vitrine/portal?t=${tokenDe(dados[100].link)}`)).status, 404);
+  });
+  const ctx = banco.ctxSistema([{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }]);
+  const reacao = (r: string) => ({ payload: { selecao_id: dados[100].selecao, imovel_codigo: dados[100].codigo, reacao: r, comentario: null }, conta_id: 100 });
+  await reagir.reacao_recebida(reacao('gostei'), ctx);
+  await reagir.reacao_recebida(reacao('nao_gostei'), ctx);
+  const itens = banco.linhas('selecao_itens');
+  assert.equal(itens.find((i) => i.selecao_id === dados[100].selecao)!.reacao, 'nao_gostei', 'a última reação vale');
+  assert.equal(itens.find((i) => i.selecao_id === dados[200].selecao)!.reacao, undefined, 'a seleção de B não foi tocada');
+  const vitrineA = banco.linhas('vitrine_publica').find((l) => l.tipo === 'selecao' && l.conta === 100)!;
+  assert.equal(vitrineA.dados.itens[0].reacao, 'nao_gostei');
+  // Cancelar a visita tira do portal.
+  await comServidor(rotas, A, banco, shell, async (chamar) => {
+    await chamar('PATCH', `/atividades/${dados[100].visita}`, { status: 'cancelada' });
+  });
+  assert.equal(banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal' && l.conta === 100)!.dados.agenda.length, 0);
+  assert.equal(banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal' && l.conta === 200)!.dados.agenda.length, 1, 'o portal de B segue igual');
+  // Seleção revogada: reação que chegue depois é ignorada.
+  await comServidor(rotas, A, banco, shell, async (chamar) => {
+    await chamar('PATCH', `/selecoes/${dados[100].selecao}/revogar`);
+  });
+  await reagir.reacao_recebida(reacao('gostei'), ctx);
+  assert.equal(banco.linhas('selecao_itens').find((i) => i.selecao_id === dados[100].selecao)!.reacao, 'nao_gostei');
+  // Ingresso vencido no shell: a seleção de B não abre.
+  shell.ingressos.get(tokenDe(dados[200].link))!.expira_em = new Date(Date.now() - 1000).toISOString();
+  await comServidor(rotasPublicas, VISITANTE, banco, shell, async (chamar) => {
+    assert.equal((await chamar('GET', `/vitrine/selecao?t=${tokenDe(dados[200].link)}`)).status, 404);
+  });
+});
+

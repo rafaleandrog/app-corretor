@@ -6,7 +6,7 @@ import { ETAPAS_PADRAO } from '../comum/crm';
 import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
 import { reclassificar } from './inteligencia';
-import { marcarReacaoNaVitrine, selecaoValida, sincronizarPortal } from './portal';
+import { publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 
 // Superfícies públicas do bloco 5 (paginas-publicas.md, wh.md, D-55):
 // - rotas GET anônimas que leem só a vitrine pública (a página, a ficha do imóvel, o link);
@@ -111,7 +111,9 @@ async function contextoDoToken(req: Request, webhook: string, token: string): Pr
     const r = await req.shell!.inspecionarIngressoWh({ webhook, token });
     return r.contexto ?? null;
   } catch (e) {
-    if ((e as { codigo?: string })?.codigo === 'WH_INGRESSO_INVALIDO') return null;
+    // Qualquer recusa do framework de webhooks (token inválido, webhook desligado ou fora do
+    // manifesto, parâmetro fora da forma) é "não encontrado" para o visitante.
+    if (String((e as { codigo?: string })?.codigo ?? '').startsWith('WH_')) return null;
     throw e;
   }
 }
@@ -382,12 +384,19 @@ export async function aoClicarLink(evento: EventoConta, ctx: ContextoListener) {
 
 /** Tarefa para o corretor, sem repetir uma igual que ainda está pendente. */
 async function tarefa(trx: HelperDados, conta: number, contato: Linha, titulo: string) {
+  const curto = titulo.slice(0, 200);
   const pendentes = await trx.varrerTudo('atividades', { filtros: { conta_id: conta, contato_id: contato.id, tipo: 'tarefa', status: 'pendente' }, maximo: 200 });
-  if (pendentes.some((a) => a.titulo === titulo)) return;
-  await trx.criar('atividades', { tipo: 'tarefa', titulo: titulo.slice(0, 200), contato_id: contato.id, responsavel_id: contato.responsavel_id, quando: new Date().toISOString(), status: 'pendente', criada_por_agente: false });
+  if (pendentes.some((a) => a.titulo === curto)) return;
+  await trx.criar('atividades', { tipo: 'tarefa', titulo: curto, contato_id: contato.id, responsavel_id: contato.responsavel_id, quando: new Date().toISOString(), status: 'pendente', criada_por_agente: false });
 }
 
-async function linhaDoTempo(trx: HelperDados, contatoId: number, tipo: string, resumo: string, dados: unknown) {
+/** Linha do tempo do sistema; a mesma linha nos últimos 5 minutos (evento entregue de novo) não se repete. */
+async function linhaDoTempo(trx: HelperDados, contatoId: number, tipo: string, resumo: string, dados: unknown, conta?: number) {
+  if (conta) {
+    const limite = new Date(Date.now() - 5 * 60_000).toISOString();
+    const recentes = await trx.varrerTudo('linha_do_tempo', { filtros: { conta_id: conta, contato_id: contatoId, tipo }, maximo: 50 });
+    if (recentes.some((l) => l.resumo === resumo.slice(0, 300) && (iso(l.ocorrido_em) ?? '') >= limite)) return;
+  }
   await trx.criar('linha_do_tempo', {
     tipo, alvo_tipo: 'contato', alvo_id: contatoId, contato_id: contatoId, autor_id: null, autor_papel: 'sistema',
     resumo: resumo.slice(0, 300), dados, ocorrido_em: new Date().toISOString(),
@@ -415,7 +424,7 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
     if (p.reacao === 'quero_visitar') await tarefa(trx, conta, contato, `Marcar visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
     await trx.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
     await reclassificar(trx, contato.id);
-    await marcarReacaoNaVitrine(trx, conta, selecao.id, imovel.codigo, p.reacao);
+    await publicarSelecao(trx, conta, selecao);
     await sincronizarPortal(trx, conta, contato.id);
   });
 }
@@ -429,14 +438,14 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
     const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: p.contato_id }, maximo: 1 }))[0];
     if (!contato) return;
     if (p.tipo === 'mensagem') {
-      await linhaDoTempo(trx, contato.id, 'portal.mensagem', `Mensagem pelo portal: ${String(p.texto ?? '').slice(0, 250)}`, { texto: p.texto });
+      await linhaDoTempo(trx, contato.id, 'portal.mensagem', `Mensagem pelo portal: ${String(p.texto ?? '').slice(0, 250)}`, { texto: p.texto }, conta);
       await tarefa(trx, conta, contato, 'Responder a mensagem do portal');
     } else {
       const visita = (await trx.varrerTudo('atividades', { filtros: { conta_id: conta, id: p.visita, contato_id: contato.id, tipo: 'visita' }, maximo: 1 }))[0];
       if (!visita) return; // visita que não é deste cliente
       const quando = iso(visita.quando);
       const dia = quando ? new Date(quando).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }) : '';
-      await linhaDoTempo(trx, contato.id, 'portal.remarcar', `Pediu para remarcar a visita de ${dia}${p.texto ? `: ${String(p.texto).slice(0, 200)}` : ''}`, { atividade_id: visita.id, texto: p.texto ?? null });
+      await linhaDoTempo(trx, contato.id, 'portal.remarcar', `Pediu para remarcar a visita de ${dia}${p.texto ? `: ${String(p.texto).slice(0, 200)}` : ''}`, { atividade_id: visita.id, texto: p.texto ?? null }, conta);
       await tarefa(trx, conta, contato, `Remarcar visita: ${visita.titulo}`);
     }
     await trx.atualizar('contatos', contato.id, { ultimo_contato_em: new Date().toISOString() });

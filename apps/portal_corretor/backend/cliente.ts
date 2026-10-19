@@ -3,7 +3,7 @@ import { Router, type Request } from 'express';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
-import { apagarVitrine, corretorDaConta, publicarSelecao, selecaoValida, sincronizarPortal, tentarPortal } from './portal';
+import { apagarVitrine, corretorDaConta, limparSelecoesVencidas, publicarSelecao, revogarIngresso, selecaoValida, sincronizarPortal, tentarPortal } from './portal';
 import { contaDoRequest, origemPublica, publicavel } from './vitrine';
 
 // Seleções com reação e Portal do Cliente (bloco 5b, spec 11.3, D-56): o corretor monta e envia; o
@@ -38,7 +38,8 @@ clienteRotas.get(
   assincrono(async (req, res) => {
     const dados = req.dados!;
     const cid = id(req.query.contato_id);
-    const r = await dados.listar('selecoes', { filtros: cid ? { contato_id: cid } : {}, ordenar: 'enviada_em', ordem: 'desc', por_pagina: 100 });
+    const conta = contaDoRequest(req);
+    const r = await dados.listar('selecoes', { filtros: { conta_id: conta, ...(cid ? { contato_id: cid } : {}) }, ordenar: 'enviada_em', ordem: 'desc', por_pagina: 100 });
     const itens = r.dados.length ? await dados.varrerTudo('selecao_itens', { filtros: { selecao_id: r.dados.map((s) => s.id).join(',') }, ordenar: 'ordem', ordem: 'asc', maximo: 2000 }) : [];
     res.json({
       ...r,
@@ -78,10 +79,29 @@ clienteRotas.post(
       for (const [ordem, imovelId] of ids.entries()) await trx.criar('selecao_itens', { selecao_id: s.id, imovel_id: imovelId, ordem });
       return s;
     });
-    const g = await req.shell!.gerarIngressoWh({ webhook: 'reacao_selecao', contexto: { conta_id: conta, selecao_id: selecao.id }, expira_em: expira });
-    const link = `${origemPublica(g.url)}/portal_corretor/s?t=${g.token}`;
-    const salva = await dados.atualizar('selecoes', selecao.id, { ingresso_id: g.ingresso_id, url_reacao: g.url, link });
-    await publicarSelecao(dados, conta, salva!, await corretor(req));
+    // Ingresso, link e vitrine depois da transação: se algo falhar aqui, a seleção pela metade é
+    // desfeita (sem link ela não teria como ser revogada pela ficha) e o ingresso, revogado.
+    let ingresso: number | null = null;
+    let salva: Record<string, any> | null;
+    let link: string;
+    try {
+      const g = await req.shell!.gerarIngressoWh({ webhook: 'reacao_selecao', contexto: { conta_id: conta, selecao_id: selecao.id }, expira_em: expira });
+      ingresso = g.ingresso_id;
+      link = `${origemPublica(g.url)}/portal_corretor/s?t=${g.token}`;
+      salva = await dados.atualizar('selecoes', selecao.id, { ingresso_id: g.ingresso_id, url_reacao: g.url, link });
+      await publicarSelecao(dados, conta, salva!, await corretor(req));
+    } catch (e) {
+      try {
+        if (ingresso) await revogarIngresso(req.shell!, 'reacao_selecao', ingresso);
+        await apagarVitrine(dados, conta, 'selecao', selecao.id);
+        for (const i of await dados.varrerTudo('selecao_itens', { filtros: { selecao_id: selecao.id }, maximo: 50 })) await dados.deletar('selecao_itens', i.id);
+        await dados.deletar('selecoes', selecao.id);
+      } catch (limpeza) {
+        console.warn(`[portal_corretor] seleção ${selecao.id}: limpeza depois da falha não concluída: ${(limpeza as Error).message}`);
+      }
+      throw e;
+    }
+    await limparSelecoesVencidas(dados, conta);
     await dados.criar('envios', { contato_id: contato.id, tipo: 'selecao', canal: 'whatsapp', autor_tipo: 'humano', descricao: `${titulo} (${ids.length} imóveis)`.slice(0, 300), enviado_em: agora, cliques: 0 });
     await registrar(dados, req, { tipo: 'selecao.enviada', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: `Seleção enviada: ${titulo} (${ids.length} imóveis)`, dados: { selecao_id: selecao.id } });
     await dados.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
@@ -100,7 +120,7 @@ clienteRotas.patch(
     const s = lida && Number(lida.conta_id) === contaDoRequest(req) ? lida : null;
     if (!s) return erro(res, 404, 'NAO_ENCONTRADO', 'Seleção não encontrada.');
     if (!s.revogada_em) {
-      if (s.ingresso_id) await revogar(req, 'reacao_selecao', s.ingresso_id);
+      if (s.ingresso_id) await revogarIngresso(req.shell!, 'reacao_selecao', s.ingresso_id);
       await dados.atualizar('selecoes', s.id, { revogada_em: new Date().toISOString() });
     }
     const conta = contaDoRequest(req);
@@ -109,16 +129,6 @@ clienteRotas.patch(
     res.json({ id: s.id, revogada: true });
   }),
 );
-
-/** Revoga o ingresso; o que já não existe não impede a revogação no app. */
-async function revogar(req: Request, webhook: string, ingresso: number) {
-  try {
-    await req.shell!.revogarIngressoWh({ webhook, ingresso_id: ingresso });
-  } catch (e) {
-    const codigo = (e as { codigo?: string })?.codigo;
-    if (codigo !== 'WH_INGRESSO_NAO_ENCONTRADO' && codigo !== 'WH_NAO_ENCONTRADO') throw e;
-  }
-}
 
 // ---------- Portal do Cliente ----------
 
@@ -156,7 +166,7 @@ clienteRotas.post(
     } catch (e) {
       // Dois cliques ao mesmo tempo: fica o link que entrou primeiro, e este ingresso é revogado.
       if ((e as { code?: string })?.code !== '23505') throw e;
-      await revogar(req, 'acao_cliente', g.ingresso_id);
+      await revogarIngresso(req.shell!, 'acao_cliente', g.ingresso_id);
       const venceu = await acessoAtivo(req, contato.id);
       return res.json({ ativo: true, link: venceu?.link ?? null, novo: false });
     }
@@ -175,7 +185,7 @@ clienteRotas.patch(
     if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     const a = await acessoAtivo(req, contato.id);
     if (a) {
-      if (a.ingresso_id) await revogar(req, 'acao_cliente', a.ingresso_id);
+      if (a.ingresso_id) await revogarIngresso(req.shell!, 'acao_cliente', a.ingresso_id);
       await dados.atualizar('acessos_cliente', a.id, { revogado_em: new Date().toISOString() });
       await registrar(dados, req, { tipo: 'portal.revogado', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: 'Link do portal do cliente revogado' });
     }

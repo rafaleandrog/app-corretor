@@ -29,6 +29,11 @@ export class PcSelecoesCliente extends LitElement {
     void this.carregar();
   }
 
+  // A ficha pode reaproveitar o elemento ao trocar de cliente: recarrega com o novo.
+  updated(mudou: Map<string, unknown>) {
+    if (mudou.has('contatoId') && mudou.get('contatoId') !== undefined) void this.carregar();
+  }
+
   private async carregar() {
     this.falha = null;
     try {
@@ -61,8 +66,14 @@ export class PcSelecoesCliente extends LitElement {
   private async nova() {
     let anunciaveis: Linha[] = [];
     try {
-      const r = await urbiVerso.api('/imoveis?por_pagina=50');
-      anunciaveis = (r.dados ?? []).filter((i: Linha) => ['ativo', 'reservado'].includes(i.situacao) && i.autorizacao_vigente);
+      // Só ativos e reservados, todas as páginas (a lista vem de 50 em 50).
+      for (const situacao of ['ativo', 'reservado']) {
+        for (let pagina = 1; pagina <= 20; pagina++) {
+          const r = await urbiVerso.api(`/imoveis?situacao=${situacao}&pagina=${pagina}`);
+          anunciaveis.push(...(r.dados ?? []).filter((i: Linha) => i.autorizacao_vigente));
+          if (pagina >= (r.paginas ?? 1)) break;
+        }
+      }
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível carregar os imóveis', mensagem: mensagemDeErro(e), tipo: 'erro' });
       return;

@@ -4,6 +4,7 @@ import type { HelperDados } from '@urbiverso/sdk';
 import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
 import { imovelPublico, TEMAS, type Bloco } from '../comum/pagina';
 import { primeiro } from './acesso';
+import { atualizarSelecoesDoImovel } from './portal';
 
 // Vitrine pública (D-55): a única tabela fora da segregação. Guarda só o que o corretor publicou e
 // nenhum dado pessoal; é mantida aqui a cada publicação e lida pelas rotas públicas, que não
@@ -95,6 +96,8 @@ export async function sincronizarImovel(req: Request, imovelId: number): Promise
 export async function tentarSincronizar(req: Request, imovelId: number): Promise<void> {
   try {
     await sincronizarImovel(req, imovelId);
+    // As seleções enviadas com este imóvel acompanham o anúncio (bloco 5b).
+    await atualizarSelecoesDoImovel(req.dados!, contaDoRequest(req), imovelId);
   } catch (e) {
     console.warn(`[portal_corretor] vitrine: imóvel ${imovelId} não sincronizado: ${(e as Error).message}`);
   }

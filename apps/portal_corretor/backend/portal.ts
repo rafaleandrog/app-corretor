@@ -1,5 +1,6 @@
 import type { HelperDados } from '@urbiverso/sdk';
 import { iso } from '../comum/funil';
+import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
 import { imovelPublico, TEMAS } from '../comum/pagina';
 
 // Seleções e Portal do Cliente na vitrine pública (bloco 5b, D-56, D-73). O cliente abre por link com
@@ -52,37 +53,92 @@ export async function corretorDaConta(dados: HelperDados, conta: number, usuario
   };
 }
 
-/** Seleção enviada: retrato dos imóveis no envio, só com dado de anúncio, e a reação de cada um. */
-export async function publicarSelecao(dados: HelperDados, conta: number, selecao: Linha, corretor: Corretor) {
+const hojeSp = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+
+/**
+ * Seleção na vitrine, refeita a partir das tabelas (fonte da verdade): o anúncio atual de cada
+ * imóvel, só com dado público, e a reação gravada. Imóvel que deixou de ser anunciável (vendido,
+ * retirado, autorização vencida, removido) sai. `corretor` ausente (listener) mantém o topo publicado.
+ * Seleção revogada ou vencida sai da vitrine.
+ */
+export async function publicarSelecao(dados: HelperDados, conta: number, selecao: Linha, corretor?: Corretor) {
+  if (!selecaoValida(selecao)) {
+    await apagarVitrine(dados, conta, 'selecao', selecao.id);
+    return;
+  }
   const itens = await dados.varrerTudo('selecao_itens', { filtros: { conta_id: conta, selecao_id: selecao.id }, ordenar: 'ordem', ordem: 'asc', maximo: 50 });
   const ids = itens.map((i) => i.imovel_id).join(',');
-  const [imoveis, midias] = itens.length
+  const [imoveis, midias, autorizacoes] = itens.length
     ? await Promise.all([
         dados.varrerTudo('imoveis', { filtros: { conta_id: conta, id: ids }, maximo: 50 }),
         dados.varrerTudo('imovel_midias', { filtros: { conta_id: conta, imovel_id: ids }, maximo: 2000 }),
+        dados.varrerTudo('autorizacoes_venda', { filtros: { conta_id: conta, imovel_id: ids }, maximo: 500 }),
       ])
-    : [[], []];
-  const porId = new Map(imoveis.map((i) => [i.id, i]));
+    : [[], [], []];
+  const dia = hojeSp();
+  const anunciavel = (im: Linha) => SITUACOES_ANUNCIADAS.includes(im.situacao) && autorizacoes.some((a) => a.imovel_id === im.id && autorizacaoVigente(a as Autorizacao, dia));
+  const porId = new Map(imoveis.filter(anunciavel).map((i) => [i.id, i]));
+  const atual = corretor ? null : await lerVitrine(dados, conta, 'selecao', selecao.id);
   await gravarVitrine(dados, conta, 'selecao', selecao.id, {
     titulo: selecao.titulo,
     mensagem: selecao.mensagem ?? null,
     enviada_em: iso(selecao.enviada_em),
     expira_em: iso(selecao.expira_em),
     url_reacao: selecao.url_reacao ?? null,
-    corretor,
+    corretor: corretor ?? (atual?.dados as Linha | undefined)?.corretor ?? null,
     itens: itens
       .filter((i) => porId.has(i.imovel_id))
       .map((i) => ({ ...imovelPublico(porId.get(i.imovel_id)!, midias.filter((m) => m.imovel_id === i.imovel_id)), reacao: i.reacao ?? null })),
   });
 }
 
-/** Reação gravada: a vitrine da seleção mostra a escolha na próxima abertura. */
-export async function marcarReacaoNaVitrine(dados: HelperDados, conta: number, selecaoId: number, codigo: string, reacao: string) {
-  const linha = await lerVitrine(dados, conta, 'selecao', selecaoId);
-  if (!linha) return;
-  const conteudo = linha.dados as Linha;
-  const itens = (conteudo.itens ?? []).map((i: Linha) => (i.codigo === codigo ? { ...i, reacao } : i));
-  await dados.atualizar('vitrine_publica', linha.id, { dados: { ...conteudo, itens } });
+/** Imóvel mudou (anúncio, fotos, autorização, remoção): as seleções válidas que o têm acompanham. */
+export async function atualizarSelecoesDoImovel(dados: HelperDados, conta: number, imovelId: number) {
+  const itens = await dados.varrerTudo('selecao_itens', { filtros: { conta_id: conta, imovel_id: imovelId }, maximo: 500 });
+  if (!itens.length) return;
+  const selecoes = await dados.varrerTudo('selecoes', { filtros: { conta_id: conta, id: [...new Set(itens.map((i) => i.selecao_id))].join(','), 'revogada_em[nulo]': 'true' }, maximo: 500 });
+  for (const s of selecoes) await publicarSelecao(dados, conta, s);
+}
+
+/** Retira da vitrine as seleções vencidas da conta (a rota pública já as esconde; aqui é limpeza). */
+export async function limparSelecoesVencidas(dados: HelperDados, conta: number) {
+  const agora = new Date().toISOString();
+  const linhas = await dados.varrerTudo('vitrine_publica', { filtros: { conta, tipo: 'selecao' }, maximo: 5000 });
+  for (const l of linhas) if (l.dados?.expira_em && String(l.dados.expira_em) <= agora) await dados.deletar('vitrine_publica', l.id);
+}
+
+interface RevogadorWh {
+  revogarIngressoWh(o: { webhook: string; ingresso_id: number }): Promise<unknown>;
+}
+
+/** Revoga um ingresso; o que já não existe não impede o resto. */
+export async function revogarIngresso(shell: RevogadorWh, webhook: string, ingresso: number) {
+  try {
+    await shell.revogarIngressoWh({ webhook, ingresso_id: ingresso });
+  } catch (e) {
+    const codigo = (e as { codigo?: string })?.codigo;
+    if (codigo !== 'WH_INGRESSO_NAO_ENCONTRADO' && codigo !== 'WH_NAO_ENCONTRADO') throw e;
+  }
+}
+
+/**
+ * Cliente removido: o portal e as seleções dele param de abrir (ingressos revogados e vitrine
+ * apagada). Sem isso o link seguiria vivo e já não haveria ficha para revogá-lo.
+ */
+export async function encerrarAcessosDoCliente(dados: HelperDados, shell: RevogadorWh, conta: number, contatoId: number) {
+  const agora = new Date().toISOString();
+  const acessos = await dados.varrerTudo('acessos_cliente', { filtros: { conta_id: conta, contato_id: contatoId, 'revogado_em[nulo]': 'true' }, maximo: 20 });
+  for (const a of acessos) {
+    if (a.ingresso_id) await revogarIngresso(shell, 'acao_cliente', a.ingresso_id);
+    await dados.atualizar('acessos_cliente', a.id, { revogado_em: agora });
+  }
+  const selecoes = await dados.varrerTudo('selecoes', { filtros: { conta_id: conta, contato_id: contatoId, 'revogada_em[nulo]': 'true' }, maximo: 500 });
+  for (const s of selecoes) {
+    if (s.ingresso_id) await revogarIngresso(shell, 'reacao_selecao', s.ingresso_id);
+    await dados.atualizar('selecoes', s.id, { revogada_em: agora });
+    await apagarVitrine(dados, conta, 'selecao', s.id);
+  }
+  await apagarVitrine(dados, conta, 'portal', contatoId);
 }
 
 /** Seleção que o cliente ainda pode abrir: enviada, não revogada, dentro da validade. */
@@ -135,7 +191,9 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
         imovel: im ? { codigo: im.codigo, titulo: im.titulo ?? null, bairro: im.endereco_publico === 'regiao' ? null : (im.bairro ?? null), cidade: im.cidade ?? null, endereco: im.endereco_publico === 'completo' ? (im.endereco ?? null) : null } : null,
       };
     });
-  const itens = validas.length ? await dados.varrerTudo('selecao_itens', { filtros: { conta_id: conta, selecao_id: validas.map((s) => s.id).join(',') }, maximo: 2000 }) : [];
+  // "Imóveis recebidos" conta tudo o que foi enviado e não revogado, inclusive em seleções vencidas.
+  const enviadas = selecoes.filter((s) => !s.revogada_em);
+  const itens = enviadas.length ? await dados.varrerTudo('selecao_itens', { filtros: { conta_id: conta, selecao_id: enviadas.map((s) => s.id).join(',') }, maximo: 5000 }) : [];
   await gravarVitrine(dados, conta, 'portal', contatoId, {
     corretor: topo ?? null,
     url_acoes: acesso.url_acoes ?? null,

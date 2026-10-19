@@ -15,7 +15,7 @@ import {
 import { gerarCsv } from '../comum/csv';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
-import { tentarPortal } from './portal';
+import { encerrarAcessosDoCliente, tentarPortal } from './portal';
 import { MARCO_PADRAO } from '../comum/funil';
 import { marcoMaisAvancado } from '../comum/numeros';
 
@@ -300,6 +300,8 @@ crmRotas.patch(
     if (!cid || !(await dados.buscar('contatos', cid))) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     const abertos = await dados.listar('negocios', { filtros: { contato_id: cid, 'ganho_em[nulo]': 'true', 'perdido_em[nulo]': 'true' }, por_pagina: 1 });
     if (abertos.total) return erro(res, 409, 'NEGOCIO_ABERTO', 'Este contato tem negócio em andamento. Encerre o negócio antes de remover o contato.');
+    // Portal e seleções do cliente param de abrir antes de ele sair da lista (bloco 5b).
+    if (req.contexto?.contaEscrita) await encerrarAcessosDoCliente(dados, req.shell!, req.contexto.contaEscrita, cid);
     await dados.remover('contatos', cid, eu(req));
     res.json({ id: cid, removido: true });
   }),
