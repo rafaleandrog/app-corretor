@@ -129,7 +129,7 @@ crmRotas.post(
     const v = validarContato(req.body ?? {});
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira o contato.', v.erros);
     const dados = req.dados!;
-    // Telefone repetido na mesma conta liga ao contato existente (spec 6.2): devolve o que já existe.
+    // Telefone repetido na mesma conta é recusado (spec 6.2), com o id do contato que já tem o número.
     if (v.dados.telefone) {
       const existente = await primeiro(dados, 'contatos', { telefone: v.dados.telefone });
       if (existente) return erro(res, 409, 'DUPLICATA', `Já existe um contato com este telefone: ${existente.nome}.`, [String(existente.id)]);

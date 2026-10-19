@@ -78,8 +78,9 @@ export class PcTelaAgenda extends LitElement {
     if (this.falha && !this.atividades) return banner;
     if (!this.atividades) return html`<urbi-loading></urbi-loading>`;
     if (!this.atividades.length) {
-      return html`<urbi-estado-vazio icone="fa-solid fa-calendar-check" mensagem="Nada pendente nos próximos 14 dias"
+      const vazio = html`<urbi-estado-vazio icone="fa-solid fa-calendar-check" mensagem="Nada pendente nos próximos 14 dias"
         submensagem="Agende ligações, visitas e reuniões pela ficha de cada cliente."></urbi-estado-vazio>`;
+      return this.falha ? html`<urbi-stack>${banner}${vazio}</urbi-stack>` : vazio;
     }
     const grupos = new Map<string, Atividade[]>();
     for (const a of this.atividades) grupos.set(this.dia(a.quando), [...(grupos.get(this.dia(a.quando)) ?? []), a]);

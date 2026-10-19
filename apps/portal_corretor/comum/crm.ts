@@ -64,7 +64,8 @@ export interface DadosContato {
 function dataHora(v: unknown, campo: string, erros: string[]): string | null {
   const t = texto(v);
   if (!t) return null;
-  const d = new Date(t);
+  // Só data e hora ISO (com dia e hora): o parser solto do Date aceitaria "7pm" em UTC.
+  const d = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(t) ? new Date(t) : new Date(NaN);
   if (Number.isNaN(d.getTime())) {
     erros.push(`${campo}: data e hora inválidas.`);
     return null;

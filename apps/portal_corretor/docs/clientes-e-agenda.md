@@ -23,7 +23,7 @@ contato, negócio ou atividade de outra conta responde "não encontrado".
 ### Duplicatas
 
 Na mesma conta não existem dois contatos ativos com o mesmo telefone. Ao cadastrar ou editar com
-um telefone que já existe, o app recusa e diz o nome de quem já tem aquele número. Contato
+um telefone que já existe, o app recusa e, em geral, diz o nome de quem já tem aquele número. Contato
 removido libera o telefone.
 
 ### Ficha do contato
@@ -98,6 +98,6 @@ Limite de 2.000 linhas por vez. Contatos importados entram **sem consentimento**
 ## Exportar
 
 **Exportar** baixa todos os contatos ativos da conta em CSV para o Excel (separador `;`, acentos
-preservados): nome, telefone, e-mail, papéis, temperatura, origem, campanha, próximo passo e data
-de cadastro. Células que começam como fórmula (`=`, `@`, ou `+`/`-` seguidos de texto) ganham um
+preservados): nome, telefone, e-mail, papéis, temperatura, origem, campanha, próximo passo (o quê e quando) e
+data de cadastro. Células que começam como fórmula (`=`, `@`, ou `+`/`-` seguidos de texto) ganham um
 apóstrofo para o Excel não executá-las; telefones e números com sinal saem como estão.
