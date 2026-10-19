@@ -224,6 +224,9 @@ test('portal do cliente: um link por cliente, agenda e seleções, ações viram
   assert.deepEqual([msg.publicados[0].tipo, msg.publicados[0].opcoes.conta_id], ['acao_cliente_recebida', 100]);
   const ctx = banco.ctxSistema([{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }]);
   await reagir.acao_cliente_recebida({ payload: msg.publicados[0].payload, conta_id: 100 }, ctx);
+  // O mesmo evento entregue de novo não repete a linha do tempo.
+  await reagir.acao_cliente_recebida({ payload: msg.publicados[0].payload, conta_id: 100 }, ctx);
+  assert.equal(banco.linhas('linha_do_tempo').filter((l) => l.tipo === 'portal.mensagem').length, 1);
   // Remarcar a visita de outro cliente: ignorado.
   const alheia = await chamarWebhook('acao_cliente', contexto, { tipo: 'remarcar', visita: outraVisita });
   await reagir.acao_cliente_recebida({ payload: alheia.publicados[0].payload, conta_id: 100 }, ctx);

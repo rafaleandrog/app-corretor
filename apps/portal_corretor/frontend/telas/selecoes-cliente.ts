@@ -34,14 +34,19 @@ export class PcSelecoesCliente extends LitElement {
     if (mudou.has('contatoId') && mudou.get('contatoId') !== undefined) void this.carregar();
   }
 
+  private pedido = 0;
+
   private async carregar() {
     this.falha = null;
+    // Troca rápida de cliente: só a resposta do último pedido vale.
+    const meu = ++this.pedido;
     try {
       const [s, p] = await Promise.all([urbiVerso.api(`/selecoes?contato_id=${this.contatoId}`), urbiVerso.api(`/contatos/${this.contatoId}/portal`)]);
+      if (meu !== this.pedido) return;
       this.selecoes = s.dados;
       this.portal = p;
     } catch (e) {
-      this.falha = (e as Error).message;
+      if (meu === this.pedido) this.falha = (e as Error).message;
     }
   }
 

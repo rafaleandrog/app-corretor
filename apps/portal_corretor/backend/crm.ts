@@ -301,7 +301,9 @@ crmRotas.patch(
     const abertos = await dados.listar('negocios', { filtros: { contato_id: cid, 'ganho_em[nulo]': 'true', 'perdido_em[nulo]': 'true' }, por_pagina: 1 });
     if (abertos.total) return erro(res, 409, 'NEGOCIO_ABERTO', 'Este contato tem negócio em andamento. Encerre o negócio antes de remover o contato.');
     // Portal e seleções do cliente param de abrir antes de ele sair da lista (bloco 5b).
-    if (req.contexto?.contaEscrita) await encerrarAcessosDoCliente(dados, req.shell!, req.contexto.contaEscrita, cid);
+    const conta = req.contexto?.contaEscrita;
+    if (!conta) return erro(res, 400, 'CONTA_NAO_INFORMADA', 'Escolha a conta.');
+    await encerrarAcessosDoCliente(dados, req.shell!, conta, cid);
     await dados.remover('contatos', cid, eu(req));
     res.json({ id: cid, removido: true });
   }),

@@ -91,22 +91,29 @@ clienteRotas.post(
       salva = await dados.atualizar('selecoes', selecao.id, { ingresso_id: g.ingresso_id, url_reacao: g.url, link });
       await publicarSelecao(dados, conta, salva!, await corretor(req));
     } catch (e) {
-      try {
-        if (ingresso) await revogarIngresso(req.shell!, 'reacao_selecao', ingresso);
-        await apagarVitrine(dados, conta, 'selecao', selecao.id);
+      // Cada passo da limpeza tenta por si: um shell instável não deixa a vitrine viva.
+      const passo = async (nome: string, fn: () => Promise<unknown>) => {
+        try {
+          await fn();
+        } catch (limpeza) {
+          console.warn(`[portal_corretor] seleção ${selecao.id}: ${nome} não concluído depois da falha: ${(limpeza as Error).message}`);
+        }
+      };
+      if (ingresso) await passo('revogar o ingresso', () => revogarIngresso(req.shell!, 'reacao_selecao', ingresso!));
+      await passo('apagar da vitrine', () => apagarVitrine(dados, conta, 'selecao', selecao.id));
+      await passo('apagar a seleção', async () => {
         for (const i of await dados.varrerTudo('selecao_itens', { filtros: { selecao_id: selecao.id }, maximo: 50 })) await dados.deletar('selecao_itens', i.id);
         await dados.deletar('selecoes', selecao.id);
-      } catch (limpeza) {
-        console.warn(`[portal_corretor] seleção ${selecao.id}: limpeza depois da falha não concluída: ${(limpeza as Error).message}`);
-      }
+      });
       throw e;
     }
-    await limparSelecoesVencidas(dados, conta);
     await dados.criar('envios', { contato_id: contato.id, tipo: 'selecao', canal: 'whatsapp', autor_tipo: 'humano', descricao: `${titulo} (${ids.length} imóveis)`.slice(0, 300), enviado_em: agora, cliques: 0 });
     await registrar(dados, req, { tipo: 'selecao.enviada', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: `Seleção enviada: ${titulo} (${ids.length} imóveis)`, dados: { selecao_id: selecao.id } });
     await dados.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
     await reclassificar(dados, contato.id);
     await tentarPortal(dados, conta, contato.id, await corretor(req));
+    // Arrumação: a seleção já está no ar, então uma falha aqui não vira erro para o corretor.
+    await limparSelecoesVencidas(dados, conta).catch((e) => console.warn(`[portal_corretor] limpeza de seleções vencidas: ${(e as Error).message}`));
     res.status(201).json({ selecao: salva, link });
   }),
 );

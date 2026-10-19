@@ -394,7 +394,7 @@ async function tarefa(trx: HelperDados, conta: number, contato: Linha, titulo: s
 async function linhaDoTempo(trx: HelperDados, contatoId: number, tipo: string, resumo: string, dados: unknown, conta?: number) {
   if (conta) {
     const limite = new Date(Date.now() - 5 * 60_000).toISOString();
-    const recentes = await trx.varrerTudo('linha_do_tempo', { filtros: { conta_id: conta, contato_id: contatoId, tipo }, maximo: 50 });
+    const recentes = await trx.varrerTudo('linha_do_tempo', { filtros: { conta_id: conta, contato_id: contatoId, tipo, 'ocorrido_em[gte]': limite }, maximo: 50 });
     if (recentes.some((l) => l.resumo === resumo.slice(0, 300) && (iso(l.ocorrido_em) ?? '') >= limite)) return;
   }
   await trx.criar('linha_do_tempo', {

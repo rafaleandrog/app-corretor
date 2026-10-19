@@ -96,10 +96,14 @@ export async function sincronizarImovel(req: Request, imovelId: number): Promise
 export async function tentarSincronizar(req: Request, imovelId: number): Promise<void> {
   try {
     await sincronizarImovel(req, imovelId);
-    // As seleções enviadas com este imóvel acompanham o anúncio (bloco 5b).
-    await atualizarSelecoesDoImovel(req.dados!, contaDoRequest(req), imovelId);
   } catch (e) {
     console.warn(`[portal_corretor] vitrine: imóvel ${imovelId} não sincronizado: ${(e as Error).message}`);
+  }
+  // As seleções enviadas com este imóvel acompanham o anúncio (bloco 5b), mesmo se a página falhou.
+  try {
+    await atualizarSelecoesDoImovel(req.dados!, contaDoRequest(req), imovelId);
+  } catch (e) {
+    console.warn(`[portal_corretor] seleções do imóvel ${imovelId} não atualizadas: ${(e as Error).message}`);
   }
 }
 
