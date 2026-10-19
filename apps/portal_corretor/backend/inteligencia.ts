@@ -24,19 +24,36 @@ export async function sinaisDoContato(dados: HelperDados, contato: Linha, agora 
     dados.listar('atividades', { filtros: { contato_id: contato.id, tipo: 'visita' }, ordenar: 'quando', ordem: 'desc', por_pagina: 100 }),
   ]);
   const etapas = await etapasPorId(dados, negocios.dados.length ? { id: negocios.dados.map((n) => n.etapa_id).join(',') } : { id: '0' });
-  const emProposta = negocios.dados.some((n) => {
+  const maisRecente = (datas: (string | null | undefined)[]) => datas.filter(Boolean).sort().pop() ?? null;
+  const emPropostaLista = negocios.dados.filter((n) => {
     const e = etapas.get(n.etapa_id);
     return e?.tipo === 'aberta' && ['proposta', 'documentacao'].includes(e.marco);
   });
   const ate = new Date(agora.getTime() + 14 * DIA).toISOString();
-  const visitaMarcada = visitasAtiv.dados.some((a) => a.status === 'pendente' && a.quando >= iso && a.quando <= ate);
+  const marcadas = visitasAtiv.dados.filter((a) => a.status === 'pendente' && a.quando >= iso && a.quando <= ate);
   let notaVisita: number | null = null;
+  let notaVisitaEm: string | null = null;
   if (visitasAtiv.dados.length) {
     const desde = new Date(agora.getTime() - 14 * DIA).toISOString();
     const vs = await dados.listar('visitas', { filtros: { atividade_id: visitasAtiv.dados.map((a) => a.id).join(','), 'feedback_em[gte]': desde }, por_pagina: 100 });
-    for (const v of vs.dados) if (v.feedback_nota) notaVisita = Math.max(notaVisita ?? 0, v.feedback_nota);
+    // A maior nota dos últimos 14 dias, com a data do retorno que a trouxe.
+    for (const v of vs.dados) {
+      if (v.feedback_nota && v.feedback_nota >= (notaVisita ?? 0)) {
+        notaVisita = v.feedback_nota;
+        notaVisitaEm = v.feedback_em ?? null;
+      }
+    }
   }
-  return { agora: iso, ultimo_contato_em: contato.ultimo_contato_em ?? null, visita_marcada: visitaMarcada, nota_visita: notaVisita, em_proposta: emProposta };
+  return {
+    agora: iso,
+    ultimo_contato_em: contato.ultimo_contato_em ?? null,
+    visita_marcada: marcadas.length > 0,
+    nota_visita: notaVisita,
+    em_proposta: emPropostaLista.length > 0,
+    proposta_desde: maisRecente(emPropostaLista.map((n) => n.etapa_desde)),
+    visita_marcada_em: maisRecente(marcadas.map((a) => a.criado_em)),
+    nota_visita_em: notaVisitaEm,
+  };
 }
 
 /**
@@ -49,7 +66,7 @@ export async function reclassificar(dados: HelperDados, contatoId: number, agora
   const sinais = await sinaisDoContato(dados, contato, agora);
   const nova = classificar(sinais);
   const em = agora.toISOString();
-  if (deveTrocar({ temperatura: contato.temperatura, autor: contato.temperatura_autor }, nova)) {
+  if (deveTrocar({ temperatura: contato.temperatura, autor: contato.temperatura_autor, em: contato.temperatura_em }, nova)) {
     await dados.atualizar('contatos', contatoId, { temperatura: nova.temperatura, temperatura_motivo: nova.motivo, temperatura_autor: 'regra', temperatura_em: em });
     await dados.criar('classificacoes', { contato_id: contatoId, temperatura: nova.temperatura, motivo: nova.motivo, sinais, autor: 'regra', em });
   } else if (contato.temperatura === nova.temperatura && contato.temperatura_autor !== 'corretor' && contato.temperatura_motivo !== nova.motivo) {
@@ -66,7 +83,7 @@ export async function classificarManual(dados: HelperDados, contatoId: number, t
     await dados.atualizar('contatos', contatoId, { temperatura: null, temperatura_motivo: null, temperatura_autor: null, temperatura_em: em });
     return;
   }
-  const texto = (motivo ?? '').trim().slice(0, 200) || 'Marcado pelo corretor';
+  const texto = (motivo ?? '').trim().slice(0, 200) || 'Marcado pelo corretor'; // vazio vira o texto padrão
   await dados.atualizar('contatos', contatoId, { temperatura, temperatura_motivo: texto, temperatura_autor: 'corretor', temperatura_em: em });
   await dados.criar('classificacoes', { contato_id: contatoId, temperatura, motivo: texto, sinais: null, autor: 'corretor', em });
 }

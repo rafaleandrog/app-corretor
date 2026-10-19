@@ -241,17 +241,29 @@ export async function reclassificarContatos(ctx: ContextoListener) {
   if (!ctx.dados?.comConta) return { ok: true, resultado: { resumo: 'sem dados' } };
   const limite = new Date(Date.now() - 7 * DIA).toISOString();
   const candidatos = await ctx.dados.varrerTudo('contatos', { filtros: { temperatura: 'quente,morno', 'ultimo_contato_em[lt]': limite }, maximo: 50000 });
+  // Só contas ativas, enumeradas pelo ctx (comConta valida e recusa a inativa); uma conta que falha
+  // não impede as outras, e a falha aparece no resultado.
+  const ativas = new Set((ctx.contas ? await ctx.contas.listarAtivas() : []).map((c) => c.id));
   const porConta = new Map<number, number[]>();
-  for (const c of candidatos) porConta.set(c.conta_id, [...(porConta.get(c.conta_id) ?? []), c.id]);
+  for (const c of candidatos) if (ativas.has(c.conta_id)) porConta.set(c.conta_id, [...(porConta.get(c.conta_id) ?? []), c.id]);
   let trocados = 0;
+  const falhas: string[] = [];
   for (const [conta, ids] of porConta) {
-    await ctx.dados.comConta(conta, async (trx) => {
-      for (const cid of ids) {
-        const antes = await trx.buscar('contatos', cid);
-        const nova = await reclassificar(trx, cid);
-        if (nova && antes?.temperatura !== (await trx.buscar('contatos', cid))?.temperatura) trocados++;
-      }
-    });
+    try {
+      await ctx.dados.comConta(conta, async (trx) => {
+        for (const cid of ids) {
+          const antes = await trx.buscar('contatos', cid);
+          const nova = await reclassificar(trx, cid);
+          if (nova && antes?.temperatura !== (await trx.buscar('contatos', cid))?.temperatura) trocados++;
+        }
+      });
+    } catch (e) {
+      falhas.push(`conta ${conta}: ${(e as Error).message}`);
+    }
   }
-  return { ok: true, resultado: { resumo: `${trocados} contato(s) esfriaram`, analisados: candidatos.length, trocados } };
+  return {
+    ok: falhas.length === 0,
+    resultado: { resumo: `${trocados} contato(s) esfriaram${falhas.length ? `; ${falhas.length} conta(s) com falha` : ''}`, analisados: candidatos.length, trocados, falhas },
+    ...(falhas.length ? { erro: falhas.join('; ') } : {}),
+  };
 }

@@ -257,7 +257,9 @@ crmRotas.patch(
     }
     // Temperatura escolhida pelo corretor tem histórico próprio e vale até um sinal forte (10.4).
     const { temperatura, ...resto } = v.dados;
-    const manual = 'temperatura' in v.dados && temperatura !== atual.temperatura;
+    // Mudou a temperatura, ou confirmou a da regra com um motivo: vira escolha do corretor.
+    const motivoInformado = typeof req.body?.temperatura_motivo === 'string' && req.body.temperatura_motivo.trim() !== '';
+    const manual = 'temperatura' in v.dados && (temperatura !== atual.temperatura || (motivoInformado && !!temperatura));
     let contato;
     try {
       contato = await dados.atualizar('contatos', cid!, resto);

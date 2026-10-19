@@ -16,12 +16,17 @@ test('regras puras: temperatura com motivo, sinal forte, vencimento e ordem da f
   assert.equal(classificar(base).temperatura, 'morno');
   assert.match(classificar({ ...base, ultimo_contato_em: '2026-10-10T11:00:00.000Z' }).motivo, /Sem contato há 10 dias/);
   assert.equal(classificar({ ...base, ultimo_contato_em: null }).temperatura, 'frio');
-  assert.deepEqual(classificar({ ...base, visita_marcada: true }), { temperatura: 'quente', motivo: 'Tem visita marcada', forte: true });
+  assert.deepEqual(classificar({ ...base, visita_marcada: true, visita_marcada_em: '2026-10-19T09:00:00.000Z' }), {
+    temperatura: 'quente', motivo: 'Tem visita marcada', forte: true, forte_desde: '2026-10-19T09:00:00.000Z',
+  });
   assert.equal(classificar({ ...base, nota_visita: 5 }).temperatura, 'quente');
   assert.equal(classificar({ ...base, em_proposta: true, ultimo_contato_em: '2026-09-01T00:00:00.000Z' }).temperatura, 'quente');
   // A escolha do corretor só cai com sinal forte.
   assert.equal(deveTrocar({ temperatura: 'quente', autor: 'corretor' }, { temperatura: 'frio', motivo: '', forte: false }), false);
-  assert.equal(deveTrocar({ temperatura: 'frio', autor: 'corretor' }, { temperatura: 'quente', motivo: '', forte: true }), true);
+  const forte = { temperatura: 'quente' as const, motivo: '', forte: true, forte_desde: '2026-10-19T10:00:00.000Z' };
+  assert.equal(deveTrocar({ temperatura: 'frio', autor: 'corretor', em: '2026-10-19T09:00:00.000Z' }, forte), true, 'sinal depois da escolha');
+  assert.equal(deveTrocar({ temperatura: 'frio', autor: 'corretor', em: '2026-10-19T11:00:00.000Z' }, forte), false, 'sinal anterior à escolha');
+  assert.equal(deveTrocar({ temperatura: 'frio', autor: 'corretor', em: '2026-10-19T11:00:00.000Z' }, { ...forte, forte_desde: null }), false, 'sinal sem data não derruba');
   assert.equal(deveTrocar({ temperatura: 'morno', autor: 'regra' }, { temperatura: 'frio', motivo: '', forte: false }), true);
   assert.equal(venceEm(4, ['2026-01-01T00:00:00.000Z', null, '2026-01-02T00:00:00.000Z']), '2026-01-02T04:00:00.000Z');
   assert.equal(venceEm(4, [null, undefined]), null);
@@ -47,8 +52,18 @@ test('temperatura muda com os sinais e guarda o histórico; a do corretor vale a
     await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita', quando: depois(48), contato_id: c.id });
     const linha = banco.linhas('contatos')[0];
     assert.deepEqual([linha.temperatura, linha.temperatura_autor, linha.temperatura_motivo], ['quente', 'regra', 'Tem visita marcada']);
+    // Histórico com as três mudanças (a ordem por data pode empatar no mesmo milissegundo).
     const ficha = (await chamar('GET', `/contatos/${c.id}`)).corpo;
-    assert.deepEqual(ficha.classificacoes.map((x: any) => `${x.autor}:${x.temperatura}`), ['regra:quente', 'corretor:frio', 'regra:morno']);
+    assert.deepEqual(ficha.classificacoes.map((x: any) => `${x.autor}:${x.temperatura}`).sort(), ['corretor:frio', 'regra:morno', 'regra:quente']);
+    // Agora o corretor escolhe frio com a visita já marcada: a próxima nota não desfaz a escolha.
+    await new Promise((r) => setTimeout(r, 5));
+    await chamar('PATCH', `/contatos/${c.id}`, { temperatura: 'frio', temperatura_motivo: 'Visita só de curiosidade' });
+    await chamar('POST', `/contatos/${c.id}/notas`, { texto: 'Conversamos de novo' });
+    assert.deepEqual([banco.linhas('contatos')[0].temperatura, banco.linhas('contatos')[0].temperatura_autor], ['frio', 'corretor']);
+    // Confirmar a temperatura da regra com um motivo também fixa a escolha.
+    const d = (await chamar('POST', '/contatos', { nome: 'Davi', telefone: '61911110010' })).corpo;
+    const confirmado = await chamar('PATCH', `/contatos/${d.id}`, { temperatura: 'morno', temperatura_motivo: 'Quer só em março' });
+    assert.deepEqual([confirmado.corpo.temperatura_autor, confirmado.corpo.temperatura_motivo], ['corretor', 'Quer só em março']);
   });
 });
 
@@ -136,6 +151,22 @@ test('rotina diária esfria quem ficou 7 dias sem contato, só uma vez e por con
   const r2 = await rotinas.reclassificar_contatos(ctx);
   assert.equal(r2.resultado.trocados, 0, 'idempotente');
   assert.equal(banco.linhas('classificacoes').filter((c) => c.temperatura === 'frio').length, 2);
+  // Conta que não está entre as ativas fica de fora; a que lança não derruba as outras.
+  for (const l of banco.linhas('contatos').filter((l) => l.nome.startsWith('Ativo'))) {
+    l.ultimo_contato_em = antes(9);
+  }
+  const soA = banco.ctxSistema([{ id: 100, nome: 'A' }]);
+  const r3 = await rotinas.reclassificar_contatos(soA);
+  assert.equal(r3.resultado.trocados, 1);
+  assert.equal(banco.linhas('contatos').find((l) => l.nome === 'Ativo 200')!.temperatura, 'morno');
+  banco.linhas('contatos').find((l) => l.nome === 'Ativo 100')!.temperatura = 'morno'; // candidato na conta que vai falhar
+  const quebrada = banco.ctxSistema([{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }]);
+  const comConta = quebrada.dados.comConta;
+  quebrada.dados.comConta = (id: number, fn: any) => (id === 100 ? Promise.reject(new Error('conta inativa')) : comConta(id, fn));
+  const r4 = await rotinas.reclassificar_contatos(quebrada);
+  assert.equal(r4.ok, false);
+  assert.equal(r4.resultado.trocados, 1, 'a conta B foi processada');
+  assert.match(r4.erro, /conta 100/);
 });
 
 test('isolamento do funil: B não vê quadro, fila nem playbook de A, e não age nos contatos de A', async () => {

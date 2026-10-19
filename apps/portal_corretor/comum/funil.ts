@@ -85,36 +85,43 @@ export interface Sinais {
   nota_visita: number | null;
   /** Algum negócio aberto em etapa de proposta ou documentação. */
   em_proposta: boolean;
+  /** Quando cada sinal forte surgiu: decide se ele é posterior à escolha do corretor. */
+  proposta_desde?: string | null;
+  visita_marcada_em?: string | null;
+  nota_visita_em?: string | null;
 }
 
 export interface Classificacao {
   temperatura: Temperatura;
   motivo: string;
-  /** Sinal forte: vence a escolha manual do corretor (10.4). */
+  /** Sinal forte: vence a escolha manual do corretor feita antes dele (10.4). */
   forte: boolean;
+  /** Quando o sinal forte surgiu (null se não é forte ou se a data não é conhecida). */
+  forte_desde?: string | null;
 }
 
 const dias = (de: string, ate: string) => (new Date(ate).getTime() - new Date(de).getTime()) / 86400e3;
 
 /** Regras explícitas da temperatura, com o motivo em uma frase (10.4). */
 export function classificar(s: Sinais): Classificacao {
-  if (s.em_proposta) return { temperatura: 'quente', motivo: 'Tem negócio em proposta ou documentação', forte: true };
-  if (s.visita_marcada) return { temperatura: 'quente', motivo: 'Tem visita marcada', forte: true };
-  if (s.nota_visita !== null && s.nota_visita >= 4) return { temperatura: 'quente', motivo: `Gostou da visita (nota ${s.nota_visita})`, forte: true };
+  if (s.em_proposta) return { temperatura: 'quente', motivo: 'Tem negócio em proposta ou documentação', forte: true, forte_desde: s.proposta_desde ?? null };
+  if (s.visita_marcada) return { temperatura: 'quente', motivo: 'Tem visita marcada', forte: true, forte_desde: s.visita_marcada_em ?? null };
+  if (s.nota_visita !== null && s.nota_visita >= 4) return { temperatura: 'quente', motivo: `Gostou da visita (nota ${s.nota_visita})`, forte: true, forte_desde: s.nota_visita_em ?? null };
   if (!s.ultimo_contato_em) return { temperatura: 'frio', motivo: 'Nenhum contato registrado', forte: false };
   const parado = dias(s.ultimo_contato_em, s.agora);
   if (parado > 7) return { temperatura: 'frio', motivo: `Sem contato há ${Math.floor(parado)} dias`, forte: false };
-  if (s.nota_visita !== null && s.nota_visita <= 2) return { temperatura: 'morno', motivo: `Não gostou da última visita (nota ${s.nota_visita})`, forte: true };
+  if (s.nota_visita !== null && s.nota_visita <= 2) return { temperatura: 'morno', motivo: `Não gostou da visita (nota ${s.nota_visita})`, forte: true, forte_desde: s.nota_visita_em ?? null };
   return { temperatura: 'morno', motivo: parado < 1 ? 'Conversou hoje, sem visita marcada' : `Conversou há ${Math.ceil(parado)} dia(s), sem visita marcada`, forte: false };
 }
 
 /**
  * Decide se a regra troca a temperatura atual. A escolha do corretor vale até surgir um sinal forte
- * depois dela; sem escolha manual, vale a regra.
+ * **depois** dela (evento, não estado: a visita marcada antes da escolha não a desfaz); sem escolha
+ * manual, vale a regra.
  */
-export function deveTrocar(atual: { temperatura: string | null; autor: string | null }, nova: Classificacao): boolean {
+export function deveTrocar(atual: { temperatura: string | null; autor: string | null; em?: string | null }, nova: Classificacao): boolean {
   if (atual.temperatura === nova.temperatura) return false;
-  if (atual.autor === 'corretor') return nova.forte;
+  if (atual.autor === 'corretor') return nova.forte && !!nova.forte_desde && (!atual.em || nova.forte_desde > atual.em);
   return true;
 }
 

@@ -19,18 +19,21 @@ valor, a temperatura e o aviso de **abordagem atrasada**.
 ## Temperatura do contato
 
 Cada contato é **frio**, **morno** ou **quente**, sempre com o motivo em uma frase. O app
-recalcula a cada sinal (contato novo, nota, visita marcada, retorno de visita, mudança de etapa,
-atividade concluída) e uma vez por dia:
+recalcula quando acontece algo com o contato (cadastro, nota, visita marcada, retorno de visita,
+mudança de etapa, atividade concluída, abordagem feita) e, uma vez por dia, esfria quem passou 7
+dias sem contato:
 
 | Temperatura | Quando |
 |---|---|
-| Quente | Negócio em proposta ou documentação; visita marcada nos próximos 14 dias; gostou da última visita (nota 4 ou 5) |
-| Morno | Teve contato nos últimos 7 dias, sem visita marcada |
+| Quente | Negócio em proposta ou documentação (inclui "Proposta recebida" na venda); visita marcada nos próximos 14 dias; retorno de visita com nota 4 ou 5 nos últimos 14 dias |
+| Morno | Teve contato nos últimos 7 dias, sem visita marcada; ou retorno de visita com nota 1 ou 2 |
 | Frio | Mais de 7 dias sem contato, ou nenhum contato registrado |
 
-O corretor pode trocar a temperatura na edição do contato, com o motivo. **A escolha dele vale
-até surgir um sinal forte** (visita marcada, retorno de visita, negócio em proposta); um sinal
-fraco, como uma nota, não a desfaz. A ficha guarda o histórico das últimas mudanças.
+O corretor pode trocar a temperatura na edição do contato, com o motivo (confirmar a mesma
+temperatura com um motivo também conta como escolha dele). **A escolha vale até surgir um sinal
+forte depois dela**: visita marcada, retorno de visita ou negócio que entra em proposta. O que já
+existia quando ele escolheu não desfaz a escolha, e um sinal fraco, como uma nota, também não. A
+ficha guarda o histórico das últimas mudanças.
 
 ## Próxima abordagem
 
