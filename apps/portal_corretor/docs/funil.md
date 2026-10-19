@@ -32,7 +32,8 @@ dias sem contato:
 O corretor pode trocar a temperatura na edição do contato, com o motivo (confirmar a mesma
 temperatura com um motivo também conta como escolha dele). **A escolha vale até surgir um sinal
 forte depois dela**: visita marcada, retorno de visita ou negócio que entra em proposta. O que já
-existia quando ele escolheu não desfaz a escolha, e um sinal fraco, como uma nota, também não. A
+existia quando ele escolheu não desfaz a escolha (remarcar uma visita antiga também não), e um
+sinal fraco, como uma nota, também não. A
 ficha guarda o histórico das últimas mudanças.
 
 ## Próxima abordagem

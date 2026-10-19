@@ -1,5 +1,5 @@
 import type { HelperDados } from '@urbiverso/sdk';
-import { classificar, deveTrocar, MARCO_PADRAO, PLAYBOOK_PADRAO, venceEm, type Classificacao, type Temperatura } from '../comum/funil';
+import { classificar, deveTrocar, iso as instante, MARCO_PADRAO, PLAYBOOK_PADRAO, venceEm, type Classificacao, type Temperatura } from '../comum/funil';
 
 // Inteligência do Funil por regras (bloco 4): reclassifica a temperatura a cada sinal e aponta a
 // próxima abordagem pelo playbook da conta. Só lê por id ou com filtro explícito, para servir
@@ -24,13 +24,16 @@ export async function sinaisDoContato(dados: HelperDados, contato: Linha, agora 
     dados.listar('atividades', { filtros: { contato_id: contato.id, tipo: 'visita' }, ordenar: 'quando', ordem: 'desc', por_pagina: 100 }),
   ]);
   const etapas = await etapasPorId(dados, negocios.dados.length ? { id: negocios.dados.map((n) => n.etapa_id).join(',') } : { id: '0' });
-  const maisRecente = (datas: (string | null | undefined)[]) => datas.filter(Boolean).sort().pop() ?? null;
+  const maisRecente = (datas: unknown[]) => datas.map(instante).filter((d): d is string => !!d).sort().pop() ?? null;
   const emPropostaLista = negocios.dados.filter((n) => {
     const e = etapas.get(n.etapa_id);
     return e?.tipo === 'aberta' && ['proposta', 'documentacao'].includes(e.marco);
   });
   const ate = new Date(agora.getTime() + 14 * DIA).toISOString();
-  const marcadas = visitasAtiv.dados.filter((a) => a.status === 'pendente' && a.quando >= iso && a.quando <= ate);
+  const marcadas = visitasAtiv.dados.filter((a) => {
+    const quando = instante(a.quando);
+    return a.status === 'pendente' && !!quando && quando >= iso && quando <= ate;
+  });
   let notaVisita: number | null = null;
   let notaVisitaEm: string | null = null;
   if (visitasAtiv.dados.length) {
@@ -40,13 +43,13 @@ export async function sinaisDoContato(dados: HelperDados, contato: Linha, agora 
     for (const v of vs.dados) {
       if (v.feedback_nota && v.feedback_nota >= (notaVisita ?? 0)) {
         notaVisita = v.feedback_nota;
-        notaVisitaEm = v.feedback_em ?? null;
+        notaVisitaEm = instante(v.feedback_em);
       }
     }
   }
   return {
     agora: iso,
-    ultimo_contato_em: contato.ultimo_contato_em ?? null,
+    ultimo_contato_em: instante(contato.ultimo_contato_em),
     visita_marcada: marcadas.length > 0,
     nota_visita: notaVisita,
     em_proposta: emPropostaLista.length > 0,
@@ -126,7 +129,7 @@ export interface ProximaAbordagem {
 export function proximaAbordagem(contato: Linha, negocios: Linha[], etapas: Map<number, Linha>, playbook: Linha[], agora = new Date()): ProximaAbordagem | null {
   const abertos = negocios
     .filter((n) => etapas.get(n.etapa_id)?.tipo === 'aberta' && !n.removido_em)
-    .sort((a, b) => String(b.etapa_desde ?? b.criado_em ?? '').localeCompare(String(a.etapa_desde ?? a.criado_em ?? '')));
+    .sort((a, b) => (instante(b.etapa_desde ?? b.criado_em) ?? '').localeCompare(instante(a.etapa_desde ?? a.criado_em) ?? ''));
   const negocio = abertos[0];
   if (!negocio) return null;
   const temperatura = contato.temperatura ?? 'morno';

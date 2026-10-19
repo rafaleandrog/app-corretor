@@ -100,6 +100,16 @@ export interface Classificacao {
   forte_desde?: string | null;
 }
 
+/**
+ * Instante em ISO, venha como `Date` (colunas `datahora` lidas pelo `req.dados`, banco-de-dados.md)
+ * ou como texto. Comparar `Date` com texto dá sempre falso: toda comparação de instante passa aqui.
+ */
+export function iso(v: unknown): string | null {
+  if (v === null || v === undefined || v === '') return null;
+  const d = v instanceof Date ? v : new Date(String(v));
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 const dias = (de: string, ate: string) => (new Date(ate).getTime() - new Date(de).getTime()) / 86400e3;
 
 /** Regras explícitas da temperatura, com o motivo em uma frase (10.4). */
@@ -119,9 +129,13 @@ export function classificar(s: Sinais): Classificacao {
  * **depois** dela (evento, não estado: a visita marcada antes da escolha não a desfaz); sem escolha
  * manual, vale a regra.
  */
-export function deveTrocar(atual: { temperatura: string | null; autor: string | null; em?: string | null }, nova: Classificacao): boolean {
+export function deveTrocar(atual: { temperatura: string | null; autor: string | null; em?: unknown }, nova: Classificacao): boolean {
   if (atual.temperatura === nova.temperatura) return false;
-  if (atual.autor === 'corretor') return nova.forte && !!nova.forte_desde && (!atual.em || nova.forte_desde > atual.em);
+  if (atual.autor === 'corretor') {
+    const sinal = iso(nova.forte_desde);
+    const escolha = iso(atual.em);
+    return nova.forte && !!sinal && (!escolha || sinal > escolha);
+  }
   return true;
 }
 
@@ -137,6 +151,6 @@ export type TipoFila = 'quente_sem_resposta' | 'abordagem_vencida' | 'visita' | 
 /** Ordem da fila do dia (10.4): quentes sem resposta, abordagens vencidas, visitas, próximos passos. */
 export const ORDEM_FILA: TipoFila[] = ['quente_sem_resposta', 'abordagem_vencida', 'visita', 'proximo_passo'];
 
-export function ordenarFila<T extends { tipo: TipoFila; quando: string | null }>(itens: T[]): T[] {
-  return [...itens].sort((a, b) => ORDEM_FILA.indexOf(a.tipo) - ORDEM_FILA.indexOf(b.tipo) || String(a.quando ?? '').localeCompare(String(b.quando ?? '')));
+export function ordenarFila<T extends { tipo: TipoFila; quando: unknown }>(itens: T[]): T[] {
+  return [...itens].sort((a, b) => ORDEM_FILA.indexOf(a.tipo) - ORDEM_FILA.indexOf(b.tipo) || (iso(a.quando) ?? '').localeCompare(iso(b.quando) ?? ''));
 }

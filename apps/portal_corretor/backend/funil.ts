@@ -1,7 +1,7 @@
 import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import type { ContextoListener } from '@urbiverso/sdk';
-import { CANAIS_ABORDAGEM, ordenarFila, TEMPERATURAS, type TipoFila } from '../comum/funil';
+import { CANAIS_ABORDAGEM, iso, ordenarFila, TEMPERATURAS, type TipoFila } from '../comum/funil';
 import { assincrono, erro, guardarCorretor } from './acesso';
 import { etapasDaConta, registrar } from './crm';
 import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
@@ -47,7 +47,7 @@ funilRotas.get(
     const visiveis = negocios.filter((n) => {
       const e = etapas.get(n.etapa_id);
       if (!e) return false;
-      return e.tipo === 'aberta' || String(n.etapa_desde ?? '') >= corte;
+      return e.tipo === 'aberta' || (iso(n.etapa_desde) ?? '') >= corte;
     });
     const contatos = visiveis.length
       ? await dados.varrerTudo('contatos', { filtros: { id: [...new Set(visiveis.map((n) => n.contato_id))].join(',') }, maximo: 5000 })
@@ -76,7 +76,7 @@ funilRotas.get(
           abordagem: abordagem?.abordagem ?? null,
         };
       })
-      .filter((k) => (!temperatura || k.temperatura === temperatura) && (!limiteParado || (k.ultimo_contato_em ?? '') < limiteParado));
+      .filter((k) => (!temperatura || k.temperatura === temperatura) && (!limiteParado || (iso(k.ultimo_contato_em) ?? '') < limiteParado));
     res.json({ pipeline, etapas: daqui, negocios: cartoes });
   }),
 );
@@ -218,7 +218,7 @@ funilRotas.get(
       if (!v.contato_id) continue;
       itens.push({
         tipo: 'visita', contato_id: v.contato_id, contato_nome: porId.get(v.contato_id)?.nome ?? v.contato_nome ?? '', temperatura: porId.get(v.contato_id)?.temperatura ?? null, quando: v.quando,
-        texto: `${v.quando < hoje.fim ? 'Hoje' : 'Amanhã'}: ${v.titulo}${v.local ? ` · ${v.local}` : ''}`, atividade_id: v.id,
+        texto: `${(iso(v.quando) ?? '') < hoje.fim ? 'Hoje' : 'Amanhã'}: ${v.titulo}${v.local ? ` · ${v.local}` : ''}`, atividade_id: v.id,
       });
     }
     for (const c of passos.dados) {
