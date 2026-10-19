@@ -25,8 +25,11 @@ interface Ficha {
   visitas: Linha[];
   linha_do_tempo: Linha[];
   consentimento: Linha | null;
+  abordagem: Linha | null;
+  classificacoes: Linha[];
 }
 
+const CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 const STATUS_ATIVIDADE: Record<string, string> = { pendente: 'Pendente', feita: 'Feita', cancelada: 'Cancelada', nao_compareceu: 'Não compareceu' };
 
 // Ficha do contato: dados, próximo passo, negócios (com mudança de etapa), atividades,
@@ -74,6 +77,7 @@ export class PcTelaFichaContato extends LitElement {
           valor: c.temperatura ?? '',
           opcoes: [{ valor: '', rotulo: 'Sem classificação' }, { valor: 'frio', rotulo: 'Frio' }, { valor: 'morno', rotulo: 'Morno' }, { valor: 'quente', rotulo: 'Quente' }],
         },
+        { nome: 'temperatura_motivo', tipo: 'texto', rotulo: 'Por que essa temperatura (se mudou)', placeholder: 'Ex.: disse que compra só no ano que vem' },
         { nome: 'observacoes', tipo: 'texto_longo', rotulo: 'Observações', valor: c.observacoes ?? '' },
       ],
       'PATCH',
@@ -219,6 +223,29 @@ export class PcTelaFichaContato extends LitElement {
     }
   }
 
+  private async abordagemFeita() {
+    const a = this.ficha!.abordagem!;
+    const v = await urbiVerso.formulario({
+      titulo: 'Registrar abordagem',
+      campos: [{ nome: 'texto', tipo: 'texto_longo', rotulo: 'O que você fez', valor: a.abordagem }],
+      rotuloConfirmar: 'Registrar',
+    });
+    if (v) await this.tentar('Não foi possível registrar', () => enviar('POST', `/abordagens/${this.contatoId}/feita`, { texto: v.texto }));
+  }
+
+  private async adiarAbordagem() {
+    await this.tentar('Não foi possível pular', () => enviar('POST', `/abordagens/${this.contatoId}/adiar`, {}));
+  }
+
+  private async tentar(titulo: string, fn: () => Promise<unknown>) {
+    try {
+      await fn();
+      await this.carregar();
+    } catch (e) {
+      await urbiVerso.alertar({ titulo, mensagem: mensagemDeErro(e), tipo: 'erro' });
+    }
+  }
+
   /** Imóvel e nota da visita, para a linha da agenda. */
   private visitaDe(a: Linha) {
     const v = this.ficha!.visitas.find((x: Linha) => x.atividade_id === a.id);
@@ -254,11 +281,23 @@ export class PcTelaFichaContato extends LitElement {
         ${this.acao('Editar contato', 'fa-solid fa-pen', () => this.editar())}
         <urbi-prosa>${[c.telefone, c.email].filter(Boolean).join(' · ') || 'sem telefone nem e-mail'}</urbi-prosa>
         <urbi-prosa papel="secundario">
-          ${c.papeis.split(',').map((p: string) => ROTULO_PAPEL[p] ?? p).join(', ')}${c.temperatura ? ` · ${c.temperatura}` : ''} · chegou por ${c.origem_canal ?? 'origem não informada'}${c.origem_campanha ? ` (${c.origem_campanha})` : ''}
+          ${c.papeis.split(',').map((p: string) => ROTULO_PAPEL[p] ?? p).join(', ')}${c.temperatura ? ` · ${c.temperatura}${c.temperatura_motivo ? ` (${c.temperatura_motivo}${c.temperatura_autor === 'corretor' ? ', marcado por você' : ''})` : ''}` : ''} · chegou por ${c.origem_canal ?? 'origem não informada'}${c.origem_campanha ? ` (${c.origem_campanha})` : ''}
           · cadastrado em ${data(c.criado_em)}
         </urbi-prosa>
         ${c.observacoes ? html`<urbi-prosa papel="dica" pre>${c.observacoes}</urbi-prosa>` : ''}
       </urbi-card>
+      ${this.ficha.abordagem
+        ? html`<urbi-card titulo="Próxima abordagem" icone="fa-solid fa-route">
+            <urbi-prosa>${this.ficha.abordagem.abordagem}</urbi-prosa>
+            <urbi-prosa papel="secundario">${this.ficha.abordagem.etapa_nome} · ${this.ficha.abordagem.temperatura} · por ${CANAL[this.ficha.abordagem.canal_sugerido] ?? this.ficha.abordagem.canal_sugerido}${
+              this.ficha.abordagem.vence_em ? ` · até ${dataHora(this.ficha.abordagem.vence_em)}` : ''}</urbi-prosa>
+            <urbi-linha quebrar>
+              ${this.ficha.abordagem.vencida ? html`<urbi-badge cor="alerta">Atrasada</urbi-badge>` : ''}
+              <urbi-botao pequeno @click=${() => this.abordagemFeita()}>Fiz agora</urbi-botao>
+              <urbi-botao variante="texto" pequeno @click=${() => this.adiarAbordagem()}>Pular</urbi-botao>
+            </urbi-linha>
+          </urbi-card>`
+        : ''}
       <urbi-card titulo="Próximo passo" icone="fa-solid fa-forward">
         ${this.acao('Definir próximo passo', 'fa-solid fa-pen', () => this.proximoPasso())}
         ${c.proximo_passo

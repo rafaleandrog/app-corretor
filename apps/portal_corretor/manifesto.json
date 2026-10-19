@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.4.0",
+  "versao": "0.5.0",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -40,6 +40,11 @@
       "icone": "fa-solid fa-house"
     },
     {
+      "titulo": "Funil",
+      "rota": "/funil",
+      "icone": "fa-solid fa-filter"
+    },
+    {
       "titulo": "Clientes",
       "rota": "/clientes",
       "icone": "fa-solid fa-address-book"
@@ -72,7 +77,7 @@
           "rota": "/conta"
         },
         {
-          "titulo": "Funil",
+          "titulo": "Funil e abordagens",
           "rota": "/ajustes/funil"
         }
       ]
@@ -88,6 +93,13 @@
       ]
     }
   ],
+  "rotinas": {
+    "reclassificar_contatos": {
+      "titulo": "Temperatura dos contatos",
+      "descricao": "Recalcula a temperatura de quem ficou sem contato (esfria depois de 7 dias)",
+      "frequencia": "diaria"
+    }
+  },
   "rotas_publicas": [
     "/diagnostico"
   ],

@@ -6,6 +6,26 @@ import type { Router } from 'express';
 // sua conta e grava carimbando a conta ativa — como o RLS faz na instância. Escrever `conta_id`
 // no corpo lança, como o `422 DADOS_CAMPO_RESERVADO` do framework. Não substitui o roteiro na
 // instância (o RLS de verdade só se prova lá); prova que o código depende só de `req.dados`.
+import schema from '../schema.json';
+
+/** Colunas `datahora` por tabela (mais as automáticas): no banco real chegam como `Date` (banco-de-dados.md). */
+const DATAHORA: Record<string, Set<string>> = Object.fromEntries(
+  Object.entries((schema as { tabelas: Record<string, { colunas: Record<string, { tipo: string }> }> }).tabelas).map(([t, def]) => [
+    t,
+    new Set(['criado_em', 'atualizado_em', 'removido_em', ...Object.entries(def.colunas).filter(([, c]) => c.tipo === 'datahora').map(([n]) => n)]),
+  ]),
+);
+/** Cópia da linha como o `req.dados` devolve: `datahora` vira `Date`. */
+/** Gravação como o framework faz: `Date` vira ISO. */
+const comoGravado = (d: Record<string, unknown>) => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]));
+
+function comoLido(tabela: string, l: Record<string, any>) {
+  const cols = DATAHORA[tabela];
+  const r: Record<string, any> = { ...l };
+  if (cols) for (const c of cols) if (typeof r[c] === 'string') r[c] = new Date(r[c]);
+  return r;
+}
+
 export type Linha = Record<string, any> & { id: number; conta_id: number };
 
 export class BancoFalso {
@@ -58,14 +78,14 @@ export class BancoFalso {
         const r = consultar(tabela, op);
         const por = op.por_pagina ?? 20;
         const ini = ((op.pagina ?? 1) - 1) * por;
-        return { dados: r.slice(ini, ini + por).map((l) => ({ ...l })), total: r.length, pagina: op.pagina ?? 1, por_pagina: por, paginas: Math.ceil(r.length / por) };
+        return { dados: r.slice(ini, ini + por).map((l) => comoLido(tabela, l)), total: r.length, pagina: op.pagina ?? 1, por_pagina: por, paginas: Math.ceil(r.length / por) };
       },
       async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
-        return consultar(tabela, op).map((l) => ({ ...l }));
+        return consultar(tabela, op).map((l) => comoLido(tabela, l));
       },
       async buscar(tabela: string, id: number) {
         const l = visiveis(tabela).find((x) => x.id === id);
-        return l ? { ...l } : null;
+        return l ? comoLido(tabela, l) : null;
       },
       async remover(tabela: string, id: number, por?: number) {
         exigirConta();
@@ -90,19 +110,19 @@ export class BancoFalso {
         exigirConta();
         semReservado(d);
         const agora = new Date().toISOString();
-        const linha = { criado_em: agora, atualizado_em: agora, ...d, id: banco.seq + 1, conta_id: conta! } as Linha;
+        const linha = { criado_em: agora, atualizado_em: agora, ...comoGravado(d), id: banco.seq + 1, conta_id: conta! } as Linha;
         colide(tabela, linha);
         banco.seq++;
         banco.linhas(tabela).push(linha);
-        return { ...linha };
+        return comoLido(tabela, linha);
       },
       async atualizar(tabela: string, id: number, d: Record<string, unknown>) {
         exigirConta();
         semReservado(d);
         const alvo = visiveis(tabela).find((l) => l.id === id);
         if (!alvo) return null;
-        colide(tabela, { ...alvo, ...d });
-        return { ...Object.assign(alvo, d, { atualizado_em: new Date().toISOString() }) };
+        colide(tabela, { ...alvo, ...comoGravado(d) });
+        return comoLido(tabela, Object.assign(alvo, comoGravado(d), { atualizado_em: new Date().toISOString() }));
       },
       async criarOuAtualizar(tabela: string, chave: string[], d: Record<string, unknown>) {
         exigirConta();
@@ -122,6 +142,10 @@ export class BancoFalso {
     return {
       contas: { listarAtivas: async () => contas },
       dados: {
+        // Leitura SISTEMA enxerga todas as contas (contas.md).
+        async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
+          return todas(tabela).filter((l) => !l.removido_em && casa(l, op.filtros)).map((l) => comoLido(tabela, l));
+        },
         async comConta(id: number, fn: (trx: any) => Promise<void>) {
           const trx = banco.dados(id);
           trx.existe = async (tabela: string, filtros: Record<string, unknown>) =>

@@ -15,6 +15,7 @@ import './telas/imoveis.js';
 import './telas/ficha-imovel.js';
 import './telas/empreendimentos.js';
 import './telas/ficha-empreendimento.js';
+import './telas/funil.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -27,6 +28,7 @@ interface Tela {
 // Uma entrada por rota. A tela só abre para quem tem o papel; o backend barra de novo.
 const TELAS: Record<string, Tela> = {
   '/': { titulo: 'Início', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` },
+  '/funil': { titulo: 'Funil', papel: 'corretor', render: () => html`<pc-tela-funil></pc-tela-funil>` },
   '/clientes': { titulo: 'Clientes', papel: 'corretor', render: () => html`<pc-tela-clientes></pc-tela-clientes>` },
   '/clientes/importar': { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
   '/clientes/:id': { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
@@ -40,7 +42,7 @@ const TELAS: Record<string, Tela> = {
   },
   '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
-  '/ajustes/funil': { titulo: 'Funil', papel: 'corretor', render: () => html`<pc-tela-funil-ajustes></pc-tela-funil-ajustes>` },
+  '/ajustes/funil': { titulo: 'Funil e abordagens', papel: 'corretor', render: () => html`<pc-tela-funil-ajustes></pc-tela-funil-ajustes>` },
   '/corretores': { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
 

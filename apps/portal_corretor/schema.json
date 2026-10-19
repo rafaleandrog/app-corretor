@@ -247,6 +247,25 @@
             "quente"
           ]
         },
+        "temperatura_motivo": {
+          "tipo": "texto",
+          "limite": 200
+        },
+        "temperatura_autor": {
+          "tipo": "texto",
+          "limite": 10,
+          "opcoes": [
+            "regra",
+            "ia",
+            "corretor"
+          ]
+        },
+        "temperatura_em": {
+          "tipo": "datahora"
+        },
+        "abordagem_adiada_em": {
+          "tipo": "datahora"
+        },
         "observacoes": {
           "tipo": "texto_longo"
         },
@@ -375,6 +394,23 @@
           "tipo": "booleano",
           "obrigatorio": true,
           "padrao": true
+        },
+        "marco": {
+          "tipo": "texto",
+          "limite": 20,
+          "opcoes": [
+            "novo",
+            "atendimento",
+            "qualificado",
+            "visita",
+            "visitou",
+            "proposta",
+            "documentacao",
+            "contato",
+            "avaliacao",
+            "autorizacao",
+            "anunciado"
+          ]
         }
       },
       "unicos": [
@@ -1236,6 +1272,115 @@
       "indices": [
         [
           "imovel_id"
+        ]
+      ]
+    },
+    "classificacoes": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{temperatura}",
+      "colunas": {
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "temperatura": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "frio",
+            "morno",
+            "quente"
+          ]
+        },
+        "motivo": {
+          "tipo": "texto",
+          "limite": 200,
+          "obrigatorio": true
+        },
+        "sinais": {
+          "tipo": "json"
+        },
+        "autor": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "regra",
+            "ia",
+            "corretor"
+          ]
+        },
+        "em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        }
+      },
+      "indices": [
+        [
+          "contato_id",
+          "em"
+        ]
+      ]
+    },
+    "playbook_funil": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{abordagem}",
+      "colunas": {
+        "etapa_id": {
+          "tipo": "referencia",
+          "tabela_ref": "etapas_funil",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as etapa_nome",
+            "pipeline as pipeline"
+          ]
+        },
+        "temperatura": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "frio",
+            "morno",
+            "quente"
+          ]
+        },
+        "abordagem": {
+          "tipo": "texto",
+          "limite": 300,
+          "obrigatorio": true
+        },
+        "canal_sugerido": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "whatsapp",
+          "opcoes": [
+            "whatsapp",
+            "ligacao",
+            "email",
+            "visita"
+          ]
+        },
+        "prazo_horas": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 1,
+            "max": 720
+          }
+        }
+      },
+      "unicos": [
+        [
+          "etapa_id",
+          "temperatura"
         ]
       ]
     }
