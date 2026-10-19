@@ -57,6 +57,8 @@ export class BancoFalso {
         : conta === null
           ? []
           : banco.linhas(tabela).filter((l) => l.conta_id === conta && (removidos || !l.removido_em));
+    // Escrita é sempre endereçada: mesmo com leitura global (SISTEMA), só a linha da conta do bloco.
+    const gravaveis = (tabela: string) => (GLOBAIS.has(tabela) || !leituraGlobal ? visiveis(tabela) : visiveis(tabela).filter((l) => l.conta_id === conta));
     let tabelaAtual = '';
     const exigirConta = () => {
       if (GLOBAIS.has(tabelaAtual)) return;
@@ -105,7 +107,7 @@ export class BancoFalso {
       async remover(tabela: string, id: number, por?: number) {
         tabelaAtual = tabela;
         exigirConta();
-        const alvo = visiveis(tabela).find((l) => l.id === id);
+        const alvo = gravaveis(tabela).find((l) => l.id === id);
         return alvo ? Object.assign(alvo, { removido_em: new Date().toISOString(), removido_por_id: por ?? null }) : null;
       },
       async deletar(tabela: string, id: number) {
@@ -138,7 +140,7 @@ export class BancoFalso {
         tabelaAtual = tabela;
         exigirConta();
         semReservado(d);
-        const alvo = visiveis(tabela).find((l) => l.id === id);
+        const alvo = gravaveis(tabela).find((l) => l.id === id);
         if (!alvo) return null;
         colide(tabela, { ...alvo, ...comoGravado(d) });
         return comoLido(tabela, Object.assign(alvo, comoGravado(d), { atualizado_em: new Date().toISOString() }));
@@ -147,7 +149,7 @@ export class BancoFalso {
         tabelaAtual = tabela;
         exigirConta();
         semReservado(d);
-        const alvo = visiveis(tabela).find((l) => chave.every((c) => l[c] === d[c]));
+        const alvo = gravaveis(tabela).find((l) => chave.every((c) => l[c] === d[c]));
         if (alvo) return Object.assign(alvo, d);
         return helper.criar(tabela, d);
       },

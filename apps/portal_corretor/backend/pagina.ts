@@ -2,7 +2,7 @@ import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import { blocosPadrao, FORMATO_ENDERECO, sugerirEndereco, TEMAS, validarPagina } from '../comum/pagina';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
-import { contaDoRequest, despublicarTudo, origemPublica, sincronizarTudo } from './vitrine';
+import { contaDoRequest, despublicarTudo, origemPublica, paginaDaConta, sincronizarTudo } from './vitrine';
 
 // Minha Página (bloco 5, spec 6.15 `paginas_corretor`, 11.3): o corretor monta a página por blocos,
 // escolhe o endereço e publica. Publicar gera os endereços de entrada (wh) do formulário e dos
@@ -30,12 +30,23 @@ async function enderecoOcupado(req: Request, endereco: string): Promise<boolean>
   return r.dados.some((l) => l.conta !== conta);
 }
 
+const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
+/** Compensação depois de um único violado: tentada, mas sem derrubar a resposta 409. */
+async function desfazer(fn: () => Promise<unknown>) {
+  try {
+    await fn();
+  } catch (e) {
+    console.warn(`[portal_corretor] página: compensação não aplicada: ${(e as Error).message}`);
+  }
+}
+
 async function visao(req: Request) {
   const dados = req.dados!;
-  const p = await primeiro(dados, 'paginas_corretor', { chave: 'conta' });
-  const conta = await primeiro(dados, 'perfil_conta', { chave: 'conta' });
+  const contaId = contaDoRequest(req);
+  const p = await paginaDaConta(dados, contaId);
+  const conta = await primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId });
   const nome = req.contexto!.usuario.nome || conta?.nome || 'Corretor';
-  const imoveis = await dados.listar('imoveis', { filtros: { publicado_pagina: true }, por_pagina: 1 });
+  const imoveis = await dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaId }, por_pagina: 1 });
   const pagina = p ?? { endereco: sugerirEndereco(nome), nome_exibicao: nome, tema: 'oceano', blocos: blocosPadrao(), publicada_em: null, gerada_por_ia: false };
   const base = origemPublica(p?.url_formulario);
   return {
@@ -69,11 +80,25 @@ paginaRotas.put(
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a página.', v.erros);
     if (await enderecoOcupado(req, v.dados.endereco)) return erro(res, 409, 'ENDERECO_EM_USO', 'Este endereço já é de outra página. Escolha outro.');
     const dados = req.dados!;
-    const atual = await primeiro(dados, 'paginas_corretor', { chave: 'conta' });
-    if (atual) await dados.atualizar('paginas_corretor', atual.id, v.dados);
-    else await dados.criar('paginas_corretor', { chave: 'conta', ...v.dados, gerada_por_ia: req.body?.gerada_por_ia === true });
-    // Página no ar: a vitrine acompanha a edição na hora.
-    if (atual?.publicada_em) await sincronizarTudo(req);
+    const atual = await paginaDaConta(dados, contaDoRequest(req));
+    const ia = req.body?.gerada_por_ia === true ? { gerada_por_ia: true } : {};
+    if (atual) await dados.atualizar('paginas_corretor', atual.id, { ...v.dados, ...ia });
+    else await dados.criar('paginas_corretor', { chave: 'conta', ...v.dados, ...ia });
+    // Página no ar: a vitrine acompanha a edição na hora. Outra conta que tomou o endereço no
+    // mesmo instante cai no único da vitrine: a página volta ao endereço anterior.
+    if (atual?.publicada_em) {
+      try {
+        await sincronizarTudo(req);
+      } catch (e) {
+        if (!violouUnico(e)) throw e;
+        // Se o request roda numa transação, ela já desfaz tudo; senão, volta o endereço anterior.
+        await desfazer(async () => {
+          await dados.atualizar('paginas_corretor', atual.id, { endereco: atual.endereco });
+          await sincronizarTudo(req);
+        });
+        return erro(res, 409, 'ENDERECO_EM_USO', 'Este endereço acabou de ser escolhido por outra página. Escolha outro.');
+      }
+    }
     res.json(await visao(req));
   }),
 );
@@ -82,7 +107,7 @@ paginaRotas.post(
   '/pagina/publicar',
   assincrono(async (req, res) => {
     const dados = req.dados!;
-    const p = await primeiro(dados, 'paginas_corretor', { chave: 'conta' });
+    const p = await paginaDaConta(dados, contaDoRequest(req));
     if (!p) return erro(res, 422, 'PAGINA_NAO_SALVA', 'Salve a página antes de publicar.');
     if (!FORMATO_ENDERECO.test(p.endereco)) return erro(res, 422, 'DADOS_INVALIDOS', 'Endereço da página inválido.');
     if (await enderecoOcupado(req, p.endereco)) return erro(res, 409, 'ENDERECO_EM_USO', 'Este endereço já é de outra página. Escolha outro.');
@@ -98,7 +123,18 @@ paginaRotas.post(
       Object.assign(mudar, { ingresso_clique_id: g.ingresso_id, url_clique: g.url });
     }
     await dados.atualizar('paginas_corretor', p.id, mudar);
-    const r = await sincronizarTudo(req);
+    let r;
+    try {
+      r = await sincronizarTudo(req);
+    } catch (e) {
+      if (!violouUnico(e)) throw e;
+      // Outra conta publicou o mesmo endereço no mesmo instante: esta continua fora do ar.
+      await desfazer(async () => {
+        await dados.atualizar('paginas_corretor', p.id, { publicada_em: p.publicada_em ?? null });
+        await despublicarTudo(dados, conta);
+      });
+      return erro(res, 409, 'ENDERECO_EM_USO', 'Este endereço acabou de ser escolhido por outra página. Escolha outro.');
+    }
     res.json({ ...(await visao(req)), imoveis_publicados: r.imoveis });
   }),
 );
@@ -106,7 +142,7 @@ paginaRotas.post(
 paginaRotas.post(
   '/pagina/atualizar',
   assincrono(async (req, res) => {
-    const p = await primeiro(req.dados!, 'paginas_corretor', { chave: 'conta' });
+    const p = await paginaDaConta(req.dados!, contaDoRequest(req));
     if (!p?.publicada_em) return erro(res, 422, 'PAGINA_FORA_DO_AR', 'A página ainda não foi publicada.');
     const r = await sincronizarTudo(req);
     res.json({ imoveis_publicados: r.imoveis });
@@ -117,8 +153,15 @@ paginaRotas.post(
   '/pagina/despublicar',
   assincrono(async (req, res) => {
     const dados = req.dados!;
-    const p = await primeiro(dados, 'paginas_corretor', { chave: 'conta' });
-    if (p?.publicada_em) await dados.atualizar('paginas_corretor', p.id, { publicada_em: null });
+    const p = await paginaDaConta(dados, contaDoRequest(req));
+    if (p) {
+      // Fora do ar, o formulário e a contagem de cliques param de receber: os endereços de entrada
+      // são revogados e nascem de novo na próxima publicação.
+      for (const [webhook, id] of [['formulario_lead', p.ingresso_formulario_id], ['clique_link', p.ingresso_clique_id]] as const) {
+        if (id) await req.shell!.revogarIngressoWh({ webhook, ingresso_id: id });
+      }
+      await dados.atualizar('paginas_corretor', p.id, { publicada_em: null, ingresso_formulario_id: null, url_formulario: null, ingresso_clique_id: null, url_clique: null });
+    }
     await despublicarTudo(dados, contaDoRequest(req));
     res.json(await visao(req));
   }),
@@ -138,8 +181,8 @@ paginaRotas.post(
     if (!estado?.efetivo) return erro(res, 503, 'IA_INDISPONIVEL', 'A escrita com IA não está disponível agora. Escreva os textos à mão.');
     const dados = req.dados!;
     const [eu, imoveis] = await Promise.all([
-      primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id }),
-      dados.listar('imoveis', { filtros: { publicado_pagina: true }, por_pagina: 50 }),
+      primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaDoRequest(req) }),
+      dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaDoRequest(req) }, por_pagina: 50 }),
     ]);
     const bairros = [...new Set(imoveis.dados.map((i) => [i.bairro, i.cidade].filter(Boolean).join(', ')).filter(Boolean))].slice(0, 8);
     const tipos = [...new Set(imoveis.dados.map((i) => i.tipo))].slice(0, 5);

@@ -33,9 +33,17 @@ async function gravar(dados: HelperDados, conta: number, tipo: string, chave: st
   return dados.criar('vitrine_publica', { conta, tipo, chave, codigo, dados: conteudo, publicado_em: agora });
 }
 
+/**
+ * A página da conta de escrita. Quem é membro de várias contas lê todas elas: o filtro `conta_id`
+ * (permitido em leitura) prende tudo o que vai à vitrine à conta que o request escreve.
+ */
+export async function paginaDaConta(dados: HelperDados, conta: number) {
+  return primeiro(dados, 'paginas_corretor', { chave: 'conta', conta_id: conta });
+}
+
 /** A página publicada da conta (ou `null`): sem página no ar, nada de imóvel vai para a vitrine. */
-export async function paginaPublicada(dados: HelperDados) {
-  const p = await primeiro(dados, 'paginas_corretor', { chave: 'conta' });
+export async function paginaPublicada(dados: HelperDados, conta: number) {
+  const p = await paginaDaConta(dados, conta);
   return p?.publicada_em ? p : null;
 }
 
@@ -58,15 +66,16 @@ export async function sincronizarImovel(req: Request, imovelId: number): Promise
   const dados = req.dados!;
   const conta = contaDoRequest(req);
   const chave = chaveImovel(conta, imovelId);
-  const pagina = await paginaPublicada(dados);
-  const im = await dados.buscar('imoveis', imovelId);
+  const pagina = await paginaPublicada(dados, conta);
+  const lido = await dados.buscar('imoveis', imovelId);
+  const im = lido && lido.conta_id === conta ? lido : null;
   let entra = false;
   let midias: Linha[] = [];
   let autorizacoes: Linha[] = [];
   if (pagina && im) {
     const [m, a] = await Promise.all([
-      dados.varrerTudo('imovel_midias', { filtros: { imovel_id: imovelId }, maximo: 200 }),
-      dados.varrerTudo('autorizacoes_venda', { filtros: { imovel_id: imovelId }, maximo: 200 }),
+      dados.varrerTudo('imovel_midias', { filtros: { imovel_id: imovelId, conta_id: conta }, maximo: 200 }),
+      dados.varrerTudo('autorizacoes_venda', { filtros: { imovel_id: imovelId, conta_id: conta }, maximo: 200 }),
     ]);
     midias = m;
     autorizacoes = a;
@@ -79,7 +88,10 @@ export async function sincronizarImovel(req: Request, imovelId: number): Promise
   }
 }
 
-/** Mesma coisa, sem derrubar a rota que já gravou a mudança principal: a página atualiza na próxima publicação. */
+/**
+ * Mesma coisa, sem derrubar a rota que já gravou a mudança principal: se falhar, a página pública
+ * fica como estava até o "Atualizar agora" ou a próxima publicação (docs/minha-pagina.md).
+ */
 export async function tentarSincronizar(req: Request, imovelId: number): Promise<void> {
   try {
     await sincronizarImovel(req, imovelId);
@@ -91,9 +103,10 @@ export async function tentarSincronizar(req: Request, imovelId: number): Promise
 /** Dados públicos da página: só o que o corretor escreveu e o contato profissional dele. */
 export async function conteudoPagina(req: Request, pagina: Linha) {
   const dados = req.dados!;
+  const contaId = contaDoRequest(req);
   const [eu, conta] = await Promise.all([
-    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id }),
-    primeiro(dados, 'perfil_conta', { chave: 'conta' }),
+    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
+    primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId }),
   ]);
   return {
     endereco: pagina.endereco,
@@ -113,7 +126,7 @@ export async function conteudoPagina(req: Request, pagina: Linha) {
 export async function sincronizarTudo(req: Request): Promise<{ imoveis: number }> {
   const dados = req.dados!;
   const conta = contaDoRequest(req);
-  const pagina = await paginaPublicada(dados);
+  const pagina = await paginaPublicada(dados, conta);
   if (!pagina) {
     await despublicarTudo(dados, conta);
     return { imoveis: 0 };
@@ -121,12 +134,12 @@ export async function sincronizarTudo(req: Request): Promise<{ imoveis: number }
   // Endereço mudou: a linha antiga da página sai.
   for (const l of await linhasDaConta(dados, conta, 'pagina')) if (l.chave !== pagina.endereco) await dados.deletar('vitrine_publica', l.id);
   await gravar(dados, conta, 'pagina', pagina.endereco, null, await conteudoPagina(req, pagina));
-  const imoveis = await dados.varrerTudo('imoveis', { filtros: { publicado_pagina: true }, maximo: 5000 });
+  const imoveis = await dados.varrerTudo('imoveis', { filtros: { publicado_pagina: true, conta_id: conta }, maximo: 5000 });
   const ids = imoveis.map((i) => i.id).join(',');
   const [midias, autorizacoes] = imoveis.length
     ? await Promise.all([
-        dados.varrerTudo('imovel_midias', { filtros: { imovel_id: ids }, maximo: 50000 }),
-        dados.varrerTudo('autorizacoes_venda', { filtros: { imovel_id: ids }, maximo: 20000 }),
+        dados.varrerTudo('imovel_midias', { filtros: { imovel_id: ids, conta_id: conta }, maximo: 50000 }),
+        dados.varrerTudo('autorizacoes_venda', { filtros: { imovel_id: ids, conta_id: conta }, maximo: 20000 }),
       ])
     : [[], []];
   const dia = hojeEm(req.contexto?.fuso);
@@ -163,8 +176,9 @@ export function origemPublica(urlIngresso: string | null | undefined): string {
 export async function criarLink(req: Request, codigoLink: string, imovelId: number): Promise<string | null> {
   const dados = req.dados!;
   const conta = contaDoRequest(req);
-  const pagina = await paginaPublicada(dados);
-  if (!pagina?.url_clique) return null;
+  const pagina = await paginaPublicada(dados, conta);
+  // Sem URL pública na instância o endereço sairia relativo e não abriria no WhatsApp do cliente.
+  if (!pagina?.url_clique || !origemPublica(pagina.url_clique)) return null;
   const naVitrine = (await linhasDaConta(dados, conta, 'imovel', { chave: chaveImovel(conta, imovelId) }))[0];
   if (!naVitrine) return null;
   await gravar(dados, conta, 'link', codigoLink, naVitrine.codigo, { imovel_chave: naVitrine.chave, url_clique: pagina.url_clique });

@@ -115,9 +115,9 @@ export function limparLimites() {
   janelas.clear();
 }
 
+/** Origem do envio: `req.ip`, que segue o proxy confiável do shell (o primeiro X-Forwarded-For é do cliente e se falsifica). */
 function origem(req: Request): string {
-  const encaminhado = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
-  return createHash('sha256').update(encaminhado || req.ip || 'desconhecido').digest('hex').slice(0, 16);
+  return createHash('sha256').update(req.ip || 'desconhecido').digest('hex').slice(0, 16);
 }
 
 const contaDoIngresso = (req: Request) => {
@@ -164,6 +164,19 @@ interface EventoConta {
   conta_id?: number | null;
 }
 
+/**
+ * Roda o bloco na conta e, se outro lead criou a mesma linha ao mesmo tempo (único: origem ou
+ * telefone), roda de novo numa transação nova — na segunda vez a linha já existe e é reaproveitada.
+ */
+async function comContaRepetindo(ctx: ContextoListener, conta: number, fn: (trx: HelperDados) => Promise<void>) {
+  try {
+    await ctx.dados!.comConta!(conta, fn);
+  } catch (e) {
+    if ((e as { code?: string })?.code !== '23505') throw e;
+    await ctx.dados!.comConta!(conta, fn);
+  }
+}
+
 /** Quem responde pelo lead: quem gerou o ingresso (publicou a página), ou o primeiro corretor ativo da conta. */
 async function responsavel(dados: HelperDados, conta: number, sugerido: unknown): Promise<number | null> {
   const perfis = await dados.varrerTudo('perfis_corretor', { filtros: { conta_id: conta }, maximo: 200 });
@@ -182,10 +195,13 @@ export async function aoReceberLead(evento: EventoConta, ctx: ContextoListener) 
   const conta = evento.conta_id;
   if (!conta || !ctx.dados?.comConta) return;
   const p = evento.payload;
-  await ctx.dados.comConta(conta, async (trx) => {
+  await comContaRepetindo(ctx, conta, async (trx) => {
     const agora = new Date().toISOString();
-    const chave = p.telefone ? { telefone: p.telefone } : { email: p.email };
-    let contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, ...chave }, maximo: 1 }))[0] ?? null;
+    // Mesmo telefone; sem contato com o telefone, o mesmo e-mail.
+    const procurar = async () =>
+      (p.telefone ? (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, telefone: p.telefone }, maximo: 1 }))[0] : undefined) ??
+      (p.email ? (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, email: p.email }, maximo: 1 }))[0] : undefined);
+    let contato: Linha | null = (await procurar()) ?? null;
     // Mesmo envio repetido em poucos minutos (duplo clique, reenvio): não duplica nada.
     if (contato) {
       const recentes = await trx.varrerTudo('linha_do_tempo', { filtros: { conta_id: conta, contato_id: contato.id, tipo: 'lead.recebido' }, maximo: 50 });
@@ -194,8 +210,8 @@ export async function aoReceberLead(evento: EventoConta, ctx: ContextoListener) 
     }
     const dono = await responsavel(trx, conta, p.responsavel_id);
     if (!dono) throw new Error('conta sem corretor ativo para receber o lead');
-    const origens = await trx.varrerTudo('origens', { filtros: { conta_id: conta, canal: 'pagina' }, maximo: 50 });
-    const origem = origens.find((o) => !o.campanha) ?? (await trx.criar('origens', { canal: 'pagina', campanha: null }));
+    const origemPagina = async () => (await trx.varrerTudo('origens', { filtros: { conta_id: conta, canal: 'pagina' }, maximo: 50 })).find((o) => !o.campanha);
+    const origem = (await origemPagina()) ?? (await trx.criar('origens', { canal: 'pagina', campanha: null }));
     if (!contato) {
       contato = await trx.criar('contatos', {
         nome: p.nome, telefone: p.telefone ?? null, email: p.email ?? null, papeis: 'comprador',

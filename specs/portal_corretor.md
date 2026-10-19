@@ -780,7 +780,7 @@ Envelope, paginação e formato de erro seguem o contrato da API do shell (P-01)
 
 ### 7.2 Públicas (GET, páginas públicas)
 
-`/c/:token` (Portal do Cliente, comprador ou proprietário), `/p/:corretor` (Minha Página), `/p/:corretor/imovel/:codigo`, `/s/:token` (seleção), `/m/:empreendimento` (material público), `/l/:codigo` (link rastreado: conta o clique pelo webhook e redireciona — P-01 sobre redirecionamento a partir de página GET), `/rede/:membro` (cartão público).
+`/c/:token` (Portal do Cliente, comprador ou proprietário), `/p/:corretor` (Minha Página), `/p/:corretor/imovel/:codigo`, `/s/:token` (seleção), `/m/:empreendimento` (material público), `/l/:codigo` (link rastreado: conta o clique pelo webhook e redireciona — P-01 sobre redirecionamento a partir de página GET), `/rede/:membro` (cartão público). — **Implementado (bloco 5a) com endereço por query (D-71):** `/p?c=<endereço>`, `/p?c=<endereço>&i=<código>` e `/l?c=<código>`.
 
 ### 7.3 Webhooks de entrada (wh)
 
@@ -1201,7 +1201,7 @@ Telas autenticadas usam só primitivos `urbi-*` e tokens; as páginas públicas 
 | Clientes | `urbi-tabela`, `urbi-ficha`, `urbi-feed` (linha do tempo), `urbi-planilha` (conferir importação) |
 | Imóveis e empreendimentos | `urbi-card`, `urbi-seletor-arquivo`, `urbi-visualizador-arquivo`, `urbi-mapa`, `urbi-formulario` |
 | Conteúdo | `urbi-abas`, `urbi-card` (peças), `urbi-visualizador-arquivo` (pré-visualização), `urbi-redator` (pedido em texto ou voz) |
-| Minha Página | `urbi-card` + `urbi-linha` (blocos com subir, descer, mostrar e editar), `urbi-formulario` (edição de cada bloco); a pré-visualização é a própria página pública aberta em outra aba (exceção nomeada, bloco 5a) |
+| Minha Página | `urbi-card` + `urbi-linha` (blocos com subir, descer, mostrar e editar) e o diálogo `urbiVerso.formulario` (edição de cada bloco); a pré-visualização é a própria página pública aberta em outra aba depois de publicada (exceção nomeada, bloco 5a) |
 | Mensageiro | `urbi-abas` (5 passos), `urbi-toggle`, `urbi-chat` (conversa de teste), `urbi-kpi` |
 | Assistente | `urbi-chat` com áudio em painel `urbi-modal` ou `urbi-hospedeiro` |
 | Desempenho | `urbi-kpi`, `urbi-grafico-linha`, `urbi-grafico-colunas`, `urbi-tabela` |

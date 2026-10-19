@@ -37,7 +37,7 @@ export const estiloPublico = css`
   .botao { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px; border-radius: 10px;
     border: 0; background: var(--acento); color: #fff; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
   .botao.claro { background: #fff; color: var(--acento); }
-  .botao.verde { background: #1f8f4e; }
+  .botao.verde { background: #18733f; }
   .botao[disabled] { opacity: 0.6; cursor: default; }
   .acoes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
   .caixa { background: #fff; border: 1px solid var(--linha); border-radius: 12px; padding: 16px; }

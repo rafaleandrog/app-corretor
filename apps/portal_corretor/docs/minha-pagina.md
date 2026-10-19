@@ -29,7 +29,12 @@ ou no computador:
   das regiões dos imóveis. A IA não inventa prêmios, anos de experiência nem números. O corretor
   revisa antes de usar. Sem a IA liberada, o botão avisa e os textos são escritos à mão.
 - **Publicar** põe a página no ar. **Atualizar agora** refaz a página com o estado atual dos
-  imóveis. **Tirar do ar** faz a página e as fichas pararem de abrir.
+  imóveis e do perfil. **Tirar do ar** faz a página e as fichas pararem de abrir; o formulário e
+  a contagem de cliques param de receber, e uma nova publicação cria endereços de entrada novos
+  (links enviados antes passam a mostrar "Imóvel indisponível").
+
+O nome, o CRECI e o telefone de WhatsApp da página vêm do perfil de quem salva ou publica a página
+(Ajustes › Conta e marca). Mudou o CRECI ou o telefone? Use **Atualizar agora**.
 
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**
 copia o endereço completo.
@@ -46,8 +51,9 @@ Aparece na página o imóvel que cumpre as três condições:
 3. tem autorização de venda **assinada, com documento e dentro da vigência**.
 
 A página acompanha as mudanças na hora: editar o anúncio, trocar fotos, mudar a autorização ou
-tirar o imóvel da página atualiza a versão pública. Quando a autorização vence, o imóvel some da
-página no dia seguinte ao fim, mesmo sem nova publicação.
+tirar o imóvel da página atualiza a versão pública. Se essa atualização falhar, a mudança no
+imóvel fica gravada e a página pública segue como estava até o **Atualizar agora**. Quando a
+autorização vence, o imóvel some da página no dia seguinte ao fim, mesmo sem nova publicação.
 
 **O que vai para a internet:** só dados de anúncio. Vão o tipo, o título, o preço, o
 condomínio, o IPTU, as áreas, os cômodos, as características, a descrição e as fotos marcadas
@@ -70,9 +76,11 @@ WhatsApp abre a conversa com o código do imóvel no texto.
 
 Quem preenche o formulário vira cliente em **Clientes**:
 
-- **Contato novo:** criado como comprador, com origem "página", e o corretor que publicou a
-  página como responsável.
-- **Telefone ou e-mail já cadastrado:** o pedido entra no contato existente.
+- **Contato novo:** criado como comprador, com origem "página". O responsável é quem publicou
+  a página pela primeira vez; se essa pessoa não for mais corretor ativo da conta, o primeiro
+  corretor ativo.
+- **Telefone já cadastrado** (ou, sem contato com o telefone, o mesmo e-mail): o pedido entra no
+  contato existente.
 - **Negócio:** um negócio de compra na primeira etapa do funil ("Novo"), se o contato ainda não
   tem um em andamento. Pela ficha de um imóvel, o negócio já fica ligado a ele.
 - **Consentimento:** registrado com a versão do texto (`formulario-v1`), porque a autorização de
@@ -82,8 +90,9 @@ Quem preenche o formulário vira cliente em **Clientes**:
 - **Envio repetido:** a mesma mensagem enviada de novo em até 5 minutos não duplica nada.
 
 **Proteções:**
-- No máximo 3 envios por minuto vindos de um mesmo endereço de internet. A plataforma recebe o
-  endereço, e o app usa uma versão embaralhada dele, só em memória.
+- No máximo 3 envios por minuto vindos de um mesmo endereço de internet, contados em memória em
+  cada servidor do app (com mais de um servidor, o limite vale por servidor). O app usa uma
+  versão embaralhada do endereço e não a grava.
 - Um campo escondido barra robôs: quem o preenche recebe "enviado" e nada é gravado.
 
 Nome, telefone, e-mail e mensagem são marcados para **nunca ficar no registro de chamadas** da
@@ -98,15 +107,15 @@ link curto (`…/portal_corretor/l?c=<código>`). Quando o cliente abre o link:
 2. o primeiro clique entra na linha do tempo: "Abriu o link que você mandou";
 3. o cliente vai para a ficha pública do imóvel.
 
-O mesmo navegador conta uma vez por aba. Sem página no ar, ou com o imóvel fora da página, a
-mensagem sai sem link. O link de um imóvel que deixou de ser anunciado mostra "Imóvel
-indisponível".
+O mesmo navegador conta uma vez por aba. Sem página no ar, com o imóvel fora da página ou numa
+instância sem endereço público configurado, a mensagem sai sem link. O link de um imóvel que
+deixou de ser anunciado mostra "Imóvel indisponível" (a abertura ainda é contada).
 
 ## Para o administrador da instância
 
 - **Webhooks:** o app declara dois, ambos com um endereço por conta. Os endereços são gerados
-  pelo app quando o corretor publica a página pela primeira vez. Ficam em Configurações da app ›
-  Webhooks:
+  pelo app quando o corretor publica a página e revogados quando ele a tira do ar. Ficam em
+  Configurações da app › Webhooks:
   - `formulario_lead`: o formulário da página e da ficha;
   - `clique_link`: o clique no link.
   - Desativar um webhook ali corta, para todas as contas, o formulário ou a contagem de
@@ -114,7 +123,11 @@ indisponível".
 - **Formulário embutido em outro site:** não é preciso nada para a página do próprio app. Se um
   dia o formulário for posto em outro site, cadastre esse site na variável de origens dos
   webhooks (Admin › Variáveis).
-- **Eventos:** `lead_recebido` e `link_clicado` são da conta: só os membros da conta os veem.
+- **Eventos:** `lead_recebido` e `link_clicado` são da conta: só os membros da conta os veem. O
+  `lead_recebido` leva nome, telefone, e-mail e mensagem do visitante (é por ele que o contato
+  chega ao app) e fica guardado pelo prazo de retenção de eventos da instância.
+- **Endereço público da instância:** o link rastreado só é gerado quando a instância tem URL
+  pública configurada.
 - **Páginas públicas:** o app declara duas:
   - `/portal_corretor/p`: a página e a ficha;
   - `/portal_corretor/l`: o link.

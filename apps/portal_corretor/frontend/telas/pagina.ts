@@ -14,8 +14,9 @@ interface Visao {
   marcados_para_pagina: number;
 }
 
-// Minha Página: montar por blocos, escolher endereço e cor, publicar. A pré-visualização é a própria
-// página pública, aberta numa aba (lacuna de UI declarada na spec 11.5).
+// Minha Página: montar por blocos, escolher endereço e cor, publicar. Depois de publicada, a página
+// pública abre numa aba para conferir (exceção de UI declarada na spec 11.5); antes, não há prévia.
+// Uma gravação por vez: cliques seguidos em subir/descer não se sobrepõem.
 @customElement('pc-tela-pagina')
 export class PcTelaPagina extends LitElement {
   @state() private visao: Visao | null = null;
@@ -42,8 +43,12 @@ export class PcTelaPagina extends LitElement {
     return u.startsWith('/') ? `${window.location.origin}${u}` : u;
   }
 
+  @state() private salvando = false;
+
   private async salvar(mudancas: Partial<Visao['pagina']>, extra: Record<string, unknown> = {}) {
+    if (this.salvando) return false;
     const p = { ...this.visao!.pagina, ...mudancas };
+    this.salvando = true;
     try {
       this.visao = await enviar('PUT', '/pagina', { endereco: p.endereco, nome_exibicao: p.nome_exibicao, tema: p.tema, blocos: p.blocos, ...extra });
       urbiVerso.notificar('Salvo.', 'sucesso');
@@ -51,6 +56,8 @@ export class PcTelaPagina extends LitElement {
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
       return false;
+    } finally {
+      this.salvando = false;
     }
   }
 
@@ -101,7 +108,7 @@ export class PcTelaPagina extends LitElement {
     if (b.tipo === 'destaques') {
       const opcoes = await this.camposDestaques(b);
       if (!opcoes.length) mensagem = 'Marque imóveis para a página (na ficha do imóvel) para escolher os destaques.';
-      else mensagem = 'Escolha até 6 imóveis. Só aparecem os que estiverem publicados.';
+      else mensagem = 'Escolha até 6 imóveis (além disso, valem os 6 primeiros). Só aparecem os que estiverem publicados.';
       campos.push(...opcoes);
     }
     if (b.tipo === 'imoveis') mensagem = 'Mostra todos os imóveis marcados para a página, anunciados e com autorização vigente.';
@@ -177,10 +184,10 @@ export class PcTelaPagina extends LitElement {
   private bloco(b: Bloco, i: number, total: number) {
     return html`<urbi-linha quebrar>
       <urbi-prosa>${i + 1}. ${ROTULO_BLOCO[b.tipo]}</urbi-prosa>
-      <urbi-badge cor=${b.ativo ? 'sucesso' : 'neutro'}>${b.ativo ? 'aparece' : 'oculto'}</urbi-badge>
-      <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-up" ariaLabel="Subir" title="Subir" ?desabilitado=${i === 0} @click=${() => this.mover(i, -1)}></urbi-botao>
-      <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-down" ariaLabel="Descer" title="Descer" ?desabilitado=${i === total - 1} @click=${() => this.mover(i, 1)}></urbi-botao>
-      <urbi-botao variante="fantasma" pequeno icone=${b.ativo ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'} ariaLabel=${b.ativo ? 'Ocultar' : 'Mostrar'} title=${b.ativo ? 'Ocultar' : 'Mostrar'} @click=${() => this.alternar(i)}></urbi-botao>
+      <urbi-badge cor=${b.ativo ? 'sucesso' : 'padrao'}>${b.ativo ? 'aparece' : 'oculto'}</urbi-badge>
+      <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-up" ariaLabel="Subir" title="Subir" ?desabilitado=${i === 0 || this.salvando} @click=${() => this.mover(i, -1)}></urbi-botao>
+      <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-down" ariaLabel="Descer" title="Descer" ?desabilitado=${i === total - 1 || this.salvando} @click=${() => this.mover(i, 1)}></urbi-botao>
+      <urbi-botao variante="fantasma" pequeno icone=${b.ativo ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'} ariaLabel=${b.ativo ? 'Ocultar' : 'Mostrar'} title=${b.ativo ? 'Ocultar' : 'Mostrar'} ?desabilitado=${this.salvando} @click=${() => this.alternar(i)}></urbi-botao>
       <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-pen" ariaLabel="Editar" title="Editar" @click=${() => this.editar(i)}></urbi-botao>
     </urbi-linha>`;
   }
@@ -197,13 +204,13 @@ export class PcTelaPagina extends LitElement {
     const tema = temas.find((t) => t.valor === p.tema);
     const noAr = !!p.publicada_em;
     return html`<urbi-stack>
-      ${!salva ? html`<urbi-banner variante="info">Esta é uma sugestão de página. Ajuste o que quiser: ela é salva na primeira mudança, e você publica quando estiver pronta.</urbi-banner>` : ''}
+      ${!salva ? html`<urbi-banner variante="info">Esta é uma sugestão de página. Ajuste o que quiser: ela é salva na primeira mudança. Depois de publicar, "Abrir minha página" mostra como ficou.</urbi-banner>` : ''}
       ${marcados_para_pagina === 0
         ? html`<urbi-banner variante="alerta">Nenhum imóvel marcado para a página. Na ficha do imóvel, ligue "Aparece na minha página" (precisa estar anunciado e com autorização vigente).</urbi-banner>`
         : ''}
       <urbi-card titulo="Situação" icone="fa-solid fa-globe">
         <urbi-linha quebrar>
-          <urbi-badge cor=${noAr ? 'sucesso' : 'neutro'}>${noAr ? `No ar desde ${dataHora(p.publicada_em)}` : 'Fora do ar'}</urbi-badge>
+          <urbi-badge cor=${noAr ? 'sucesso' : 'padrao'}>${noAr ? `No ar desde ${dataHora(p.publicada_em)}` : 'Fora do ar'}</urbi-badge>
           <urbi-prosa papel="secundario">${this.urlCompleta}</urbi-prosa>
         </urbi-linha>
         <urbi-linha quebrar>

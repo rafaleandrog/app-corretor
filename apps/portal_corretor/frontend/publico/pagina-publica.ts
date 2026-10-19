@@ -74,11 +74,22 @@ export class PcPaginaPublica extends LitElement {
         this.imoveis = r.imoveis;
         document.title = `${r.pagina.nome} · Corretor de imóveis`;
       }
-      this.style.setProperty('--acento', this.pagina!.cor);
+      // A cor é dado da página: só hexadecimal entra no estilo.
+      if (/^#[0-9a-fA-F]{6}$/.test(this.pagina!.cor)) this.style.setProperty('--acento', this.pagina!.cor);
       this.estado = 'pronto';
     } catch (e) {
       this.estado = (e as { status?: number; codigo?: string }).status === 404 || (e as { codigo?: string }).codigo === 'NAO_ENCONTRADO' ? 'nao_encontrada' : 'falha';
     }
+  }
+
+  private async abrirFoto(url: string) {
+    this.foto = url;
+    await this.updateComplete;
+    this.renderRoot.querySelector<HTMLButtonElement>('.tela-cheia button')?.focus();
+  }
+
+  private fecharFoto() {
+    this.foto = null;
   }
 
   private bloco(tipo: Bloco['tipo']) {
@@ -131,7 +142,7 @@ export class PcPaginaPublica extends LitElement {
           <label>Mensagem <textarea name="mensagem" maxlength="1000">${this.imovel ? `Tenho interesse no imóvel ${this.imovel.codigo}.` : ''}</textarea></label>
           <label class="escondido" aria-hidden="true">Site <input name="site" tabindex="-1" autocomplete="off" /></label>
           <label class="marcar"><input type="checkbox" name="consentimento" value="sim" required /> Autorizo ${this.pagina.nome} a entrar em contato comigo sobre imóveis.</label>
-          ${this.resposta ? html`<div class="aviso ${this.resposta.ok ? '' : 'erro'}" role="status">${this.resposta.texto}</div>` : nothing}
+          ${this.resposta ? html`<div class="aviso ${this.resposta.ok ? '' : 'erro'}" role=${this.resposta.ok ? 'status' : 'alert'}>${this.resposta.texto}</div>` : nothing}
           <div><button class="botao" type="submit" ?disabled=${this.enviando}>${this.enviando ? 'Enviando…' : 'Enviar'}</button></div>
         </form>
       </div>
@@ -158,6 +169,7 @@ export class PcPaginaPublica extends LitElement {
   private topo(chamada?: string | null) {
     const p = this.pagina!;
     const contato = this.bloco('contato');
+    const instagram = contato?.instagram && /^[A-Za-z0-9._]{1,30}$/.test(contato.instagram) ? contato.instagram : null;
     const zap = contato?.whatsapp !== false ? linkWhatsapp(p.telefone, this.imovel ? `Olá! Vi o imóvel ${this.imovel.codigo} na sua página.` : 'Olá! Vi sua página e quero falar sobre imóveis.') : null;
     return html`<header class="topo">
       <div class="conteudo">
@@ -166,7 +178,7 @@ export class PcPaginaPublica extends LitElement {
         ${chamada ? html`<p class="texto">${chamada}</p>` : nothing}
         <div class="acoes">
           ${zap ? html`<a class="botao verde" href=${zap} target="_blank" rel="noopener">Falar no WhatsApp</a>` : nothing}
-          ${contato?.instagram ? html`<a class="botao claro" href="https://instagram.com/${contato.instagram}" target="_blank" rel="noopener">@${contato.instagram}</a>` : nothing}
+          ${instagram ? html`<a class="botao claro" href="https://instagram.com/${encodeURIComponent(instagram)}" target="_blank" rel="noopener">@${instagram}</a>` : nothing}
         </div>
       </div>
     </header>`;
@@ -217,7 +229,11 @@ export class PcPaginaPublica extends LitElement {
       <div class="conteudo">
         <p><a href="/portal_corretor/p?c=${encodeURIComponent(this.pagina!.endereco)}">← Todos os imóveis</a></p>
         ${im.fotos?.length
-          ? html`<div class="galeria">${im.fotos.map((f: { url: string; legenda: string | null }) => html`<img src=${f.url} alt=${f.legenda ?? ''} loading="lazy" @click=${() => (this.foto = f.url)} />`)}</div>`
+          ? html`<div class="galeria">${im.fotos.map(
+              (f: { url: string; legenda: string | null }, n: number) =>
+                html`<img src=${f.url} alt=${f.legenda ?? `Foto ${n + 1} do imóvel`} loading="lazy" role="button" tabindex="0"
+                  @click=${() => this.abrirFoto(f.url)} @keydown=${(e: KeyboardEvent) => (e.key === 'Enter' || e.key === ' ') && this.abrirFoto(f.url)} />`,
+            )}</div>`
           : nothing}
         <section>
           <div class="suave">${im.codigo} · ${ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo}${im.situacao === 'reservado' ? ' · Reservado' : ''}</div>
@@ -232,9 +248,9 @@ export class PcPaginaPublica extends LitElement {
         ${this.formulario('Quero saber mais')}
       </div>
       ${this.foto
-        ? html`<div class="tela-cheia" @click=${() => (this.foto = null)}>
-            <img src=${this.foto} alt="" />
-            <button class="botao claro" type="button" @click=${() => (this.foto = null)}>Fechar</button>
+        ? html`<div class="tela-cheia" role="dialog" aria-modal="true" aria-label="Foto em tela cheia" @click=${() => this.fecharFoto()} @keydown=${(e: KeyboardEvent) => e.key === 'Escape' && this.fecharFoto()}>
+            <img src=${this.foto} alt="Foto do imóvel em tela cheia" />
+            <button class="botao claro" type="button" @click=${() => this.fecharFoto()}>Fechar</button>
           </div>`
         : nothing}
     `;

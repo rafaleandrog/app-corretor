@@ -14,7 +14,12 @@ const HOJE = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Pau
 const dia = (delta: number) => new Date(Date.now() + delta * 86400e3).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
 
 let ingressos = 0;
+const revogados: number[] = [];
 const shell = {
+  revogarIngressoWh: async ({ ingresso_id }: { ingresso_id: number }) => {
+    revogados.push(ingresso_id);
+    return { revogado: true };
+  },
   gerarIngressoWh: async ({ webhook, contexto }: { webhook: string; contexto: { conta_id: number } }) => {
     ingressos++;
     return { url: `https://corretor.exemplo/api/wh/portal_corretor/wh_${webhook}_${contexto.conta_id}`, ingresso_id: ingressos, token: 'wh_x', expira_em: null };
@@ -113,7 +118,10 @@ test('publicar a página põe na vitrine só o publicável, sem dado pessoal; ou
   const vitrine = banco.linhas('vitrine_publica');
   assert.deepEqual(vitrine.map((l) => l.tipo).sort(), ['imovel', 'pagina']);
   const texto = JSON.stringify(vitrine);
-  for (const proibido of ['Lúcia', '61911110001', 'SQSW 300', 'Rascunho secreto', 'comissao', '502', 'proprietario']) assert.ok(!texto.includes(proibido), `vitrine sem ${proibido}`);
+  for (const proibido of ['Lúcia', '61911110001', 'SQSW 300', 'Rascunho secreto', 'comissao', 'proprietario', 'autoriza']) assert.ok(!texto.includes(proibido), `vitrine sem ${proibido}`);
+  const anuncio = vitrine.find((l) => l.tipo === 'imovel')!.dados;
+  assert.deepEqual([anuncio.bairro, anuncio.endereco], ['Sudoeste', null], 'bairro sim, endereço não');
+  assert.deepEqual(anuncio.fotos.map((f: any) => f.arquivo), [501], 'documento (arquivo 502) não vai');
   assert.ok(vitrine.every((l: any) => l.conta_id === undefined && l.conta === 100), 'vitrine sem carimbo de conta, com a conta explícita');
 
   // Visitante anônimo lê a página e a ficha; endereço desconhecido é 404.
@@ -132,14 +140,29 @@ test('publicar a página põe na vitrine só o publicável, sem dado pessoal; ou
   });
 
   // Outra conta não usa o endereço de A, e as mudanças dela não tocam a vitrine de A.
+  let codigoB = '';
   await comServidor(rotas, B, banco, shell, async (chamar) => {
     const p = (await chamar('GET', '/pagina')).corpo.pagina;
     assert.equal((await chamar('PUT', '/pagina', { ...p, endereco: 'joao-corretor' })).corpo.codigo, 'ENDERECO_EM_USO');
     assert.equal((await chamar('PUT', '/pagina', { ...p, endereco: 'maria-corretora' })).status, 200);
+    // B anuncia um imóvel com o mesmo código do de A (o código é por conta).
+    codigoB = (await imovelAnunciado(chamar, 'Casa da Maria', '61922220001')).im.codigo;
+    assert.equal(codigoB, ids.im.codigo);
     await chamar('POST', '/pagina/publicar');
-    await chamar('POST', '/pagina/despublicar');
-    assert.equal((await chamar('GET', '/imoveis')).corpo.total, 0);
+    // B não alcança o imóvel de A pelas rotas da conta: "não encontrado".
+    assert.equal((await chamar('GET', `/imoveis/${ids.im.id}`)).status, 404);
+    assert.equal((await chamar('PATCH', `/imoveis/${ids.im.id}`, { publicado_pagina: false })).status, 404);
   });
+  await comServidor(rotasPublicas, VISITANTE, banco, {}, async (chamar) => {
+    const pb = (await chamar('GET', '/vitrine/pagina?c=maria-corretora')).corpo;
+    assert.deepEqual(pb.imoveis.map((i: any) => i.titulo), ['Casa da Maria'], 'a página de B lista só os imóveis de B');
+    assert.equal((await chamar('GET', `/vitrine/imovel?c=maria-corretora&i=${codigoB}`)).corpo.imovel.titulo, 'Casa da Maria');
+    assert.equal((await chamar('GET', `/vitrine/imovel?c=joao-corretor&i=${codigoB}`)).corpo.imovel.titulo, 'Apto com vista', 'mesmo código, conta de A');
+  });
+  await comServidor(rotas, B, banco, shell, async (chamar) => {
+    await chamar('POST', '/pagina/despublicar');
+  });
+  assert.equal(banco.linhas('vitrine_publica').filter((l) => l.conta === 200).length, 0);
   assert.equal(banco.linhas('vitrine_publica').filter((l) => l.conta === 100).length, 2, 'a vitrine de A ficou intacta');
 
   // Mudanças no anúncio de A refletem na hora: foto privada sai, imóvel tirado da página sai.
@@ -155,8 +178,12 @@ test('publicar a página põe na vitrine só o publicável, sem dado pessoal; ou
     const p = (await chamar('GET', '/pagina')).corpo.pagina;
     await chamar('PUT', '/pagina', { ...p, endereco: 'joao-imoveis' });
     assert.deepEqual(banco.linhas('vitrine_publica').filter((l) => l.tipo === 'pagina').map((l) => l.chave).sort(), ['joao-imoveis']);
+    const pagina = banco.linhas('paginas_corretor').find((l) => l.conta_id === 100)!;
+    const ingressosDeA = [pagina.ingresso_formulario_id, pagina.ingresso_clique_id];
     await chamar('POST', '/pagina/despublicar');
     assert.equal(banco.linhas('vitrine_publica').filter((l) => l.conta === 100).length, 0);
+    assert.ok(ingressosDeA.every((i) => revogados.includes(i)), 'fora do ar, formulário e cliques são revogados');
+    assert.equal(banco.linhas('paginas_corretor').find((l) => l.conta_id === 100)!.url_formulario, null);
   });
 });
 
@@ -191,6 +218,9 @@ test('formulário: valida, barra robô e excesso, e publica o lead só na conta 
   assert.deepEqual(ok.publicados[0].opcoes, { conta_id: 100 });
   assert.deepEqual(Object.keys(ok.publicados[0].payload).sort(), ['email', 'imovel_codigo', 'mensagem', 'nome', 'origem', 'responsavel_id', 'telefone']);
   assert.equal(ok.publicados[0].payload.origem, 'ficha_imovel');
+  // Conta no corpo não vale nada: a conta é sempre a do ingresso.
+  const forjado = await chamarWebhook('formulario_lead', 100, { nome: 'Eva', email: 'eva@exemplo.com', consentimento: true, conta_id: 200 }, '10.0.0.9');
+  assert.deepEqual([forjado.status, forjado.publicados[0].opcoes.conta_id, 'conta_id' in forjado.publicados[0].payload], [200, 100, false]);
   // Limite de 3 por minuto por origem; a tentativa inválida também conta, o robô não.
   assert.equal((await chamarWebhook('formulario_lead', 100, { nome: 'Ana', telefone: '61999991111', consentimento: true })).status, 200);
   const excesso = await chamarWebhook('formulario_lead', 100, { nome: 'Ana', telefone: '61999991111', consentimento: true });
@@ -200,12 +230,18 @@ test('formulário: valida, barra robô e excesso, e publica o lead só na conta 
 
 test('lead vira contato, negócio novo, consentimento e linha do tempo na conta certa; repetido não duplica', async () => {
   const banco = new BancoFalso(UNICOS);
-  // Conta 200 com um contato de mesmo telefone: não pode ser tocado.
+  // Conta 200 com contato de mesmo telefone, negócio aberto, origem "pagina" e corretor ativo:
+  // nada disso pode ser lido nem tocado pelo lead da conta 100 (a leitura SISTEMA vê todas as contas).
   await comServidor(rotas, B, banco, {}, async (chamar) => {
-    await chamar('POST', '/contatos', { nome: 'Cliente de B', telefone: '61999991111' });
+    const c = (await chamar('POST', '/contatos', { nome: 'Cliente de B', telefone: '61999991111', origem_canal: 'pagina' })).corpo;
+    await chamar('POST', '/negocios', { contato_id: c.id });
   });
+  banco.linhas('perfis_corretor').push({ id: 9001, conta_id: 200, usuario_id: 2, ativo: true } as any, { id: 9002, conta_id: 100, usuario_id: 1, ativo: true } as any);
   const ctx = banco.ctxSistema([{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }]);
-  const evento = { payload: { nome: 'Ana Souza', telefone: '+5561999991111', email: null, mensagem: 'Quero visitar', imovel_codigo: null, origem: 'pagina', responsavel_id: 1 }, conta_id: 100 };
+  // `responsavel_id` que não é corretor da conta: vale o corretor ativo da própria conta (1), nunca o de B (2).
+  const evento = { payload: { nome: 'Ana Souza', telefone: '+5561999991111', email: null, mensagem: 'Quero visitar', imovel_codigo: null, origem: 'pagina', responsavel_id: 2 }, conta_id: 100 };
+  const negociosB = banco.linhas('negocios').filter((n) => n.conta_id === 200).length;
+  const origemB = banco.linhas('origens').find((o) => o.conta_id === 200 && o.canal === 'pagina')!;
   await reagir.lead_recebido(evento, ctx);
   const deA = banco.linhas('contatos').filter((c) => c.conta_id === 100);
   assert.equal(deA.length, 1);
@@ -216,6 +252,8 @@ test('lead vira contato, negócio novo, consentimento e linha do tempo na conta 
   assert.equal(banco.linhas('consentimentos').filter((c) => c.conta_id === 100).length, 1);
   assert.ok(banco.linhas('linha_do_tempo').some((l) => l.conta_id === 100 && l.tipo === 'lead.recebido'));
   assert.equal(banco.linhas('origens').find((o) => o.conta_id === 100)!.canal, 'pagina');
+  assert.notEqual(deA[0].origem_id, origemB.id, 'origem própria da conta, não a de B');
+  assert.notEqual(negocio.id, banco.linhas('negocios').find((n) => n.conta_id === 200)!.id, 'negócio novo em A, não o aberto de B');
   // Reenvio igual em seguida: nada novo.
   await reagir.lead_recebido(evento, ctx);
   assert.equal(banco.linhas('consentimentos').filter((c) => c.conta_id === 100).length, 1);
@@ -227,9 +265,16 @@ test('lead vira contato, negócio novo, consentimento e linha do tempo na conta 
   // A conta 200 ficou como estava.
   const deB = banco.linhas('contatos').filter((c) => c.conta_id === 200);
   assert.deepEqual([deB.length, deB[0].nome, !!deB[0].consentimento_em], [1, 'Cliente de B', false]);
-  assert.equal(banco.linhas('negocios').filter((n) => n.conta_id === 200).length, 0);
+  assert.equal(banco.linhas('negocios').filter((n) => n.conta_id === 200).length, negociosB);
+  // Sem telefone, o mesmo e-mail une ao contato existente.
+  banco.linhas('contatos').find((c) => c.conta_id === 100)!.email = 'ana@exemplo.com';
+  await reagir.lead_recebido({ ...evento, payload: { ...evento.payload, telefone: null, email: 'ana@exemplo.com', mensagem: 'de novo pelo e-mail' } }, ctx);
+  assert.equal(banco.linhas('contatos').filter((c) => c.conta_id === 100).length, 1);
   // Conta inativa: o comConta recusa e nada é gravado.
-  await assert.rejects(reagir.lead_recebido({ ...evento, conta_id: 300 }, ctx));
+  const antes = banco.linhas('linha_do_tempo').length;
+  await assert.rejects(reagir.lead_recebido({ ...evento, conta_id: 300 }, ctx), { codigo: 'CONTA_INVALIDA' });
+  assert.equal(banco.linhas('linha_do_tempo').length, antes);
+  assert.equal(banco.linhas('contatos').filter((c) => c.conta_id === 300).length, 0);
 });
 
 test('link rastreado: envio de imóvel publicado leva o link; o clique conta no envio da conta', async () => {
@@ -268,6 +313,21 @@ test('link rastreado: envio de imóvel publicado leva o link; o clique conta no 
   assert.equal(envio.cliques, 2);
   assert.ok(envio.primeiro_clique_em);
   assert.equal(banco.linhas('linha_do_tempo').filter((l) => l.tipo === 'envio.aberto').length, 1, 'só o primeiro clique entra na linha do tempo');
+});
+
+test('instância sem URL pública: o envio sai sem link (endereço relativo não abre no WhatsApp)', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const semUrl = { ...shell, gerarIngressoWh: async (o: { webhook: string }) => ({ ...(await shell.gerarIngressoWh({ ...o, contexto: { conta_id: 100 } })), url: `/api/wh/portal_corretor/wh_${o.webhook}` }) };
+  await comServidor(rotas, A, banco, semUrl, async (chamar) => {
+    const { im } = await imovelAnunciado(chamar, 'Apto', '61911110009');
+    const cliente = (await chamar('POST', '/contatos', { nome: 'Rui', telefone: '61988882222' })).corpo;
+    const p = (await chamar('GET', '/pagina')).corpo.pagina;
+    await chamar('PUT', '/pagina', p);
+    await chamar('POST', '/pagina/publicar');
+    const r = await chamar('POST', '/envios', { contato_id: cliente.id, tipo: 'imovel', imovel_id: im.id });
+    assert.equal(r.corpo.link, null);
+    assert.ok(!r.corpo.mensagem.includes('/portal_corretor/l'));
+  });
 });
 
 test('quem não é corretor não mexe na página', async () => {
