@@ -1,7 +1,7 @@
 import '@urbiverso/sdk/express';
 import type { NextFunction, Request, Response } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
-import { erro } from './acesso';
+import { erro, MENSAGEM_SEM_CONTA, MENSAGEM_VARIAS_CONTAS, semConta } from './acesso';
 import schema from '../schema.json';
 
 // Quem atende várias contas (o admin do app, por exemplo) lê o conjunto delas, mas o app trabalha
@@ -86,10 +86,14 @@ export function escoparPorConta(dados: HelperDados, conta: number): HelperDados 
  */
 export function escopoDeConta(req: Request, res: Response, next: NextFunction) {
   const c = req.contexto;
+  // Sem nenhuma conta, as telas do corretor não têm onde ler nem gravar: explica antes de qualquer
+  // rota. Só para quem alcança essas telas; os demais seguem e recebem o 403 do papel.
+  const corretor = c?.nivelApp === 'admin' || !!c?.rolesApp?.includes('corretor');
+  if (req.dados && corretor && semConta(req)) return erro(res, 409, 'SEM_CONTA', MENSAGEM_SEM_CONTA);
   // `contas` ausente = irrestrito/sistema (o manifesto não declara `acesso_irrestrito`, então não ocorre).
   if (!req.dados || !c?.contas || c.contas.length < 2) return next();
   if (!c.contaEscrita) {
-    return erro(res, 400, 'CONTA_NAO_INFORMADA', 'Você atende mais de uma conta: escolha a conta no seletor do alto da tela (ou envie o cabeçalho X-Conta).');
+    return erro(res, 400, 'CONTA_NAO_INFORMADA', MENSAGEM_VARIAS_CONTAS);
   }
   req.dados = escoparPorConta(req.dados, c.contaEscrita);
   next();

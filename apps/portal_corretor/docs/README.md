@@ -45,7 +45,9 @@ Sem o papel, a tela mostra "Esta área não está liberada para você" e diz qua
 **Administrador do app** (nível `admin`) vale por todos os papéis: vê e configura todas as telas, as do
 corretor e as da equipe, sem precisar de papel atribuído (o papel `corretor` é externo e não pode ser
 dado a quem é da equipe). Como as tabelas são segregadas por conta, para usar as telas do corretor o
-admin precisa estar associado a uma conta (Admin › Contas); sem conta, a tela explica isso. Quem está em
+admin precisa estar associado a uma conta (Admin › Acesso › Contas). Sem nenhuma conta, as telas do
+corretor mostram "Você ainda não está em nenhuma conta" com esse caminho, e a API responde `SEM_CONTA`
+(409) em vez de erro de conta não informada; a área Corretores (convites) segue aberta. Quem está em
 mais de uma conta vê o seletor **Conta** no alto das telas e trabalha na conta escolhida (a escolha fica
 lembrada no navegador); com uma conta só, o seletor não aparece. Com várias contas, listas, fichas e números mostram só a conta escolhida, e uma chamada sem a conta ativa é recusada com a orientação de escolhê-la (a lista de convites da equipe não depende de conta).
 

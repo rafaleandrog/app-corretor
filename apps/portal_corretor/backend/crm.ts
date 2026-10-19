@@ -13,7 +13,7 @@ import {
   type Pipeline,
 } from '../comum/crm';
 import { gerarCsv } from '../comum/csv';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, MENSAGEM_VARIAS_CONTAS, primeiro } from './acesso';
 import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { encerrarAcessosDoCliente, tentarPortal } from './portal';
 import { iso, MARCO_PADRAO } from '../comum/funil';
@@ -303,7 +303,7 @@ crmRotas.patch(
     if (abertos.total) return erro(res, 409, 'NEGOCIO_ABERTO', 'Este contato tem negócio em andamento. Encerre o negócio antes de remover o contato.');
     // Portal e seleções do cliente param de abrir antes de ele sair da lista (bloco 5b).
     const conta = req.contexto?.contaEscrita;
-    if (!conta) return erro(res, 400, 'CONTA_NAO_INFORMADA', 'Escolha a conta.');
+    if (!conta) return erro(res, 400, 'CONTA_NAO_INFORMADA', MENSAGEM_VARIAS_CONTAS);
     await encerrarAcessosDoCliente(dados, req.shell!, conta, cid);
     await dados.remover('contatos', cid, eu(req));
     res.json({ id: cid, removido: true });

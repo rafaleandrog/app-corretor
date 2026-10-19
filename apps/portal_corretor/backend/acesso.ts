@@ -26,22 +26,28 @@ export function exigirPapel(...papeis: Papel[]): RequestHandler {
 }
 
 /**
+ * Sem conta para trabalhar: `negar`, ou `escopado` com o conjunto vazio, que é o estado legítimo de
+ * quem é da equipe e não atende nenhuma conta (contas.md § Todo usuário externo tem uma conta). Aí a
+ * leitura volta vazia e a escrita cai em `CONTA_NAO_INFORMADA`: a tela explica em vez disso.
+ */
+export function semConta(req: Request) {
+  const c = req.contexto;
+  return c?.resolucao === 'negar' || (c?.resolucao === 'escopado' && Array.isArray(c.contas) && c.contas.length === 0);
+}
+
+export const MENSAGEM_VARIAS_CONTAS =
+  'Você atende mais de uma conta: escolha a conta no seletor do alto da tela (ou envie o cabeçalho X-Conta).';
+
+export const MENSAGEM_SEM_CONTA =
+  'Seu usuário não está associado a nenhuma conta. Para usar o app como corretor, associe-se a uma conta em Admin › Acesso › Contas (ou peça a quem cuida das contas da plataforma).';
+
+/**
  * Guardas da área do corretor num router montado na raiz: papel `corretor` e conta resolvida.
  * Valem só nos prefixos dados, para não alcançar as rotas dos outros routers.
  */
 export function guardarCorretor(router: { use: (caminho: string[], h: RequestHandler) => unknown }, prefixos: string[]) {
   router.use(prefixos, exigirPapel('corretor'));
-  router.use(prefixos, (req, res, next) => {
-    if (req.contexto?.resolucao === 'negar') {
-      return erro(
-        res,
-        409,
-        'SEM_CONTA',
-        'Seu usuário não está associado a nenhuma conta. Fale com a equipe da plataforma (admin: associe-se a uma conta em Admin › Contas para atendê-la).',
-      );
-    }
-    next();
-  });
+  router.use(prefixos, (req, res, next) => (semConta(req) ? erro(res, 409, 'SEM_CONTA', MENSAGEM_SEM_CONTA) : next()));
 }
 
 /** Express 4 não captura promessa rejeitada: todo handler assíncrono passa por aqui. */
@@ -54,8 +60,10 @@ export function assincrono(fn: (req: Request, res: Response) => Promise<unknown>
       // sem perder o código. Outro `codigo` sem `status` é erro de programação e segue como 500.
       if (typeof falha?.codigo === 'string') {
         // Quem atende várias contas precisa declarar a ativa (`X-Conta`); a tela faz isso pelo seletor.
+        // Só diz "várias contas" quando é o caso: com nenhuma, explica isso (o shell usa o mesmo código).
         if (falha.codigo === 'CONTA_NAO_INFORMADA') {
-          return erro(res, 400, falha.codigo, 'Você atende mais de uma conta: escolha a conta no seletor do alto da tela (ou envie o cabeçalho X-Conta).');
+          if (semConta(req)) return erro(res, 409, 'SEM_CONTA', MENSAGEM_SEM_CONTA);
+          return erro(res, 400, falha.codigo, MENSAGEM_VARIAS_CONTAS);
         }
         if (typeof falha.status === 'number') {
           return erro(res, falha.status, falha.codigo, falha.message ?? 'Não foi possível concluir.');

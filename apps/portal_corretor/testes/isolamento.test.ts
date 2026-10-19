@@ -86,6 +86,22 @@ test('corretor sem conta resolvida recebe explicação, não formulário vazio',
   });
 });
 
+test('admin da equipe sem nenhuma conta (escopado vazio) recebe SEM_CONTA, nunca "várias contas"', async () => {
+  const admin: Ator = { usuario: 6, conta: null, contas: [], resolucao: 'escopado', papeis: [], nivel: 'admin' };
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, admin, banco, { externos: { listarConvites: async () => ({ convites: [], total: 0 }) } }, async (chamar) => {
+    for (const [metodo, rota, corpo] of [['GET', '/conta'], ['GET', '/funil/etapas'], ['GET', '/contatos'], ['GET', '/pagina'], ['PUT', '/conta/perfil', { nome: 'X' }]] as const) {
+      const r = await chamar(metodo, rota, corpo);
+      assert.equal(r.status, 409, `${metodo} ${rota}`);
+      assert.equal(r.corpo.codigo, 'SEM_CONTA');
+      assert.match(r.corpo.mensagem, /nenhuma conta/);
+    }
+    // A área da equipe não depende de conta e segue aberta para ele.
+    assert.equal((await chamar('GET', '/equipe/convites')).status, 200);
+  });
+  assert.equal(banco.linhas('etapas_funil').length, 0);
+});
+
 test('admin do app alcança as áreas de todos os papéis, mesmo sem papel atribuído', async () => {
   const admin: Ator = { usuario: 8, conta: 100, papeis: [], nivel: 'admin' };
   await comServidor(rotas, admin, new BancoFalso(UNICOS), { externos: { listarConvites: async () => ({ convites: [], total: 0 }) } }, async (chamar) => {

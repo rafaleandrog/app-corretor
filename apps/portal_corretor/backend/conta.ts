@@ -6,7 +6,7 @@ import {
   validarMeuPerfil,
   validarPerfilConta,
 } from '../comum/conta';
-import { assincrono, erro, exigirPapel, primeiro, salvarUnico } from './acesso';
+import { assincrono, erro, exigirPapel, MENSAGEM_SEM_CONTA, primeiro, salvarUnico, semConta } from './acesso';
 
 // Ajustes › Conta e marca. Tudo aqui é da conta do corretor logado: as três tabelas são
 // segregadas por conta (RLS), e o perfil do corretor é escopado também pelo `usuario.id`.
@@ -16,12 +16,7 @@ contaRotas.use(exigirPapel('corretor'));
 
 // Sem conta resolvida o RLS devolve zero linhas e a escrita é negada: a tela explica em vez de
 // mostrar formulário vazio ou um 403 do framework.
-contaRotas.use((req, res, next) => {
-  if (req.contexto?.resolucao === 'negar') {
-    return erro(res, 409, 'SEM_CONTA', 'Seu usuário não está associado a nenhuma conta. Fale com a equipe da plataforma.');
-  }
-  next();
-});
+contaRotas.use((req, res, next) => (semConta(req) ? erro(res, 409, 'SEM_CONTA', MENSAGEM_SEM_CONTA) : next()));
 
 contaRotas.get(
   '/',
