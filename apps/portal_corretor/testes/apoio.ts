@@ -11,7 +11,8 @@ export type Linha = Record<string, any> & { id: number; conta_id: number };
 export class BancoFalso {
   private seq = 0;
   readonly tabelas = new Map<string, Linha[]>();
-  // Colunas `unico` por tabela, compostas com a conta (como no schema segregado).
+  // Únicos por tabela, compostos com a conta (como no schema segregado). Composto: 'pipeline+nome'.
+  // Valem no criar e no atualizar, entre as linhas vivas (como o único parcial em removido_em nulo).
   constructor(private unicos: Record<string, string[]> = {}) {}
 
   linhas(tabela: string): Linha[] {
@@ -22,19 +23,56 @@ export class BancoFalso {
   /** Helper `req.dados` de uma conta (null = resolução NEGAR: lê vazio, escrita negada). */
   dados(conta: number | null): any {
     const banco = this;
-    const casa = (l: Linha, filtros: Record<string, unknown> = {}) =>
-      Object.entries(filtros).every(([k, v]) => String(l[k]) === String(v));
-    const visiveis = (tabela: string) => (conta === null ? [] : banco.linhas(tabela).filter((l) => l.conta_id === conta));
+    const visiveis = (tabela: string, removidos = false) =>
+      conta === null ? [] : banco.linhas(tabela).filter((l) => l.conta_id === conta && (removidos || !l.removido_em));
     const exigirConta = () => {
       if (conta === null) throw Object.assign(new Error('CONTA_ACESSO_NEGADO'), { codigo: 'CONTA_ACESSO_NEGADO' });
     };
     const semReservado = (d: Record<string, unknown>) => {
       if ('conta_id' in d) throw new Error('DADOS_CAMPO_RESERVADO: conta_id');
     };
+    const consultar = (tabela: string, op: OpcoesFalsas = {}) => {
+      let r = visiveis(tabela).filter((l) => casa(l, op.filtros));
+      if (op.busca_ou?.termo) {
+        const t = semAcento(op.busca_ou.termo);
+        r = r.filter((l) => op.busca_ou!.colunas.some((c) => semAcento(String(l[c] ?? '')).includes(t)));
+      }
+      if (op.ordenar) {
+        const dir = op.ordem === 'desc' ? -1 : 1;
+        r = [...r].sort((a, b) => (a[op.ordenar!] > b[op.ordenar!] ? dir : a[op.ordenar!] < b[op.ordenar!] ? -dir : 0));
+      }
+      return r;
+    };
+    const colide = (tabela: string, linha: Linha) => {
+      for (const unico of banco.unicos[tabela] ?? []) {
+        const cols = unico.split('+');
+        if (cols.some((c) => linha[c] === null || linha[c] === undefined)) continue;
+        if (visiveis(tabela).some((l) => l.id !== linha.id && cols.every((c) => l[c] === linha[c]))) {
+          throw Object.assign(new Error(`unico ${tabela}.${unico}`), { code: '23505' });
+        }
+      }
+    };
     const helper = {
-      async listar(tabela: string, op: { filtros?: Record<string, unknown>; por_pagina?: number } = {}) {
-        const r = visiveis(tabela).filter((l) => casa(l, op.filtros));
-        return { dados: r.slice(0, op.por_pagina ?? 20), total: r.length, pagina: 1, por_pagina: op.por_pagina ?? 20, paginas: 1 };
+      async listar(tabela: string, op: OpcoesFalsas = {}) {
+        const r = consultar(tabela, op);
+        const por = op.por_pagina ?? 20;
+        const ini = ((op.pagina ?? 1) - 1) * por;
+        return { dados: r.slice(ini, ini + por).map((l) => ({ ...l })), total: r.length, pagina: op.pagina ?? 1, por_pagina: por, paginas: Math.ceil(r.length / por) };
+      },
+      async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
+        return consultar(tabela, op).map((l) => ({ ...l }));
+      },
+      async buscar(tabela: string, id: number) {
+        const l = visiveis(tabela).find((x) => x.id === id);
+        return l ? { ...l } : null;
+      },
+      async remover(tabela: string, id: number, por?: number) {
+        exigirConta();
+        const alvo = visiveis(tabela).find((l) => l.id === id);
+        return alvo ? Object.assign(alvo, { removido_em: new Date().toISOString(), removido_por_id: por ?? null }) : null;
+      },
+      async transaction(fn: (trx: any) => Promise<unknown>) {
+        return fn(helper);
       },
       async existe(tabela: string, filtros: Record<string, unknown>) {
         return visiveis(tabela).some((l) => casa(l, filtros));
@@ -42,20 +80,19 @@ export class BancoFalso {
       async criar(tabela: string, d: Record<string, unknown>) {
         exigirConta();
         semReservado(d);
-        const linha = { ...d, id: ++banco.seq, conta_id: conta! } as Linha;
-        for (const col of banco.unicos[tabela] ?? []) {
-          if (visiveis(tabela).some((l) => l[col] === linha[col])) {
-            throw Object.assign(new Error(`unico ${tabela}.${col}`), { code: '23505' });
-          }
-        }
+        const linha = { ...d, id: banco.seq + 1, conta_id: conta! } as Linha;
+        colide(tabela, linha);
+        banco.seq++;
         banco.linhas(tabela).push(linha);
-        return linha;
+        return { ...linha };
       },
       async atualizar(tabela: string, id: number, d: Record<string, unknown>) {
         exigirConta();
         semReservado(d);
         const alvo = visiveis(tabela).find((l) => l.id === id);
-        return alvo ? Object.assign(alvo, d) : null;
+        if (!alvo) return null;
+        colide(tabela, { ...alvo, ...d });
+        return { ...Object.assign(alvo, d) };
       },
       async criarOuAtualizar(tabela: string, chave: string[], d: Record<string, unknown>) {
         exigirConta();
@@ -84,6 +121,31 @@ export class BancoFalso {
       },
     };
   }
+}
+
+interface OpcoesFalsas {
+  filtros?: Record<string, unknown>;
+  busca_ou?: { colunas: string[]; termo: string };
+  ordenar?: string;
+  ordem?: 'asc' | 'desc';
+  pagina?: number;
+  por_pagina?: number;
+}
+
+const semAcento = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/** Os operadores de filtro do framework que o app usa: igualdade, [busca], [nulo], [lt], [gte]. */
+function casa(l: Linha, filtros: Record<string, unknown> = {}) {
+  return Object.entries(filtros).every(([chave, v]) => {
+    const m = chave.match(/^(.+)\[(busca|nulo|lt|gte)\]$/);
+    if (!m) return String(l[chave]) === String(v);
+    const [, col, op] = m;
+    const atual = l[col];
+    if (op === 'nulo') return (atual === null || atual === undefined) === (String(v) === 'true');
+    if (op === 'busca') return semAcento(String(atual ?? '')).includes(semAcento(String(v)));
+    if (atual === null || atual === undefined) return false;
+    return op === 'lt' ? atual < (v as string) : atual >= (v as string);
+  });
 }
 
 export interface Ator {

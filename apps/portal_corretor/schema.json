@@ -5,36 +5,641 @@
       "acesso_externo": "restrito",
       "id_legivel": "{nome}",
       "colunas": {
-        "chave": { "tipo": "texto", "limite": 10, "obrigatorio": true, "padrao": "conta", "opcoes": ["conta"], "unico": true },
-        "tipo": { "tipo": "texto", "limite": 30, "obrigatorio": true, "padrao": "corretor_autonomo", "opcoes": ["corretor_autonomo", "imobiliaria", "incorporadora"] },
-        "nome": { "tipo": "texto", "limite": 200, "obrigatorio": true },
-        "documento": { "tipo": "texto", "limite": 20 },
-        "creci_juridico": { "tipo": "texto", "limite": 20 }
+        "chave": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "conta",
+          "opcoes": [
+            "conta"
+          ],
+          "unico": true
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 30,
+          "obrigatorio": true,
+          "padrao": "corretor_autonomo",
+          "opcoes": [
+            "corretor_autonomo",
+            "imobiliaria",
+            "incorporadora"
+          ]
+        },
+        "nome": {
+          "tipo": "texto",
+          "limite": 200,
+          "obrigatorio": true
+        },
+        "documento": {
+          "tipo": "texto",
+          "limite": 20
+        },
+        "creci_juridico": {
+          "tipo": "texto",
+          "limite": 20
+        }
       }
     },
     "perfis_corretor": {
       "segregada_por_conta": true,
       "acesso_externo": "restrito",
       "colunas": {
-        "usuario_id": { "tipo": "referencia", "tabela_ref": "shell.usuarios", "obrigatorio": true, "unico": true, "ao_deletar": "restringir", "campos_incluir": ["nome as usuario_nome"] },
-        "creci": { "tipo": "texto", "limite": 20, "formato": "^[A-Z]{2}-[0-9]{1,6}-[FJ]$" },
-        "creci_situacao": { "tipo": "texto", "limite": 20, "obrigatorio": true, "padrao": "nao_verificado", "opcoes": ["nao_verificado", "verificado", "irregular"] },
-        "telefone": { "tipo": "texto", "limite": 16, "formato": "^[+][1-9][0-9]{7,14}$" },
-        "ativo": { "tipo": "booleano", "obrigatorio": true, "padrao": true }
+        "usuario_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "obrigatorio": true,
+          "unico": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as usuario_nome"
+          ]
+        },
+        "creci": {
+          "tipo": "texto",
+          "limite": 20,
+          "formato": "^[A-Z]{2}-[0-9]{1,6}-[FJ]$"
+        },
+        "creci_situacao": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "nao_verificado",
+          "opcoes": [
+            "nao_verificado",
+            "verificado",
+            "irregular"
+          ]
+        },
+        "telefone": {
+          "tipo": "texto",
+          "limite": 16,
+          "formato": "^[+][1-9][0-9]{7,14}$"
+        },
+        "ativo": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": true
+        }
       }
     },
     "configuracoes_conta": {
       "segregada_por_conta": true,
       "acesso_externo": "restrito",
       "colunas": {
-        "chave": { "tipo": "texto", "limite": 10, "obrigatorio": true, "padrao": "conta", "opcoes": ["conta"], "unico": true },
-        "prazo_primeiro_atendimento_min": { "tipo": "inteiro", "obrigatorio": true, "padrao": 5, "intervalo": { "min": 1, "max": 1440 } },
-        "dias_cliente_parado": { "tipo": "inteiro", "obrigatorio": true, "padrao": 7, "intervalo": { "min": 1, "max": 365 } },
-        "validade_selecao_dias": { "tipo": "inteiro", "obrigatorio": true, "padrao": 14, "intervalo": { "min": 1, "max": 365 } },
-        "modo_aprovacao_conteudo": { "tipo": "texto", "limite": 10, "obrigatorio": true, "padrao": "manual", "opcoes": ["manual", "janela"] },
-        "janela_aprovacao_horas": { "tipo": "inteiro", "obrigatorio": true, "padrao": 24, "intervalo": { "min": 1, "max": 168 } },
-        "horario_atendimento": { "tipo": "json" }
+        "chave": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "conta",
+          "opcoes": [
+            "conta"
+          ],
+          "unico": true
+        },
+        "prazo_primeiro_atendimento_min": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 5,
+          "intervalo": {
+            "min": 1,
+            "max": 1440
+          }
+        },
+        "dias_cliente_parado": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 7,
+          "intervalo": {
+            "min": 1,
+            "max": 365
+          }
+        },
+        "validade_selecao_dias": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 14,
+          "intervalo": {
+            "min": 1,
+            "max": 365
+          }
+        },
+        "modo_aprovacao_conteudo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "manual",
+          "opcoes": [
+            "manual",
+            "janela"
+          ]
+        },
+        "janela_aprovacao_horas": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 24,
+          "intervalo": {
+            "min": 1,
+            "max": 168
+          }
+        },
+        "horario_atendimento": {
+          "tipo": "json"
+        }
       }
+    },
+    "origens": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "canal": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "opcoes": [
+            "pagina",
+            "whatsapp",
+            "instagram",
+            "facebook",
+            "tiktok",
+            "youtube",
+            "portal",
+            "indicacao",
+            "rede",
+            "incorporadora",
+            "placa",
+            "evento",
+            "importacao",
+            "outro"
+          ]
+        },
+        "campanha": {
+          "tipo": "texto",
+          "limite": 200
+        }
+      },
+      "unicos": [
+        {
+          "colunas": [
+            "canal",
+            "campanha"
+          ],
+          "nulos_distintos": false
+        }
+      ]
+    },
+    "contatos": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "soft_delete": true,
+      "id_legivel": "{nome}",
+      "colunas": {
+        "nome": {
+          "tipo": "texto",
+          "limite": 200,
+          "obrigatorio": true
+        },
+        "telefone": {
+          "tipo": "texto",
+          "limite": 16,
+          "formato": "^[+][1-9][0-9]{7,14}$"
+        },
+        "email": {
+          "tipo": "texto",
+          "limite": 200
+        },
+        "papeis": {
+          "tipo": "texto",
+          "limite": 100,
+          "obrigatorio": true,
+          "padrao": "comprador"
+        },
+        "responsavel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as responsavel_nome"
+          ]
+        },
+        "origem_id": {
+          "tipo": "referencia",
+          "tabela_ref": "origens",
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "canal as origem_canal",
+            "campanha as origem_campanha"
+          ]
+        },
+        "etiquetas": {
+          "tipo": "json"
+        },
+        "perfil_busca": {
+          "tipo": "json"
+        },
+        "temperatura": {
+          "tipo": "texto",
+          "limite": 10,
+          "opcoes": [
+            "frio",
+            "morno",
+            "quente"
+          ]
+        },
+        "observacoes": {
+          "tipo": "texto_longo"
+        },
+        "ultimo_contato_em": {
+          "tipo": "datahora"
+        },
+        "proximo_passo": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "proximo_passo_em": {
+          "tipo": "datahora"
+        },
+        "consentimento_em": {
+          "tipo": "datahora"
+        },
+        "anonimizado_em": {
+          "tipo": "datahora"
+        }
+      },
+      "unicos": [
+        {
+          "colunas": [
+            "telefone"
+          ],
+          "onde": [
+            {
+              "coluna": "removido_em",
+              "operador": "nulo"
+            }
+          ]
+        }
+      ],
+      "indices": [
+        [
+          "responsavel_id",
+          "proximo_passo_em"
+        ],
+        [
+          "ultimo_contato_em"
+        ]
+      ]
+    },
+    "consentimentos": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "texto_versao": {
+          "tipo": "texto",
+          "limite": 40,
+          "obrigatorio": true
+        },
+        "canal": {
+          "tipo": "texto",
+          "limite": 30,
+          "obrigatorio": true
+        },
+        "registrado_por_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular"
+        },
+        "aceito_em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        },
+        "revogado_em": {
+          "tipo": "datahora"
+        }
+      }
+    },
+    "etapas_funil": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{nome}",
+      "colunas": {
+        "pipeline": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "opcoes": [
+            "compra",
+            "venda_captacao"
+          ]
+        },
+        "nome": {
+          "tipo": "texto",
+          "limite": 60,
+          "obrigatorio": true
+        },
+        "ordem": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 0,
+            "max": 999
+          }
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "aberta",
+            "ganha",
+            "perdida"
+          ]
+        },
+        "probabilidade": {
+          "tipo": "decimal",
+          "precisao": 3,
+          "escala": 2,
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        "ativa": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": true
+        }
+      },
+      "unicos": [
+        [
+          "pipeline",
+          "nome"
+        ]
+      ]
+    },
+    "negocios": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "soft_delete": true,
+      "id_legivel": "{titulo}",
+      "colunas": {
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as contato_nome"
+          ]
+        },
+        "titulo": {
+          "tipo": "texto",
+          "limite": 200,
+          "obrigatorio": true
+        },
+        "pipeline": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "opcoes": [
+            "compra",
+            "venda_captacao"
+          ]
+        },
+        "etapa_id": {
+          "tipo": "referencia",
+          "tabela_ref": "etapas_funil",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as etapa_nome",
+            "tipo as etapa_tipo"
+          ]
+        },
+        "etapa_desde": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        },
+        "valor_estimado_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "comissao_pct": {
+          "tipo": "decimal",
+          "precisao": 6,
+          "escala": 4,
+          "intervalo": {
+            "min": 0,
+            "max": 1
+          }
+        },
+        "responsavel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as responsavel_nome"
+          ]
+        },
+        "origem_id": {
+          "tipo": "referencia",
+          "tabela_ref": "origens",
+          "ao_deletar": "restringir"
+        },
+        "motivo_perda": {
+          "tipo": "texto",
+          "limite": 30,
+          "opcoes": [
+            "preco",
+            "localizacao",
+            "financiamento",
+            "desistiu",
+            "comprou_com_outro",
+            "sem_resposta",
+            "outro"
+          ]
+        },
+        "ganho_em": {
+          "tipo": "datahora"
+        },
+        "perdido_em": {
+          "tipo": "datahora"
+        }
+      },
+      "indices": [
+        [
+          "contato_id"
+        ],
+        [
+          "etapa_id"
+        ]
+      ]
+    },
+    "atividades": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "soft_delete": true,
+      "id_legivel": "{titulo}",
+      "colunas": {
+        "tipo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "tarefa",
+            "ligacao",
+            "mensagem",
+            "visita",
+            "reuniao",
+            "retorno"
+          ]
+        },
+        "titulo": {
+          "tipo": "texto",
+          "limite": 200,
+          "obrigatorio": true
+        },
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as contato_nome"
+          ]
+        },
+        "negocio_id": {
+          "tipo": "referencia",
+          "tabela_ref": "negocios",
+          "ao_deletar": "restringir"
+        },
+        "responsavel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as responsavel_nome"
+          ]
+        },
+        "quando": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        },
+        "local": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "status": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "pendente",
+          "opcoes": [
+            "pendente",
+            "feita",
+            "cancelada",
+            "nao_compareceu"
+          ]
+        },
+        "resultado": {
+          "tipo": "texto_longo"
+        },
+        "criada_por_agente": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        }
+      },
+      "indices": [
+        [
+          "responsavel_id",
+          "quando"
+        ],
+        [
+          "contato_id"
+        ]
+      ]
+    },
+    "linha_do_tempo": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "tipo": {
+          "tipo": "texto",
+          "limite": 60,
+          "obrigatorio": true
+        },
+        "alvo_tipo": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "opcoes": [
+            "contato",
+            "negocio",
+            "atividade"
+          ]
+        },
+        "alvo_id": {
+          "tipo": "inteiro",
+          "obrigatorio": true
+        },
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "ao_deletar": "restringir"
+        },
+        "autor_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular",
+          "campos_incluir": [
+            "nome as autor_nome"
+          ]
+        },
+        "autor_papel": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "opcoes": [
+            "corretor",
+            "sistema",
+            "mensageiro",
+            "assistente"
+          ]
+        },
+        "resumo": {
+          "tipo": "texto",
+          "limite": 300,
+          "obrigatorio": true
+        },
+        "dados": {
+          "tipo": "json"
+        },
+        "ocorrido_em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        }
+      },
+      "indices": [
+        [
+          "contato_id",
+          "ocorrido_em"
+        ],
+        [
+          "alvo_tipo",
+          "alvo_id"
+        ]
+      ]
     }
   }
 }
