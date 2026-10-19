@@ -83,3 +83,11 @@ test('corretor sem conta resolvida recebe explicação, não formulário vazio',
     assert.equal(r.corpo.codigo, 'SEM_CONTA');
   });
 });
+
+test('admin do app alcança as áreas de todos os papéis, mesmo sem papel atribuído', async () => {
+  const admin: Ator = { usuario: 8, conta: 100, papeis: [], nivel: 'admin' };
+  await comServidor(rotas, admin, new BancoFalso(UNICOS), { externos: { listarConvites: async () => ({ convites: [], total: 0 }) } }, async (chamar) => {
+    assert.equal((await chamar('GET', '/conta')).status, 200);
+    assert.equal((await chamar('GET', '/equipe/convites')).status, 200);
+  });
+});

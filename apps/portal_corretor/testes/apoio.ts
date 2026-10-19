@@ -251,6 +251,8 @@ export interface Ator {
   usuario: number;
   conta: number | null;
   papeis: string[];
+  /** Nível do usuário na app; padrão `escrita`. */
+  nivel?: string;
   /** Outros helpers do request (`arquivos`, `ia`), quando o teste precisa deles. */
   extras?: Record<string, unknown>;
 }
@@ -268,7 +270,7 @@ export async function comServidor<T>(
   app.use((req, _res, next) => {
     (req as any).contexto = {
       usuario: { id: ator.usuario, nome: `Usuário ${ator.usuario}`, tipo: 'nao_informado', natureza: 'nao_informado', avatar_url: null },
-      nivelApp: 'escrita',
+      nivelApp: ator.nivel ?? 'escrita',
       rolesApp: ator.papeis,
       permissoesApps: {},
       resolucao: ator.conta === null ? 'negar' : 'escopado',

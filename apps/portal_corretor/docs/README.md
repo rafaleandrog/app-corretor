@@ -42,6 +42,11 @@ quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na 
 
 Sem o papel, a tela mostra "Esta área não está liberada para você" e diz qual papel pedir.
 
+**Administrador do app** (nível `admin`) vale por todos os papéis: vê e configura todas as telas, as do
+corretor e as da equipe, sem precisar de papel atribuído (o papel `corretor` é externo e não pode ser
+dado a quem é da equipe). Como as tabelas são segregadas por conta, para usar as telas do corretor o
+admin precisa estar associado a uma conta (Admin › Contas); sem conta, a tela explica isso.
+
 ### Endereço recebido (diagnóstico)
 
 Ao abrir um endereço que o app não conhece, como `/portal_corretor/retorno?code=teste`, a tela

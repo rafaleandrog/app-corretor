@@ -80,7 +80,8 @@ export class AppPortalCorretor extends LitElement {
   private aoMudarContexto = () => {
     const ctx = urbiVerso.contexto();
     this.carregado = ctx.carregado ?? false;
-    this.papeis = ctx.roles ?? [];
+    // Admin do app vale por todos os papéis (o SDK não os entrega a ele): precisa ver e configurar tudo.
+    this.papeis = ctx.nivel === 'admin' ? ['corretor', 'operacao'] : (ctx.roles ?? []);
   };
 
   // Réplica local do contrato `:host` de tela raiz (ui.md § Cadeia de altura). App plugável não

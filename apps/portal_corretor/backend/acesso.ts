@@ -10,10 +10,16 @@ export function erro(res: Response, status: number, codigo: string, mensagem: st
   return res.status(status).json({ erro: true, codigo, mensagem, ...(detalhes ? { detalhes } : {}) });
 }
 
-/** Barra a rota para quem não tem nenhum dos papéis. O gate método→nível do shell já rodou antes. */
+/**
+ * Barra a rota para quem não tem nenhum dos papéis. O gate método→nível do shell já rodou antes.
+ * `nivelApp: 'admin'` vale por todos os papéis: o SDK não entrega os papéis ao admin (e o papel
+ * externo `corretor` nem pode ser atribuído a quem é da equipe), então sem isso o admin não
+ * alcançaria nenhuma tela para configurar e acompanhar o app.
+ */
 export function exigirPapel(...papeis: Papel[]): RequestHandler {
   return (req, res, next) => {
-    const tem = req.contexto?.rolesApp?.some((p) => (papeis as string[]).includes(p));
+    const tem =
+      req.contexto?.nivelApp === 'admin' || req.contexto?.rolesApp?.some((p) => (papeis as string[]).includes(p));
     if (!tem) return erro(res, 403, 'SEM_PAPEL', 'Você não tem o papel necessário para esta área do app.');
     next();
   };
@@ -27,7 +33,12 @@ export function guardarCorretor(router: { use: (caminho: string[], h: RequestHan
   router.use(prefixos, exigirPapel('corretor'));
   router.use(prefixos, (req, res, next) => {
     if (req.contexto?.resolucao === 'negar') {
-      return erro(res, 409, 'SEM_CONTA', 'Seu usuário não está associado a nenhuma conta. Fale com a equipe da plataforma.');
+      return erro(
+        res,
+        409,
+        'SEM_CONTA',
+        'Seu usuário não está associado a nenhuma conta. Fale com a equipe da plataforma (admin: associe-se a uma conta em Admin › Contas para atendê-la).',
+      );
     }
     next();
   });
