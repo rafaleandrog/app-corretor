@@ -18,6 +18,11 @@ Início do app abre direto nesta tela.
 3. Quando o convite aparecer como **Aceito**, o administrador do app abre **Configurações ›
    Usuários**, seção **Externos**, e atribui ao corretor o papel **corretor**. O convite não leva
    papel: sem esse passo, o app continua fechado para ele.
+4. Mande ao corretor o **endereço do app**: `https://<endereço da instância>/portal_corretor`. O
+   corretor é usuário externo, e a plataforma não mostra a ele lista de apps nem menu na página
+   inicial: quem entra pela página inicial vê só a marca da instância e o avatar. Ele entra pelo
+   endereço do app (vale salvar nos favoritos). O e-mail de convite é da plataforma e não leva esse
+   endereço.
 
 Convite ainda não aceito pode ser **revogado**: o link deixa de funcionar na hora. A lista mostra
 50 convites por vez; **Mostrar mais** traz os seguintes.

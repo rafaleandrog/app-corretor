@@ -20,7 +20,7 @@ import './telas/pagina.js';
 import './telas/estudio.js';
 import './telas/conexoes.js';
 import { lembrarTela, renderAssistente } from './telas/assistente.js';
-import { contaAtiva, contasDoUsuario, escolherConta } from './apoio.js';
+import { contaAtiva, contasDoUsuario, escolherConta, semConta } from './apoio.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
 import './publico/selecao.js';
@@ -78,6 +78,7 @@ export class AppPortalCorretor extends LitElement {
   @state() private papeis: string[] = [];
   @state() private contas: { id: number; nome: string }[] = [];
   @state() private conta: number | null = null;
+  @state() private semConta = false;
   private cancelarRota?: () => void;
   // Contexto chega assíncrono: até `carregado`, roles vazias são falta de resposta, não de acesso.
   private aoMudarContexto = () => {
@@ -87,6 +88,7 @@ export class AppPortalCorretor extends LitElement {
     this.papeis = ctx.nivel === 'admin' ? ['corretor', 'operacao'] : (ctx.roles ?? []);
     this.contas = contasDoUsuario();
     this.conta = contaAtiva();
+    this.semConta = semConta();
   };
 
   // Quem atende várias contas escolhe em qual está; a tela é recriada para recarregar daquela conta.
@@ -138,6 +140,11 @@ export class AppPortalCorretor extends LitElement {
       const quem = tela.papel === 'corretor' ? 'corretor' : 'equipe da plataforma (operacao)';
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-lock" mensagem="Esta área não está liberada para você"
         submensagem="Ela é do papel ${quem}. Peça ao administrador do app para atribuir o papel em Configurações › Usuários."></urbi-estado-vazio>`;
+    }
+    // Sem conta não há carteira para mostrar: explica o que fazer em vez de cada tela dar erro.
+    if (tela.papel === 'corretor' && this.semConta) {
+      return html`<urbi-estado-vazio expandir icone="fa-solid fa-building-user" mensagem="Você ainda não está em nenhuma conta"
+        submensagem="As telas do corretor trabalham sempre dentro de uma conta. Associe seu usuário a uma conta em Admin › Acesso › Contas (ou peça a quem cuida das contas da plataforma) e recarregue a página."></urbi-estado-vazio>`;
     }
     // `keyed` pelo endereço: trocar de cliente recria a tela em vez de reaproveitar o estado.
     return keyed(`${this.sub}|${this.conta}`, tela.render(param, this));

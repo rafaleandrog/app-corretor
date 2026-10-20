@@ -15,6 +15,16 @@ export function contasDoUsuario(): { id: number; nome: string }[] {
   return c && c.contaEscrita === undefined ? c.contas : [];
 }
 
+/**
+ * Sem conta para trabalhar: `negar`, ou `escopado` com o conjunto vazio (quem é da equipe e não
+ * atende nenhuma conta, como o admin recém-chegado). O backend responde `SEM_CONTA` nesse caso.
+ */
+export function semConta(): boolean {
+  const c = urbiVerso.contexto().conta;
+  if (!c) return false;
+  return c.resolucao === 'negar' || (c.resolucao === 'escopado' && !c.contas.length && c.contaEscrita === undefined);
+}
+
 /** Conta escolhida no seletor, se ainda for uma das do usuário; senão a primeira da lista. */
 export function contaAtiva(): number | null {
   const contas = contasDoUsuario();

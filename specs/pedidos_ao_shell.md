@@ -29,6 +29,10 @@ O formulário da Minha Página limita 3 envios por minuto por origem usando `req
 
 A spec 10.2 pede o Assistente "em qualquer tela (botão fixo)". O contrato de UI proíbe `position: fixed` e altura própria na tela, e não há primitivo de painel lateral ou flutuante que a app possa abrir sobre as próprias telas. Por isso, no MVP, o Assistente é um item do menu (D-76). Pedido: um primitivo, ou um slot no `urbi-shell-page`, para um painel de chat fixo da app. E, para o corretor (externo, shell reduzido, sem "Reportar bug"), um caminho de suporte que a app possa indicar quando o Assistente não sabe responder.
 
+## 6. Externo cai numa página inicial vazia (19/10/2026)
+
+O corretor é externo. Ao entrar pela raiz da instância, ele vê só a marca e o avatar: o shell reduzido do externo não tem seletor de apps nem menu (permissoes.md § Usuário externo, "Gap conhecido"). Hoje ele só chega ao app por link direto (`/portal_corretor`), e o e-mail de convite não leva esse endereço. Na homologação o dono entrou como corretor e achou que não tinha acesso a nada. **Pedido:** externo com acesso a um app só cai direto nele (ou vê o atalho dos apps liberados na página inicial); e o convite emitido por uma app leva ao resgate e depois ao app que convidou.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

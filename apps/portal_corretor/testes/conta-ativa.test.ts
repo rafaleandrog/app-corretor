@@ -2,7 +2,7 @@ import { test, beforeEach } from 'node:test';
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
-import { chamarApi, contaAtiva, contasDoUsuario, escolherConta } from '../frontend/apoio';
+import { chamarApi, contaAtiva, contasDoUsuario, escolherConta, semConta } from '../frontend/apoio';
 
 // Lógica do `X-Conta` das telas (frontend/apoio.ts), com um `urbiVerso` simulado: quem atende várias
 // contas declara a ativa; com uma conta só, nenhum cabeçalho vai.
@@ -54,4 +54,17 @@ test('telas autenticadas chamam o app por chamarApi/chamarFetch, nunca por urbiV
     const fonte = readFileSync(resolve(pasta, arquivo), 'utf8');
     assert.doesNotMatch(fonte, /urbiVerso\.(api|fetch)\(/, `${arquivo}: use chamarApi/chamarFetch de ../apoio (sem elas a conta ativa não vai no X-Conta)`);
   }
+});
+
+test('sem conta: negar ou escopado vazio; com conta ou fora do regime segregado, não', () => {
+  g.ctx = { conta: { resolucao: 'escopado', contas: [] } };
+  assert.equal(semConta(), true);
+  g.ctx = { conta: { resolucao: 'negar', contas: [] } };
+  assert.equal(semConta(), true);
+  g.ctx = { conta: { resolucao: 'escopado', contas: [{ id: 7, nome: 'A' }], contaEscrita: 7 } };
+  assert.equal(semConta(), false);
+  g.ctx = contas(7, 9);
+  assert.equal(semConta(), false);
+  g.ctx = {};
+  assert.equal(semConta(), false);
 });

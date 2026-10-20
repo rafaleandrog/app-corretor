@@ -255,6 +255,8 @@ export interface Ator {
   nivel?: string;
   /** Contas visíveis de quem atende várias (leitura do conjunto); `conta` vira a de escrita (`X-Conta`). */
   contas?: number[];
+  /** Força o estado da resolução (ex.: `escopado` com `contas: []`, quem é da equipe sem conta). */
+  resolucao?: string;
   /** Outros helpers do request (`arquivos`, `ia`), quando o teste precisa deles. */
   extras?: Record<string, unknown>;
 }
@@ -275,7 +277,7 @@ export async function comServidor<T>(
       nivelApp: ator.nivel ?? 'escrita',
       rolesApp: ator.papeis,
       permissoesApps: {},
-      resolucao: ator.conta === null && !ator.contas ? 'negar' : 'escopado',
+      resolucao: ator.resolucao ?? (ator.conta === null && !ator.contas ? 'negar' : 'escopado'),
       contas: ator.contas ?? (ator.conta === null ? [] : [ator.conta]),
       contaEscrita: ator.conta ?? undefined,
     };
