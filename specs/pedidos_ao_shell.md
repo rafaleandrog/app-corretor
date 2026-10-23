@@ -33,6 +33,14 @@ A spec 10.2 pede o Assistente "em qualquer tela (botão fixo)". O contrato de UI
 
 O corretor é externo. Ao entrar pela raiz da instância, ele vê só a marca e o avatar: o shell reduzido do externo não tem seletor de apps nem menu (permissoes.md § Usuário externo, "Gap conhecido"). Hoje ele só chega ao app por link direto (`/portal_corretor`), e o e-mail de convite não leva esse endereço. Na homologação o dono entrou como corretor e achou que não tinha acesso a nada. **Pedido:** externo com acesso a um app só cai direto nele (ou vê o atalho dos apps liberados na página inicial); e o convite emitido por uma app leva ao resgate e depois ao app que convidou.
 
+## 7. Cartão com capa (imagem) nas telas autenticadas (spec 1.1, D-84)
+
+A carteira de imóveis pede cartão com foto dominante (referência: imagem 1 da spec 2.7 e Kenlo). Nas páginas públicas o app tem CSS próprio e faz. Nas telas autenticadas o contrato de UI proíbe CSS da tela e o `urbi-card` do SDK 100 só tem `titulo`, `icone`, `clicavel` e os slots `detalhe` e `acoes`; o único primitivo com imagem é o `urbi-avatar`. **Pedido:** prop `imagem` (URL, proporção 4:3 ou 1:1) no `urbi-card`, ou um primitivo de cartão com capa. Até lá, a app usa `urbi-grid` + `urbi-card` + `urbi-avatar` grande (exceção nomeada D-65).
+
+## 8. Estado da aba do `urbi-abas` na URL (spec 1.1, D-81)
+
+Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobreviver ao recarregar e poder ser compartilhada por link. Hoje a app lê `?aba=` em `window.location.search` e reflete com `history.replaceState`, à mão em cada tela. **Pedido:** atributo opcional no `urbi-abas` (por exemplo `parametro-url="aba"`) que faça isso pelo shell, ou documentar o padrão recomendado.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

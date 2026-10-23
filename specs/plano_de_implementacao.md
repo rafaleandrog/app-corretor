@@ -24,7 +24,33 @@ Telas, funções, permissões, caminhos e automações prontos, testados pela eq
 | 9 | **Assistente do Corretor:** chat em todas as telas com base nos `docs/` da app, ajuda a decidir, ações com confirmação (lembretes, tarefas, agendamento de posts) | 10.2, 11.1 | 2–8 | Responde as 30 perguntas do roteiro; ação só com confirmação | [x] código pronto e na `main` (PRs #2 e #13 a #22); a conferência na instância é o roteiro R.8 |
 | 10 | **Fechamento do MVP:** roteiros de 15.1 executados e registrados; ajustes; docs da app completos | 15.1, 18 | 0–9 | Os 7 critérios de 15.1 cumpridos; dono aprova o MVP interno | [~] código pronto e na `main` (PRs #23, #24, #26 a #29, #36 e #37): versão 0.1.4 com admin de todos os papéis, seletor de conta, escopo da conta ativa e tokens de tema; falta executar o R.8 e o R.10 na instância depois do release |
 
-**Em paralelo, fora do código (dono):** decidir o caminho do registro na Meta (P-26) e, se for o A, iniciar verificação da empresa e revisão do app; termos de uso e política de privacidade.
+**Em paralelo, fora do código (dono):** decidir o caminho do registro na Meta (P-26) e, se for o A, iniciar verificação da empresa e revisão do app; termos de uso e política de privacidade; treinamento curto e comunidade de corretores para a fase 2 (saiu da spec em 23/10: não é funcionalidade do app).
+
+---
+
+## Fase 1.5 — Simplificação e estado da arte (spec 1.1, 23/10/2026)
+
+Aprovada pelo dono em 23/10. Fonte: spec 2.6 (princípios 13 e 14), 2.7, 5.1, 11, 15.8, 15.9 e D-80 a D-88; `specs/referencias_principais.md`. Guarda-chuva: **#49**. Um PR por bloco, nesta ordem; 0 e 1 podem andar em paralelo, 5 e 7 também, depois do 1. Regras comuns no corpo de #49.
+
+| # | Bloco | Issue | Depende de | Pronto quando | Status |
+|---|---|---|---|---|---|
+| 0 | **Fundação visual:** chip, cartão de imóvel, filtro na URL e menu "mais" em `frontend/apoio.ts` | #50 | — | Telas atuais usam os helpers sem mudar comportamento | [ ] |
+| 1 | **Menu de oito itens e Ajustes numa tela só** (abas Conta · Marca · Conexões · Funil e abordagens · Atendimento); rotas antigas como apelidos | #51 | — | Menu com 8 itens; retorno do Instagram em `/ajustes/conexoes` segue vivo | [ ] |
+| 2 | **Início:** fila do dia com uma ação por item e aba Agenda; sai a grade de atalhos | #52 | 0, 1 | Nenhum item com dois botões; Agenda só busca quando aberta | [ ] |
+| 3 | **Clientes:** visões Lista · Quadro (o Funil entra aqui) e filtros prontos | #53 | 0, 1 | `/funil` abre o Quadro; chips filtram com teste | [ ] |
+| 4 | **Ficha do contato:** resumo em uma frase, Resumir com IA, Mensagem sugerida com Fazer agora (`wa.me`), Virar tarefa; slot `funil` | #54 | 0, 3 | Com e sem IA funciona; privacidade e isolamento testados | [ ] |
+| 5 | **Estúdio sem aprovação por janela (release A):** migração 001 e código deixa de ler o modo | #55 | 1 | Migração idempotente; nada de `janela` fora do schema | [ ] |
+| 6 | **Estúdio:** um caminho de arte, "Fazer em outra ferramenta", uma ação por estado | #56 | 0, 5 | Nenhum cartão com mais de um botão principal | [ ] |
+| 7 | **Marca única** em Ajustes › Marca para Estúdio, Minha página, seleção e portal | #57 | 1 | Mudar a cor muda as quatro superfícies | [ ] |
+| 8 | **Imóveis:** abas Carteira · Empreendimentos, grade de cartões, "o que falta" no topo | #58 | 0, 1 | Cartões no computador e no celular | [ ] |
+| 9 | **Portal e seleção** no modelo Compass One: próximo passo, datas-chave, foto dominante, "o que falta de você" | #59 | 0, 7 | Portal no celular sem dado pessoal; tarefa do cliente fecha pelo webhook | [ ] |
+| 10 | **Desempenho enxuto:** quatro números acima da dobra | #60 | 1 | Conferência manual da demonstração bate | [ ] |
+| 11 | **Importar:** modelos de outros CRMs (fase 2 da spec) | #61 | — | Cabeçalho de cada modelo mapeia certo | [ ] |
+| 12 | **Estúdio sem aprovação por janela (release B):** schema | #62 | 5 e um release no meio | Instala e atualiza sem reprovação | [ ] |
+
+**Issues antigas:** #43 com a direção nova; #44 e #45 fechadas em favor de #56; #46 não planejada; #47 e #48 adiadas para depois da fase 2; #8 e #9 com os itens das referências (Conversas no padrão da Lais, origem do anúncio, créditos). Bugs #38 a #41 e processo #30, #33 a #35 entram antes da fase 2.
+
+**O que saiu e por quê:** spec 15.9. **Pedidos ao shell novos:** itens 7 (cartão com capa) e 8 (aba na URL) de `specs/pedidos_ao_shell.md`.
 
 ---
 
@@ -62,6 +88,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
+| 23/10/2026 | Fase 1.5 | Plano de simplificação aprovado pelo dono: spec 1.1 (2.6, 2.7, 5.1, 11, 15.8, 15.9, D-80 a D-88), `specs/referencias_principais.md` e `specs/horizonte.md` novos, `CLAUDE.md` e pedidos ao shell 7 e 8; issues #49 (guarda-chuva) e #50 a #62; #44–#46 fechadas, #47–#48 adiadas, #8 e #43 atualizadas | — | Blocos 0 e 1 (#50, #51) em sessões novas; merge só com ordem do dono |
 | 18/10/2026 | Preparação | Repositório criado com o kit 100.3.16, specs e CLAUDE.md; revisão de viabilidade contra o SDK 100 aprovada (R.1–R.5); decisões D-55 a D-60 | — | Bloco 0 |
 | 18/10/2026 | 0 | Esqueleto `apps/portal_corretor` 0.1.0: manifesto (identidade, pisos 100/0.56.37), rota `/status`, tela inicial, página pública e linha de diagnóstico, testes (manifesto e rotas), `docs/README.md`; empacotador limpo | #2 | Dono instala e confere R.6; depois bloco 1 |
 | 19/10/2026 | 1 | Contas e papéis: manifesto com `roles` (`operacao`), `roles_externos` (`corretor`), `provisiona_externos`; tabelas da conta; telas Início, Conta e marca, Corretores; testes de isolamento com banco simulado; revisão em 2 rodadas | #13 | Roteiro R.6/R.7 na instância; bloco 2 |
