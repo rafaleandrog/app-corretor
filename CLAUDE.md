@@ -19,7 +19,9 @@ specs/portal_corretor.md           a spec: O QUE construir (fonte de verdade de 
 specs/plano_de_implementacao.md    a ordem: blocos, status, registro de sessões
 specs/pedidos_ao_shell.md          ajustes necessários no shell do UrbiVerso
 specs/stack_funcional.md           intenção de produto sem amarras de plataforma (consulta)
-specs/referencias.md               produtos de mercado para referência (consulta)
+specs/referencias_principais.md    as 5 referências principais (D-80): o que copiar de cada uma (consulta de tela e comportamento)
+specs/referencias.md               catálogo amplo de produtos de mercado (consulta)
+specs/horizonte.md                 o que saiu da spec para as fases 5 a 7 (D-88); volta quando a fase chegar
 specs/urbiverso-frameworks-resumo.md  resumo dos frameworks da plataforma (consulta)
 ```
 
@@ -28,7 +30,7 @@ specs/urbiverso-frameworks-resumo.md  resumo dos frameworks da plataforma (consu
 1. **Contrato da plataforma:** docs do `@urbiverso/sdk` instalado (bundle publicado, nunca o `main` do monorepo).
 2. **Produto:** `specs/portal_corretor.md`.
 3. **Ordem e status:** `specs/plano_de_implementacao.md`.
-4. Consulta: resumo dos frameworks, stack funcional, referências.
+4. Consulta: resumo dos frameworks, referências principais, stack funcional, catálogo de referências, horizonte.
 
 Se a spec pedir algo que o SDK não permite, **não contorne**: registre o conflito no plano, proponha alternativa e pergunte ao dono.
 
@@ -53,6 +55,7 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 - **Cliente** vê só o que está em `itens_cliente` com o `usuario.id` dele.
 - **Sem SQL cru**, sem pool, sem importar código do shell ou de outra app.
 - **UI só com primitivos `urbi-*` e tokens**; lacunas como exceção nomeada no mesmo PR (spec 11.5). Páginas públicas têm CSS próprio.
+- **Menos é mais (spec 2.6, princípios 13 e 14; 15.9):** oito telas no menu, uma ação principal por item e menu "mais" para o resto; IA como botão na tela certa; nenhuma configuração sem uso na versão corrente aparece na tela. Antes de acrescentar tela, botão ou ajuste, confira se não cabe numa aba ou num menu existente.
 - **IA só por `req.ia.consultar` com JSON Schema**; o app valida e executa as ações; sonda `estadoSlot` e degrada quando o slot não estiver disponível.
 - **Hora marcada por `req.eventos.agendar`**; listeners e rotinas idempotentes.
 - **Chamadas externas com `fetch()`**; segredos em colunas `segredo` e `parametros` `secret`.

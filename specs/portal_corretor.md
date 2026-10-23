@@ -6,13 +6,13 @@
 
 | Campo | Valor |
 |---|---|
-| Status | **1.0 — pronta para implementação.** Escopo do MVP aprovado (D-41), MVP interno sem corretor real (D-43), alinhada aos frameworks do UrbiVerso (resumo de 18/10/2026). Implementação guiada por `CLAUDE.md` e `specs/plano_de_implementacao.md` |
+| Status | **1.1 — modelo de estado da arte (23/10/2026).** MVP 0.1.0 implementado (blocos 0–5, 8, 9 e 10a); simplificação e itens das cinco referências principais aprovados pelo dono em 23/10 (2.7, 15.8, 15.9, D-80 a D-88). Escopo do MVP aprovado (D-41), MVP interno sem corretor real (D-43). Implementação guiada por `CLAUDE.md` e `specs/plano_de_implementacao.md` |
 | Issue | A abrir no repositório do app na primeira sessão (texto no Apêndice A) |
 | Slug / schema | `portal_corretor` (snake_case, vira o schema PostgreSQL) |
 | Instância-alvo | Pinguim (teste). Produção: qualquer instância que instale o app (D-02) |
-| Base | MVP "Portal do Corretor · laboratório Urbiverso UP/Urbitá" v2; `specs/stack_funcional.md`; `specs/referencias.md`; direção do dono em 17/10/2026 (duas rodadas) |
+| Base | MVP "Portal do Corretor · laboratório Urbiverso UP/Urbitá" v2; `specs/stack_funcional.md`; `specs/referencias.md`; `specs/referencias_principais.md` (18/10, D-80); direção do dono em 17/10/2026 (duas rodadas) e em 23/10/2026 (simplificação, 15.9) |
 | Piso de shell / SDK | Proposto `shell_min: "0.56.25"`, `sdk_min: 94` (4.1); confirmar na implementação **Superado:** `sdk_min: 100`, `shell_min: "0.56.37"` (plano, R.2; SDK instalado) |
-| Data | 18/10/2026 |
+| Data | 23/10/2026 (1.0 em 18/10/2026) |
 
 **Convenções do texto.** `D-nn` é decisão registrada (seção 16). `P-nn` é pendência (seção 17) e marca, no ponto do texto, tudo que depende de resposta. **[plataforma]** marca afirmação sobre o UrbiVerso que a implementação ainda confere no SDK instalado; as regras da seção 4 vêm do resumo dos frameworks de 18/10/2026. "Conta" é o espaço de trabalho de um corretor autônomo, de uma imobiliária ou de uma incorporadora. "Cliente" é sempre o cliente **do corretor** (comprador ou proprietário), nunca o corretor. Valores em dinheiro estão sempre em centavos de real no banco. Ausência de dado é `null` no banco e frase na tela, nunca zero.
 
@@ -43,7 +43,7 @@ O corretor faz o que exige gente: visitar, negociar, fechar. O resto o app faz o
 **O dia dele no app:**
 1. Abre o **Início**: o que precisa dele agora (conversas que o Mensageiro passou, clientes quentes, visitas do dia, retornos vencidos, peças aguardando aprovação).
 2. Responde e atende na **caixa de conversas** do WhatsApp, dentro do app, com o Mensageiro ajudando ou atendendo por ele.
-3. Olha o **Funil**: onde cada cliente está, quem esfriou, o que cada um abriu e clicou, e a **próxima abordagem** sugerida pela IA.
+3. Olha o quadro em **Clientes**: onde cada cliente está, quem esfriou, o que cada um abriu e clicou, e a **próxima abordagem** sugerida pela IA, já com a mensagem pronta para mandar.
 4. Cadastra imóvel ou empreendimento com fotos; o app gera descrição, artes e agenda a publicação no **Instagram**.
 5. Manda ao cliente, com um toque, uma **seleção**, um arquivo ou o link do **Portal do Cliente**.
 6. Pergunta ao **Assistente** qualquer coisa sobre o app ("como faço para…", "o que eu posso oferecer para esse proprietário?", "configura um lembrete automático para visitas").
@@ -99,14 +99,34 @@ Desta spec:
 10. **Custo visível:** toda ação que gasta crédito mostra custo antes e depois.
 11. **Menor fricção possível:** toda conexão (WhatsApp, Instagram) em até 3 passos, toda configuração com padrão pronto, todo cadastro aceitando foto e voz.
 12. **O WhatsApp do relacionamento passa pelo app:** é no app que fica o histórico, a IA e as métricas (D-25).
+13. **IA no lugar onde se trabalha** (1.1, Follow Up Boss): a IA aparece como botão na tela certa (resumir, sugerir mensagem, virar tarefa, escrever descrição, gerar arte), não como um chat que o corretor precisa aprender a usar; o Assistente serve para dúvidas e pedidos livres.
+14. **Uma tela, uma pergunta, uma ação** (1.1): cada lista mostra um botão principal por item e o resto fica num menu "mais"; nenhuma configuração sem uso na versão corrente aparece na tela; o que é a mesma coisa vista de dois jeitos (lista e quadro, hoje e agenda) é uma tela com duas visões, não duas telas.
 
-### 2.7 Referências visuais escolhidas pelo dono
+### 2.7 Referências visuais e de produto escolhidas pelo dono
 
-Das imagens mostradas em 17/10, o dono escolheu três:
-- **Imagem 1 — conceito de app imobiliário para celular** (projeto de comunidade no Figma, não é um produto específico): cartões de imóvel grandes com foto dominante, preço e atributos em ícones, navegação inferior, busca no topo. **Uso:** modelo da experiência do cliente no celular (seleção e Portal do Cliente) e da carteira do corretor no celular.
-- **Imagens 4 e 5 — Compass One** (painel do cliente da Compass, EUA): o cliente entra num painel único conectado ao corretor, com a jornada em etapas, o que já aconteceu e o que vem, documentos e conversa, antes, durante e depois do negócio. **Uso:** modelo do Portal do Cliente (comprador e proprietário) e da linha do tempo que o cliente vê.
+**Imagens (17/10):** imagem 1, conceito de app imobiliário para celular (projeto de comunidade no Figma): cartões de imóvel grandes com foto dominante, preço e atributos em ícones, navegação inferior, busca no topo — modelo da experiência do cliente no celular (seleção, Portal do Cliente, ficha pública) e da carteira do corretor no celular. Imagens 4 e 5, Compass One (painel do cliente da Compass, EUA): painel único conectado ao corretor, jornada em etapas, o que já aconteceu e o que vem, documentos e conversa — modelo do Portal do Cliente e da linha do tempo.
 
-Os detalhes visuais (componentes, cores, espaçamento) seguem os catálogos de UI do UrbiVerso (P-01); estas referências definem estrutura e hierarquia, não estilo.
+**Referências principais (18/10, detalhadas em `specs/referencias_principais.md`, D-80):** cinco produtos, cada um o melhor em uma coisa e simples na superfície. O app copia **um padrão de cada**:
+
+| Referência | O padrão copiado | Onde vive no app |
+|---|---|---|
+| Follow Up Boss | O dia é uma lista: listas por regra (novos, sem contato, quentes, retorno vencido) e IA como botão no lugar certo (resumir, sugerir mensagem, virar tarefa), não como chat | Início (fila do dia) · Clientes (filtros prontos) · ficha do contato (botões de IA) |
+| Lais | Uma caixa, um número, passagem visível: chips de etiqueta, origem e status por conversa; "corretor assumiu" e "reativar"; resumo do lead em uma frase | Conversas (blocos 6 e 7) · topo da ficha do contato |
+| Morada.ai | A IA executa, não só conversa: atualiza o funil, agenda, mede; origem do anúncio antes do "olá" | Mensageiro (bloco 7) · `origens` · temperatura com motivo |
+| Compass One | O cliente tem uma página só, curada pelo corretor: próximo passo, linha do tempo, datas-chave, o que falta de você | Portal do Cliente e seleção |
+| Kenlo | Carteira visual (cartão com foto e nota de qualidade) e custo de IA visível por ação | Imóveis · Plano e consumo (com o Mensageiro, D-87) |
+
+Os detalhes visuais (componentes, cores, espaçamento) seguem os catálogos de UI do UrbiVerso; as referências definem estrutura e hierarquia, não estilo. **Direção estrutural por superfície (1.1):**
+
+| Superfície | Direção |
+|---|---|
+| Início | Lista única do dia, agrupada por motivo; cada item com nome, chip de temperatura, o motivo em uma linha e **um** botão (Fazer agora / Fiz / Abrir); faixa de quatro números; aba Agenda |
+| Clientes | Visões Lista · Quadro; filtros prontos como chips; ficha com resumo em uma frase, botões de IA e linha do tempo; seções secundárias recolhidas |
+| Imóveis | Grade de cartões (`urbi-grid` + `urbi-card`) com miniatura grande, preço, bairro, ícones e nota; foto dominante quando o shell oferecer cartão com capa (`specs/pedidos_ao_shell.md`, item 7); "o que falta" como lista no topo da ficha |
+| Estúdio | Cartão da peça = prévia + situação + uma ação principal; menu "mais" |
+| Portal e seleção | Uma coluna, topo com corretor e próximo passo, cartões grandes com foto dominante (CSS próprio das páginas públicas), botões grandes, linha do tempo vertical, datas-chave em destaque |
+| Conversas (bloco 6) | Lista com chips (etiqueta, origem, status) e resumo em uma frase; na conversa, faixa "Mensageiro atende" / "Você assumiu" com botão único |
+| Estados vazios | Sempre a próxima ação ("Cadastre o primeiro imóvel") |
 
 ## 3. O que existe hoje e o que muda
 
@@ -290,9 +310,11 @@ Esboço do conteúdo. A forma exata é a do SDK instalado; a implementação esc
 
 ### 5.1 Navegação (`nav`)
 
-Corretor: **Início · Conversas · Funil · Clientes · Imóveis · Conteúdo · Minha Página · Mensageiro · Desempenho**; grupo **Ajustes** com Conta e marca, Conexões (WhatsApp, Instagram), Funil e abordagens, Plano e consumo. O shell injeta Home e Configurações. O Assistente é um botão fixo dentro das telas da app. Itens das fases seguintes (Proprietários, Rede, Equipe) entram com a fase.
+Corretor (1.1, D-81, oito itens): **Início · Clientes · Imóveis · Estúdio · Minha página · Desempenho · Assistente · Ajustes**. Início tem as abas Hoje e Agenda (D-82); Clientes tem as visões Lista e Quadro, que é o funil (D-83); Imóveis tem as abas Carteira e Empreendimentos (D-84); Ajustes é uma tela com as abas Conta, Marca, Conexões, Funil e abordagens e Atendimento. **Conversas** entra entre Início e Clientes quando o WhatsApp chegar (bloco 6); Plano e consumo, com o Mensageiro (bloco 7). O shell injeta Home e Configurações. A equipe da plataforma (`operacao`) tem o grupo Equipe da plataforma › Corretores (D-61). Itens das fases seguintes (Proprietários, Rede, Equipe) entram com a fase.
 
-Cliente (role `cliente`): só **Meu atendimento** (Portal do Cliente).
+O menu de 0.1.0 (Início, Assistente, Funil, Clientes, Agenda, Desempenho, Imóveis › Minha carteira · Empreendimentos, Estúdio, Minha página, Ajustes › Conta e marca · Conexões · Funil e abordagens; treze entradas) fica registrado em 15.9; as rotas antigas continuam abrindo a tela nova na aba certa, porque o SDK não redireciona.
+
+Cliente (role `cliente`, fase posterior): só **Meu atendimento** (Portal do Cliente). No MVP o cliente acessa por link (D-56).
 
 ### 5.2 Parâmetros da instalação
 
@@ -306,7 +328,7 @@ Cliente (role `cliente`): só **Meu atendimento** (Portal do Cliente).
 | `prazo_primeiro_atendimento_min` | numero | Padrão 5 |
 | `cota_mensal_ia_padrao`, `cota_mensal_artes_padrao` | numero | Cotas por conta até haver planos |
 
-Configuração **por conta** (horário de atendimento, dias para cliente parado, validade de seleção, modo de aprovação de conteúdo, autonomia do Mensageiro) fica na tabela `configuracoes_conta`, editada pelo corretor em Ajustes.
+Configuração **por conta** (horário de atendimento, dias para cliente parado, validade de seleção, lembrete de visita, autonomia do Mensageiro) fica na tabela `configuracoes_conta`, editada pelo corretor em Ajustes.
 
 ## 6. Modelo de dados
 
@@ -437,8 +459,6 @@ Semente por pipeline. **Compra**: Novo (0,05) → Em atendimento (0,10) → Qual
 
 **`custos_origem`** — investimento declarado por canal/campanha/mês: `origem_id`, `mes` (data, dia 1), `valor_c`. Sem custo declarado, o custo por lead é `null` e a tela diz "informe o investimento".
 
-**`protecoes_cliente`** — registro de "cliente apresentado" para disputas na rede: `contato_hash` (hash do telefone normalizado, nunca o telefone), `conta_id`, `membro_id`, `imovel_id` (opcional), `valido_ate`. Só a existência e a validade são consultáveis por outra conta, nunca o dono (P-03).
-
 **`consentimentos`**: `contato_id`, `texto_versao`, `canal`, `aceito_em`, `ip_hash`, `revogado_em`.
 
 ### 6.3 Imóveis e autorização
@@ -549,26 +569,9 @@ Semente por pipeline. **Compra**: Novo (0,05) → Em atendimento (0,10) → Qual
 
 **`publicacoes`**: `peca_id`, `canal_social_id` ou `destino` (`pagina`/`portal:<nome>`/`rede`), `agendada_para`, `publicada_em`, `id_externo`, `url_externa`, `estado` (`agendada`/`enviando`/`publicada`/`falhou`/`removida`), `erro`, `metricas` (json atualizado pela rotina diária: alcance, impressões, curtidas, comentários, salvamentos, compartilhamentos, visualizações de vídeo).
 
-**`regras_publicacao`** — publicação automática: `gatilho` (`imovel_ativado`/`preco_reduzido`/`imovel_vendido`/`visita_aberta`/`calendario`), `tipos_peca`, `canais`, `aprovacao` (`manual`/`automatica`), `ativo`. É o que "divulga automaticamente".
+### 6.8 e 6.9 Rede e Incorporadora
 
-### 6.8 Rede
-
-**`conexoes`** (entre contas): `conta_a`, `conta_b`, `tipo` (`corretor`/`imobiliaria`/`incorporadora`/`fornecedor`), `estado` (`convite`/`ativa`/`recusada`/`bloqueada`), `convidada_em`, `aceita_em`.
-**`grupos_rede`**: `dono_conta_id`, `nome`, `regras` (json: regiões, tipos, faixa de preço), `membros` (lista conta). Ex.: "Corretores do Grande Colorado".
-**`compartilhamentos`**: `imovel_id`, `destino` (`conexao`/`grupo`/`rede_aberta`), `destino_id`, `divisao_pct_parceiro` (decimal, sobre a comissão), `mensagem`, `ativo_ate`. Só se `autorizacoes_venda.permite_parceria`.
-**`parcerias`** (L `PA-nnnn`): `imovel_id`, `conta_captadora`, `conta_vendedora`, `negocio_id` (do lado vendedor), `divisao` (json `{captador: 0,5, vendedor: 0,5}`), `estado` (`proposta`/`aceita`/`recusada`/`encerrada`), `ciencia_titular_id` (arquivo; obrigatório se exclusiva — 9.7), `termo_id` (arquivo). Origem: `parcerias`.
-**`perfis_rede`** (AE sim): cartão público do membro: nome, foto, CRECI, regiões, especialidades, imóveis compartilhados (contagem), avaliações de parceria (1–5, só após parceria encerrada).
-
-### 6.9 Incorporadora (módulo; herdado do canal UP do MVP)
-
-**`empreendimentos`** (S, AE sim por classificação): `nome`, `tipo` (`loteamento`/`vertical`/`horizontal`), `fase` (`lancamento`/`obras`/`pronto`), `cidade`, `regiao`, `descricao`, `materiais` (via `materiais`), `prazo_reserva_horas`, `alcada_desconto_pct`, `max_parcelas`, `entrada_min_pct`, `fonte_unidades` (`app`/`importacao`/`nucleo` — P-13). Origem: `empreendimentos`, `empreendimento`.
-**`unidades`**: `empreendimento_id`, `codigo` (ex. `Q1-03`), `agrupador` (quadra/torre), `area_m2`, `geometria` (GeoJSON em json), `posicao_esquema` (json para o SVG), `estado` (`disponivel`/`reservada`/`vendida`/`bloqueada`), `estado_desde`. Origem: `lotes` (36 no seed, 3 quadras).
-**`tabelas_preco`**: `empreendimento_id`, `versao`, `estado` (`rascunho`/`vigente`/`substituida`), `vigente_desde`, `publicada_por`. **`tabela_itens`**: `tabela_id`, `unidade_id`, `preco_c`, `condicoes` (json). Origem: `tabelas` (4 versões).
-**`credenciamentos`**: `empreendimento_id`, `conta_corretor_id`, `membro_id`, `estado` (`solicitado`/`habilitado`/`suspenso`), `pode_anunciar` (booleano), `decidido_por`. Origem: habilitação e autorizações do MVP.
-**`reservas`** (L `R-nnnn`): `unidade_id`, `negocio_id`, `membro_id`, `pedida_em`, `confirmada_em`, `vence_em` (= confirmada + prazo), `estado` (`pedida`/`ativa`/`vencida`/`convertida`/`cancelada`; `vencida` calculado na leitura quando `vence_em < agora`), `posicao_fila` (0 = titular). Origem: `reservas`.
-**`listas_espera`**: `unidade_id` ou critério (json), `membro_id`, `contato_id`, `criada_em`, `avisado_em`. Aviso quando a unidade volta a `disponivel`.
-**`excecoes`** (L `E-nnnn`): `proposta_id`, `tipo` (`desconto`/`parcelas`/`entrada`/`prazo`/`outro`), `desvio`, `justificativa`, `nivel` (`comercial`/`diretoria`, derivado da alçada), `estado` (`pendente`/`aprovada`/`recusada`), `decidido_por`, `decidido_em`.
-**`materiais`** (AE conforme): `empreendimento_id`, `arquivo_id`, `classificacao` (`publico`/`corretores`/`interno`), `versao`, `substitui_id`.
+Movidas para `specs/horizonte.md` (D-88): só entram no `schema.json` nas fases 5 e 7.
 
 ### 6.10 Proprietário, metas e comissões
 
@@ -664,26 +667,13 @@ Exclusão comum é soft-delete. Pedido do titular anonimiza (`nome` → "Contato
 |---|---|---|---|---|
 | membro_id | ref | sim | `paginas` | Uma por corretor; imobiliária pode ter a sua |
 | endereco | texto | sim | `paginas.slug` | `/p/<slug>`; domínio próprio em fase futura (P-21) |
-| tema | enum dos temas permitidos | sim | novo | Dentro do que a página pública aceita (sem tokens de tema; cores como dado) |
+| tema | enum dos temas permitidos | sim | novo | Dentro do que a página pública aceita (sem tokens de tema; cores como dado). **1.1:** sai da tela; a cor vem da marca única (D-85); a coluna fica, aditiva |
 | blocos | json | sim | `paginas.blocos` | Ordem e conteúdo: apresentação, destaques, imóveis, empreendimentos, depoimentos, sobre, bairros atendidos, formulário, WhatsApp, Instagram |
 | seo | json | não | novo | Título, descrição, imagem de compartilhamento |
 | publicada_em | data-hora | não | | |
 | gerada_por_ia | booleano | sim | novo | Primeira versão montada pelo Estúdio |
 
-**`templates_arte`** — modelos do Estúdio de Conteúdo.
-
-| Coluna | Tipo | Obr. | Observação |
-|---|---|---|---|
-| formato | enum `post_1x1`/`post_4x5`/`carrossel`/`story_9x16`/`reels_9x16`/`capa` | sim | |
-| objetivo | enum (6.7) | sim | Novo imóvel, baixou o preço, vendido… |
-| camadas | json | sim | Foto principal, preço, bairro, área, quartos, logo, foto e CRECI do corretor, selo, chamada |
-| motor | enum `interno`/`provedor`/`canva` | sim | D-27 |
-| ref_externa | texto | não | Id do template no provedor |
-| ativo | booleano | sim | |
-
 **`assistente_conversas`** e **`assistente_mensagens`** — o chat do corretor com o Assistente (A1): `membro_id`, `tela_origem`, `pergunta`, `resposta`, `fontes` (artigos de ajuda usados), `acao_proposta` (json), `acao_confirmada_em`, `util` (polegar), `creditos`.
-
-**`ajuda_produto`** — opcional: índice da documentação da app (`docs/`) usado pelo Assistente para citar a fonte e levar à tela certa; o conteúdo em si é o de `docs/`, o mesmo do widget de ajuda da plataforma (D-52).
 
 **`itens_cliente`** (AE sim por token) — concessão explícita do que cada cliente vê (4.5).
 
@@ -696,10 +686,6 @@ Exclusão comum é soft-delete. Pedido do titular anonimiza (`nome` → "Contato
 | concedido_em, revogado_em | data-hora | sim, não | Revogar some do portal na hora |
 
 Índice único (`acesso_cliente_id`, `tipo`, `alvo_id`). Todo envio ao cliente (`envios`) cria a concessão correspondente.
-
-**`canva_vinculos`** — separação por conta dentro da conta Canva da plataforma: `conta_id`, `pasta_canva_id`, `tipo` (`upload`/`design`), `id_canva`, `peca_id`, `criado_em`, `apagado_em`. O app só opera ids presentes aqui para a conta em questão.
-
-**`fila_render`**: `conta_id`, `peca_id`, `motor`, `prioridade` (`agendada`/`aprovada`/`rascunho`), `estado` (`na_fila`/`processando`/`pronta`/`erro`), `tentativas`, `erro`, `pronta_em`.
 
 **`pendencias_agendadas`** — conferência dos agendamentos feitos com `req.eventos.agendar` (publicação, lembrete, vencimento): `tipo`, `alvo_id`, `agendamento_id`, `executar_em`, `executado_em`, `atraso_seg`. A rotina diária usa para recuperar o que falhou.
 
@@ -1043,7 +1029,7 @@ Quatro capacidades (2.5), executadas pelo backend da app com `req.ia` (10.6), co
 
 **Saída:** posts, carrosséis, stories e capas de reels prontos; legendas; descrição para a página e para portais; roteiro de vídeo curto. Vídeo animado do Canva ou provedor na fase 3.
 
-**Publicação:** os três modos de 9.2 (agendar, publicar agora, baixar arquivos e agendar por fora), com aprovação manual, automática ou por janela.
+**Publicação:** os três modos de 9.2 (agendar, publicar agora, baixar arquivos e agendar por fora), com aprovação manual do corretor (sem aprovação por janela, D-86).
 
 **Landing page:** na primeira configuração o Estúdio monta a Minha Página com os visuais gerados, a apresentação, os imóveis marcados como públicos e o WhatsApp; o corretor ajusta blocos e textos (11.1).
 
@@ -1108,34 +1094,33 @@ Critério: todas as telas do corretor completas nas duas larguras; Portal do Cli
 
 ### 11.1 Telas do corretor
 
-**Início.** Fila do dia da Inteligência do Funil, nesta ordem: passagens do Mensageiro (resumo + "assumir"); quentes sem resposta; primeiros atendimentos correndo (cronômetro); visitas de hoje; abordagens vencidas; peças aguardando aprovação; prazos (autorizações, reservas, entregas). Faixa de números da semana: novos contatos, tempo médio de primeira resposta, visitas, propostas, previsão de comissão.
+Oito telas (5.1, D-81). O que já existe em 0.1.0 está documentado em `apps/portal_corretor/docs/`; o texto abaixo é o alvo da 1.1.
 
-**Conversas.** Caixa do WhatsApp dentro do app (e, depois, Instagram Direct). Filtros: minha vez, com o Mensageiro, aguardando cliente, encerradas. Na conversa: quem atende (Mensageiro ou corretor) com botão assumir/devolver; janela de 24 h; ficha lateral do contato com temperatura e próxima abordagem; enviar imóvel, seleção, arquivo, localização, link do portal, modelo; propor horários; áudio com transcrição; sugestões de resposta.
+**Início.** Duas abas, com a faixa da semana acima (contatos novos, leads, visitas feitas, comissão prevista). **Hoje:** a fila do dia da Inteligência do Funil, agrupada por motivo e nesta ordem: passagens do Mensageiro (bloco 7), quentes sem resposta, abordagens atrasadas, visitas de hoje e amanhã, próximos passos vencidos, peças aguardando aprovação, prazos (autorizações). Cada item traz nome, chip de temperatura, o motivo em uma linha e **um** botão: Fazer agora (abre a mensagem sugerida), Fiz ou Abrir. **Agenda:** as atividades pendentes dos próximos 14 dias, por dia (atrasadas, hoje, amanhã, seguintes), até existir primitivo de calendário (11.5). Sem grade de atalhos: o menu já leva às telas.
 
-**Funil.** A tela mais importante de análise.
-- **Quadro** por etapa (arrastar move; perdido pede motivo), com chips de temperatura (frio, morno, quente) e alertas (sem resposta há N dias, abordagem vencida).
-- **Filtros:** temperatura, etapa, origem, imóvel de interesse, abriu/não abriu os últimos envios, parado há N dias, responsável.
-- **Cartão do contato:** nome, etapa, temperatura com motivo, último envio e se abriu/clicou, próxima abordagem.
-- **Painel lateral** ao abrir um contato: linha do tempo completa (mensagens, envios com abertura e cliques, reações, visitas, propostas, ações do Mensageiro), **tudo que foi mandado** para ele num só lugar, perfil de busca, negócios, botão "próxima abordagem" e "perguntar ao Assistente sobre este cliente".
-- **Ações em lote:** mandar abordagem a vários frios, mover etapa, atribuir.
-- **Visão de conversão** (aba): funil da coorte com taxas entre etapas, tempo por etapa, motivos de perda, conversão por origem e por peça (KPIs de 11.2).
+**Conversas** (bloco 6). Caixa do WhatsApp dentro do app, no padrão da Lais: lista com chips de etiqueta, origem e status ("visita solicitada", "proposta"), filtros todas · não lidas · minha vez · com o Mensageiro · arquivadas, e o resumo do lead em uma frase. Na conversa: faixa "Mensageiro atende" ou "Você assumiu em …" com um botão (assumir / reativar Mensageiro); janela de 24 h; ficha lateral do contato com temperatura e próxima abordagem; enviar imóvel **como cartão** (foto, preço, bairro, botão "quero visitar"), seleção, arquivo, localização, link do portal, modelo; propor horários; áudio com transcrição (fase 3); sugestões de resposta.
 
-**Clientes.** Lista de todos os contatos com busca por nome e telefone, papéis, temperatura, origem; ficha completa; captação em 3 passos; importação CSV e da agenda do celular; consentimento.
+**Clientes.** Uma tela, duas visões:
+- **Lista:** todos os contatos, com busca por nome, telefone e e-mail, **filtros prontos** como chips (Novos · Sem contato · Quentes · Retorno vencido) e os filtros de papel (comprador, proprietário), temperatura e origem; estado na URL.
+- **Quadro:** o funil por etapa (arrastar move; perdido pede motivo), com chips de temperatura e aviso de abordagem atrasada; filtros de funil (compra, venda e captação), temperatura e "sem contato há N dias"; ações em lote (mover etapa) quando houver equipe.
+- **Ficha do contato:** no topo, **o resumo em uma frase** (temperatura com motivo, próxima abordagem, último contato) e três botões de IA — **Resumir** (resumo do histórico em até três frases, com as regras de privacidade do Assistente), **Mensagem sugerida** (a abordagem do playbook adaptada ao histórico pela IA; sem IA, o texto do playbook; **Fazer agora** abre o WhatsApp do celular com a mensagem e registra a abordagem) e **Virar tarefa** (cria a atividade com o prazo do playbook). Abaixo, a linha do tempo completa (mensagens, envios com abertura e cliques, reações, visitas, propostas, ações do Mensageiro) e, recolhidos, dados e próximo passo (com o consentimento em uma linha), negócios, seleções e portal, tudo que foi mandado, agenda. Botão "perguntar ao Assistente sobre este cliente". Captação em 3 passos; importação de planilha com modelos de outros CRMs (fase 2); exportação.
+- A **visão de conversão** fica em Desempenho (11.2), não aqui.
 
-**Imóveis.** Abas: Minha carteira · Empreendimentos · Da rede (fase 5). Cadastro rápido: fotos primeiro (o app sugere ordem e capa), depois dados com ditado por voz; a IA escreve a descrição. Ficha com qualidade (o que falta), autorização, envios a clientes, métricas, entregas ao proprietário. **Empreendimentos** cadastrados pelo próprio corretor: nome, construtora, endereço, fase, tipologias, faixas de preço, materiais (planta, tabela, memorial) enviáveis pelo Mensageiro.
+**Imóveis.** Uma tela com as abas **Carteira** e **Empreendimentos** (Da rede, fase 5). Carteira em grade de cartões (capa, preço, bairro, ícones de quartos, área e vagas, nota de qualidade, situação), com busca e filtro de situação. Cadastro rápido: fotos primeiro (o app sugere ordem e capa), depois dados com ditado por voz; a IA escreve a descrição. Ficha com **o que falta** no topo (a lista da qualidade 0–100) e, recolhidos, fotos e arquivos, descrição, autorização, visitas, envios a clientes, negócios; entregas ao proprietário na fase 3. **Empreendimentos** cadastrados pelo próprio corretor: nome, construtora, tipo, fase, local, faixa de preço, tipologias, materiais (planta, tabela, memorial) enviáveis pelo Mensageiro.
 
-**Conteúdo.** Abas: Criar · Calendário · Publicadas.
-- **Criar:** escolher imóvel ou empreendimento (ou subir fotos soltas) → escolher o que quer (post, carrossel, story, "pacote de lançamento" = 1 post + 1 carrossel + 3 stories) ou pedir em texto/voz → artes prontas em segundos → trocar foto, texto ou modelo → aprovar ou agendar.
-- **Calendário:** semana e mês, arrastar para remarcar, horários sugeridos, modo de aprovação por peça.
-- **Publicadas:** alcance, curtidas, cliques no link, contatos e visitas que vieram de cada peça.
+**Estúdio.** Um caminho principal e uma saída: a arte sai do **gerador do app** (modelo fixo com as fotos reais, os textos e a marca, D-74); quem preferir outra ferramenta usa **Fazer em outra ferramenta** (um botão: a instrução pronta e as fotos e o logo para baixar; a escolha da ferramenta — Canva, Claude Design, outra — muda só o texto) e **Enviar arte pronta** (D-86). Criar: pedido em texto com microfone (`urbi-redator`), imóvel, objetivo, formatos; pacote de lançamento. Cada peça é um cartão com prévia, situação e **uma ação principal por estado** (rascunho → Aprovar; aprovada → Publicar, com agora, agendar ou baixar; erro → Tentar de novo) e um menu "mais" (textos, refazer arte, outra ferramenta, enviar arte, voltar a rascunho, publiquei por fora, destravar). Sem aprovação por janela (D-86). Publicadas: alcance, cliques, contatos por peça, quando a fonte existir.
 
-**Minha Página.** Editor por blocos com pré-visualização em celular e computador lado a lado: escolher tema permitido, cores da marca, foto, apresentação, imóveis em destaque (automático ou escolhidos), empreendimentos, depoimentos, bairros atendidos, formulário, botões de WhatsApp e Instagram. Publicar; copiar link; ver visitas e contatos que vieram da página.
+**Minha Página.** Editor por blocos: endereço, apresentação, imóveis em destaque, todos os imóveis, sobre mim, bairros, formulário, WhatsApp e Instagram; a cor é a da **marca única** (Ajustes › Marca, D-85). Publicar; copiar link; "Atualizar agora" no menu "mais" (a página se atualiza sozinha). Visitas e contatos que vieram da página em Desempenho.
 
-**Mensageiro.** Configuração em 5 passos (10.3), conversa de teste, liga/desliga, e um painel: conversas atendidas, % resolvidas sem passagem, visitas e reuniões agendadas, passagens por motivo, custo do mês.
+**Desempenho.** Quatro números acima da dobra (leads, conversão total, vendas, comissão prevista) com o período na URL; abaixo, o funil da coorte, por origem e motivos de perda (11.2); comparação com o período anterior em texto pequeno. Tempo de primeiro atendimento, leads por horário e números do Mensageiro entram com os blocos 6 e 7.
 
-**Assistente.** Botão fixo em todas as telas, abre um painel de conversa (texto e voz) que sabe em que tela o corretor está.
+**Mensageiro** (bloco 7). Configuração em 5 passos (10.3), conversa de teste, liga/desliga, e um painel: conversas atendidas, % resolvidas sem passagem, visitas e reuniões agendadas, passagens por motivo, custo do mês com a **tabela de créditos por ação** (D-87).
 
-**Proprietários** (fase 3), **Rede** (fase 5), **Desempenho**, **Configurações** (conta e marca, WhatsApp, Instagram, agenda, funil e playbook, plano e consumo, dados e LGPD).
+**Assistente.** Último item do menu (D-76): dúvidas pelo manual, quem atender, sobre um cliente, e as duas ações com confirmação (lembrete e agendar peça). A IA do dia a dia fica nas telas (princípio 13).
+
+**Ajustes.** Uma tela com as abas **Conta** (CRECI, telefone, dados da conta), **Marca** (logo, cor principal, cor de apoio, foto, assinatura: uma marca para Estúdio, Minha página, seleção e portal, D-85), **Conexões** (Instagram; WhatsApp no bloco 6), **Funil e abordagens** (etapas e playbook) e **Atendimento** (cliente parado, validade da seleção, lembrete de visita; o prazo de primeiro atendimento volta à tela com o WhatsApp). Plano e consumo entra com o Mensageiro; dados e LGPD, com a fase 2.
+
+**Proprietários** (fase 3) e **Rede** (fase 5) entram com a fase.
 
 ### 11.2 KPIs de conversão (fonte, período, fórmula)
 
@@ -1187,7 +1172,7 @@ Todas as superfícies do cliente leem por token (página pública só GET) e tod
 
 ### 11.4 Incorporadora
 
-Herdado do MVP: Painel (disponíveis, reservas ativas, vencendo hoje, exceções pendentes, vendas do mês), Empreendimentos (dados, materiais por classificação, tabela versionada), Espelho (SVG esquemático por quadra/torre, cor por estado, clique abre unidade com preço da tabela vigente), Reservas (fila, confirmar, vencer), Corretores (credenciamento, autorização de anúncio), Exceções (alçada, decisão). Simulador de proposta na unidade: entrada, parcelas e valor da parcela calculados pela tabela vigente e pelos limites do empreendimento; fora dos limites, a proposta já nasce marcada para exceção. O corretor credenciado vê Espelho e Reservas em "Imóveis › De incorporadoras" e pede reserva e lista de espera dali.
+Movida para `specs/horizonte.md` (D-88).
 
 ### 11.5 Primitivos de UI por tela e lacunas
 
@@ -1195,20 +1180,20 @@ Telas autenticadas usam só primitivos `urbi-*` e tokens; as páginas públicas 
 
 | Tela | Primitivos principais |
 |---|---|
-| Início | `urbi-inbox-lista` (fila do dia), `urbi-kpi`, `urbi-card`, `urbi-badge` |
-| Conversas | `urbi-inbox`, `urbi-chat`, `urbi-redator` (anexos e microfone), `urbi-ficha` lateral |
-| Funil | `urbi-kanban` (quadro), `urbi-tabela` (lista), `urbi-ficha` (painel), `urbi-grafico-colunas` e `urbi-kpi` (conversão) |
-| Clientes | `urbi-tabela`, `urbi-ficha`, `urbi-feed` (linha do tempo), `urbi-planilha` (conferir importação) |
-| Imóveis e empreendimentos | `urbi-card`, `urbi-seletor-arquivo`, `urbi-visualizador-arquivo`, `urbi-mapa`, `urbi-formulario` |
-| Conteúdo | `urbi-card`, `urbi-lista` (peças), `urbi-avatar` + `urbi-visualizador-arquivo` (prévia e download da arte — exceção nomeada "cartão de arte", bloco 8a), `urbi-seletor-arquivo` (arte do Canva), diálogos `urbiVerso.formulario`; a arte é desenhada num canvas fora da tela (gerador do app) |
+| Início | `urbi-kpi` + `urbi-grid` (faixa, acima das abas), `urbi-abas` (Hoje · Agenda), `urbi-lista` (fila e agenda), `urbi-badge` (chips), `urbi-botao` |
+| Conversas (bloco 6) | `urbi-inbox`, `urbi-chat`, `urbi-redator` (anexos e microfone), `urbi-ficha` lateral, `urbi-badge` |
+| Clientes | `urbi-abas formato-desktop="botoes"` (Lista · Quadro), `urbi-tabela` (lista), `urbi-kanban` (quadro), `urbi-chips-atalho` ou `urbi-badge interativo` (filtros prontos), `urbi-ficha`, `urbi-feed` (linha do tempo), `urbi-planilha` (conferir importação), `urbi-dropdown` (menu "mais") |
+| Imóveis e empreendimentos | `urbi-abas` (Carteira · Empreendimentos), `urbi-grid` + `urbi-card` + `urbi-avatar` grande (cartão de imóvel, exceção D-65 até haver cartão com capa), `urbi-seletor-arquivo`, `urbi-visualizador-arquivo`, `urbi-formulario` |
+| Estúdio | `urbi-card` (peça) com `urbi-avatar` + `urbi-visualizador-arquivo` (prévia e download da arte — exceção nomeada "cartão de arte", bloco 8a), `urbi-dropdown` (menu "mais"), `urbi-redator` (pedido com microfone), diálogos `urbiVerso.formulario`; a arte é desenhada num canvas fora da tela (gerador do app) |
 | Minha Página | `urbi-card` + `urbi-linha` (blocos com subir, descer, mostrar e editar) e o diálogo `urbiVerso.formulario` (edição de cada bloco); a pré-visualização é a própria página pública aberta em outra aba depois de publicada (exceção nomeada, bloco 5a) |
-| Mensageiro | `urbi-abas` (5 passos), `urbi-toggle`, `urbi-chat` (conversa de teste), `urbi-kpi` |
-| Assistente | `urbi-chat` com áudio em painel `urbi-modal` ou `urbi-hospedeiro` |
+| Mensageiro (bloco 7) | `urbi-abas` (5 passos), `urbi-toggle`, `urbi-chat` (conversa de teste), `urbi-kpi` |
+| Assistente | `urbi-chat` em tela própria (D-76) |
 | Desempenho | `urbi-kpi`, `urbi-grafico-linha`, `urbi-grafico-colunas`, `urbi-tabela` |
-| Portal do Cliente | `urbi-card`, `urbi-feed`, `urbi-visualizador-arquivo`, `urbi-botao` |
+| Ajustes | `urbi-abas` (Conta · Marca · Conexões · Funil e abordagens · Atendimento), `urbi-card`, `urbi-formulario`, `urbi-tabela` (etapas e playbook) |
+| Portal do Cliente e seleção | Páginas públicas com CSS próprio: cartões com foto dominante, linha do tempo vertical, botões grandes |
 | Espelho (fase 5) | `urbi-espelho` |
 
-**Lacunas a registrar como exceção nomeada ou pedir como primitivo novo:** calendário (agenda de visitas e calendário editorial; até lá, lista por dia com `urbi-lista`); galeria de fotos (até lá, miniatura com `urbi-avatar` e prévia com `urbi-visualizador-arquivo` — D-65); pré-visualização da Minha Página dentro do editor (moldura com a página pública); cartão de arte com proporção fixa (1:1, 4:5, 9:16).
+**Lacunas a registrar como exceção nomeada ou pedir como primitivo novo:** calendário (agenda de visitas e calendário editorial; até lá, lista por dia com `urbi-lista`); galeria de fotos (até lá, miniatura com `urbi-avatar` e prévia com `urbi-visualizador-arquivo` — D-65); **cartão com capa** para as telas autenticadas (o `urbi-card` do SDK 100 não aceita imagem — pedido ao shell 7); estado da aba do `urbi-abas` na URL (a app faz à mão com `replaceState` — pedido ao shell 8); pré-visualização da Minha Página dentro do editor (moldura com a página pública); cartão de arte com proporção fixa (1:1, 4:5, 9:16).
 
 ## 12. Importação, exportação e migração
 
@@ -1300,6 +1285,13 @@ Estimativa em sessões de implementação com o kit do UrbiVerso. Cada fase só 
 | Estúdio: post, carrossel, story, legendas, motor Canva | ✅ | | | | | | |
 | Estúdio: vídeo, edição de foto, mobília virtual, calendário sugerido | — | — | ✅ | | | | |
 | Publicar agora / agendar / baixar arquivos | ✅ | | | | | | |
+| 1.1: menu de oito telas, Ajustes e marca únicos, filtros prontos, resumo em uma frase, cartão de imóvel (15.8, 15.9) | ✅ | | | | | | |
+| 1.1: Resumir com IA, mensagem sugerida com Fazer agora, tarefa com um toque (slot `funil`) | ✅ | | | | | | |
+| Aprovação de conteúdo por janela | sai (D-86) | | | | | | |
+| Modelos de importação de outros CRMs | — | ✅ | | | | | |
+| Portal: próximo passo, datas-chave, o que falta de você | — | — | ✅ | | | | |
+| Remarketing, avaliação no Google, descrições em lote, alerta de anúncio parado | — | — | ✅ | | | | |
+| Tabela de créditos por ação de IA | com o bloco 7 (D-87) | | | ✅ cobrança | | | |
 | Facebook | — | — | — | ✅ | | | |
 | TikTok, YouTube, LinkedIn, Google | — | — | — | — | — | ✅ | |
 | Minha Página por blocos | ✅ | | | | | ➕ domínio próprio, blog, SEO | |
@@ -1327,14 +1319,14 @@ Estimativa em sessões de implementação com o kit do UrbiVerso. Cada fase só 
 |---|---|
 | Conta e acesso | Cadastro do corretor com CRECI (verificação manual), marca, papéis `dono_conta`, `agente`, `operador_plataforma`, cliente externo por token; **segmentação completa (4.5)** |
 | Assistente (A1) | Chat em todas as telas; dúvidas do produto com base nos `docs/` da app; ajuda a decidir; lembretes, tarefas e agendamentos de posts com confirmação |
-| CRM e funil | Contatos, negócios, etapas configuráveis, temperatura com motivo, próxima abordagem com playbook semeado, fila do dia, linha do tempo, envios com abertura e clique, tarefas, agenda, visitas, importação CSV, exportação |
-| Imóveis e empreendimentos | Cadastro com fotos primeiro, descrição por IA, qualidade, autorização de venda anexada, empreendimentos cadastrados pelo corretor com materiais |
+| CRM e funil | Contatos, negócios, etapas configuráveis, temperatura com motivo, próxima abordagem com playbook semeado, fila do dia, linha do tempo, envios com abertura e clique, tarefas, agenda, visitas, importação CSV, exportação. **1.1:** Funil como visão Quadro de Clientes, Agenda como aba do Início, filtros prontos, resumo em uma frase, **Resumir com IA**, **mensagem sugerida com Fazer agora** e **tarefa com um toque** |
+| Imóveis e empreendimentos | Cadastro com fotos primeiro, descrição por IA, qualidade, autorização de venda anexada, empreendimentos cadastrados pelo corretor com materiais. **1.1:** uma tela com abas, grade de cartões, "o que falta" no topo da ficha |
 | WhatsApp | Conexão por cadastro incorporado com coexistência; caixa de conversas no app; envio de imóvel, seleção, arquivo, localização, link do portal; modelos básicos; janela de 24 h |
 | Mensageiro (A2) | Configuração em 5 passos; texto; responder dúvidas, enviar imóveis, arquivos e seleções, agendar visitas e reuniões, link do portal; cada ação em "pergunta antes" ou "faz sozinho"; passagem com resumo; conversa de teste; custo visível |
-| Conteúdo (A4) | Pedido em texto ou voz; motor de arte Canva para post, carrossel e story com a marca; legendas; pacote de lançamento; biblioteca de arquivos para baixar quantas vezes quiser; aprovação manual e por janela; **agendar** (mecanismo de 9.8), **publicar agora**, **baixar arquivos** |
-| Página | Minha Página por blocos montada pelo Estúdio e editável; ficha pública do imóvel; formulário por webhook |
-| Cliente | Portal do Cliente comprador e seleções com reação, no celular |
-| Números | KPIs da 11.2 |
+| Conteúdo (A4) | Pedido em texto ou voz; gerador do app (D-74) para post, carrossel e story com a marca, mais "Fazer em outra ferramenta" e "Enviar arte pronta" (D-86); legendas; pacote de lançamento; biblioteca de arquivos para baixar quantas vezes quiser; aprovação manual (sem janela, D-86); uma ação principal por estado; **agendar** (mecanismo de 9.8), **publicar agora**, **baixar arquivos** |
+| Página | Minha Página por blocos montada pelo Estúdio e editável; ficha pública do imóvel; formulário por webhook. **1.1:** cor da marca única (D-85) |
+| Cliente | Portal do Cliente comprador e seleções com reação, no celular. **1.1:** cartões com foto dominante; próximo passo, datas-chave e "o que falta de você" na fase 3 |
+| Números | KPIs da 11.2; **1.1:** quatro números acima da dobra |
 
 **Fica de fora do MVP:** tudo marcado "—" na coluna F1 da 15.0.
 
@@ -1347,13 +1339,13 @@ Estimativa em sessões de implementação com o kit do UrbiVerso. Cada fase só 
 6. **Ajuda:** o Assistente responde corretamente as 30 perguntas mais comuns do roteiro de teste.
 7. **Instalação:** a app instala e atualiza na instância intermediária sem reprovação (identidade, pisos, schema, migrações).
 
-**Estimativa:** 10 a 12 sessões. **Se precisar cortar**, nesta ordem: aprovação por janela, carrossel, importação CSV, Portal do Cliente (fica só a seleção).
+**Estimativa:** 10 a 12 sessões. **Se precisar cortar**, nesta ordem: carrossel, importação CSV, Portal do Cliente (fica só a seleção). A aprovação por janela saiu de vez em 23/10 (D-86).
 
 ### 15.2 Fase 2 — Validação com corretores reais: "MVP validado"
 
 **Pré-requisitos:** app registrado na Meta com verificação da empresa titular e acesso avançado (9.8, item 1); termos de uso, política de privacidade e consentimentos publicados; suporte definido.
 
-**Como:** 3 a 5 corretores reais, cada um com o próprio WhatsApp, Instagram e clientes, por 4 semanas, usando o escopo do MVP. Acompanhamento semanal; ajustes de tela, texto, IA e automação.
+**Como:** 3 a 5 corretores reais, cada um com o próprio WhatsApp, Instagram e clientes, por 4 semanas, usando o escopo do MVP. Acompanhamento semanal; ajustes de tela, texto, IA e automação. Entra a importação com **modelos de outros CRMs** (Kenlo, Jetimob, Imobzi, planilha simples; 15.8).
 
 **MVP validado quando:** cada corretor conectou WhatsApp e Instagram sem ajuda da equipe; publicou pelo menos 8 peças; o Mensageiro atendeu clientes reais sem nenhuma ação proibida; o tempo médio de primeira resposta caiu em relação ao início; nenhum incidente de vazamento entre contas; os corretores dizem que continuariam usando.
 
@@ -1361,23 +1353,74 @@ Estimativa em sessões de implementação com o kit do UrbiVerso. Cada fase só 
 
 ### 15.3 Fase 3 — "relacionamento completo e proprietário"
 
-Portal do Cliente **proprietário** com entregas, metas do imóvel, visitas com retorno revisado, propostas e comissão combinada; relatório semanal; propostas com versões. Mensageiro com **áudio**, follow-up e reativação, simulação de financiamento, agente do proprietário. Estúdio com **vídeo**, edição de foto e mobília virtual rotulada, calendário editorial sugerido. Atribuição de conteúdo a visita. **Estimativa:** 8 a 10 sessões.
+Portal do Cliente **proprietário** com entregas, metas do imóvel, visitas com retorno revisado, propostas e comissão combinada; relatório semanal; propostas com versões. Mensageiro com **áudio**, follow-up e reativação, simulação de financiamento, agente do proprietário. Estúdio com **vídeo**, edição de foto e mobília virtual rotulada, calendário editorial sugerido. Atribuição de conteúdo a visita. **Das referências principais (15.8):** Portal com próximo passo, datas-chave e "o que falta de você" (Compass One); remarketing para a base com cota e pedido de avaliação no Google no pós-atendimento (Lais); descrições em lote e alerta de anúncio parado com sugestão (Kenlo, Lais); comportamento do contato identificado na Minha Página e na seleção, e aviso de imóveis novos compatíveis (Follow Up Boss, Compass One). **Estimativa:** 8 a 10 sessões.
 
 ### 15.4 Fase 4 — "equipe, metas e comissões"
 
-Imobiliária com dono, gestor e corretores; fila compartilhada e reatribuição; metas com ritmo; comissões com divisões e recebimentos; Facebook, Instagram Direct e Messenger na mesma caixa; painel do gestor; planos e cobrança (P-11). **Estimativa:** 6 a 7 sessões.
+Imobiliária com dono, gestor e corretores; fila compartilhada e reatribuição; metas com ritmo; comissões com divisões e recebimentos; Facebook, Instagram Direct e Messenger na mesma caixa; painel do gestor; planos e cobrança (P-11); Portal com a equipe do negócio e contato de cada um (Compass One, 15.8). **Estimativa:** 6 a 7 sessões.
 
-### 15.5 Fase 5 — "rede e incorporadoras"
+### 15.5 a 15.7 — Fases 5, 6 e 7
 
-Conexões, grupos, perfil público, compartilhamento de imóvel e de necessidade de comprador, match, parcerias com termo e divisão, proteção de cliente; módulo Incorporadora completo. **Estimativa:** 6 a 7 sessões.
+Movidas para `specs/horizonte.md` (D-88): rede e incorporadoras, expansão de canais e futuro. A spec descreve as fases 1 a 4. Dos itens das referências, a busca da carteira com mapa fica na fase 6 e o diagnóstico gratuito "quanto vale seu imóvel", na fase 7 (15.8).
 
-### 15.6 Fase 6 — "expansão de canais"
+### 15.8 Itens incorporados das referências principais
 
-TikTok, YouTube Shorts, LinkedIn, Google; portais (feed e leads); assinatura eletrônica; agenda externa; domínio próprio, blog e SEO; Portal do Comprador pós-venda. **Estimativa:** 6 a 8 sessões.
+As cinco referências principais (Compass One, Follow Up Boss, Morada.ai, Lais, Kenlo) estão detalhadas em `specs/referencias_principais.md` (D-80). Itens e a fase de cada um, revista em 23/10 (1.1):
 
-### 15.7 Fase 7 — "futuro"
+| Item | Referência | Fase | Onde |
+|---|---|---|---|
+| Resumo do contato em um clique; mensagem sugerida com Fazer agora; tarefa com um toque | Follow Up Boss | MVP (1.1) | Ficha do contato, Início |
+| Filtros prontos (Novos · Sem contato · Quentes · Retorno vencido) | Follow Up Boss | MVP (1.1) | Clientes |
+| Resumo em uma frase no topo da ficha; chips de temperatura, etapa e origem | Lais | MVP (1.1) | Ficha, lista, quadro, fila |
+| Cartão de imóvel com nota; foto dominante nas páginas públicas | Kenlo, imagem 1 | MVP (1.1) | Imóveis, seleção, portal, ficha pública |
+| IA no lugar onde se trabalha (princípio 13) | Follow Up Boss | MVP (1.1) | Toda tela |
+| Etiquetas, origem e status em cada conversa; filtros todas/não lidas/arquivadas | Lais | Bloco 6 | Conversas |
+| Imóvel enviado como cartão no WhatsApp (foto, preço, bairro, botão) | Lais | Bloco 6 | Conversas |
+| Origem do anúncio gravada a partir da primeira mensagem (dados de referência da Meta) | Morada | Bloco 6 | `origens` |
+| Leads por horário em Desempenho | Lais | Bloco 6 | Desempenho |
+| Aviso "corretor assumiu" e botão "reativar Mensageiro" | Lais | Bloco 7 | Conversas |
+| Resumo do lead em uma frase pelo Mensageiro | Lais | Bloco 7 | Conversas |
+| Tabela de créditos por ação de IA (medição) | Kenlo | Bloco 7 (D-87) | Plano e consumo |
+| Migração assistida: modelos de importação de outros CRMs | Follow Up Boss, Kenlo | F2 | Clientes › Importar |
+| Portal: próximo passo, datas-chave, o que falta de você | Compass One | F3 | Portal do Cliente |
+| Remarketing para a base, com cota | Lais | F3 | Mensageiro |
+| Pedido de avaliação no Google no pós-atendimento e pós-venda | Lais | F3 | Mensageiro |
+| Descrições em lote; alerta de anúncio parado com sugestão | Kenlo, Lais | F3 | Imóveis |
+| Comportamento do contato na Minha Página e na seleção | Follow Up Boss | F3 | Ficha do contato |
+| Aviso de imóveis novos compatíveis | Compass One | F3 | Portal e WhatsApp |
+| Portal: equipe do negócio com contato | Compass One | F4 | Portal do Cliente |
+| Busca da carteira com mapa | Kenlo | F6 (era F3) | Imóveis |
+| Diagnóstico gratuito "quanto vale seu imóvel" | Morada | F7 (era F6) | Minha Página |
+| Listas salvas pelo corretor | Follow Up Boss | **sai**: os filtros prontos bastam | — |
+| Treinamento curto e comunidade | Follow Up Boss, Kenlo | **sai da spec**: é tarefa do dono, no plano | — |
 
-Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; rede entre instalações e SGR do COFECI; leitura opcional do núcleo UP/Urbitá; app nativo se o shell não atender.
+### 15.9 O que sai e por quê (1.1, 23/10/2026)
+
+Direção do dono: melhorar funcionalidade e visual sem aumentar a complexidade; retirar e manter só o essencial. Cada linha vira uma issue (`specs/plano_de_implementacao.md`, fase 1.5; guarda-chuva #49, blocos #50 a #62).
+
+| # | Sai | Era (0.1.0) | Passa a ser | Por quê |
+|---|---|---|---|---|
+| S1 | Tela **Funil** no menu | tela própria | visão Quadro em Clientes (mesmos dados, mesmo arrastar) (D-83) | Duas telas para o mesmo cliente; Follow Up Boss e Kenlo mostram lista e quadro como visões de uma coisa só |
+| S2 | Tela **Agenda** no menu | tela própria | aba do Início (D-82) | O Início já lista visitas de hoje e amanhã; a agenda de 14 dias é a continuação natural |
+| S3 | **Empreendimentos** no menu | item do grupo Imóveis | aba em Imóveis (D-84) | Secundário para o corretor autônomo |
+| S4 | Três telas de **Ajustes** | grupo com 3 itens | uma tela com abas | Configuração é lugar de passagem, não de trabalho |
+| S5 | **Aprovação por janela** | ajuste + estado "rascunho agendado" + regras no agendar, cancelar e destravar | sai de vez (ajuste, estados e textos), com migração em dois releases (D-86) | Estado a mais no Estúdio; a 15.1 já listava como primeiro corte; nenhuma das cinco referências tem isso |
+| S6 | **Cinco caminhos de arte** (issues #43 a #48) | gerador e Canva IA no código, mais Claude Design, Design da plataforma, CSV e API do Canva propostos | gerador do app + **Fazer em outra ferramenta** + **Enviar arte pronta** (D-86) | Mesmo resultado (um arquivo na peça) com um fluxo só |
+| S7 | **Doze botões por peça** no Estúdio | todos visíveis | uma ação principal por estado e menu "mais"; Rejeitar vira Voltar a rascunho; o microfone fica no campo do pedido | Princípio 14 |
+| S8 | **Cores da Minha página** (5 temas) e marca em dois lugares | Estúdio › Sua marca e tema da página | uma marca em Ajustes › Marca para Estúdio, Minha página, seleção e portal (D-85) | Uma configuração, quatro superfícies iguais |
+| S9 | Ajuste **prazo de primeiro atendimento** | campo sem efeito até o WhatsApp | sai da tela até o bloco 6 | Não mostrar o que não faz nada |
+| S10 | **Grade de atalhos** do Início | quatro botões | sai | O menu já faz isso |
+| S11 | **Papéis do contato** na tela (investidor, parceiro, fornecedor) | cinco no filtro e no cadastro | tela mostra comprador e proprietário; os outros ficam no dado (fase 5) | Rede é fase 5 |
+| S12 | **Consentimento** como seção da ficha | seção própria | uma linha em Dados | Menos seções |
+| S13 | "**Atualizar agora**" da Minha página como botão principal | botão visível | menu "mais" | A página já se atualiza sozinha |
+| S14 | Da spec: fases 5 a 7, seções 6.8, 6.9 e 11.4, tabelas sem dono | no corpo da spec | `specs/horizonte.md` (D-88) | A spec descreve o produto que queremos |
+| S15 | **Listas salvas** (referências, F3) | — | sai: os filtros prontos bastam (D-83) | Mais uma coisa para o corretor manter |
+| S16 | **Busca com mapa** (F3) | — | fase 6 | A carteira do autônomo cabe numa lista |
+| S17 | **Diagnóstico gratuito** (F6) | — | fase 7 | Isca de captação de incorporadora |
+| S18 | **Treinamento e comunidade** (F2) | — | tarefa do dono no plano | Não é software |
+| S19 | **Tabela de créditos** no MVP | — | junto com o Mensageiro (D-87) | Medir sem cobrar é ruído |
+
+**Não é visível, mas também sai:** o Web Speech próprio do Estúdio (o `urbi-redator` já tem microfone); o ZIP do pacote de briefing (não há dependência nem API nativa que o monte; a instrução copiável e as fotos para baixar bastam).
 
 ## 16. Registro de decisões
 
@@ -1444,8 +1487,8 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-59 | WhatsApp espera P-31 e P-32 no SDK publicado; parceiro (caminho B) só por nova decisão do dono | Adotar parceiro já | Decisão do dono |
 | D-60 | Canva com conta e credenciais providas pelo dono até o bloco 8; sem elas, o Estúdio começa pelo motor interno (D-35) | Bloquear o bloco 8 | A plataforma não tem integração com o Canva: a app integra por `fetch()` |
 | D-61 | Equipe da plataforma (papel `operacao`) tem no `nav` o grupo "Equipe da plataforma › Corretores"; quem só tem `operacao` abre o Início direto nessa tela | Tela de equipe só em `telas_config` | A equipe convida corretores pelo app (provisionamento por convite) e não tem carteira própria |
-| D-62 | **Agenda** entra no `nav` do corretor (entre Clientes e Ajustes) já no bloco 2, como lista por dia das atividades pendentes dos próximos 14 dias (19/10, bloco 2) | Agenda só dentro do Início e da ficha do contato | Visitas e retornos são o dia a dia do corretor; o Início do bloco 4 continua mostrando as do dia. Lista por dia segue a lacuna de calendário (11.5) |
-| D-63 | Imóveis no `nav` como grupo "Imóveis › Minha carteira · Empreendimentos" (Da rede entra na fase 5); empreendimento do corretor simplificado (nome, construtora, tipo, fase, local, faixa de preço, tipologias, descrição) com materiais em `empreendimento_materiais`; as tabelas de incorporadora de 6.9 ficam para o módulo (19/10, bloco 3) | Abas dentro de uma tela; já criar `unidades`, `tabelas_preco` etc. | Duas telas com rota própria são mais simples no celular; 11.1 pede para o MVP só o cadastro do próprio corretor |
+| D-62 | **Agenda** entra no `nav` do corretor (entre Clientes e Ajustes) já no bloco 2, como lista por dia das atividades pendentes dos próximos 14 dias (19/10, bloco 2). **Revista por D-82 (23/10): vira aba do Início.** | Agenda só dentro do Início e da ficha do contato | Visitas e retornos são o dia a dia do corretor; o Início do bloco 4 continua mostrando as do dia. Lista por dia segue a lacuna de calendário (11.5) |
+| D-63 | Imóveis no `nav` como grupo "Imóveis › Minha carteira · Empreendimentos" (Da rede entra na fase 5) — **revista por D-84 (23/10): uma tela com abas**; empreendimento do corretor simplificado (nome, construtora, tipo, fase, local, faixa de preço, tipologias, descrição) com materiais em `empreendimento_materiais`; as tabelas de incorporadora de 6.9 ficam para o módulo (19/10, bloco 3) | Abas dentro de uma tela; já criar `unidades`, `tabelas_preco` etc. | Duas telas com rota própria são mais simples no celular; 11.1 pede para o MVP só o cadastro do próprio corretor |
 | D-64 | Documento da autorização de venda é uma `imovel_midias` do tipo `documento` (sempre interna), referenciada por `autorizacoes_venda.documento_midia_id`; `vencida` é calculada na leitura (sem rotina por ora); `visitas` sem `pretendente_id` (o contato vem da atividade) nem `ficha_assinada` (fase 3) (19/10, bloco 3) | Coluna `arquivo` na própria autorização | Coluna `arquivo` não obrigatória expira em 90 dias (TTL da plataforma); a mídia obrigatória vive enquanto a linha viver |
 | D-65 | Miniatura de foto nas telas pelo `urbi-avatar` (`foto` + `tamanho`) e prévia pelo `urbi-visualizador-arquivo` — exceção nomeada até existir primitivo de galeria (11.5) (19/10, bloco 3) | CSS próprio de galeria | Telas autenticadas só com primitivos `urbi-*` |
 | D-66 | Mídia do imóvel e material do empreendimento são apagados de vez por `PATCH …/remover` (o arquivo vai para a fila de exclusão); imóvel, contato e empreendimento seguem com soft delete (19/10, bloco 3) | Soft delete em `imovel_midias` | Foto apagada não tem uso e ocupa espaço da conta; a rota do app chama `req.dados.deletar`, que leva os anexos para a fila de exclusão na mesma transação (`banco-de-dados.md`, `arquivos.md`) e o `DELETE` HTTP continua só do admin |
@@ -1462,6 +1505,15 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | D-77 | Lembrete de visita (bloco 10a): para o corretor, por notificação da plataforma (`ctx.notificacoes.notificar`), N horas antes (`lembrete_visita_horas`, padrão 24, 0 desliga); evento segregado `lembrete_visita` agendado ao criar e ao remarcar, sem guardar o id: o listener confere a visita (pendente, mesma hora, ainda não lembrada). Lembrete ao cliente fica para o WhatsApp (blocos 6 e 7) | Regra configurável pelo Assistente; cancelar o agendamento a cada remarcação | Spec 15.1 item 4; sem WhatsApp não há canal com o cliente |
 | D-78 | Release **0.1.0** = MVP interno **sem WhatsApp e sem Mensageiro** (blocos 6 e 7): eles dependem de P-31/P-32, que o SDK 100 não atende, e a alternativa do parceiro da Meta exige decisão do dono, que mandou seguir pelo caminho mais simples. Entram numa versão seguinte, quando o shell atender os pedidos 1 e 2 ou o dono decidir pelo parceiro. Os critérios 2 e 4 da 15.1 ficam parciais e registrados no R.8; a tabela de conferência `pendencias_agendadas` (6.15) também fica para depois (o atraso se anota à mão no R.8); a versão interna 0.12.0 volta a 0.1.0 (D-69) (19/10) | Esperar o WhatsApp para o primeiro release | Ordem do dono (19/10): terminar o MVP pelo caminho mais simples, fazer o merge e esperar a ordem do release |
 | D-79 | Quem atende várias contas (o admin do app, por exemplo) trabalha numa conta de cada vez: a ativa, escolhida no seletor e enviada em `X-Conta`. O app recusa com `400 CONTA_NAO_INFORMADA` a chamada sem ela (leitura inclusive, exceto `/equipe` e `/status`), porque ler sem conta ativa misturaria contas; `req.dados` passa a enxergar só a conta ativa nas tabelas segregadas. Com uma conta só nada muda. | Isolamento; decidido na revisão do PR #36 |
+| D-80 | Compass One, Follow Up Boss, Morada.ai, Lais e Kenlo são as referências principais de tela, funcionalidade e automação (`specs/referencias_principais.md`); o app copia um padrão de cada uma (2.7); itens e fases em 15.8 (18/10, confirmada em 23/10) | Referências difusas | Escolha do dono |
+| D-81 | Menu do corretor com oito itens: Início · Clientes · Imóveis · Estúdio · Minha página · Desempenho · Assistente · Ajustes; Conversas entra com o bloco 6; as rotas antigas viram apelidos no mapa de telas, porque o SDK não redireciona (23/10) | Treze entradas (0.1.0) | Uma tela por pergunta (princípio 14); no celular o menu é um dropdown |
+| D-82 | Agenda é aba do Início, não tela do menu (revê D-62) (23/10) | Tela própria | O Início já é o dia; a lista de 14 dias é a continuação |
+| D-83 | Funil é a visão Quadro de Clientes e a tela Funil sai do menu; filtros prontos (Novos · Sem contato · Quentes · Retorno vencido) no lugar de listas salvas (23/10) | Tela própria; listas salvas (F3) | Lista e quadro são duas visões do mesmo cliente (Follow Up Boss, Kenlo) |
+| D-84 | Imóveis é uma tela com abas Carteira · Empreendimentos (revê D-63); carteira em grade de cartões; foto dominante só nas páginas públicas até o shell oferecer cartão com capa (pedido ao shell 7) (23/10) | Duas entradas no menu; foto dominante em toda tela | O `urbi-card` do SDK 100 não aceita imagem e a tela não escreve CSS |
+| D-85 | Marca única em Ajustes › Marca (logo, cor principal, cor de apoio, foto, assinatura) alimenta Estúdio, Minha página, seleção e portal; a escolha de tema da Minha página sai da tela (a coluna fica, aditiva; migração leva a cor do tema para a marca) (23/10) | Marca no Estúdio e tema na página | Uma configuração, quatro superfícies iguais |
+| D-86 | Estúdio com um caminho principal (gerador do app, D-74) mais "Fazer em outra ferramenta" (instrução e fotos para qualquer editor: Canva, Claude Design, outro; sem ZIP) e "Enviar arte pronta"; cada peça com uma ação principal por estado e menu "mais"; **sem aprovação por janela** (ajuste, estados e textos saem; migração em dois releases pela doutrina do SDK); consolida #43 a #48: #44 e #45 entram aqui, #46 não é planejada, #47 e #48 ficam adiadas para depois da fase 2 (23/10) | Cinco caminhos de arte; aprovação por janela | Mesmo resultado com um fluxo só; nenhuma das cinco referências tem janela; a 15.1 já a listava como primeiro corte |
+| D-87 | Tabela de créditos por ação de IA entra junto com o Mensageiro (bloco 7), em Plano e consumo, não antes (23/10) | Medição já no MVP | Hoje só há slots incluídos no plano; medir sem cobrar é ruído |
+| D-88 | Fases 5 a 7, seções 6.8, 6.9 e 11.4 e as tabelas sem dono (`templates_arte`, `fila_render`, `canva_vinculos`, `regras_publicacao`, `protecoes_cliente`, `ajuda_produto`) saem da spec para `specs/horizonte.md`, na íntegra; voltam quando a fase chegar (23/10) | Tudo na spec | A spec descreve o produto que queremos (fases 1 a 4) |
 
 ## 17. Pendências
 
@@ -1538,6 +1590,8 @@ O que as referências pesquisadas em 17/10/2026 mostram e onde isso entrou na sp
 **R5 · Economia do corretor e do canal.** Cofeci/DataZAP 2025: cerca de 650 mil corretores no Brasil, poucas transações por corretor por ano em comparação com os EUA, tempo de venda muito maior e renda média baixa (paraibabusiness.com.br). WhatsApp Business Platform: cobrança por mensagem desde 01/07/2025; contas novas no Brasil faturadas em BRL desde julho/2026 (developers.facebook.com); mensagem de utilidade da ordem de centavos de real (fonte secundária). → Princípio 10, consumo por conta, categoria de cobrança gravada em cada mensagem, modo `rascunho` ao atingir cota.
 
 **R6 · Regras legais.** Lei 6.530/78, art. 20: vedado anunciar sem autorização escrita e sem o número de inscrição (creci-sc.gov.br). Código de Ética, Res. COFECI 326/92: vedado desviar cliente e aceitar transação entregue a outro corretor sem ciência escrita (legisweb.com.br). LGPD. → 9.7, D-07, D-17, D-20, 6.14.
+
+**R7 · Referências principais (18/10, D-80).** Compass One (painel do cliente com linha do tempo, datas-chave, tarefas e documentos; o corretor controla o que o cliente vê), Follow Up Boss (listas inteligentes, planos de ação, resumos, tarefas e mensagens sugeridas, IA incluída no plano), Morada.ai (IA que qualifica em segundos, agenda e atualiza o CRM; copiloto do corretor; painéis por canal), Lais (caixa do WhatsApp com etiquetas, origem, status e resumo; "fulano assumiu a conversa" e "reativar"; app Casa da Lais) e Kenlo (LYA com créditos por ação, funil visual, descrições por IA, mais de 100 portais). Detalhe em `specs/referencias_principais.md`; o que entrou e em que fase, em 15.8; o que saiu, em 15.9.
 
 **Lacunas do MVP cobertas por estas referências:** cronômetro e reatribuição do primeiro atendimento; lista de espera de unidade; relacionamento pós-venda; simulador pela tabela (fase 6, na proposta); ficha de visita; verificação de CRECI; importação de contatos; custo por origem.
 
