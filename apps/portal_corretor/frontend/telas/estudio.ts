@@ -33,8 +33,6 @@ export class PcTelaEstudio extends LitElement {
   @state() private falha: string | null = null;
   @state() private trabalhando: string | null = null;
   @state() private ouvindo = false;
-  /** Aprovação por janela (Ajustes › Atendimento): o rascunho pode ser agendado. */
-  @state() private janela = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -44,10 +42,9 @@ export class PcTelaEstudio extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      const [p, m, c] = await Promise.all([chamarApi('/estudio/pecas'), chamarApi('/estudio/marca'), chamarApi('/conta').catch(() => null)]);
+      const [p, m] = await Promise.all([chamarApi('/estudio/pecas'), chamarApi('/estudio/marca')]);
       this.pecas = p.dados;
       this.marca = m;
-      this.janela = c?.configuracoes?.modo_aprovacao_conteudo === 'janela';
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -350,7 +347,6 @@ export class PcTelaEstudio extends LitElement {
             : ''}
           ${p.formato === 'story' && p.motor !== 'interno' && ['aprovada', 'erro'].includes(p.estado) ? html`<urbi-prosa papel="dica">Story com arte do Canva ou enviada: confira o CRECI na arte, publique pelo Instagram e use "Publiquei por fora".</urbi-prosa>` : ''}
           ${p.estado === 'publicando' ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-unlock" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/destravar`), 'Peça destravada: confira no Instagram.')}>Ainda publicando? Destravar</urbi-botao>` : ''}
-          ${p.estado === 'rascunho' && this.janela && !(p.formato === 'story' && p.motor !== 'interno') ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-plus" @click=${() => this.agendar(p)}>Agendar (aprova na hora)</urbi-botao>` : ''}
           ${p.estado === 'agendada' ? html`<urbi-botao pequeno variante="secundario" @click=${() => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/cancelar-agendamento`), 'Agendamento cancelado.')}>Cancelar agendamento</urbi-botao>` : ''}
           ${['aprovada', 'agendada', 'publicando', 'erro'].includes(p.estado) ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-check-double" @click=${() => this.publiqueiFora(p)}>Publiquei por fora</urbi-botao>` : ''}
           ${p.estado === 'publicada' && p.permalink ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(p.permalink, '_blank', 'noopener')}>Ver no Instagram</urbi-botao>` : ''}

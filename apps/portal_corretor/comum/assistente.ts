@@ -194,11 +194,12 @@ export function validarAcao(
   }
   if (a.tipo === 'agendar_peca') {
     const peca = Number.isInteger(a.peca_id) ? ctx.pecas.get(a.peca_id as number) : undefined;
-    if (!peca || !quando || Number.isNaN(quando.getTime())) return null;
+    // Só peça aprovada é agendada (D-86): rascunho pede o Aprovar do corretor antes.
+    if (!peca || peca.estado !== 'aprovada' || !quando || Number.isNaN(quando.getTime())) return null;
     if (quando.getTime() < agora.getTime() + 5 * 60_000 || quando.getTime() > agora.getTime() + 90 * DIA) return null;
     return {
       tipo: 'agendar_peca',
-      resumo: `Agendar a peça “${tituloLimpo(peca.titulo)}” para publicar no Instagram em ${quandoTexto(quando, fuso)}.${peca.estado === 'rascunho' ? ' Ela ainda é rascunho: pela aprovação por janela, será aprovada na hora se passar nas checagens.' : ''}`,
+      resumo: `Agendar a peça “${tituloLimpo(peca.titulo)}” para publicar no Instagram em ${quandoTexto(quando, fuso)}.`,
       rota: `/estudio/pecas/${a.peca_id}/agendar`,
       corpo: { quando: quando.toISOString() },
     };

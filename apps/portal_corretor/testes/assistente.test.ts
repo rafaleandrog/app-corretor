@@ -108,8 +108,8 @@ test('ações propostas pela IA: só valem as conferidas, com o resumo escrito p
   assert.doesNotMatch(forjada.resumo, /\n|”\./);
   assert.match(forjada.resumo, /10:00/, '14:00Z é 10:00 em Manaus');
   assert.equal(deslocamento('America/Manaus', agora), '-04:00');
-  const rascunho = validarAcao({ tipo: 'agendar_peca', peca_id: 5, quando: '2026-10-23T21:00:00Z' }, { ...ctx, pecas: new Map([[5, { titulo: 'Post', estado: 'rascunho' }]]) })!;
-  assert.match(rascunho.resumo, /ainda é rascunho/);
+  // Rascunho não é agendado (D-86): o corretor aprova antes.
+  assert.equal(validarAcao({ tipo: 'agendar_peca', peca_id: 5, quando: '2026-10-23T21:00:00Z' }, { ...ctx, pecas: new Map([[5, { titulo: 'Post', estado: 'rascunho' }]]) }), null);
   assert.equal(validarAcao({ tipo: 'nenhuma' }, ctx), null);
 });
 
