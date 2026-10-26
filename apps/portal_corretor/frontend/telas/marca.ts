@@ -19,7 +19,8 @@ const ESTILOS = [
   { valor: 'minimalista', rotulo: 'Minimalista' },
 ];
 
-// Ajustes › Marca (D-81): logo, foto, cores, estilo e assinatura que o Estúdio usa nas artes.
+// Ajustes › Marca (D-81, D-85): logo, foto, cores, estilo e assinatura. A marca é única: o Estúdio a
+// usa nas artes, e a cor principal e a foto valem na página pública, nas seleções e no portal.
 // Mesmas rotas de antes (`/estudio/marca`); só o lugar na tela mudou.
 @customElement('pc-tela-marca')
 export class PcTelaMarca extends LitElement {
@@ -86,7 +87,7 @@ export class PcTelaMarca extends LitElement {
         <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Logo (PNG com fundo transparente fica melhor)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('logo', e)}></urbi-seletor-arquivo>
         <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Sua foto (opcional)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('foto', e)}></urbi-seletor-arquivo>
       </urbi-linha>
-      <urbi-prosa papel="dica">O Estúdio usa esta marca em toda arte que monta.</urbi-prosa>
+      <urbi-prosa papel="dica">Esta marca vale em todo lugar: nas artes do Estúdio, na sua página, nas seleções e no portal do cliente. A cor principal e a sua foto aparecem para o cliente; salvar já atualiza o que está no ar.</urbi-prosa>
     </urbi-card>`;
   }
 }

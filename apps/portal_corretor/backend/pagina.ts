@@ -1,6 +1,6 @@
 import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
-import { blocosPadrao, FORMATO_ENDERECO, sugerirEndereco, TEMAS, validarPagina } from '../comum/pagina';
+import { blocosPadrao, FORMATO_ENDERECO, sugerirEndereco, validarPagina } from '../comum/pagina';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { contaDoRequest, despublicarTudo, origemPublica, paginaDaConta, sincronizarTudo } from './vitrine';
 
@@ -47,13 +47,12 @@ async function visao(req: Request) {
   const conta = await primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId });
   const nome = req.contexto!.usuario.nome || conta?.nome || 'Corretor';
   const imoveis = await dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaId }, por_pagina: 1 });
-  const pagina = p ?? { endereco: sugerirEndereco(nome), nome_exibicao: nome, tema: 'oceano', blocos: blocosPadrao(), publicada_em: null, gerada_por_ia: false };
+  const pagina = p ?? { endereco: sugerirEndereco(nome), nome_exibicao: nome, blocos: blocosPadrao(), publicada_em: null, gerada_por_ia: false };
   const base = origemPublica(p?.url_formulario);
   return {
     pagina: {
       endereco: pagina.endereco,
       nome_exibicao: pagina.nome_exibicao,
-      tema: pagina.tema,
       blocos: pagina.blocos,
       publicada_em: pagina.publicada_em ?? null,
       gerada_por_ia: !!pagina.gerada_por_ia,
@@ -61,7 +60,6 @@ async function visao(req: Request) {
     salva: !!p,
     // Caminho da página pública; a tela completa com a origem quando a instância não tem URL pública.
     url: `${base}/portal_corretor/p?c=${encodeURIComponent(pagina.endereco)}`,
-    temas: Object.entries(TEMAS).map(([valor, t]) => ({ valor, rotulo: t.rotulo, cor: t.cor })),
     marcados_para_pagina: imoveis.total,
   };
 }
