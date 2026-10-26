@@ -53,6 +53,11 @@ Na ficha do cliente, a abordagem aparece no topo, no resumo em uma frase, com do
   a abordagem do playbook ao histórico recente do contato (sem repetir o que já foi mandado; onde
   faltar imóvel ou horário, deixa um espaço como "[imóvel]" para você completar). Sem a IA, aparece
   o texto do playbook como está. Revise antes de enviar: nada sai sozinho.
+  - Acima do texto, os **objetivos de um toque** trocam o que a mensagem faz: **Pelo playbook** (o
+    padrão, quando há abordagem), **Apresentação**, **Retorno**, **Ainda procurando?** e **Manter
+    contato**. Com a IA liberada, ela escreve para o objetivo com o histórico do contato (as mesmas
+    regras: sem telefone nem e-mail); sem a IA, aparece um modelo pronto do objetivo para você
+    ajustar. Os objetivos funcionam também sem negócio em andamento.
   - **Fazer agora** abre o WhatsApp do cliente com a mensagem e registra a abordagem na linha do
     tempo ("Abordagem por WhatsApp: …"), contando como contato. Uma linha só: não entra em "Tudo
     que você mandou".

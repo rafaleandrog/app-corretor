@@ -65,7 +65,31 @@ test('sem IA: Resumir some (sonda) e recusa; a mensagem sugerida é o texto do p
   await comServidor(rotas, A, banco, {}, async (chamar) => {
     const sem = (await chamar('POST', '/contatos', { nome: 'Bia', telefone: '61977776666' })).corpo;
     assert.equal((await chamar('GET', `/contatos/${sem.id}/mensagem-sugerida`)).status, 404);
+    // Com um objetivo de um toque, há mensagem mesmo sem negócio: o modelo do objetivo.
+    const r = await chamar('GET', `/contatos/${sem.id}/mensagem-sugerida?objetivo=ainda_procurando`);
+    assert.equal(r.status, 200);
+    assert.deepEqual([r.corpo.ia, r.corpo.canal], [false, 'whatsapp']);
+    assert.match(r.corpo.mensagem, /^Olá, Bia! Aqui é Usuário\. Você ainda está procurando imóvel\?/);
+    assert.equal((await chamar('GET', `/contatos/${sem.id}/mensagem-sugerida?objetivo=constructor`)).status, 404, 'objetivo desconhecido vale o playbook');
   });
+});
+
+test('objetivo com IA: o contexto leva o objetivo no lugar da abordagem, sem telefone nem e-mail', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const { contato } = await contatoComNegocio(banco);
+  chamadas.length = 0;
+  resposta = { mensagem: 'Oi, Ana! Prazer, sou a corretora que vai te atender.' };
+  await comServidor(rotas, AcomIA, banco, {}, async (chamar) => {
+    const m = (await chamar('GET', `/contatos/${contato}/mensagem-sugerida?objetivo=apresentacao`)).corpo;
+    assert.deepEqual(m, { mensagem: resposta.mensagem, ia: true, canal: 'whatsapp' });
+  });
+  assert.equal(chamadas.length, 1);
+  assert.match(chamadas[0].contexto, /^OBJETIVO DA MENSAGEM: Primeira mensagem/);
+  assert.doesNotMatch(chamadas[0].contexto, /ABORDAGEM DO PLAYBOOK|61988887777|98888|ana@exemplo\.com/);
+  await comServidor(rotas, { usuario: 2, conta: 200, papeis: ['corretor'], extras: { ia: iaLigada } }, banco, {}, async (chamar) => {
+    assert.equal((await chamar('GET', `/contatos/${contato}/mensagem-sugerida?objetivo=retorno`)).status, 404, 'outra conta não acha');
+  });
+  assert.equal(chamadas.length, 1, 'nada da conta A foi para a IA da conta B');
 });
 
 test('com IA: resumo em até três frases e mensagem adaptada, sem telefone nem e-mail no contexto', async () => {

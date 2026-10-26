@@ -2,13 +2,15 @@ import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import { iso } from '../comum/funil';
 import { mascarar, respostaSegura } from '../comum/assistente';
+import { DESCRICAO_OBJETIVO, ehObjetivo, modeloMensagem, primeiroNome } from '../comum/mensagens';
 import { assincrono, erro, guardarCorretor } from './acesso';
 import { contextoContato } from './assistente';
 import { etapasPorId, playbookDaConta, proximaAbordagem } from './inteligencia';
 
 // IA da ficha do contato (bloco 4 da fase 1.5, spec 11.1 e princípio 13): botões no lugar certo,
 // nunca IA sozinha. Resumir usa o slot `assistente` e o mesmo contexto mascarado do Assistente;
-// a mensagem sugerida usa o slot `funil` (base barato) e, sem IA, devolve o texto do playbook.
+// a mensagem sugerida usa o slot `funil` (base barato) e cumpre a abordagem do playbook ou o
+// objetivo escolhido; sem IA, devolve o texto do playbook ou o modelo do objetivo.
 // Nada aqui é gravado: o registro da abordagem vai por POST /abordagens/:contato/feita.
 export const fichaRotas = Router();
 guardarCorretor(fichaRotas, ['/contatos']);
@@ -51,7 +53,7 @@ export const SCHEMA_RESUMO = {
 
 export const INSTRUCAO_MENSAGEM =
   'Você escreve, para o corretor de imóveis mandar pelo WhatsApp, uma mensagem curta ao cliente dele. Português do Brasil, tom cordial e direto, até 400 caracteres, sem markdown e sem link. ' +
-  'A mensagem cumpre a ABORDAGEM DO PLAYBOOK, adaptada ao histórico recente (não repita o que já foi mandado). Chame o cliente pelo primeiro nome. Não invente imóvel, preço nem horário: se a abordagem pede isso, deixe um espaço como [imóvel] ou [horário] para o corretor completar. ' +
+  'A mensagem cumpre a ABORDAGEM DO PLAYBOOK (ou o OBJETIVO DA MENSAGEM, quando vier no lugar dela), adaptada ao histórico recente (não repita o que já foi mandado). Chame o cliente pelo primeiro nome. Não invente imóvel, preço nem horário: se a abordagem pede isso, deixe um espaço como [imóvel] ou [horário] para o corretor completar. ' +
   MARCA_DADO;
 export const SCHEMA_MENSAGEM = {
   type: 'object',
@@ -104,27 +106,37 @@ fichaRotas.get(
     const dados = req.dados!;
     const contato = cid ? await dados.buscar('contatos', cid) : null;
     if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
-    const etapas = await etapasPorId(dados);
-    const [negocios, playbook] = await Promise.all([dados.listar('negocios', { filtros: { contato_id: cid }, por_pagina: 100 }), playbookDaConta(dados, etapas)]);
-    const abordagem = proximaAbordagem(contato, negocios.dados, etapas, playbook);
-    if (!abordagem) return erro(res, 404, 'SEM_ABORDAGEM', 'Este contato não tem abordagem no playbook (sem negócio aberto).');
-    // O texto do playbook volta intacto ao corretor (é dele, não vai à IA); só o contexto da IA é mascarado.
-    const doPlaybook = { mensagem: abordagem.abordagem, ia: false, canal: abordagem.canal_sugerido };
-    if (!(await slotDisponivel(req, 'funil'))) return res.json(doPlaybook);
+    // `?objetivo=` (Apresentação, Retorno…): a mensagem cumpre o objetivo escolhido, com ou sem
+    // negócio aberto; sem ele, cumpre a próxima abordagem do playbook, como sempre.
+    const objetivo = ehObjetivo(req.query.objetivo) ? req.query.objetivo : null;
+    let base: { mensagem: string; ia: false; canal: string };
+    let pedido: string;
+    if (objetivo) {
+      base = { mensagem: modeloMensagem(objetivo, primeiroNome(contato.nome), primeiroNome(req.contexto?.usuario.nome)), ia: false, canal: 'whatsapp' };
+      pedido = `OBJETIVO DA MENSAGEM: ${DESCRICAO_OBJETIVO[objetivo]}`;
+    } else {
+      const etapas = await etapasPorId(dados);
+      const [negocios, playbook] = await Promise.all([dados.listar('negocios', { filtros: { contato_id: cid }, por_pagina: 100 }), playbookDaConta(dados, etapas)]);
+      const abordagem = proximaAbordagem(contato, negocios.dados, etapas, playbook);
+      if (!abordagem) return erro(res, 404, 'SEM_ABORDAGEM', 'Este contato não tem abordagem no playbook (sem negócio aberto).');
+      // O texto do playbook volta intacto ao corretor (é dele, não vai à IA); só o contexto da IA é mascarado.
+      base = { mensagem: abordagem.abordagem, ia: false, canal: abordagem.canal_sugerido };
+      pedido = [
+        `ABORDAGEM DO PLAYBOOK: ${mascarar(abordagem.abordagem)}`,
+        `Canal: ${abordagem.canal_sugerido} · Etapa: ${mascarar(abordagem.etapa_nome)} · Prazo: ${iso(abordagem.vence_em) ?? 'sem prazo'}`,
+      ].join('\n');
+    }
+    if (!(await slotDisponivel(req, 'funil'))) return res.json(base);
     const ctx = await contextoContato(req, cid!);
-    if (!ctx) return res.json(doPlaybook);
-    const contexto = [
-      `ABORDAGEM DO PLAYBOOK: ${mascarar(abordagem.abordagem)}`,
-      `Canal: ${abordagem.canal_sugerido} · Etapa: ${mascarar(abordagem.etapa_nome)} · Prazo: ${iso(abordagem.vence_em) ?? 'sem prazo'}`,
-      `DADOS DO CONTATO:\n${ctx.texto}`,
-    ].join('\n\n');
+    if (!ctx) return res.json(base);
+    const contexto = [pedido, `DADOS DO CONTATO:\n${ctx.texto}`].join('\n\n');
     try {
       const r = await req.ia!.consultar({ contexto, schema: SCHEMA_MENSAGEM, slot: 'funil', instrucoes_sistema: INSTRUCAO_MENSAGEM });
       const mensagem = respostaSegura(texto((r.dados as Record<string, unknown> | undefined)?.mensagem, 1000));
-      res.json(mensagem ? { mensagem, ia: true, canal: abordagem.canal_sugerido } : doPlaybook);
+      res.json(mensagem ? { mensagem, ia: true, canal: base.canal } : base);
     } catch (e) {
       if (!falhaDeIa(e)) throw e;
-      res.json(doPlaybook);
+      res.json(base);
     }
   }),
 );
