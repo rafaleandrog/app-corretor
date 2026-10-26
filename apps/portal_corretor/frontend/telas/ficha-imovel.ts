@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { secaoDaFalta } from '../../comum/imoveis';
 import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
@@ -493,7 +494,7 @@ export class PcTelaFichaImovel extends LitElement {
         ${im.empreendimento_nome ? html`<urbi-prosa papel="secundario">Empreendimento: ${im.empreendimento_nome}</urbi-prosa>` : ''}
         ${im.caracteristicas ? html`<urbi-prosa papel="dica">${im.caracteristicas}</urbi-prosa>` : ''}
       </urbi-card>
-      <urbi-card id="fotos" titulo="Fotos e arquivos" icone="fa-solid fa-images">
+      ${keyed(`fotos|${fotos > 0}|${!!this.ia.fotos}`, html`<urbi-card id="fotos" titulo="Fotos e arquivos" icone="fa-solid fa-images">
         ${this.ia.fotos && fotos
           ? html`<span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-wand-magic-sparkles" ariaLabel="Ordem sugerida" title="Ordem sugerida"
               @click=${() => this.tentar('Não foi possível ordenar', () => enviar('POST', `/imoveis/${this.imovelId}/midias/ordem-sugerida`, {}))}></urbi-botao></span>`
@@ -508,8 +509,8 @@ export class PcTelaFichaImovel extends LitElement {
             ? html`<urbi-prosa papel="secundario">${fotos} foto(s), ${this.ficha.fotos_publicas} no anúncio · ${midias.length} arquivo(s) no total</urbi-prosa>
                 <div slot="detalhe">${tabelaMidias}</div>`
             : tabelaMidias}
-      </urbi-card>
-      <urbi-card titulo="Descrição" icone="fa-solid fa-align-left">
+      </urbi-card>`)}
+      ${keyed(`descricao|${!!im.descricao}`, html`<urbi-card titulo="Descrição" icone="fa-solid fa-align-left">
         ${this.acao('Editar descrição', 'fa-solid fa-pen', () => this.editarDescricao())}
         ${im.descricao
           ? html`<urbi-prosa papel="secundario">${im.descricao.length} caracteres${im.descricao.length < 400 ? ' (com 400 ou mais o anúncio ganha pontos)' : ''}</urbi-prosa>
@@ -518,8 +519,8 @@ export class PcTelaFichaImovel extends LitElement {
         ${this.ia.conteudo
           ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.escrevendo} @click=${() => this.escreverComIa()}>Escrever com IA</urbi-botao></urbi-linha>`
           : ''}
-      </urbi-card>
-      <urbi-card titulo="Autorização de venda" icone="fa-solid fa-file-signature">
+      </urbi-card>`)}
+      ${keyed(`autorizacao|${autorizacoes.length > 0}`, html`<urbi-card titulo="Autorização de venda" icone="fa-solid fa-file-signature">
         ${this.acao('Nova autorização', 'fa-solid fa-plus', () => this.novaAutorizacao())}
         ${autorizacoes.length
           ? html`<urbi-prosa papel="secundario">${this.ficha.autorizacao_vigente ? 'Assinada e vigente.' : 'Nenhuma assinada e vigente.'} ${autorizacoes.length} registrada(s).</urbi-prosa>
@@ -540,8 +541,8 @@ export class PcTelaFichaImovel extends LitElement {
                 }}></urbi-lista>
               </div>`
           : html`<urbi-prosa papel="dica">Sem autorização. Para anunciar, registre a autorização e anexe o documento assinado.</urbi-prosa>`}
-      </urbi-card>
-      <urbi-card titulo="Visitas" icone="fa-solid fa-door-open">
+      </urbi-card>`)}
+      ${keyed(`visitas|${visitas.length > 0}`, html`<urbi-card titulo="Visitas" icone="fa-solid fa-door-open">
         ${visitas.length
           ? html`<urbi-prosa papel="secundario">${visitas.length} visita(s).</urbi-prosa>
               <div slot="detalhe">
@@ -556,8 +557,8 @@ export class PcTelaFichaImovel extends LitElement {
                   </urbi-stack>`}></urbi-lista>
               </div>`
           : html`<urbi-prosa papel="dica">Nenhuma visita. Agende pela ficha do cliente, escolhendo este imóvel.</urbi-prosa>`}
-      </urbi-card>
-      <urbi-card titulo="Enviado a" icone="fa-solid fa-paper-plane">
+      </urbi-card>`)}
+      ${keyed(`envios|${this.envios.length > 0}`, html`<urbi-card titulo="Enviado a" icone="fa-solid fa-paper-plane">
         ${this.envios.length
           ? html`<urbi-prosa papel="secundario">Enviado a ${this.envios.length} cliente(s).</urbi-prosa>
               <div slot="detalhe">
@@ -567,8 +568,8 @@ export class PcTelaFichaImovel extends LitElement {
                   </urbi-linha>`}></urbi-lista>
               </div>`
           : html`<urbi-prosa papel="dica">Ainda não foi enviado a nenhum cliente. Registre o envio pela ficha do cliente.</urbi-prosa>`}
-      </urbi-card>
-      <urbi-card titulo="Negócios" icone="fa-solid fa-handshake">
+      </urbi-card>`)}
+      ${keyed(`negocios|${negocios.length > 0}`, html`<urbi-card titulo="Negócios" icone="fa-solid fa-handshake">
         ${negocios.length
           ? html`<urbi-prosa papel="secundario">${negocios.length} negócio(s) ligado(s).</urbi-prosa>
               <div slot="detalhe">
@@ -581,7 +582,7 @@ export class PcTelaFichaImovel extends LitElement {
                   </urbi-linha>`}></urbi-lista>
               </div>`
           : html`<urbi-prosa papel="dica">Nenhum negócio ligado a este imóvel.</urbi-prosa>`}
-      </urbi-card>
+      </urbi-card>`)}
     </urbi-stack>`;
   }
 }
