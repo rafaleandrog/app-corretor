@@ -61,6 +61,11 @@ export class PcTelaFichaContato extends LitElement {
 
   private async carregar() {
     this.falha = null;
+    const sugerirAgora = this.sugerirDaUrl;
+    if (sugerirAgora) {
+      this.sugerirDaUrl = false;
+      filtrosNaUrl(filtrosDaUrl(), {}, ['sugerir']);
+    }
     try {
       const [ficha, etapas, envios] = await Promise.all([
         chamarApi(`/contatos/${this.contatoId}`),
@@ -71,11 +76,7 @@ export class PcTelaFichaContato extends LitElement {
       this.ficha = ficha;
       this.etapas = etapas.etapas;
       this.envios = envios.dados;
-      if (this.sugerirDaUrl) {
-        this.sugerirDaUrl = false;
-        filtrosNaUrl(filtrosDaUrl(), {}, ['sugerir']);
-        if (ficha.abordagem) void this.sugerir();
-      }
+      if (sugerirAgora && ficha.abordagem) void this.sugerir();
     } catch (e) {
       this.falha = (e as Error).message;
     }

@@ -44,7 +44,7 @@ ficha guarda o histórico das últimas mudanças.
 ## Próxima abordagem
 
 Para cada contato com negócio em andamento, a etapa e a temperatura apontam uma abordagem do
-**playbook**: o que fazer, por onde (WhatsApp, ligação, e-mail, visita) e em quanto tempo. O prazo
+**playbook** (sem linha para essa combinação, não há abordagem): o que fazer, por onde (WhatsApp, ligação, e-mail, visita) e em quanto tempo. O prazo
 conta do mais recente entre a entrada na etapa, o último contato e o último "pular".
 
 Na ficha do cliente, a abordagem aparece no topo, no resumo em uma frase, com dois botões:

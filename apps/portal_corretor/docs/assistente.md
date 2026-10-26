@@ -69,7 +69,8 @@ Sobre um cliente em foco, vão a temperatura, o perfil de busca e os resumos do 
 
 O **Resumir** e a **Mensagem sugerida** da ficha do cliente seguem as mesmas regras: vão para a IA
 a temperatura, o próximo passo, o perfil de busca e os resumos do histórico, com telefone e e-mail
-trocados por "[telefone]" e "[e-mail]". O resumo só aparece na tela: não é gravado na ficha.
+trocados por "[telefone]" e "[e-mail]". A Mensagem sugerida leva ainda o texto da abordagem do
+playbook, o canal, a etapa e o prazo, também com telefone e e-mail trocados. O resumo só aparece na tela: não é gravado na ficha.
 
 O que vem de outras pessoas (o nome e a mensagem de quem preencheu o formulário, por exemplo) é
 tratado como dado, não como ordem. A resposta da IA aparece sem imagens nem links. O único link é o
