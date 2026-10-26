@@ -28,6 +28,8 @@ export interface NegocioNum {
   valor_estimado_c: number | null;
   comissao_pct: number | string | null;
   origem_canal?: string | null;
+  /** Cliente do negócio: conta os clientes únicos da coorte. */
+  contato_id?: number | null;
   /** Probabilidade da etapa atual (0–1) e se ela está em andamento. */
   probabilidade?: number | string | null;
   aberto?: boolean;
@@ -47,8 +49,28 @@ export function chegou(n: NegocioNum, marco: string): boolean {
   return alvo >= 0 && max >= alvo;
 }
 
+/** Quantos negócios da coorte chegaram a cada etapa do funil de compra (contagens, não taxas). */
+export interface EtapasFunil {
+  leads: number;
+  atendimento: number;
+  visitou: number;
+  proposta: number;
+  ganhos: number;
+}
+
+/** Leads de um canal e a situação deles hoje: ganhos, em andamento ou perdidos. */
+export interface Origem {
+  canal: string;
+  leads: number;
+  ganhos: number;
+  abertos: number;
+  perdidos: number;
+}
+
 export interface Kpis {
   leads: number;
+  clientes_unicos: number;
+  etapas: EtapasFunil;
   lead_atendimento: number | null;
   lead_visita: number | null;
   visita_proposta: number | null;
@@ -59,7 +81,7 @@ export interface Kpis {
   vgv_c: number | null;
   captacoes: number;
   motivos_perda: { motivo: string; quantidade: number }[];
-  por_origem: { canal: string; leads: number; ganhos: number }[];
+  por_origem: Origem[];
 }
 
 /** KPIs de um período [de, ate) (spec 11.2). */
@@ -79,17 +101,22 @@ export function calcularKpis(negocios: NegocioNum[], de: string, ate: string): K
   const perdidos = compra.filter((n) => dentro(n.perdido_em, de, ate));
   const motivos = new Map<string, number>();
   for (const n of perdidos) motivos.set(n.motivo_perda ?? 'sem_motivo', (motivos.get(n.motivo_perda ?? 'sem_motivo') ?? 0) + 1);
-  const origens = new Map<string, { leads: number; ganhos: number }>();
+  const origens = new Map<string, Origem>();
   for (const n of coorte) {
     const c = n.origem_canal ?? 'nao_informada';
-    const o = origens.get(c) ?? { leads: 0, ganhos: 0 };
+    const o = origens.get(c) ?? { canal: c, leads: 0, ganhos: 0, abertos: 0, perdidos: 0 };
     o.leads++;
     if (n.ganho_em) o.ganhos++;
+    else if (n.perdido_em) o.perdidos++;
+    else o.abertos++;
     origens.set(c, o);
   }
+  const clientes = new Set(coorte.map((n, i) => n.contato_id ?? `sem-${i}`));
   const vendas = negocios.filter((n) => n.pipeline === 'venda_captacao' && dentro(n.criado_em, de, ate));
   return {
     leads,
+    clientes_unicos: clientes.size,
+    etapas: { leads, atendimento: nAtend, visitou: nVisitou, proposta: nProposta, ganhos: ganhosCoorte },
     lead_atendimento: taxa(nAtend, leads),
     lead_visita: taxa(nVisitou, leads),
     visita_proposta: taxa(nProposta, nVisitou),
@@ -101,7 +128,7 @@ export function calcularKpis(negocios: NegocioNum[], de: string, ate: string): K
     vgv_c: negocios.length ? ganhosPeriodo.reduce((s, n) => s + (n.valor_estimado_c ?? 0), 0) : null,
     captacoes: vendas.filter((n) => chegou(n, 'autorizacao')).length,
     motivos_perda: [...motivos].map(([motivo, quantidade]) => ({ motivo, quantidade })).sort((a, b) => b.quantidade - a.quantidade),
-    por_origem: [...origens].map(([canal, o]) => ({ canal, ...o })).sort((a, b) => b.leads - a.leads),
+    por_origem: [...origens.values()].sort((a, b) => b.leads - a.leads),
   };
 }
 
@@ -131,4 +158,34 @@ export function periodos(dias: number, agora = new Date()) {
   const de = new Date(agora.getTime() - dias * 86400e3).toISOString();
   const deAnterior = new Date(agora.getTime() - 2 * dias * 86400e3).toISOString();
   return { atual: { de, ate }, anterior: { de: deAnterior, ate: de } };
+}
+
+/** Quantos intervalos cada período mostra no gráfico de leads: dia a dia até 30 dias, semana e mês acima. */
+const INTERVALOS: Record<number, number> = { 7: 7, 30: 30, 90: 13, 365: 12 };
+
+/**
+ * Leads (negócios de compra criados) por intervalo do período e do anterior, alinhados pela posição:
+ * o 1º intervalo do atual se compara ao 1º do anterior. O rótulo é o início de cada intervalo do atual.
+ */
+export function serieDeLeads(negocios: NegocioNum[], dias: number, agora = new Date()) {
+  const n = INTERVALOS[dias] ?? Math.min(dias, 30);
+  const passo = (dias * 86400e3) / n;
+  const fim = agora.getTime();
+  const inicio = fim - dias * 86400e3;
+  const atual = new Array<number>(n).fill(0);
+  const anterior = new Array<number>(n).fill(0);
+  for (const neg of negocios) {
+    if (neg.pipeline !== 'compra') continue;
+    const t = iso(neg.criado_em);
+    if (!t) continue;
+    const ms = new Date(t).getTime();
+    if (ms >= inicio && ms < fim) atual[Math.min(n - 1, Math.floor((ms - inicio) / passo))]++;
+    else if (ms >= inicio - dias * 86400e3 && ms < inicio) anterior[Math.min(n - 1, Math.floor((ms - inicio + dias * 86400e3) / passo))]++;
+  }
+  const rotulo = (d: Date) =>
+    dias >= 365
+      ? d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit', timeZone: 'America/Sao_Paulo' }).replace(' de ', '/').replace('.', '')
+      : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const categorias = atual.map((_, i) => rotulo(new Date(inicio + i * passo)));
+  return { categorias, atual, anterior };
 }

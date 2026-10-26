@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas } from '../backend/rotas';
 import { semear } from '../backend/semente';
-import { calcularKpis, chegou, marcoMaisAvancado, previsaoPonderada } from '../comum/numeros';
+import { calcularKpis, chegou, marcoMaisAvancado, previsaoPonderada, serieDeLeads } from '../comum/numeros';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const UNICOS = { contatos: ['telefone'], etapas_funil: ['pipeline+nome'], playbook_funil: ['etapa_id+temperatura'], imoveis: ['codigo'], visitas: ['atividade_id'], origens: ['canal+campanha'] };
@@ -31,7 +31,28 @@ test('regras puras: marco alcançado, KPIs do período e previsão ponderada', (
   );
   assert.deepEqual([k.leads, k.lead_visita, k.visita_proposta, k.proposta_ganho, k.conversao_total, k.ganhos, k.ciclo_medio_dias, k.vgv_c], [3, 0.667, 0.5, 1, 0.333, 1, 10, 1000]);
   assert.deepEqual(k.motivos_perda, [{ motivo: 'preco', quantidade: 1 }]);
-  assert.deepEqual(k.por_origem[0], { canal: 'portal', leads: 2, ganhos: 1 });
+  assert.deepEqual(k.por_origem[0], { canal: 'portal', leads: 2, ganhos: 1, abertos: 1, perdidos: 0 });
+  assert.deepEqual(k.etapas, { leads: 3, atendimento: 2, visitou: 2, proposta: 1, ganhos: 1 });
+  assert.equal(k.clientes_unicos, 3, 'sem contato_id, cada negócio conta como um cliente');
+  assert.equal(calcularKpis([{ ...base, criado_em: '2026-10-05T00:00:00.000Z', marco_max: 'novo', contato_id: 7 }, { ...base, criado_em: '2026-10-06T00:00:00.000Z', marco_max: 'novo', contato_id: 7 }], de, ate).clientes_unicos, 1);
+  // Série de leads: 7 dias, dia a dia; o anterior alinhado pela posição; venda e fora do alcance ficam de fora.
+  const agora = new Date('2026-10-08T00:00:00.000Z');
+  const s = serieDeLeads(
+    [
+      { ...base, criado_em: '2026-10-01T03:00:00.000Z', marco_max: 'novo' },
+      { ...base, criado_em: '2026-10-07T23:00:00.000Z', marco_max: 'novo' },
+      { ...base, criado_em: '2026-09-24T05:00:00.000Z', marco_max: 'novo' },
+      { ...base, pipeline: 'venda_captacao', criado_em: '2026-10-02T00:00:00.000Z', marco_max: 'contato' },
+      { ...base, criado_em: '2026-08-01T00:00:00.000Z', marco_max: 'novo' },
+    ],
+    7,
+    agora,
+  );
+  assert.deepEqual(s.atual, [1, 0, 0, 0, 0, 0, 1]);
+  assert.deepEqual(s.anterior, [1, 0, 0, 0, 0, 0, 0]);
+  assert.equal(s.categorias.length, 7);
+  assert.equal(serieDeLeads([], 365, agora).categorias.length, 12);
+  assert.equal(serieDeLeads([], 90, agora).atual.length, 13);
   // Ganho no período de negócio aberto antes: conta em vendas, não entra na coorte; ganho fora não conta.
   const k2 = calcularKpis(
     [
@@ -71,11 +92,15 @@ test('semente marca a conta de teste; demonstração gera o conjunto e os númer
       [8, 0.875, 0.625, 0.6, 0.667, 0.25, 2, 107000000, 1, 1],
     );
     assert.deepEqual(n.atual.motivos_perda, [{ motivo: 'preco', quantidade: 1 }]);
-    assert.deepEqual(n.atual.por_origem.find((o: any) => o.canal === 'indicacao'), { canal: 'indicacao', leads: 3, ganhos: 1 });
+    assert.deepEqual(n.atual.por_origem.find((o: any) => o.canal === 'indicacao'), { canal: 'indicacao', leads: 3, ganhos: 1, abertos: 2, perdidos: 0 });
+    assert.deepEqual(n.atual.por_origem.find((o: any) => o.canal === 'portal'), { canal: 'portal', leads: 2, ganhos: 0, abertos: 1, perdidos: 1 });
+    assert.deepEqual(n.atual.etapas, { leads: 8, atendimento: 7, visitou: 5, proposta: 3, ganhos: 2 });
+    assert.equal(n.atual.clientes_unicos, 8);
+    assert.equal(n.serie_leads.atual.reduce((a: number, b: number) => a + b, 0), 8, 'a série soma os leads do período');
     assert.deepEqual(n.previsao, { valor_c: 8625000, sem_dados: 0 });
     assert.equal(n.anterior.leads, 0);
     const inicio = (await chamar('GET', '/inicio')).corpo;
-    assert.deepEqual([inicio.semana.novos_contatos, inicio.semana.leads, inicio.semana.previsao_c], [10, 8, 8625000]);
+    assert.deepEqual([inicio.semana.novos_contatos, inicio.semana.leads, inicio.semana.atendidos, inicio.semana.previsao_c], [10, 8, 7, 8625000]);
     assert.equal(inicio.demo_disponivel, false, 'com contatos, a demonstração não se oferece mais');
     // Carla tem visita marcada amanhã: quente pela regra.
     assert.equal(banco.linhas('contatos').find((c) => c.nome === 'Carla Demo')!.temperatura, 'quente');
