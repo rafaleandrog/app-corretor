@@ -66,3 +66,41 @@ export function sugerirMapeamento(cabecalho: string[]): Record<string, number | 
     observacoes: achar('obs', 'nota'),
   };
 }
+
+/**
+ * Modelos de "De onde vem a planilha?" (spec 15.8, migração assistida): para cada campo, os
+ * cabeçalhos exatos que o sistema de origem escreve, comparados sem acento nem caixa. Só entra
+ * modelo conferido com uma exportação real do sistema; Kenlo, Jetimob e Imobzi esperam um arquivo
+ * de exemplo de cada um.
+ */
+export interface ModeloImportacao {
+  id: string;
+  rotulo: string;
+  campos: Partial<Record<'nome' | 'telefone' | 'email' | 'papeis' | 'observacoes', string[]>>;
+}
+
+export const MODELOS_IMPORTACAO: ModeloImportacao[] = [
+  {
+    id: 'simples',
+    rotulo: 'Planilha simples (nome, telefone, e-mail)',
+    campos: { nome: ['nome'], telefone: ['telefone'], email: ['e-mail', 'email'] },
+  },
+];
+
+/**
+ * Mapeamento inicial da importação. Sem modelo (ou modelo desconhecido), é o `sugerirMapeamento`.
+ * Com modelo, o cabeçalho exato do modelo vence; o campo que o arquivo não traz com o nome do
+ * modelo fica com a sugestão. Só pré-preenche: o corretor confere e muda na tela.
+ */
+export function mapearPorModelo(cabecalho: string[], modeloId: string | null): Record<string, number | null> {
+  const mapa = sugerirMapeamento(cabecalho);
+  const modelo = MODELOS_IMPORTACAO.find((m) => m.id === modeloId);
+  if (!modelo) return mapa;
+  const sem = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+  const normalizado = cabecalho.map(sem);
+  for (const [campo, nomes] of Object.entries(modelo.campos)) {
+    const i = normalizado.findIndex((c) => nomes!.some((n) => sem(n) === c));
+    if (i >= 0) mapa[campo] = i;
+  }
+  return mapa;
+}

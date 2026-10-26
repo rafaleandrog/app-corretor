@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas } from '../backend/rotas';
 import { normalizarPapeis, reaisParaCentavos, validarEtapas, ETAPAS_PADRAO } from '../comum/crm';
-import { gerarCsv, lerCsv, sugerirMapeamento } from '../comum/csv';
+import { gerarCsv, lerCsv, mapearPorModelo, MODELOS_IMPORTACAO, sugerirMapeamento } from '../comum/csv';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const UNICOS = { contatos: ['telefone'], etapas_funil: ['pipeline+nome'], origens: ['canal+campanha'] };
@@ -21,6 +21,24 @@ test('regras puras: papéis, dinheiro, etapas e CSV', () => {
   assert.deepEqual(lerCsv('a,b\r\n"x ""y""",2'), [['a', 'b'], ['x "y"', '2']]);
   assert.equal(gerarCsv(['N'], [['=SOMA(1)'], ['a;b']]), '﻿N\r\n\'=SOMA(1)\r\n"a;b"\r\n');
   assert.deepEqual(sugerirMapeamento(['Nome do cliente', 'Celular', 'E-mail']), { nome: 0, telefone: 1, email: 2, papeis: null, observacoes: null });
+});
+
+test('modelos de importação pré-preenchem o mapeamento; sem modelo, nada muda', () => {
+  // "Telefone comercial" vem antes e enganaria a sugestão por trecho; o modelo pega o cabeçalho exato.
+  const simples = ['Telefone comercial', 'E-MAIL', 'Nome', 'Telefone'];
+  assert.deepEqual(mapearPorModelo(simples, 'simples'), { nome: 2, telefone: 3, email: 1, papeis: null, observacoes: null });
+  for (const m of MODELOS_IMPORTACAO) {
+    const cab = Object.values(m.campos).map((nomes) => nomes![0]);
+    const mapa = mapearPorModelo(cab, m.id);
+    Object.keys(m.campos).forEach((campo, i) => assert.equal(mapa[campo], i, `${m.id}: ${campo}`));
+  }
+  // "Outra" e modelo desconhecido: o fluxo de antes.
+  const cab = ['Nome do cliente', 'Celular', 'E-mail', 'Obs'];
+  assert.deepEqual(mapearPorModelo(cab, null), sugerirMapeamento(cab));
+  assert.deepEqual(mapearPorModelo(cab, 'outra'), sugerirMapeamento(cab));
+  assert.deepEqual(mapearPorModelo(cab, 'kenlo'), sugerirMapeamento(cab));
+  // Campo que o arquivo não traz com o nome do modelo fica com a sugestão.
+  assert.deepEqual(mapearPorModelo(cab, 'simples'), sugerirMapeamento(cab));
 });
 
 test('etapas do funil nascem com o padrão e a configuração é validada', async () => {
