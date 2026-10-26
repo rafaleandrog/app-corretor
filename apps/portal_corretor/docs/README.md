@@ -14,7 +14,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 |---|---|---|
 | Corretor | **Início** | Faixa da semana e duas abas: **Hoje** (a fila do dia por motivo — quentes sem resposta, abordagens atrasadas, visitas, próximos passos —, um botão por item) e **Agenda** (pendências dos próximos 14 dias); e o que falta para começar — ver [Funil, temperatura e fila do dia](funil.md) e [Clientes, negócios e agenda](clientes-e-agenda.md) |
 | Corretor | **Desempenho** | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Desempenho, envios e dados de demonstração](desempenho.md) |
-| Corretor | **Clientes** | Duas visões: **Lista** (contatos com filtros prontos Novos · Sem contato · Quentes · Retorno vencido) e **Quadro** (o funil por etapa, arrastar para mover); ficha com negócios, notas, consentimento e linha do tempo; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
+| Corretor | **Clientes** | Duas visões: **Lista** (contatos com filtros prontos Novos · Sem contato · Quentes · Retorno vencido) e **Quadro** (o funil por etapa, arrastar para mover); ficha com o resumo em uma frase, Resumir e Mensagem sugerida com IA, Virar tarefa, negócios, notas, consentimento e linha do tempo; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
 | Corretor | **Imóveis** | Imóveis com fotos, qualidade do anúncio, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA, artes montadas pelo app ou feitas no Canva IA, aprovação e download — ver [Estúdio de conteúdo](estudio.md) |
 | Corretor | **Minha página** | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
@@ -26,7 +26,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Empreendimentos** (fora do menu) | Saiu do menu e continua abrindo pelo link no pé do Início, pelo endereço (`/empreendimentos`) e pelo Assistente, até virar aba de Imóveis. Os endereços antigos `/agenda` e `/funil` abrem Início › Agenda e Clientes › Quadro |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
-Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, nos imóveis (descrição e leitura de fotos), na Minha página e no Estúdio (textos),
+Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, na ficha do cliente (Resumir e Mensagem sugerida), nos imóveis (descrição e leitura de fotos), na Minha página e no Estúdio (textos),
 quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Papéis
@@ -55,11 +55,13 @@ conexões com a Meta, quando elas chegarem.
 
 ## Para o administrador da instância
 
-- **IA:** o app declara três slots próprios: **Conteúdo** e **Assistente do Corretor** (base
-  `normal`) e **Leitura de fotos** (base `arquivos`). Para ligá-los, em Admin › Instaláveis ›
-  Apps › Portal do Corretor › IA, autorize as bases `normal` e `arquivos` (chave da plataforma) ou
-  configure uma chave própria em cada slot. Sem isso o app funciona, sem os botões de IA, e o
-  Assistente vira busca no manual. O microfone do Assistente aparece quando o slot de áudio da
+- **IA:** o app declara quatro slots próprios: **Conteúdo** e **Assistente do Corretor** (base
+  `normal`), **Leitura de fotos** (base `arquivos`) e **Mensagem sugerida** (slot `funil`, base
+  `barato`: adapta a abordagem do playbook ao histórico, na ficha do cliente). Para ligá-los, em
+  Admin › Instaláveis › Apps › Portal do Corretor › IA, autorize as bases `normal`, `arquivos` e
+  `barato` (chave da plataforma) ou configure uma chave própria em cada slot. Sem isso o app
+  funciona, sem os botões de IA, e o Assistente vira busca no manual. Sem a base `barato`, a
+  Mensagem sugerida mostra o texto do playbook como está. O microfone do Assistente aparece quando o slot de áudio da
   plataforma estiver liberado para o app.
 
 - **Rotina:** "Temperatura dos contatos" (diária) esfria quem passou 7 dias sem contato. O horário
