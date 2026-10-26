@@ -235,6 +235,52 @@ test('marca: trocar a foto atualiza seleção e portal; falha ao republicar grav
   });
 });
 
+test('marca: o logo não ressincroniza nem afirma que o que está no ar está em dia, e não vai para a vitrine', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const falhas = comFalhas(banco);
+  await comServidor(rotas, A, banco, shellFalso(), async (chamar) => {
+    await contaNoAr(chamar, '6199990000');
+    // Com o que está no ar velho (salvar não conseguiu), enviar o logo não pode dizer que está em dia.
+    falhas.falha = 'vitrine';
+    assert.equal((await chamar('PUT', '/estudio/marca', { cor_primaria: '#555555', cor_secundaria: '#ffffff', estilo: 'moderno' })).corpo.vitrine_desatualizada, true);
+    falhas.falha = null;
+    const antes = JSON.stringify(banco.linhas('vitrine_publica'));
+    const r = await chamar('POST', '/estudio/marca/arquivos', { tipo: 'logo', upload_id: 980 });
+    assert.equal(r.status, 200);
+    assert.equal(r.corpo.logo_url, '/arquivo/980');
+    assert.ok(!('vitrine_desatualizada' in r.corpo), 'o logo não ressincroniza: a resposta não diz nada sobre o que está no ar');
+    assert.notEqual(r.corpo.vitrine_desatualizada, false);
+    // O logo só vale nas artes: nada muda na vitrine (nem a cor velha é atualizada, nem o logo vai).
+    assert.equal(JSON.stringify(banco.linhas('vitrine_publica')), antes);
+    assert.ok(!JSON.stringify(banco.linhas('vitrine_publica')).includes('980'), 'o logo não é público');
+    // O conserto continua valendo depois do logo.
+    assert.equal((await chamar('POST', '/estudio/marca/republicar')).corpo.vitrine_desatualizada, false);
+    assert.equal(cores(banco, 100).selecao, '#555555');
+  });
+});
+
+test('marca: "republicar" por quem atende duas contas refaz só a vitrine da conta de escrita', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const falhas = comFalhas(banco);
+  await comServidor(rotas, A, banco, shellFalso(), async (chamar) => {
+    await contaNoAr(chamar, '6194440000');
+    await chamar('PUT', '/estudio/marca', { cor_primaria: '#aa3300', cor_secundaria: '#ffffff', estilo: 'moderno' });
+  });
+  await comServidor(rotas, C, banco, shellFalso(), async (chamar) => {
+    await contaNoAr(chamar, '6193330000');
+    falhas.falha = 'vitrine';
+    assert.equal((await chamar('PUT', '/estudio/marca', { cor_primaria: '#00aa00', cor_secundaria: '#ffffff', estilo: 'moderno' })).corpo.vitrine_desatualizada, true);
+    falhas.falha = null;
+    const daA = JSON.stringify(banco.linhas('vitrine_publica').filter((l: any) => l.conta === 100));
+    assert.equal(cores(banco, 300).selecao, PADRAO, 'a vitrine da conta de escrita ficou velha');
+    const r = await chamar('POST', '/estudio/marca/republicar');
+    assert.deepEqual([r.status, r.corpo.vitrine_desatualizada], [200, false]);
+    assert.deepEqual(cores(banco, 300), { pagina: '#00aa00', selecao: '#00aa00', portal: '#00aa00' });
+    assert.equal(JSON.stringify(banco.linhas('vitrine_publica').filter((l: any) => l.conta === 100)), daA, 'a vitrine da outra conta ficou intacta');
+    assert.deepEqual(cores(banco, 100), { pagina: '#aa3300', selecao: '#aa3300', portal: '#aa3300' });
+  });
+});
+
 test('marca: o CRECI vem da conta de escrita, nunca de outra que o usuário também atende', async () => {
   const banco = new BancoFalso(UNICOS);
   // A conta 100 primeiro: sem o filtro de conta, a leitura do conjunto devolveria o dela.

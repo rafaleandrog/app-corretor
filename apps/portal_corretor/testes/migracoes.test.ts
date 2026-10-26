@@ -18,14 +18,6 @@ function contextoMigracao(banco: BancoFalso) {
       const alvo = banco.linhas(tabela).find((l) => l.id === id);
       return alvo ? Object.assign(alvo, d) : null;
     },
-    /** Em migração, `criar` aceita `conta_id` explícito (contas.md § Adotar); sem ele, recusa. */
-    async criar(tabela: string, d: Record<string, any>) {
-      if (!d.conta_id) throw new Error('migração sem conta de escrita: informe conta_id');
-      const linhas = banco.linhas(tabela);
-      const linha = { id: linhas.reduce((m, l) => Math.max(m, l.id), 0) + 1, ...d } as any;
-      linhas.push(linha);
-      return linha;
-    },
   };
   const eventos = { cancelarAgendamento: async (id: number) => (cancelados.push(id), true) };
   const relato = { avisar: (m: string) => avisos.push(m), erro: (m: string) => avisos.push(m) };

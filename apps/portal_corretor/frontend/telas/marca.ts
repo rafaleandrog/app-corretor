@@ -11,7 +11,7 @@ interface Marca {
   estilo: string;
   assinatura: string | null;
   logo_url: string | null;
-  /** Só nas respostas de salvar: a página, as seleções ou os portais no ar não acompanharam. */
+  /** Só em resposta que ressincronizou o que está no ar (salvar, foto, republicar): true = não acompanhou. Ausente (logo) = nada a dizer. */
   vitrine_desatualizada?: boolean;
 }
 
@@ -51,7 +51,8 @@ export class PcTelaMarca extends LitElement {
     try {
       const r = await fn();
       this.marca = r;
-      if (r.vitrine_desatualizada) this.desatualizada = true;
+      // Só uma resposta que ressincronizou muda o alerta; sem o campo (logo), ele fica como está.
+      if (r.vitrine_desatualizada === true) this.desatualizada = true;
       else if (r.vitrine_desatualizada === false) this.desatualizada = false;
       urbiVerso.notificar(sucesso, 'sucesso');
     } catch (e) {

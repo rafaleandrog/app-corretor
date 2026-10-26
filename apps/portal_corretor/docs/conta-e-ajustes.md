@@ -52,7 +52,7 @@ não tem mais cor própria. Quem tinha escolhido uma cor para a página antes de
 fosse o "Oceano", que já é o azul padrão) e ainda não tinha salvo a marca ganha essa cor como cor
 principal da marca; o app faz isso sozinho, ao iniciar, uma vez por conta. Quem já tinha marca
 salva fica com a marca. Se a página for refeita antes de esse preenchimento rodar, ela sai no azul
-padrão até a marca ser salva ou o preenchimento acontecer.
+padrão, e o preenchimento não a refaz: ela só ganha a cor quando for refeita de novo, por **Atualizar agora** (Minha página) ou **Atualizar o que está no ar** (Ajustes › Marca), ou ao salvar a marca.
 
 **Salvar a marca, ou trocar a foto, já atualiza o que está no ar**: a página publicada, as seleções
 válidas e os portais dos clientes passam a usar a cor e a foto novas, sem publicar de novo. Se algo

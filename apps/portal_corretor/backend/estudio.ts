@@ -147,8 +147,10 @@ estudioRotas.post(
       if (recusa) return erro(res, recusa.status, 'UPLOAD_RECUSADO', recusa.mensagem);
       throw e;
     }
-    // A foto aparece no topo da seleção e do portal; o logo, só nas artes.
-    const ok = tipo === 'foto' ? await ressincronizarMarca(req) : true;
+    // A foto aparece no topo da seleção e do portal; o logo, só nas artes: não ressincroniza e, por
+    // isso, a resposta não traz `vitrine_desatualizada` (não afirma nada sobre o que está no ar).
+    if (tipo !== 'foto') return res.json(await marca(req));
+    const ok = await ressincronizarMarca(req);
     res.json({ ...(await marca(req)), vitrine_desatualizada: !ok });
   }),
 );
