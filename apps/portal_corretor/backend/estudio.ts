@@ -332,7 +332,7 @@ estudioRotas.patch(
 );
 
 /**
- * Arte da peça: as imagens geradas no navegador (gerador do app) ou feitas no Canva IA, enviadas em
+ * Arte da peça: as imagens geradas no navegador (gerador do app) ou feitas em outra ferramenta (Canva, Claude Design ou outra), enviadas em
  * 2 passos. Substitui as anteriores; arte nova pede nova aprovação.
  */
 estudioRotas.put(

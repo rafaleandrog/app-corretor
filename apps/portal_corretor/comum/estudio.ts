@@ -1,5 +1,5 @@
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74). Puro: formatos, objetivos, a validação da
-// marca, os textos padrão (quando a IA não está disponível), o pedido à IA, o pacote para o Canva IA
+// marca, os textos padrão (quando a IA não está disponível), o pedido à IA, a instrução para outra ferramenta
 // e as checagens antes de aprovar. A plataforma não gera imagem (10.6): a arte é montada por modelo.
 
 export const FORMATOS = ['post_1x1', 'post_4x5', 'carrossel', 'story'] as const;
