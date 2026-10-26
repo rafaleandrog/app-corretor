@@ -125,9 +125,9 @@ function legendaComCreci(p: Linha, creci: string | null): string {
 
 /**
  * Story não leva legenda no Instagram: o CRECI tem que estar na arte. Só o gerador do app garante
- * isso (rodapé com nome e CRECI); arte do Canva ou enviada vai pelo Instagram, com "Publiquei por fora".
+ * isso (rodapé com nome e CRECI); arte de outra ferramenta ou enviada vai pelo Instagram, com "Publiquei por fora".
  */
-export const STORY_SEM_CRECI = 'Story com arte do Canva ou enviada não é publicado pelo app: o story não leva legenda, e o app não confere o CRECI na arte. Confira a arte, publique pelo Instagram e use "Publiquei por fora".';
+export const STORY_SEM_CRECI = 'Story com arte de outra ferramenta ou enviada não é publicado pelo app: o story não leva legenda, e o app não confere o CRECI na arte. Confira a arte, publique pelo Instagram e use "Publiquei por fora".';
 const storySemCreci = (p: Linha) => p.formato === 'story' && p.motor !== 'interno';
 
 async function creciDaConta(dados: HelperDados, conta: number, usuario: number | null): Promise<string | null> {

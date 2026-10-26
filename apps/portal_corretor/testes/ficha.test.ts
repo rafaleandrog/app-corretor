@@ -40,9 +40,9 @@ async function contatoComNegocio(banco: BancoFalso) {
   });
 }
 
-test('manifesto: slot `funil` de base barato, versão sem subir', () => {
+// A versão deixou de ser fixada aqui: o bloco 4 não a subia, mas os blocos seguintes mudam o schema.
+test('manifesto: slot `funil` de base barato', () => {
   assert.deepEqual([manifesto.ia.slots.funil.base, manifesto.ia.slots.assistente.base], ['barato', 'normal']);
-  assert.equal(manifesto.versao, '0.1.6');
 });
 
 test('sem IA: Resumir some (sonda) e recusa; a mensagem sugerida é o texto do playbook', async () => {
