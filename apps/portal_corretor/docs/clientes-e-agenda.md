@@ -70,9 +70,13 @@ Abaixo, as seções recolhidas, cada uma com uma linha de resumo; toque para abr
 
 - **Dados e próximo passo:** telefone, e-mail, campanha de origem, observações, o próximo passo
   combinado (o botão com o ícone de seta da seção, **Definir próximo passo**, o define) e o **consentimento** numa linha (registrado em … ·
-  revogar, ou registrar).
+  revogar, ou registrar). No mesmo formulário, o campo **Para o cliente** (opcional, até 120
+  letras) é o que o cliente lê no topo do portal, por exemplo "Visita sábado às 10h". O próximo
+  passo de cima é nota sua e nunca aparece para o cliente.
 - **Negócios** do contato, com a etapa atual e o botão **Mudar etapa**.
-- **Seleções e portal:** as seleções de imóveis enviadas e o link do portal do cliente.
+- **Seleções e portal:** as seleções de imóveis enviadas, o link do portal do cliente e **o que
+  falta do cliente** (botão **Pedir ao cliente**): pendências como "enviar a documentação", que
+  ele marca como feitas no portal. Ver [Seleções e Portal do Cliente](selecoes-e-portal.md#o-que-falta-de-você).
 - **Tudo que você mandou:** imóveis, arquivos e mensagens registrados.
 - **Agenda deste cliente:** as atividades ligadas ao contato.
 

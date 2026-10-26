@@ -59,10 +59,13 @@ export const estiloPublico = css`
   .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
   .cartao { background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; display: block; }
   .cartao img, .cartao .sem-foto { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: var(--foto-vazia); }
+  .cartao .corpo .preco { font-size: 1.3rem; }
   .cartao .corpo { padding: 12px 14px 14px; }
   .preco { font-weight: 700; font-size: 1.15rem; }
   .suave { color: var(--suave); font-size: 0.92rem; }
-  .icones { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--suave); font-size: 0.92rem; margin-top: 6px; }
+  .icones { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--suave); font-size: 0.95rem; margin-top: 8px; }
+  .icones span { display: inline-flex; align-items: center; gap: 6px; }
+  .icones .icone { flex: none; }
   .botao { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px; border-radius: 10px;
     border: 0; background: var(--acento); color: var(--papel); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
   .botao.claro { background: var(--papel); color: var(--acento); }

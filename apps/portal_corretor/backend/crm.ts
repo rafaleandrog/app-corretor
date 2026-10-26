@@ -301,6 +301,11 @@ crmRotas.patch(
     if ('proximo_passo' in v.dados || 'proximo_passo_em' in v.dados) {
       await registrar(dados, req, { tipo: 'contato.proximo_passo', alvo_tipo: 'contato', alvo_id: cid!, contato_id: cid!, resumo: `Próximo passo: ${contato.proximo_passo ?? 'nenhum'}` });
     }
+    // O próximo passo para o cliente vai ao topo do portal (bloco 9): o portal acompanha na hora.
+    if ('proximo_passo_cliente' in v.dados && (v.dados.proximo_passo_cliente ?? null) !== (atual.proximo_passo_cliente ?? null)) {
+      await registrar(dados, req, { tipo: 'contato.proximo_passo_cliente', alvo_tipo: 'contato', alvo_id: cid!, contato_id: cid!, resumo: `Próximo passo para o cliente: ${contato.proximo_passo_cliente ?? 'nenhum'}` });
+      await tentarPortal(dados, req.contexto?.contaEscrita, cid);
+    }
     res.json(contato);
   }),
 );

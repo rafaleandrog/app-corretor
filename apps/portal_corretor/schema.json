@@ -293,6 +293,10 @@
         "proximo_passo_em": {
           "tipo": "datahora"
         },
+        "proximo_passo_cliente": {
+          "tipo": "texto",
+          "limite": 120
+        },
         "consentimento_em": {
           "tipo": "datahora"
         },
@@ -1802,6 +1806,37 @@
             }
           ]
         }
+      ]
+    },
+    "tarefas_cliente": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "soft_delete": true,
+      "colunas": {
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "texto": {
+          "tipo": "texto",
+          "limite": 200,
+          "obrigatorio": true
+        },
+        "feita_em": {
+          "tipo": "datahora"
+        },
+        "criada_por_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular"
+        }
+      },
+      "indices": [
+        [
+          "contato_id"
+        ]
       ]
     },
     "marca_conta": {

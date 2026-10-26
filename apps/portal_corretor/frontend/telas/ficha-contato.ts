@@ -126,10 +126,14 @@ export class PcTelaFichaContato extends LitElement {
         { nome: 'proximo_passo', tipo: 'texto', rotulo: 'O que fazer', valor: c.proximo_passo ?? '', placeholder: 'Ex.: ligar para combinar visita' },
         { nome: 'dia', tipo: 'data', rotulo: 'Dia', valor: quando ? quando.toLocaleDateString('sv-SE') : null },
         { nome: 'hora', tipo: 'texto', rotulo: 'Hora (opcional)', valor: quando ? quando.toTimeString().slice(0, 5) : '', placeholder: '09:00' },
+        {
+          nome: 'proximo_passo_cliente', tipo: 'texto', rotulo: 'Para o cliente (opcional, aparece no topo do portal)', valor: c.proximo_passo_cliente ?? '',
+          placeholder: 'Ex.: visita sábado às 10h (até 120 letras)',
+        },
       ],
       'PATCH',
       `/contatos/${c.id}`,
-      (v) => ({ proximo_passo: v.proximo_passo, proximo_passo_em: juntarDataHora(v.dia, v.hora) ?? '' }),
+      (v) => ({ proximo_passo: v.proximo_passo, proximo_passo_em: juntarDataHora(v.dia, v.hora) ?? '', proximo_passo_cliente: v.proximo_passo_cliente ?? '' }),
     ).then((r) => this.depois(r));
   }
 
@@ -465,6 +469,7 @@ export class PcTelaFichaContato extends LitElement {
       <urbi-card titulo="Dados e próximo passo" icone="fa-solid fa-id-card">
         ${this.acao('Definir próximo passo', 'fa-solid fa-forward', () => this.proximoPasso())}
         <urbi-prosa papel="secundario">${c.proximo_passo ? `Próximo passo: ${c.proximo_passo} · ${dataHora(c.proximo_passo_em)}` : 'Nenhum próximo passo combinado.'}</urbi-prosa>
+        ${c.proximo_passo_cliente ? html`<urbi-prosa papel="secundario">Para o cliente, no portal: ${c.proximo_passo_cliente}</urbi-prosa>` : ''}
         <div slot="detalhe">
           <urbi-stack>
             <urbi-prosa>${[c.telefone, c.email].filter(Boolean).join(' · ') || 'sem telefone nem e-mail'}</urbi-prosa>

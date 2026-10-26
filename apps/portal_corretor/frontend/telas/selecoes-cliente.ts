@@ -13,7 +13,8 @@ const MAX_ITENS = 12;
 /** Link completo: sem URL pública configurada na instância, o backend devolve o caminho. */
 const completo = (link: string) => (link.startsWith('/') ? `${window.location.origin}${link}` : link);
 
-// Na ficha do cliente (bloco 5b): seleções enviadas com as reações e o link do portal do cliente.
+// Na ficha do cliente (bloco 5b): seleções enviadas com as reações, o link do portal do cliente e,
+// desde o bloco 9, "o que falta do cliente" (pendências que ele marca como feitas no portal).
 // Dispara `mudou` para a ficha recarregar o histórico de envios e a linha do tempo.
 @customElement('pc-selecoes-cliente')
 export class PcSelecoesCliente extends LitElement {
@@ -21,6 +22,7 @@ export class PcSelecoesCliente extends LitElement {
   @property() nome = '';
   @state() private selecoes: Linha[] = [];
   @state() private portal: { ativo: boolean; link: string | null } | null = null;
+  @state() private tarefas: Linha[] = [];
   @state() private falha: string | null = null;
   @state() private ocupado = false;
 
@@ -41,10 +43,15 @@ export class PcSelecoesCliente extends LitElement {
     // Troca rápida de cliente: só a resposta do último pedido vale.
     const meu = ++this.pedido;
     try {
-      const [s, p] = await Promise.all([chamarApi(`/selecoes?contato_id=${this.contatoId}`), chamarApi(`/contatos/${this.contatoId}/portal`)]);
+      const [s, p, t] = await Promise.all([
+        chamarApi(`/selecoes?contato_id=${this.contatoId}`),
+        chamarApi(`/contatos/${this.contatoId}/portal`),
+        chamarApi(`/contatos/${this.contatoId}/tarefas-cliente`),
+      ]);
       if (meu !== this.pedido) return;
       this.selecoes = s.dados;
       this.portal = p;
+      this.tarefas = t.dados;
     } catch (e) {
       if (meu === this.pedido) this.falha = (e as Error).message;
     }
@@ -157,6 +164,34 @@ export class PcSelecoesCliente extends LitElement {
     }
   }
 
+  private async novaTarefa() {
+    const v = await urbiVerso.formulario({
+      titulo: 'Pedir ao cliente',
+      mensagem: 'Aparece no portal em "O que falta de você". Quando o cliente marcar como feito, você vê aqui e na linha do tempo.',
+      campos: [{ nome: 'texto', tipo: 'texto', rotulo: 'O que falta', obrigatorio: true, placeholder: 'Ex.: enviar a documentação' }],
+      rotuloConfirmar: 'Pedir',
+    });
+    if (!v) return;
+    try {
+      await enviar('POST', `/contatos/${this.contatoId}/tarefas-cliente`, { texto: v.texto });
+      await this.carregar();
+      this.mudou();
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível pedir', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    }
+  }
+
+  private async removerTarefa(t: Linha) {
+    const ok = await urbiVerso.confirmar({ titulo: 'Remover pendência', mensagem: `"${t.texto}" sai do portal do cliente.`, rotuloConfirmar: 'Remover', perigo: true });
+    if (!ok) return;
+    try {
+      await enviar('PATCH', `/tarefas-cliente/${t.id}/remover`);
+      await this.carregar();
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    }
+  }
+
   private selecao(s: Linha) {
     const situacao = s.revogada_em ? { cor: 'padrao', rotulo: 'revogada' } : s.valida ? { cor: 'sucesso', rotulo: `vale até ${data(s.expira_em)}` } : { cor: 'alerta', rotulo: 'vencida' };
     return html`<urbi-stack>
@@ -175,13 +210,17 @@ export class PcSelecoesCliente extends LitElement {
     </urbi-stack>`;
   }
 
+  private abertas() {
+    return this.tarefas.filter((t) => !t.feita_em);
+  }
+
   render() {
     if (this.falha) {
       return html`<urbi-card titulo="Seleções e portal" icone="fa-solid fa-heart"><urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner></urbi-card>`;
     }
     return html`<urbi-card titulo="Seleções e portal" icone="fa-solid fa-heart">
       <span slot="acoes"><urbi-botao variante="secundario" pequeno icone="fa-solid fa-plus" ?carregando=${this.ocupado} @click=${() => this.nova()}>Nova seleção</urbi-botao></span>
-      <urbi-prosa papel="secundario">${this.selecoes.length ? `${this.selecoes.length} seleção(ões)` : 'Nenhuma seleção'} · portal ${this.portal?.ativo ? 'ativo' : 'sem link'}</urbi-prosa>
+      <urbi-prosa papel="secundario">${this.selecoes.length ? `${this.selecoes.length} seleção(ões)` : 'Nenhuma seleção'} · portal ${this.portal?.ativo ? 'ativo' : 'sem link'}${this.abertas().length ? ` · ${this.abertas().length} pendência(s) do cliente` : ''}</urbi-prosa>
       <div slot="detalhe"><urbi-stack>
       ${this.selecoes.length
         ? this.selecoes.map((s) => this.selecao(s))
@@ -194,7 +233,20 @@ export class PcSelecoesCliente extends LitElement {
               <urbi-botao pequeno variante="fantasma" @click=${() => this.revogarPortal()}>Revogar</urbi-botao>`
           : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-link" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Gerar link do portal</urbi-botao>`}
       </urbi-linha>
-      <urbi-prosa papel="dica">O portal mostra ao cliente as seleções válidas, as visitas marcadas e um espaço para ele mandar mensagem ou pedir para remarcar.</urbi-prosa>
+      <urbi-prosa papel="dica">O portal mostra ao cliente o próximo passo que você escreveu para ele, as seleções válidas, as visitas marcadas, o que falta dele e um espaço para ele mandar mensagem ou pedir para remarcar.</urbi-prosa>
+      <urbi-linha justificar="entre" quebrar>
+        <urbi-prosa>O que falta do cliente:</urbi-prosa>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" @click=${() => this.novaTarefa()}>Pedir ao cliente</urbi-botao>
+      </urbi-linha>
+      ${this.tarefas.length
+        ? html`<urbi-lista separador .itens=${this.tarefas} .render_item=${(t: Linha) => html`<urbi-linha justificar="entre" quebrar>
+              <urbi-prosa>${t.texto}</urbi-prosa>
+              <urbi-linha>
+                ${t.feita_em ? html`<urbi-badge cor="sucesso">feito em ${data(t.feita_em)}</urbi-badge>` : html`<urbi-badge cor="alerta">pendente</urbi-badge>`}
+                <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-trash" ariaLabel="Remover pendência" title="Remover" @click=${() => this.removerTarefa(t)}></urbi-botao>
+              </urbi-linha>
+            </urbi-linha>`}></urbi-lista>`
+        : html`<urbi-prosa papel="fraco">Nada pedido. Ex.: "confirmar a visita", "enviar a documentação".</urbi-prosa>`}
       </urbi-stack></div>
     </urbi-card>`;
   }
