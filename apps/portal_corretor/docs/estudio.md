@@ -103,7 +103,7 @@ as 200 peças mais recentes.
 | Modo | Como funciona |
 |---|---|
 | **Publicar agora** | Peça aprovada vai na hora para o Instagram conectado. O app confere a peça de novo (CRECI, autorização vigente, arte, limites) antes de publicar |
-| **Agendar** | Escolha dia e hora, de 5 minutos a 90 dias à frente. Na hora, o app confere e publica. **Cancelar agendamento** devolve a peça para aprovada (ou para rascunho, se ela foi agendada pela aprovação por janela) |
+| **Agendar** | Escolha dia e hora, de 5 minutos a 90 dias à frente. Só peça aprovada é agendada. Na hora, o app confere e publica. **Cancelar agendamento** devolve a peça para aprovada |
 | **Baixar e publicar por fora** | Baixe a arte em **Ver arte**, copie a **Legenda** e publique pelo Instagram ou pelo Meta Business Suite (que agendam por conta própria). Depois use **Publiquei por fora**, com o link do post se quiser |
 
 **Como sai no Instagram:**
@@ -116,23 +116,20 @@ as 200 peças mais recentes.
 Publicada pela API, a peça mostra **Ver no Instagram**. A API do Instagram **não apaga**
 publicações: para tirar um post, apague pelo próprio Instagram.
 
-**Aprovação por janela:** com "Publica sozinho se eu não responder na janela", escolhido em Ajustes
-› Atendimento, um rascunho também pode ser agendado. Na hora, ele é aprovado e publicado se
-passar nas checagens e se a conta ainda estiver nesse modo. Se não passar, fica com erro e sem
-aprovação. Para impedir, cancele o agendamento.
+**Nada sai sem o seu Aprovar:** o app não publica nem agenda rascunho, e nada é aprovado
+sozinho na hora de publicar.
 
 **Enquanto publica,** a peça fica **publicando…** e não pode ser editada, agendada nem cancelada.
 Assim, dois cliques (ou o agendamento e um "Publicar agora") não publicam duas vezes. Se ela
 continuar "publicando…" por mais de 15 minutos (a publicação foi interrompida), use **Ainda
-publicando? Destravar**. A peça fica com erro (ainda aprovada, salvo o rascunho da aprovação por
-janela, que volta a pedir **Aprovar**): confira no Instagram se o post saiu.
+publicando? Destravar**. A peça fica com erro, ainda aprovada: confira no Instagram se o post saiu.
 Se saiu, use **Publiquei por fora**. Se não, publique de novo.
 
 **Quando não sai:** a peça fica **com erro** e mostra o motivo, por exemplo "o Instagram não está
 conectado", "reconecte o Instagram" ou o que o Instagram respondeu. Resolva e use **Publicar
 agora** ou **Agendar** de novo. Se você editar os textos de uma peça com erro, ela volta a
-rascunho e precisa de nova aprovação. Peça da aprovação por janela que não passou nas checagens
-fica com erro e sem aprovação: resolva e use **Aprovar**.
+rascunho e precisa de nova aprovação. Peça com erro e sem aprovação (sobra de versões antigas
+do app) mostra **Aprovar**: resolva e aprove.
 
 **Agendamento atrasado:** se a plataforma ficar fora do ar e só voltar mais de 6 horas depois da
 hora marcada, a peça não é publicada atrasada: fica com erro, para você decidir.

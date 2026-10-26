@@ -137,11 +137,6 @@ async function creciDaConta(dados: HelperDados, conta: number, usuario: number |
   return eu?.creci ?? contaLinha?.creci_juridico ?? null;
 }
 
-async function janelaLigada(dados: HelperDados, conta: number): Promise<boolean> {
-  const config = (await dados.varrerTudo('configuracoes_conta', { filtros: { conta_id: conta, chave: 'conta' }, maximo: 1 }))[0];
-  return config?.modo_aprovacao_conteudo === 'janela';
-}
-
 /** De onde a publicação parte: a escrita condicionada só reserva a peça se ela ainda está assim. */
 interface Origem {
   estado: 'aprovada' | 'erro' | 'agendada';
@@ -167,11 +162,8 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
     if (!p) return null;
     const recusar = async (mensagem: string) => ({ fim: await dados.atualizar('pecas', p.id, falha(mensagem)) });
     if (storySemCreci(p)) return recusar(`Não publicada: ${STORY_SEM_CRECI}`);
-    // Aprovação por janela: vale só se a conta ainda está nesse modo e se as checagens passarem.
-    const aprovar = !p.aprovada_em;
-    if (aprovar && !(origem.estado === 'agendada' && (await janelaLigada(dados, conta)))) {
-      return recusar('Não publicada: a peça não está aprovada (a aprovação por janela foi desligada). Aprove e publique.');
-    }
+    // Só peça aprovada publica: nada é aprovado na hora da publicação (D-86).
+    if (!p.aprovada_em) return recusar('Não publicada: a peça não está aprovada. Aprove e publique.');
     const urls = await urlsDaPeca(dados, amb.arquivos, amb.shell, conta, p.id);
     const creci = await creciDaConta(dados, conta, usuario);
     let vigente = false;
@@ -188,11 +180,11 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
     if (!canal) return recusar('Não publicada: o Instagram não está conectado (Ajustes › Conexões).');
     const token = await dados.revelar('canais_sociais', canal.id, 'token');
     if (!token) return recusar('Não publicada: reconecte o Instagram (Ajustes › Conexões).');
-    return { p, aprovar, canal, token, urls, texto: [legenda, p.hashtags ?? ''].filter(Boolean).join('\n\n') };
+    return { p, canal, token, urls, texto: [legenda, p.hashtags ?? ''].filter(Boolean).join('\n\n') };
   });
   if (!prep) return null;
   if ('fim' in prep) return prep.fim;
-  const { p, aprovar, canal, token, urls, texto } = prep;
+  const { p, canal, token, urls, texto } = prep;
   let resultado: Record<string, unknown>;
   let tokenInvalido = false;
   try {
@@ -200,7 +192,6 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
     const agora = new Date().toISOString();
     resultado = {
       estado: 'publicada', publicada_em: agora, publicacao_id: r.id, permalink: r.permalink, publicada_por: 'api', erro: null, agendamento_id: null,
-      ...(aprovar ? { aprovada_em: agora } : {}),
     };
   } catch (e) {
     if (!(e instanceof ErroInstagram)) {
@@ -327,8 +318,7 @@ instagramRotas.post(
 
 /**
  * Agendar no app (9.2): na hora marcada o evento `publicacao_programada` dispara e o listener
- * publica. Aprovação manual: só peça aprovada. Por janela (configuração da conta): o rascunho também
- * agenda e é aprovado na hora se passar nas checagens, a menos que o corretor rejeite antes.
+ * publica. Só peça aprovada é agendada (D-86).
  */
 instagramRotas.post(
   '/estudio/pecas/:id/agendar',
@@ -336,10 +326,8 @@ instagramRotas.post(
     const dados = req.dados!;
     const p = await pecaDaConta(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
-    const config = await primeiro(dados, 'configuracoes_conta', { chave: 'conta' });
-    const janela = config?.modo_aprovacao_conteudo === 'janela';
-    if (!(p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em) || (janela && p.estado === 'rascunho'))) {
-      return erro(res, 409, 'ESTADO_INVALIDO', janela ? 'Só rascunho ou peça aprovada é agendada.' : 'Aprove a peça antes de agendar.');
+    if (!(p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em))) {
+      return erro(res, 409, 'ESTADO_INVALIDO', 'Aprove a peça antes de agendar.');
     }
     const quando = typeof req.body?.quando === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(req.body.quando) ? new Date(req.body.quando) : null;
     if (!quando || Number.isNaN(quando.getTime())) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o dia e a hora.');

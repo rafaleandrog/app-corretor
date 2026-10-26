@@ -46,7 +46,7 @@ test('corrida de criação cai no único e vira atualização da linha vencedora
 
 test('dados inválidos nas rotas voltam 422 com a lista de detalhes', async () => {
   await comServidor(rotas, A, new BancoFalso(UNICOS), {}, async (chamar) => {
-    const cfg = await chamar('PUT', '/conta/configuracoes', { prazo_primeiro_atendimento_min: 0, modo_aprovacao_conteudo: 'x' });
+    const cfg = await chamar('PUT', '/conta/configuracoes', { prazo_primeiro_atendimento_min: 0, dias_cliente_parado: 0 });
     assert.equal(cfg.status, 422);
     assert.ok(cfg.corpo.detalhes.length >= 2);
     assert.equal((await chamar('PUT', '/conta/perfil', { nome: '' })).status, 422);

@@ -1334,7 +1334,7 @@ Estimativa em sessões de implementação com o kit do UrbiVerso. Cada fase só 
 1. **Telas:** todas as telas do corretor abertas e usadas no computador e no celular; Portal do Cliente e seleção no celular; estados vazio e de erro de cada uma vistos.
 2. **Caminhos:** os fluxos de 2.3 e 2.4 percorridos de ponta a ponta sem atalho de desenvolvedor: cadastrar imóvel com fotos, gerar e publicar pacote de lançamento numa conta de teste do Instagram, receber mensagem no WhatsApp de teste, Mensageiro responder e marcar visita, cliente de teste abrir o portal e reagir.
 3. **Permissões:** a matriz da seção 14 testada papel por papel; o teste de isolamento de 4.5 passa (corretor B e cliente de B não alcançam nada de A, nem pelo Mensageiro ou pelo Assistente).
-4. **Automações:** cada regra (lembrete de visita, publicação agendada, janela de aprovação, temperatura, próxima abordagem) disparada e conferida, com o atraso real registrado em `pendencias_agendadas`.
+4. **Automações:** cada regra (lembrete de visita, publicação agendada, temperatura, próxima abordagem) disparada e conferida, com o atraso real registrado em `pendencias_agendadas`.
 5. **Números:** funil e tempo de resposta batem com a conferência manual sobre a semente.
 6. **Ajuda:** o Assistente responde corretamente as 30 perguntas mais comuns do roteiro de teste.
 7. **Instalação:** a app instala e atualiza na instância intermediária sem reprovação (identidade, pisos, schema, migrações).
