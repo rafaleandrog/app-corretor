@@ -8,9 +8,17 @@ descricao: Os números do corretor (leads, conversão por etapa, vendas, VGV, pr
 ## Desempenho
 
 **Desempenho** mostra os números do período escolhido (7, 30 ou 90 dias, ou 12 meses),
-comparados ao período anterior de mesmo tamanho.
+comparados ao período anterior de mesmo tamanho. O período fica no endereço (`?dias=30`). A troca não cria entrada no
+histórico do navegador (o Voltar não desfaz a escolha), mas recarregar a página ou abrir o link
+guardado mantém o mesmo período.
 
-**Funil de compra.** A turma é a dos negócios de compra **abertos no período** (os leads). Para
+No topo, quatro números: **Leads**, **Conversão total**, **Vendas** e **Comissão prevista**. Abaixo
+de cada um, em texto pequeno, a comparação com o período anterior ("+3 que nos 30 dias
+anteriores"; nas taxas, em pontos). A comissão prevista não tem comparação: é a previsão de hoje,
+sobre os negócios em andamento.
+
+**Funil de compra** (cartão abaixo dos quatro números). A turma é a dos negócios de compra
+**abertos no período** (os leads). Para
 cada um, conta até onde ele chegou, mesmo que depois tenha recuado ou sido perdido:
 
 | Número | Conta |
@@ -22,6 +30,8 @@ cada um, conta até onde ele chegou, mesmo que depois tenha recuado ou sido perd
 | Proposta → ganho | Dos que chegaram à proposta, quantos foram ganhos |
 | Conversão total | Ganhos sobre leads |
 
+Leads e Conversão total são dois dos quatro números do topo; o cartão traz só as quatro taxas de etapa.
+
 "Chegar a uma etapa" vale pelo papel da etapa no funil, não pelo nome: renomear "Visitou" não
 muda a conta. Etapa criada pelo corretor não tem papel próprio: o negócio continua contado nos
 leads e vale o papel mais avançado que ele já alcançou nas etapas padrão. Para negócios abertos
@@ -29,15 +39,17 @@ antes desta versão, o app só sabe a etapa atual: um negócio desses que já fo
 como tendo chegado a visita ou proposta. Sem leads, as taxas aparecem
 como "—".
 
-**Resultados.** Vendas (ganhos no período), VGV (soma do valor estimado das vendas), ciclo médio
-(dias entre abrir e ganhar), visitas feitas, captações (negócios de venda abertos no período que
-chegaram à autorização assinada) e a **comissão prevista**: a soma, nos negócios em andamento, de
-valor × comissão × chance da etapa (Ajustes › Funil). Negócio sem valor ou sem comissão fica de
-fora e é contado à parte.
+**Comissão prevista** (no topo) é a soma, nos negócios em andamento, de valor × comissão × chance
+da etapa (Ajustes › Funil). Negócio sem valor ou sem comissão fica de fora e é contado à parte.
 
-**Por origem** (leads, ganhos e conversão por canal) e **motivos de perda** completam a tela.
-Tempo de primeiro atendimento, números do atendimento automático, conteúdo, custo por lead,
-comissão recebida e metas chegam nas próximas versões.
+**Resultados** (cartão) traz o resto: VGV (soma do valor estimado das vendas), ciclo médio (dias
+entre abrir e ganhar), visitas feitas e captações (negócios de venda abertos no período que
+chegaram à autorização assinada). **Vendas**, no topo, são os ganhos no período.
+
+**Por origem** (leads, ganhos e conversão por canal) e **motivos de perda** completam a tela. Um
+parágrafo no fim explica o que ainda não tem fonte: tempo de primeiro atendimento e números do
+atendimento automático (o Mensageiro) chegam com o WhatsApp; conteúdo publicado, com o Estúdio;
+custo por lead, comissão recebida e metas, em versões seguintes.
 
 O **Início** mostra a faixa da semana: contatos novos, leads e visitas feitas nos últimos 7 dias,
 mais a comissão prevista.
@@ -87,7 +99,7 @@ Todos com comissão de 5%. Números esperados:
 - Vendas: **2**; VGV: **R$ 1.070.000**.
 - Captações: **1** (Iara).
 - Visitas feitas: **1** (Diego).
-- Por origem: Indicação 3 leads e 1 ganho; Instagram 2 e 1; Portal 2 e 0; WhatsApp 1 e 0.
+- Por origem: Indicação 3 leads e 1 ganho; Instagram 2 e 1; Portal imobiliário 2 e 0; WhatsApp 1 e 0.
 - Motivos de perda: preço, 1.
 - Comissão prevista: 5% × (300 mil × 5% + 500 mil × 10% + 400 mil × 20% + 700 mil × 50% + 900 mil × 70%
   + 1,2 milhão × 40% + 800 mil × 15%) = **R$ 86.250**.
