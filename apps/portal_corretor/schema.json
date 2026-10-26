@@ -1894,7 +1894,8 @@
           "obrigatorio": true,
           "opcoes": [
             "logo",
-            "foto"
+            "foto",
+            "referencia"
           ]
         },
         "arquivo": {
@@ -1909,9 +1910,18 @@
         }
       },
       "unicos": [
-        [
-          "tipo"
-        ]
+        {
+          "colunas": [
+            "tipo"
+          ],
+          "onde": [
+            {
+              "coluna": "tipo",
+              "operador": "diferente",
+              "valor": "referencia"
+            }
+          ]
+        }
       ]
     },
     "pecas": {

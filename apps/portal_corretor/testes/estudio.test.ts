@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas } from '../backend/rotas';
-import { checarPeca, imovelParaArte, promptCanva, textosDaIa, textosPadrao, validarMarca } from '../comum/estudio';
+import { checarPeca, imovelParaArte, promptFerramenta, textosDaIa, textosPadrao, validarMarca } from '../comum/estudio';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const UNICOS = { contatos: ['telefone'], imoveis: ['codigo'], marca_conta: ['chave'], marca_arquivos: ['tipo'], perfis_corretor: ['usuario_id'] };
@@ -51,11 +51,20 @@ test('regras puras do Estúdio: marca, textos sem IA, resposta da IA validada, p
   assert.deepEqual(ia.destaques, ['Piscina']);
   assert.deepEqual(ia.hashtags, ['#lagosul']);
   assert.equal(ia.legenda, t.legenda, 'vazio da IA cai no padrão');
-  const prompt = promptCanva({ formato: 'carrossel', objetivo: 'baixou_preco', textos: t, fotos: 4 }, { nome: 'João', creci: 'DF-1', cor_primaria: '#000000', cor_secundaria: '#ffffff', estilo: 'moderno', assinatura: null }, im);
+  const marcaJoao = { nome: 'João', creci: 'DF-1', cor_primaria: '#000000', cor_secundaria: '#ffffff', estilo: 'moderno', assinatura: null };
+  const prompt = promptFerramenta('canva', { formato: 'carrossel', objetivo: 'baixou_preco', textos: t, fotos: 4 }, marcaJoao, im);
   assert.match(prompt, /carrossel de Instagram com 4 slides/);
   assert.match(prompt, /CRECI DF-1/);
   assert.match(prompt, /BAIXOU O PREÇO/);
   assert.ok(!prompt.includes('SHIS'), 'sem endereço');
+  assert.ok(!/Referências/.test(prompt), 'sem referência, nenhuma linha de referência');
+  // Claude Design: mesma instrução, com a entrega pedida em tamanho exato e as referências por link.
+  const design = promptFerramenta('claude_design', { formato: 'story', objetivo: 'novo_imovel', textos: t, fotos: 1, referencias: ['/arquivo/r1', '/arquivo/r2'] }, marcaJoao, im);
+  assert.match(design, /story de Instagram \(1080 x 1920 px\)/);
+  assert.match(design, /Entregue a arte final em JPG ou PNG, exatamente em 1080 x 1920 px/);
+  assert.match(design, /1\. \/arquivo\/r1\n2\. \/arquivo\/r2/);
+  assert.match(design, /CRECI DF-1/);
+  assert.ok(!prompt.includes('Entregue a arte final'), 'no Canva a entrega é pelo próprio Canva');
   const base = { formato: 'post_1x1', legenda: 'ok', hashtags: '#a', arquivos: 1, objetivo: 'novo_imovel' };
   assert.deepEqual(checarPeca(base, { creci: 'DF-1', imovel: true, autorizacaoVigente: true }), { ok: true, pendencias: [] });
   assert.equal(checarPeca(base, { creci: null, imovel: true, autorizacaoVigente: false }).pendencias.length, 2);
@@ -115,11 +124,17 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     const estouro = await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
     assert.equal(estouro.corpo.codigo, 'CHECAGEM_PENDENTE', 'legenda + CRECI acima de 2.200 é recusada');
     linha.legenda = original;
-    // Pacote do Canva IA: instrução e fotos públicas.
-    const canva = (await chamar('GET', `/estudio/pecas/${pecaId}/canva`)).corpo;
+    // Fazer em outra ferramenta: instrução e fotos públicas; o Canva é o padrão e tem link para abrir.
+    const canva = (await chamar('GET', `/estudio/pecas/${pecaId}/instrucao`)).corpo;
+    assert.equal(canva.ferramenta, 'canva');
     assert.match(canva.prompt, /CRECI DF-12345-F/);
     assert.deepEqual(canva.fotos.map((f: any) => f.url), ['/arquivo/801']);
+    assert.equal(canva.logo_url, '/arquivo/901');
     assert.equal(canva.abrir, 'https://www.canva.com/ai');
+    const design = (await chamar('GET', `/estudio/pecas/${pecaId}/instrucao?ferramenta=claude_design`)).corpo;
+    assert.equal(design.ferramenta, 'claude_design');
+    assert.equal(design.abrir, null);
+    assert.match(design.prompt, /Entregue a arte final/);
     // Pacote de lançamento: três formatos.
     const pacote = await chamar('POST', '/estudio/pacote', { imovel_id: imovel.id });
     assert.deepEqual(pacote.corpo.pecas.map((p: any) => p.formato), ['post_1x1', 'carrossel', 'story']);
@@ -154,4 +169,50 @@ test('Estúdio com IA: textos da IA validados, contexto só com dado público', 
     for (const proibido of ['Proprietária', 'SHIS', 'comiss', '61977770001']) assert.ok(!contextoIa.includes(proibido), `contexto sem ${proibido}`);
     assert.match(contextoIa, /Lago Sul, Brasília/);
   });
+});
+
+test('Referências do corretor: somam até o limite, entram na instrução só se escolhidas e nunca as de outra conta', async () => {
+  // O único de `marca_arquivos` é parcial (logo e foto, uma por conta; referência soma): o banco falso não tem
+  // único parcial, então aqui ele fica de fora e a rota garante a troca de logo e foto.
+  const banco = new BancoFalso({ contatos: ['telefone'], imoveis: ['codigo'], marca_conta: ['chave'], perfis_corretor: ['usuario_id'] });
+  let pecaA = 0;
+  let refsA: number[] = [];
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    await chamar('POST', '/estudio/marca/arquivos', { tipo: 'logo', upload_id: 900 });
+    await chamar('POST', '/estudio/marca/arquivos', { tipo: 'logo', upload_id: 901 });
+    for (const u of [701, 702]) assert.equal((await chamar('POST', '/estudio/marca/arquivos', { tipo: 'referencia', upload_id: u })).status, 200);
+    const m = (await chamar('GET', '/estudio/marca')).corpo;
+    assert.equal(m.logo_url, '/arquivo/901', 'logo troca, não soma');
+    assert.deepEqual(m.referencias.map((r: any) => r.url), ['/arquivo/701', '/arquivo/702']);
+    refsA = m.referencias.map((r: any) => r.id);
+    const r = await chamar('POST', '/estudio/pedido', { pedido: 'Post institucional', formatos: ['post_1x1'] });
+    pecaA = r.corpo.pecas[0].id;
+    const sem = (await chamar('GET', `/estudio/pecas/${pecaA}/instrucao`)).corpo;
+    assert.deepEqual(sem.referencias, [], 'sem escolher, nenhuma referência');
+    const uma = (await chamar('GET', `/estudio/pecas/${pecaA}/instrucao?ferramenta=outra&referencias=${refsA[1]}`)).corpo;
+    assert.deepEqual(uma.referencias.map((x: any) => x.url), ['/arquivo/702']);
+    assert.match(uma.prompt, /1\. \/arquivo\/702/);
+    assert.ok(!uma.prompt.includes('/arquivo/701'));
+    for (const u of [703, 704, 705, 706]) await chamar('POST', '/estudio/marca/arquivos', { tipo: 'referencia', upload_id: u });
+    assert.equal((await chamar('POST', '/estudio/marca/arquivos', { tipo: 'referencia', upload_id: 707 })).corpo.codigo, 'LIMITE', 'até 6');
+    const tirada = await chamar('PATCH', `/estudio/marca/arquivos/${refsA[0]}/remover`);
+    assert.equal(tirada.corpo.referencias.length, 5);
+    const logo = banco.linhas('marca_arquivos').find((l) => l.tipo === 'logo')!;
+    assert.equal((await chamar('PATCH', `/estudio/marca/arquivos/${logo.id}/remover`)).status, 404, 'logo não sai por aqui');
+  });
+
+  await comServidor(rotas, B, banco, {}, async (chamar) => {
+    await chamar('POST', '/estudio/marca/arquivos', { tipo: 'referencia', upload_id: 801 });
+    const mb = (await chamar('GET', '/estudio/marca')).corpo;
+    assert.deepEqual(mb.referencias.map((r: any) => r.url), ['/arquivo/801'], 'só as referências de B');
+    assert.equal(mb.logo_url, null);
+    const pb = (await chamar('POST', '/estudio/pedido', { pedido: 'Post', formatos: ['post_1x1'] })).corpo.pecas[0].id;
+    // Pedir o id de uma referência de A na peça de B não traz nada; a peça de A é 404; tirar a de A é 404.
+    const i = (await chamar('GET', `/estudio/pecas/${pb}/instrucao?referencias=${refsA[1]}`)).corpo;
+    assert.deepEqual(i.referencias, []);
+    assert.ok(!i.prompt.includes('/arquivo/70'));
+    assert.equal((await chamar('GET', `/estudio/pecas/${pecaA}/instrucao`)).status, 404);
+    assert.equal((await chamar('PATCH', `/estudio/marca/arquivos/${refsA[1]}/remover`)).status, 404);
+  });
+  assert.equal(banco.linhas('marca_arquivos').filter((l) => l.conta_id === 100 && l.tipo === 'referencia').length, 5);
 });

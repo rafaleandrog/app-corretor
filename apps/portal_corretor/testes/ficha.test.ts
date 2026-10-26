@@ -40,7 +40,7 @@ async function contatoComNegocio(banco: BancoFalso) {
   });
 }
 
-// A versão subiu no bloco 9 (schema e webhook); o bloco 4 em si não a mudou.
+// A versão deixou de ser fixada aqui: o bloco 4 não a subia, mas os blocos seguintes mudam o schema.
 test('manifesto: slot `funil` de base barato', () => {
   assert.deepEqual([manifesto.ia.slots.funil.base, manifesto.ia.slots.assistente.base], ['barato', 'normal']);
 });
