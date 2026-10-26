@@ -9,7 +9,7 @@ export { ARTIGOS, type ArtigoAjuda };
 export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
   '/': { nome: 'Início', doc: 'funil' },
   '/clientes': { nome: 'Clientes', doc: 'clientes-e-agenda' },
-  '/imoveis': { nome: 'Minha carteira', doc: 'imoveis' },
+  '/imoveis': { nome: 'Imóveis', doc: 'imoveis' },
   '/desempenho': { nome: 'Desempenho', doc: 'desempenho' },
   '/pagina': { nome: 'Minha página', doc: 'minha-pagina' },
   '/estudio': { nome: 'Estúdio', doc: 'estudio' },
@@ -24,8 +24,8 @@ export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
   '/funil': { nome: 'Clientes › Quadro', doc: 'funil' },
   // `/agenda` é apelido que abre o Início na aba Agenda (D-82).
   '/agenda': { nome: 'Início › Agenda', doc: 'clientes-e-agenda' },
-  // Fora do menu desde D-81, ainda abre até virar aba de Imóveis.
-  '/empreendimentos': { nome: 'Empreendimentos', doc: 'imoveis' },
+  // `/empreendimentos` é apelido que abre Imóveis na aba Empreendimentos (D-84).
+  '/empreendimentos': { nome: 'Imóveis › Empreendimentos', doc: 'imoveis' },
 };
 
 /** Tela base de um endereço (`/clientes/12` → `/clientes`; o apelido `/conta` → Ajustes › Conta). */
