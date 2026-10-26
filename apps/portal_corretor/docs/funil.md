@@ -45,10 +45,26 @@ Para cada contato com negócio em andamento, a etapa e a temperatura apontam uma
 **playbook**: o que fazer, por onde (WhatsApp, ligação, e-mail, visita) e em quanto tempo. O prazo
 conta do mais recente entre a entrada na etapa, o último contato e o último "pular".
 
-Na ficha do cliente:
+Na ficha do cliente, a abordagem aparece no topo, no resumo em uma frase, com dois botões:
 
-- **Fiz agora** registra a abordagem na linha do tempo e conta como contato.
-- **Pular** recomeça o prazo a partir de agora.
+- **Mensagem sugerida** mostra o texto pronto para mandar ao cliente. Com a IA liberada, ela adapta
+  a abordagem do playbook ao histórico recente do contato (sem repetir o que já foi mandado; onde
+  faltar imóvel ou horário, deixa um espaço como "[imóvel]" para você completar). Sem a IA, aparece
+  o texto do playbook como está. Revise antes de enviar: nada sai sozinho.
+  - **Fazer agora** abre o WhatsApp do cliente com a mensagem e registra a abordagem na linha do
+    tempo ("Abordagem por WhatsApp: …"), contando como contato. Uma linha só: não entra em "Tudo
+    que você mandou".
+  - Contato sem telefone: o botão vira **Copiar texto**, e você registra depois pelo menu **Mais ›
+    Registrar abordagem feita**.
+- **Virar tarefa** põe a abordagem na agenda: ligação vira ligação, visita vira visita, WhatsApp
+  vira mensagem e e-mail vira tarefa, no prazo do playbook (se o prazo já passou, conta de agora),
+  ligada ao contato e ao negócio.
+
+No menu **Mais** da ficha:
+
+- **Registrar abordagem feita** anota o que você fez por outro caminho (ligou, encontrou) e conta
+  como contato.
+- **Pular a abordagem** recomeça o prazo a partir de agora.
 
 ### Ajustes › Funil e abordagens
 

@@ -67,6 +67,10 @@ Sobre um cliente em foco, vão a temperatura, o perfil de busca e os resumos do 
   mensagem do formulário: o app troca esses trechos por "[telefone]" e "[e-mail]".
 - Cliente anonimizado não entra.
 
+O **Resumir** e a **Mensagem sugerida** da ficha do cliente seguem as mesmas regras: vão para a IA
+a temperatura, o próximo passo, o perfil de busca e os resumos do histórico, com telefone e e-mail
+trocados por "[telefone]" e "[e-mail]". O resumo só aparece na tela: não é gravado na ficha.
+
 O que vem de outras pessoas (o nome e a mensagem de quem preencheu o formulário, por exemplo) é
 tratado como dado, não como ordem. A resposta da IA aparece sem imagens nem links. O único link é o
 da documentação, posto pelo app.

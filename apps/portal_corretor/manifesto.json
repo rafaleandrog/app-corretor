@@ -22,6 +22,11 @@
         "titulo": "Assistente do Corretor",
         "base": "normal",
         "descricao": "Responde dúvidas pela ajuda do app, ajuda a decidir e propõe lembretes e agendamentos (o corretor confirma)"
+      },
+      "funil": {
+        "titulo": "Mensagem sugerida",
+        "base": "barato",
+        "descricao": "Adapta a abordagem do playbook ao histórico do contato, na ficha (o corretor revisa e envia)"
       }
     }
   },

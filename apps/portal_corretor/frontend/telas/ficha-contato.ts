@@ -3,7 +3,10 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
 import { abrirAssistenteSobre } from './assistente.js';
-import { chamarApi, data, dataHora, enviar, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { tarefaDaAbordagem } from '../../comum/funil';
+import { PAPEIS_NA_TELA } from '../../comum/crm';
+import { linkWhatsapp } from '../../comum/pagina';
+import { acoesComMais, chamarApi, chip, data, dataHora, enviar, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -19,11 +22,17 @@ interface Ficha {
   classificacoes: Linha[];
 }
 
+interface Sugestao {
+  mensagem: string;
+  ia: boolean;
+}
+
 const CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 const STATUS_ATIVIDADE: Record<string, string> = { pendente: 'Pendente', feita: 'Feita', cancelada: 'Cancelada', nao_compareceu: 'Não compareceu' };
 
-// Ficha do contato: dados, próximo passo, negócios (com mudança de etapa), atividades,
-// consentimento e a linha do tempo de tudo que aconteceu com ele.
+// Ficha do contato (spec 11.1, bloco 4 da fase 1.5): no topo, o resumo em uma frase e os botões
+// Resumir, Mensagem sugerida e Virar tarefa; as seções secundárias recolhidas (slot `detalhe` do
+// urbi-card) e a linha do tempo aberta.
 @customElement('pc-tela-ficha-contato')
 export class PcTelaFichaContato extends LitElement {
   @property({ type: Number }) contatoId = 0;
@@ -31,10 +40,20 @@ export class PcTelaFichaContato extends LitElement {
   @state() private envios: Linha[] = [];
   @state() private etapas: Linha[] = [];
   @state() private falha: string | null = null;
+  /** Sonda dos slots (sem custo): Resumir só aparece com a IA do Assistente liberada. */
+  @state() private ia = { resumo: false, mensagem: false };
+  @state() private resumo: string | null = null;
+  @state() private resumindo = false;
+  @state() private sugestao: Sugestao | null = null;
+  @state() private sugerindo = false;
 
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
+    void chamarApi(`/contatos/${this.contatoId}/ia`).then(
+      (r) => (this.ia = { resumo: !!r.resumo, mensagem: !!r.mensagem }),
+      () => undefined,
+    );
   }
 
   private async carregar() {
@@ -60,13 +79,16 @@ export class PcTelaFichaContato extends LitElement {
 
   private editar() {
     const c = this.ficha!.contato;
+    // Na tela, só comprador e proprietário (spec 15.9, S11); outro papel que veio da planilha fica.
+    const papeis: string[] = c.papeis.split(',').filter(Boolean);
+    const outros = papeis.filter((p) => !(PAPEIS_NA_TELA as readonly string[]).includes(p));
     void formularioEnviar(
       'Editar contato',
       [
         { nome: 'nome', tipo: 'texto', rotulo: 'Nome', obrigatorio: true, valor: c.nome },
         { nome: 'telefone', tipo: 'texto', rotulo: 'Telefone (WhatsApp)', valor: c.telefone ?? '' },
         { nome: 'email', tipo: 'texto', rotulo: 'E-mail', valor: c.email ?? '' },
-        { nome: 'papeis', tipo: 'texto', rotulo: 'Papéis (separe por vírgula)', valor: c.papeis.split(',').map((p: string) => ROTULO_PAPEL[p] ?? p).join(', ') },
+        ...PAPEIS_NA_TELA.map((p) => ({ nome: `papel_${p}`, tipo: 'booleano' as const, rotulo: ROTULO_PAPEL[p], valor: papeis.includes(p) })),
         {
           nome: 'temperatura',
           tipo: 'selecao',
@@ -79,6 +101,10 @@ export class PcTelaFichaContato extends LitElement {
       ],
       'PATCH',
       `/contatos/${c.id}`,
+      ({ papel_comprador, papel_proprietario, ...v }) => ({
+        ...v,
+        papeis: [...PAPEIS_NA_TELA.filter((p) => ({ comprador: papel_comprador, proprietario: papel_proprietario })[p]), ...outros].join(','),
+      }),
     ).then((r) => this.depois(r));
   }
 
@@ -232,7 +258,78 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   private async adiarAbordagem() {
+    this.sugestao = null;
     await this.tentar('Não foi possível pular', () => enviar('POST', `/abordagens/${this.contatoId}/adiar`, {}));
+  }
+
+  /** Resumir (slot `assistente`): só mostrado, nunca gravado. */
+  private async resumir() {
+    this.resumindo = true;
+    try {
+      this.resumo = (await enviar('POST', `/contatos/${this.contatoId}/resumo`, {})).resumo;
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível resumir', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      this.resumindo = false;
+    }
+  }
+
+  /** Mensagem sugerida (slot `funil`); sem IA, a rota devolve o texto do playbook. */
+  private async sugerir() {
+    this.sugerindo = true;
+    try {
+      const r = await chamarApi(`/contatos/${this.contatoId}/mensagem-sugerida`);
+      this.sugestao = { mensagem: r.mensagem, ia: !!r.ia };
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível sugerir', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      this.sugerindo = false;
+    }
+  }
+
+  private async copiar(texto: string) {
+    const ok = await navigator.clipboard?.writeText(texto).then(() => true, () => false);
+    if (ok) urbiVerso.notificar('Mensagem copiada.', 'sucesso');
+    else await urbiVerso.alertar({ titulo: 'Mensagem para copiar', mensagem: texto, tipo: 'info' });
+  }
+
+  /**
+   * Fazer agora: abre o WhatsApp no próprio clique, antes de qualquer `await` (senão o navegador
+   * bloqueia a janela), e registra a abordagem (uma linha na linha do tempo). Sem telefone, só copia.
+   */
+  private fazerAgora() {
+    const texto = this.sugestao?.mensagem ?? this.ficha!.abordagem!.abordagem;
+    const link = linkWhatsapp(this.ficha!.contato.telefone, texto);
+    if (!link) {
+      void this.copiar(texto);
+      return;
+    }
+    window.open(link, '_blank', 'noopener');
+    this.sugestao = null;
+    void this.tentar('Não foi possível registrar a abordagem', async () => {
+      await enviar('POST', `/abordagens/${this.contatoId}/feita`, { canal: 'whatsapp', texto });
+      urbiVerso.notificar('Abordagem registrada.', 'sucesso');
+    });
+  }
+
+  /** Virar tarefa: a próxima abordagem vira atividade na agenda, no prazo do playbook. */
+  private async virarTarefa() {
+    const corpo = tarefaDaAbordagem(this.ficha!.abordagem as Parameters<typeof tarefaDaAbordagem>[0], this.contatoId);
+    await this.tentar('Não foi possível criar a tarefa', async () => {
+      await enviar('POST', '/atividades', corpo);
+      urbiVerso.notificar(`Tarefa criada para ${dataHora(corpo.quando)}.`, 'sucesso');
+    });
+  }
+
+  /** O resumo em uma frase do topo: temperatura com o motivo, próxima abordagem e último contato. */
+  private fraseDoTopo(): string {
+    const { contato: c, abordagem: a } = this.ficha!;
+    const partes = [
+      c.temperatura ? `${rotuloChip('temperatura', c.temperatura).rotulo}${c.temperatura_motivo ? ` (${c.temperatura_motivo})` : ''}` : 'Sem temperatura',
+      a ? `próximo: ${a.abordagem.charAt(0).toLowerCase()}${a.abordagem.slice(1)}, por ${CANAL[a.canal_sugerido] ?? a.canal_sugerido}${a.vence_em ? ` até ${dataHora(a.vence_em)}` : ''}` : 'sem abordagem (nenhum negócio aberto)',
+      `último contato ${c.ultimo_contato_em ? `em ${data(c.ultimo_contato_em)}` : 'nunca'}`,
+    ];
+    return `${partes.join(' · ')}.`;
   }
 
   private async tentar(titulo: string, fn: () => Promise<unknown>) {
@@ -297,88 +394,116 @@ export class PcTelaFichaContato extends LitElement {
     // Falha ao recarregar depois de uma ação mantém a ficha que já estava na tela.
     if (this.falha && !this.ficha) return banner;
     if (!this.ficha) return html`<urbi-loading></urbi-loading>`;
-    const { contato: c, negocios, atividades, linha_do_tempo, consentimento } = this.ficha;
-    const pendentes = atividades.filter((a) => a.status === 'pendente');
+    const { contato: c, negocios, atividades, linha_do_tempo, consentimento, abordagem: a } = this.ficha;
+    const pendentes = atividades.filter((x) => x.status === 'pendente');
+    const abertos = negocios.filter((n) => n.etapa_tipo === 'aberta' || !n.etapa_tipo);
+    const temTelefone = !!linkWhatsapp(c.telefone, '-');
+    const mais = [
+      { rotulo: 'Perguntar ao Assistente', icone: 'fa-solid fa-comments', aoEscolher: () => this.perguntarAssistente() },
+      ...(a
+        ? [
+            { rotulo: 'Registrar abordagem feita', icone: 'fa-solid fa-check', aoEscolher: () => void this.abordagemFeita() },
+            { rotulo: 'Pular a abordagem', icone: 'fa-solid fa-forward', aoEscolher: () => void this.adiarAbordagem() },
+          ]
+        : []),
+      { rotulo: 'Remover contato', icone: 'fa-solid fa-trash', perigo: true, aoEscolher: () => void this.remover() },
+    ];
     return html`<urbi-stack>
       ${banner}
       <urbi-linha justificar="entre" quebrar>
         <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/clientes')}>Clientes</urbi-botao>
-        <urbi-linha>
-          <urbi-botao variante="secundario" pequeno icone="fa-solid fa-comment" @click=${() => this.nota()}>Registrar contato</urbi-botao>
-          <urbi-botao variante="secundario" pequeno icone="fa-solid fa-comments" @click=${() => this.perguntarAssistente()}>Perguntar ao Assistente</urbi-botao>
-          <urbi-botao variante="perigo" pequeno icone="fa-solid fa-trash" @click=${() => this.remover()}>Remover</urbi-botao>
-        </urbi-linha>
+        ${acoesComMais({ rotulo: 'Registrar contato', icone: 'fa-solid fa-comment', aoEscolher: () => this.nota() }, mais)}
       </urbi-linha>
       <urbi-card titulo=${c.nome} icone="fa-solid fa-user">
         ${this.acao('Editar contato', 'fa-solid fa-pen', () => this.editar())}
-        <urbi-prosa>${[c.telefone, c.email].filter(Boolean).join(' · ') || 'sem telefone nem e-mail'}</urbi-prosa>
-        <urbi-prosa papel="secundario">
-          ${c.papeis.split(',').map((p: string) => ROTULO_PAPEL[p] ?? p).join(', ')}${c.temperatura ? ` · ${c.temperatura}${c.temperatura_motivo ? ` (${c.temperatura_motivo}${c.temperatura_autor === 'corretor' ? ', marcado por você' : ''})` : ''}` : ''} · chegou por ${c.origem_canal ?? 'origem não informada'}${c.origem_campanha ? ` (${c.origem_campanha})` : ''}
-          · cadastrado em ${data(c.criado_em)}
-        </urbi-prosa>
-        ${c.observacoes ? html`<urbi-prosa papel="dica" pre>${c.observacoes}</urbi-prosa>` : ''}
+        <urbi-linha quebrar>
+          ${chip('temperatura', c.temperatura, c.temperatura_motivo)}
+          ${c.papeis.split(',').filter(Boolean).map((p: string) => chip('papel', p))}
+          ${chip('origem', c.origem_canal)}
+          ${a?.vencida ? html`<urbi-badge cor="alerta">Abordagem atrasada</urbi-badge>` : ''}
+        </urbi-linha>
+        <urbi-prosa>${this.fraseDoTopo()}</urbi-prosa>
+        <urbi-linha quebrar>
+          ${this.ia.resumo
+            ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.resumindo} @click=${() => this.resumir()}>Resumir</urbi-botao>`
+            : ''}
+          ${a
+            ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-message" ?carregando=${this.sugerindo} @click=${() => this.sugerir()}>Mensagem sugerida</urbi-botao>
+                <urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>`
+            : ''}
+        </urbi-linha>
+        ${this.resumo
+          ? html`<urbi-prosa papel="dica">${this.resumo}</urbi-prosa>
+              <urbi-prosa papel="fraco">Resumo feito pela IA agora, a partir do histórico; não fica gravado.</urbi-prosa>`
+          : ''}
+        ${this.sugestao && a
+          ? html`<urbi-prosa pre>${this.sugestao.mensagem}</urbi-prosa>
+              <urbi-prosa papel="fraco">${this.sugestao.ia ? 'Escrita pela IA a partir do playbook e do histórico: revise antes de enviar.' : 'Texto do playbook (a IA da mensagem sugerida não está liberada).'}</urbi-prosa>
+              <urbi-linha quebrar>
+                <urbi-botao pequeno icone=${temTelefone ? 'fa-brands fa-whatsapp' : 'fa-solid fa-copy'} @click=${() => this.fazerAgora()}>${temTelefone ? 'Fazer agora' : 'Copiar texto'}</urbi-botao>
+                ${temTelefone ? html`<urbi-botao pequeno variante="texto" @click=${() => this.copiar(this.sugestao!.mensagem)}>Copiar</urbi-botao>` : ''}
+                <urbi-botao pequeno variante="texto" @click=${() => (this.sugestao = null)}>Fechar</urbi-botao>
+              </urbi-linha>`
+          : ''}
       </urbi-card>
-      ${this.ficha.abordagem
-        ? html`<urbi-card titulo="Próxima abordagem" icone="fa-solid fa-route">
-            <urbi-prosa>${this.ficha.abordagem.abordagem}</urbi-prosa>
-            <urbi-prosa papel="secundario">${this.ficha.abordagem.etapa_nome} · ${this.ficha.abordagem.temperatura} · por ${CANAL[this.ficha.abordagem.canal_sugerido] ?? this.ficha.abordagem.canal_sugerido}${
-              this.ficha.abordagem.vence_em ? ` · até ${dataHora(this.ficha.abordagem.vence_em)}` : ''}</urbi-prosa>
+      <urbi-card titulo="Dados e próximo passo" icone="fa-solid fa-id-card">
+        ${this.acao('Definir próximo passo', 'fa-solid fa-forward', () => this.proximoPasso())}
+        <urbi-prosa papel="secundario">${c.proximo_passo ? `Próximo passo: ${c.proximo_passo} · ${dataHora(c.proximo_passo_em)}` : 'Nenhum próximo passo combinado.'}</urbi-prosa>
+        <div slot="detalhe">
+          <urbi-stack>
+            <urbi-prosa>${[c.telefone, c.email].filter(Boolean).join(' · ') || 'sem telefone nem e-mail'}</urbi-prosa>
+            <urbi-prosa papel="secundario">
+              ${c.origem_campanha ? `Campanha: ${c.origem_campanha} · ` : ''}cadastrado em ${data(c.criado_em)}${c.temperatura_autor === 'corretor' ? ' · temperatura marcada por você' : ''}
+            </urbi-prosa>
+            ${c.observacoes ? html`<urbi-prosa papel="dica" pre>${c.observacoes}</urbi-prosa>` : ''}
             <urbi-linha quebrar>
-              ${this.ficha.abordagem.vencida ? html`<urbi-badge cor="alerta">Atrasada</urbi-badge>` : ''}
-              <urbi-botao pequeno @click=${() => this.abordagemFeita()}>Fiz agora</urbi-botao>
-              <urbi-botao variante="texto" pequeno @click=${() => this.adiarAbordagem()}>Pular</urbi-botao>
+              ${consentimento
+                ? html`<urbi-prosa>Consentimento registrado em ${dataHora(consentimento.aceito_em)} (${consentimento.canal}).</urbi-prosa>
+                    <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(false)}>Revogar</urbi-botao>`
+                : html`<urbi-prosa papel="dica">Sem consentimento: o atendimento automático só usa mensagens-modelo aprovadas.</urbi-prosa>
+                    <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(true)}>Registrar</urbi-botao>`}
             </urbi-linha>
-          </urbi-card>`
-        : ''}
-      <urbi-card titulo="Próximo passo" icone="fa-solid fa-forward">
-        ${this.acao('Definir próximo passo', 'fa-solid fa-pen', () => this.proximoPasso())}
-        ${c.proximo_passo
-          ? html`<urbi-prosa>${c.proximo_passo}</urbi-prosa><urbi-prosa papel="secundario">${dataHora(c.proximo_passo_em)}</urbi-prosa>`
-          : html`<urbi-prosa papel="dica">Nenhum próximo passo combinado.</urbi-prosa>`}
+          </urbi-stack>
+        </div>
       </urbi-card>
       <urbi-card titulo="Negócios" icone="fa-solid fa-handshake">
         ${this.acao('Novo negócio', 'fa-solid fa-plus', () => this.novoNegocio())}
+        <urbi-prosa papel="secundario">${negocios.length ? `${abertos.length} aberto(s) de ${negocios.length}` : 'Nenhum negócio. Abra um quando o cliente quiser comprar ou vender.'}</urbi-prosa>
         ${negocios.length
-          ? html`<urbi-lista separador .itens=${negocios} .render_item=${(n: Linha) => html`<urbi-linha justificar="entre" quebrar>
-                <urbi-prosa>${n.titulo} · ${reais(n.valor_estimado_c)}${n.imovel_codigo ? ` · ${n.imovel_codigo}` : ""}</urbi-prosa>
+          ? html`<div slot="detalhe"><urbi-lista separador .itens=${negocios} .render_item=${(n: Linha) => html`<urbi-linha justificar="entre" quebrar>
+                <urbi-prosa>${n.titulo} · ${reais(n.valor_estimado_c)}${n.imovel_codigo ? ` · ${n.imovel_codigo}` : ''}</urbi-prosa>
                 <urbi-linha>
-                  <urbi-badge cor=${n.etapa_tipo === 'ganha' ? 'sucesso' : n.etapa_tipo === 'perdida' ? 'padrao' : 'info'}>${n.etapa_nome}</urbi-badge>
+                  ${chip('etapa', n.etapa_nome ? { nome: n.etapa_nome, tipo: n.etapa_tipo } : null)}
                   <urbi-botao variante="texto" pequeno @click=${() => this.moverEtapa(n)}>Mudar etapa</urbi-botao>
                 </urbi-linha>
-              </urbi-linha>`}></urbi-lista>`
-          : html`<urbi-prosa papel="dica">Nenhum negócio. Abra um quando o cliente quiser comprar ou vender.</urbi-prosa>`}
-      </urbi-card>
-      <urbi-card titulo="Agenda deste cliente" icone="fa-solid fa-calendar-day">
-        ${this.acao('Agendar', 'fa-solid fa-plus', () => this.novaAtividade())}
-        ${atividades.length
-          ? html`<urbi-lista separador .itens=${atividades} .render_item=${(a: Linha) => html`<urbi-linha justificar="entre" quebrar>
-                <urbi-prosa>${ROTULO_TIPO_ATIVIDADE[a.tipo]}: ${a.titulo} · ${dataHora(a.quando)}${a.local ? ` · ${a.local}` : ''}${this.visitaDe(a)}</urbi-prosa>
-                <urbi-linha>
-                  ${this.ficha!.visitas.some((v: Linha) => v.atividade_id === a.id)
-                    ? html`<urbi-botao variante="texto" pequeno @click=${() => this.retornoVisita(a)}>Retorno</urbi-botao>`
-                    : ''}
-                  ${a.status === 'pendente'
-                    ? html`<urbi-botao variante="texto" pequeno @click=${() => this.concluir(a)}>Marcar feito</urbi-botao>`
-                    : html`<urbi-badge>${STATUS_ATIVIDADE[a.status]}</urbi-badge>`}
-                </urbi-linha>
-              </urbi-linha>`}></urbi-lista>
-            ${pendentes.length ? '' : html`<urbi-prosa papel="dica">Nada pendente.</urbi-prosa>`}`
-          : html`<urbi-prosa papel="dica">Nada agendado. Marque uma ligação, visita ou reunião.</urbi-prosa>`}
+              </urbi-linha>`}></urbi-lista></div>`
+          : ''}
       </urbi-card>
       <pc-selecoes-cliente .contatoId=${c.id} .nome=${c.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>
       <urbi-card titulo="Tudo que você mandou" icone="fa-solid fa-paper-plane">
         ${this.acao('Registrar envio', 'fa-solid fa-plus', () => void this.registrarEnvio())}
+        <urbi-prosa papel="secundario">${this.envios.length ? `${this.envios.length} envio(s); o último em ${dataHora(this.envios[0].enviado_em)}` : 'Nada registrado. Anote os imóveis e arquivos que mandar: o histórico fica aqui.'}</urbi-prosa>
         ${this.envios.length
-          ? html`<urbi-lista separador .itens=${this.envios} .render_item=${(e: Linha) => html`<urbi-prosa>${e.imovel_codigo ? `${e.imovel_codigo}${e.imovel_titulo ? ` · ${e.imovel_titulo}` : ''}` : (e.descricao ?? e.tipo)}</urbi-prosa>
-                <urbi-prosa papel="fraco">${dataHora(e.enviado_em)} · ${e.canal}${e.cliques ? ` · ${e.cliques} clique(s)` : ''}</urbi-prosa>`}></urbi-lista>`
-          : html`<urbi-prosa papel="dica">Nada registrado. Anote os imóveis e arquivos que mandar: o histórico fica aqui.</urbi-prosa>`}
+          ? html`<div slot="detalhe"><urbi-lista separador .itens=${this.envios} .render_item=${(e: Linha) => html`<urbi-prosa>${e.imovel_codigo ? `${e.imovel_codigo}${e.imovel_titulo ? ` · ${e.imovel_titulo}` : ''}` : (e.descricao ?? e.tipo)}</urbi-prosa>
+                <urbi-prosa papel="fraco">${dataHora(e.enviado_em)} · ${e.canal}${e.cliques ? ` · ${e.cliques} clique(s)` : ''}</urbi-prosa>`}></urbi-lista></div>`
+          : ''}
       </urbi-card>
-      <urbi-card titulo="Consentimento" icone="fa-solid fa-shield-halved">
-        ${consentimento
-          ? html`<urbi-prosa>Autorizou receber mensagens em ${dataHora(consentimento.aceito_em)} (${consentimento.canal}).</urbi-prosa>
-              <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(false)}>Revogar</urbi-botao>`
-          : html`<urbi-prosa papel="dica">Sem consentimento registrado: o atendimento automático só poderá usar mensagens-modelo aprovadas.</urbi-prosa>
-              <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(true)}>Registrar consentimento</urbi-botao>`}
+      <urbi-card titulo="Agenda deste cliente" icone="fa-solid fa-calendar-day">
+        ${this.acao('Agendar', 'fa-solid fa-plus', () => this.novaAtividade())}
+        <urbi-prosa papel="secundario">${atividades.length ? (pendentes.length ? `${pendentes.length} pendente(s); a próxima em ${dataHora([...pendentes].sort((x, y) => String(x.quando).localeCompare(String(y.quando)))[0].quando)}` : 'Nada pendente.') : 'Nada agendado. Marque uma ligação, visita ou reunião.'}</urbi-prosa>
+        ${atividades.length
+          ? html`<div slot="detalhe"><urbi-lista separador .itens=${atividades} .render_item=${(x: Linha) => html`<urbi-linha justificar="entre" quebrar>
+                <urbi-prosa>${ROTULO_TIPO_ATIVIDADE[x.tipo]}: ${x.titulo} · ${dataHora(x.quando)}${x.local ? ` · ${x.local}` : ''}${this.visitaDe(x)}</urbi-prosa>
+                <urbi-linha>
+                  ${this.ficha!.visitas.some((v: Linha) => v.atividade_id === x.id)
+                    ? html`<urbi-botao variante="texto" pequeno @click=${() => this.retornoVisita(x)}>Retorno</urbi-botao>`
+                    : ''}
+                  ${x.status === 'pendente'
+                    ? html`<urbi-botao variante="texto" pequeno @click=${() => this.concluir(x)}>Marcar feito</urbi-botao>`
+                    : html`<urbi-badge>${STATUS_ATIVIDADE[x.status]}</urbi-badge>`}
+                </urbi-linha>
+              </urbi-linha>`}></urbi-lista></div>`
+          : ''}
       </urbi-card>
       <urbi-card titulo="Linha do tempo" icone="fa-solid fa-clock-rotate-left">
         ${linha_do_tempo.length

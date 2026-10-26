@@ -154,3 +154,26 @@ export const ORDEM_FILA: TipoFila[] = ['quente_sem_resposta', 'abordagem_vencida
 export function ordenarFila<T extends { tipo: TipoFila; quando: unknown }>(itens: T[]): T[] {
   return [...itens].sort((a, b) => ORDEM_FILA.indexOf(a.tipo) - ORDEM_FILA.indexOf(b.tipo) || (iso(a.quando) ?? '').localeCompare(iso(b.quando) ?? ''));
 }
+
+/** Canal sugerido pelo playbook → tipo da atividade ("Virar tarefa" na ficha). */
+export const TIPO_DO_CANAL: Record<string, 'mensagem' | 'ligacao' | 'visita' | 'tarefa'> = {
+  whatsapp: 'mensagem',
+  mensagem: 'mensagem',
+  ligacao: 'ligacao',
+  visita: 'visita',
+  email: 'tarefa',
+};
+
+/**
+ * Corpo de POST /atividades a partir da próxima abordagem: o tipo pelo canal, `quando` pelo prazo
+ * do playbook (o vencimento; se já passou, o prazo contado de agora), ligada ao contato e ao negócio.
+ */
+export function tarefaDaAbordagem(
+  a: { abordagem: string; canal_sugerido: string; prazo_horas: number; vence_em: string | null; negocio_id: number },
+  contatoId: number,
+  agora = new Date(),
+) {
+  const vence = iso(a.vence_em);
+  const quando = vence && vence > agora.toISOString() ? vence : new Date(agora.getTime() + Math.max(1, a.prazo_horas) * 3600e3).toISOString();
+  return { tipo: TIPO_DO_CANAL[a.canal_sugerido] ?? 'tarefa', titulo: a.abordagem.slice(0, 200), quando, contato_id: contatoId, negocio_id: a.negocio_id };
+}
