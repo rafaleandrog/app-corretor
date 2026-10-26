@@ -104,6 +104,8 @@ export interface DadosContato {
   temperatura: string | null;
   proximo_passo: string | null;
   proximo_passo_em: string | null;
+  /** O que o cliente vê no topo do portal (bloco 9); o `proximo_passo` é nota interna e nunca sai. */
+  proximo_passo_cliente: string | null;
 }
 
 function dataHora(v: unknown, campo: string, erros: string[]): string | null {
@@ -124,7 +126,7 @@ function dataHora(v: unknown, campo: string, erros: string[]): string | null {
  */
 export function validarContato(corpo: Record<string, unknown>, parcial = false): Resultado<Partial<DadosContato>> {
   const erros: string[] = [];
-  for (const c of ['nome', 'telefone', 'email', 'observacoes', 'temperatura', 'proximo_passo', 'proximo_passo_em']) {
+  for (const c of ['nome', 'telefone', 'email', 'observacoes', 'temperatura', 'proximo_passo', 'proximo_passo_em', 'proximo_passo_cliente']) {
     const v = corpo[c];
     if (v !== undefined && v !== null && typeof v !== 'string') erros.push(`O campo ${c} deve ser texto.`);
   }
@@ -156,6 +158,7 @@ export function validarContato(corpo: Record<string, unknown>, parcial = false):
   if (tem('observacoes')) dados.observacoes = typeof corpo.observacoes === 'string' ? corpo.observacoes.trim() || null : null;
   if (tem('proximo_passo')) dados.proximo_passo = opcional(corpo.proximo_passo, 300);
   if (tem('proximo_passo_em')) dados.proximo_passo_em = dataHora(corpo.proximo_passo_em, 'Próximo passo', erros);
+  if (tem('proximo_passo_cliente')) dados.proximo_passo_cliente = opcional(corpo.proximo_passo_cliente, 120);
   if (!parcial && !dados.telefone && !dados.email) erros.push('Informe telefone ou e-mail para poder falar com o contato.');
   if (erros.length) return { ok: false, erros };
   return { ok: true, dados };

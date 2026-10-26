@@ -169,7 +169,12 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
     if (!portal) return res.status(404).json({ erro: true, codigo: 'NAO_ENCONTRADO', mensagem: 'Portal indisponível.' });
     const p = portal.dados as Linha;
     const selecoes = (await Promise.all((p.selecoes ?? []).map((sid: number) => selecaoPublica(req, conta!, sid)))).filter(Boolean);
-    res.json({ portal: { corretor: await corretorPublico(req, p.corretor), url_acoes: p.url_acoes, agenda: p.agenda ?? [], jornada: p.jornada ?? null, selecoes } });
+    res.json({
+      portal: {
+        corretor: await corretorPublico(req, p.corretor), url_acoes: p.url_acoes, proximo_passo: p.proximo_passo ?? null,
+        agenda: p.agenda ?? [], tarefas: p.tarefas ?? [], jornada: p.jornada ?? null, selecoes,
+      },
+    });
   } catch (e) {
     next(e);
   }
@@ -248,22 +253,26 @@ export const webhooks = {
     res.json({ ok: true });
   },
 
-  /** Ação do cliente no portal: mensagem ao corretor ou pedido de remarcar uma visita. */
+  /**
+   * Ação do cliente no portal: mensagem ao corretor, pedido de remarcar uma visita ou pendência
+   * marcada como feita (bloco 9). Se a pendência é deste cliente, quem confere é o listener.
+   */
   acao_cliente: async (req: Request, res: Response) => {
     const ctx = req.wh?.contexto as Linha | null;
     const conta = contaDoIngresso(req);
     const contatoId = idDe(ctx?.contato_id);
     const corpo = (req.body ?? {}) as Linha;
-    const tipo = ['mensagem', 'remarcar'].includes(corpo.tipo) ? (corpo.tipo as string) : null;
-    const mensagem = texto(corpo.texto, 1000) || null;
+    const tipo = ['mensagem', 'remarcar', 'tarefa_feita'].includes(corpo.tipo) ? (corpo.tipo as string) : null;
+    const mensagem = tipo === 'tarefa_feita' ? null : texto(corpo.texto, 1000) || null;
     const visita = tipo === 'remarcar' ? idDe(corpo.visita) : null;
-    if (!conta || !contatoId || !tipo || (tipo === 'mensagem' && !mensagem) || (tipo === 'remarcar' && !visita)) {
+    const tarefa = tipo === 'tarefa_feita' ? idDe(corpo.tarefa) : null;
+    if (!conta || !contatoId || !tipo || (tipo === 'mensagem' && !mensagem) || (tipo === 'remarcar' && !visita) || (tipo === 'tarefa_feita' && !tarefa)) {
       return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: tipo === 'mensagem' ? 'Escreva a mensagem.' : 'Pedido inválido.' });
     }
     if (!dentroDoLimite(`acao:${conta}:${contatoId}:${origem(req)}`, 5)) {
       return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitos envios seguidos. Espere um minuto.' });
     }
-    await req.eventos!.publicar('acao_cliente_recebida', { contato_id: contatoId, tipo, texto: mensagem, visita }, { conta_id: conta });
+    await req.eventos!.publicar('acao_cliente_recebida', { contato_id: contatoId, tipo, texto: mensagem, visita, tarefa }, { conta_id: conta });
     res.json({ ok: true });
   },
 
@@ -438,7 +447,21 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
   });
 }
 
-/** Mensagem ou pedido de remarcar vindo do portal: linha do tempo e tarefa para o corretor. */
+/**
+ * Pendência marcada como feita pelo cliente: grava `feita_em`, registra na linha do tempo e
+ * ressincroniza o portal (o item sai). Pendência de outro cliente, removida ou já feita: nada muda.
+ */
+async function tarefaFeita(trx: HelperDados, conta: number, contato: Linha, tarefaId: unknown) {
+  const tid = idDe(tarefaId);
+  if (!tid) return false;
+  const t = (await trx.varrerTudo('tarefas_cliente', { filtros: { conta_id: conta, id: tid, contato_id: contato.id }, maximo: 1 }))[0];
+  if (!t || t.feita_em) return false;
+  await trx.atualizar('tarefas_cliente', t.id, { feita_em: new Date().toISOString() });
+  await linhaDoTempo(trx, contato.id, 'portal.tarefa_feita', `Marcou como feito no portal: ${t.texto}`, { tarefa_id: t.id }, conta);
+  return true;
+}
+
+/** Mensagem, pedido de remarcar ou pendência feita vindo do portal: linha do tempo (e tarefa para o corretor). */
 export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoListener) {
   const conta = evento.conta_id;
   if (!conta || !ctx.dados?.comConta) return;
@@ -446,6 +469,13 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
   await comContaRepetindo(ctx, conta, async (trx) => {
     const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: p.contato_id }, maximo: 1 }))[0];
     if (!contato) return;
+    if (p.tipo === 'tarefa_feita') {
+      if (!(await tarefaFeita(trx, conta, contato, p.tarefa))) return;
+      await trx.atualizar('contatos', contato.id, { ultimo_contato_em: new Date().toISOString() });
+      await reclassificar(trx, contato.id);
+      await sincronizarPortal(trx, conta, contato.id);
+      return;
+    }
     if (p.tipo === 'mensagem') {
       await linhaDoTempo(trx, contato.id, 'portal.mensagem', `Mensagem pelo portal: ${String(p.texto ?? '').slice(0, 250)}`, { texto: p.texto }, conta);
       await tarefa(trx, conta, contato, 'Responder a mensagem do portal');

@@ -170,8 +170,9 @@ export function selecaoValida(s: Linha, agora = new Date().toISOString()): boole
 }
 
 /**
- * Portal do Cliente (11.3, comprador): as seleções válidas, a agenda de visitas, a jornada e o topo
- * com o corretor. Nada de nome, telefone ou e-mail do cliente (D-73). Sem acesso ativo, a linha sai.
+ * Portal do Cliente (11.3, comprador; bloco 9, modelo Compass One): o topo com o corretor e o
+ * próximo passo escrito para o cliente, as seleções válidas, a agenda de visitas, as pendências do
+ * cliente e a jornada. Nada de nome, telefone ou e-mail do cliente (D-73). Sem acesso ativo, a linha sai.
  * `corretor` ausente (listener) mantém o topo já publicado.
  */
 export async function sincronizarPortal(dados: HelperDados, conta: number, contatoId: number, corretor?: Corretor): Promise<void> {
@@ -182,10 +183,11 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
   }
   const atual = await lerVitrine(dados, conta, 'portal', contatoId);
   const topo = await comMarca(dados, conta, corretor ?? (atual?.dados as Linha | undefined)?.corretor);
-  const [contato, selecoes, atividades] = await Promise.all([
+  const [contato, selecoes, atividades, tarefas] = await Promise.all([
     umaLinha(dados, 'contatos', { conta_id: conta, id: contatoId }),
     dados.varrerTudo('selecoes', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'enviada_em', ordem: 'desc', maximo: 200 }),
     dados.varrerTudo('atividades', { filtros: { conta_id: conta, contato_id: contatoId, tipo: 'visita' }, ordenar: 'quando', ordem: 'asc', maximo: 500 }),
+    dados.varrerTudo('tarefas_cliente', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'criado_em', ordem: 'asc', maximo: 200 }),
   ]);
   if (!contato) {
     await apagarVitrine(dados, conta, 'portal', contatoId);
@@ -200,33 +202,74 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
   const imoveisIds = [...new Set(visitas.map((v) => v.imovel_id))];
   const imoveis = imoveisIds.length ? await dados.varrerTudo('imoveis', { filtros: { conta_id: conta, id: imoveisIds.join(',') }, maximo: 500 }) : [];
   const imovel = new Map(imoveis.map((i) => [i.id, i]));
+  // Do imóvel, só o que pode aparecer num anúncio (o endereço segue `endereco_publico`).
+  const imovelPublicoDe = (im: Linha | undefined) =>
+    im ? { codigo: im.codigo, titulo: im.titulo ?? null, bairro: im.endereco_publico === 'regiao' ? null : (im.bairro ?? null), cidade: im.cidade ?? null, endereco: im.endereco_publico === 'completo' ? (im.endereco ?? null) : null } : null;
   const ontem = new Date(Date.now() - 86400e3).toISOString();
   const agenda = atividades
     .filter((a) => a.status === 'pendente' && (iso(a.quando) ?? '') >= ontem)
     .slice(0, 20)
-    .map((a) => {
-      const im = imovel.get(imovelDe.get(a.id));
-      return {
-        ref: a.id,
-        quando: iso(a.quando),
-        // Do imóvel, só o que pode aparecer num anúncio (o endereço segue `endereco_publico`).
-        imovel: im ? { codigo: im.codigo, titulo: im.titulo ?? null, bairro: im.endereco_publico === 'regiao' ? null : (im.bairro ?? null), cidade: im.cidade ?? null, endereco: im.endereco_publico === 'completo' ? (im.endereco ?? null) : null } : null,
-      };
-    });
+    .map((a) => ({ ref: a.id, quando: iso(a.quando), imovel: imovelPublicoDe(imovel.get(imovelDe.get(a.id))) }));
   // "Imóveis recebidos" conta tudo o que foi enviado e não revogado, inclusive em seleções vencidas.
   const enviadas = selecoes.filter((s) => !s.revogada_em);
   const itens = enviadas.length ? await dados.varrerTudo('selecao_itens', { filtros: { conta_id: conta, selecao_id: enviadas.map((s) => s.id).join(',') }, maximo: 5000 }) : [];
+  const desde = (iso(contato.criado_em) ?? agora).slice(0, 10);
+  const feitas = atividades.filter((a) => a.status === 'feita');
   await gravarVitrine(dados, conta, 'portal', contatoId, {
     corretor: topo,
     url_acoes: acesso.url_acoes ?? null,
+    // Só o texto escrito para o cliente, e só quando preenchido: o `proximo_passo` interno nunca sai (D-55).
+    ...(contato.proximo_passo_cliente ? { proximo_passo: contato.proximo_passo_cliente } : {}),
     selecoes: validas.map((s) => s.id),
     agenda,
+    // "O que falta de você": as pendências que o corretor pediu; a feita sai na sincronização seguinte.
+    tarefas: tarefas.filter((t) => !t.feita_em).map((t) => ({ ref: t.id, texto: t.texto })),
     jornada: {
-      desde: (iso(contato.criado_em) ?? agora).slice(0, 10),
+      desde,
       imoveis_recebidos: new Set(itens.map((i) => i.imovel_id)).size,
-      visitas_feitas: atividades.filter((a) => a.status === 'feita').length,
+      visitas_feitas: feitas.length,
+      eventos: eventosDaJornada(desde, enviadas, itens, feitas, imovelDe, imovel, tarefas, imovelPublicoDe),
     },
   });
+}
+
+export interface EventoJornada {
+  tipo: 'inicio' | 'selecao' | 'visita' | 'tarefa';
+  quando: string;
+  texto: string;
+}
+
+/**
+ * "Sua jornada" como linha do tempo (bloco 9): o começo, cada seleção recebida, cada visita feita e
+ * cada pendência resolvida, da mais recente para a mais antiga. Só o que o corretor publicou: título
+ * da seleção, imóvel do jeito do anúncio e o texto da pendência. Nunca o título interno da visita.
+ */
+function eventosDaJornada(
+  desde: string,
+  selecoes: Linha[],
+  itens: Linha[],
+  visitas: Linha[],
+  imovelDe: Map<unknown, unknown>,
+  imovel: Map<unknown, Linha>,
+  tarefas: Linha[],
+  publico: (im: Linha | undefined) => { titulo: string | null; codigo: string; bairro: string | null } | null,
+): EventoJornada[] {
+  const eventos: EventoJornada[] = [{ tipo: 'inicio', quando: `${desde}T12:00:00.000Z`, texto: 'Começamos a busca' }];
+  for (const s of selecoes) {
+    const n = new Set(itens.filter((i) => i.selecao_id === s.id).map((i) => i.imovel_id)).size;
+    const quando = iso(s.enviada_em);
+    if (quando && n) eventos.push({ tipo: 'selecao', quando, texto: `Recebeu ${n} imóve${n > 1 ? 'is' : 'l'}: ${s.titulo}` });
+  }
+  for (const a of visitas) {
+    const im = publico(imovel.get(imovelDe.get(a.id)));
+    const quando = iso(a.quando);
+    if (quando) eventos.push({ tipo: 'visita', quando, texto: `Visitou ${im ? (im.titulo ?? im.codigo) + (im.bairro ? `, ${im.bairro}` : '') : 'um imóvel'}` });
+  }
+  for (const t of tarefas) {
+    const quando = iso(t.feita_em);
+    if (quando) eventos.push({ tipo: 'tarefa', quando, texto: `Feito: ${t.texto}` });
+  }
+  return eventos.sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, 50);
 }
 
 /** Para rotas que mudam a agenda ou as seleções: o portal acompanha sem derrubar a rota. */

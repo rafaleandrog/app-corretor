@@ -5,6 +5,7 @@ import type { Bloco } from '../../comum/pagina';
 import { linkWhatsapp } from '../../comum/pagina';
 import { ROTULO_TIPO_IMOVEL } from '../apoio';
 import { estiloPublico } from './estilo';
+import { iconesImovel } from './icones';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -161,12 +162,8 @@ export class PcPaginaPublica extends LitElement {
         <div class="preco">${reais(i.preco_c)}</div>
         <div>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</div>
         <div class="suave">${local(i)}</div>
-        <div class="icones">
-          ${i.quartos ? html`<span>${i.quartos} quarto${i.quartos > 1 ? 's' : ''}</span>` : nothing}
-          ${i.area_util_m2 ? html`<span>${i.area_util_m2} m²</span>` : nothing}
-          ${i.vagas ? html`<span>${i.vagas} vaga${i.vagas > 1 ? 's' : ''}</span>` : nothing}
-          ${i.situacao === 'reservado' ? html`<span>Reservado</span>` : nothing}
-        </div>
+        ${iconesImovel(i)}
+        ${i.situacao === 'reservado' ? html`<div class="suave">Reservado</div>` : nothing}
       </div>
     </a>`;
   }
@@ -220,13 +217,11 @@ export class PcPaginaPublica extends LitElement {
   private renderImovel() {
     const im = this.imovel!;
     const caracteristicas: string[] = im.caracteristicas ?? [];
+    // Quartos, área e vagas vão com ícone; o resto, em texto logo abaixo.
     const detalhes = [
-      im.area_util_m2 ? `${im.area_util_m2} m² úteis` : null,
-      im.area_total_m2 ? `${im.area_total_m2} m² de área total` : null,
-      im.quartos ? `${im.quartos} quarto${im.quartos > 1 ? 's' : ''}` : null,
+      im.area_util_m2 && im.area_total_m2 ? `${im.area_total_m2} m² de área total` : null,
       im.suites ? `${im.suites} suíte${im.suites > 1 ? 's' : ''}` : null,
       im.banheiros ? `${im.banheiros} banheiro${im.banheiros > 1 ? 's' : ''}` : null,
-      im.vagas ? `${im.vagas} vaga${im.vagas > 1 ? 's' : ''}` : null,
     ].filter(Boolean);
     const custos = [im.condominio_c ? `Condomínio ${reais(im.condominio_c)}` : null, im.iptu_anual_c ? `IPTU ${reais(im.iptu_anual_c)}/ano` : null].filter(Boolean);
     return html`
@@ -249,7 +244,8 @@ export class PcPaginaPublica extends LitElement {
           <h2>${im.titulo ?? ROTULO_TIPO_IMOVEL[im.tipo] ?? 'Imóvel'}</h2>
           <div class="preco">${reais(im.preco_c)}</div>
           <div class="suave">${[im.endereco, local(im), im.uf].filter(Boolean).join(' · ')}</div>
-          ${detalhes.length ? html`<div class="icones">${detalhes.map((d) => html`<span>${d}</span>`)}</div>` : nothing}
+          ${iconesImovel(im)}
+          ${detalhes.length ? html`<div class="suave">${detalhes.join(' · ')}</div>` : nothing}
           ${custos.length ? html`<div class="suave">${custos.join(' · ')}</div>` : nothing}
         </section>
         ${im.descricao ? html`<section><div class="caixa texto">${im.descricao}</div></section>` : nothing}

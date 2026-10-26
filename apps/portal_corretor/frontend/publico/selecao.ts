@@ -4,21 +4,26 @@ import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { linkWhatsapp } from '../../comum/pagina';
 import { ROTULO_TIPO_IMOVEL } from '../apoio';
 import { estiloPublico } from './estilo';
+import { iconesImovel } from './icones';
 import { css } from 'lit';
 
 declare const urbiVerso: UrbiVersoAPI;
 
 // Seleção (`/portal_corretor/s?t=<token>`) e Portal do Cliente (`/portal_corretor/c?t=<token>`),
-// bloco 5b. Página pública: lê a vitrine pela rota anônima e manda reações e pedidos ao webhook.
+// bloco 5b, no modelo Compass One desde o bloco 9: uma página só, curada pelo corretor, com o
+// próximo passo e as datas no topo, cartões de foto dominante, o que falta do cliente e a jornada.
+// Página pública: lê a vitrine pela rota anônima e manda reações e pedidos ao webhook.
 
 type Linha = Record<string, any>;
 const reais = (c: number | null | undefined) => (c ? (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'Preço sob consulta');
 const local = (i: Linha) => [i.bairro, i.cidade].filter(Boolean).join(', ');
 const REACOES = [
-  { valor: 'gostei', rotulo: 'Gostei' },
-  { valor: 'nao_gostei', rotulo: 'Não gostei' },
+  { valor: 'gostei', rotulo: '♥ Gostei' },
+  { valor: 'nao_gostei', rotulo: '✕ Não gostei' },
   { valor: 'quero_visitar', rotulo: 'Quero visitar' },
 ];
+const diaHora = (q: string) => new Date(q).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
+const diaCurto = (q: string) => new Date(q).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
 const token = () => new URLSearchParams(window.location.search).get('t') ?? '';
 const naoExiste = (e: unknown) => (e as { status?: number }).status === 404 || (e as { codigo?: string }).codigo === 'NAO_ENCONTRADO';
 const cor = (c: unknown) => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null);
@@ -37,20 +42,35 @@ async function postar(url: string, corpo: unknown): Promise<{ ok: boolean; mensa
 const estiloSelecao = css`
   .topo .quem { display: flex; align-items: center; gap: 14px; }
   .topo .foto-corretor { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; background: var(--foto-vazia); }
-  .reacoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
-  .reacoes button { min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--borda-campo); background: var(--papel); color: var(--texto); font: inherit; cursor: pointer; }
-  .reacoes button[aria-pressed='true'] { background: var(--acento); border-color: var(--acento); color: var(--papel); font-weight: 600; }
-  .item { background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
-  .item .corpo { padding: 14px; }
-  .item .galeria { border-radius: 0; }
-  .item .galeria img { border-radius: 0; }
+  .topo .passo { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: var(--papel); color: var(--texto); }
+  .topo .passo small { display: block; color: var(--suave); font-size: 0.85rem; }
+  .topo .passo strong { font-size: 1.15rem; }
+  .datas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 20px; }
+  .datas div { background: var(--papel); border: 1px solid var(--linha); border-left: 4px solid var(--acento); border-radius: 12px; padding: 10px 14px; }
+  .datas small { display: block; color: var(--suave); font-size: 0.85rem; }
+  .datas strong { font-size: 1.05rem; }
+  .reacoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .reacoes button { min-height: 52px; padding: 8px 6px; border-radius: 12px; border: 1px solid var(--borda-campo); background: var(--papel); color: var(--texto); font: inherit; font-weight: 600; cursor: pointer; }
+  .reacoes button[aria-pressed='true'] { background: var(--acento); border-color: var(--acento); color: var(--papel); }
+  .item { background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
+  .item .corpo { padding: 14px 16px 16px; }
+  .item .preco { font-size: 1.45rem; }
+  .item .galeria { border-radius: 0; gap: 0; }
+  .item .galeria img { border-radius: 0; flex-basis: 100%; }
+  .item .lugar { font-weight: 600; }
   .sem-foto { aspect-ratio: 4 / 3; background: var(--foto-vazia); }
   .agenda li { list-style: none; background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
   .agenda { padding: 0; margin: 0; }
-  .numeros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .numeros div { background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 6px; text-align: center; overflow-wrap: anywhere; }
-  .numeros strong { display: block; font-size: 1.15rem; }
+  .pendencias { padding: 0; margin: 0; }
+  .pendencias li { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; }
+  .jornada { list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 2px solid var(--linha); }
+  .jornada li { position: relative; padding: 0 0 18px; }
+  .jornada li::before { content: ''; position: absolute; left: -29px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--acento); border: 2px solid var(--fundo); }
+  .jornada li.inicio::before { background: var(--papel); border-color: var(--acento); }
   .aviso-item { margin-top: 8px; font-size: 0.92rem; }
+  @media (min-width: 720px) {
+    .item .galeria img { aspect-ratio: 16 / 10; }
+  }
 `;
 
 /** Estado de envio por imóvel: um envio por vez e o aviso ao lado do próprio imóvel. */
@@ -62,20 +82,15 @@ export interface EstadoReacoes {
 /** Cartão de um imóvel da seleção, com galeria e os botões de reação. */
 function itemSelecao(i: Linha, reagir: ((codigo: string, reacao: string) => void) | null, estado: EstadoReacoes): TemplateResult {
   const aviso = estado.avisos.get(i.codigo);
-  const detalhes = [
-    i.area_util_m2 ?? i.area_total_m2 ? `${i.area_util_m2 ?? i.area_total_m2} m²` : null,
-    i.quartos ? `${i.quartos} quarto${i.quartos > 1 ? 's' : ''}` : null,
-    i.vagas ? `${i.vagas} vaga${i.vagas > 1 ? 's' : ''}` : null,
-  ].filter(Boolean);
   return html`<article class="item">
     ${i.fotos?.length
       ? html`<div class="galeria">${i.fotos.map((f: Linha, n: number) => html`<img src=${f.url} alt=${f.legenda ?? `Foto ${n + 1} de ${i.titulo ?? i.codigo}`} loading="lazy" />`)}</div>`
       : html`<div class="sem-foto"></div>`}
     <div class="corpo">
       <div class="preco">${reais(i.preco_c)}</div>
-      <div>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</div>
-      <div class="suave">${local(i)}</div>
-      ${detalhes.length ? html`<div class="icones">${detalhes.map((d) => html`<span>${d}</span>`)}</div>` : nothing}
+      ${local(i) ? html`<div class="lugar">${local(i)}</div>` : nothing}
+      <div class="suave">${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</div>
+      ${iconesImovel(i)}
       ${i.descricao ? html`<details><summary class="suave">Ver descrição</summary><p class="texto">${i.descricao}</p></details>` : nothing}
       ${reagir
         ? html`<div class="reacoes" role="group" aria-label=${`O que você achou de ${i.titulo ?? i.codigo}?`}>
@@ -89,7 +104,16 @@ function itemSelecao(i: Linha, reagir: ((codigo: string, reacao: string) => void
   </article>`;
 }
 
-function topo(corretor: Linha | null, texto: string): TemplateResult {
+/** Datas-chave do topo: a próxima visita e até quando a seleção vale (a que vence primeiro). */
+function datasChave(proximaVisita: string | null, valeAte: string | null): TemplateResult | typeof nothing {
+  if (!proximaVisita && !valeAte) return nothing;
+  return html`<div class="datas">
+    ${proximaVisita ? html`<div><small>Próxima visita</small><strong>${diaHora(proximaVisita)}</strong></div>` : nothing}
+    ${valeAte ? html`<div><small>Seleção vale até</small><strong>${diaCurto(valeAte)}</strong></div>` : nothing}
+  </div>`;
+}
+
+function topo(corretor: Linha | null, texto: string, proximoPasso: string | null = null): TemplateResult {
   const zap = corretor ? linkWhatsapp(corretor.telefone, texto) : null;
   return html`<header class="topo">
     <div class="conteudo">
@@ -100,6 +124,7 @@ function topo(corretor: Linha | null, texto: string): TemplateResult {
           <p>Corretor de imóveis${corretor?.creci ? ` · CRECI ${corretor.creci}` : ''}</p>
         </div>
       </div>
+      ${proximoPasso ? html`<div class="passo"><small>Próximo passo</small><strong>${proximoPasso}</strong></div>` : nothing}
       ${zap ? html`<div class="acoes"><a class="botao verde" href=${zap} target="_blank" rel="noopener">Falar no WhatsApp</a></div>` : nothing}
     </div>
   </header>`;
@@ -162,6 +187,7 @@ export class PcSelecaoPublica extends LitElement {
     return html`
       ${topo(s.corretor, `Olá! Vi a seleção "${s.titulo}".`)}
       <div class="conteudo">
+        ${datasChave(null, s.expira_em ?? null)}
         <section>
           <h2>${s.titulo}</h2>
           ${s.mensagem ? html`<p class="texto">${s.mensagem}</p>` : nothing}
@@ -208,6 +234,21 @@ export class PcPortalCliente extends LitElement {
     }
   }
 
+  @state() private marcando: number | null = null;
+
+  /** O cliente marca uma pendência como feita: sai da lista na hora; se falhar, volta com o aviso. */
+  private async feito(t: Linha) {
+    if (this.marcando) return;
+    this.marcando = t.ref;
+    const r = await postar(this.portal!.url_acoes, { tipo: 'tarefa_feita', tarefa: t.ref });
+    this.marcando = null;
+    this.avisoEm = 'tarefas';
+    if (r.ok) {
+      this.portal = { ...this.portal, tarefas: this.portal!.tarefas.filter((x: Linha) => x.ref !== t.ref) };
+      this.aviso = { ok: true, texto: 'Pronto! O corretor foi avisado.' };
+    } else this.aviso = { ok: false, texto: r.mensagem ?? 'Não foi possível enviar.' };
+  }
+
   private async acao(ev: Event, corpo: Record<string, unknown>) {
     ev.preventDefault();
     const form = ev.target as HTMLFormElement;
@@ -237,9 +278,8 @@ export class PcPortalCliente extends LitElement {
   }
 
   private visita(v: Linha) {
-    const quando = new Date(v.quando).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
     return html`<li>
-      <strong>${quando}</strong>
+      <strong>${diaHora(v.quando)}</strong>
       <div>${v.imovel?.titulo ?? v.imovel?.codigo ?? 'Visita'}</div>
       <div class="suave">${[v.imovel?.endereco, v.imovel?.bairro, v.imovel?.cidade].filter(Boolean).join(' · ')}</div>
       <div class="acoes">
@@ -256,15 +296,51 @@ export class PcPortalCliente extends LitElement {
     </li>`;
   }
 
+  /** Linha do tempo vertical; portal publicado antes do bloco 9 (sem `eventos`) mostra o começo e as contagens. */
+  private jornada(j: Linha) {
+    const eventos: Linha[] = j.eventos ?? [
+      ...(j.visitas_feitas ? [{ tipo: 'visita', quando: null, texto: `${j.visitas_feitas} visita${j.visitas_feitas > 1 ? 's' : ''} feita${j.visitas_feitas > 1 ? 's' : ''}` }] : []),
+      ...(j.imoveis_recebidos ? [{ tipo: 'selecao', quando: null, texto: `${j.imoveis_recebidos} imóve${j.imoveis_recebidos > 1 ? 'is' : 'l'} recebido${j.imoveis_recebidos > 1 ? 's' : ''}` }] : []),
+      { tipo: 'inicio', quando: `${j.desde}T12:00:00.000Z`, texto: 'Começamos a busca' },
+    ];
+    return html`<ol class="jornada">
+      ${eventos.map(
+        (e) => html`<li class=${e.tipo}>
+          <div>${e.texto}</div>
+          ${e.quando ? html`<div class="suave">${new Date(e.quando).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>` : nothing}
+        </li>`,
+      )}
+    </ol>`;
+  }
+
   render() {
     if (this.estado === 'carregando') return html`<div class="centro suave">Carregando…</div>`;
     if (this.estado === 'indisponivel') return html`<div class="centro"><h2>Portal indisponível</h2><p class="suave">O link pode ter sido trocado. Peça um novo ao seu corretor.</p></div>`;
     if (this.estado === 'falha') return html`<div class="centro"><h2>Não foi possível abrir agora</h2><p><button class="botao" @click=${() => { this.estado = 'carregando'; void this.carregar(); }}>Tentar de novo</button></p></div>`;
     const p = this.portal!;
     const j = p.jornada;
+    const tarefas: Linha[] = p.tarefas ?? [];
+    const valeAte = (p.selecoes as Linha[]).map((s) => s.expira_em).filter(Boolean).sort()[0] ?? null;
     return html`
-      ${topo(p.corretor, 'Olá! Estou no meu portal e queria falar com você.')}
+      ${topo(p.corretor, 'Olá! Estou no meu portal e queria falar com você.', p.proximo_passo ?? null)}
       <div class="conteudo">
+        ${datasChave(p.agenda[0]?.quando ?? null, valeAte)}
+        ${tarefas.length || this.avisoEm === 'tarefas'
+          ? html`<section>
+              <h2>O que falta de você</h2>
+              ${tarefas.length
+                ? html`<ul class="pendencias">
+                    ${tarefas.map(
+                      (t) => html`<li>
+                        <span>${t.texto}</span>
+                        <button class="botao" type="button" ?disabled=${this.marcando !== null} @click=${() => this.feito(t)}>${this.marcando === t.ref ? 'Enviando…' : 'Feito'}</button>
+                      </li>`,
+                    )}
+                  </ul>`
+                : html`<p class="suave">Nada pendente agora.</p>`}
+              ${this.avisoEm === 'tarefas' && this.aviso ? html`<div class="aviso aviso-item ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
+            </section>`
+          : nothing}
         <section>
           <h2>Suas visitas</h2>
           ${p.agenda.length ? html`<ul class="agenda">${p.agenda.map((v: Linha) => this.visita(v))}</ul>` : html`<p class="suave">Nenhuma visita marcada.</p>`}
@@ -289,16 +365,7 @@ export class PcPortalCliente extends LitElement {
             </form>
           </div>
         </section>
-        ${j
-          ? html`<section>
-              <h2>Sua jornada</h2>
-              <div class="numeros">
-                <div><strong>${new Date(`${j.desde}T12:00:00`).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}</strong><span class="suave">desde</span></div>
-                <div><strong>${j.imoveis_recebidos}</strong><span class="suave">imóveis recebidos</span></div>
-                <div><strong>${j.visitas_feitas}</strong><span class="suave">visitas feitas</span></div>
-              </div>
-            </section>`
-          : nothing}
+        ${j ? html`<section><h2>Sua jornada</h2>${this.jornada(j)}</section>` : nothing}
       </div>
     `;
   }

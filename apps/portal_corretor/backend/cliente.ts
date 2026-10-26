@@ -9,7 +9,7 @@ import { contaDoRequest, origemPublica, publicavel } from './vitrine';
 // Seleções com reação e Portal do Cliente (bloco 5b, spec 11.3, D-56): o corretor monta e envia; o
 // cliente abre por link com o token do ingresso `wh` (sem login) e reage pelo mesmo endereço.
 export const clienteRotas: Router = Router();
-guardarCorretor(clienteRotas, ['/selecoes', '/contatos']);
+guardarCorretor(clienteRotas, ['/selecoes', '/contatos', '/tarefas-cliente']);
 
 const MAX_ITENS = 12;
 const id = (v: unknown) => {
@@ -198,5 +198,53 @@ clienteRotas.patch(
     }
     await apagarVitrine(dados, contaDoRequest(req), 'portal', contato.id);
     res.json({ ativo: false });
+  }),
+);
+
+// ---------- O que falta do cliente (bloco 9) ----------
+// Pendências que o corretor pede ao cliente ("enviar a documentação"); o portal lista as abertas e
+// o cliente marca "feito" pelo webhook `acao_cliente` (tipo `tarefa_feita`).
+
+const MAX_TAREFAS_ABERTAS = 20;
+
+clienteRotas.get(
+  '/contatos/:id/tarefas-cliente',
+  assincrono(async (req, res) => {
+    const contato = await contatoOu404(req, req.params.id);
+    if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
+    const r = await req.dados!.listar('tarefas_cliente', { filtros: { conta_id: contaDoRequest(req), contato_id: contato.id }, ordenar: 'criado_em', ordem: 'desc', por_pagina: 100 });
+    res.json({ dados: r.dados });
+  }),
+);
+
+clienteRotas.post(
+  '/contatos/:id/tarefas-cliente',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const contato = await contatoOu404(req, req.params.id);
+    if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
+    const t = texto(req.body?.texto, 200);
+    if (!t) return erro(res, 422, 'DADOS_INVALIDOS', 'Escreva o que falta do cliente.');
+    const conta = contaDoRequest(req);
+    const abertas = await dados.varrerTudo('tarefas_cliente', { filtros: { conta_id: conta, contato_id: contato.id, 'feita_em[nulo]': 'true' }, maximo: MAX_TAREFAS_ABERTAS + 1 });
+    if (abertas.length >= MAX_TAREFAS_ABERTAS) return erro(res, 422, 'LIMITE', `O cliente já tem ${MAX_TAREFAS_ABERTAS} pendências abertas. Remova alguma antes.`);
+    const tarefa = await dados.criar('tarefas_cliente', { contato_id: contato.id, texto: t, criada_por_id: eu(req) });
+    await registrar(dados, req, { tipo: 'portal.tarefa_pedida', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: `Pediu ao cliente: ${t}` });
+    await tentarPortal(dados, conta, contato.id, await corretor(req));
+    res.status(201).json(tarefa);
+  }),
+);
+
+clienteRotas.patch(
+  '/tarefas-cliente/:id/remover',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const tid = id(req.params.id);
+    const lida = tid ? await dados.buscar('tarefas_cliente', tid) : null;
+    const conta = contaDoRequest(req);
+    if (!lida || Number(lida.conta_id) !== conta) return erro(res, 404, 'NAO_ENCONTRADO', 'Pendência não encontrada.');
+    await dados.remover('tarefas_cliente', lida.id, eu(req));
+    await tentarPortal(dados, conta, lida.contato_id);
+    res.json({ id: lida.id, removido: true });
   }),
 );
