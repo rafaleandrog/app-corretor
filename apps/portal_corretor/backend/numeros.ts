@@ -2,7 +2,7 @@ import '@urbiverso/sdk/express';
 import { Router } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
 import { iso, MARCO_PADRAO } from '../comum/funil';
-import { calcularKpis, periodos, previsaoPonderada, type NegocioNum } from '../comum/numeros';
+import { calcularKpis, chegou, periodos, previsaoPonderada, serieDeLeads, type NegocioNum } from '../comum/numeros';
 import { assincrono, guardarCorretor } from './acesso';
 import { etapasPorId } from './inteligencia';
 
@@ -33,6 +33,7 @@ export async function negociosParaNumeros(dados: HelperDados): Promise<NegocioNu
       motivo_perda: n.motivo_perda ?? null,
       valor_estimado_c: n.valor_estimado_c ?? null,
       comissao_pct: n.comissao_pct ?? null,
+      contato_id: n.contato_id ?? null,
       origem_canal: n.origem_id ? (canal.get(n.origem_id) ?? null) : null,
       probabilidade: e?.probabilidade ?? 0,
       aberto: e?.tipo === 'aberta',
@@ -58,13 +59,17 @@ numerosRotas.get(
       atual: { ...calcularKpis(negocios, p.atual.de, p.atual.ate), visitas: contaVisitas(p.atual.de, p.atual.ate) },
       anterior: { ...calcularKpis(negocios, p.anterior.de, p.anterior.ate), visitas: contaVisitas(p.anterior.de, p.anterior.ate) },
       previsao: previsaoPonderada(negocios),
+      serie_leads: serieDeLeads(negocios, dias),
       // Ainda sem fonte nesta versão (chegam com o WhatsApp, o Estúdio e as metas): a tela explica.
       indisponiveis: ['tempo_primeiro_atendimento', 'custo_por_lead', 'comissao_recebida', 'conteudo', 'agentes', 'metas'],
     });
   }),
 );
 
-/** Faixa da semana do Início (11.1, D-68): novos contatos, leads, visitas feitas e comissão prevista. */
+/**
+ * Faixa da semana do Início (11.1, D-68): novos contatos, leads, quantos deles chegaram ao atendimento,
+ * visitas feitas e comissão prevista.
+ */
 export async function numerosDaSemana(dados: HelperDados) {
   const de = new Date(Date.now() - 7 * DIA).toISOString();
   const [contatos, visitas, negocios] = await Promise.all([
@@ -72,10 +77,12 @@ export async function numerosDaSemana(dados: HelperDados) {
     dados.listar('atividades', { filtros: { tipo: 'visita', status: 'feita', 'quando[gte]': de }, por_pagina: 1 }),
     negociosParaNumeros(dados),
   ]);
+  const leads = negocios.filter((n) => n.pipeline === 'compra' && (iso(n.criado_em) ?? '') >= de);
   return {
     novos_contatos: contatos.total,
     visitas: visitas.total,
-    leads: negocios.filter((n) => n.pipeline === 'compra' && (iso(n.criado_em) ?? '') >= de).length,
+    leads: leads.length,
+    atendidos: leads.filter((n) => chegou(n, 'atendimento')).length,
     previsao_c: previsaoPonderada(negocios).valor_c,
   };
 }

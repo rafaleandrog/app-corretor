@@ -1,6 +1,6 @@
 ---
 titulo: Desempenho, envios e dados de demonstração
-descricao: Os números do corretor (leads, conversão por etapa, vendas, VGV, previsão de comissão), o histórico de envios e a conta de demonstração.
+descricao: Os números do corretor (leads, conversão por etapa e por canal, gráficos, vendas, VGV, previsão de comissão), o histórico de envios e a conta de demonstração.
 ---
 
 # Desempenho, envios e dados de demonstração
@@ -17,20 +17,30 @@ de cada um, em texto pequeno, a comparação com o período anterior ("+3 que no
 anteriores"; nas taxas, em pontos). A comissão prevista não tem comparação: é a previsão de hoje,
 sobre os negócios em andamento.
 
-**Funil de compra** (cartão abaixo dos quatro números). A turma é a dos negócios de compra
-**abertos no período** (os leads). Para
-cada um, conta até onde ele chegou, mesmo que depois tenha recuado ou sido perdido:
+**Conversão** (cartão abaixo dos quatro números). A turma é a dos negócios de compra **abertos no
+período** (os leads). Para cada um, conta até onde ele chegou, mesmo que depois tenha recuado ou sido
+perdido. O cartão mostra quantos chegaram a cada etapa, a fatia dos leads e a comparação com o período
+anterior, mais um gráfico de colunas das etapas (este período ao lado do anterior) e quantos
+**clientes únicos** há entre os leads (um cliente com dois negócios conta uma vez):
 
-| Número | Conta |
+| Etapa | Conta |
 |---|---|
 | Leads | Negócios de compra abertos no período |
-| Lead → atendimento | Dos leads, quantos chegaram a "Em atendimento" ou além |
-| Lead → visita | Dos leads, quantos chegaram a "Visitou" ou além |
-| Visita → proposta | Dos que visitaram, quantos chegaram a "Proposta" ou além |
-| Proposta → ganho | Dos que chegaram à proposta, quantos foram ganhos |
-| Conversão total | Ganhos sobre leads |
+| Em atendimento | Dos leads, quantos chegaram a "Em atendimento" ou além |
+| Visitaram | Dos leads, quantos chegaram a "Visitou" ou além |
+| Proposta | Dos leads, quantos chegaram a "Proposta" ou além |
+| Ganhos | Dos leads, quantos foram ganhos |
 
-Leads e Conversão total são dois dos quatro números do topo; o cartão traz só as quatro taxas de etapa.
+Abrindo o cartão (seta), aparecem as taxas entre etapas, com a comparação em pontos:
+
+| Taxa | Conta |
+|---|---|
+| Lead → atendimento | Em atendimento sobre leads |
+| Lead → visita | Visitaram sobre leads |
+| Visita → proposta | Dos que visitaram, quantos chegaram à proposta |
+| Proposta → ganho | Dos que chegaram à proposta, quantos foram ganhos |
+
+A conversão total (ganhos sobre leads) é um dos quatro números do topo.
 
 "Chegar a uma etapa" vale pelo papel da etapa no funil, não pelo nome: renomear "Visitou" não
 muda a conta. Etapa criada pelo corretor não tem papel próprio: o negócio continua contado nos
@@ -46,13 +56,20 @@ da etapa (Ajustes › Funil). Negócio sem valor ou sem comissão fica de fora e
 entre abrir e ganhar), visitas feitas e captações (negócios de venda abertos no período que
 chegaram à autorização assinada). **Vendas**, no topo, são os ganhos no período.
 
-**Por origem** (leads, ganhos e conversão por canal) e **motivos de perda** completam a tela. Um
-parágrafo no fim explica o que ainda não tem fonte: tempo de primeiro atendimento e números do
+**Leads por canal** (gráfico de pizza) e **Situação por canal** (colunas empilhadas: dos leads de
+cada canal, quantos estão ganhos, em andamento e perdidos hoje). Abrindo o cartão da situação, a
+tabela por origem traz leads, em andamento, ganhos, perdidos e a conversão de cada canal.
+
+**Leads ao longo do período**: os leads abertos em cada intervalo, ao lado do período anterior na
+mesma posição. Intervalo de um dia em 7 e 30 dias, de uma semana em 90 dias e de um doze avos do ano
+em 12 meses.
+
+**Motivos de perda** (gráfico de colunas) fecham a tela. Um parágrafo no fim explica o que ainda não tem fonte: tempo de primeiro atendimento e números do
 atendimento automático (o Mensageiro) chegam com o WhatsApp; conteúdo publicado, com o Estúdio;
 custo por lead, comissão recebida e metas, em versões seguintes.
 
-O **Início** mostra a faixa da semana: contatos novos, leads e visitas feitas nos últimos 7 dias,
-mais a comissão prevista.
+O **Início** mostra a faixa da semana: contatos novos, leads, quantos desses leads chegaram ao
+atendimento (e a fatia), visitas feitas nos últimos 7 dias e a comissão prevista.
 
 ## Tudo que você mandou
 
@@ -99,7 +116,10 @@ Todos com comissão de 5%. Números esperados:
 - Vendas: **2**; VGV: **R$ 1.070.000**.
 - Captações: **1** (Iara).
 - Visitas feitas: **1** (Diego).
-- Por origem: Indicação 3 leads e 1 ganho; Instagram 2 e 1; Portal imobiliário 2 e 0; WhatsApp 1 e 0.
+- Etapas: 8 leads, 7 em atendimento, 5 visitaram, 3 na proposta, 2 ganhos; 8 clientes únicos.
+- Por origem: Indicação 3 leads, 1 ganho e 2 em andamento; Instagram 2 e 1 (1 em andamento); Portal
+  imobiliário 2, 0 ganhos, 1 em andamento e 1 perdido; WhatsApp 1 e 0 (em andamento).
+- Início, faixa da semana: 10 contatos novos, 8 leads, 7 em atendimento (88%).
 - Motivos de perda: preço, 1.
 - Comissão prevista: 5% × (300 mil × 5% + 500 mil × 10% + 400 mil × 20% + 700 mil × 50% + 900 mil × 70%
   + 1,2 milhão × 40% + 800 mil × 15%) = **R$ 86.250**.

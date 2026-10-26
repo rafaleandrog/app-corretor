@@ -183,6 +183,8 @@ export class PcTelaInicio extends LitElement {
         ? html`<urbi-grid min="140px">
             <urbi-kpi rotulo="Contatos novos (7 dias)" .valor=${this.semana.novos_contatos ?? 0}></urbi-kpi>
             <urbi-kpi rotulo="Leads (7 dias)" .valor=${this.semana.leads ?? 0}></urbi-kpi>
+            <urbi-kpi rotulo="Em atendimento" formato="texto"
+              .valor=${this.semana.leads ? `${this.semana.atendidos ?? 0} · ${Math.round(((this.semana.atendidos ?? 0) / this.semana.leads) * 100)}%` : '0'}></urbi-kpi>
             <urbi-kpi rotulo="Visitas feitas (7 dias)" .valor=${this.semana.visitas ?? 0}></urbi-kpi>
             <urbi-kpi rotulo="Comissão prevista" formato="texto" .valor=${this.semana.previsao_c === null ? '—' : reais(this.semana.previsao_c)}></urbi-kpi>
           </urbi-grid>`
