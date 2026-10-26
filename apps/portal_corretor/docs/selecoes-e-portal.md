@@ -66,9 +66,9 @@ O portal é uma página só, curada por você (o modelo do Compass One). De cima
 | Parte | O que tem |
 |---|---|
 | Topo | O nome do corretor (o da Minha página, se houver), a foto, o CRECI e o botão de WhatsApp, na cor da marca. Embaixo, o **próximo passo para o cliente**, se você escreveu um |
-| Datas | Em destaque: a **próxima visita** (dia e hora) e até quando a **seleção vale** (a que vence primeiro) |
+| Datas | Em destaque: a **próxima visita** (dia e hora, e quanto falta: hoje, amanhã ou em N dias) e até quando a **seleção vale** (a que vence primeiro) |
 | O que falta de você | As pendências que você pediu, cada uma com o botão **Feito** (só aparece se houver alguma) |
-| Suas visitas | As visitas marcadas, com dia, hora e imóvel. Botões **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar** |
+| Suas visitas | As visitas marcadas, por dia, com hora e imóvel. Um dia com mais de uma visita vira um **roteiro**: as paradas numeradas na ordem do horário e o link **Ver o roteiro no mapa**, com o trajeto todo. Em cada visita, **Como chegar** (abre o mapa do celular com a rota), **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar**. O mapa só usa o que o imóvel mostra em público: com o endereço publicado, a rota vai até ele; só com o bairro, o botão vira **Ver o bairro no mapa**; publicado só como região, não há mapa |
 | Imóveis para você | As seleções válidas, em cartões de foto grande, com as reações, que o cliente pode mudar dali mesmo |
 | Fale com o corretor | Uma mensagem livre |
 | Sua jornada | Uma linha do tempo, da mais recente para a mais antiga: cada seleção recebida ("Recebeu 3 imóveis: Casas no Noroeste"), cada visita feita ("Visitou Apto com varanda, Noroeste"), cada pendência resolvida e, embaixo, o começo |
