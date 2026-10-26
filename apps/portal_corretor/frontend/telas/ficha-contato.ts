@@ -6,7 +6,7 @@ import { abrirAssistenteSobre } from './assistente.js';
 import { tarefaDaAbordagem } from '../../comum/funil';
 import { PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
-import { acoesComMais, chamarApi, chip, data, dataHora, enviar, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { acoesComMais, chamarApi, chip, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -46,6 +46,9 @@ export class PcTelaFichaContato extends LitElement {
   @state() private resumindo = false;
   @state() private sugestao: Sugestao | null = null;
   @state() private sugerindo = false;
+  @state() private criandoTarefa = false;
+  /** `?sugerir=1` (Início e quadro): carrega a mensagem sugerida uma vez, e só com abordagem. */
+  private sugerirDaUrl = filtrosDaUrl().get('sugerir') === '1';
 
   connectedCallback() {
     super.connectedCallback();
@@ -68,6 +71,11 @@ export class PcTelaFichaContato extends LitElement {
       this.ficha = ficha;
       this.etapas = etapas.etapas;
       this.envios = envios.dados;
+      if (this.sugerirDaUrl) {
+        this.sugerirDaUrl = false;
+        filtrosNaUrl(filtrosDaUrl(), {}, ['sugerir']);
+        if (ficha.abordagem) void this.sugerir();
+      }
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -276,6 +284,7 @@ export class PcTelaFichaContato extends LitElement {
 
   /** Mensagem sugerida (slot `funil`); sem IA, a rota devolve o texto do playbook. */
   private async sugerir() {
+    if (this.sugerindo) return;
     this.sugerindo = true;
     try {
       const r = await chamarApi(`/contatos/${this.contatoId}/mensagem-sugerida`);
@@ -314,11 +323,17 @@ export class PcTelaFichaContato extends LitElement {
 
   /** Virar tarefa: a próxima abordagem vira atividade na agenda, no prazo do playbook. */
   private async virarTarefa() {
-    const corpo = tarefaDaAbordagem(this.ficha!.abordagem as Parameters<typeof tarefaDaAbordagem>[0], this.contatoId);
-    await this.tentar('Não foi possível criar a tarefa', async () => {
-      await enviar('POST', '/atividades', corpo);
-      urbiVerso.notificar(`Tarefa criada para ${dataHora(corpo.quando)}.`, 'sucesso');
-    });
+    if (this.criandoTarefa) return;
+    this.criandoTarefa = true;
+    try {
+      const corpo = tarefaDaAbordagem(this.ficha!.abordagem as Parameters<typeof tarefaDaAbordagem>[0], this.contatoId);
+      await this.tentar('Não foi possível criar a tarefa', async () => {
+        await enviar('POST', '/atividades', corpo);
+        urbiVerso.notificar(`Tarefa criada para ${dataHora(corpo.quando)}.`, 'sucesso');
+      });
+    } finally {
+      this.criandoTarefa = false;
+    }
   }
 
   /** O resumo em uma frase do topo: temperatura com o motivo, próxima abordagem e último contato. */
@@ -429,7 +444,7 @@ export class PcTelaFichaContato extends LitElement {
             : ''}
           ${a
             ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-message" ?carregando=${this.sugerindo} @click=${() => this.sugerir()}>Mensagem sugerida</urbi-botao>
-                <urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>`
+                <urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" ?carregando=${this.criandoTarefa} @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>`
             : ''}
         </urbi-linha>
         ${this.resumo

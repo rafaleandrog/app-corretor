@@ -95,6 +95,26 @@ test('com IA: resumo em até três frases e mensagem adaptada, sem telefone nem 
   assert.equal(banco.linhas('linha_do_tempo').filter((l) => /resumo/i.test(String(l.tipo))).length, 0);
 });
 
+test('abordagem do playbook com telefone e e-mail: some do contexto da IA, mas o texto sem IA fica intacto', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const { contato } = await contatoComNegocio(banco);
+  const abordagem = 'Ligue para o sócio no 61 97777-6666 ou escreva para socio@exemplo.com e confirme a visita.';
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const pb = (await chamar('GET', '/funil/playbook')).corpo;
+    for (const l of pb.abordagens) await chamar('PUT', `/funil/playbook/${l.id}`, { abordagem, canal_sugerido: 'ligacao', prazo_horas: 2 });
+    // Sem IA, o corretor recebe o texto dele como está.
+    assert.equal((await chamar('GET', `/contatos/${contato}/mensagem-sugerida`)).corpo.mensagem, abordagem);
+  });
+  chamadas.length = 0;
+  resposta = { mensagem: 'Oi, Ana!' };
+  await comServidor(rotas, AcomIA, banco, {}, async (chamar) => {
+    assert.equal((await chamar('GET', `/contatos/${contato}/mensagem-sugerida`)).corpo.ia, true);
+  });
+  assert.equal(chamadas.length, 1);
+  assert.match(chamadas[0].contexto, /^ABORDAGEM DO PLAYBOOK: Ligue para o sócio no \[telefone\] ou escreva para \[e-mail\]/);
+  assert.doesNotMatch(chamadas[0].contexto, /97777|6666|socio@exemplo\.com/);
+});
+
 test('slot `funil` não autorizado ou IA falhando na hora: volta o playbook, não erro', async () => {
   const banco = new BancoFalso(UNICOS);
   const { contato } = await contatoComNegocio(banco);
@@ -120,11 +140,13 @@ test('isolamento: outra conta não resume, não sugere e não registra no contat
   });
   assert.equal(chamadas.length, 0, 'nada do contato de A foi para a IA');
   // Sem o papel de corretor, barrado.
-  await comServidor(rotas, { usuario: 3, conta: 100, papeis: ['operacao'], extras: { ia: iaLigada } }, banco, {}, async (chamar) => {
-    assert.equal((await chamar('GET', `/contatos/${contato}/ia`)).status, 403);
-    assert.equal((await chamar('POST', `/contatos/${contato}/resumo`, {})).status, 403);
-    assert.equal((await chamar('GET', `/contatos/${contato}/mensagem-sugerida`)).status, 403);
-  });
+  for (const papel of ['operacao', 'cliente']) {
+    await comServidor(rotas, { usuario: 3, conta: 100, papeis: [papel], extras: { ia: iaLigada } }, banco, {}, async (chamar) => {
+      assert.equal((await chamar('GET', `/contatos/${contato}/ia`)).status, 403, papel);
+      assert.equal((await chamar('POST', `/contatos/${contato}/resumo`, {})).status, 403, papel);
+      assert.equal((await chamar('GET', `/contatos/${contato}/mensagem-sugerida`)).status, 403, papel);
+    });
+  }
 });
 
 test('Fazer agora: uma linha na linha do tempo, com o canal; Virar tarefa vai pela rota de sempre', async () => {
@@ -164,4 +186,6 @@ test('regras puras: canal → tipo, prazo → quando, até três frases', () => 
   );
   assert.equal(ateTresFrases('Um. Dois! Três? Quatro.'), 'Um. Dois! Três?');
   assert.equal(ateTresFrases('Sem ponto final'), 'Sem ponto final');
+  assert.equal(ateTresFrases('Procura apto até R$ 500.000, 3 quartos. Visitou sábado. Gostou. Quer voltar.'), 'Procura apto até R$ 500.000, 3 quartos. Visitou sábado. Gostou.');
+  assert.equal(ateTresFrases('Área de 2.5 hectares. Ok.'), 'Área de 2.5 hectares. Ok.');
 });

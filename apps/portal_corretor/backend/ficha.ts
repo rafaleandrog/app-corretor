@@ -62,11 +62,12 @@ export const SCHEMA_MENSAGEM = {
 
 /** Até três frases: corta o que a IA mandar a mais. */
 export function ateTresFrases(t: string): string {
-  const frases = t.replace(/\s+/g, ' ').trim().match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [];
-  return frases.slice(0, 3).map((f) => f.trim()).join(' ').slice(0, 600);
+  // Fim de frase é pontuação seguida de espaço ou do fim do texto: "R$ 500.000" e "2.5" não dividem.
+  const frases = t.replace(/\s+/g, ' ').trim().match(/.+?(?:[.!?]+(?=\s|$)|$)/g) ?? [];
+  return frases.slice(0, 3).map((f) => f.trim()).filter(Boolean).join(' ').slice(0, 600);
 }
 
-// Sonda sem custo: a ficha mostra Resumir só com o slot `assistente`, e diz se a mensagem virá da IA.
+// Sonda sem custo: a ficha mostra Resumir só com o slot `assistente`. O campo `mensagem` (slot `funil`) fica na resposta, mas a tela hoje não o usa: ela só descobre se a mensagem veio da IA pelo `ia` de /mensagem-sugerida.
 fichaRotas.get(
   '/contatos/:id/ia',
   assincrono(async (req, res) => {
@@ -107,12 +108,13 @@ fichaRotas.get(
     const [negocios, playbook] = await Promise.all([dados.listar('negocios', { filtros: { contato_id: cid }, por_pagina: 100 }), playbookDaConta(dados, etapas)]);
     const abordagem = proximaAbordagem(contato, negocios.dados, etapas, playbook);
     if (!abordagem) return erro(res, 404, 'SEM_ABORDAGEM', 'Este contato não tem abordagem no playbook (sem negócio aberto).');
+    // O texto do playbook volta intacto ao corretor (é dele, não vai à IA); só o contexto da IA é mascarado.
     const doPlaybook = { mensagem: abordagem.abordagem, ia: false, canal: abordagem.canal_sugerido };
     if (!(await slotDisponivel(req, 'funil'))) return res.json(doPlaybook);
     const ctx = await contextoContato(req, cid!);
     if (!ctx) return res.json(doPlaybook);
     const contexto = [
-      `ABORDAGEM DO PLAYBOOK: ${abordagem.abordagem}`,
+      `ABORDAGEM DO PLAYBOOK: ${mascarar(abordagem.abordagem)}`,
       `Canal: ${abordagem.canal_sugerido} · Etapa: ${mascarar(abordagem.etapa_nome)} · Prazo: ${iso(abordagem.vence_em) ?? 'sem prazo'}`,
       `DADOS DO CONTATO:\n${ctx.texto}`,
     ].join('\n\n');

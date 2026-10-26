@@ -59,12 +59,17 @@ Abrir um contato mostra a ficha. No topo, o essencial:
   dois últimos não aparecem.
 
 Ao lado do botão **Registrar contato** (nota livre, que vai para a linha do tempo), o menu **Mais**
-traz Perguntar ao Assistente, Registrar abordagem feita, Pular a abordagem e Remover.
+traz Perguntar ao Assistente e **Remover contato**; com abordagem (negócio em andamento), também
+Registrar abordagem feita e Pular a abordagem.
+
+Vindo do **Fazer agora** do Início ou de um cartão com **Abordagem atrasada** no quadro, a ficha
+abre já com a **Mensagem sugerida** carregada (o endereço traz `?sugerir=1`), e o **Fazer agora**
+dela abre o WhatsApp. Sem abordagem, ou abrindo a ficha por outro caminho, nada é gerado sozinho.
 
 Abaixo, as seções recolhidas, cada uma com uma linha de resumo; toque para abrir:
 
 - **Dados e próximo passo:** telefone, e-mail, campanha de origem, observações, o próximo passo
-  combinado (o lápis da seção o define) e o **consentimento** numa linha (registrado em … ·
+  combinado (o botão com o ícone de seta da seção, **Definir próximo passo**, o define) e o **consentimento** numa linha (registrado em … ·
   revogar, ou registrar).
 - **Negócios** do contato, com a etapa atual e o botão **Mudar etapa**.
 - **Seleções e portal:** as seleções de imóveis enviadas e o link do portal do cliente.

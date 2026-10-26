@@ -14,7 +14,9 @@ abrindo o quadro.
 
 - Arraste o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
   motivo, o cartão volta.
-- Toque no cartão para abrir a ficha do cliente.
+- Toque no cartão para abrir a ficha do cliente. No cartão com **abordagem atrasada**, a ficha abre
+  já com a mensagem sugerida, pronta para o **Fazer agora** (ver
+  [Próxima abordagem](#próxima-abordagem)).
 - Filtros: funil (compra ou venda e captação), temperatura e "sem contato há" 3, 7, 15, 30 ou 90
   dias (as mesmas opções da Lista). Ficam no endereço da página.
 - Ganhos e perdidos ficam no quadro por 30 dias; os em andamento ficam sempre.
@@ -89,10 +91,13 @@ Cada item traz o nome, a temperatura, o motivo em uma linha e **um** botão:
 
 | Grupo | Botão | No "Mais" |
 |---|---|---|
-| Quentes sem resposta | **Fazer agora** (abre a ficha do cliente) | — |
-| Abordagens atrasadas | **Fazer agora** (abre a ficha do cliente) | **Fiz**: registra a abordagem feita |
+| Quentes sem resposta | **Fazer agora** (abre a ficha com a mensagem sugerida) | — |
+| Abordagens atrasadas | **Fazer agora** (abre a ficha com a mensagem sugerida) | **Fiz**: registra a abordagem feita |
 | Visitas | **Abrir** (a ficha do cliente) | **Visita feita** |
 | Próximos passos vencidos | **Abrir** (a ficha do cliente) | — |
+
+O WhatsApp abre na ficha, no clique do **Fazer agora** de lá: o Início e o quadro só levam até a
+mensagem pronta (e ela só é gerada se o contato tiver abordagem).
 
 Fila vazia mostra "Nada urgente agora" e o botão **Ver a agenda**.
 

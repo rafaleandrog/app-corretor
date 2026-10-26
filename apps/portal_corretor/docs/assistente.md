@@ -24,7 +24,7 @@ escrito ou ditar pelo microfone, quando a transcrição de voz estiver liberada.
 - Se o manual não cobre o assunto, ele diz que não sabe e sugere falar com a equipe da plataforma
   que deu o seu acesso. Ele não inventa funcionalidade.
 
-Na ficha do cliente, o botão **Perguntar ao Assistente** abre o Assistente já sobre aquele cliente.
+Na ficha do cliente, o item **Perguntar ao Assistente** do menu **Mais** abre o Assistente já sobre aquele cliente.
 O nome dele aparece no topo, e **Tirar** volta à conversa geral.
 
 ## O que ele faz, com confirmação
