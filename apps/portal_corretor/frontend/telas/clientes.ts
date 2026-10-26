@@ -129,7 +129,7 @@ export class PcTelaClientes extends LitElement {
   private filtrar(mudancas: Record<string, string>) {
     // "Quentes" e o filtro de temperatura dizem a mesma coisa: escolher um tira o outro.
     const extra: string[] = [];
-    if (mudancas.temperatura && this.filtros.get('pronto') === 'quentes') extra.push('pronto');
+    if ('temperatura' in mudancas && this.filtros.get('pronto') === 'quentes') extra.push('pronto');
     if (mudancas.pronto === 'quentes') extra.push('temperatura');
     filtrosNaUrl(this.filtros, mudancas, ['pagina', ...extra]);
     void this.carregar();
