@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, data, dataHora, enviar, mensagemDeErro } from '../apoio';
+import { chamarApi, data, dataHora, enviar, filtrosNaUrl, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -38,7 +38,7 @@ export class PcTelaConexoes extends LitElement {
         esperado = null;
       }
       // Tira o código da barra de endereço (não fica no histórico nem é reaproveitado).
-      window.history.replaceState(null, '', window.location.pathname);
+      filtrosNaUrl(new URLSearchParams());
       if (q.get('error')) {
         await urbiVerso.alertar({ titulo: 'Conexão cancelada', mensagem: 'O Instagram não autorizou a conexão. Tente de novo quando quiser.', tipo: 'alerta' });
       } else if (!esperado || esperado !== q.get('state')) {

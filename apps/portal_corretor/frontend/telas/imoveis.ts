@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, corQualidade, formularioEnviar, opcoes, reais, ROTULO_TIPO_IMOVEL, SITUACAO_IMOVEL } from '../apoio.js';
+import { chamarApi, corQualidade, filtrosDaUrl, filtrosNaUrl, formularioEnviar, opcoes, reais, ROTULO_TIPO_IMOVEL, SITUACAO_IMOVEL } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -27,7 +27,7 @@ export class PcTelaImoveis extends LitElement {
   @state() private total = 0;
   @state() private carregando = true;
   @state() private falha: string | null = null;
-  private filtros = new URLSearchParams(window.location.search);
+  private filtros = filtrosDaUrl();
   private geracao = 0;
 
   connectedCallback() {
@@ -52,12 +52,7 @@ export class PcTelaImoveis extends LitElement {
   }
 
   private filtrar(mudancas: Record<string, string>) {
-    for (const [k, v] of Object.entries(mudancas)) {
-      if (v) this.filtros.set(k, v);
-      else this.filtros.delete(k);
-    }
-    const qs = this.filtros.toString();
-    history.replaceState(history.state, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+    filtrosNaUrl(this.filtros, mudancas);
     void this.carregar();
   }
 

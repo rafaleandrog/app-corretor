@@ -1,17 +1,11 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, chip, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, opcoes, opcoesChip, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
 type Linha = Record<string, any>;
-
-const TEMPERATURA: Record<string, { cor: string; rotulo: string }> = {
-  frio: { cor: 'info', rotulo: 'Frio' },
-  morno: { cor: 'alerta', rotulo: 'Morno' },
-  quente: { cor: 'erro', rotulo: 'Quente' },
-};
 
 // Funil: quadro por etapa (arrastar move; perdido pede motivo), com a temperatura de cada contato
 // e o alerta de abordagem atrasada. Filtros de funil, temperatura e "parado há" ficam na URL.
@@ -19,7 +13,7 @@ const TEMPERATURA: Record<string, { cor: string; rotulo: string }> = {
 export class PcTelaFunil extends LitElement {
   @state() private quadro: { etapas: Linha[]; negocios: Linha[] } | null = null;
   @state() private falha: string | null = null;
-  private filtros = new URLSearchParams(window.location.search);
+  private filtros = filtrosDaUrl();
   private geracao = 0;
 
   connectedCallback() {
@@ -39,12 +33,7 @@ export class PcTelaFunil extends LitElement {
   }
 
   private filtrar(mudancas: Record<string, string>) {
-    for (const [k, v] of Object.entries(mudancas)) {
-      if (v) this.filtros.set(k, v);
-      else this.filtros.delete(k);
-    }
-    const qs = this.filtros.toString();
-    history.replaceState(history.state, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+    filtrosNaUrl(this.filtros, mudancas);
     void this.carregar();
   }
 
@@ -71,12 +60,11 @@ export class PcTelaFunil extends LitElement {
   }
 
   private cartao(n: Linha) {
-    const t = TEMPERATURA[n.temperatura ?? ''];
     return html`<urbi-stack>
       <urbi-prosa>${n.contato_nome}</urbi-prosa>
       <urbi-prosa papel="secundario">${n.titulo}${n.valor_estimado_c ? ` · ${reais(n.valor_estimado_c)}` : ''}</urbi-prosa>
       <urbi-linha quebrar>
-        ${t ? html`<urbi-badge cor=${t.cor} title=${n.temperatura_motivo ?? ''}>${t.rotulo}</urbi-badge>` : ''}
+        ${chip('temperatura', n.temperatura, n.temperatura_motivo)}
         ${n.abordagem_vencida ? html`<urbi-badge cor="alerta">Abordagem atrasada</urbi-badge>` : ''}
       </urbi-linha>
     </urbi-stack>`;
@@ -89,7 +77,7 @@ export class PcTelaFunil extends LitElement {
         .opcoes=${[{ valor: 'compra', rotulo: 'Compra' }, { valor: 'venda_captacao', rotulo: 'Venda e captação' }]}
         @urbi:select-change=${(e: CustomEvent) => this.filtrar({ pipeline: e.detail.valor === 'compra' ? '' : e.detail.valor })}></urbi-select>
       <urbi-select label="Temperatura" valor=${this.filtros.get('temperatura') ?? ''} placeholder="Todas"
-        .opcoes=${Object.entries(TEMPERATURA).map(([valor, t]) => ({ valor, rotulo: t.rotulo }))}
+        .opcoes=${opcoesChip('temperatura')}
         @urbi:select-change=${(e: CustomEvent) => this.filtrar({ temperatura: e.detail.valor })}></urbi-select>
       <urbi-select label="Sem contato há" valor=${this.filtros.get('parado_dias') ?? ''} placeholder="Qualquer tempo"
         .opcoes=${[{ valor: '3', rotulo: '3 dias' }, { valor: '7', rotulo: '7 dias' }, { valor: '15', rotulo: '15 dias' }, { valor: '30', rotulo: '30 dias' }]}

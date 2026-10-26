@@ -1,13 +1,13 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, formularioEnviar } from '../apoio.js';
+import { chamarApi, formularioEnviar, opcoesChip, rotuloChip } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
 type Linha = Record<string, any>;
 
-const TEMPERATURA: Record<string, string> = { quente: 'Quente', morno: 'Morno', frio: 'Frio' };
+const temperatura = (t: string) => rotuloChip('temperatura', t).rotulo;
 const CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'Ligação', email: 'E-mail', visita: 'Visita' };
 const opcoesDe = (m: Record<string, string>) => Object.entries(m).map(([valor, rotulo]) => ({ valor, rotulo }));
 
@@ -41,7 +41,7 @@ export class PcPlaybook extends LitElement {
   }
 
   private editar(a: Linha) {
-    void formularioEnviar(`${a.etapa_nome} · ${TEMPERATURA[a.temperatura]}`, this.campos(a), 'PUT', `/funil/playbook/${a.id}`).then((r) => (r ? this.carregar() : undefined));
+    void formularioEnviar(`${a.etapa_nome} · ${temperatura(a.temperatura)}`, this.campos(a), 'PUT', `/funil/playbook/${a.id}`).then((r) => (r ? this.carregar() : undefined));
   }
 
   private nova() {
@@ -50,7 +50,7 @@ export class PcPlaybook extends LitElement {
       'Nova abordagem',
       [
         { nome: 'etapa_id', tipo: 'selecao', rotulo: 'Etapa', obrigatorio: true, opcoes: etapas.map((e) => ({ valor: String(e.id), rotulo: e.nome })) },
-        { nome: 'temperatura', tipo: 'selecao', rotulo: 'Temperatura', valor: 'morno', opcoes: opcoesDe(TEMPERATURA) },
+        { nome: 'temperatura', tipo: 'selecao', rotulo: 'Temperatura', valor: 'morno', opcoes: opcoesChip('temperatura').reverse() },
         ...this.campos(),
       ],
       'POST',
@@ -62,7 +62,7 @@ export class PcPlaybook extends LitElement {
   private colunas(): UrbiColunaTabela[] {
     return [
       { id: 'etapa', label: 'Etapa', valor: (l) => `${(l as Linha).etapa_nome}` },
-      { id: 'temperatura', label: 'Temperatura', valor: (l) => TEMPERATURA[(l as Linha).temperatura] ?? '' },
+      { id: 'temperatura', label: 'Temperatura', valor: (l) => ((l as Linha).temperatura ? temperatura((l as Linha).temperatura) : '') },
       { id: 'abordagem', label: 'Abordagem' },
       { id: 'canal', label: 'Por onde', valor: (l) => CANAL[(l as Linha).canal_sugerido] ?? '' },
       { id: 'prazo', label: 'Prazo', alinhamento: 'direita', valor: (l) => `${(l as Linha).prazo_horas} h` },
