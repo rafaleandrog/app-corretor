@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { lerCsv, sugerirMapeamento } from '../../comum/csv.js';
+import { lerCsv, mapearPorModelo, MODELOS_IMPORTACAO } from '../../comum/csv.js';
 import { enviar, mensagemDeErro } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -14,6 +14,9 @@ const CAMPOS: { id: string; rotulo: string }[] = [
   { id: 'observacoes', rotulo: 'Observações' },
 ];
 const LIMITE = 2000;
+// Teto de corpo do shell (`413 CORPO_MUITO_GRANDE`, SDK apps-em-repo-proprio): o envio é um POST só.
+const TETO_CORPO_KB = 100;
+const ORIGENS = [...MODELOS_IMPORTACAO.map((m) => ({ valor: m.id, rotulo: m.rotulo })), { valor: 'outra', rotulo: 'Outra' }];
 
 interface Relatorio {
   criados: number;
@@ -30,6 +33,7 @@ export class PcTelaImportar extends LitElement {
   @state() private cabecalho: string[] = [];
   @state() private linhas: string[][] = [];
   @state() private mapa: Record<string, number | null> = {};
+  @state() private origem = 'outra';
   @state() private modo = 'pular';
   @state() private enviando = false;
   @state() private relatorio: Relatorio | null = null;
@@ -53,7 +57,21 @@ export class PcTelaImportar extends LitElement {
     this.arquivo = f.name;
     this.cabecalho = tudo[0];
     this.linhas = tudo.slice(1);
-    this.mapa = sugerirMapeamento(this.cabecalho);
+    this.mapa = mapearPorModelo(this.cabecalho, this.origem);
+  }
+
+  private escolherOrigem(valor: string) {
+    this.origem = valor;
+    if (this.arquivo) this.mapa = mapearPorModelo(this.cabecalho, valor);
+  }
+
+  private corpo() {
+    return { linhas: this.convertidas(), modo: this.modo, arquivo: this.arquivo };
+  }
+
+  /** Tamanho do envio em kB, como o shell o mede (bytes do JSON). */
+  private tamanhoKb() {
+    return Math.ceil(new TextEncoder().encode(JSON.stringify(this.corpo())).length / 1024);
   }
 
   private convertidas() {
@@ -73,7 +91,7 @@ export class PcTelaImportar extends LitElement {
     }
     this.enviando = true;
     try {
-      this.relatorio = await enviar('POST', '/contatos/importar', { linhas: this.convertidas(), modo: this.modo, arquivo: this.arquivo });
+      this.relatorio = await enviar('POST', '/contatos/importar', this.corpo());
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'A importação falhou', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
@@ -93,8 +111,11 @@ export class PcTelaImportar extends LitElement {
       </urbi-linha>
       <urbi-prosa papel="secundario">
         Planilha em CSV (no Excel: Salvar como › CSV), com cabeçalho. Contatos importados entram sem consentimento: o atendimento
-        automático só poderá falar com eles por mensagem-modelo aprovada.
+        automático só poderá falar com eles por mensagem-modelo aprovada. Cada importação envia até ${TETO_CORPO_KB} kB:
+        com nome, telefone, e-mail e observação, isso dá algumas centenas de linhas.
       </urbi-prosa>
+      <urbi-select label="De onde vem a planilha?" valor=${this.origem} .opcoes=${ORIGENS}
+        @urbi:select-change=${(e: CustomEvent) => this.escolherOrigem(e.detail.valor || 'outra')}></urbi-select>
       <urbi-seletor-arquivo drop accept=".csv,text/csv" dica="Arquivo CSV com cabeçalho" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.escolher(e)}></urbi-seletor-arquivo>
       ${this.arquivo
         ? html`<urbi-card titulo="Colunas" icone="fa-solid fa-table-columns">
@@ -109,6 +130,12 @@ export class PcTelaImportar extends LitElement {
             <urbi-card titulo="Prévia (10 primeiras linhas de ${this.linhas.length})" icone="fa-solid fa-eye">
               <urbi-tabela responsivo="multiline" .colunas=${this.previa()} .linhas=${this.convertidas().slice(0, 10)}></urbi-tabela>
             </urbi-card>
+            ${this.tamanhoKb() > TETO_CORPO_KB
+              ? html`<urbi-banner variante="alerta">
+                  Este envio tem ${this.tamanhoKb()} kB e o limite é ${TETO_CORPO_KB} kB: a importação vai ser recusada. Divida a planilha
+                  em arquivos menores ou deixe de importar colunas longas, como observações.
+                </urbi-banner>`
+              : ''}
             <urbi-linha quebrar alinhar="fim">
               <urbi-select label="Se o contato já existir (mesmo telefone ou e-mail)" valor=${this.modo}
                 .opcoes=${[{ valor: 'pular', rotulo: 'Pular' }, { valor: 'atualizar_vazios', rotulo: 'Completar só os campos vazios' }, { valor: 'sobrescrever', rotulo: 'Sobrescrever com a planilha' }]}

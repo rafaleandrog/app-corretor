@@ -92,20 +92,28 @@ O lembrete para o cliente, pelo WhatsApp, chega com o Mensageiro.
 
 **Clientes › Importar** recebe um arquivo CSV com cabeçalho (no Excel: Salvar como › CSV).
 
-1. O app lê o arquivo no navegador (UTF-8 ou o formato do Excel antigo) e aceita `;` ou `,`.
-2. Sugere qual coluna é nome, telefone, e-mail, papel e observações; o corretor confere e muda.
-3. Mostra as 10 primeiras linhas como ficariam.
-4. O corretor escolhe o que fazer quando o contato já existe (mesmo telefone; se o telefone não
+1. **De onde vem a planilha?** O corretor escolhe o modelo: **planilha simples** (colunas `Nome`,
+   `Telefone` e `E-mail`, sem diferença de acento ou maiúscula) ou **outra**. O modelo só
+   pré-preenche as colunas; o que ele não encontra fica com a sugestão de "outra". Modelos de
+   outros CRMs (Kenlo, Jetimob, Imobzi) ainda não existem: cada um entra depois de conferido com
+   uma exportação real do sistema. Até lá, use **outra**.
+2. O app lê o arquivo no navegador (UTF-8 ou o formato do Excel antigo) e aceita `;` ou `,`.
+3. Sugere qual coluna é nome, telefone, e-mail, papel e observações (pelo modelo ou, em
+   **outra**, pelo nome do cabeçalho); o corretor confere e muda.
+4. Mostra as 10 primeiras linhas como ficariam.
+5. O corretor escolhe o que fazer quando o contato já existe (mesmo telefone; se o telefone não
    achar ninguém, mesmo e-mail): **pular**, **completar só os campos vazios** ou **sobrescrever com
    a planilha**. Coluna não mapeada não apaga nem troca nada: sem a coluna de papel, o contato
    existente fica com os papéis que tinha (o novo entra como comprador).
-5. O relatório mostra quantos foram criados, unidos a contatos existentes, pulados e rejeitados,
+6. O relatório mostra quantos foram criados, unidos a contatos existentes, pulados e rejeitados,
    com a linha da planilha (contando o cabeçalho como linha 1) e o motivo de cada rejeição. Uma
    linha que esbarra no telefone de outro contato (por exemplo, cadastrado ao mesmo tempo) é
    rejeitada, e as demais seguem.
 
-Limite de 2.000 linhas por vez. Contatos importados entram **sem consentimento** e com origem
-"importação".
+Limite de 2.000 linhas por vez, e cada importação envia no máximo 100 kB (limite da plataforma):
+com nome, telefone, e-mail e observação, isso dá algumas centenas de linhas. Quando o envio passa
+disso, a tela avisa o tamanho antes de importar; divida a planilha. Contatos importados entram
+**sem consentimento** e com origem "importação".
 
 ## Exportar
 
