@@ -24,7 +24,8 @@ direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/
 
 - **CRECI**: é aqui que você cadastra. O formato é `UF-número-F` (pessoa física) ou `-J` (pessoa
   jurídica), por exemplo `DF-12345-F`. Pode digitar em minúsculas: o app corrige. O CRECI vai no
-  rodapé das artes e na legenda das peças do Estúdio. Sem ele, a peça não é aprovada.
+  rodapé das artes (pela instrução do Estúdio) e na legenda das peças. Sem ele nada fica travado:
+  o app só lembra de cadastrar.
 - **Telefone (WhatsApp)** com DDD, por exemplo `(61) 99999-9999` (o zero antes do DDD pode ficar).
   Sem o `+` do país, o app entende que é um número do Brasil e exige DDD e 8 ou 9 dígitos.
 - **Situação do CRECI**: começa como "não verificado". A verificação é feita pela equipe da
@@ -43,7 +44,7 @@ A aba **Marca** guarda a marca da conta, e ela é uma só para tudo o que o clie
 
 | Onde | O que da marca aparece |
 |---|---|
-| [Estúdio](estudio.md#sua-marca) | Tudo: cores, estilo, assinatura, logo e foto, nas artes; as referências, só na instrução de "Fazer em outra ferramenta" (o cliente nunca as vê) |
+| [Estúdio](estudio.md#sua-marca) | Tudo: cores, estilo, assinatura, logo e foto, na instrução para o Canva e no logo para anexar; as referências, só na instrução (o cliente nunca as vê) |
 | [Minha página](minha-pagina.md) | A cor principal (topo, botões e destaques) |
 | [Seleção e Portal do Cliente](selecoes-e-portal.md) | A cor principal e a sua foto, no topo |
 
