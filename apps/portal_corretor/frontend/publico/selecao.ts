@@ -324,7 +324,7 @@ export class PcPortalCliente extends LitElement {
     return html`
       ${topo(p.corretor, 'Olá! Estou no meu portal e queria falar com você.', p.proximo_passo ?? null)}
       <div class="conteudo">
-        ${datasChave(p.agenda[0]?.quando ?? null, valeAte)}
+        ${datasChave((p.agenda as Linha[]).find((v) => v.quando && Date.parse(v.quando) >= Date.now())?.quando ?? null, valeAte)}
         ${tarefas.length || this.avisoEm === 'tarefas'
           ? html`<section>
               <h2>O que falta de você</h2>
@@ -333,7 +333,7 @@ export class PcPortalCliente extends LitElement {
                     ${tarefas.map(
                       (t) => html`<li>
                         <span>${t.texto}</span>
-                        <button class="botao" type="button" ?disabled=${this.marcando !== null} @click=${() => this.feito(t)}>${this.marcando === t.ref ? 'Enviando…' : 'Feito'}</button>
+                        <button class="botao" type="button" ?disabled=${this.marcando !== null} aria-label=${`Feito: ${t.texto}`} @click=${() => this.feito(t)}>${this.marcando === t.ref ? 'Enviando…' : 'Feito'}</button>
                       </li>`,
                     )}
                   </ul>`

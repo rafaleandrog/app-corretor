@@ -30,8 +30,9 @@ Cada imóvel é um cartão de **foto grande** (as fotos passam de lado), pensado
 - preço em destaque, bairro e cidade, e ícones de quartos, área e vagas; a descrição abre num toque;
 - três botões grandes: **Gostei**, **Não gostei** e **Quero visitar**.
 
-O mesmo jeito de cartão, com os ícones de quartos, área e vagas, vale na sua página e na ficha
-pública do imóvel ([Minha página](minha-pagina.md)).
+Os ícones de quartos, área e vagas são os mesmos na sua página e na ficha pública do imóvel
+([Minha página](minha-pagina.md)). Lá a foto fica menor: na página, em grade; na ficha, as fotos
+passam de lado. O cartão de foto grande é o da seleção e o do portal.
 
 O que nunca aparece: proprietário, comissão, documentos e endereço além do que o imóvel libera em
 "endereço público". A seleção **acompanha o anúncio**: preço, fotos e descrição atualizam sozinhos,
@@ -91,6 +92,9 @@ Quando o cliente toca em **Feito**:
 - a linha do tempo ganha "Marcou como feito no portal: …", e conta como contato com o cliente;
 - a jornada do portal ganha "Feito: …".
 
+A conferência é feita quando o aviso chega ao app, e não no envio pelo portal: se a pendência
+não for deste cliente ou já estiver feita, nada muda.
+
 O ícone de lixeira ao lado de cada pendência a remove: ela sai da ficha e do portal.
 
 **O que o cliente manda pelo portal:**
@@ -120,9 +124,9 @@ isso o corretor o envia só ao cliente e o revoga se ele for parar em outras mã
   abre se a chave for válida, não estiver vencida e não tiver sido revogada.
 - **Limites por endereço de internet e por minuto:** 30 reações por seleção e 5 ações no portal.
 - **Registro de chamadas da plataforma:** o texto que o cliente escreve (mensagem, pedido de
-  remarcar) nunca fica lá. A pendência marcada como feita chega só com o número dela. Ele chega ao app pelos eventos da conta, que só os membros da conta
-  leem, e fica guardado pelo prazo de retenção de eventos da instância, como no formulário da
-  página (D-70).
+  remarcar) nunca fica lá. Na pendência marcada como feita, só vai o número dela. O registro
+  chega ao app pelos eventos da conta, que só os membros da conta leem, e fica guardado pelo
+  prazo de retenção de eventos da instância, como no formulário da página (D-70).
 - **Contas:** a conta vem sempre da chave, nunca do que o navegador manda. Uma reação ou pedido
   só vale para a seleção, o imóvel, a visita ou a pendência do próprio cliente; o resto é ignorado.
 - **Links guardados:** o link de cada seleção e do portal fica guardado no app, para o corretor
