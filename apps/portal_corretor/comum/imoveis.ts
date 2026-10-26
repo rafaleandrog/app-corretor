@@ -13,6 +13,13 @@ export const AMBIENTES = ['fachada', 'sala', 'cozinha', 'quarto', 'banheiro', 'v
 
 /** Situações que exigem autorização de venda vigente: anúncio só dentro dela (spec 6.3). */
 export const SITUACOES_ANUNCIADAS = ['ativo', 'reservado'];
+/** Abas de Imóveis (D-84): a carteira em cartões e os empreendimentos. */
+export const ABAS_IMOVEIS = [
+  { id: 'carteira', label: 'Carteira', icone: 'fa-solid fa-house' },
+  { id: 'empreendimentos', label: 'Empreendimentos', icone: 'fa-solid fa-city' },
+] as const;
+/** Caminho antigo → aba de Imóveis: `/empreendimentos` virou a aba Empreendimentos. */
+export const APELIDOS_IMOVEIS: Record<string, string> = { '/empreendimentos': 'empreendimentos' };
 /** Tipos em que quartos e banheiros não contam para a qualidade. */
 const SEM_COMODOS = ['lote', 'galpao', 'rural', 'sala', 'loja'];
 
@@ -240,6 +247,17 @@ export function qualidadeAnuncio(
     nota: itens.reduce((s, [ok, peso]) => s + (ok ? peso : 0), 0),
     faltas: itens.filter(([ok]) => !ok).sort((a, b) => b[1] - a[1]).map(([, , f]) => f),
   };
+}
+
+/** Seção da ficha que resolve cada item de "o que falta" (`conta` é Ajustes › Conta, fora da ficha). */
+export type SecaoFalta = 'fotos' | 'descricao' | 'dados' | 'autorizacao' | 'conta';
+
+export function secaoDaFalta(falta: string): SecaoFalta {
+  if (falta.startsWith('Pelo menos 8 fotos')) return 'fotos';
+  if (falta.startsWith('Descrição')) return 'descricao';
+  if (falta.startsWith('Autorização')) return 'autorizacao';
+  if (falta.startsWith('CRECI')) return 'conta';
+  return 'dados';
 }
 
 /** Ordem de apresentação das fotos: capa primeiro, depois ambientes na sequência de uma visita. */

@@ -9,24 +9,43 @@ Tudo é da conta do corretor: ninguém de outra conta vê, abre ou altera. Ender
 foto, autorização ou empreendimento de outra conta responde "não encontrado"; um vínculo com algo
 de outra conta (proprietário, empreendimento, imóvel, documento) é recusado como "não encontrado".
 
-## Minha carteira
+## Carteira
 
-No menu, **Imóveis** abre a sua carteira, que lista os imóveis com a foto de capa, o local, o preço, a situação e a
+No menu, **Imóveis** abre uma tela com duas abas: **Carteira** (a primeira) e **Empreendimentos**.
+A aba fica no endereço da página, então o link que você guardar volta na mesma aba; o endereço
+antigo `/empreendimentos` abre direto a aba Empreendimentos.
+
+A Carteira mostra os imóveis em **cartões**, que se encaixam conforme a largura da tela: quanto mais larga, mais cartões cabem por linha. Cada cartão tem no mínimo cerca de 280 pixels, então no celular, em geral, sai **um por linha**. Cada cartão tem a foto de capa, o código e o título, o preço, o bairro e a cidade, os
+quartos, a área e as vagas, a situação, a marca **Na página** quando o imóvel está anunciado e a
 nota de qualidade. Busca por código, título, bairro ou cidade e filtro por situação (ficam no
-endereço da página).
+endereço da página). Toque no cartão para abrir a ficha. Sem nenhum imóvel, a tela convida a
+cadastrar o primeiro.
 
 ### Cadastro rápido
 
 1. **Novo imóvel**: tipo, cidade e, se quiser, título, bairro, UF e um código seu. Sem código, o
    app numera `IM-0001`, `IM-0002`… O código não se repete entre os imóveis da conta.
-2. A ficha abre já pedindo as **fotos**: arraste várias de uma vez (JPG, PNG, WEBP, vídeo MP4 ou
+2. A ficha abre já pedindo as **fotos** (o cartão de fotos fica aberto enquanto o imóvel não tem foto): arraste várias de uma vez (JPG, PNG, WEBP, vídeo MP4 ou
    PDF, até 25 MB cada). A primeira foto é a capa.
 3. Com a leitura de fotos ligada, cada foto é lida pela IA: ela diz o ambiente (fachada, sala,
    cozinha…), dá uma nota para o anúncio e escreve uma legenda quando a foto não tem uma (a do
    corretor nunca é trocada). **Ordem sugerida** põe a melhor foto de fachada, sala ou vista como
    capa e as demais na sequência de uma visita.
-4. **Editar dados**: preço (vazio = sob consulta), condomínio, IPTU, áreas, cômodos, endereço,
+4. **Editar dados** (no botão de lápis do cartão do imóvel ou em **Mais**): preço (vazio = sob consulta), condomínio, IPTU, áreas, cômodos, endereço,
    características, proprietário e empreendimento.
+
+### A ficha do imóvel
+
+- **O que falta no anúncio**, no topo, com a nota: cada pendência leva ao lugar que a resolve —
+  fotos rola até o cartão de fotos; descrição abre a descrição; preço, área, cômodos e localização
+  abrem os dados; autorização abre a nova autorização (ou "marcar assinada", se já há uma em
+  andamento); CRECI leva a Ajustes › Conta. Com o anúncio completo, o cartão some.
+- **Uma ação principal**: **Publicar na página** ou, se já está marcado para a página, **Tirar da
+  página**. O resto fica em **Mais**: editar dados, situação e remover.
+- Os cartões de fotos, descrição, autorização, visitas, envios e negócios mostram um resumo; a
+  lista completa abre pela seta do cartão. Sem foto, os arquivos ficam à mostra.
+- O formulário de dados pede só o que o corretor usa agora; campos das fases seguintes
+  (compartilhamento na rede, origem do estoque, posição no mapa) não aparecem.
 
 ### Fotos e arquivos
 
@@ -95,7 +114,8 @@ Negócios também podem ser ligados a um imóvel; a ficha do imóvel mostra os n
 
 ## Empreendimentos
 
-Não há item de menu para eles: abra pelo botão **Empreendimentos** na tela **Início** (ou pelo endereço `/empreendimentos`). São os lançamentos que o corretor vende, com nome (sem repetir),
+Ficam na aba **Empreendimentos** de **Imóveis** (o endereço `/empreendimentos` abre a aba; a ficha
+de cada um continua em `/empreendimentos/<número>`). São os lançamentos que o corretor vende, com nome (sem repetir),
 construtora, tipo (prédio, condomínio de casas, loteamento), fase (lançamento, em obras, pronto),
 local, faixa de preço, tipologias e descrição.
 

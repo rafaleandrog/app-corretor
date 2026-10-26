@@ -1,17 +1,65 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { rotas } from '../backend/rotas';
 import {
+  ABAS_IMOVEIS,
+  APELIDOS_IMOVEIS,
   autorizacaoVigente,
   contextoDescricao,
   podeGerarDescricao,
   proximoCodigo,
   qualidadeAnuncio,
+  secaoDaFalta,
   situacaoAutorizacao,
   sugerirOrdem,
   validarImovel,
 } from '../comum/imoveis';
+import { TELAS_APP, telaBase } from '../comum/assistente';
 import { BancoFalso, comServidor, type Ator } from './apoio';
+
+const raiz = (arquivo: string) => readFileSync(resolve(process.cwd(), arquivo), 'utf8');
+
+test('Imóveis: abas Carteira e Empreendimentos, nesta ordem; Carteira é a primeira (D-84)', () => {
+  assert.deepEqual(ABAS_IMOVEIS.map((a) => a.id), ['carteira', 'empreendimentos']);
+  const manifesto = JSON.parse(raiz('manifesto.json'));
+  assert.ok(manifesto.nav.some((n: { rota: string }) => n.rota === '/imoveis'));
+  assert.ok(!manifesto.nav.some((n: { rota: string }) => n.rota === '/empreendimentos'), 'Empreendimentos fora do menu');
+});
+
+test('/empreendimentos é apelido de Imóveis na aba Empreendimentos (D-84)', () => {
+  assert.equal(APELIDOS_IMOVEIS['/empreendimentos'], 'empreendimentos');
+  assert.ok(ABAS_IMOVEIS.some((a) => a.id === APELIDOS_IMOVEIS['/empreendimentos']));
+  const indice = raiz('frontend/index.ts');
+  assert.match(indice, /'\/imoveis': IMOVEIS,/);
+  assert.match(indice, /'\/empreendimentos': IMOVEIS,/);
+  // A ficha do empreendimento segue com a rota dela.
+  assert.match(indice, /'\/empreendimentos\/:id'/);
+  // O Início não tem mais o link de Empreendimentos no pé.
+  assert.doesNotMatch(raiz('frontend/telas/inicio.ts'), /href\('\/empreendimentos'\)/);
+  assert.equal(telaBase('/empreendimentos'), '/empreendimentos');
+  assert.equal(telaBase('/empreendimentos/7'), '/empreendimentos');
+  assert.equal(TELAS_APP['/empreendimentos'].nome, 'Imóveis › Empreendimentos');
+  assert.equal(TELAS_APP['/imoveis'].nome, 'Imóveis');
+});
+
+test('o que falta: cada pendência leva à seção que a resolve', () => {
+  const { faltas } = qualidadeAnuncio({ tipo: 'apartamento' }, { fotosPublicas: 0, autorizacaoVigente: false, creci: false });
+  assert.equal(faltas.length, 7, 'imóvel vazio: falta tudo');
+  assert.deepEqual(
+    Object.fromEntries(faltas.map((f) => [f, secaoDaFalta(f)])),
+    {
+      'Pelo menos 8 fotos públicas (tem 0)': 'fotos',
+      'Descrição com pelo menos 400 caracteres': 'descricao',
+      'Preço informado': 'dados',
+      'Autorização de venda assinada e vigente': 'autorizacao',
+      'Área e cômodos (quartos e banheiros)': 'dados',
+      'Localização (bairro e cidade)': 'dados',
+      'CRECI preenchido em Ajustes › Conta': 'conta',
+    },
+  );
+});
 
 const UNICOS = { contatos: ['telefone'], imoveis: ['codigo'], empreendimentos: ['nome'], visitas: ['atividade_id'], etapas_funil: ['pipeline+nome'] };
 const arquivos = { url: async (arquivo: number) => `/arquivo/${arquivo}` };

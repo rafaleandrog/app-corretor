@@ -7,9 +7,8 @@ import './telas/corretores.js';
 import { renderClientes } from './telas/clientes.js';
 import './telas/ficha-contato.js';
 import './telas/importar.js';
-import './telas/imoveis.js';
+import { renderImoveis } from './telas/imoveis.js';
 import './telas/ficha-imovel.js';
-import './telas/empreendimentos.js';
 import './telas/ficha-empreendimento.js';
 import './telas/desempenho.js';
 import './telas/pagina.js';
@@ -32,9 +31,9 @@ interface Tela {
 
 const AJUSTES: Tela = { titulo: 'Ajustes', papel: 'corretor', render: (_p, app) => renderAjustes(() => app?.requestUpdate()) };
 const CLIENTES: Tela = { titulo: 'Clientes', papel: 'corretor', render: (_p, app) => renderClientes(() => app?.requestUpdate()) };
+const IMOVEIS: Tela = { titulo: 'Imóveis', papel: 'corretor', render: (_p, app) => renderImoveis(() => app?.requestUpdate()) };
 
 // Uma entrada por rota. A tela só abre para quem tem o papel; o backend barra de novo.
-// `/empreendimentos` saiu do menu (D-81) e segue abrindo a tela de hoje até virar aba de Imóveis.
 const INICIO: Tela = { titulo: 'Início', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` };
 
 const TELAS: Record<string, Tela> = {
@@ -46,9 +45,10 @@ const TELAS: Record<string, Tela> = {
   '/funil': CLIENTES,
   '/clientes/importar': { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
   '/clientes/:id': { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
-  '/imoveis': { titulo: 'Minha carteira', papel: 'corretor', render: () => html`<pc-tela-imoveis></pc-tela-imoveis>` },
+  '/imoveis': IMOVEIS,
   '/imoveis/:id': { titulo: 'Imóvel', papel: 'corretor', render: (id) => html`<pc-tela-ficha-imovel .imovelId=${Number(id)}></pc-tela-ficha-imovel>` },
-  '/empreendimentos': { titulo: 'Empreendimentos', papel: 'corretor', render: () => html`<pc-tela-empreendimentos></pc-tela-empreendimentos>` },
+  // Apelido: Empreendimentos virou a aba Empreendimentos de Imóveis (D-84).
+  '/empreendimentos': IMOVEIS,
   '/empreendimentos/:id': {
     titulo: 'Empreendimento',
     papel: 'corretor',
