@@ -93,6 +93,7 @@ export class PcClientesQuadro extends LitElement {
         </urbi-banner></urbi-stack>`;
     }
     if (!this.quadro) return html`<urbi-loading></urbi-loading>`;
+    // Abordagem atrasada abre a ficha já com a mensagem sugerida (`?sugerir=1`), onde está o Fazer agora.
     const listas = this.quadro.etapas.map((e) => ({ id: String(e.id), label: e.nome }));
     const itens = this.quadro.negocios.map((n) => ({ ...n, id: String(n.id), lista: String(n.etapa_id), label: n.contato_nome, variante: n.abordagem_vencida ? 'alerta' : '' }));
     return html`<urbi-stack>
@@ -100,7 +101,7 @@ export class PcClientesQuadro extends LitElement {
       ${this.falha ? html`<urbi-banner variante="erro">${this.falha}</urbi-banner>` : ''}
       ${itens.length
         ? html`<urbi-kanban .listas=${listas} .itens=${itens} .render_item=${(n: Linha) => this.cartao(n)}
-            .href_item=${(n: Linha) => urbiVerso.href(`/clientes/${n.contato_id}`)}
+            .href_item=${(n: Linha) => urbiVerso.href(`/clientes/${n.contato_id}${n.abordagem_vencida ? '?sugerir=1' : ''}`)}
             @urbi:kanban-mover=${(e: CustomEvent) => this.mover(e)}></urbi-kanban>`
         : html`<urbi-estado-vazio icone="fa-solid fa-filter" mensagem=${this.filtros.get('temperatura') || this.filtros.get('parado_dias') ? 'Nenhum negócio com estes filtros' : 'Nenhum negócio neste funil'}
             submensagem="Abra negócios pela ficha de cada cliente."></urbi-estado-vazio>`}

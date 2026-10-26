@@ -20,6 +20,7 @@ const id = (v: unknown) => {
   return Number.isInteger(n) && n > 0 ? n : null;
 };
 const agora = () => new Date().toISOString();
+const ROTULO_CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 
 /** Início e fim do dia no fuso da conta, como instantes ISO. */
 function limitesDoDia(fuso: string, deslocamentoDias = 0) {
@@ -154,7 +155,13 @@ funilRotas.post(
     const contato = cid ? await dados.buscar('contatos', cid) : null;
     if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     const texto = typeof req.body?.texto === 'string' ? req.body.texto.trim().slice(0, 1000) : '';
-    await registrar(dados, req, { tipo: 'abordagem.feita', alvo_tipo: 'contato', alvo_id: cid!, contato_id: cid!, resumo: `Abordagem: ${texto || 'feita'}` });
+    // "Fazer agora" da ficha manda o canal; uma linha só na linha do tempo (não passa por /envios).
+    const canal = (CANAIS_ABORDAGEM as readonly string[]).includes(req.body?.canal) ? (req.body.canal as string) : null;
+    await registrar(dados, req, {
+      tipo: 'abordagem.feita', alvo_tipo: 'contato', alvo_id: cid!, contato_id: cid!,
+      resumo: `Abordagem${canal ? ` por ${ROTULO_CANAL[canal]}` : ''}: ${texto || 'feita'}`,
+      ...(canal ? { dados: { canal } } : {}),
+    });
     await dados.atualizar('contatos', cid!, { ultimo_contato_em: agora(), abordagem_adiada_em: null });
     await reclassificar(dados, cid!);
     res.status(201).json({ ok: true });
