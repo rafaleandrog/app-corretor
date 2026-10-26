@@ -34,7 +34,7 @@ Aprovada pelo dono em 23/10. Fonte: spec 2.6 (princípios 13 e 14), 2.7, 5.1, 11
 
 | # | Bloco | Issue | Depende de | Pronto quando | Status |
 |---|---|---|---|---|---|
-| 0 | **Fundação visual:** chip, cartão de imóvel, filtro na URL e menu "mais" em `frontend/apoio.ts` | #50 | — | Telas atuais usam os helpers sem mudar comportamento | [ ] |
+| 0 | **Fundação visual:** chip, cartão de imóvel, filtro na URL e menu "mais" em `frontend/apoio.ts` | #50 | — | Telas atuais usam os helpers sem mudar comportamento | [x] em PR (helpers em `frontend/visual.ts`, reexportados por `apoio.ts`) |
 | 1 | **Menu de oito itens e Ajustes numa tela só** (abas Conta · Marca · Conexões · Funil e abordagens · Atendimento); rotas antigas como apelidos | #51 | — | Menu com 8 itens; retorno do Instagram em `/ajustes/conexoes` segue vivo | [ ] |
 | 2 | **Início:** fila do dia com uma ação por item e aba Agenda; sai a grade de atalhos | #52 | 0, 1 | Nenhum item com dois botões; Agenda só busca quando aberta | [ ] |
 | 3 | **Clientes:** visões Lista · Quadro (o Funil entra aqui) e filtros prontos | #53 | 0, 1 | `/funil` abre o Quadro; chips filtram com teste | [ ] |
@@ -88,6 +88,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
+| 26/10/2026 | 1.5 · 0 | Fundação visual: `chip` (temperatura, papel, origem, etapa), `cartaoImovel` (D-65), `filtrosNaUrl`/`filtrosDaUrl`/`abaDaUrl`/`abaNaUrl` e `acoesComMais` em `frontend/visual.ts`, reexportados por `apoio.ts`; Clientes, Funil, Imóveis, Desempenho, Conexões e Abordagens sem `replaceState` nem mapa de temperatura próprios; teste `testes/visual.test.ts`. Sem mudança visível | (este PR) | Bloco 1 (#51) |
 | 23/10/2026 | Fase 1.5 | Plano de simplificação aprovado pelo dono: spec 1.1 (2.6, 2.7, 5.1, 11, 15.8, 15.9, D-80 a D-88), `specs/referencias_principais.md` e `specs/horizonte.md` novos, `CLAUDE.md` e pedidos ao shell 7 e 8; issues #49 (guarda-chuva) e #50 a #62; #44–#46 fechadas, #47–#48 adiadas, #8 e #43 atualizadas | — | Blocos 0 e 1 (#50, #51) em sessões novas; merge só com ordem do dono |
 | 18/10/2026 | Preparação | Repositório criado com o kit 100.3.16, specs e CLAUDE.md; revisão de viabilidade contra o SDK 100 aprovada (R.1–R.5); decisões D-55 a D-60 | — | Bloco 0 |
 | 18/10/2026 | 0 | Esqueleto `apps/portal_corretor` 0.1.0: manifesto (identidade, pisos 100/0.56.37), rota `/status`, tela inicial, página pública e linha de diagnóstico, testes (manifesto e rotas), `docs/README.md`; empacotador limpo | #2 | Dono instala e confere R.6; depois bloco 1 |
