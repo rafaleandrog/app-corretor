@@ -72,14 +72,36 @@ Abaixo das etapas, a tabela de abordagens por etapa e temperatura. O app semeia 
 para cada etapa da semente e cada temperatura; toque numa linha para mudar o texto, o canal e o
 prazo. Etapas criadas pelo corretor começam sem abordagem: use **Nova abordagem**.
 
-## Início: para hoje
+## Início: Hoje e Agenda
 
-O Início lista o que precisa do corretor agora, nesta ordem, com cada cliente uma vez só:
+No topo do Início, a **faixa da semana**: contatos novos, leads e visitas feitas nos últimos 7 dias
+e a comissão prevista. Abaixo, duas abas.
+
+**Hoje** é a fila do dia: o que precisa de você agora, em grupos nesta ordem, com cada cliente uma
+vez só (no motivo mais urgente):
 
 1. **Quentes sem resposta**: quente e mais de um dia sem contato.
-2. **Abordagens atrasadas**: o prazo do playbook passou (com o botão **Fiz**).
+2. **Abordagens atrasadas**: o prazo do playbook passou.
 3. **Visitas de hoje e amanhã**.
 4. **Próximos passos vencidos**.
 
-Mais atalhos para Clientes, o quadro do funil, Imóveis e Agenda. As passagens do atendimento automático e os
-frios que reagiram a um envio entram com o WhatsApp e com os envios rastreados.
+Cada item traz o nome, a temperatura, o motivo em uma linha e **um** botão:
+
+| Grupo | Botão | No "Mais" |
+|---|---|---|
+| Quentes sem resposta | **Fazer agora** (abre a ficha do cliente) | — |
+| Abordagens atrasadas | **Fazer agora** (abre a ficha do cliente) | **Fiz**: registra a abordagem feita |
+| Visitas | **Abrir** (a ficha do cliente) | **Visita feita** |
+| Próximos passos vencidos | **Abrir** (a ficha do cliente) | — |
+
+Fila vazia mostra "Nada urgente agora" e o botão **Ver a agenda**.
+
+**Agenda** é a lista dos próximos 14 dias (ver [Clientes, negócios e agenda](clientes-e-agenda.md#agenda)).
+Ela só carrega quando você abre a aba. O endereço `/agenda` abre o Início direto nessa aba.
+
+Os banners "complete a conta" e, nas contas de teste, "gerar dados de demonstração" aparecem acima
+da faixa enquanto valem. Enquanto Empreendimentos não vira aba de Imóveis, o link
+**Empreendimentos** fica no pé do Início.
+
+As passagens do atendimento automático, as peças aguardando aprovação e os frios que reagiram a um
+envio entram na fila com o WhatsApp, com o Estúdio e com os envios rastreados.

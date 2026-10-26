@@ -22,8 +22,9 @@ export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
   '/ajustes/atendimento': { nome: 'Ajustes › Atendimento', doc: 'conta-e-ajustes' },
   // `/funil` é apelido que abre Clientes na visão Quadro (D-83).
   '/funil': { nome: 'Clientes › Quadro', doc: 'funil' },
-  // Fora do menu desde D-81, ainda abrem até virarem parte de Início e Imóveis.
-  '/agenda': { nome: 'Agenda', doc: 'clientes-e-agenda' },
+  // `/agenda` é apelido que abre o Início na aba Agenda (D-82).
+  '/agenda': { nome: 'Início › Agenda', doc: 'clientes-e-agenda' },
+  // Fora do menu desde D-81, ainda abre até virar aba de Imóveis.
   '/empreendimentos': { nome: 'Empreendimentos', doc: 'imoveis' },
 };
 

@@ -3,6 +3,15 @@
 
 export const TEMPERATURAS = ['frio', 'morno', 'quente'] as const;
 export type Temperatura = (typeof TEMPERATURAS)[number];
+/** Abas do Início (D-82): a fila do dia e a lista de 14 dias. */
+export const ABAS_INICIO = [
+  { id: 'hoje', label: 'Hoje', icone: 'fa-solid fa-list-check' },
+  { id: 'agenda', label: 'Agenda', icone: 'fa-solid fa-calendar-day' },
+] as const;
+/** Caminho antigo → aba do Início: `/agenda` virou a aba Agenda. */
+export const APELIDOS_INICIO: Record<string, string> = { '/agenda': 'agenda' };
+/** Sub-rota do Início na aba Agenda, destino das notificações de visita (manifesto e `notificar`). */
+export const ROTA_AGENDA = '?aba=agenda';
 export const CANAIS_ABORDAGEM = ['whatsapp', 'ligacao', 'email', 'visita'] as const;
 
 /**

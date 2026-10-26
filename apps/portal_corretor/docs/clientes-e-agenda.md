@@ -106,15 +106,18 @@ aparecer para os negócios novos.
 Atividades são tarefas, ligações, mensagens, visitas, reuniões e retornos, com dia, hora e local,
 ligadas ou não a um contato e a um negócio.
 
-**Agenda** mostra as pendentes dos próximos 14 dias agrupadas em Atrasadas, Hoje, Amanhã e os dias
-seguintes, até 500 de uma vez; passando disso, um aviso pede para resolver as atrasadas. Marcar como **feita** registra o contato com o cliente; feita, cancelada e "não
-compareceu" vão para a linha do tempo.
+A **Agenda** é uma aba do Início (o endereço `/agenda` abre o Início nela). Mostra as pendentes
+dos próximos 14 dias agrupadas em Atrasadas, Hoje, Amanhã e os dias seguintes, até 500 de uma vez;
+passando disso, um aviso pede para resolver as atrasadas. Cada atividade tem o botão **Feito**; no
+**Mais**, abrir o cliente, "não veio" (visitas) e cancelar. Marcar como **feita** registra o contato
+com o cliente; feita, cancelada e "não compareceu" vão para a linha do tempo. Sem nada pendente, o
+botão **Abrir Clientes** leva à lista para agendar pela ficha.
 
 O detalhe da visita (imóvel visitado e retorno do cliente) fica na ficha do imóvel.
 
 **Lembrete de visita:** um dia antes de cada visita pendente (ou no prazo escolhido em Ajustes ›
 Atendimento), você recebe uma notificação na plataforma com a visita, a hora, o
-cliente e o local. Clicar nela abre a Agenda.
+cliente e o local. Clicar nela abre o Início na aba Agenda.
 - Visita feita, cancelada ou removida antes da hora não gera lembrete.
 - Visita marcada para dali a menos tempo que o prazo também não gera.
 - Mudar o prazo (ou desligar com 0) vale na hora para os lembretes que ainda não saíram; com outro

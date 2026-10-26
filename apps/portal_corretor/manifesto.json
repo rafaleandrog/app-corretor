@@ -303,7 +303,7 @@
       ],
       "conteudo": "Hora do lembrete de uma visita",
       "api": "atividades",
-      "rota": "agenda",
+      "rota": "?aba=agenda",
       "segregado_por_conta": true
     }
   },

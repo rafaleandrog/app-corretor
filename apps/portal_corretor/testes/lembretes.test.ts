@@ -60,7 +60,7 @@ test('lembrete de visita: agenda antes da visita, notifica o responsável uma ve
   await reagir.lembrete_visita({ payload: ev.agendados[1].payload, conta_id: '100' }, ctx as any);
   assert.equal(notificacoes.length, 1);
   assert.equal(notificacoes[0].usuario, 1);
-  assert.equal(notificacoes[0].rota, 'agenda');
+  assert.equal(notificacoes[0].rota, '?aba=agenda', 'Início na aba Agenda (D-82)');
   assert.match(notificacoes[0].mensagem, /^Lembrete de visita: Visita casa do Lago · .* · Ana · Lago Sul$/);
   // Reentrega (at-least-once) não notifica de novo.
   await reagir.lembrete_visita({ payload: ev.agendados[1].payload, conta_id: 100 }, ctx as any);
