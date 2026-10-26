@@ -1,5 +1,5 @@
 import { LitElement, html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { chamarApi } from '../apoio.js';
 
@@ -30,10 +30,11 @@ const SITUACAO: Record<string, { cor: string; rotulo: string }> = {
 };
 const nada = 'não informado';
 
-// Ajustes › Conta e marca: dados da conta, do corretor e as configurações de atendimento.
-// A marca (logo, cores, foto) entra com o Estúdio, no bloco 8.
+// Ajustes › Conta (seus dados e a conta) e Ajustes › Atendimento: o mesmo `GET /conta`, cada aba
+// mostra a sua parte.
 @customElement('pc-tela-conta')
 export class PcTelaConta extends LitElement {
+  @property() parte: 'conta' | 'atendimento' = 'conta';
   @state() private dados: DadosConta | null = null;
   @state() private falha: string | null = null;
 
@@ -52,11 +53,12 @@ export class PcTelaConta extends LitElement {
   }
 
   // Abre o formulário, grava e recarrega. Erro de validação volta com a lista em `detalhes`.
-  private async editar(titulo: string, rota: string, campos: CampoFormulario[]) {
+  // `fixos` vão junto sem aparecer no formulário (campo que saiu da tela mas continua no dado).
+  private async editar(titulo: string, rota: string, campos: CampoFormulario[], fixos: Record<string, unknown> = {}) {
     const valores = await urbiVerso.formulario({ titulo, campos });
     if (!valores) return;
     try {
-      await chamarApi(rota, { method: 'PUT', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
+      await chamarApi(rota, { method: 'PUT', body: JSON.stringify({ ...fixos, ...valores }), headers: { 'Content-Type': 'application/json' } });
       urbiVerso.notificar('Salvo.', 'sucesso');
       await this.carregar();
     } catch (e) {
@@ -85,14 +87,14 @@ export class PcTelaConta extends LitElement {
 
   private editarConfiguracoes() {
     const c = this.dados!.configuracoes;
+    // O prazo de primeiro atendimento volta à tela com o WhatsApp; até lá segue o valor gravado.
     void this.editar('Atendimento', '/conta/configuracoes', [
-      { nome: 'prazo_primeiro_atendimento_min', tipo: 'numero', rotulo: 'Prazo de primeiro atendimento (minutos)', obrigatorio: true, min: 1, max: 1440, valor: c.prazo_primeiro_atendimento_min },
       { nome: 'dias_cliente_parado', tipo: 'numero', rotulo: 'Cliente parado depois de (dias)', obrigatorio: true, min: 1, max: 365, valor: c.dias_cliente_parado },
       { nome: 'validade_selecao_dias', tipo: 'numero', rotulo: 'Validade da seleção enviada (dias)', obrigatorio: true, min: 1, max: 365, valor: c.validade_selecao_dias },
       { nome: 'modo_aprovacao_conteudo', tipo: 'selecao', rotulo: 'Aprovação de conteúdo', opcoes: [{ valor: 'manual', rotulo: 'Eu aprovo cada peça' }, { valor: 'janela', rotulo: 'Publica sozinho se eu não responder na janela' }], valor: c.modo_aprovacao_conteudo },
       { nome: 'janela_aprovacao_horas', tipo: 'numero', rotulo: 'Janela de aprovação (horas)', obrigatorio: true, min: 1, max: 168, valor: c.janela_aprovacao_horas },
       { nome: 'lembrete_visita_horas', tipo: 'numero', rotulo: 'Lembrete de visita (horas antes; 0 desliga)', obrigatorio: true, min: 0, max: 168, valor: c.lembrete_visita_horas },
-    ]);
+    ], { prazo_primeiro_atendimento_min: c.prazo_primeiro_atendimento_min });
   }
 
   private botaoEditar(rotulo: string, acao: () => void) {
@@ -108,6 +110,16 @@ export class PcTelaConta extends LitElement {
     }
     if (!this.dados) return html`<urbi-loading></urbi-loading>`;
     const { perfil, configuracoes: c, meu_perfil: eu } = this.dados;
+    if (this.parte === 'atendimento') {
+      return html`<urbi-card titulo="Atendimento" icone="fa-solid fa-clock">
+        ${this.botaoEditar('Editar o atendimento', () => this.editarConfiguracoes())}
+        <urbi-prosa papel="secundario">
+          Cliente parado após ${c.dias_cliente_parado} dias · seleção vale ${c.validade_selecao_dias} dias ·
+          ${c.modo_aprovacao_conteudo === 'janela' ? `conteúdo publica sozinho após ${c.janela_aprovacao_horas} h sem resposta` : 'você aprova cada peça'} ·
+          ${c.lembrete_visita_horas ? `lembrete ${c.lembrete_visita_horas} h antes de cada visita` : 'sem lembrete de visita'}
+        </urbi-prosa>
+      </urbi-card>`;
+    }
     const situacao = SITUACAO[eu.creci_situacao] ?? SITUACAO.nao_verificado;
     const tipo = TIPOS.find((t) => t.valor === perfil?.tipo)?.rotulo ?? nada;
     return html`<urbi-stack>
@@ -125,15 +137,6 @@ export class PcTelaConta extends LitElement {
           ? html`<urbi-prosa>${perfil.nome}</urbi-prosa>
               <urbi-prosa papel="secundario">${tipo} · Documento: ${perfil.documento ?? nada} · CRECI jurídico: ${perfil.creci_juridico ?? nada}</urbi-prosa>`
           : html`<urbi-prosa papel="dica">Dê um nome à sua conta: é o que aparece na sua página e para os seus clientes.</urbi-prosa>`}
-      </urbi-card>
-      <urbi-card titulo="Atendimento" icone="fa-solid fa-clock">
-        ${this.botaoEditar('Editar o atendimento', () => this.editarConfiguracoes())}
-        <urbi-prosa papel="secundario">
-          Primeiro atendimento em até ${c.prazo_primeiro_atendimento_min} min · cliente parado após ${c.dias_cliente_parado} dias ·
-          seleção vale ${c.validade_selecao_dias} dias ·
-          ${c.modo_aprovacao_conteudo === 'janela' ? `conteúdo publica sozinho após ${c.janela_aprovacao_horas} h sem resposta` : 'você aprova cada peça'} ·
-          ${c.lembrete_visita_horas ? `lembrete ${c.lembrete_visita_horas} h antes de cada visita` : 'sem lembrete de visita'}
-        </urbi-prosa>
       </urbi-card>
     </urbi-stack>`;
   }

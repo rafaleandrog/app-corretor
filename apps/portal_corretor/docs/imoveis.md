@@ -11,7 +11,7 @@ de outra conta (proprietário, empreendimento, imóvel, documento) é recusado c
 
 ## Minha carteira
 
-**Imóveis › Minha carteira** lista os imóveis com a foto de capa, o local, o preço, a situação e a
+No menu, **Imóveis** abre a sua carteira, que lista os imóveis com a foto de capa, o local, o preço, a situação e a
 nota de qualidade. Busca por código, título, bairro ou cidade e filtro por situação (ficam no
 endereço da página).
 
@@ -48,7 +48,7 @@ Calculada a cada leitura, nunca gravada. A ficha mostra o que falta, na ordem do
 | Autorização de venda assinada e vigente | 15 |
 | Área e cômodos (quartos e banheiros; lote, galpão, rural, sala e loja só a área) | 10 |
 | Localização (bairro e cidade) | 10 |
-| CRECI preenchido em Conta e marca | 10 |
+| CRECI preenchido em Ajustes › Conta | 10 |
 
 ### Descrição com IA
 
@@ -95,7 +95,7 @@ Negócios também podem ser ligados a um imóvel; a ficha do imóvel mostra os n
 
 ## Empreendimentos
 
-**Imóveis › Empreendimentos**: os lançamentos que o corretor vende, com nome (sem repetir),
+Não há item de menu para eles: abra pelo botão **Empreendimentos** na tela **Início** (ou pelo endereço `/empreendimentos`). São os lançamentos que o corretor vende, com nome (sem repetir),
 construtora, tipo (prédio, condomínio de casas, loteamento), fase (lançamento, em obras, pronto),
 local, faixa de preço, tipologias e descrição.
 

@@ -3,12 +3,10 @@ import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './telas/inicio.js';
-import './telas/conta.js';
 import './telas/corretores.js';
 import './telas/clientes.js';
 import './telas/ficha-contato.js';
 import './telas/agenda.js';
-import './telas/funil-ajustes.js';
 import './telas/importar.js';
 import './telas/imoveis.js';
 import './telas/ficha-imovel.js';
@@ -18,7 +16,7 @@ import './telas/funil.js';
 import './telas/desempenho.js';
 import './telas/pagina.js';
 import './telas/estudio.js';
-import './telas/conexoes.js';
+import { renderAjustes } from './telas/ajustes.js';
 import { lembrarTela, renderAssistente } from './telas/assistente.js';
 import { contaAtiva, contasDoUsuario, escolherConta, semConta } from './apoio.js';
 import './publico/pagina-publica.js';
@@ -34,7 +32,11 @@ interface Tela {
   render: (param?: string, app?: LitElement) => unknown;
 }
 
+const AJUSTES: Tela = { titulo: 'Ajustes', papel: 'corretor', render: (_p, app) => renderAjustes(() => app?.requestUpdate()) };
+
 // Uma entrada por rota. A tela só abre para quem tem o papel; o backend barra de novo.
+// `/funil`, `/agenda` e `/empreendimentos` saíram do menu (D-81) e seguem abrindo as telas de hoje
+// até virarem parte de Clientes, Início e Imóveis.
 const TELAS: Record<string, Tela> = {
   '/': { titulo: 'Início', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` },
   '/funil': { titulo: 'Funil', papel: 'corretor', render: () => html`<pc-tela-funil></pc-tela-funil>` },
@@ -54,9 +56,15 @@ const TELAS: Record<string, Tela> = {
   '/estudio': { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
   '/assistente': { titulo: 'Assistente', papel: 'corretor', render: (_p, app) => renderAssistente(() => app?.requestUpdate()) },
   '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
-  '/conta': { titulo: 'Conta e marca', papel: 'corretor', render: () => html`<pc-tela-conta></pc-tela-conta>` },
-  '/ajustes/conexoes': { titulo: 'Conexões', papel: 'corretor', render: () => html`<pc-tela-conexoes></pc-tela-conexoes>` },
-  '/ajustes/funil': { titulo: 'Funil e abordagens', papel: 'corretor', render: () => html`<pc-tela-funil-ajustes></pc-tela-funil-ajustes>` },
+  '/ajustes': AJUSTES,
+  // Apelidos: o SDK não redireciona, então os endereços antigos abrem Ajustes na aba certa.
+  // `/ajustes/conexoes` é também o retorno do Instagram cadastrado na Meta (`?code=&state=`).
+  '/conta': AJUSTES,
+  '/ajustes/conta': AJUSTES,
+  '/ajustes/marca': AJUSTES,
+  '/ajustes/conexoes': AJUSTES,
+  '/ajustes/funil': AJUSTES,
+  '/ajustes/atendimento': AJUSTES,
   '/corretores': { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
 

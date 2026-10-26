@@ -18,7 +18,7 @@ Na ficha do cliente, em **Seleções e portal**, o botão **Nova seleção** abr
 3. **Criar e enviar** copia a mensagem com o link, pronta para colar no WhatsApp.
 
 O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>`. Vale pelo prazo de
-"validade da seleção enviada" de Ajustes › Conta e marca (14 dias, se você não mudar).
+"validade da seleção enviada" de Ajustes › Atendimento (14 dias, se você não mudar).
 
 O que o cliente vê em cada imóvel:
 - fotos públicas, preço, bairro e cidade, área, quartos, vagas e descrição;

@@ -105,14 +105,15 @@ export class PcTelaInicio extends LitElement {
     return html`<urbi-stack>
       ${this.pendente.length
         ? html`<urbi-banner variante="info">
-            Para começar, complete ${this.pendente.join(', ')} em Conta e marca.
-            <urbi-botao slot="acao" pequeno href=${urbiVerso.href('/conta')}>Completar agora</urbi-botao>
+            Para começar, complete ${this.pendente.join(', ')} em Ajustes › Conta.
+            <urbi-botao slot="acao" pequeno href=${urbiVerso.href('/ajustes')}>Completar agora</urbi-botao>
           </urbi-banner>`
         : ''}
       <urbi-linha quebrar>
         <urbi-botao pequeno icone="fa-solid fa-user-plus" href=${urbiVerso.href('/clientes')}>Clientes</urbi-botao>
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-filter" href=${urbiVerso.href('/funil')}>Funil</urbi-botao>
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-plus" href=${urbiVerso.href('/imoveis')}>Imóveis</urbi-botao>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-city" href=${urbiVerso.href('/empreendimentos')}>Empreendimentos</urbi-botao>
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-day" href=${urbiVerso.href('/agenda')}>Agenda</urbi-botao>
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-chart-line" href=${urbiVerso.href('/desempenho')}>Desempenho</urbi-botao>
       </urbi-linha>

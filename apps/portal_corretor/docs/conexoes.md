@@ -5,7 +5,7 @@ descricao: Como o corretor conecta o Instagram para publicar e agendar pelo Est�
 
 # Conexões (Instagram)
 
-Em **Ajustes › Conexões** o corretor conecta a conta profissional do Instagram. O login é feito
+Em **Ajustes**, aba **Conexões**, o corretor conecta a conta profissional do Instagram. O login é feito
 no próprio Instagram e não exige página do Facebook.
 
 ## Para o corretor
@@ -32,6 +32,8 @@ de publicar.
    Instagram com login do Instagram". Ele pode ficar em **modo de desenvolvimento**. Nesse modo, só
    contas adicionadas como testadoras conectam, o que basta para o MVP.
 2. **URI de redirecionamento:** cadastre `https://<instância>/portal_corretor/ajustes/conexoes`.
+   Ajustes virou uma tela só com abas, mas esse endereço continua valendo: ele abre Ajustes na aba
+   Conexões e conclui a conexão. Não precisa mudar nada na Meta.
    Enquanto a conexão não está configurada, a tela de Conexões de um corretor mostra esse endereço
    exato, com o botão **Copiar endereço**.
 3. **Permissões pedidas pelo app:** `instagram_business_basic` e

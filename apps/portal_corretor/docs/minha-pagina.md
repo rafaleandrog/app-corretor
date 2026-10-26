@@ -35,7 +35,7 @@ ou no computador:
   contar.
 
 O nome, o CRECI e o telefone de WhatsApp da página vêm do perfil de quem salva ou publica a página
-(Ajustes › Conta e marca). Mudou o CRECI ou o telefone? Use **Atualizar agora**.
+(Ajustes › Conta). Mudou o CRECI ou o telefone? Use **Atualizar agora**.
 
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**
 copia o endereço completo.

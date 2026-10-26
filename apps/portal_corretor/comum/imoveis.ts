@@ -234,7 +234,7 @@ export function qualidadeAnuncio(
     ],
     [!!im.bairro && !!im.cidade, 10, 'Localização (bairro e cidade)'],
     [extras.autorizacaoVigente, 15, 'Autorização de venda assinada e vigente'],
-    [extras.creci, 10, 'CRECI preenchido em Conta e marca'],
+    [extras.creci, 10, 'CRECI preenchido em Ajustes › Conta'],
   ];
   return {
     nota: itens.reduce((s, [ok, peso]) => s + (ok ? peso : 0), 0),

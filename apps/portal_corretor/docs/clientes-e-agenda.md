@@ -77,7 +77,7 @@ compareceu" vão para a linha do tempo.
 O detalhe da visita (imóvel visitado e retorno do cliente) fica na ficha do imóvel.
 
 **Lembrete de visita:** um dia antes de cada visita pendente (ou no prazo escolhido em Ajustes ›
-Conta e marca › Atendimento), você recebe uma notificação na plataforma com a visita, a hora, o
+Atendimento), você recebe uma notificação na plataforma com a visita, a hora, o
 cliente e o local. Clicar nela abre a Agenda.
 - Visita feita, cancelada ou removida antes da hora não gera lembrete.
 - Visita marcada para dali a menos tempo que o prazo também não gera.
