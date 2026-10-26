@@ -123,13 +123,6 @@ function legendaComCreci(p: Linha, creci: string | null): string {
   return creci && !legenda.includes(creci) ? [legenda, `CRECI ${creci}`].filter(Boolean).join('\n\n') : legenda;
 }
 
-/**
- * Story não leva legenda no Instagram: o CRECI tem que estar na arte. Só o gerador do app garante
- * isso (rodapé com nome e CRECI); arte do Canva ou enviada vai pelo Instagram, com "Publiquei por fora".
- */
-export const STORY_SEM_CRECI = 'Story com arte do Canva ou enviada não é publicado pelo app: o story não leva legenda, e o app não confere o CRECI na arte. Confira a arte, publique pelo Instagram e use "Publiquei por fora".';
-const storySemCreci = (p: Linha) => p.formato === 'story' && p.motor !== 'interno';
-
 async function creciDaConta(dados: HelperDados, conta: number, usuario: number | null): Promise<string | null> {
   const perfis = await dados.varrerTudo('perfis_corretor', { filtros: { conta_id: conta }, maximo: 50 });
   const eu = perfis.find((x) => x.usuario_id === usuario && x.creci) ?? perfis.find((x) => x.creci);
@@ -166,7 +159,6 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
     const p = await dados.atualizarSe('pecas', pecaId, { estado: 'publicando', erro: null }, guarda);
     if (!p) return null;
     const recusar = async (mensagem: string) => ({ fim: await dados.atualizar('pecas', p.id, falha(mensagem)) });
-    if (storySemCreci(p)) return recusar(`Não publicada: ${STORY_SEM_CRECI}`);
     // Aprovação por janela: vale só se a conta ainda está nesse modo e se as checagens passarem.
     const aprovar = !p.aprovada_em;
     if (aprovar && !(origem.estado === 'agendada' && (await janelaLigada(dados, conta)))) {
@@ -345,7 +337,6 @@ instagramRotas.post(
     if (!quando || Number.isNaN(quando.getTime())) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o dia e a hora.');
     if (quando.getTime() < Date.now() + 5 * 60_000) return erro(res, 422, 'DADOS_INVALIDOS', 'Agende com pelo menos 5 minutos de antecedência.');
     if (quando.getTime() > Date.now() + 90 * DIA) return erro(res, 422, 'DADOS_INVALIDOS', 'Agende para os próximos 90 dias.');
-    if (storySemCreci(p)) return erro(res, 422, 'STORY_SEM_CRECI', STORY_SEM_CRECI);
     if (!(await conexao(dados, contaDoRequest(req)))) {
       return erro(res, 409, 'INSTAGRAM_DESCONECTADO', 'Conecte o Instagram (Ajustes › Conexões) para agendar no app. Sem conexão, baixe a arte e agende no Instagram.');
     }

@@ -54,7 +54,7 @@ async function pecaAprovada(chamar: Chamar, formato = 'post_1x1', telefone = '61
   await chamar('PATCH', `/imoveis/${im.id}`, { situacao: 'ativo' });
   await chamar('PUT', '/conta/meu-perfil', { creci: 'DF-12345-F', telefone: '61999990000' });
   const p = (await chamar('POST', '/estudio/pedido', { imovel_id: im.id, objetivo: 'novo_imovel', formatos: [formato] })).corpo.pecas[0];
-  await chamar('PUT', `/estudio/pecas/${p.id}/arquivos`, { upload_ids: formato === 'carrossel' ? [11, 12, 13] : [11], motor: 'interno' });
+  await chamar('PUT', `/estudio/pecas/${p.id}/arquivos`, { upload_ids: formato === 'carrossel' ? [11, 12, 13] : [11], motor: 'canva_ia' });
   const ok = await chamar('POST', `/estudio/pecas/${p.id}/aprovar`);
   assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
   return p;
@@ -220,7 +220,7 @@ test('publiquei por fora e renovação dos tokens', async () => {
   assert.ok(String(banco.linhas('canais_sociais')[0].token_expira_em) > new Date(Date.now() + 50 * 86400e3).toISOString());
 });
 
-test('revisão: peça editada pede nova aprovação, story do Canva não sai pela API, publicar duas vezes não duplica', async () => {
+test('revisão: peça editada pede nova aprovação, story do Canva sai pela API, publicar duas vezes não duplica', async () => {
   const banco = new BancoFalso(UNICOS);
   const chamadas = metaFalsa();
   const ev = eventosFalsos();
@@ -235,20 +235,20 @@ test('revisão: peça editada pede nova aprovação, story do Canva não sai pel
     await chamar('POST', '/conexoes/instagram/retorno', { code: 'x' });
     assert.equal((await chamar('POST', `/estudio/pecas/${p.id}/publicar`)).corpo.codigo, 'ESTADO_INVALIDO');
 
-    // Story com arte do Canva: não agenda nem publica pela API (o CRECI teria de estar na arte).
+    // Story com arte do Canva (D-79): a arte vem sempre de lá, e o app publica pela API.
     const story = await pecaAprovada(chamar, 'story', '61977770002');
     await chamar('PUT', `/estudio/pecas/${story.id}/arquivos`, { upload_ids: [31], motor: 'canva_ia' });
     await chamar('POST', `/estudio/pecas/${story.id}/aprovar`);
-    assert.equal((await chamar('POST', `/estudio/pecas/${story.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() })).corpo.codigo, 'STORY_SEM_CRECI');
     const st = await chamar('POST', `/estudio/pecas/${story.id}/publicar`);
-    assert.match(st.corpo.mensagem, /Publiquei por fora/);
-    assert.equal(chamadas.filter((c) => c.url.endsWith('/media_publish')).length, 0);
+    assert.equal(st.status, 200, JSON.stringify(st.corpo));
+    assert.equal(st.corpo.estado, 'publicada');
+    assert.equal(chamadas.filter((c) => c.url.endsWith('/media_publish')).length, 1);
 
     // Duas abas publicam ao mesmo tempo: uma publica, a outra recebe "a peça mudou".
     const dupla = await pecaAprovada(chamar, 'post_1x1', '61977770003');
     const [a, b] = await Promise.all([chamar('POST', `/estudio/pecas/${dupla.id}/publicar`), chamar('POST', `/estudio/pecas/${dupla.id}/publicar`)]);
     assert.deepEqual([a.status, b.status].sort(), [200, 409]);
-    assert.equal(chamadas.filter((c) => c.url.endsWith('/media_publish')).length, 1);
+    assert.equal(chamadas.filter((c) => c.url.endsWith('/media_publish')).length, 2);
     // Peça em publicação ou publicada não agenda nem cancela.
     assert.equal((await chamar('POST', `/estudio/pecas/${dupla.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() })).status, 409);
 

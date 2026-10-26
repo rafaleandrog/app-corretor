@@ -1,11 +1,13 @@
 ---
 titulo: Estúdio de conteúdo
-descricao: Peças para o Instagram (post, carrossel, story) com a marca do corretor, textos escritos pela IA, artes montadas pelo app ou feitas no Canva IA, aprovação e download.
+descricao: Peças para o Instagram (post, carrossel, story) com a marca do corretor, textos escritos pela IA, instrução pronta para gerar a arte no Canva IA, envio da arte, aprovação e download.
 ---
 
 # Estúdio de conteúdo
 
-O **Estúdio** cria peças para o Instagram com a marca do corretor e publica de três jeitos:
+O **Estúdio** cria peças para o Instagram com a marca do corretor. Aqui saem os **textos** e a
+**instrução para o Canva IA**; a imagem é gerada no Canva e enviada de volta na peça. Depois de
+aprovada, a peça é publicada de três jeitos:
 publicar agora, agendar no app ou baixar a arte e publicar por fora. Para os dois primeiros, a
 conta do Instagram precisa estar conectada em [Conexões](conexoes.md).
 
@@ -13,15 +15,19 @@ conta do Instagram precisa estar conectada em [Conexões](conexoes.md).
 
 Em **Sua marca** ficam a cor principal, a cor de apoio, o estilo (moderno, clássico ou
 minimalista), uma assinatura curta opcional (por exemplo "Seu corretor no Lago Sul"), o logo e a
-sua foto. A arte do gerador do app sai com o seu nome e o CRECI no rodapé, e a legenda de toda peça
-aprovada leva o CRECI (o app acrescenta se faltar, inclusive em arte feita no Canva). **Sem CRECI
-cadastrado** (Ajustes › Conta e marca), a peça não pode ser aprovada.
+sua foto. A instrução do Canva pede o seu nome e o CRECI no rodapé da arte, e a legenda de toda
+peça aprovada leva o CRECI (o app acrescenta se faltar).
+
+**O CRECI não trava nada.** Sem CRECI cadastrado (Ajustes › Conta e marca), o Estúdio mostra uma
+dica no topo, a instrução e a legenda saem sem ele, e a peça é aprovada e publicada normalmente,
+com um lembrete na aprovação. Anúncio de imóvel deve mostrar o CRECI: cadastre antes de anunciar
+de verdade.
 
 ## Criar
 
 | Botão | O que faz |
 |---|---|
-| **Novo pedido** | Você escreve o que quer, escolhe o imóvel (ou nenhum, para uma peça institucional), o objetivo e os formatos. Sai uma peça por formato |
+| **Novo pedido** | Você escreve o que quer, escolhe o imóvel (ou nenhum, para uma peça institucional), o objetivo e os formatos. Sai uma peça por formato, com os textos e a instrução do Canva já à vista |
 | **Falar o pedido** | O mesmo, ditando. A transcrição é do próprio navegador (o Chrome e o Edge usam o serviço de voz deles), não da IA da plataforma |
 | **Pacote de lançamento** | Post, carrossel e story de um imóvel, de uma vez |
 
@@ -34,8 +40,8 @@ cadastrado** (Ajustes › Conta e marca), a peça não pode ser aprovada.
 | Carrossel | Até 5 slides de 1080 x 1350 |
 | Story | 1080 x 1920 |
 
-**Objetivos:** novo imóvel, baixou o preço, vendido, visita aberta e destaque. Os quatro primeiros
-põem um selo na arte. "Vendido" não mostra o preço.
+**Objetivos:** novo imóvel, baixou o preço, vendido, visita aberta e destaque. Nos quatro
+primeiros, a instrução pede um selo na arte. "Vendido" não mostra o preço.
 
 **Os textos:**
 - Cada peça recebe título, chamada, até 4 destaques, legenda e hashtags. Com a IA liberada pelo
@@ -44,73 +50,67 @@ põem um selo na arte. "Vendido" não mostra o preço.
 - A IA nunca recebe o proprietário, a comissão, o endereço além do bairro nem dado de cliente. A
   resposta dela é conferida e cortada nos limites antes de ser usada.
 
-**A arte, pelo gerador do app:** a arte é montada no seu navegador, com:
-- a primeira foto pública do imóvel;
-- o título, o preço, o bairro e os destaques;
-- o selo do objetivo;
-- o logo, o nome e o CRECI.
+## A arte, no Canva IA
 
-No carrossel, os slides são:
-1. capa;
-2. até três fotos com um destaque cada;
-3. slide final com a chamada e o contato.
+O app não gera imagem (a plataforma não tem geração de imagem por IA): a arte é feita no Canva IA,
+com o plano de Canva que você tiver. O app não se conecta ao Canva (D-74, D-79).
 
-A plataforma não gera imagem por IA: a arte segue um modelo fixo e usa só as fotos reais do
-imóvel. Se alguma foto não carregar, o app avisa e a arte pode ser refeita. Se a arte de uma
-peça não sair, a peça fica como rascunho para "Refazer arte".
+Enquanto a peça não tem arte, ela mostra **falta a arte do Canva** e os três passos:
 
-## Pelo Canva IA
+1. **Copiar instrução** e **Abrir o Canva IA** ("O que vamos criar hoje?") numa aba. A instrução
+   traz o formato e o tamanho, as cores e o estilo da marca, o selo, o título, os destaques, o
+   preço, o local, a chamada e o rodapé com nome e CRECI, além das regras: não alterar as fotos,
+   não pôr endereço completo nem promessa de valorização. **Ver instrução e fotos** mostra o texto
+   inteiro na peça.
+2. No Canva, cole a instrução e anexe as fotos: as fotos públicas do imóvel e o seu logo aparecem
+   na peça, em **Foto 1**, **Foto 2**… e **Logo**, para abrir e baixar.
+3. Baixe a arte pronta (JPG ou PNG) e use **Enviar a arte do Canva**, na própria peça: clique ou
+   arraste o arquivo para a área indicada. No carrossel, envie as imagens de todos os slides juntas,
+   na ordem (de 2 a 5).
 
-Prefere o Canva? Em cada peça, o botão **Canva IA**:
-
-1. copia uma instrução pronta. Ela traz o formato e o tamanho, as cores e o estilo da marca, o
-   selo, o título, os destaques, o preço, o local, a chamada e o rodapé com nome e CRECI, além das
-   regras: não alterar as fotos, não pôr endereço completo nem promessa de valorização;
-2. mostra os links das fotos públicas do imóvel e do logo, para você baixar e anexar no Canva;
-3. abre o Canva IA ("O que vamos criar hoje?") numa aba.
-
-Cole a instrução, anexe as fotos, gere e baixe a arte em JPG ou PNG. Depois use **Enviar arte
-pronta** na peça. A arte enviada substitui a anterior. Isso funciona com o plano de Canva que
-você tiver; o app não se conecta ao Canva (D-74).
+Mudou os textos? A instrução muda junto: copie de novo e refaça a arte no Canva. Com a arte já
+enviada, **Instrução do Canva** mostra a instrução e as fotos de novo, e **Trocar a arte** envia
+outra (com confirmação).
 
 ## Revisar, aprovar e baixar
 
-Cada peça mostra a prévia, o formato, o objetivo, o imóvel, quem fez a arte (gerador do app,
-Canva IA ou arte enviada) e a situação: rascunho, aprovada, rejeitada.
+Cada peça mostra a prévia, o formato, o objetivo, o imóvel, de onde veio a arte (Canva, ou o
+gerador do app nas peças antigas) e a situação: falta a arte do Canva, rascunho, aprovada,
+rejeitada.
 
 | Botão | O que faz |
 |---|---|
 | **Ver arte** | Abre a imagem para conferir e baixar (no carrossel, um botão por slide) |
 | **Legenda** | Copia a legenda com as hashtags |
 | **Textos** | Edita título, chamada, destaques, legenda e hashtags |
-| **Refazer arte** | Monta de novo com os textos e a marca atuais |
-| **Aprovar** | Confere antes as pendências e diz o que falta |
+| **Instrução do Canva** | Mostra a instrução e as fotos de novo |
+| **Trocar a arte** | Envia outra arte do Canva no lugar da atual |
+| **Aprovar** | Aparece depois que a arte é enviada. Confere antes as pendências e diz o que falta |
 | **Rejeitar** | Devolve a peça aprovada |
 
 **O que a aprovação confere:**
-- o CRECI cadastrado (e o põe na legenda, se faltar);
+- o CRECI: se estiver cadastrado, põe na legenda quando faltar; se não, só lembra (não impede);
 - a autorização de venda vigente do imóvel (exceto em "Vendido");
 - a arte pronta (no carrossel, pelo menos 2 imagens);
 - a legenda com até 2.200 caracteres;
 - no máximo 30 hashtags.
 
 Mudar os textos ou a arte de uma peça aprovada a devolve para rascunho: o que muda precisa de
-nova aprovação. "Enviar arte pronta" pede confirmação antes de trocar a arte. A biblioteca mostra
+nova aprovação. "Trocar a arte" pede confirmação antes de trocar. A biblioteca mostra
 as 200 peças mais recentes.
 
 ## Publicar
 
 | Modo | Como funciona |
 |---|---|
-| **Publicar agora** | Peça aprovada vai na hora para o Instagram conectado. O app confere a peça de novo (CRECI, autorização vigente, arte, limites) antes de publicar |
+| **Publicar agora** | Peça aprovada vai na hora para o Instagram conectado. O app confere a peça de novo (autorização vigente, arte, limites) antes de publicar |
 | **Agendar** | Escolha dia e hora, de 5 minutos a 90 dias à frente. Na hora, o app confere e publica. **Cancelar agendamento** devolve a peça para aprovada (ou para rascunho, se ela foi agendada pela aprovação por janela) |
 | **Baixar e publicar por fora** | Baixe a arte em **Ver arte**, copie a **Legenda** e publique pelo Instagram ou pelo Meta Business Suite (que agendam por conta própria). Depois use **Publiquei por fora**, com o link do post se quiser |
 
 **Como sai no Instagram:**
 - **Carrossel:** um item por slide.
-- **Story:** sai sem legenda (o Instagram não usa). Por isso o CRECI precisa estar na arte, e o app
-  só publica e agenda story com arte do **gerador do app**, que traz o CRECI no rodapé. Story com
-  arte do Canva ou enviada: confira a arte, publique pelo Instagram e use **Publiquei por fora**.
+- **Story:** sai sem legenda (o Instagram não usa). Por isso o CRECI precisa estar na arte: a
+  instrução do Canva pede, mas confira na arte antes de aprovar.
 - **Legenda:** leva as hashtags e o CRECI.
 
 Publicada pela API, a peça mostra **Ver no Instagram**. A API do Instagram **não apaga**

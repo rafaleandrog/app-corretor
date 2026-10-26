@@ -22,10 +22,10 @@ import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './aces
 import { uploadRecusado } from './imoveis';
 import { contaDoRequest } from './vitrine';
 
-// Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74): marca, pedido → textos (IA com JSON Schema,
-// ou modelo quando a IA não está disponível), arte montada pelo gerador do app no navegador do
-// corretor (a plataforma não gera imagem, 10.6) ou feita no Canva IA e enviada de volta, aprovação
-// com checagens e biblioteca para baixar. Agendar e publicar no Instagram chegam no bloco 8b.
+// Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74, D-79): marca, pedido → textos (IA com JSON
+// Schema, ou modelo quando a IA não está disponível) e a instrução para o Canva IA; a arte é feita
+// no Canva pelo corretor e enviada de volta (a plataforma não gera imagem, 10.6), aprovação com
+// checagens e biblioteca para baixar. Agendar e publicar no Instagram: bloco 8b.
 export const estudioRotas: Router = Router();
 guardarCorretor(estudioRotas, ['/estudio']);
 
@@ -172,7 +172,7 @@ estudioRotas.get(
 
 /**
  * Pedido em texto (ou voz, transcrita no navegador): uma peça por formato pedido, com os textos já
- * prontos. A arte é montada em seguida pelo navegador (gerador do app) e enviada em `/arquivos`.
+ * prontos. A arte é feita no Canva IA (instrução em `/canva`) e enviada em `/arquivos` (D-79).
  */
 estudioRotas.post(
   '/estudio/pedido',
@@ -193,7 +193,7 @@ estudioRotas.post(
       criadas.push(
         await req.dados!.criar('pecas', {
           imovel_id: imovel?.linha.id ?? null, formato, objetivo, pedido: pedido || null, titulo: t.textos.titulo, chamada: t.textos.chamada,
-          destaques: t.textos.destaques, legenda: t.textos.legenda, hashtags: t.textos.hashtags.join(' '), motor: 'interno', estado: 'rascunho', gerada_por_ia: t.ia,
+          destaques: t.textos.destaques, legenda: t.textos.legenda, hashtags: t.textos.hashtags.join(' '), motor: 'canva_ia', estado: 'rascunho', gerada_por_ia: t.ia,
         }),
       );
     }
@@ -219,7 +219,7 @@ estudioRotas.post(
       criadas.push(
         await req.dados!.criar('pecas', {
           imovel_id: imovel.linha.id, formato, objetivo, pedido, titulo: t.textos.titulo, chamada: t.textos.chamada, destaques: t.textos.destaques,
-          legenda: t.textos.legenda, hashtags: t.textos.hashtags.join(' '), motor: 'interno', estado: 'rascunho', gerada_por_ia: t.ia,
+          legenda: t.textos.legenda, hashtags: t.textos.hashtags.join(' '), motor: 'canva_ia', estado: 'rascunho', gerada_por_ia: t.ia,
         }),
       );
     }
@@ -318,7 +318,8 @@ estudioRotas.post(
     const comCreci = meuCreci && !legenda.includes(meuCreci) ? `${legenda}${legenda ? '\n\n' : ''}CRECI ${meuCreci}` : legenda;
     const checagem = checarPeca({ ...campos(p, arquivos.total), legenda: comCreci }, { creci: meuCreci, imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
     if (!checagem.ok) return erro(res, 422, 'CHECAGEM_PENDENTE', 'Antes de aprovar, resolva:', checagem.pendencias);
-    res.json(await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id }));
+    const aprovada = await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id });
+    res.json({ ...aprovada, avisos: checagem.avisos });
   }),
 );
 

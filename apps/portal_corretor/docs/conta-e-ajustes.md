@@ -12,7 +12,8 @@ editar.
 
 - **CRECI**: é aqui que você cadastra. O formato é `UF-número-F` (pessoa física) ou `-J` (pessoa
   jurídica), por exemplo `DF-12345-F`. Pode digitar em minúsculas: o app corrige. O CRECI vai no
-  rodapé das artes e na legenda das peças do Estúdio. Sem ele, a peça não é aprovada.
+  rodapé das artes (pela instrução do Canva) e na legenda das peças do Estúdio. Sem ele nada fica
+  travado: o app só lembra de cadastrar.
 - **Telefone (WhatsApp)** com DDD, por exemplo `(61) 99999-9999` (o zero antes do DDD pode ficar).
   Sem o `+` do país, o app entende que é um número do Brasil e exige DDD e 8 ou 9 dígitos.
 - **Situação do CRECI**: começa como "não verificado". A verificação é feita pela equipe da

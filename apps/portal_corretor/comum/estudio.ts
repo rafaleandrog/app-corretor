@@ -1,6 +1,7 @@
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74). Puro: formatos, objetivos, a validação da
 // marca, os textos padrão (quando a IA não está disponível), o pedido à IA, o pacote para o Canva IA
-// e as checagens antes de aprovar. A plataforma não gera imagem (10.6): a arte é montada por modelo.
+// e as checagens antes de aprovar. A plataforma não gera imagem (10.6): a arte é feita no Canva IA
+// pelo corretor (D-79) e enviada de volta à peça.
 
 export const FORMATOS = ['post_1x1', 'post_4x5', 'carrossel', 'story'] as const;
 export type Formato = (typeof FORMATOS)[number];
@@ -217,18 +218,24 @@ export function promptCanva(p: { formato: Formato; objetivo: Objetivo; textos: T
 export interface Checagem {
   ok: boolean;
   pendencias: string[];
+  /** Lembretes que não impedem aprovar nem publicar (D-79: o CRECI não trava o Estúdio). */
+  avisos: string[];
 }
 
-/** Checagens antes de aprovar (10.5): CRECI, autorização vigente, arte pronta, legenda dentro do limite do canal. */
+/**
+ * Checagens antes de aprovar (10.5): autorização vigente, arte pronta, legenda dentro do limite do
+ * canal. O CRECI sem cadastro vira aviso, não pendência (D-79).
+ */
 export function checarPeca(p: { formato: string; legenda: string | null; hashtags: string | null; arquivos: number; objetivo: string }, ctx: { creci: string | null; imovel: boolean; autorizacaoVigente: boolean }): Checagem {
   const pendencias: string[] = [];
-  if (!ctx.creci) pendencias.push('Cadastre o seu CRECI (Ajustes › Conta e marca): ele vai na arte e na legenda.');
+  const avisos: string[] = [];
+  if (!ctx.creci) avisos.push('Cadastre o seu CRECI (Ajustes › Conta e marca) para ele entrar na instrução do Canva e na legenda.');
   if (ctx.imovel && p.objetivo !== 'vendido' && !ctx.autorizacaoVigente) pendencias.push('O imóvel precisa de autorização de venda vigente para ser anunciado.');
-  if (!p.arquivos) pendencias.push('Gere ou envie a arte antes de aprovar.');
+  if (!p.arquivos) pendencias.push('Envie a arte feita no Canva antes de aprovar.');
   if (p.formato === 'carrossel' && p.arquivos === 1) pendencias.push('O carrossel precisa de pelo menos 2 imagens.');
   // Mesmo separador da publicação (legenda, linha em branco, hashtags).
   const total = [p.legenda ?? '', p.hashtags ?? ''].filter(Boolean).join('\n\n');
   if (total.length > 2200) pendencias.push('A legenda passa de 2.200 caracteres (limite do Instagram).');
   if ((p.hashtags ?? '').split(/\s+/).filter((h) => h.startsWith('#')).length > 30) pendencias.push('Mais de 30 hashtags (limite do Instagram).');
-  return { ok: !pendencias.length, pendencias };
+  return { ok: !pendencias.length, pendencias, avisos };
 }

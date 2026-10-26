@@ -19,7 +19,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Agenda** | Atividades pendentes dos próximos 14 dias, com lembrete de visita por notificação |
 | Corretor | **Imóveis › Minha carteira** | Imóveis com fotos, qualidade do anúncio, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Imóveis › Empreendimentos** | Lançamentos com materiais e as unidades da carteira |
-| Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA, artes montadas pelo app ou feitas no Canva IA, aprovação e download — ver [Estúdio de conteúdo](estudio.md) |
+| Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA e instrução pronta para gerar a arte no Canva IA, envio da arte, aprovação e download — ver [Estúdio de conteúdo](estudio.md) |
 | Corretor | **Minha página** | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
 | Visitante | **Página e ficha pública** (sem login) | A página do corretor e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
 | Corretor | **Clientes › ficha › Seleções e portal** | Monta seleções de imóveis e gera o link do portal do cliente — ver [Seleções e Portal do Cliente](selecoes-e-portal.md) |
