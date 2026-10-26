@@ -44,7 +44,7 @@ Aprovada pelo dono em 23/10. Fonte: spec 2.6 (princípios 13 e 14), 2.7, 5.1, 11
 | 7 | **Marca única** em Ajustes › Marca para Estúdio, Minha página, seleção e portal | #57 | 1 | Mudar a cor muda as quatro superfícies | [ ] |
 | 8 | **Imóveis:** abas Carteira · Empreendimentos, grade de cartões, "o que falta" no topo | #58 | 0, 1 | Cartões no computador e no celular | [ ] |
 | 9 | **Portal e seleção** no modelo Compass One: próximo passo, datas-chave, foto dominante, "o que falta de você" | #59 | 0, 7 | Portal no celular sem dado pessoal; tarefa do cliente fecha pelo webhook | [ ] |
-| 10 | **Desempenho enxuto:** quatro números acima da dobra | #60 | 1 | Conferência manual da demonstração bate | [ ] |
+| 10 | **Desempenho enxuto:** quatro números acima da dobra | #60 | 1 | Conferência manual da demonstração bate | [x] |
 | 11 | **Importar:** modelos de outros CRMs (fase 2 da spec) | #61 | — | Cabeçalho de cada modelo mapeia certo | [x] mecanismo e planilha simples; Kenlo, Jetimob e Imobzi esperam exportação real |
 | 12 | **Estúdio sem aprovação por janela (release B):** schema | #62 | 5 e um release no meio | Instala e atualiza sem reprovação | [ ] |
 
@@ -88,6 +88,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
+| 26/10/2026 | 1.5 · 10 | Desempenho enxuto: quatro `urbi-kpi` no topo (leads, conversão total, vendas, comissão prevista) com a comparação ao período anterior em texto pequeno; funil da coorte em lista; Resultados com VGV, ciclo, visitas e captações; período lido de `?dias=` por `filtrosDaUrl`; origem pelos rótulos de `visual.ts`. Sem mudança de fórmula | — | Revisão do PR |
 | 26/10/2026 | 1.5 · 1 | Menu do corretor com oito itens (D-81); Ajustes numa tela só com `urbi-abas` (Conta · Marca · Conexões · Funil e abordagens · Atendimento, aba em `?aba=`); `/conta` e `/ajustes/*` viram apelidos (retorno do Instagram em `/ajustes/conexoes` intacto); marca sai do Estúdio para Ajustes › Marca; prazo de primeiro atendimento sai da tela (fica no dado); Assistente com as telas novas; atalho de Empreendimentos no Início até #58 | (este PR) | Blocos seguintes da fase 1.5 (#52 em diante); merge só com ordem do dono |
 | 26/10/2026 | 11 | Importar: passo "De onde vem a planilha?" com modelos em `comum/csv.ts` (`MODELOS_IMPORTACAO`, `mapearPorModelo`); modelo "planilha simples"; aviso do teto de 100 kB do envio na tela; Kenlo, Jetimob e Imobzi fora (sem cabeçalho confirmado em doc pública nem arquivo de exemplo); 1 teste novo | — | Revisão do PR; exemplos reais de exportação dos três CRMs com o dono |
 | 26/10/2026 | 1.5 · 0 | Fundação visual: `chip` (temperatura, papel, origem, etapa), `cartaoImovel` (D-65), `filtrosNaUrl`/`filtrosDaUrl`/`abaDaUrl`/`abaNaUrl` e `acoesComMais` em `frontend/visual.ts`, reexportados por `apoio.ts`; Clientes, Ficha do contato, Funil, Imóveis, Desempenho, Conexões e Abordagens sem `replaceState` nem mapa de temperatura próprios; teste `testes/visual.test.ts`. Sem mudança visível | #66 | Bloco 1 (#51) |
