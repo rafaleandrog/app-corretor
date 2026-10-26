@@ -34,8 +34,8 @@ Aprovada pelo dono em 23/10. Fonte: spec 2.6 (princípios 13 e 14), 2.7, 5.1, 11
 
 | # | Bloco | Issue | Depende de | Pronto quando | Status |
 |---|---|---|---|---|---|
-| 0 | **Fundação visual:** chip, cartão de imóvel, filtro na URL e menu "mais" em `frontend/apoio.ts` | #50 | — | Telas atuais usam os helpers sem mudar comportamento | [ ] |
-| 1 | **Menu de oito itens e Ajustes numa tela só** (abas Conta · Marca · Conexões · Funil e abordagens · Atendimento); rotas antigas como apelidos | #51 | — | Menu com 8 itens; retorno do Instagram em `/ajustes/conexoes` segue vivo | [x] |
+| 0 | **Fundação visual:** chip, cartão de imóvel, filtro na URL e menu "mais" em `frontend/apoio.ts` | #50 | — | Telas atuais usam os helpers sem mudar comportamento | [x] código pronto e na `main` (PR #66; helpers em `frontend/visual.ts`, reexportados por `apoio.ts`) |
+| 1 | **Menu de oito itens e Ajustes numa tela só** (abas Conta · Marca · Conexões · Funil e abordagens · Atendimento); rotas antigas como apelidos | #51 | — | Menu com 8 itens; retorno do Instagram em `/ajustes/conexoes` segue vivo | [x] código pronto neste PR (#67) |
 | 2 | **Início:** fila do dia com uma ação por item e aba Agenda; sai a grade de atalhos | #52 | 0, 1 | Nenhum item com dois botões; Agenda só busca quando aberta | [ ] |
 | 3 | **Clientes:** visões Lista · Quadro (o Funil entra aqui) e filtros prontos | #53 | 0, 1 | `/funil` abre o Quadro; chips filtram com teste | [ ] |
 | 4 | **Ficha do contato:** resumo em uma frase, Resumir com IA, Mensagem sugerida com Fazer agora (`wa.me`), Virar tarefa; slot `funil` | #54 | 0, 3 | Com e sem IA funciona; privacidade e isolamento testados | [ ] |
@@ -45,7 +45,7 @@ Aprovada pelo dono em 23/10. Fonte: spec 2.6 (princípios 13 e 14), 2.7, 5.1, 11
 | 8 | **Imóveis:** abas Carteira · Empreendimentos, grade de cartões, "o que falta" no topo | #58 | 0, 1 | Cartões no computador e no celular | [ ] |
 | 9 | **Portal e seleção** no modelo Compass One: próximo passo, datas-chave, foto dominante, "o que falta de você" | #59 | 0, 7 | Portal no celular sem dado pessoal; tarefa do cliente fecha pelo webhook | [ ] |
 | 10 | **Desempenho enxuto:** quatro números acima da dobra | #60 | 1 | Conferência manual da demonstração bate | [ ] |
-| 11 | **Importar:** modelos de outros CRMs (fase 2 da spec) | #61 | — | Cabeçalho de cada modelo mapeia certo | [ ] |
+| 11 | **Importar:** modelos de outros CRMs (fase 2 da spec) | #61 | — | Cabeçalho de cada modelo mapeia certo | [x] mecanismo e planilha simples; Kenlo, Jetimob e Imobzi esperam exportação real |
 | 12 | **Estúdio sem aprovação por janela (release B):** schema | #62 | 5 e um release no meio | Instala e atualiza sem reprovação | [ ] |
 
 **Issues antigas:** #43 com a direção nova; #44 e #45 fechadas em favor de #56; #46 não planejada; #47 e #48 adiadas para depois da fase 2; #8 e #9 com os itens das referências (Conversas no padrão da Lais, origem do anúncio, créditos). Bugs #38 a #41 e processo #30, #33 a #35 entram antes da fase 2.
@@ -89,6 +89,8 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
 | 26/10/2026 | 1.5 · 1 | Menu do corretor com oito itens (D-81); Ajustes numa tela só com `urbi-abas` (Conta · Marca · Conexões · Funil e abordagens · Atendimento, aba em `?aba=`); `/conta` e `/ajustes/*` viram apelidos (retorno do Instagram em `/ajustes/conexoes` intacto); marca sai do Estúdio para Ajustes › Marca; prazo de primeiro atendimento sai da tela (fica no dado); Assistente com as telas novas; atalho de Empreendimentos no Início até #58 | (este PR) | Blocos seguintes da fase 1.5 (#52 em diante); merge só com ordem do dono |
+| 26/10/2026 | 11 | Importar: passo "De onde vem a planilha?" com modelos em `comum/csv.ts` (`MODELOS_IMPORTACAO`, `mapearPorModelo`); modelo "planilha simples"; aviso do teto de 100 kB do envio na tela; Kenlo, Jetimob e Imobzi fora (sem cabeçalho confirmado em doc pública nem arquivo de exemplo); 1 teste novo | — | Revisão do PR; exemplos reais de exportação dos três CRMs com o dono |
+| 26/10/2026 | 1.5 · 0 | Fundação visual: `chip` (temperatura, papel, origem, etapa), `cartaoImovel` (D-65), `filtrosNaUrl`/`filtrosDaUrl`/`abaDaUrl`/`abaNaUrl` e `acoesComMais` em `frontend/visual.ts`, reexportados por `apoio.ts`; Clientes, Ficha do contato, Funil, Imóveis, Desempenho, Conexões e Abordagens sem `replaceState` nem mapa de temperatura próprios; teste `testes/visual.test.ts`. Sem mudança visível | #66 | Bloco 1 (#51) |
 | 23/10/2026 | Fase 1.5 | Plano de simplificação aprovado pelo dono: spec 1.1 (2.6, 2.7, 5.1, 11, 15.8, 15.9, D-80 a D-88), `specs/referencias_principais.md` e `specs/horizonte.md` novos, `CLAUDE.md` e pedidos ao shell 7 e 8; issues #49 (guarda-chuva) e #50 a #62; #44–#46 fechadas, #47–#48 adiadas, #8 e #43 atualizadas | — | Blocos 0 e 1 (#50, #51) em sessões novas; merge só com ordem do dono |
 | 18/10/2026 | Preparação | Repositório criado com o kit 100.3.16, specs e CLAUDE.md; revisão de viabilidade contra o SDK 100 aprovada (R.1–R.5); decisões D-55 a D-60 | — | Bloco 0 |
 | 18/10/2026 | 0 | Esqueleto `apps/portal_corretor` 0.1.0: manifesto (identidade, pisos 100/0.56.37), rota `/status`, tela inicial, página pública e linha de diagnóstico, testes (manifesto e rotas), `docs/README.md`; empacotador limpo | #2 | Dono instala e confere R.6; depois bloco 1 |

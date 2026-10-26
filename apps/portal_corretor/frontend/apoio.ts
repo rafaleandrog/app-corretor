@@ -3,7 +3,9 @@ import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 declare const urbiVerso: UrbiVersoAPI;
 
 // Apoio comum das telas: chamada com corpo JSON, mensagem de erro com os detalhes da validação e
-// formatação de data e dinheiro em pt-BR.
+// formatação de data e dinheiro em pt-BR. Chip, cartão de imóvel, estado na URL e "mais" moram em
+// `visual.ts` e saem daqui também.
+export * from './visual.js';
 
 // Conta ativa de escrita. Quem tem várias contas (o admin do app, por exemplo) precisa dizer em qual
 // grava: o shell só aceita escrita em tabela segregada com `X-Conta` (contas.md § Escrita com N
@@ -113,13 +115,6 @@ export function juntarDataHora(dia: unknown, hora: unknown): string | null {
   return Number.isNaN(d.getTime()) ? `${dia} ${bruta}` : d.toISOString();
 }
 
-export const ROTULO_PAPEL: Record<string, string> = {
-  comprador: 'Comprador',
-  proprietario: 'Proprietário',
-  investidor: 'Investidor',
-  parceiro: 'Parceiro',
-  fornecedor: 'Fornecedor',
-};
 export const ROTULO_TIPO_ATIVIDADE: Record<string, string> = {
   tarefa: 'Tarefa',
   ligacao: 'Ligação',

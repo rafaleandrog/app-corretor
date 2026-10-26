@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, chamarFetch, dataHora, formularioEnviar, opcoes, ROTULO_PAPEL } from '../apoio.js';
+import { chamarApi, chamarFetch, chip, dataHora, filtrosDaUrl, filtrosNaUrl, formularioEnviar, opcoes, opcoesChip, ROTULO_PAPEL } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -17,12 +17,6 @@ interface Contato {
   proximo_passo_em: string | null;
 }
 
-const TEMPERATURA: Record<string, { cor: string; rotulo: string }> = {
-  frio: { cor: 'info', rotulo: 'Frio' },
-  morno: { cor: 'alerta', rotulo: 'Morno' },
-  quente: { cor: 'erro', rotulo: 'Quente' },
-};
-
 // Clientes: todos os contatos da conta, com busca e filtros na URL (spec 11: "estado de filtro na
 // URL"), cadastro rápido, importação e exportação.
 @customElement('pc-tela-clientes')
@@ -31,7 +25,7 @@ export class PcTelaClientes extends LitElement {
   @state() private total = 0;
   @state() private carregando = true;
   @state() private falha: string | null = null;
-  private filtros = new URLSearchParams(window.location.search);
+  private filtros = filtrosDaUrl();
   private geracao = 0;
 
   connectedCallback() {
@@ -56,13 +50,7 @@ export class PcTelaClientes extends LitElement {
   }
 
   private filtrar(mudancas: Record<string, string>) {
-    for (const [k, v] of Object.entries(mudancas)) {
-      if (v) this.filtros.set(k, v);
-      else this.filtros.delete(k);
-    }
-    this.filtros.delete('pagina');
-    const qs = this.filtros.toString();
-    history.replaceState(history.state, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
+    filtrosNaUrl(this.filtros, mudancas, ['pagina']);
     void this.carregar();
   }
 
@@ -116,10 +104,8 @@ export class PcTelaClientes extends LitElement {
       {
         id: 'temperatura',
         label: 'Temperatura',
-        render: (l) => {
-          const t = TEMPERATURA[(l as Contato).temperatura ?? ''];
-          return t ? html`<urbi-badge cor=${t.cor}>${t.rotulo}</urbi-badge>` : html`<urbi-prosa papel="fraco" inline>sem classificação</urbi-prosa>`;
-        },
+        render: (l) =>
+          (l as Contato).temperatura ? html`${chip('temperatura', (l as Contato).temperatura)}` : html`<urbi-prosa papel="fraco" inline>sem classificação</urbi-prosa>`,
       },
       {
         id: 'proximo',
@@ -148,7 +134,7 @@ export class PcTelaClientes extends LitElement {
         <urbi-select label="Papel" valor=${papel} placeholder="Todos" .opcoes=${opcoes(ROTULO_PAPEL)}
           @urbi:select-change=${(e: CustomEvent) => this.filtrar({ papel: e.detail.valor })}></urbi-select>
         <urbi-select label="Temperatura" valor=${temperatura} placeholder="Todas"
-          .opcoes=${Object.entries(TEMPERATURA).map(([valor, t]) => ({ valor, rotulo: t.rotulo }))}
+          .opcoes=${opcoesChip('temperatura')}
           @urbi:select-change=${(e: CustomEvent) => this.filtrar({ temperatura: e.detail.valor })}></urbi-select>
         <urbi-select label="Sem contato há" valor=${parado} placeholder="Qualquer tempo"
           .opcoes=${[{ valor: '7', rotulo: '7 dias' }, { valor: '15', rotulo: '15 dias' }, { valor: '30', rotulo: '30 dias' }, { valor: '90', rotulo: '90 dias' }]}

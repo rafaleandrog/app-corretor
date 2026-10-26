@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -51,7 +51,7 @@ export class PcTelaDesempenho extends LitElement {
 
   private mudarPeriodo(dias: number) {
     this.dias = dias;
-    history.replaceState(history.state, '', `${window.location.pathname}?dias=${dias}`);
+    filtrosNaUrl(new URLSearchParams(), { dias });
     void this.carregar();
   }
 
