@@ -427,7 +427,7 @@ estudioRotas.get(
     const fotos = (imovel?.fotos ?? []).slice(0, p.formato === 'carrossel' ? MAX_SLIDES : 3);
     const prompt = promptFerramenta(
       ferramenta,
-      { formato: p.formato, objetivo: p.objetivo, textos: { titulo: p.titulo, chamada: p.chamada ?? '', destaques: Array.isArray(p.destaques) ? p.destaques : [], legenda: p.legenda ?? '', hashtags: [] }, fotos: fotos.length, referencias: referencias.map((r) => r.url!) },
+      { formato: p.formato, objetivo: p.objetivo, textos: { titulo: p.titulo, chamada: p.chamada ?? '', destaques: Array.isArray(p.destaques) ? p.destaques : [], legenda: p.legenda ?? '', hashtags: [] }, fotos: fotos.length, referencias: referencias.map((r) => r.url!), logo: !!m.logo_url },
       m,
       imovel?.arte ?? null,
     );

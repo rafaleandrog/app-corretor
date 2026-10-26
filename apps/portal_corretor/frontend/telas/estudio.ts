@@ -34,11 +34,28 @@ const ESTADO: Record<string, { cor: string; rotulo: string }> = {
 // outra ferramenta; `interno` só existe nas peças antigas, do gerador do app que saiu.
 const MOTOR: Record<string, string> = { interno: 'gerador do app', canva_ia: 'arte do Canva', upload: 'arte de outra ferramenta' };
 const QUINZE_MIN = 15 * 60e3;
+const TRAVADA = ['agendada', 'publicando', 'publicada'];
+const semArte = (p: Linha) => !(p.arquivos ?? []).length;
+const aprovavel = (p: Linha) => p.estado === 'rascunho' || p.estado === 'rejeitada' || (p.estado === 'erro' && !p.aprovada_em);
 
-// Estúdio de Conteúdo (D-74, D-86, D-89): pedido em texto ou voz (urbi-redator). Aqui saem só os
-// textos e a instrução (prompt) com as fotos e o logo; a imagem é gerada no Canva IA (ou em outra
-// ferramenta) e enviada de volta na própria peça. Aprovação e publicação; o CRECI sem cadastro é
-// lembrete, nunca trava (D-89). Cada peça tem uma ação principal pelo estado e o resto no "Mais".
+/**
+ * Listas por etapa (D-90, como as listas inteligentes do Follow Up Boss): cada peça cai na etapa em
+ * que está, e o chip mostra quantas há. Peça com erro de publicação fica em "Prontas" (tentar de novo).
+ */
+const ETAPAS: { id: string; rotulo: string; cor: string; casa: (p: Linha) => boolean }[] = [
+  { id: 'todas', rotulo: 'Todas', cor: 'info', casa: () => true },
+  { id: 'arte', rotulo: 'Falta a arte', cor: 'alerta', casa: (p) => semArte(p) && !TRAVADA.includes(p.estado) },
+  { id: 'aprovar', rotulo: 'Para aprovar', cor: 'info', casa: (p) => !semArte(p) && aprovavel(p) },
+  { id: 'prontas', rotulo: 'Prontas para publicar', cor: 'sucesso', casa: (p) => p.estado === 'aprovada' || (p.estado === 'erro' && !!p.aprovada_em) },
+  { id: 'agendadas', rotulo: 'Agendadas', cor: 'info', casa: (p) => p.estado === 'agendada' || p.estado === 'publicando' },
+  { id: 'publicadas', rotulo: 'Publicadas', cor: 'sucesso', casa: (p) => p.estado === 'publicada' },
+];
+
+// Estúdio de Conteúdo (D-74, D-86, D-89, D-90): pedido em texto ou voz (urbi-redator). Aqui saem só
+// os textos e a descrição da arte (prompt em blocos) com as fotos e o logo; a imagem é gerada no Canva
+// IA (ou em outra ferramenta) e enviada de volta na própria peça. Aprovação e publicação; o CRECI sem
+// cadastro nunca trava (D-89). Peças em listas por etapa, com o próximo passo e uma ação principal
+// pelo estado; o resto no "Mais".
 // Prévia da arte por urbi-avatar (exceção de "cartão de arte", 11.5).
 @customElement('pc-tela-estudio')
 export class PcTelaEstudio extends LitElement {
@@ -51,6 +68,7 @@ export class PcTelaEstudio extends LitElement {
   /** Peças com a instrução à vista, e a instrução já buscada de cada uma. */
   @state() private abertas = new Set<number>();
   @state() private instrucoes: Record<number, Instrucao> = {};
+  @state() private etapa = 'todas';
 
   connectedCallback() {
     super.connectedCallback();
@@ -97,7 +115,7 @@ export class PcTelaEstudio extends LitElement {
       { nome: 'objetivo', tipo: 'selecao', rotulo: 'Objetivo', valor: 'novo_imovel', opcoes: OBJETIVOS.map((o) => ({ valor: o, rotulo: ROTULO_OBJETIVO[o] })) },
       ...FORMATOS.map((f): CampoFormulario => ({ nome: `f_${f}`, tipo: 'booleano', rotulo: ROTULO_FORMATO[f], valor: f === 'post_1x1' })),
     ];
-    const v = await urbiVerso.formulario({ titulo: 'Novo pedido', campos, mensagem: 'O app escreve os textos (com IA, quando liberada) e a instrução para gerar a arte no Canva IA, com a sua marca. Você envia a arte e revisa antes de aprovar.', rotuloConfirmar: 'Criar' });
+    const v = await urbiVerso.formulario({ titulo: 'Novo pedido', campos, mensagem: 'O app escreve os textos (com IA, quando liberada) e a descrição da arte para colar no Canva IA, com a sua marca. Você gera lá, envia a arte aqui e revisa antes de aprovar.', rotuloConfirmar: 'Criar' });
     if (!v) throw new Error('cancelado');
     const formatos = FORMATOS.filter((f) => v[`f_${f}`] === true);
     await this.criar('/estudio/pedido', { pedido: v.pedido, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, objetivo: v.objetivo, formatos });
@@ -117,7 +135,7 @@ export class PcTelaEstudio extends LitElement {
     }
     const v = await urbiVerso.formulario({
       titulo: 'Pacote de lançamento',
-      mensagem: 'Post, carrossel e story do imóvel: os textos e uma instrução do Canva IA para cada um.',
+      mensagem: 'Post, carrossel e story do imóvel: os textos e uma descrição para o Canva IA de cada um.',
       campos: [
         { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', obrigatorio: true, pesquisavel: true, opcoes: imoveis.map((i) => ({ valor: String(i.id), rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}` })) },
         { nome: 'pedido', tipo: 'texto_longo', rotulo: 'Algum pedido? (opcional)', placeholder: 'Ex.: destacar a varanda gourmet.' },
@@ -129,11 +147,12 @@ export class PcTelaEstudio extends LitElement {
   }
 
   private async criar(rota: string, corpo: Record<string, unknown>) {
-    this.trabalhando = 'Escrevendo os textos e a instrução…';
+    this.trabalhando = 'Escrevendo os textos e a descrição…';
     try {
       const r = await enviar('POST', rota, corpo);
-      urbiVerso.notificar(`${r.pecas.length} peça(s) criada(s)${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}. Gere a arte no Canva e envie na peça.`, 'sucesso');
-      // As peças novas já abrem com a instrução e as fotos à vista.
+      urbiVerso.notificar(`${r.pecas.length} peça(s) criada(s)${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}. Copie a descrição, gere a arte no Canva e envie na peça.`, 'sucesso');
+      this.etapa = 'todas';
+      // As peças novas já abrem com a descrição e as fotos à vista.
       for (const p of r.pecas as Linha[]) void this.abrirInstrucao(p.id);
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível criar', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -153,7 +172,7 @@ export class PcTelaEstudio extends LitElement {
         { nome: 'legenda', tipo: 'texto_longo', rotulo: 'Legenda', valor: p.legenda ?? '' },
         { nome: 'hashtags', tipo: 'texto', rotulo: 'Hashtags', valor: p.hashtags ?? '' },
       ],
-      mensagem: 'Mudou o título, a chamada ou os destaques? A instrução muda junto: copie de novo e refaça a arte no Canva.',
+      mensagem: 'Mudou o título, a chamada ou os destaques? A descrição muda junto: copie de novo e refaça a arte no Canva.',
     });
     if (!v) return;
     await this.acao(() => enviar('PATCH', `/estudio/pecas/${p.id}`, { ...v, destaques: String(v.destaques ?? '').split(',').map((d) => d.trim()).filter(Boolean) }), 'Textos salvos.');
@@ -179,7 +198,7 @@ export class PcTelaEstudio extends LitElement {
       return r;
     } catch (e) {
       this.fecharInstrucao(id);
-      await urbiVerso.alertar({ titulo: 'Não foi possível preparar a instrução', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      await urbiVerso.alertar({ titulo: 'Não foi possível preparar a descrição', mensagem: mensagemDeErro(e), tipo: 'erro' });
       return null;
     }
   }
@@ -200,9 +219,9 @@ export class PcTelaEstudio extends LitElement {
     if (!r) return;
     try {
       await navigator.clipboard.writeText(r.prompt);
-      urbiVerso.notificar(`Instrução copiada. ${r.onde}`, 'sucesso');
+      urbiVerso.notificar(`Descrição copiada. ${r.onde}`, 'sucesso');
     } catch {
-      urbiVerso.notificar('Copie a instrução que aparece na peça.', 'info'); // sem área de transferência
+      urbiVerso.notificar('Copie a descrição que aparece na peça.', 'info'); // sem área de transferência
     }
   }
 
@@ -212,8 +231,8 @@ export class PcTelaEstudio extends LitElement {
     const v = await urbiVerso.formulario({
       titulo: 'Usar outra ferramenta',
       mensagem: refs.length
-        ? 'A instrução muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Marca).'
-        : 'A instrução muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Marca.',
+        ? 'A descrição muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Marca).'
+        : 'A descrição muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Marca.',
       campos: [
         { nome: 'ferramenta', tipo: 'selecao', rotulo: 'Ferramenta', valor: this.instrucoes[p.id]?.ferramenta ?? 'canva', opcoes: FERRAMENTAS.map((f) => ({ valor: f, rotulo: FERRAMENTA[f].rotulo })) },
         ...refs.map((r, i): CampoFormulario => ({ nome: `r_${r.id}`, tipo: 'booleano', rotulo: `Referência ${i + 1}`, valor: true })),
@@ -349,13 +368,12 @@ export class PcTelaEstudio extends LitElement {
 
   /** Uma ação principal pelo estado (D-86, princípio 14); o resto vai para o "Mais". */
   private acoes(p: Linha) {
-    const travada = ['agendada', 'publicando', 'publicada'].includes(p.estado);
-    const aprovavel = p.estado === 'rascunho' || p.estado === 'rejeitada' || (p.estado === 'erro' && !p.aprovada_em);
+    const travada = TRAVADA.includes(p.estado);
     const semArte = !(p.arquivos ?? []).length;
     const legenda: Acao = { rotulo: 'Copiar legenda', icone: 'fa-solid fa-copy', aoEscolher: () => this.copiarLegenda(p) };
     let principal: Acao;
-    if (semArte && !travada) principal = { rotulo: 'Copiar instrução', icone: 'fa-solid fa-copy', aoEscolher: () => this.copiarInstrucao(p) };
-    else if (aprovavel) principal = { rotulo: 'Aprovar', icone: 'fa-solid fa-check', aoEscolher: () => this.aprovar(p) };
+    if (semArte && !travada) principal = { rotulo: 'Copiar descrição', icone: 'fa-solid fa-copy', aoEscolher: () => this.copiarInstrucao(p) };
+    else if (aprovavel(p)) principal = { rotulo: 'Aprovar', icone: 'fa-solid fa-check', aoEscolher: () => this.aprovar(p) };
     else if (p.estado === 'aprovada') principal = { rotulo: 'Publicar', icone: 'fa-brands fa-instagram', aoEscolher: () => this.publicarOpcoes(p) };
     else if (p.estado === 'erro') principal = { rotulo: 'Tentar de novo', icone: 'fa-solid fa-rotate-right', aoEscolher: () => this.publicarOpcoes(p) };
     else if (p.estado === 'agendada') principal = { rotulo: 'Cancelar agendamento', icone: 'fa-solid fa-calendar-xmark', aoEscolher: () => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/cancelar-agendamento`), 'Agendamento cancelado.') };
@@ -368,7 +386,7 @@ export class PcTelaEstudio extends LitElement {
       mais.push({ rotulo: 'Textos', icone: 'fa-solid fa-pen', aoEscolher: () => this.editar(p) });
       if (!semArte) {
         mais.push(
-          { rotulo: this.abertas.has(p.id) ? 'Esconder a instrução' : 'Ver a instrução', icone: 'fa-solid fa-wand-magic-sparkles', aoEscolher: () => this.alternarInstrucao(p) },
+          { rotulo: this.abertas.has(p.id) ? 'Esconder a descrição' : 'Ver a descrição', icone: 'fa-solid fa-wand-magic-sparkles', aoEscolher: () => this.alternarInstrucao(p) },
           { rotulo: 'Trocar a arte', icone: 'fa-solid fa-upload', aoEscolher: () => (this.trocando = p.id) },
         );
       }
@@ -398,13 +416,13 @@ export class PcTelaEstudio extends LitElement {
     ></urbi-seletor-arquivo>`;
   }
 
-  /** A instrução e os anexos (fotos e logo), à vista na peça. */
+  /** A descrição e os anexos (fotos e logo), à vista na peça. */
   private instrucao(p: Linha) {
     const r = this.instrucoes[p.id];
     if (!r) return html`<urbi-loading></urbi-loading>`;
     const anexos = r.fotos.length || r.logo_url;
     return html`<urbi-stack>
-      <urbi-prosa papel="secao">Instrução para o ${FERRAMENTA[r.ferramenta].rotulo}</urbi-prosa>
+      <urbi-prosa papel="secao">Descrição para o ${FERRAMENTA[r.ferramenta].rotulo}</urbi-prosa>
       <urbi-prosa pre>${r.prompt}</urbi-prosa>
       <urbi-prosa papel="secundario">${anexos ? 'Para anexar (abra e baixe):' : 'Sem fotos públicas do imóvel: anexe as suas na ferramenta, se quiser.'}</urbi-prosa>
       ${anexos
@@ -438,11 +456,13 @@ export class PcTelaEstudio extends LitElement {
         ${p.estado === 'publicando' && publicandoHa < QUINZE_MIN ? html`<urbi-prosa papel="dica">Publicando. Se passar de 15 minutos assim, use "Destravar".</urbi-prosa>` : ''}
         ${p.estado === 'erro' && p.erro ? html`<urbi-prosa papel="secundario">${p.erro}</urbi-prosa>` : ''}
         <urbi-prosa papel="fraco">${ROTULO_FORMATO[p.formato as Formato] ?? p.formato} · ${ROTULO_OBJETIVO[p.objetivo as keyof typeof ROTULO_OBJETIVO] ?? p.objetivo}${p.imovel_codigo ? ` · ${p.imovel_codigo}` : ''}${semArte ? '' : ` · ${MOTOR[p.motor] ?? p.motor}`} · ${dataHora(p.criado_em)}</urbi-prosa>
-        ${semArte && !travada ? html`<urbi-prosa papel="dica">1. Copie a instrução${abrir ? ` e abra o ${ferramenta.rotulo}` : ''}. 2. Cole a instrução e anexe as fotos e o logo. 3. Baixe a arte pronta (JPG ou PNG) e envie aqui.</urbi-prosa>` : ''}
+        ${semArte && !travada ? html`<urbi-prosa papel="dica">1. Copie a descrição${abrir ? ` e abra o ${ferramenta.rotulo}` : ''}. 2. Cole a descrição e anexe as fotos e o logo. 3. Baixe a arte pronta (JPG ou PNG) e envie aqui.</urbi-prosa>` : ''}
+        ${!semArte && aprovavel(p) ? html`<urbi-prosa papel="dica">Próximo passo: confira a arte e aprove.</urbi-prosa>` : ''}
+        ${p.estado === 'aprovada' ? html`<urbi-prosa papel="dica">Próximo passo: publique agora, agende ou baixe para publicar você.</urbi-prosa>` : ''}
         <urbi-linha quebrar>
           ${this.acoes(p)}
           ${semArte && !travada && abrir ? html`<urbi-botao variante="secundario" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(abrir, '_blank', 'noopener')}>Abrir o ${ferramenta.rotulo}</urbi-botao>` : ''}
-          ${semArte && !travada ? html`<urbi-botao variante="fantasma" icone=${aberta ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'} @click=${() => this.alternarInstrucao(p)}>${aberta ? 'Esconder instrução e fotos' : 'Ver instrução e fotos'}</urbi-botao>` : ''}
+          ${semArte && !travada ? html`<urbi-botao variante="fantasma" icone=${aberta ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'} @click=${() => this.alternarInstrucao(p)}>${aberta ? 'Esconder descrição e fotos' : 'Ver descrição e fotos'}</urbi-botao>` : ''}
         </urbi-linha>
         ${aberta && !travada ? this.instrucao(p) : ''}
         ${semArte && !travada ? this.seletorArte(p, true) : ''}
@@ -462,13 +482,10 @@ export class PcTelaEstudio extends LitElement {
     }
     if (!this.marca) return html`<urbi-loading></urbi-loading>`;
     const m = this.marca;
+    const etapa = ETAPAS.find((e) => e.id === this.etapa) ?? ETAPAS[0];
+    const visiveis = this.pecas.filter(etapa.casa);
+    // O CRECI não aparece como aviso no topo (D-89, D-90): é uma linha da dica, e só quando falta.
     return html`<urbi-stack>
-      ${!m.creci
-        ? html`<urbi-banner variante="info" fechavel>
-            Dica: cadastre o seu CRECI para ele entrar na instrução e na legenda. O Estúdio funciona sem ele, mas anúncio de imóvel deve mostrar o CRECI.
-            <urbi-botao slot="acao" pequeno variante="secundario" href=${urbiVerso.href('/ajustes/conta')}>Cadastrar</urbi-botao>
-          </urbi-banner>`
-        : ''}
       <urbi-card titulo="Criar" icone="fa-solid fa-wand-magic-sparkles">
         <urbi-redator
           audio
@@ -480,13 +497,27 @@ export class PcTelaEstudio extends LitElement {
         <urbi-linha quebrar>
           <urbi-botao variante="secundario" icone="fa-solid fa-box-open" ?carregando=${!!this.trabalhando} @click=${() => this.pacote()}>Pacote de lançamento</urbi-botao>
         </urbi-linha>
-        ${this.trabalhando ? html`<urbi-prosa papel="secundario">${this.trabalhando}</urbi-prosa>` : html`<urbi-prosa papel="dica">Aqui o app escreve os textos e a instrução para o Canva IA, com a sua marca, o preço, o bairro e o CRECI. A imagem você gera no Canva e envia de volta na peça. Prefere Claude Design ou outra? Use "Mais › Usar outra ferramenta".</urbi-prosa>`}
+        ${this.trabalhando ? html`<urbi-prosa papel="secundario">${this.trabalhando}</urbi-prosa>` : html`<urbi-prosa papel="dica">O app escreve os textos e uma descrição clara da arte, com a sua marca, o preço e o bairro. Você cola no Canva IA, gera, baixa e envia de volta na peça. Prefere Claude Design ou outra? Use "Mais › Usar outra ferramenta".${m.creci ? '' : ' Com o CRECI cadastrado (Ajustes › Conta, opcional), ele entra no rodapé e na legenda.'}</urbi-prosa>`}
         <urbi-linha><urbi-botao pequeno variante="fantasma" icone="fa-solid fa-palette" href=${urbiVerso.href('/ajustes/marca')}>Sua marca (logo, cores, estilo)</urbi-botao></urbi-linha>
       </urbi-card>
       <urbi-card titulo="Peças" icone="fa-solid fa-images">
-        ${this.pecas.length
-          ? html`<urbi-lista separador .itens=${this.pecas} .render_item=${(p: Linha) => this.peca(p)}></urbi-lista>`
-          : html`<urbi-estado-vazio icone="fa-solid fa-images" mensagem="Nenhuma peça ainda" submensagem="Faça um pedido ou gere o pacote de lançamento de um imóvel."></urbi-estado-vazio>`}
+        <urbi-stack>
+          ${this.pecas.length
+            ? html`<urbi-linha quebrar>
+                ${ETAPAS.map((e) => {
+                  const n = this.pecas.filter(e.casa).length;
+                  return e.id === 'todas' || n || this.etapa === e.id
+                    ? html`<urbi-badge interativo cor=${e.cor} ?ativo=${this.etapa === e.id} @click=${() => (this.etapa = e.id)}>${e.rotulo} · ${n}</urbi-badge>`
+                    : '';
+                })}
+              </urbi-linha>`
+            : ''}
+          ${visiveis.length
+            ? html`<urbi-lista separador .itens=${visiveis} .render_item=${(p: Linha) => this.peca(p)}></urbi-lista>`
+            : this.pecas.length
+              ? html`<urbi-estado-vazio icone="fa-solid fa-check" mensagem="Nada nesta etapa" submensagem="Escolha outra lista acima."></urbi-estado-vazio>`
+              : html`<urbi-estado-vazio icone="fa-solid fa-images" mensagem="Nenhuma peça ainda" submensagem="Escreva ou fale o pedido acima: o app escreve a descrição para você levar ao Canva."></urbi-estado-vazio>`}
+        </urbi-stack>
       </urbi-card>
     </urbi-stack>`;
   }

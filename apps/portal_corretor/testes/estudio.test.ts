@@ -53,14 +53,19 @@ test('regras puras do Estúdio: marca, textos sem IA, resposta da IA validada, p
   assert.equal(ia.legenda, t.legenda, 'vazio da IA cai no padrão');
   const marcaJoao = { nome: 'João', creci: 'DF-1', cor_primaria: '#000000', cor_secundaria: '#ffffff', estilo: 'moderno', assinatura: null };
   const prompt = promptFerramenta('canva', { formato: 'carrossel', objetivo: 'baixou_preco', textos: t, fotos: 4 }, marcaJoao, im);
-  assert.match(prompt, /carrossel de Instagram com 4 slides/);
+  assert.match(prompt, /^Carrossel de Instagram com 4 slides, 1080 x 1350 px/);
+  // Blocos fixos, na ordem: textos exatos, fotos, slides, visual e o que não fazer (D-90).
+  assert.match(prompt, /TEXTOS DA ARTE[\s\S]*\nFOTOS:[\s\S]*\nSLIDES:\n1\. Capa[\s\S]*\n4\. Fechamento[\s\S]*\nVISUAL:[\s\S]*\nNÃO FAÇA:/);
+  assert.match(prompt, /- Rodapé: João · CRECI DF-1/);
+  const semNada = promptFerramenta('canva', { formato: 'story', objetivo: 'destaque', textos: t, fotos: 0 }, { ...marcaJoao, creci: null }, im);
+  assert.ok(!semNada.includes('CRECI') && /Não há foto do imóvel/.test(semNada) && /250 px/.test(semNada) && !/Selo/.test(semNada), 'sem CRECI, sem foto e sem selo a descrição segue');
   assert.match(prompt, /CRECI DF-1/);
   assert.match(prompt, /BAIXOU O PREÇO/);
   assert.ok(!prompt.includes('SHIS'), 'sem endereço');
-  assert.ok(!/Referências/.test(prompt), 'sem referência, nenhuma linha de referência');
+  assert.ok(!/REFERÊNCIAS/.test(prompt), 'sem referência, nenhuma linha de referência');
   // Claude Design: mesma instrução, com a entrega pedida em tamanho exato e as referências por link.
   const design = promptFerramenta('claude_design', { formato: 'story', objetivo: 'novo_imovel', textos: t, fotos: 1, referencias: ['/arquivo/r1', '/arquivo/r2'] }, marcaJoao, im);
-  assert.match(design, /story de Instagram \(1080 x 1920 px\)/);
+  assert.match(design, /^Story de Instagram, 1080 x 1920 px/);
   assert.match(design, /Entregue a arte final em JPG ou PNG, exatamente em 1080 x 1920 px/);
   assert.match(design, /1\. \/arquivo\/r1\n2\. \/arquivo\/r2/);
   assert.match(design, /CRECI DF-1/);
@@ -142,6 +147,7 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     assert.match(canva.prompt, /CRECI DF-12345-F/);
     assert.deepEqual(canva.fotos.map((f: any) => f.url), ['/arquivo/801']);
     assert.equal(canva.logo_url, '/arquivo/901');
+    assert.match(canva.prompt, /- Logo anexado no canto inferior/, 'com logo na marca, a descrição pede o logo');
     assert.equal(canva.abrir, 'https://www.canva.com/ai');
     const design = (await chamar('GET', `/estudio/pecas/${pecaId}/instrucao?ferramenta=claude_design`)).corpo;
     assert.equal(design.ferramenta, 'claude_design');

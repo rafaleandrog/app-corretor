@@ -213,36 +213,64 @@ export const FERRAMENTA: Record<Ferramenta, { rotulo: string; onde: string; abri
 export const ferramentaValida = (v: unknown): Ferramenta => ((FERRAMENTAS as readonly string[]).includes(v as string) ? (v as Ferramenta) : 'canva');
 
 /**
- * "Fazer em outra ferramenta" (D-74, D-86): instrução pronta para colar na ferramenta escolhida, com
- * as regras da marca e os textos da peça. As fotos e o logo vão à parte (o corretor baixa e anexa);
+ * Descrição da arte (D-74, D-86, D-89, D-90): o texto que o corretor cola no Canva IA (ou em outra
+ * ferramenta), claro e objetivo, em blocos fixos (o que é, textos exatos, fotos, slides, visual, o que
+ * não fazer), para a ferramenta gerar a arte sem adivinhar. As fotos e o logo vão anexados à parte;
  * as referências do corretor entram por link, como inspiração de estilo.
  */
 export function promptFerramenta(
   ferramenta: Ferramenta,
-  p: { formato: Formato; objetivo: Objetivo; textos: TextosPeca; fotos: number; referencias?: string[] },
+  p: { formato: Formato; objetivo: Objetivo; textos: TextosPeca; fotos: number; referencias?: string[]; logo?: boolean },
   marca: MarcaPeca,
   im: ImovelArte | null,
 ): string {
   const tam = TAMANHO[p.formato];
   const refs = p.referencias ?? [];
-  const linhas = [
-    `Crie ${p.formato === 'carrossel' ? `um carrossel de Instagram com ${Math.min(Math.max(p.fotos, 2), MAX_SLIDES)} slides` : p.formato === 'story' ? 'um story de Instagram' : 'um post de Instagram'} (${tam.largura} x ${tam.altura} px) para um corretor de imóveis.`,
-    `Use as fotos anexadas do imóvel como imagem principal${p.formato === 'carrossel' ? ', uma por slide, na ordem enviada' : ''}. Não altere, não acrescente nem remova nada das fotos (sem mobília ou cômodos que o imóvel não tem).`,
-    `Estilo ${marca.estilo}, com a cor principal ${marca.cor_primaria} e a cor de apoio ${marca.cor_secundaria}.`,
-    SELO[p.objetivo] ? `Selo em destaque: "${SELO[p.objetivo]}".` : null,
-    `Título: "${p.textos.titulo}".`,
-    p.textos.destaques.length ? `Destaques (ícones ou chips): ${p.textos.destaques.map((d) => `"${d}"`).join(', ')}.` : null,
-    im?.preco_c && p.objetivo !== 'vendido' ? `Preço: "${reaisCurto(im.preco_c)}".` : null,
-    im && [im.bairro, im.cidade].some(Boolean) ? `Local: "${[im.bairro, im.cidade].filter(Boolean).join(', ')}".` : null,
-    `Chamada: "${p.textos.chamada}".`,
-    `Rodapé com "${marca.nome}"${marca.creci ? ` e "CRECI ${marca.creci}"` : ''}${marca.assinatura ? ` e "${marca.assinatura}"` : ''}. Se eu anexar o logo, use no canto.`,
-    'Não escreva endereço completo, telefone de terceiros, nome de proprietário nem promessas de valorização.',
-    ferramenta === 'canva' ? null : `Entregue a arte final em JPG ou PNG, exatamente em ${tam.largura} x ${tam.altura} px${p.formato === 'carrossel' ? ', uma imagem por slide' : ''}.`,
-    refs.length
-      ? `Referências de estilo que eu gosto (inspiração de composição e clima; não copie textos, fotos nem marcas delas):\n${refs.map((u, i) => `${i + 1}. ${u}`).join('\n')}`
-      : null,
+  const slides = Math.min(Math.max(p.fotos, 2), MAX_SLIDES);
+  const peca = p.formato === 'carrossel' ? `Carrossel de Instagram com ${slides} slides` : p.formato === 'story' ? 'Story de Instagram' : 'Post de Instagram';
+  const preco = im?.preco_c && p.objetivo !== 'vendido' ? reaisCurto(im.preco_c) : null;
+  const local = im ? [im.bairro, im.cidade].filter(Boolean).join(', ') : '';
+  const rodape = [marca.nome, marca.creci ? `CRECI ${marca.creci}` : null, marca.assinatura].filter(Boolean).join(' · ');
+  const item = (rotulo: string, valor: string | null | undefined) => (valor ? `- ${rotulo}: ${valor}` : null);
+  const linhas: (string | null)[] = [
+    `${peca}, ${tam.largura} x ${tam.altura} px, para um corretor de imóveis.`,
+    '',
+    'TEXTOS DA ARTE (use exatamente estes, sem acrescentar outros):',
+    item('Selo', SELO[p.objetivo]),
+    item('Título', p.textos.titulo),
+    item('Destaques', p.textos.destaques.join(' · ')),
+    item('Preço', preco),
+    item('Local', local),
+    item('Chamada', p.textos.chamada),
+    item('Rodapé', rodape),
+    '',
+    'FOTOS:',
+    !p.fotos
+      ? '- Não há foto do imóvel: use um fundo com as cores da marca e formas simples, sem foto que pareça ser o imóvel.'
+      : p.formato === 'carrossel'
+        ? `- Use as ${p.fotos} fotos anexadas do imóvel, uma por slide, na ordem enviada.`
+        : p.fotos === 1
+          ? '- Use a foto anexada do imóvel como imagem principal.'
+          : `- Use a primeira das ${p.fotos} fotos anexadas como imagem principal; as outras, só como apoio, se couberem.`,
+    p.fotos ? '- Não altere as fotos: nada de mobília, cômodos, vista ou acabamento que o imóvel não tem.' : null,
   ];
-  return linhas.filter(Boolean).join('\n');
+  if (p.formato === 'carrossel') {
+    linhas.push('', 'SLIDES:', '1. Capa: foto principal, selo, título, preço e local.');
+    for (let i = 2; i < slides; i++) linhas.push(`${i}. Uma foto com um destaque em letra grande.`);
+    linhas.push(`${slides}. Fechamento: chamada e rodapé em destaque, com o logo.`);
+  }
+  linhas.push(
+    '',
+    'VISUAL:',
+    `- Estilo ${marca.estilo}. Cor principal ${marca.cor_primaria} e cor de apoio ${marca.cor_secundaria}.`,
+    '- Título grande e fácil de ler no celular; preço em destaque; no máximo duas fontes.',
+    p.logo ? '- Logo anexado no canto inferior, sem distorcer.' : null,
+    p.formato === 'story' ? '- Deixe livres cerca de 250 px no topo e na base (área dos botões do Instagram).' : null,
+    ferramenta === 'canva' ? null : `- Entregue a arte final em JPG ou PNG, exatamente em ${tam.largura} x ${tam.altura} px${p.formato === 'carrossel' ? ', uma imagem por slide' : ''}.`,
+  );
+  if (refs.length) linhas.push('', 'REFERÊNCIAS DE ESTILO (inspiração de composição e clima; não copie textos, fotos nem marcas delas):', ...refs.map((u, i) => `${i + 1}. ${u}`));
+  linhas.push('', 'NÃO FAÇA:', '- Endereço completo, telefone de terceiros, nome de proprietário ou promessa de valorização.', '- Texto além dos listados acima.');
+  return linhas.filter((l) => l !== null).join('\n');
 }
 
 export interface Checagem {
@@ -259,7 +287,7 @@ export interface Checagem {
 export function checarPeca(p: { formato: string; legenda: string | null; hashtags: string | null; arquivos: number; objetivo: string }, ctx: { creci: string | null; imovel: boolean; autorizacaoVigente: boolean }): Checagem {
   const pendencias: string[] = [];
   const avisos: string[] = [];
-  if (!ctx.creci) avisos.push('Cadastre o seu CRECI (Ajustes › Conta) para ele entrar na instrução e na legenda.');
+  if (!ctx.creci) avisos.push('Cadastre o seu CRECI (Ajustes › Conta) para ele entrar na descrição e na legenda.');
   if (ctx.imovel && p.objetivo !== 'vendido' && !ctx.autorizacaoVigente) pendencias.push('O imóvel precisa de autorização de venda vigente para ser anunciado.');
   if (!p.arquivos) pendencias.push('Envie a arte feita no Canva (ou em outra ferramenta) antes de aprovar.');
   if (p.formato === 'carrossel' && p.arquivos === 1) pendencias.push('O carrossel precisa de pelo menos 2 imagens.');

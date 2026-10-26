@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.9; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.10; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -16,7 +16,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Desempenho** | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Desempenho, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Clientes** | Duas visões: **Lista** (contatos com filtros prontos Novos · Sem contato · Quentes · Retorno vencido) e **Quadro** (o funil por etapa, arrastar para mover); ficha com o resumo em uma frase, Resumir e Mensagem sugerida com IA, Virar tarefa, negócios, notas, consentimento e linha do tempo; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
 | Corretor | **Imóveis** | Duas abas: **Carteira** (os imóveis em cartões com capa, preço, situação e nota de qualidade) e **Empreendimentos**; ficha com "o que falta no anúncio" no topo, fotos, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
-| Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA e instrução pronta para gerar a arte no Canva IA (ou em outra ferramenta), envio da arte na peça, aprovação e publicação — ver [Estúdio de conteúdo](estudio.md) |
+| Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA e descrição pronta para gerar a arte no Canva IA (ou em outra ferramenta), envio da arte na peça, aprovação e publicação — ver [Estúdio de conteúdo](estudio.md) |
 | Corretor | **Minha página** | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
 | Visitante | **Página e ficha pública** (sem login) | A página do corretor e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
 | Corretor | **Clientes › ficha › Seleções e portal** | Monta seleções de imóveis, gera o link do portal do cliente, pede pendências ao cliente (**Pedir ao cliente**) e escreve o próximo passo que ele vê no portal (em Dados e próximo passo) — ver [Seleções e Portal do Cliente](selecoes-e-portal.md) |
