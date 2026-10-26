@@ -195,12 +195,36 @@ export interface MarcaPeca {
   assinatura: string | null;
 }
 
+export const FERRAMENTAS = ['canva', 'claude_design', 'outra'] as const;
+export type Ferramenta = (typeof FERRAMENTAS)[number];
+/** Máximo de referências do corretor guardadas na marca (e listadas numa instrução). */
+export const MAX_REFERENCIAS = 6;
+
 /**
- * Pacote para o Canva IA (D-74): instrução pronta para colar no "O que vamos criar hoje?" do Canva,
- * com as regras da marca e os textos aprovados. As fotos vão à parte (o corretor anexa no Canva).
+ * Onde a instrução vai e o link para abrir a ferramenta. O app não se conecta a nenhuma (D-74, D-86):
+ * a escolha muda só o texto. Claude Design e "outra" não têm link: o corretor abre a ferramenta dele.
  */
-export function promptCanva(p: { formato: Formato; objetivo: Objetivo; textos: TextosPeca; fotos: number }, marca: MarcaPeca, im: ImovelArte | null): string {
+export const FERRAMENTA: Record<Ferramenta, { rotulo: string; onde: string; abrir: string | null }> = {
+  canva: { rotulo: 'Canva', onde: 'Cole no "O que vamos criar hoje?" do Canva IA.', abrir: 'https://www.canva.com/ai' },
+  claude_design: { rotulo: 'Claude Design', onde: 'Cole como pedido no Claude Design e anexe as imagens na mesma mensagem.', abrir: null },
+  outra: { rotulo: 'Outra ferramenta', onde: 'Cole na ferramenta de design que você usa (com IA ou não).', abrir: null },
+};
+
+export const ferramentaValida = (v: unknown): Ferramenta => ((FERRAMENTAS as readonly string[]).includes(v as string) ? (v as Ferramenta) : 'canva');
+
+/**
+ * "Fazer em outra ferramenta" (D-74, D-86): instrução pronta para colar na ferramenta escolhida, com
+ * as regras da marca e os textos da peça. As fotos e o logo vão à parte (o corretor baixa e anexa);
+ * as referências do corretor entram por link, como inspiração de estilo.
+ */
+export function promptFerramenta(
+  ferramenta: Ferramenta,
+  p: { formato: Formato; objetivo: Objetivo; textos: TextosPeca; fotos: number; referencias?: string[] },
+  marca: MarcaPeca,
+  im: ImovelArte | null,
+): string {
   const tam = TAMANHO[p.formato];
+  const refs = p.referencias ?? [];
   const linhas = [
     `Crie ${p.formato === 'carrossel' ? `um carrossel de Instagram com ${Math.min(Math.max(p.fotos, 2), MAX_SLIDES)} slides` : p.formato === 'story' ? 'um story de Instagram' : 'um post de Instagram'} (${tam.largura} x ${tam.altura} px) para um corretor de imóveis.`,
     `Use as fotos anexadas do imóvel como imagem principal${p.formato === 'carrossel' ? ', uma por slide, na ordem enviada' : ''}. Não altere, não acrescente nem remova nada das fotos (sem mobília ou cômodos que o imóvel não tem).`,
@@ -213,6 +237,10 @@ export function promptCanva(p: { formato: Formato; objetivo: Objetivo; textos: T
     `Chamada: "${p.textos.chamada}".`,
     `Rodapé com "${marca.nome}"${marca.creci ? ` e "CRECI ${marca.creci}"` : ''}${marca.assinatura ? ` e "${marca.assinatura}"` : ''}. Se eu anexar o logo, use no canto.`,
     'Não escreva endereço completo, telefone de terceiros, nome de proprietário nem promessas de valorização.',
+    ferramenta === 'canva' ? null : `Entregue a arte final em JPG ou PNG, exatamente em ${tam.largura} x ${tam.altura} px${p.formato === 'carrossel' ? ', uma imagem por slide' : ''}.`,
+    refs.length
+      ? `Referências de estilo que eu gosto (inspiração de composição e clima; não copie textos, fotos nem marcas delas):\n${refs.map((u, i) => `${i + 1}. ${u}`).join('\n')}`
+      : null,
   ];
   return linhas.filter(Boolean).join('\n');
 }

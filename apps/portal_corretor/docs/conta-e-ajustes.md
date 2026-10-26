@@ -43,7 +43,7 @@ A aba **Marca** guarda a marca da conta, e ela é uma só para tudo o que o clie
 
 | Onde | O que da marca aparece |
 |---|---|
-| [Estúdio](estudio.md#sua-marca) | Tudo: cores, estilo, assinatura, logo e foto, nas artes |
+| [Estúdio](estudio.md#sua-marca) | Tudo: cores, estilo, assinatura, logo e foto, nas artes; as referências, só na instrução de "Fazer em outra ferramenta" (o cliente nunca as vê) |
 | [Minha página](minha-pagina.md) | A cor principal (topo, botões e destaques) |
 | [Seleção e Portal do Cliente](selecoes-e-portal.md) | A cor principal e a sua foto, no topo |
 

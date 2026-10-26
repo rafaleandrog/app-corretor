@@ -9,7 +9,10 @@ import {
   MARCA_PADRAO,
   MAX_SLIDES,
   OBJETIVOS,
-  promptCanva,
+  ferramentaValida,
+  FERRAMENTA,
+  MAX_REFERENCIAS,
+  promptFerramenta,
   SCHEMA_PECA,
   textosDaIa,
   textosPadrao,
@@ -25,8 +28,8 @@ import { contaDoRequest, ressincronizarMarca } from './vitrine';
 
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74): marca, pedido → textos (IA com JSON Schema,
 // ou modelo quando a IA não está disponível), arte montada pelo gerador do app no navegador do
-// corretor (a plataforma não gera imagem, 10.6) ou feita no Canva IA e enviada de volta, aprovação
-// com checagens e biblioteca para baixar. Agendar e publicar no Instagram chegam no bloco 8b.
+// corretor (a plataforma não gera imagem, 10.6) ou feita em outra ferramenta (Canva, Claude Design…)
+// e enviada de volta (D-86), aprovação com checagens e biblioteca para baixar.
 export const estudioRotas: Router = Router();
 guardarCorretor(estudioRotas, ['/estudio']);
 
@@ -67,10 +70,10 @@ async function marca(req: Request) {
   const conta = contaDoRequest(req);
   const [m, arquivos, pagina] = await Promise.all([
     primeiro(dados, 'marca_conta', { chave: 'conta', conta_id: conta }),
-    dados.listar('marca_arquivos', { filtros: { conta_id: conta }, por_pagina: 5 }),
+    dados.varrerTudo('marca_arquivos', { filtros: { conta_id: conta }, ordenar: 'id', ordem: 'asc', maximo: 50 }),
     primeiro(dados, 'paginas_corretor', { chave: 'conta', conta_id: conta }),
   ]);
-  const de = (tipo: string) => arquivos.dados.find((a) => a.tipo === tipo);
+  const de = (tipo: string) => arquivos.find((a) => a.tipo === tipo);
   return {
     nome: pagina?.nome_exibicao || req.contexto!.usuario.nome || 'Corretor',
     creci: await creci(req),
@@ -81,6 +84,8 @@ async function marca(req: Request) {
     salva: !!m,
     logo_url: await url(req, de('logo')?.arquivo),
     foto_url: await url(req, de('foto')?.arquivo),
+    // Referências do corretor (D-86): imagens que ele admira, escolhidas na peça para a instrução.
+    referencias: (await Promise.all(arquivos.filter((a) => a.tipo === 'referencia').map(async (a) => ({ id: a.id, url: await url(req, a.arquivo) })))).filter((r) => r.url),
   };
 }
 
@@ -130,15 +135,19 @@ estudioRotas.post(
   }),
 );
 
-/** Logo ou foto do corretor (upload em 2 passos): troca o anterior. */
+/** Logo ou foto do corretor (upload em 2 passos): troca o anterior. Referência soma, até o limite. */
 estudioRotas.post(
   '/estudio/marca/arquivos',
   assincrono(async (req, res) => {
-    const tipo = ['logo', 'foto'].includes(req.body?.tipo) ? (req.body.tipo as string) : null;
+    const tipo = ['logo', 'foto', 'referencia'].includes(req.body?.tipo) ? (req.body.tipo as string) : null;
     const upload = id(req.body?.upload_id);
-    if (!tipo || !upload) return erro(res, 422, 'DADOS_INVALIDOS', 'Envie o logo ou a foto.');
+    if (!tipo || !upload) return erro(res, 422, 'DADOS_INVALIDOS', 'Envie o logo, a foto ou a referência.');
     const dados = req.dados!;
-    const atual = await primeiro(dados, 'marca_arquivos', { tipo, conta_id: contaDoRequest(req) });
+    if (tipo === 'referencia') {
+      const ja = await dados.listar('marca_arquivos', { filtros: { tipo, conta_id: contaDoRequest(req) }, por_pagina: 1 });
+      if (ja.total >= MAX_REFERENCIAS) return erro(res, 422, 'LIMITE', `Até ${MAX_REFERENCIAS} referências. Tire uma antes de enviar outra.`);
+    }
+    const atual = tipo === 'referencia' ? null : await primeiro(dados, 'marca_arquivos', { tipo, conta_id: contaDoRequest(req) });
     try {
       if (atual) await dados.atualizar('marca_arquivos', atual.id, { arquivo: upload });
       else await dados.criar('marca_arquivos', { tipo, arquivo: upload });
@@ -152,6 +161,21 @@ estudioRotas.post(
     if (tipo !== 'foto') return res.json(await marca(req));
     const ok = await ressincronizarMarca(req);
     res.json({ ...(await marca(req)), vitrine_desatualizada: !ok });
+  }),
+);
+
+/**
+ * Tira uma referência. `marca_arquivos` não tem soft delete: apagar leva o arquivo para a fila de
+ * exclusão (arquivos.md). Só referência sai por aqui; logo e foto se trocam enviando outro.
+ */
+estudioRotas.patch(
+  '/estudio/marca/arquivos/:id/remover',
+  assincrono(async (req, res) => {
+    const aid = id(req.params.id);
+    const ref = aid ? await req.dados!.buscar('marca_arquivos', aid) : null;
+    if (!ref || ref.tipo !== 'referencia' || Number(ref.conta_id) !== contaDoRequest(req)) return erro(res, 404, 'NAO_ENCONTRADO', 'Referência não encontrada.');
+    await req.dados!.deletar('marca_arquivos', ref.id);
+    res.json(await marca(req));
   }),
 );
 
@@ -384,20 +408,28 @@ estudioRotas.patch(
   }),
 );
 
-/** Pacote para o Canva IA (D-74): a instrução pronta e as fotos para anexar. */
+/**
+ * "Fazer em outra ferramenta" (D-74, D-86): a instrução pronta para a ferramenta escolhida
+ * (`?ferramenta=canva|claude_design|outra`), as fotos públicas e o logo para baixar e as referências
+ * escolhidas (`?referencias=1,2`), sempre só as da conta de escrita.
+ */
 estudioRotas.get(
-  '/estudio/pecas/:id/canva',
+  '/estudio/pecas/:id/instrucao',
   assincrono(async (req, res) => {
     const p = await pecaOu404(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
+    const ferramenta = ferramentaValida(req.query.ferramenta);
     const imovel = await imovelDaPeca(req, p.imovel_id ?? null);
     const m = await marca(req);
+    const pedidas = new Set(String(req.query.referencias ?? '').split(',').map(id).filter(Boolean));
+    const referencias = m.referencias.filter((r) => pedidas.has(r.id));
     const fotos = (imovel?.fotos ?? []).slice(0, p.formato === 'carrossel' ? MAX_SLIDES : 3);
-    const prompt = promptCanva(
-      { formato: p.formato, objetivo: p.objetivo, textos: { titulo: p.titulo, chamada: p.chamada ?? '', destaques: Array.isArray(p.destaques) ? p.destaques : [], legenda: p.legenda ?? '', hashtags: [] }, fotos: fotos.length },
+    const prompt = promptFerramenta(
+      ferramenta,
+      { formato: p.formato, objetivo: p.objetivo, textos: { titulo: p.titulo, chamada: p.chamada ?? '', destaques: Array.isArray(p.destaques) ? p.destaques : [], legenda: p.legenda ?? '', hashtags: [] }, fotos: fotos.length, referencias: referencias.map((r) => r.url!) },
       m,
       imovel?.arte ?? null,
     );
-    res.json({ prompt, fotos, logo_url: m.logo_url, abrir: 'https://www.canva.com/ai' });
+    res.json({ ferramenta, prompt, onde: FERRAMENTA[ferramenta].onde, fotos, logo_url: m.logo_url, referencias, abrir: FERRAMENTA[ferramenta].abrir });
   }),
 );

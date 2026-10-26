@@ -1,6 +1,8 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
+import { MAX_REFERENCIAS } from '../../comum/estudio';
 import { chamarApi, enviar, mensagemDeErro, subirArquivo } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -11,6 +13,8 @@ interface Marca {
   estilo: string;
   assinatura: string | null;
   logo_url: string | null;
+  /** Imagens que o corretor admira (D-86): entram, se ele marcar, na instrução de "Fazer em outra ferramenta". */
+  referencias: { id: number; url: string }[];
   /** Só em resposta que ressincronizou o que está no ar (salvar, foto, republicar): true = não acompanhou. Ausente (logo) = nada a dizer. */
   vitrine_desatualizada?: boolean;
 }
@@ -31,6 +35,8 @@ export class PcTelaMarca extends LitElement {
   /** Salvar gravou a marca, mas o que está no ar não acompanhou: fica até refazer dar certo. */
   @state() private desatualizada = false;
   @state() private refazendo = false;
+  /** Troca a cada envio de referência: o seletor volta vazio (ele também avisa quando um arquivo sai da lista). */
+  @state() private seletorRefs = 0;
 
   connectedCallback() {
     super.connectedCallback();
@@ -95,6 +101,27 @@ export class PcTelaMarca extends LitElement {
     await this.acao(async () => enviar('POST', '/estudio/marca/arquivos', { tipo, upload_id: await subirArquivo('marca_arquivos', 'arquivo', f) }), tipo === 'logo' ? 'Logo salvo.' : 'Foto salva.');
   }
 
+  /** Referências somam (até o limite), uma por arquivo escolhido. */
+  private async enviarReferencias(e: CustomEvent) {
+    const livres = MAX_REFERENCIAS - (this.marca?.referencias.length ?? 0);
+    const arquivos = ((e.detail.arquivos as File[]) ?? []).slice(0, Math.max(livres, 0));
+    if (!arquivos.length) {
+      if (livres <= 0) await urbiVerso.alertar({ titulo: 'Limite de referências', mensagem: `Até ${MAX_REFERENCIAS}. Tire uma antes de enviar outra.`, tipo: 'alerta' });
+      return;
+    }
+    await this.acao(async () => {
+      let r: Marca = this.marca!;
+      for (const f of arquivos) r = await enviar('POST', '/estudio/marca/arquivos', { tipo: 'referencia', upload_id: await subirArquivo('marca_arquivos', 'arquivo', f) });
+      return r;
+    }, arquivos.length > 1 ? 'Referências salvas.' : 'Referência salva.');
+    this.seletorRefs++;
+  }
+
+  private async tirarReferencia(id: number) {
+    const ok = await urbiVerso.confirmar({ titulo: 'Tirar referência', mensagem: 'A imagem sai das suas referências.', rotuloConfirmar: 'Tirar', perigo: true });
+    if (ok) await this.acao(() => enviar('PATCH', `/estudio/marca/arquivos/${id}/remover`), 'Referência tirada.');
+  }
+
   render() {
     if (this.falha) {
       return html`<urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner>`;
@@ -115,6 +142,22 @@ export class PcTelaMarca extends LitElement {
         <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Sua foto (opcional)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('foto', e)}></urbi-seletor-arquivo>
       </urbi-linha>
       <urbi-prosa papel="dica">Esta marca vale em todo lugar: nas artes do Estúdio, na sua página, nas seleções e no portal do cliente. A cor principal e a sua foto aparecem para o cliente; salvar já atualiza o que está no ar e, se não conseguir, avisa aqui.</urbi-prosa>
+    </urbi-card>
+    <urbi-card titulo="Referências" icone="fa-solid fa-images">
+      ${m.referencias.length
+        ? html`<urbi-linha quebrar>
+            ${m.referencias.map(
+              (r, i) => html`<urbi-linha>
+                <urbi-avatar nome=${`Referência ${i + 1}`} foto=${r.url} tamanho="56"></urbi-avatar>
+                <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-trash" ariaLabel=${`Tirar a referência ${i + 1}`} title="Tirar" @click=${() => this.tirarReferencia(r.id)}></urbi-botao>
+              </urbi-linha>`,
+            )}
+          </urbi-linha>`
+        : ''}
+      ${m.referencias.length < MAX_REFERENCIAS
+        ? keyed(this.seletorRefs, html`<urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" multiplo dica=${`Posts ou artes que você admira (até ${MAX_REFERENCIAS})`} @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarReferencias(e)}></urbi-seletor-arquivo>`)
+        : ''}
+      <urbi-prosa papel="dica">Só você vê. No Estúdio, "Fazer em outra ferramenta" pergunta quais referências entram na instrução, como inspiração de estilo.</urbi-prosa>
     </urbi-card>`;
   }
 }
