@@ -68,19 +68,23 @@ Enquanto a peça não tem arte, ela mostra **falta a arte** e os três passos, n
 
 1. **Copiar descrição** (o botão principal) e **Abrir o Canva** ("O que vamos criar hoje?") numa
    aba. **Ver descrição e fotos** mostra o texto inteiro na peça. A descrição é curta e sempre na
-   mesma ordem, para o Canva não precisar adivinhar:
-   - a primeira linha diz o que é e o tamanho (por exemplo "Post de Instagram, 1080 x 1080 px");
-   - **Textos da arte**: selo, título, destaques, preço, local, chamada e rodapé (nome, CRECI se
-     cadastrado e assinatura), para usar exatamente como estão;
-   - **Fotos**: usar as fotos anexadas sem alterar nada (sem foto do imóvel, um fundo com as cores
-     da marca);
+   mesma ordem, para o Canva não precisar adivinhar. As **instruções vão em inglês**, que as
+   ferramentas de IA seguem com mais precisão; o **texto que aparece na arte vai em português**,
+   entre aspas, com o pedido de não traduzir nem acrescentar nada:
+   - a primeira linha diz o que é e o tamanho (por exemplo "Instagram post, 1080 x 1080 px");
+   - **Text on the art** (o texto da arte): selo, título, destaques, preço, local, chamada e rodapé
+     (nome, CRECI se cadastrado e assinatura), em português, para usar exatamente como estão;
+   - **Photos** (fotos): usar as fotos anexadas sem alterar nada (sem foto do imóvel, um fundo com
+     as cores da marca);
    - **Slides** (só no carrossel): capa, um slide por foto com um destaque e o fechamento com a
      chamada e o logo;
    - **Visual**: estilo e cores da marca, título legível no celular, logo no canto quando houver e,
      no story, o topo e a base livres para os botões do Instagram;
-   - **Referências de estilo**: as suas, por link (valem por uma hora);
-   - **Não faça**: endereço completo, telefone de terceiros, nome de proprietário, promessa de
-     valorização ou texto além dos listados.
+   - **Style references** (referências de estilo): as suas, por link (valem por uma hora);
+   - **Do not** (não faça): endereço completo, telefone de terceiros, nome de proprietário,
+     promessa de valorização ou texto além dos listados.
+
+   A legenda do Instagram continua toda em português.
 2. No Canva, cole a descrição e anexe as fotos: as fotos públicas do imóvel e o seu logo aparecem
    na peça, em **Foto 1**, **Foto 2**… e **Logo**, para abrir e baixar.
 3. Baixe a arte pronta (JPG ou PNG) e use **Enviar a arte do Canva**, logo abaixo: clique ou
@@ -89,7 +93,7 @@ Enquanto a peça não tem arte, ela mostra **falta a arte** e os três passos, n
 
 **Outra ferramenta:** prefere Claude Design ou outra? Use **Mais › Usar outra ferramenta**, escolha
 a ferramenta e marque as referências que entram. A descrição da peça muda para ela (para Claude
-Design e outra ferramenta, pede também a arte final em JPG ou PNG no tamanho exato) e o envio passa
+Design e outra ferramenta, pede também a arte final em JPG ou PNG no tamanho exato, em inglês como o resto das instruções) e o envio passa
 a dizer o nome dela. Nas outras ferramentas não há link: abra a ferramenta você mesmo.
 
 Mudou os textos? A descrição muda junto: copie de novo e refaça a arte. Com a arte já enviada,

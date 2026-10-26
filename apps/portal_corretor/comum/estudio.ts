@@ -213,10 +213,11 @@ export const FERRAMENTA: Record<Ferramenta, { rotulo: string; onde: string; abri
 export const ferramentaValida = (v: unknown): Ferramenta => ((FERRAMENTAS as readonly string[]).includes(v as string) ? (v as Ferramenta) : 'canva');
 
 /**
- * Descrição da arte (D-74, D-86, D-89, D-90): o texto que o corretor cola no Canva IA (ou em outra
- * ferramenta), claro e objetivo, em blocos fixos (o que é, textos exatos, fotos, slides, visual, o que
- * não fazer), para a ferramenta gerar a arte sem adivinhar. As fotos e o logo vão anexados à parte;
- * as referências do corretor entram por link, como inspiração de estilo.
+ * Descrição da arte (D-74, D-86, D-89, D-90, D-91): o texto que o corretor cola no Canva IA (ou em
+ * outra ferramenta), em blocos fixos (o que é, texto da arte, fotos, slides, visual, referências, o
+ * que não fazer). Mista: as instruções vão em inglês, que as ferramentas de IA seguem com mais
+ * precisão, e o texto que aparece na arte vai em português do Brasil, entre aspas, para não ser
+ * traduzido. As fotos e o logo vão anexados à parte; as referências entram por link.
  */
 export function promptFerramenta(
   ferramenta: Ferramenta,
@@ -227,51 +228,53 @@ export function promptFerramenta(
   const tam = TAMANHO[p.formato];
   const refs = p.referencias ?? [];
   const slides = Math.min(Math.max(p.fotos, 2), MAX_SLIDES);
-  const peca = p.formato === 'carrossel' ? `Carrossel de Instagram com ${slides} slides` : p.formato === 'story' ? 'Story de Instagram' : 'Post de Instagram';
+  const peca = p.formato === 'carrossel' ? `Instagram carousel with ${slides} slides` : p.formato === 'story' ? 'Instagram story' : 'Instagram post';
   const preco = im?.preco_c && p.objetivo !== 'vendido' ? reaisCurto(im.preco_c) : null;
   const local = im ? [im.bairro, im.cidade].filter(Boolean).join(', ') : '';
   const rodape = [marca.nome, marca.creci ? `CRECI ${marca.creci}` : null, marca.assinatura].filter(Boolean).join(' · ');
-  const item = (rotulo: string, valor: string | null | undefined) => (valor ? `- ${rotulo}: ${valor}` : null);
+  const item = (rotulo: string, valor: string | null | undefined) => (valor ? `- ${rotulo}: "${valor}"` : null);
   const linhas: (string | null)[] = [
-    `${peca}, ${tam.largura} x ${tam.altura} px, para um corretor de imóveis.`,
+    `${peca}, ${tam.largura} x ${tam.altura} px, for a real estate agent in Brazil.`,
     '',
-    'TEXTOS DA ARTE (use exatamente estes, sem acrescentar outros):',
-    item('Selo', SELO[p.objetivo]),
-    item('Título', p.textos.titulo),
-    item('Destaques', p.textos.destaques.join(' · ')),
-    item('Preço', preco),
-    item('Local', local),
-    item('Chamada', p.textos.chamada),
-    item('Rodapé', rodape),
+    'TEXT ON THE ART (keep exactly as written, in Brazilian Portuguese; do not translate and do not add other text):',
+    item('Badge', SELO[p.objetivo]),
+    item('Title', p.textos.titulo),
+    item('Highlights', p.textos.destaques.join(' · ')),
+    item('Price', preco),
+    item('Location', local),
+    item('Call to action', p.textos.chamada),
+    item('Footer', rodape),
     '',
-    'FOTOS:',
+    'PHOTOS:',
     !p.fotos
-      ? '- Não há foto do imóvel: use um fundo com as cores da marca e formas simples, sem foto que pareça ser o imóvel.'
+      ? '- There is no photo of the property: use a background with the brand colors and simple shapes, with no photo that looks like the property.'
       : p.formato === 'carrossel'
-        ? `- Use as ${p.fotos} fotos anexadas do imóvel, uma por slide, na ordem enviada.`
+        ? `- Use the ${p.fotos} attached photos of the property, one per slide, in the order sent.`
         : p.fotos === 1
-          ? '- Use a foto anexada do imóvel como imagem principal.'
-          : `- Use a primeira das ${p.fotos} fotos anexadas como imagem principal; as outras, só como apoio, se couberem.`,
-    p.fotos ? '- Não altere as fotos: nada de mobília, cômodos, vista ou acabamento que o imóvel não tem.' : null,
+          ? '- Use the attached photo of the property as the main image.'
+          : `- Use the first of the ${p.fotos} attached photos as the main image; the others only as support, if they fit.`,
+    p.fotos ? '- Do not alter the photos: no furniture, rooms, views or finishes the property does not have.' : null,
   ];
   if (p.formato === 'carrossel') {
-    linhas.push('', 'SLIDES:', '1. Capa: foto principal, selo, título, preço e local.');
-    for (let i = 2; i < slides; i++) linhas.push(`${i}. Uma foto com um destaque em letra grande.`);
-    linhas.push(`${slides}. Fechamento: chamada e rodapé em destaque, com o logo.`);
+    linhas.push('', 'SLIDES:', '1. Cover: main photo, badge, title, price and location.');
+    for (let i = 2; i < slides; i++) linhas.push(`${i}. One photo with one highlight in large type.`);
+    linhas.push(`${slides}. Closing: call to action and footer in focus, with the logo.`);
   }
   linhas.push(
     '',
     'VISUAL:',
-    `- Estilo ${marca.estilo}. Cor principal ${marca.cor_primaria} e cor de apoio ${marca.cor_secundaria}.`,
-    '- Título grande e fácil de ler no celular; preço em destaque; no máximo duas fontes.',
-    p.logo ? '- Logo anexado no canto inferior, sem distorcer.' : null,
-    p.formato === 'story' ? '- Deixe livres cerca de 250 px no topo e na base (área dos botões do Instagram).' : null,
-    ferramenta === 'canva' ? null : `- Entregue a arte final em JPG ou PNG, exatamente em ${tam.largura} x ${tam.altura} px${p.formato === 'carrossel' ? ', uma imagem por slide' : ''}.`,
+    `- ${ROTULO_ESTILO_EN[marca.estilo] ?? marca.estilo} style. Primary color ${marca.cor_primaria}, accent color ${marca.cor_secundaria}.`,
+    '- Large title, easy to read on a phone; highlight the price; at most two fonts.',
+    p.logo ? '- Place the attached logo in the bottom corner, without distortion.' : null,
+    p.formato === 'story' ? "- Keep about 250 px free at the top and bottom (Instagram's button area)." : null,
+    ferramenta === 'canva' ? null : `- Deliver the final art as JPG or PNG, exactly ${tam.largura} x ${tam.altura} px${p.formato === 'carrossel' ? ', one image per slide' : ''}.`,
   );
-  if (refs.length) linhas.push('', 'REFERÊNCIAS DE ESTILO (inspiração de composição e clima; não copie textos, fotos nem marcas delas):', ...refs.map((u, i) => `${i + 1}. ${u}`));
-  linhas.push('', 'NÃO FAÇA:', '- Endereço completo, telefone de terceiros, nome de proprietário ou promessa de valorização.', '- Texto além dos listados acima.');
+  if (refs.length) linhas.push('', 'STYLE REFERENCES (inspiration for composition and mood; do not copy their text, photos or brands):', ...refs.map((u, i) => `${i + 1}. ${u}`));
+  linhas.push('', 'DO NOT:', '- Full address, third-party phone numbers, owner names or promises of appreciation.', '- Any text other than the one listed above.');
   return linhas.filter((l) => l !== null).join('\n');
 }
+
+const ROTULO_ESTILO_EN: Record<string, string> = { moderno: 'Modern', classico: 'Classic', minimalista: 'Minimalist' };
 
 export interface Checagem {
   ok: boolean;
