@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
 import { abrirAssistenteSobre } from './assistente.js';
+import { OBJETIVOS_MENSAGEM } from '../../comum/mensagens';
 import { tarefaDaAbordagem } from '../../comum/funil';
 import { PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
@@ -25,6 +26,8 @@ interface Ficha {
 interface Sugestao {
   mensagem: string;
   ia: boolean;
+  /** `playbook` ou um dos objetivos de um toque. */
+  objetivo: string;
 }
 
 const CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
@@ -287,13 +290,17 @@ export class PcTelaFichaContato extends LitElement {
     }
   }
 
-  /** Mensagem sugerida (slot `funil`); sem IA, a rota devolve o texto do playbook. */
-  private async sugerir() {
+  /**
+   * Mensagem sugerida (slot `funil`): pela abordagem do playbook ou por um objetivo de um toque
+   * (Apresentação, Retorno…). Sem IA, a rota devolve o texto do playbook ou o modelo do objetivo.
+   * Sem abordagem (nenhum negócio aberto), começa pelo Retorno.
+   */
+  private async sugerir(objetivo = this.ficha?.abordagem ? 'playbook' : 'retorno') {
     if (this.sugerindo) return;
     this.sugerindo = true;
     try {
-      const r = await chamarApi(`/contatos/${this.contatoId}/mensagem-sugerida`);
-      this.sugestao = { mensagem: r.mensagem, ia: !!r.ia };
+      const r = await chamarApi(`/contatos/${this.contatoId}/mensagem-sugerida${objetivo === 'playbook' ? '' : `?objetivo=${objetivo}`}`);
+      this.sugestao = { mensagem: r.mensagem, ia: !!r.ia, objetivo };
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível sugerir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
@@ -447,18 +454,23 @@ export class PcTelaFichaContato extends LitElement {
           ${this.ia.resumo
             ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.resumindo} @click=${() => this.resumir()}>Resumir</urbi-botao>`
             : ''}
+          <urbi-botao pequeno variante="secundario" icone="fa-solid fa-message" ?carregando=${this.sugerindo} @click=${() => this.sugerir()}>Mensagem sugerida</urbi-botao>
           ${a
-            ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-message" ?carregando=${this.sugerindo} @click=${() => this.sugerir()}>Mensagem sugerida</urbi-botao>
-                <urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" ?carregando=${this.criandoTarefa} @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>`
+            ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" ?carregando=${this.criandoTarefa} @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>`
             : ''}
         </urbi-linha>
         ${this.resumo
           ? html`<urbi-prosa papel="dica">${this.resumo}</urbi-prosa>
               <urbi-prosa papel="fraco">Resumo feito pela IA agora, a partir do histórico; não fica gravado.</urbi-prosa>`
           : ''}
-        ${this.sugestao && a
-          ? html`<urbi-prosa pre>${this.sugestao.mensagem}</urbi-prosa>
-              <urbi-prosa papel="fraco">${this.sugestao.ia ? 'Escrita pela IA a partir do playbook e do histórico: revise antes de enviar.' : 'Texto do playbook (a IA da mensagem sugerida não está liberada).'}</urbi-prosa>
+        ${this.sugestao
+          ? html`<urbi-chips-atalho ativo=${this.sugestao.objetivo}
+                .opcoes=${[...(a ? [{ id: 'playbook', rotulo: 'Pelo playbook' }] : []), ...Object.entries(OBJETIVOS_MENSAGEM).map(([id, rotulo]) => ({ id, rotulo }))]}
+                @urbi:chip-atalho:click=${(e: CustomEvent) => void this.sugerir(e.detail.id)}></urbi-chips-atalho>
+              <urbi-prosa pre>${this.sugestao.mensagem}</urbi-prosa>
+              <urbi-prosa papel="fraco">${this.sugestao.ia
+                ? `Escrita pela IA a partir ${this.sugestao.objetivo === 'playbook' ? 'do playbook' : 'do objetivo'} e do histórico: revise antes de enviar.`
+                : this.sugestao.objetivo === 'playbook' ? 'Texto do playbook (a IA da mensagem sugerida não está liberada).' : 'Modelo pronto (a IA da mensagem sugerida não está liberada): ajuste ao seu jeito.'}</urbi-prosa>
               <urbi-linha quebrar>
                 <urbi-botao pequeno icone=${temTelefone ? 'fa-brands fa-whatsapp' : 'fa-solid fa-copy'} @click=${() => this.fazerAgora()}>${temTelefone ? 'Fazer agora' : 'Copiar texto'}</urbi-botao>
                 ${temTelefone ? html`<urbi-botao pequeno variante="texto" @click=${() => this.copiar(this.sugestao!.mensagem)}>Copiar</urbi-botao>` : ''}

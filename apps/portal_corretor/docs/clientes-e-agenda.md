@@ -56,7 +56,9 @@ Abrir um contato mostra a ficha. No topo, o essencial:
 - três botões: **Resumir** (a IA resume o histórico em até três frases; só aparece com a IA do
   Assistente liberada, e o resumo não fica gravado), **Mensagem sugerida** e **Virar tarefa** (ver
   [Próxima abordagem](funil.md#próxima-abordagem)). Sem negócio em andamento, ou sem linha do playbook para a etapa e a
-  temperatura dele, não há abordagem, e os dois últimos não aparecem.
+  temperatura dele, não há abordagem: **Virar tarefa** não aparece, e a **Mensagem sugerida** começa
+  pelo objetivo **Retorno** (troque nos objetivos de um toque: Apresentação, Retorno, Ainda
+  procurando? e Manter contato).
 
 Ao lado do botão **Registrar contato** (nota livre, que vai para a linha do tempo), o menu **Mais**
 traz Perguntar ao Assistente e **Remover contato**; com abordagem, também
