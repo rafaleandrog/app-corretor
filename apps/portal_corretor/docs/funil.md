@@ -84,8 +84,7 @@ Fila vazia mostra "Nada urgente agora" e o botão **Ver a agenda**.
 Ela só carrega quando você abre a aba. O endereço `/agenda` abre o Início direto nessa aba.
 
 Os banners "complete a conta" e, nas contas de teste, "gerar dados de demonstração" aparecem acima
-da faixa enquanto valem. Enquanto Empreendimentos não vira aba de Imóveis, o link
-**Empreendimentos** fica no pé do Início.
+da faixa enquanto valem. Empreendimentos fica na aba de mesmo nome em **Imóveis**.
 
 As passagens do atendimento automático, as peças aguardando aprovação e os frios que reagiram a um
 envio entram na fila com o WhatsApp, com o Estúdio e com os envios rastreados.

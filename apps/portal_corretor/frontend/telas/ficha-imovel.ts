@@ -1,7 +1,8 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
+import { secaoDaFalta } from '../../comum/imoveis';
+import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -29,8 +30,8 @@ const SITUACAO_AUTORIZACAO: Record<string, { rotulo: string; cor: string }> = {
 const hojeIso = () => new Date().toLocaleDateString('sv-SE');
 const mais = (dias: number) => new Date(Date.now() + dias * 86400e3).toLocaleDateString('sv-SE');
 
-// Ficha do imóvel: fotos primeiro (cadastro rápido), dados, qualidade com o que falta,
-// descrição com IA, autorização de venda, visitas e negócios. Publicar pede autorização vigente.
+// Ficha do imóvel: o que falta no anúncio, dados, fotos (cadastro rápido), descrição com IA,
+// autorização de venda, visitas e negócios. Publicar pede autorização vigente.
 @customElement('pc-tela-ficha-imovel')
 export class PcTelaFichaImovel extends LitElement {
   @property({ type: Number }) imovelId = 0;
@@ -402,6 +403,44 @@ export class PcTelaFichaImovel extends LitElement {
     return html`<span slot="acoes"><urbi-botao variante="fantasma" pequeno icone=${icone} ariaLabel=${rotulo} title=${rotulo} @click=${fn}></urbi-botao></span>`;
   }
 
+  // ---------- O que falta ----------
+
+  /** Cada pendência leva à seção que a resolve: abre o formulário dela ou rola até o cartão. */
+  private resolver(falta: string) {
+    switch (secaoDaFalta(falta)) {
+      case 'dados':
+        return void this.editar();
+      case 'descricao':
+        return this.editarDescricao();
+      case 'autorizacao': {
+        const aberta = this.ficha!.autorizacoes.find((a) => ['rascunho', 'enviada'].includes(a.situacao));
+        return void (aberta ? this.assinar(aberta) : this.novaAutorizacao());
+      }
+      case 'conta':
+        return urbiVerso.navegarSub('/ajustes/conta');
+      case 'fotos':
+        return this.renderRoot.querySelector('#fotos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  private oQueFalta(qualidade: Ficha['qualidade']) {
+    if (!qualidade.faltas.length) return '';
+    return html`<urbi-card titulo="O que falta no anúncio" icone="fa-solid fa-list-check">
+      <span slot="acoes"><urbi-badge cor=${corQualidade(qualidade.nota)} title="Qualidade do anúncio">${qualidade.nota}</urbi-badge></span>
+      <urbi-lista separador clicavel .itens=${qualidade.faltas}
+        .render_item=${(f: string) => html`<urbi-linha justificar="entre">
+          <urbi-prosa>${f}</urbi-prosa>
+          <urbi-icone classe="fa-solid fa-chevron-right"></urbi-icone>
+        </urbi-linha>`}
+        @urbi:lista-click=${(e: CustomEvent) => this.resolver(e.detail.item as string)}></urbi-lista>
+    </urbi-card>`;
+  }
+
+  // ---------- Tela ----------
+
+  // Ficha (D-84, spec 11.1): "o que falta" no topo; uma ação principal (publicar ou tirar da página)
+  // e o resto em "Mais"; os cartões mostram um resumo e guardam a lista no `detalhe`, recolhido.
+  // Sem foto, fotos e arquivos ficam abertos: é por onde o cadastro continua.
   render() {
     const banner = this.falha
       ? html`<urbi-banner variante="erro">
@@ -421,18 +460,22 @@ export class PcTelaFichaImovel extends LitElement {
       im.banheiros != null ? `${im.banheiros} banheiro(s)` : null,
       im.vagas != null ? `${im.vagas} vaga(s)` : null,
     ].filter(Boolean);
+    const fotos = midias.filter((m) => m.tipo === 'foto').length;
+    const principal: Acao = im.publicado_pagina
+      ? { rotulo: 'Tirar da página', icone: 'fa-solid fa-eye-slash', aoEscolher: () => void this.publicar(false) }
+      : { rotulo: 'Publicar na página', icone: 'fa-solid fa-globe', aoEscolher: () => void this.publicar(true) };
+    const tabelaMidias = midias.length ? html`<urbi-tabela responsivo="multiline" .colunas=${this.colunasMidias()} .linhas=${midias}></urbi-tabela>` : '';
     return html`<urbi-stack>
       ${banner}
       <urbi-linha justificar="entre" quebrar>
         <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/imoveis')}>Imóveis</urbi-botao>
-        <urbi-linha quebrar>
-          <urbi-botao variante="secundario" pequeno icone="fa-solid fa-flag" @click=${() => this.situacao()}>Situação</urbi-botao>
-          ${im.publicado_pagina
-            ? html`<urbi-botao variante="secundario" pequeno icone="fa-solid fa-eye-slash" @click=${() => this.publicar(false)}>Tirar da página</urbi-botao>`
-            : html`<urbi-botao pequeno icone="fa-solid fa-globe" @click=${() => this.publicar(true)}>Publicar na página</urbi-botao>`}
-          <urbi-botao variante="perigo" pequeno icone="fa-solid fa-trash" @click=${() => this.remover()}>Remover</urbi-botao>
-        </urbi-linha>
+        ${acoesComMais(principal, [
+          { rotulo: 'Editar dados', icone: 'fa-solid fa-pen', aoEscolher: () => void this.editar() },
+          { rotulo: 'Situação', icone: 'fa-solid fa-flag', aoEscolher: () => void this.situacao() },
+          { rotulo: 'Remover', icone: 'fa-solid fa-trash', perigo: true, aoEscolher: () => void this.remover() },
+        ])}
       </urbi-linha>
+      ${this.oQueFalta(qualidade)}
       <urbi-card titulo=${`${im.codigo} · ${im.titulo ?? ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo}`} icone="fa-solid fa-house">
         ${this.acao('Editar dados', 'fa-solid fa-pen', () => this.editar())}
         <urbi-linha quebrar>
@@ -450,27 +493,28 @@ export class PcTelaFichaImovel extends LitElement {
         ${im.empreendimento_nome ? html`<urbi-prosa papel="secundario">Empreendimento: ${im.empreendimento_nome}</urbi-prosa>` : ''}
         ${im.caracteristicas ? html`<urbi-prosa papel="dica">${im.caracteristicas}</urbi-prosa>` : ''}
       </urbi-card>
-      ${qualidade.faltas.length
-        ? html`<urbi-card titulo="O que falta no anúncio" icone="fa-solid fa-list-check">
-            <urbi-lista separador .itens=${qualidade.faltas} .render_item=${(f: string) => html`<urbi-prosa>${f}</urbi-prosa>`}></urbi-lista>
-          </urbi-card>`
-        : ''}
-      <urbi-card titulo="Fotos e arquivos" icone="fa-solid fa-images">
-        ${this.ia.fotos && midias.some((m) => m.tipo === 'foto')
-          ? html`<span slot="acoes"><urbi-botao variante="texto" pequeno icone="fa-solid fa-wand-magic-sparkles"
-              @click=${() => this.tentar('Não foi possível ordenar', () => enviar('POST', `/imoveis/${this.imovelId}/midias/ordem-sugerida`, {}))}>Ordem sugerida</urbi-botao></span>`
+      <urbi-card id="fotos" titulo="Fotos e arquivos" icone="fa-solid fa-images">
+        ${this.ia.fotos && fotos
+          ? html`<span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-wand-magic-sparkles" ariaLabel="Ordem sugerida" title="Ordem sugerida"
+              @click=${() => this.tentar('Não foi possível ordenar', () => enviar('POST', `/imoveis/${this.imovelId}/midias/ordem-sugerida`, {}))}></urbi-botao></span>`
           : ''}
         <urbi-seletor-arquivo drop multiplo accept="image/jpeg,image/png,image/webp,video/mp4,application/pdf" ?desabilitado=${!!this.enviando}
           dica="Fotos (JPG, PNG, WEBP), vídeo MP4 ou PDF — até 25 MB cada. A primeira foto é a capa."
           @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivos(e)}></urbi-seletor-arquivo>
         ${this.enviando ? html`<urbi-prosa papel="secundario">${this.enviando}</urbi-prosa>` : ''}
-        ${midias.length
-          ? html`<urbi-tabela responsivo="multiline" .colunas=${this.colunasMidias()} .linhas=${midias}></urbi-tabela>`
-          : html`<urbi-prosa papel="dica">Nenhum arquivo. Comece pelas fotos: com 8 ou mais o anúncio ganha pontos de qualidade.</urbi-prosa>`}
+        ${!midias.length
+          ? html`<urbi-prosa papel="dica">Nenhum arquivo. Comece pelas fotos: com 8 ou mais o anúncio ganha pontos de qualidade.</urbi-prosa>`
+          : fotos
+            ? html`<urbi-prosa papel="secundario">${fotos} foto(s), ${this.ficha.fotos_publicas} no anúncio · ${midias.length} arquivo(s) no total</urbi-prosa>
+                <div slot="detalhe">${tabelaMidias}</div>`
+            : tabelaMidias}
       </urbi-card>
       <urbi-card titulo="Descrição" icone="fa-solid fa-align-left">
         ${this.acao('Editar descrição', 'fa-solid fa-pen', () => this.editarDescricao())}
-        ${im.descricao ? html`<urbi-prosa pre>${im.descricao}</urbi-prosa>` : html`<urbi-prosa papel="dica">Sem descrição.</urbi-prosa>`}
+        ${im.descricao
+          ? html`<urbi-prosa papel="secundario">${im.descricao.length} caracteres${im.descricao.length < 400 ? ' (com 400 ou mais o anúncio ganha pontos)' : ''}</urbi-prosa>
+              <div slot="detalhe"><urbi-prosa pre>${im.descricao}</urbi-prosa></div>`
+          : html`<urbi-prosa papel="dica">Sem descrição.</urbi-prosa>`}
         ${this.ia.conteudo
           ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.escrevendo} @click=${() => this.escreverComIa()}>Escrever com IA</urbi-botao></urbi-linha>`
           : ''}
@@ -478,52 +522,64 @@ export class PcTelaFichaImovel extends LitElement {
       <urbi-card titulo="Autorização de venda" icone="fa-solid fa-file-signature">
         ${this.acao('Nova autorização', 'fa-solid fa-plus', () => this.novaAutorizacao())}
         ${autorizacoes.length
-          ? html`<urbi-lista separador .itens=${autorizacoes} .render_item=${(a: Linha) => {
-              const sa = SITUACAO_AUTORIZACAO[a.situacao_efetiva] ?? { rotulo: a.situacao_efetiva, cor: 'padrao' };
-              return html`<urbi-linha justificar="entre" quebrar>
-                <urbi-stack>
-                  <urbi-prosa>${data(a.inicio)} a ${data(a.fim)} · ${a.exclusiva ? 'exclusiva' : 'sem exclusividade'} · ${Number(a.comissao_pct)}% · ${reais(a.preco_autorizado_c)}</urbi-prosa>
-                  <urbi-prosa papel="fraco">${a.proprietario_nome ?? ''}${a.permite_parceria ? ' · aceita parceria' : ''}${a.permite_portais ? ' · portais' : ''}${a.permite_placa ? ' · placa' : ''}</urbi-prosa>
-                </urbi-stack>
-                <urbi-linha quebrar>
-                  <urbi-badge cor=${sa.cor}>${sa.rotulo}</urbi-badge>
-                  ${['rascunho', 'enviada'].includes(a.situacao) ? html`<urbi-botao variante="texto" pequeno @click=${() => this.assinar(a)}>Marcar assinada</urbi-botao>` : ''}
-                  ${a.situacao !== 'revogada' ? html`<urbi-botao variante="texto" pequeno @click=${() => this.revogar(a)}>Revogar</urbi-botao>` : ''}
-                </urbi-linha>
-              </urbi-linha>`;
-            }}></urbi-lista>`
+          ? html`<urbi-prosa papel="secundario">${this.ficha.autorizacao_vigente ? 'Assinada e vigente.' : 'Nenhuma assinada e vigente.'} ${autorizacoes.length} registrada(s).</urbi-prosa>
+              <div slot="detalhe">
+                <urbi-lista separador .itens=${autorizacoes} .render_item=${(a: Linha) => {
+                  const sa = SITUACAO_AUTORIZACAO[a.situacao_efetiva] ?? { rotulo: a.situacao_efetiva, cor: 'padrao' };
+                  return html`<urbi-linha justificar="entre" quebrar>
+                    <urbi-stack>
+                      <urbi-prosa>${data(a.inicio)} a ${data(a.fim)} · ${a.exclusiva ? 'exclusiva' : 'sem exclusividade'} · ${Number(a.comissao_pct)}% · ${reais(a.preco_autorizado_c)}</urbi-prosa>
+                      <urbi-prosa papel="fraco">${a.proprietario_nome ?? ''}${a.permite_parceria ? ' · aceita parceria' : ''}${a.permite_portais ? ' · portais' : ''}${a.permite_placa ? ' · placa' : ''}</urbi-prosa>
+                    </urbi-stack>
+                    <urbi-linha quebrar>
+                      <urbi-badge cor=${sa.cor}>${sa.rotulo}</urbi-badge>
+                      ${['rascunho', 'enviada'].includes(a.situacao) ? html`<urbi-botao variante="texto" pequeno @click=${() => this.assinar(a)}>Marcar assinada</urbi-botao>` : ''}
+                      ${a.situacao !== 'revogada' ? html`<urbi-botao variante="texto" pequeno @click=${() => this.revogar(a)}>Revogar</urbi-botao>` : ''}
+                    </urbi-linha>
+                  </urbi-linha>`;
+                }}></urbi-lista>
+              </div>`
           : html`<urbi-prosa papel="dica">Sem autorização. Para anunciar, registre a autorização e anexe o documento assinado.</urbi-prosa>`}
       </urbi-card>
       <urbi-card titulo="Visitas" icone="fa-solid fa-door-open">
         ${visitas.length
-          ? html`<urbi-lista separador .itens=${visitas} .render_item=${(v: Linha) => html`<urbi-stack>
-                <urbi-linha justificar="entre" quebrar>
-                  <urbi-prosa>${dataHora(v.quando)}${v.contato_nome ? ` · ${v.contato_nome}` : ''}</urbi-prosa>
-                  ${v.contato_id ? html`<urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${v.contato_id}`)}>Ver cliente</urbi-botao>` : ''}
-                </urbi-linha>
-                ${v.feedback_em
-                  ? html`<urbi-prosa papel="secundario">${v.feedback_nota ? `Nota ${v.feedback_nota}/5. ` : ''}${v.feedback_texto ?? ''}${v.compartilhar_com_proprietario ? '' : ' (não compartilhar com o proprietário)'}</urbi-prosa>`
-                  : html`<urbi-prosa papel="fraco">Sem retorno registrado.</urbi-prosa>`}
-              </urbi-stack>`}></urbi-lista>`
+          ? html`<urbi-prosa papel="secundario">${visitas.length} visita(s).</urbi-prosa>
+              <div slot="detalhe">
+                <urbi-lista separador .itens=${visitas} .render_item=${(v: Linha) => html`<urbi-stack>
+                    <urbi-linha justificar="entre" quebrar>
+                      <urbi-prosa>${dataHora(v.quando)}${v.contato_nome ? ` · ${v.contato_nome}` : ''}</urbi-prosa>
+                      ${v.contato_id ? html`<urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${v.contato_id}`)}>Ver cliente</urbi-botao>` : ''}
+                    </urbi-linha>
+                    ${v.feedback_em
+                      ? html`<urbi-prosa papel="secundario">${v.feedback_nota ? `Nota ${v.feedback_nota}/5. ` : ''}${v.feedback_texto ?? ''}${v.compartilhar_com_proprietario ? '' : ' (não compartilhar com o proprietário)'}</urbi-prosa>`
+                      : html`<urbi-prosa papel="fraco">Sem retorno registrado.</urbi-prosa>`}
+                  </urbi-stack>`}></urbi-lista>
+              </div>`
           : html`<urbi-prosa papel="dica">Nenhuma visita. Agende pela ficha do cliente, escolhendo este imóvel.</urbi-prosa>`}
       </urbi-card>
       <urbi-card titulo="Enviado a" icone="fa-solid fa-paper-plane">
         ${this.envios.length
-          ? html`<urbi-lista separador .itens=${this.envios} .render_item=${(e: Linha) => html`<urbi-linha justificar="entre" quebrar>
-                <urbi-prosa>${e.contato_nome ?? 'Cliente'} · ${dataHora(e.enviado_em)}</urbi-prosa>
-                <urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${e.contato_id}`)}>Ver cliente</urbi-botao>
-              </urbi-linha>`}></urbi-lista>`
+          ? html`<urbi-prosa papel="secundario">Enviado a ${this.envios.length} cliente(s).</urbi-prosa>
+              <div slot="detalhe">
+                <urbi-lista separador .itens=${this.envios} .render_item=${(e: Linha) => html`<urbi-linha justificar="entre" quebrar>
+                    <urbi-prosa>${e.contato_nome ?? 'Cliente'} · ${dataHora(e.enviado_em)}</urbi-prosa>
+                    <urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${e.contato_id}`)}>Ver cliente</urbi-botao>
+                  </urbi-linha>`}></urbi-lista>
+              </div>`
           : html`<urbi-prosa papel="dica">Ainda não foi enviado a nenhum cliente. Registre o envio pela ficha do cliente.</urbi-prosa>`}
       </urbi-card>
       <urbi-card titulo="Negócios" icone="fa-solid fa-handshake">
         ${negocios.length
-          ? html`<urbi-lista separador .itens=${negocios} .render_item=${(n: Linha) => html`<urbi-linha justificar="entre" quebrar>
-                <urbi-prosa>${n.titulo}</urbi-prosa>
-                <urbi-linha>
-                  <urbi-badge>${n.etapa_nome ?? ''}</urbi-badge>
-                  <urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${n.contato_id}`)}>Ver cliente</urbi-botao>
-                </urbi-linha>
-              </urbi-linha>`}></urbi-lista>`
+          ? html`<urbi-prosa papel="secundario">${negocios.length} negócio(s) ligado(s).</urbi-prosa>
+              <div slot="detalhe">
+                <urbi-lista separador .itens=${negocios} .render_item=${(n: Linha) => html`<urbi-linha justificar="entre" quebrar>
+                    <urbi-prosa>${n.titulo}</urbi-prosa>
+                    <urbi-linha>
+                      <urbi-badge>${n.etapa_nome ?? ''}</urbi-badge>
+                      <urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${n.contato_id}`)}>Ver cliente</urbi-botao>
+                    </urbi-linha>
+                  </urbi-linha>`}></urbi-lista>
+              </div>`
           : html`<urbi-prosa papel="dica">Nenhum negócio ligado a este imóvel.</urbi-prosa>`}
       </urbi-card>
     </urbi-stack>`;
