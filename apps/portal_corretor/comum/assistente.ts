@@ -8,22 +8,28 @@ export { ARTIGOS, type ArtigoAjuda };
 /** Telas do app: nome, para a IA dizer aonde ir, e o artigo da ajuda que fala dela. */
 export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
   '/': { nome: 'Início', doc: 'funil' },
-  '/funil': { nome: 'Funil', doc: 'funil' },
   '/clientes': { nome: 'Clientes', doc: 'clientes-e-agenda' },
-  '/agenda': { nome: 'Agenda', doc: 'clientes-e-agenda' },
   '/imoveis': { nome: 'Minha carteira', doc: 'imoveis' },
-  '/empreendimentos': { nome: 'Empreendimentos', doc: 'imoveis' },
   '/desempenho': { nome: 'Desempenho', doc: 'desempenho' },
   '/pagina': { nome: 'Minha página', doc: 'minha-pagina' },
   '/estudio': { nome: 'Estúdio', doc: 'estudio' },
-  '/conta': { nome: 'Conta e marca', doc: 'conta-e-ajustes' },
-  '/ajustes/conexoes': { nome: 'Conexões', doc: 'conexoes' },
-  '/ajustes/funil': { nome: 'Funil e abordagens', doc: 'funil' },
+  // Ajustes é uma tela só (D-81); `/ajustes/<aba>` abre a aba, para o Assistente apontar a certa.
+  '/ajustes': { nome: 'Ajustes', doc: 'conta-e-ajustes' },
+  '/ajustes/conta': { nome: 'Ajustes › Conta', doc: 'conta-e-ajustes' },
+  '/ajustes/marca': { nome: 'Ajustes › Marca', doc: 'estudio' },
+  '/ajustes/conexoes': { nome: 'Ajustes › Conexões', doc: 'conexoes' },
+  '/ajustes/funil': { nome: 'Ajustes › Funil e abordagens', doc: 'funil' },
+  '/ajustes/atendimento': { nome: 'Ajustes › Atendimento', doc: 'conta-e-ajustes' },
+  // Fora do menu desde D-81, ainda abrem até virarem parte de Clientes, Início e Imóveis.
+  '/funil': { nome: 'Funil', doc: 'funil' },
+  '/agenda': { nome: 'Agenda', doc: 'clientes-e-agenda' },
+  '/empreendimentos': { nome: 'Empreendimentos', doc: 'imoveis' },
 };
 
-/** Tela base de um endereço (`/clientes/12` → `/clientes`). */
+/** Tela base de um endereço (`/clientes/12` → `/clientes`; o apelido `/conta` → Ajustes › Conta). */
 export function telaBase(sub: string): string {
   if (TELAS_APP[sub]) return sub;
+  if (sub === '/conta') return '/ajustes/conta';
   const m = sub.match(/^\/(clientes|imoveis|empreendimentos)\/\d+$/);
   return m ? `/${m[1]}` : '/';
 }

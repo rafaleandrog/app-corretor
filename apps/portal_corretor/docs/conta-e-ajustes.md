@@ -1,14 +1,26 @@
 ---
 titulo: Conta e ajustes
-descricao: Seus dados de corretor, os dados da conta e as regras de atendimento.
+descricao: A tela de Ajustes (Conta, Marca, Conexões, Funil e abordagens, Atendimento) — seus dados de corretor, os dados da conta e as regras de atendimento.
 ---
 
 # Conta e ajustes
 
-Em **Ajustes › Conta e marca** o corretor mantém três blocos. Cada um tem o botão de lápis para
+**Ajustes** é uma tela só, no fim do menu, com cinco abas. Cada bloco tem o botão de lápis para
 editar.
 
-## Seus dados: CRECI e telefone
+| Aba | O que tem |
+|---|---|
+| **Conta** | Seus dados (CRECI e telefone) e os dados da conta |
+| **Marca** | Logo, sua foto, cores, estilo e assinatura das artes — ver [Estúdio de conteúdo](estudio.md#sua-marca) |
+| **Conexões** | Instagram — ver [Conexões (Instagram)](conexoes.md) |
+| **Funil e abordagens** | Etapas de cada funil e a abordagem por etapa e temperatura — ver [Funil](funil.md) |
+| **Atendimento** | As regras de atendimento, abaixo |
+
+A aba aberta fica no endereço (`/ajustes?aba=marca`, por exemplo): dá para guardar ou mandar o link
+direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/ajustes/conexoes` e
+`/ajustes/funil` abrem as abas deles.
+
+## Conta › Seus dados: CRECI e telefone
 
 - **CRECI**: é aqui que você cadastra. O formato é `UF-número-F` (pessoa física) ou `-J` (pessoa
   jurídica), por exemplo `DF-12345-F`. Pode digitar em minúsculas: o app corrige. O CRECI vai no
@@ -18,7 +30,7 @@ editar.
 - **Situação do CRECI**: começa como "não verificado". A verificação é feita pela equipe da
   plataforma e ainda não tem tela nesta versão.
 
-## Conta
+## Conta › Conta
 
 - **Nome da conta**: o nome com que você trabalha; nas próximas versões aparece na sua página e
   para os seus clientes.
@@ -29,7 +41,6 @@ editar.
 
 | Ajuste | Padrão | Para que serve |
 |---|---|---|
-| Prazo de primeiro atendimento | 5 minutos | Meta de tempo para responder um contato novo |
 | Cliente parado depois de | 7 dias | Quando um cliente sem conversa entra na fila de retomada |
 | Validade da seleção enviada | 14 dias | Por quanto tempo o link de uma seleção de imóveis vale |
 | Aprovação de conteúdo | Você aprova cada peça | Ou: publica sozinho se você não responder na janela |
@@ -38,6 +49,5 @@ editar.
 
 Enquanto você não salvar, valem os padrões.
 
-## A marca
-
-Logo, cores e foto entram junto com o Estúdio de conteúdo, numa próxima versão.
+O prazo de primeiro atendimento (meta de 5 minutos para responder um contato novo) saiu da tela:
+volta junto com o WhatsApp, quando houver mensagem para medir. O valor gravado continua guardado.

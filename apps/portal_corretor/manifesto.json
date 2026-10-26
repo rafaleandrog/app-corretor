@@ -45,43 +45,14 @@
       "icone": "fa-solid fa-house"
     },
     {
-      "titulo": "Assistente",
-      "rota": "/assistente",
-      "icone": "fa-solid fa-comments"
-    },
-    {
-      "titulo": "Funil",
-      "rota": "/funil",
-      "icone": "fa-solid fa-filter"
-    },
-    {
       "titulo": "Clientes",
       "rota": "/clientes",
       "icone": "fa-solid fa-address-book"
     },
     {
-      "titulo": "Agenda",
-      "rota": "/agenda",
-      "icone": "fa-solid fa-calendar-day"
-    },
-    {
-      "titulo": "Desempenho",
-      "rota": "/desempenho",
-      "icone": "fa-solid fa-chart-line"
-    },
-    {
       "titulo": "Imóveis",
-      "icone": "fa-solid fa-building",
-      "itens": [
-        {
-          "titulo": "Minha carteira",
-          "rota": "/imoveis"
-        },
-        {
-          "titulo": "Empreendimentos",
-          "rota": "/empreendimentos"
-        }
-      ]
+      "rota": "/imoveis",
+      "icone": "fa-solid fa-building"
     },
     {
       "titulo": "Estúdio",
@@ -94,22 +65,19 @@
       "icone": "fa-solid fa-globe"
     },
     {
+      "titulo": "Desempenho",
+      "rota": "/desempenho",
+      "icone": "fa-solid fa-chart-line"
+    },
+    {
+      "titulo": "Assistente",
+      "rota": "/assistente",
+      "icone": "fa-solid fa-comments"
+    },
+    {
       "titulo": "Ajustes",
-      "icone": "fa-solid fa-sliders",
-      "itens": [
-        {
-          "titulo": "Conta e marca",
-          "rota": "/conta"
-        },
-        {
-          "titulo": "Conexões",
-          "rota": "/ajustes/conexoes"
-        },
-        {
-          "titulo": "Funil e abordagens",
-          "rota": "/ajustes/funil"
-        }
-      ]
+      "rota": "/ajustes",
+      "icone": "fa-solid fa-sliders"
     },
     {
       "titulo": "Equipe da plataforma",

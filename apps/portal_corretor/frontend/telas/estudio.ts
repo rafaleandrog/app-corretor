@@ -22,11 +22,6 @@ const ESTADO: Record<string, { cor: string; rotulo: string }> = {
   erro: { cor: 'erro', rotulo: 'com erro' },
 };
 const MOTOR: Record<string, string> = { interno: 'gerador do app', canva_ia: 'Canva IA', upload: 'arte enviada' };
-const ESTILOS = [
-  { valor: 'moderno', rotulo: 'Moderno' },
-  { valor: 'classico', rotulo: 'Clássico' },
-  { valor: 'minimalista', rotulo: 'Minimalista' },
-];
 
 // Estúdio de Conteúdo (bloco 8a, D-74): pedido em texto ou voz, artes montadas pelo gerador do app,
 // alternativa pelo Canva IA (pacote com a instrução e as fotos), aprovação e biblioteca para baixar.
@@ -38,7 +33,7 @@ export class PcTelaEstudio extends LitElement {
   @state() private falha: string | null = null;
   @state() private trabalhando: string | null = null;
   @state() private ouvindo = false;
-  /** Aprovação por janela (Ajustes › Conta e marca): o rascunho pode ser agendado. */
+  /** Aprovação por janela (Ajustes › Atendimento): o rascunho pode ser agendado. */
   @state() private janela = false;
 
   connectedCallback() {
@@ -322,26 +317,6 @@ export class PcTelaEstudio extends LitElement {
     }
   }
 
-  private async editarMarca() {
-    const m = this.marca!;
-    const v = await urbiVerso.formulario({
-      titulo: 'Sua marca',
-      campos: [
-        { nome: 'cor_primaria', tipo: 'texto', rotulo: 'Cor principal (#RRGGBB)', obrigatorio: true, valor: m.cor_primaria },
-        { nome: 'cor_secundaria', tipo: 'texto', rotulo: 'Cor de apoio (#RRGGBB)', obrigatorio: true, valor: m.cor_secundaria },
-        { nome: 'estilo', tipo: 'selecao', rotulo: 'Estilo', opcoes: ESTILOS, valor: m.estilo },
-        { nome: 'assinatura', tipo: 'texto', rotulo: 'Assinatura curta (opcional)', valor: m.assinatura ?? '', placeholder: 'Ex.: Seu corretor no Lago Sul' },
-      ],
-    });
-    if (v) await this.acao(() => enviar('PUT', '/estudio/marca', v), 'Marca salva.');
-  }
-
-  private async enviarMarca(tipo: 'logo' | 'foto', e: CustomEvent) {
-    const f = ((e.detail.arquivos as File[]) ?? [])[0];
-    if (!f) return;
-    await this.acao(async () => enviar('POST', '/estudio/marca/arquivos', { tipo, upload_id: await subirArquivo('marca_arquivos', 'arquivo', f) }), tipo === 'logo' ? 'Logo salvo.' : 'Foto salva.');
-  }
-
   private peca(p: Linha) {
     const estado = ESTADO[p.estado] ?? ESTADO.rascunho;
     const capa = p.arquivos?.[0]?.url ?? '';
@@ -393,7 +368,7 @@ export class PcTelaEstudio extends LitElement {
     if (!this.marca) return html`<urbi-loading></urbi-loading>`;
     const m = this.marca;
     return html`<urbi-stack>
-      ${!m.creci ? html`<urbi-banner variante="alerta">Cadastre o seu CRECI em Ajustes › Conta e marca: ele vai em toda arte e legenda, e sem ele a peça não é aprovada.</urbi-banner>` : ''}
+      ${!m.creci ? html`<urbi-banner variante="alerta">Cadastre o seu CRECI em Ajustes › Conta: ele vai em toda arte e legenda, e sem ele a peça não é aprovada.</urbi-banner>` : ''}
       <urbi-card titulo="Criar" icone="fa-solid fa-wand-magic-sparkles">
         <urbi-linha quebrar>
           <urbi-botao icone="fa-solid fa-plus" ?carregando=${!!this.trabalhando} @click=${() => this.novoPedido()}>Novo pedido</urbi-botao>
@@ -401,22 +376,12 @@ export class PcTelaEstudio extends LitElement {
           <urbi-botao variante="secundario" icone="fa-solid fa-box-open" ?carregando=${!!this.trabalhando} @click=${() => this.pacote()}>Pacote de lançamento</urbi-botao>
         </urbi-linha>
         ${this.trabalhando ? html`<urbi-prosa papel="secundario">${this.trabalhando}</urbi-prosa>` : html`<urbi-prosa papel="dica">As artes saem com a sua marca, a foto do imóvel, o preço, o bairro e o CRECI. Prefere o Canva? Em cada peça, "Canva IA" prepara a instrução e as fotos.</urbi-prosa>`}
+        <urbi-linha><urbi-botao pequeno variante="fantasma" icone="fa-solid fa-palette" href=${urbiVerso.href('/ajustes/marca')}>Sua marca (logo, cores, estilo)</urbi-botao></urbi-linha>
       </urbi-card>
       <urbi-card titulo="Peças" icone="fa-solid fa-images">
         ${this.pecas.length
           ? html`<urbi-lista separador .itens=${this.pecas} .render_item=${(p: Linha) => this.peca(p)}></urbi-lista>`
           : html`<urbi-estado-vazio icone="fa-solid fa-images" mensagem="Nenhuma peça ainda" submensagem="Faça um pedido ou gere o pacote de lançamento de um imóvel."></urbi-estado-vazio>`}
-      </urbi-card>
-      <urbi-card titulo="Sua marca" icone="fa-solid fa-palette">
-        <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-pen" ariaLabel="Editar a marca" title="Editar" @click=${() => this.editarMarca()}></urbi-botao></span>
-        <urbi-linha quebrar>
-          <urbi-avatar nome="Logo" foto=${m.logo_url ?? ''} icone=${m.logo_url ? '' : 'fa-solid fa-image'} tamanho="56"></urbi-avatar>
-          <urbi-prosa papel="secundario">Cores ${m.cor_primaria} e ${m.cor_secundaria} · estilo ${ESTILOS.find((e) => e.valor === m.estilo)?.rotulo ?? m.estilo}${m.assinatura ? ` · "${m.assinatura}"` : ''}</urbi-prosa>
-        </urbi-linha>
-        <urbi-linha quebrar>
-          <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Logo (PNG com fundo transparente fica melhor)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarMarca('logo', e)}></urbi-seletor-arquivo>
-          <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Sua foto (opcional)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarMarca('foto', e)}></urbi-seletor-arquivo>
-        </urbi-linha>
       </urbi-card>
     </urbi-stack>`;
   }

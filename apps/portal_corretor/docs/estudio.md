@@ -11,11 +11,11 @@ conta do Instagram precisa estar conectada em [Conexões](conexoes.md).
 
 ## Sua marca
 
-Em **Sua marca** ficam a cor principal, a cor de apoio, o estilo (moderno, clássico ou
+A marca fica em **Ajustes › Marca** (o Estúdio tem o atalho **Sua marca**): a cor principal, a cor de apoio, o estilo (moderno, clássico ou
 minimalista), uma assinatura curta opcional (por exemplo "Seu corretor no Lago Sul"), o logo e a
 sua foto. A arte do gerador do app sai com o seu nome e o CRECI no rodapé, e a legenda de toda peça
 aprovada leva o CRECI (o app acrescenta se faltar, inclusive em arte feita no Canva). **Sem CRECI
-cadastrado** (Ajustes › Conta e marca), a peça não pode ser aprovada.
+cadastrado** (Ajustes › Conta), a peça não pode ser aprovada.
 
 ## Criar
 
@@ -117,7 +117,7 @@ Publicada pela API, a peça mostra **Ver no Instagram**. A API do Instagram **n�
 publicações: para tirar um post, apague pelo próprio Instagram.
 
 **Aprovação por janela:** com "Publica sozinho se eu não responder na janela", escolhido em Ajustes
-› Conta e marca, um rascunho também pode ser agendado. Na hora, ele é aprovado e publicado se
+› Atendimento, um rascunho também pode ser agendado. Na hora, ele é aprovado e publicado se
 passar nas checagens e se a conta ainda estiver nesse modo. Se não passar, fica com erro e sem
 aprovação. Para impedir, cancele o agendamento.
 

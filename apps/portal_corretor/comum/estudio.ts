@@ -222,7 +222,7 @@ export interface Checagem {
 /** Checagens antes de aprovar (10.5): CRECI, autorização vigente, arte pronta, legenda dentro do limite do canal. */
 export function checarPeca(p: { formato: string; legenda: string | null; hashtags: string | null; arquivos: number; objetivo: string }, ctx: { creci: string | null; imovel: boolean; autorizacaoVigente: boolean }): Checagem {
   const pendencias: string[] = [];
-  if (!ctx.creci) pendencias.push('Cadastre o seu CRECI (Ajustes › Conta e marca): ele vai na arte e na legenda.');
+  if (!ctx.creci) pendencias.push('Cadastre o seu CRECI (Ajustes › Conta): ele vai na arte e na legenda.');
   if (ctx.imovel && p.objetivo !== 'vendido' && !ctx.autorizacaoVigente) pendencias.push('O imóvel precisa de autorização de venda vigente para ser anunciado.');
   if (!p.arquivos) pendencias.push('Gere ou envie a arte antes de aprovar.');
   if (p.formato === 'carrossel' && p.arquivos === 1) pendencias.push('O carrossel precisa de pelo menos 2 imagens.');

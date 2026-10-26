@@ -8,7 +8,7 @@ import {
 } from '../comum/conta';
 import { assincrono, erro, exigirPapel, MENSAGEM_SEM_CONTA, primeiro, salvarUnico, semConta } from './acesso';
 
-// Ajustes › Conta e marca. Tudo aqui é da conta do corretor logado: as três tabelas são
+// Ajustes › Conta e Atendimento. Tudo aqui é da conta do corretor logado: as três tabelas são
 // segregadas por conta (RLS), e o perfil do corretor é escopado também pelo `usuario.id`.
 export const contaRotas: Router = Router();
 

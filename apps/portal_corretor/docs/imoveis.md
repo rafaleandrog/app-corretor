@@ -48,7 +48,7 @@ Calculada a cada leitura, nunca gravada. A ficha mostra o que falta, na ordem do
 | Autorização de venda assinada e vigente | 15 |
 | Área e cômodos (quartos e banheiros; lote, galpão, rural, sala e loja só a área) | 10 |
 | Localização (bairro e cidade) | 10 |
-| CRECI preenchido em Conta e marca | 10 |
+| CRECI preenchido em Ajustes › Conta | 10 |
 
 ### Descrição com IA
 
