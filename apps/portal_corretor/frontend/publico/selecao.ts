@@ -2,6 +2,7 @@ import { LitElement, html, nothing, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { linkWhatsapp } from '../../comum/pagina';
+import { linkComoChegar, linkRoteiro, lugarNoMapa, quantoFalta, roteiroPorDia, type VisitaDoPortal } from '../../comum/roteiro';
 import { ROTULO_TIPO_IMOVEL } from '../apoio';
 import { estiloPublico } from './estilo';
 import { iconesImovel } from './icones';
@@ -23,6 +24,7 @@ const REACOES = [
   { valor: 'quero_visitar', rotulo: 'Quero visitar' },
 ];
 const diaHora = (q: string) => new Date(q).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
+const hora = (q: string) => new Date(q).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 const diaCurto = (q: string) => new Date(q).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
 const token = () => new URLSearchParams(window.location.search).get('t') ?? '';
 const naoExiste = (e: unknown) => (e as { status?: number }).status === 404 || (e as { codigo?: string }).codigo === 'NAO_ENCONTRADO';
@@ -61,6 +63,12 @@ const estiloSelecao = css`
   .sem-foto { aspect-ratio: 4 / 3; background: var(--foto-vazia); }
   .agenda li { list-style: none; background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
   .agenda { padding: 0; margin: 0; }
+  .agenda li.parada { display: grid; grid-template-columns: 32px 1fr; column-gap: 12px; }
+  .agenda li.parada > * { grid-column: 2; }
+  .agenda li.parada .numero { grid-column: 1; grid-row: 1 / span 3; width: 32px; height: 32px; border-radius: 50%; background: var(--acento); color: var(--papel); font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .dia-roteiro { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin: 18px 0 8px; }
+  .dia-roteiro h3 { margin: 0; font-size: 1.05rem; }
+  .datas small.falta { display: inline; margin-left: 6px; color: var(--acento); font-weight: 600; }
   .pendencias { padding: 0; margin: 0; }
   .pendencias li { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 10px 14px; margin-bottom: 10px; }
   .jornada { list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 2px solid var(--linha); }
@@ -108,7 +116,7 @@ function itemSelecao(i: Linha, reagir: ((codigo: string, reacao: string) => void
 function datasChave(proximaVisita: string | null, valeAte: string | null): TemplateResult | typeof nothing {
   if (!proximaVisita && !valeAte) return nothing;
   return html`<div class="datas">
-    ${proximaVisita ? html`<div><small>Próxima visita</small><strong>${diaHora(proximaVisita)}</strong></div>` : nothing}
+    ${proximaVisita ? html`<div><small>Próxima visita</small><strong>${diaHora(proximaVisita)}</strong><small class="falta">${quantoFalta(proximaVisita)}</small></div>` : nothing}
     ${valeAte ? html`<div><small>Seleção vale até</small><strong>${diaCurto(valeAte)}</strong></div>` : nothing}
   </div>`;
 }
@@ -277,12 +285,17 @@ export class PcPortalCliente extends LitElement {
     return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
   }
 
-  private visita(v: Linha) {
-    return html`<li>
-      <strong>${diaHora(v.quando)}</strong>
+  /** Uma visita do roteiro; com mais de uma no dia, ganha o número da parada. */
+  private visita(v: Linha, numero: number | null) {
+    const chegar = linkComoChegar(v.imovel);
+    const lugar = lugarNoMapa(v.imovel);
+    return html`<li class=${numero ? 'parada' : ''}>
+      ${numero ? html`<span class="numero" aria-label=${`Parada ${numero}`}>${numero}</span>` : nothing}
+      <strong>${numero ? hora(v.quando) : diaHora(v.quando)}</strong>
       <div>${v.imovel?.titulo ?? v.imovel?.codigo ?? 'Visita'}</div>
       <div class="suave">${[v.imovel?.endereco, v.imovel?.bairro, v.imovel?.cidade].filter(Boolean).join(' · ')}</div>
       <div class="acoes">
+        ${chegar ? html`<a class="botao claro" href=${chegar} target="_blank" rel="noopener">${lugar?.exato ? 'Como chegar' : 'Ver o bairro no mapa'}</a>` : nothing}
         <a class="botao claro" href=${this.calendario(v)} download="visita.ics">Adicionar ao calendário</a>
         <button class="botao claro" type="button" @click=${() => (this.remarcando = this.remarcando === v.ref ? null : v.ref)}>Pedir para remarcar</button>
       </div>
@@ -294,6 +307,21 @@ export class PcPortalCliente extends LitElement {
           </form>`
         : nothing}
     </li>`;
+  }
+
+  /** Visitas por dia: um dia com várias vira roteiro numerado, com o trajeto todo no mapa. */
+  private agenda(agenda: VisitaDoPortal[]) {
+    return roteiroPorDia(agenda).map(({ dia, visitas }) => {
+      const varias = visitas.length > 1;
+      const mapa = varias ? linkRoteiro(visitas) : null;
+      return html`${varias
+          ? html`<div class="dia-roteiro">
+              <h3>Roteiro de ${new Date(`${dia}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })} · ${visitas.length} visitas</h3>
+              ${mapa ? html`<a href=${mapa} target="_blank" rel="noopener">Ver o roteiro no mapa</a>` : nothing}
+            </div>`
+          : nothing}
+        <ul class="agenda">${visitas.map((v, i) => this.visita(v, varias ? i + 1 : null))}</ul>`;
+    });
   }
 
   /** Linha do tempo vertical; portal publicado antes do bloco 9 (sem `eventos`) mostra o começo e as contagens. */
@@ -343,7 +371,7 @@ export class PcPortalCliente extends LitElement {
           : nothing}
         <section>
           <h2>Suas visitas</h2>
-          ${p.agenda.length ? html`<ul class="agenda">${p.agenda.map((v: Linha) => this.visita(v))}</ul>` : html`<p class="suave">Nenhuma visita marcada.</p>`}
+          ${p.agenda.length ? this.agenda(p.agenda) : html`<p class="suave">Nenhuma visita marcada.</p>`}
         </section>
         <section>
           <h2>Imóveis para você</h2>
