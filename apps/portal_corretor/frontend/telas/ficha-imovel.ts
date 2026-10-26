@@ -442,6 +442,8 @@ export class PcTelaFichaImovel extends LitElement {
   // Ficha (D-84, spec 11.1): "o que falta" no topo; uma ação principal (publicar ou tirar da página)
   // e o resto em "Mais"; os cartões mostram um resumo e guardam a lista no `detalhe`, recolhido.
   // Sem foto, fotos e arquivos ficam abertos: é por onde o cadastro continua.
+  // Os cartões com `keyed` são recriados quando muda se há `detalhe` ou `acoes`: o urbi-card lê essa presença
+  // só na renderização (SDK, urbi-card), então sem a chave a seta e a cabeça ficariam como estavam antes.
   render() {
     const banner = this.falha
       ? html`<urbi-banner variante="erro">

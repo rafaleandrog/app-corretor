@@ -15,8 +15,7 @@ No menu, **Imóveis** abre uma tela com duas abas: **Carteira** (a primeira) e *
 A aba fica no endereço da página, então o link que você guardar volta na mesma aba; o endereço
 antigo `/empreendimentos` abre direto a aba Empreendimentos.
 
-A Carteira mostra os imóveis em **cartões**: três por linha no computador e um por linha no
-celular. Cada cartão tem a foto de capa, o código e o título, o preço, o bairro e a cidade, os
+A Carteira mostra os imóveis em **cartões**, que se encaixam conforme a largura da tela: quanto mais larga, mais cartões cabem por linha. Cada cartão tem no mínimo cerca de 280 pixels, então no celular, em geral, sai **um por linha**. Cada cartão tem a foto de capa, o código e o título, o preço, o bairro e a cidade, os
 quartos, a área e as vagas, a situação, a marca **Na página** quando o imóvel está anunciado e a
 nota de qualidade. Busca por código, título, bairro ou cidade e filtro por situação (ficam no
 endereço da página). Toque no cartão para abrir a ficha. Sem nenhum imóvel, a tela convida a
