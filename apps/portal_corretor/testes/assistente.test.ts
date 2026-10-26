@@ -147,7 +147,7 @@ test('rota do Assistente: sem IA busca na ajuda; com IA manda contexto sem telef
     };
     const r = (await chamar('POST', '/assistente/perguntar', { pergunta: 'me lembra de ligar para a Ana amanhã', tela: `/clientes/${anaId}`, contato_id: anaId, historico: [{ autor: 'eu', texto: 'oi' }] })).corpo;
     assert.equal(r.sem_ia, false);
-    assert.deepEqual(r.tela, { sub: '/agenda', nome: 'Agenda' });
+    assert.deepEqual(r.tela, { sub: '/agenda', nome: 'Início › Agenda' });
     assert.equal(r.acao.rota, '/atividades');
     assert.equal(r.acao.corpo.contato_id, anaId);
     assert.deepEqual(r.artigos, [], 'artigo inventado não volta');

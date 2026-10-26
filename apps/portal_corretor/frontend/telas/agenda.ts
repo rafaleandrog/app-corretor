@@ -1,14 +1,14 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, mensagemDeErro, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { acoesComMais, chamarApi, enviar, mensagemDeErro, ROTULO_TIPO_ATIVIDADE, type Acao } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
 type Atividade = Record<string, any>;
 
-// Agenda: o que está pendente nos próximos 14 dias, agrupado por dia, mais o que ficou atrasado.
-// Lista por dia em vez de calendário: o catálogo de UI ainda não tem calendário (spec 11.5).
+// Agenda (aba do Início, D-82): o que está pendente nos próximos 14 dias, agrupado por dia, mais o
+// que ficou atrasado. Lista por dia em vez de calendário: o catálogo de UI ainda não tem calendário (spec 11.5).
 @customElement('pc-tela-agenda')
 export class PcTelaAgenda extends LitElement {
   @state() private atividades: Atividade[] | null = null;
@@ -52,18 +52,22 @@ export class PcTelaAgenda extends LitElement {
     return d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
   }
 
+  /** Um botão por item (princípio 14): Feito; cliente, não compareceu e cancelar no "Mais". */
+  private acoes(a: Atividade) {
+    const mais: Acao[] = [];
+    if (a.contato_id) mais.push({ rotulo: 'Abrir cliente', icone: 'fa-solid fa-user', sub: `/clientes/${a.contato_id}` });
+    if (a.tipo === 'visita') mais.push({ rotulo: 'Não veio', icone: 'fa-solid fa-user-xmark', aoEscolher: () => this.mudar(a, 'nao_compareceu') });
+    mais.push({ rotulo: 'Cancelar', icone: 'fa-solid fa-xmark', perigo: true, aoEscolher: () => this.mudar(a, 'cancelada') });
+    return acoesComMais({ rotulo: 'Feito', icone: 'fa-solid fa-check', aoEscolher: () => this.mudar(a, 'feita') }, mais);
+  }
+
   private item(a: Atividade) {
     return html`<urbi-linha justificar="entre" quebrar>
       <urbi-stack>
         <urbi-prosa>${new Date(a.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · ${ROTULO_TIPO_ATIVIDADE[a.tipo]}: ${a.titulo}</urbi-prosa>
         <urbi-prosa papel="secundario">${a.contato_nome ?? 'sem cliente'}${a.local ? ` · ${a.local}` : ''}</urbi-prosa>
       </urbi-stack>
-      <urbi-linha>
-        ${a.contato_id ? html`<urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${a.contato_id}`)}>Cliente</urbi-botao>` : ''}
-        <urbi-botao variante="texto" pequeno @click=${() => this.mudar(a, 'feita')}>Feito</urbi-botao>
-        ${a.tipo === 'visita' ? html`<urbi-botao variante="texto" pequeno @click=${() => this.mudar(a, 'nao_compareceu')}>Não veio</urbi-botao>` : ''}
-        <urbi-botao variante="texto" pequeno @click=${() => this.mudar(a, 'cancelada')}>Cancelar</urbi-botao>
-      </urbi-linha>
+      ${this.acoes(a)}
     </urbi-linha>`;
   }
 
@@ -78,8 +82,13 @@ export class PcTelaAgenda extends LitElement {
     if (this.falha && !this.atividades) return banner;
     if (!this.atividades) return html`<urbi-loading></urbi-loading>`;
     if (!this.atividades.length) {
-      const vazio = html`<urbi-estado-vazio icone="fa-solid fa-calendar-check" mensagem="Nada pendente nos próximos 14 dias"
-        submensagem="Agende ligações, visitas e reuniões pela ficha de cada cliente."></urbi-estado-vazio>`;
+      const vazio = html`<urbi-stack>
+        <urbi-estado-vazio icone="fa-solid fa-calendar-check" mensagem="Nada pendente nos próximos 14 dias"
+          submensagem="Agende ligações, visitas e reuniões pela ficha de cada cliente."></urbi-estado-vazio>
+        <urbi-linha justificar="centro">
+          <urbi-botao variante="secundario" icone="fa-solid fa-users" href=${urbiVerso.href('/clientes')}>Abrir Clientes</urbi-botao>
+        </urbi-linha>
+      </urbi-stack>`;
       return this.falha ? html`<urbi-stack>${banner}${vazio}</urbi-stack>` : vazio;
     }
     const grupos = new Map<string, Atividade[]>();
