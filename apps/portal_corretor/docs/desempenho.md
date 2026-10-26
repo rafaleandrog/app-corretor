@@ -8,8 +8,9 @@ descricao: Os números do corretor (leads, conversão por etapa, vendas, VGV, pr
 ## Desempenho
 
 **Desempenho** mostra os números do período escolhido (7, 30 ou 90 dias, ou 12 meses),
-comparados ao período anterior de mesmo tamanho. O período fica no endereço (`?dias=30`): dá para
-voltar a ele ou guardar o link.
+comparados ao período anterior de mesmo tamanho. O período fica no endereço (`?dias=30`). A troca não cria entrada no
+histórico do navegador (o Voltar não desfaz a escolha), mas recarregar a página ou abrir o link
+guardado mantém o mesmo período.
 
 No topo, quatro números: **Leads**, **Conversão total**, **Vendas** e **Comissão prevista**. Abaixo
 de cada um, em texto pequeno, a comparação com o período anterior ("+3 que nos 30 dias
@@ -28,6 +29,8 @@ cada um, conta até onde ele chegou, mesmo que depois tenha recuado ou sido perd
 | Visita → proposta | Dos que visitaram, quantos chegaram a "Proposta" ou além |
 | Proposta → ganho | Dos que chegaram à proposta, quantos foram ganhos |
 | Conversão total | Ganhos sobre leads |
+
+Leads e Conversão total são dois dos quatro números do topo; o cartão traz só as quatro taxas de etapa.
 
 "Chegar a uma etapa" vale pelo papel da etapa no funil, não pelo nome: renomear "Visitou" não
 muda a conta. Etapa criada pelo corretor não tem papel próprio: o negócio continua contado nos
