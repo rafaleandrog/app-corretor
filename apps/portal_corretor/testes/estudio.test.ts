@@ -66,8 +66,11 @@ test('regras puras do Estúdio: marca, textos sem IA, resposta da IA validada, p
   assert.match(design, /CRECI DF-1/);
   assert.ok(!prompt.includes('Entregue a arte final'), 'no Canva a entrega é pelo próprio Canva');
   const base = { formato: 'post_1x1', legenda: 'ok', hashtags: '#a', arquivos: 1, objetivo: 'novo_imovel' };
-  assert.deepEqual(checarPeca(base, { creci: 'DF-1', imovel: true, autorizacaoVigente: true }), { ok: true, pendencias: [] });
-  assert.equal(checarPeca(base, { creci: null, imovel: true, autorizacaoVigente: false }).pendencias.length, 2);
+  assert.deepEqual(checarPeca(base, { creci: 'DF-1', imovel: true, autorizacaoVigente: true }), { ok: true, pendencias: [], avisos: [] });
+  // D-89: sem CRECI é aviso, nunca pendência; a autorização vigente continua pendência.
+  const semCreci = checarPeca(base, { creci: null, imovel: true, autorizacaoVigente: false });
+  assert.deepEqual([semCreci.pendencias.length, semCreci.avisos.length], [1, 1]);
+  assert.equal(checarPeca(base, { creci: null, imovel: false, autorizacaoVigente: false }).ok, true, 'sem CRECI aprova');
   assert.equal(checarPeca({ ...base, objetivo: 'vendido' }, { creci: 'x', imovel: true, autorizacaoVigente: false }).ok, true, 'vendido não pede autorização vigente');
   assert.equal(checarPeca({ ...base, formato: 'carrossel', arquivos: 1 }, { creci: 'x', imovel: false, autorizacaoVigente: false }).ok, false);
   assert.equal(checarPeca({ ...base, legenda: 'x'.repeat(2300) }, { creci: 'x', imovel: false, autorizacaoVigente: false }).ok, false);
@@ -93,14 +96,23 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     assert.ok(!JSON.stringify(r.corpo).includes('Proprietária') && !JSON.stringify(r.corpo).includes('SHIS'));
     pecaId = r.corpo.pecas[0].id;
     const carrossel = r.corpo.pecas[1].id;
-    // Sem arte e sem CRECI: aprovação recusada com a lista do que falta.
+    assert.deepEqual(r.corpo.pecas.map((p: any) => [p.motor, p.arquivos.length]), [['canva_ia', 0], ['canva_ia', 0]], 'a arte vem do Canva (D-89)');
+    // Sem arte: aprovação recusada com a lista do que falta; o CRECI ausente não entra nela (D-89).
     const recusa = await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
     assert.equal(recusa.corpo.codigo, 'CHECAGEM_PENDENTE');
-    assert.equal(recusa.corpo.detalhes.length, 2);
+    assert.deepEqual(recusa.corpo.detalhes, ['Envie a arte feita no Canva (ou em outra ferramenta) antes de aprovar.']);
     assert.equal((await chamar('PUT', `/estudio/pecas/${pecaId}/arquivos`, { upload_ids: [1, 2] })).status, 422, 'post leva uma imagem');
     assert.equal((await chamar('PUT', `/estudio/pecas/${carrossel}/arquivos`, { upload_ids: [1, 2, 3, 4, 5, 6] })).status, 422, 'carrossel até 5');
-    const arte = await chamar('PUT', `/estudio/pecas/${pecaId}/arquivos`, { upload_ids: [1001], motor: 'interno' });
+    const arte = await chamar('PUT', `/estudio/pecas/${pecaId}/arquivos`, { upload_ids: [1001], motor: 'canva_ia' });
     assert.deepEqual(arte.corpo.arquivos.map((a: any) => a.url), ['/arquivo/1001']);
+    // Sem CRECI a peça é aprovada, com o lembrete; a legenda e a instrução saem sem CRECI.
+    const semCreci = await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
+    assert.equal(semCreci.status, 200, JSON.stringify(semCreci.corpo));
+    assert.equal(semCreci.corpo.estado, 'aprovada');
+    assert.equal(semCreci.corpo.avisos.length, 1);
+    assert.ok(!/CRECI/.test(semCreci.corpo.legenda ?? ''));
+    assert.ok(!/CRECI/.test((await chamar('GET', `/estudio/pecas/${pecaId}/instrucao`)).corpo.prompt), 'instrução sem CRECI, sem travar');
+    await chamar('POST', `/estudio/pecas/${pecaId}/rejeitar`);
     await chamar('PUT', '/conta/meu-perfil', { creci: 'DF-12345-F', telefone: '61999990000' });
     const ok = await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
     assert.equal(ok.status, 200, JSON.stringify(ok.corpo));

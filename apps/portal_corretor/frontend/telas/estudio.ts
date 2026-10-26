@@ -1,17 +1,25 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { FERRAMENTA, FERRAMENTAS, FORMATOS, OBJETIVOS, ROTULO_FORMATO, ROTULO_OBJETIVO, type Formato, type ImovelArte } from '../../comum/estudio';
+import { FERRAMENTA, FERRAMENTAS, FORMATOS, MAX_SLIDES, OBJETIVOS, ROTULO_FORMATO, ROTULO_OBJETIVO, type Ferramenta, type Formato } from '../../comum/estudio';
 import { acoesComMais, chamarApi, dataHora, enviar, juntarDataHora, mensagemDeErro, subirArquivo, type Acao } from '../apoio';
-import { gerarArte, type MarcaArte } from '../estudio/motor';
 
 declare const urbiVerso: UrbiVersoAPI;
 
 type Linha = Record<string, any>;
-interface Marca extends MarcaArte {
-  salva: boolean;
-  foto_url: string | null;
+interface Marca {
+  creci: string | null;
   referencias: { id: number; url: string }[];
+}
+/** A instrução da peça (GET /estudio/pecas/:id/instrucao): o texto, as fotos e o logo para anexar. */
+interface Instrucao {
+  ferramenta: Ferramenta;
+  prompt: string;
+  onde: string;
+  fotos: { url: string }[];
+  logo_url: string | null;
+  referencias: { id: number }[];
+  abrir: string | null;
 }
 const ESTADO: Record<string, { cor: string; rotulo: string }> = {
   rascunho: { cor: 'padrao', rotulo: 'rascunho' },
@@ -22,13 +30,15 @@ const ESTADO: Record<string, { cor: string; rotulo: string }> = {
   rejeitada: { cor: 'alerta', rotulo: 'de volta a rascunho' },
   erro: { cor: 'erro', rotulo: 'com erro' },
 };
-// `motor` guarda os valores de sempre (D-86): `canva_ia` é a arte feita em outra ferramenta.
-const MOTOR: Record<string, string> = { interno: 'gerador do app', canva_ia: 'outra ferramenta', upload: 'arte enviada' };
+// `motor` guarda os valores de sempre (D-86, D-89): `canva_ia` é a arte feita no Canva, `upload` a de
+// outra ferramenta; `interno` só existe nas peças antigas, do gerador do app que saiu.
+const MOTOR: Record<string, string> = { interno: 'gerador do app', canva_ia: 'arte do Canva', upload: 'arte de outra ferramenta' };
 const QUINZE_MIN = 15 * 60e3;
 
-// Estúdio de Conteúdo (D-74, D-86): pedido em texto ou voz (urbi-redator), artes montadas pelo
-// gerador do app, "Fazer em outra ferramenta" (instrução + fotos + referências) ou arte pronta enviada,
-// aprovação e publicação. Cada peça tem uma ação principal pelo estado e o resto no "Mais".
+// Estúdio de Conteúdo (D-74, D-86, D-89): pedido em texto ou voz (urbi-redator). Aqui saem só os
+// textos e a instrução (prompt) com as fotos e o logo; a imagem é gerada no Canva IA (ou em outra
+// ferramenta) e enviada de volta na própria peça. Aprovação e publicação; o CRECI sem cadastro é
+// lembrete, nunca trava (D-89). Cada peça tem uma ação principal pelo estado e o resto no "Mais".
 // Prévia da arte por urbi-avatar (exceção de "cartão de arte", 11.5).
 @customElement('pc-tela-estudio')
 export class PcTelaEstudio extends LitElement {
@@ -36,8 +46,11 @@ export class PcTelaEstudio extends LitElement {
   @state() private marca: Marca | null = null;
   @state() private falha: string | null = null;
   @state() private trabalhando: string | null = null;
-  /** Peça com o seletor "Enviar arte pronta" aberto (e o motor que a arte leva). */
-  @state() private enviando: { id: number; motor: 'canva_ia' | 'upload' } | null = null;
+  /** Peça com arte que abriu o "Trocar a arte" (a peça sem arte já mostra o envio). */
+  @state() private trocando: number | null = null;
+  /** Peças com a instrução à vista, e a instrução já buscada de cada uma. */
+  @state() private abertas = new Set<number>();
+  @state() private instrucoes: Record<number, Instrucao> = {};
 
   connectedCallback() {
     super.connectedCallback();
@@ -84,7 +97,7 @@ export class PcTelaEstudio extends LitElement {
       { nome: 'objetivo', tipo: 'selecao', rotulo: 'Objetivo', valor: 'novo_imovel', opcoes: OBJETIVOS.map((o) => ({ valor: o, rotulo: ROTULO_OBJETIVO[o] })) },
       ...FORMATOS.map((f): CampoFormulario => ({ nome: `f_${f}`, tipo: 'booleano', rotulo: ROTULO_FORMATO[f], valor: f === 'post_1x1' })),
     ];
-    const v = await urbiVerso.formulario({ titulo: 'Novo pedido', campos, mensagem: 'O app escreve os textos (com IA, quando liberada) e monta as artes com a sua marca. Você revisa antes de aprovar.', rotuloConfirmar: 'Criar' });
+    const v = await urbiVerso.formulario({ titulo: 'Novo pedido', campos, mensagem: 'O app escreve os textos (com IA, quando liberada) e a instrução para gerar a arte no Canva IA, com a sua marca. Você envia a arte e revisa antes de aprovar.', rotuloConfirmar: 'Criar' });
     if (!v) throw new Error('cancelado');
     const formatos = FORMATOS.filter((f) => v[`f_${f}`] === true);
     await this.criar('/estudio/pedido', { pedido: v.pedido, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, objetivo: v.objetivo, formatos });
@@ -104,7 +117,7 @@ export class PcTelaEstudio extends LitElement {
     }
     const v = await urbiVerso.formulario({
       titulo: 'Pacote de lançamento',
-      mensagem: 'Post, carrossel e story do imóvel, com a mesma linha visual.',
+      mensagem: 'Post, carrossel e story do imóvel: os textos e uma instrução do Canva IA para cada um.',
       campos: [
         { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', obrigatorio: true, pesquisavel: true, opcoes: imoveis.map((i) => ({ valor: String(i.id), rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}` })) },
         { nome: 'pedido', tipo: 'texto_longo', rotulo: 'Algum pedido? (opcional)', placeholder: 'Ex.: destacar a varanda gourmet.' },
@@ -116,52 +129,14 @@ export class PcTelaEstudio extends LitElement {
   }
 
   private async criar(rota: string, corpo: Record<string, unknown>) {
-    this.trabalhando = 'Escrevendo os textos…';
+    this.trabalhando = 'Escrevendo os textos e a instrução…';
     try {
       const r = await enviar('POST', rota, corpo);
-      const falhas: string[] = [];
-      for (const [i, p] of r.pecas.entries()) {
-        this.trabalhando = `Montando a arte ${i + 1} de ${r.pecas.length}…`;
-        // A peça já existe: se a arte falhar, ela fica como rascunho para "Refazer arte".
-        try {
-          await this.montar(p, r.imovel);
-        } catch (e) {
-          falhas.push(`${p.titulo}: ${mensagemDeErro(e)}`);
-        }
-      }
-      if (falhas.length) await urbiVerso.alertar({ titulo: 'Peças criadas, mas algumas artes não saíram', mensagem: `${falhas.join('\n')}\n\nUse "Refazer arte" na peça.`, tipo: 'alerta' });
-      else urbiVerso.notificar(`${r.pecas.length} peça(s) pronta(s) para revisar${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}.`, 'sucesso');
+      urbiVerso.notificar(`${r.pecas.length} peça(s) criada(s)${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}. Gere a arte no Canva e envie na peça.`, 'sucesso');
+      // As peças novas já abrem com a instrução e as fotos à vista.
+      for (const p of r.pecas as Linha[]) void this.abrirInstrucao(p.id);
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível criar', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    } finally {
-      this.trabalhando = null;
-      await this.carregar();
-    }
-  }
-
-  /** Gera a arte no navegador e envia em 2 passos (staging + rota da peça). */
-  private async montar(p: Linha, imovel: { arte: ImovelArte; fotos: { url: string }[] } | null) {
-    const { imagens: blobs, fotosFalharam } = await gerarArte(
-      { formato: p.formato, objetivo: p.objetivo, titulo: p.titulo, chamada: p.chamada ?? null, destaques: Array.isArray(p.destaques) ? p.destaques : [] },
-      imovel?.arte ?? null,
-      (imovel?.fotos ?? []).map((f) => f.url),
-      this.marca!,
-    );
-    const uploads: number[] = [];
-    for (const [i, b] of blobs.entries()) uploads.push(await subirArquivo('peca_arquivos', 'arquivo', new File([b], `peca-${p.id}-${i + 1}.jpg`, { type: 'image/jpeg' })));
-    await enviar('PUT', `/estudio/pecas/${p.id}/arquivos`, { upload_ids: uploads, motor: 'interno' });
-    if (fotosFalharam) urbiVerso.notificar(`${fotosFalharam} foto(s) não carregaram e a arte saiu sem elas. Use "Refazer arte".`, 'info');
-  }
-
-  private async refazer(p: Linha) {
-    this.trabalhando = 'Montando a arte…';
-    try {
-      const f = await chamarApi(`/estudio/pecas/${p.id}`);
-      this.marca = f.marca;
-      await this.montar(f.peca, f.imovel);
-      urbiVerso.notificar('Arte refeita.', 'sucesso');
-    } catch (e) {
-      await urbiVerso.alertar({ titulo: 'Não foi possível montar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.trabalhando = null;
       await this.carregar();
@@ -178,71 +153,94 @@ export class PcTelaEstudio extends LitElement {
         { nome: 'legenda', tipo: 'texto_longo', rotulo: 'Legenda', valor: p.legenda ?? '' },
         { nome: 'hashtags', tipo: 'texto', rotulo: 'Hashtags', valor: p.hashtags ?? '' },
       ],
-      mensagem: 'Mudou o título, a chamada ou os destaques? Depois use "Refazer arte".',
+      mensagem: 'Mudou o título, a chamada ou os destaques? A instrução muda junto: copie de novo e refaça a arte no Canva.',
     });
     if (!v) return;
     await this.acao(() => enviar('PATCH', `/estudio/pecas/${p.id}`, { ...v, destaques: String(v.destaques ?? '').split(',').map((d) => d.trim()).filter(Boolean) }), 'Textos salvos.');
+    // A instrução leva os textos: a guardada fica velha.
+    const anterior = this.instrucoes[p.id];
+    const { [p.id]: _velha, ...resto } = this.instrucoes;
+    this.instrucoes = resto;
+    if (this.abertas.has(p.id)) void this.abrirInstrucao(p.id, anterior?.ferramenta, anterior?.referencias.map((x) => x.id));
   }
 
   /**
-   * Fazer em outra ferramenta (D-74, D-86): escolhe a ferramenta e as referências, copia a instrução,
-   * mostra os links das fotos, do logo e das referências e deixa o "Enviar arte pronta" aberto na peça.
+   * Busca a instrução da peça e a deixa à vista (D-74, D-86). Por padrão é a do Canva, com todas as
+   * referências da marca; "Usar outra ferramenta" troca a ferramenta e as referências.
    */
+  private async abrirInstrucao(id: number, ferramenta: Ferramenta = 'canva', referencias?: number[]): Promise<Instrucao | null> {
+    this.abertas = new Set(this.abertas).add(id);
+    const guardada = this.instrucoes[id];
+    if (guardada && guardada.ferramenta === ferramenta && !referencias) return guardada;
+    const refs = referencias ?? (this.marca?.referencias ?? []).map((r) => r.id);
+    try {
+      const r = (await chamarApi(`/estudio/pecas/${id}/instrucao?ferramenta=${encodeURIComponent(ferramenta)}${refs.length ? `&referencias=${refs.join(',')}` : ''}`)) as Instrucao;
+      this.instrucoes = { ...this.instrucoes, [id]: r };
+      return r;
+    } catch (e) {
+      this.fecharInstrucao(id);
+      await urbiVerso.alertar({ titulo: 'Não foi possível preparar a instrução', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      return null;
+    }
+  }
+
+  private fecharInstrucao(id: number) {
+    const abertas = new Set(this.abertas);
+    abertas.delete(id);
+    this.abertas = abertas;
+  }
+
+  private alternarInstrucao(p: Linha) {
+    if (this.abertas.has(p.id)) this.fecharInstrucao(p.id);
+    else void this.abrirInstrucao(p.id, this.instrucoes[p.id]?.ferramenta);
+  }
+
+  private async copiarInstrucao(p: Linha) {
+    const r = await this.abrirInstrucao(p.id, this.instrucoes[p.id]?.ferramenta);
+    if (!r) return;
+    try {
+      await navigator.clipboard.writeText(r.prompt);
+      urbiVerso.notificar(`Instrução copiada. ${r.onde}`, 'sucesso');
+    } catch {
+      urbiVerso.notificar('Copie a instrução que aparece na peça.', 'info'); // sem área de transferência
+    }
+  }
+
+  /** Usar outra ferramenta (D-86): Claude Design ou outra, e as referências que entram na instrução. */
   private async outraFerramenta(p: Linha) {
     const refs = this.marca?.referencias ?? [];
     const v = await urbiVerso.formulario({
-      titulo: 'Fazer em outra ferramenta',
+      titulo: 'Usar outra ferramenta',
       mensagem: refs.length
-        ? 'O app prepara a instrução com a sua marca e os textos da peça. Marque as referências que entram (elas ficam em Ajustes › Marca).'
-        : 'O app prepara a instrução com a sua marca e os textos da peça. Quer mandar referências (posts que você admira)? Envie em Ajustes › Marca.',
+        ? 'A instrução muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Marca).'
+        : 'A instrução muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Marca.',
       campos: [
-        { nome: 'ferramenta', tipo: 'selecao', rotulo: 'Ferramenta', valor: 'canva', opcoes: FERRAMENTAS.map((f) => ({ valor: f, rotulo: FERRAMENTA[f].rotulo })) },
+        { nome: 'ferramenta', tipo: 'selecao', rotulo: 'Ferramenta', valor: this.instrucoes[p.id]?.ferramenta ?? 'canva', opcoes: FERRAMENTAS.map((f) => ({ valor: f, rotulo: FERRAMENTA[f].rotulo })) },
         ...refs.map((r, i): CampoFormulario => ({ nome: `r_${r.id}`, tipo: 'booleano', rotulo: `Referência ${i + 1}`, valor: true })),
       ],
       rotuloConfirmar: 'Preparar',
     });
     if (!v) return;
-    const escolhidas = refs.filter((r) => v[`r_${r.id}`] === true).map((r) => r.id);
-    try {
-      const r = await chamarApi(`/estudio/pecas/${p.id}/instrucao?ferramenta=${encodeURIComponent(String(v.ferramenta))}${escolhidas.length ? `&referencias=${escolhidas.join(',')}` : ''}`);
-      let copiada = true;
-      try {
-        await navigator.clipboard.writeText(r.prompt);
-      } catch {
-        copiada = false; // sem área de transferência: a instrução aparece abaixo para copiar à mão
-      }
-      const fotos = (r.fotos as Linha[]).map((f, i) => `${i + 1}. ${f.url}`).join('\n');
-      const mensagem =
-        `1. ${copiada ? 'A instrução abaixo foi copiada.' : 'Copie a instrução abaixo.'} ${r.onde}\n` +
-        `2. Baixe e anexe as fotos do imóvel e o seu logo pelos links${r.referencias.length ? ' (as referências estão na instrução)' : ''}.\n` +
-        `3. Baixe a arte pronta (JPG ou PNG) e volte aqui: o "Enviar arte pronta" fica aberto na peça.\n\n` +
-        `${r.prompt}\n\nFotos:\n${fotos || 'nenhuma foto pública'}${r.logo_url ? `\n\nLogo: ${r.logo_url}` : ''}`;
-      if (r.abrir) {
-        if (await urbiVerso.confirmar({ titulo: `Fazer no ${FERRAMENTA[r.ferramenta as keyof typeof FERRAMENTA].rotulo}`, mensagem, rotuloConfirmar: 'Abrir a ferramenta' })) window.open(r.abrir, '_blank', 'noopener');
-      } else {
-        await urbiVerso.alertar({ titulo: `Fazer no ${FERRAMENTA[r.ferramenta as keyof typeof FERRAMENTA].rotulo}`, mensagem });
-      }
-      this.enviando = { id: p.id, motor: 'canva_ia' };
-    } catch (e) {
-      await urbiVerso.alertar({ titulo: 'Não foi possível preparar', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    }
+    await this.abrirInstrucao(p.id, v.ferramenta as Ferramenta, refs.filter((r) => v[`r_${r.id}`] === true).map((r) => r.id));
   }
 
   private async enviarArte(p: Linha, e: CustomEvent) {
-    const arquivos = ((e.detail.arquivos as File[]) ?? []).slice(0, p.formato === 'carrossel' ? 5 : 1);
+    const arquivos = ((e.detail.arquivos as File[]) ?? []).slice(0, p.formato === 'carrossel' ? MAX_SLIDES : 1);
     if (!arquivos.length || this.trabalhando) return;
-    // O seletor também avisa quando um arquivo sai da lista: troca só com confirmação.
-    const ok = await urbiVerso.confirmar({ titulo: 'Trocar a arte', mensagem: `A arte da peça passa a ser ${arquivos.length === 1 ? 'esta imagem' : `estas ${arquivos.length} imagens, nesta ordem`}.`, rotuloConfirmar: 'Trocar' });
-    if (!ok) return;
-    const aberto = this.enviando;
-    const motor = aberto && aberto.id === p.id ? aberto.motor : 'upload';
+    // Trocar uma arte que já existe pede confirmação (o seletor também avisa quando um arquivo sai da lista).
+    if (p.arquivos?.length) {
+      const ok = await urbiVerso.confirmar({ titulo: 'Trocar a arte', mensagem: `A arte da peça passa a ser ${arquivos.length === 1 ? 'esta imagem' : `estas ${arquivos.length} imagens, nesta ordem`}.`, rotuloConfirmar: 'Trocar' });
+      if (!ok) return;
+    }
+    const ferramenta = this.instrucoes[p.id]?.ferramenta ?? 'canva';
     this.trabalhando = 'Enviando a arte…';
     try {
       const uploads: number[] = [];
       for (const f of arquivos) uploads.push(await subirArquivo('peca_arquivos', 'arquivo', f));
-      await enviar('PUT', `/estudio/pecas/${p.id}/arquivos`, { upload_ids: uploads, motor });
-      this.enviando = null;
-      urbiVerso.notificar('Arte enviada. Revise e aprove.', 'sucesso');
+      await enviar('PUT', `/estudio/pecas/${p.id}/arquivos`, { upload_ids: uploads, motor: ferramenta === 'canva' ? 'canva_ia' : 'upload' });
+      this.trocando = null;
+      this.fecharInstrucao(p.id);
+      urbiVerso.notificar(p.formato === 'carrossel' && uploads.length === 1 ? 'Arte enviada. O carrossel precisa de pelo menos 2 imagens: envie todas juntas.' : 'Arte enviada. Revise e aprove.', 'sucesso');
     } catch (err) {
       await urbiVerso.alertar({ titulo: 'Não foi possível enviar', mensagem: mensagemDeErro(err), tipo: 'erro' });
     } finally {
@@ -253,8 +251,8 @@ export class PcTelaEstudio extends LitElement {
 
   private async acao(fn: () => Promise<unknown>, sucesso: string) {
     try {
-      await fn();
-      urbiVerso.notificar(sucesso, 'sucesso');
+      const r = (await fn()) as { avisos?: string[] } | undefined;
+      urbiVerso.notificar([sucesso, ...(r?.avisos ?? [])].join(' '), r?.avisos?.length ? 'info' : 'sucesso');
       await this.carregar();
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -276,18 +274,16 @@ export class PcTelaEstudio extends LitElement {
     await this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/agendar`, { quando: juntarDataHora(v.dia, v.hora) }), 'Peça agendada.');
   }
 
-  /** Story com arte que não é do gerador do app não sai pela API: o CRECI teria de estar na arte. */
-  private soPorFora = (p: Linha) => p.formato === 'story' && p.motor !== 'interno';
-
   /** Publicar: agora, agendar ou baixar para publicar pelo Instagram (e marcar "Publiquei por fora"). */
   private async publicarOpcoes(p: Linha) {
     const opcoes = [
-      ...(this.soPorFora(p) ? [] : [{ valor: 'agora', rotulo: 'Publicar agora no Instagram' }, { valor: 'agendar', rotulo: 'Agendar' }]),
+      { valor: 'agora', rotulo: 'Publicar agora no Instagram' },
+      { valor: 'agendar', rotulo: 'Agendar' },
       { valor: 'baixar', rotulo: 'Baixar a arte e a legenda (publico eu)' },
     ];
     const v = await urbiVerso.formulario({
       titulo: 'Publicar',
-      mensagem: this.soPorFora(p) ? 'Story com arte de outra ferramenta ou enviada: confira o CRECI na arte, publique pelo Instagram e use "Publiquei por fora" no Mais.' : undefined,
+      mensagem: p.formato === 'story' ? 'O story sai sem legenda: confira se o CRECI está na arte.' : undefined,
       campos: [{ nome: 'como', tipo: 'selecao', rotulo: 'Como', obrigatorio: true, valor: opcoes[0].valor, opcoes }],
       rotuloConfirmar: 'Continuar',
     });
@@ -355,9 +351,11 @@ export class PcTelaEstudio extends LitElement {
   private acoes(p: Linha) {
     const travada = ['agendada', 'publicando', 'publicada'].includes(p.estado);
     const aprovavel = p.estado === 'rascunho' || p.estado === 'rejeitada' || (p.estado === 'erro' && !p.aprovada_em);
+    const semArte = !(p.arquivos ?? []).length;
     const legenda: Acao = { rotulo: 'Copiar legenda', icone: 'fa-solid fa-copy', aoEscolher: () => this.copiarLegenda(p) };
     let principal: Acao;
-    if (aprovavel) principal = { rotulo: 'Aprovar', icone: 'fa-solid fa-check', aoEscolher: () => this.aprovar(p) };
+    if (semArte && !travada) principal = { rotulo: 'Copiar instrução', icone: 'fa-solid fa-copy', aoEscolher: () => this.copiarInstrucao(p) };
+    else if (aprovavel) principal = { rotulo: 'Aprovar', icone: 'fa-solid fa-check', aoEscolher: () => this.aprovar(p) };
     else if (p.estado === 'aprovada') principal = { rotulo: 'Publicar', icone: 'fa-brands fa-instagram', aoEscolher: () => this.publicarOpcoes(p) };
     else if (p.estado === 'erro') principal = { rotulo: 'Tentar de novo', icone: 'fa-solid fa-rotate-right', aoEscolher: () => this.publicarOpcoes(p) };
     else if (p.estado === 'agendada') principal = { rotulo: 'Cancelar agendamento', icone: 'fa-solid fa-calendar-xmark', aoEscolher: () => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/cancelar-agendamento`), 'Agendamento cancelado.') };
@@ -367,12 +365,14 @@ export class PcTelaEstudio extends LitElement {
     const mais: Acao[] = [];
     if ((p.arquivos ?? []).length) mais.push({ rotulo: p.arquivos.length > 1 ? 'Ver as artes' : 'Ver a arte', icone: 'fa-solid fa-image', aoEscolher: () => this.verArte(p) });
     if (!travada) {
-      mais.push(
-        { rotulo: 'Textos', icone: 'fa-solid fa-pen', aoEscolher: () => this.editar(p) },
-        { rotulo: 'Refazer arte', icone: 'fa-solid fa-rotate', aoEscolher: () => this.refazer(p) },
-        { rotulo: 'Fazer em outra ferramenta', icone: 'fa-solid fa-wand-magic-sparkles', aoEscolher: () => this.outraFerramenta(p) },
-        { rotulo: 'Enviar arte pronta', icone: 'fa-solid fa-upload', aoEscolher: () => (this.enviando = { id: p.id, motor: 'upload' }) },
-      );
+      mais.push({ rotulo: 'Textos', icone: 'fa-solid fa-pen', aoEscolher: () => this.editar(p) });
+      if (!semArte) {
+        mais.push(
+          { rotulo: this.abertas.has(p.id) ? 'Esconder a instrução' : 'Ver a instrução', icone: 'fa-solid fa-wand-magic-sparkles', aoEscolher: () => this.alternarInstrucao(p) },
+          { rotulo: 'Trocar a arte', icone: 'fa-solid fa-upload', aoEscolher: () => (this.trocando = p.id) },
+        );
+      }
+      mais.push({ rotulo: 'Usar outra ferramenta', icone: 'fa-solid fa-shuffle', aoEscolher: () => this.outraFerramenta(p) });
     }
     if (p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em)) mais.push({ rotulo: 'Voltar a rascunho', icone: 'fa-solid fa-arrow-rotate-left', aoEscolher: () => this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/rejeitar`), 'Peça de volta a rascunho.') });
     if (['aprovada', 'agendada', 'publicando', 'erro'].includes(p.estado)) mais.push({ rotulo: 'Publiquei por fora', icone: 'fa-solid fa-check-double', aoEscolher: () => this.publiqueiFora(p) });
@@ -381,27 +381,75 @@ export class PcTelaEstudio extends LitElement {
     return acoesComMais(principal, mais);
   }
 
+  /** Envio da arte: grande e com área de arrastar na peça sem arte; compacto para trocar. */
+  private seletorArte(p: Linha, primeira: boolean) {
+    const carrossel = p.formato === 'carrossel';
+    const nome = FERRAMENTA[this.instrucoes[p.id]?.ferramenta ?? 'canva'].rotulo;
+    return html`<urbi-seletor-arquivo
+      accept="image/jpeg,image/png"
+      ?multiplo=${carrossel}
+      ?drop=${primeira}
+      ?desabilitado=${!!this.trabalhando}
+      variante=${primeira ? 'primario' : 'secundario'}
+      icone="fa-solid fa-upload"
+      texto=${primeira ? `Enviar a arte ${carrossel ? '(as imagens) ' : ''}do ${nome}` : 'Escolher a nova arte'}
+      dica=${carrossel ? `Arraste aqui as imagens baixadas, todas juntas e na ordem dos slides (de 2 a ${MAX_SLIDES}, JPG ou PNG)` : 'Arraste aqui a imagem baixada (JPG ou PNG)'}
+      @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArte(p, e)}
+    ></urbi-seletor-arquivo>`;
+  }
+
+  /** A instrução e os anexos (fotos e logo), à vista na peça. */
+  private instrucao(p: Linha) {
+    const r = this.instrucoes[p.id];
+    if (!r) return html`<urbi-loading></urbi-loading>`;
+    const anexos = r.fotos.length || r.logo_url;
+    return html`<urbi-stack>
+      <urbi-prosa papel="secao">Instrução para o ${FERRAMENTA[r.ferramenta].rotulo}</urbi-prosa>
+      <urbi-prosa pre>${r.prompt}</urbi-prosa>
+      <urbi-prosa papel="secundario">${anexos ? 'Para anexar (abra e baixe):' : 'Sem fotos públicas do imóvel: anexe as suas na ferramenta, se quiser.'}</urbi-prosa>
+      ${anexos
+        ? html`<urbi-linha quebrar>
+            ${r.fotos.map((f, i) => html`<urbi-visualizador-arquivo pequeno variante="secundario" rotulo=${`Foto ${i + 1}`} url=${f.url} nome=${`${p.imovel_codigo ?? 'foto'}-${i + 1}.jpg`} mime="image/jpeg"></urbi-visualizador-arquivo>`)}
+            ${r.logo_url ? html`<urbi-visualizador-arquivo pequeno variante="secundario" rotulo="Logo" url=${r.logo_url} nome="logo.png" mime="image/png"></urbi-visualizador-arquivo>` : ''}
+          </urbi-linha>`
+        : ''}
+    </urbi-stack>`;
+  }
+
   private peca(p: Linha) {
     const estado = ESTADO[p.estado] ?? ESTADO.rascunho;
     const capa = p.arquivos?.[0]?.url ?? '';
+    const travada = ['agendada', 'publicando', 'publicada'].includes(p.estado);
+    const semArte = !(p.arquivos ?? []).length;
+    const aberta = this.abertas.has(p.id);
+    const r = this.instrucoes[p.id];
+    const ferramenta = FERRAMENTA[r?.ferramenta ?? 'canva'];
+    const abrir = r ? r.abrir : FERRAMENTA.canva.abrir;
     const publicandoHa = p.estado === 'publicando' ? Date.now() - new Date(p.atualizado_em ?? p.criado_em).getTime() : 0;
     return html`<urbi-linha quebrar>
       <urbi-avatar nome=${p.titulo} foto=${capa} icone=${capa ? '' : 'fa-solid fa-image'} tamanho="64"></urbi-avatar>
       <urbi-stack>
         <urbi-linha quebrar>
           <urbi-prosa>${p.titulo}</urbi-prosa>
-          <urbi-badge cor=${estado.cor}>${estado.rotulo}</urbi-badge>
+          ${semArte && !travada ? html`<urbi-badge cor="alerta">falta a arte</urbi-badge>` : html`<urbi-badge cor=${estado.cor}>${estado.rotulo}</urbi-badge>`}
         </urbi-linha>
         ${p.estado === 'agendada' ? html`<urbi-prosa papel="secundario">Agendada para ${dataHora(p.agendada_para)}</urbi-prosa>` : ''}
         ${p.estado === 'publicada' ? html`<urbi-prosa papel="secundario">Publicada em ${dataHora(p.publicada_em)}${p.publicada_por === 'fora' ? ' (por fora)' : ''}</urbi-prosa>` : ''}
         ${p.estado === 'publicando' && publicandoHa < QUINZE_MIN ? html`<urbi-prosa papel="dica">Publicando. Se passar de 15 minutos assim, use "Destravar".</urbi-prosa>` : ''}
         ${p.estado === 'erro' && p.erro ? html`<urbi-prosa papel="secundario">${p.erro}</urbi-prosa>` : ''}
-        <urbi-prosa papel="fraco">${ROTULO_FORMATO[p.formato as Formato] ?? p.formato} · ${ROTULO_OBJETIVO[p.objetivo as keyof typeof ROTULO_OBJETIVO] ?? p.objetivo}${p.imovel_codigo ? ` · ${p.imovel_codigo}` : ''} · ${MOTOR[p.motor] ?? p.motor} · ${dataHora(p.criado_em)}</urbi-prosa>
-        ${this.acoes(p)}
-        ${this.enviando?.id === p.id
+        <urbi-prosa papel="fraco">${ROTULO_FORMATO[p.formato as Formato] ?? p.formato} · ${ROTULO_OBJETIVO[p.objetivo as keyof typeof ROTULO_OBJETIVO] ?? p.objetivo}${p.imovel_codigo ? ` · ${p.imovel_codigo}` : ''}${semArte ? '' : ` · ${MOTOR[p.motor] ?? p.motor}`} · ${dataHora(p.criado_em)}</urbi-prosa>
+        ${semArte && !travada ? html`<urbi-prosa papel="dica">1. Copie a instrução${abrir ? ` e abra o ${ferramenta.rotulo}` : ''}. 2. Cole a instrução e anexe as fotos e o logo. 3. Baixe a arte pronta (JPG ou PNG) e envie aqui.</urbi-prosa>` : ''}
+        <urbi-linha quebrar>
+          ${this.acoes(p)}
+          ${semArte && !travada && abrir ? html`<urbi-botao variante="secundario" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(abrir, '_blank', 'noopener')}>Abrir o ${ferramenta.rotulo}</urbi-botao>` : ''}
+          ${semArte && !travada ? html`<urbi-botao variante="fantasma" icone=${aberta ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'} @click=${() => this.alternarInstrucao(p)}>${aberta ? 'Esconder instrução e fotos' : 'Ver instrução e fotos'}</urbi-botao>` : ''}
+        </urbi-linha>
+        ${aberta && !travada ? this.instrucao(p) : ''}
+        ${semArte && !travada ? this.seletorArte(p, true) : ''}
+        ${this.trocando === p.id && !semArte && !travada
           ? html`<urbi-linha quebrar>
-              <urbi-seletor-arquivo accept="image/jpeg,image/png" ?multiplo=${p.formato === 'carrossel'} dica=${p.formato === 'carrossel' ? 'Arte pronta: até 5 imagens (JPG ou PNG), na ordem dos slides' : 'Arte pronta (JPG ou PNG)'} @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArte(p, e)}></urbi-seletor-arquivo>
-              <urbi-botao pequeno variante="fantasma" @click=${() => (this.enviando = null)}>Fechar</urbi-botao>
+              ${this.seletorArte(p, false)}
+              <urbi-botao pequeno variante="fantasma" @click=${() => (this.trocando = null)}>Fechar</urbi-botao>
             </urbi-linha>`
           : ''}
       </urbi-stack>
@@ -415,7 +463,12 @@ export class PcTelaEstudio extends LitElement {
     if (!this.marca) return html`<urbi-loading></urbi-loading>`;
     const m = this.marca;
     return html`<urbi-stack>
-      ${!m.creci ? html`<urbi-banner variante="alerta">Cadastre o seu CRECI em Ajustes › Conta: ele vai em toda arte e legenda, e sem ele a peça não é aprovada.</urbi-banner>` : ''}
+      ${!m.creci
+        ? html`<urbi-banner variante="info" fechavel>
+            Dica: cadastre o seu CRECI para ele entrar na instrução e na legenda. O Estúdio funciona sem ele, mas anúncio de imóvel deve mostrar o CRECI.
+            <urbi-botao slot="acao" pequeno variante="secundario" href=${urbiVerso.href('/ajustes/conta')}>Cadastrar</urbi-botao>
+          </urbi-banner>`
+        : ''}
       <urbi-card titulo="Criar" icone="fa-solid fa-wand-magic-sparkles">
         <urbi-redator
           audio
@@ -427,7 +480,7 @@ export class PcTelaEstudio extends LitElement {
         <urbi-linha quebrar>
           <urbi-botao variante="secundario" icone="fa-solid fa-box-open" ?carregando=${!!this.trabalhando} @click=${() => this.pacote()}>Pacote de lançamento</urbi-botao>
         </urbi-linha>
-        ${this.trabalhando ? html`<urbi-prosa papel="secundario">${this.trabalhando}</urbi-prosa>` : html`<urbi-prosa papel="dica">As artes saem com a sua marca, a foto do imóvel, o preço, o bairro e o CRECI. Prefere Canva, Claude Design ou outra? Em cada peça, "Mais › Fazer em outra ferramenta" prepara a instrução e as fotos.</urbi-prosa>`}
+        ${this.trabalhando ? html`<urbi-prosa papel="secundario">${this.trabalhando}</urbi-prosa>` : html`<urbi-prosa papel="dica">Aqui o app escreve os textos e a instrução para o Canva IA, com a sua marca, o preço, o bairro e o CRECI. A imagem você gera no Canva e envia de volta na peça. Prefere Claude Design ou outra? Use "Mais › Usar outra ferramenta".</urbi-prosa>`}
         <urbi-linha><urbi-botao pequeno variante="fantasma" icone="fa-solid fa-palette" href=${urbiVerso.href('/ajustes/marca')}>Sua marca (logo, cores, estilo)</urbi-botao></urbi-linha>
       </urbi-card>
       <urbi-card titulo="Peças" icone="fa-solid fa-images">

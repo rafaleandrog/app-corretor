@@ -27,9 +27,9 @@ import { uploadRecusado } from './imoveis';
 import { contaDoRequest, ressincronizarMarca } from './vitrine';
 
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74): marca, pedido → textos (IA com JSON Schema,
-// ou modelo quando a IA não está disponível), arte montada pelo gerador do app no navegador do
-// corretor (a plataforma não gera imagem, 10.6) ou feita em outra ferramenta (Canva, Claude Design…)
-// e enviada de volta (D-86), aprovação com checagens e biblioteca para baixar.
+// ou modelo quando a IA não está disponível) e a instrução para a ferramenta; a arte é feita no Canva
+// IA (ou em outra ferramenta) e enviada de volta (a plataforma não gera imagem, 10.6; D-86, D-89),
+// aprovação com checagens e biblioteca para baixar.
 export const estudioRotas: Router = Router();
 guardarCorretor(estudioRotas, ['/estudio']);
 
@@ -236,7 +236,7 @@ estudioRotas.get(
 
 /**
  * Pedido em texto (ou voz, transcrita no navegador): uma peça por formato pedido, com os textos já
- * prontos. A arte é montada em seguida pelo navegador (gerador do app) e enviada em `/arquivos`.
+ * prontos. A arte é feita no Canva IA (instrução em `/instrucao`) e enviada em `/arquivos` (D-89).
  */
 estudioRotas.post(
   '/estudio/pedido',
@@ -257,7 +257,7 @@ estudioRotas.post(
       criadas.push(
         await req.dados!.criar('pecas', {
           imovel_id: imovel?.linha.id ?? null, formato, objetivo, pedido: pedido || null, titulo: t.textos.titulo, chamada: t.textos.chamada,
-          destaques: t.textos.destaques, legenda: t.textos.legenda, hashtags: t.textos.hashtags.join(' '), motor: 'interno', estado: 'rascunho', gerada_por_ia: t.ia,
+          destaques: t.textos.destaques, legenda: t.textos.legenda, hashtags: t.textos.hashtags.join(' '), motor: 'canva_ia', estado: 'rascunho', gerada_por_ia: t.ia,
         }),
       );
     }
@@ -283,7 +283,7 @@ estudioRotas.post(
       criadas.push(
         await req.dados!.criar('pecas', {
           imovel_id: imovel.linha.id, formato, objetivo, pedido, titulo: t.textos.titulo, chamada: t.textos.chamada, destaques: t.textos.destaques,
-          legenda: t.textos.legenda, hashtags: t.textos.hashtags.join(' '), motor: 'interno', estado: 'rascunho', gerada_por_ia: t.ia,
+          legenda: t.textos.legenda, hashtags: t.textos.hashtags.join(' '), motor: 'canva_ia', estado: 'rascunho', gerada_por_ia: t.ia,
         }),
       );
     }
@@ -298,7 +298,7 @@ async function pecaOu404(req: Request) {
   return pid ? req.dados!.buscar('pecas', pid) : null;
 }
 
-/** Ficha da peça: textos, arquivos, o imóvel (para o gerador montar a arte) e as checagens. */
+/** Ficha da peça: textos, arquivos, o imóvel e as checagens. */
 estudioRotas.get(
   '/estudio/pecas/:id',
   assincrono(async (req, res) => {
@@ -332,7 +332,7 @@ estudioRotas.patch(
 );
 
 /**
- * Arte da peça: as imagens geradas no navegador (gerador do app) ou feitas em outra ferramenta (Canva, Claude Design ou outra), enviadas em
+ * Arte da peça: as imagens feitas no Canva ou em outra ferramenta (ou, nas peças antigas, pelo gerador do app), enviadas em
  * 2 passos. Substitui as anteriores; arte nova pede nova aprovação.
  */
 estudioRotas.put(
@@ -382,7 +382,8 @@ estudioRotas.post(
     const comCreci = meuCreci && !legenda.includes(meuCreci) ? `${legenda}${legenda ? '\n\n' : ''}CRECI ${meuCreci}` : legenda;
     const checagem = checarPeca({ ...campos(p, arquivos.total), legenda: comCreci }, { creci: meuCreci, imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
     if (!checagem.ok) return erro(res, 422, 'CHECAGEM_PENDENTE', 'Antes de aprovar, resolva:', checagem.pendencias);
-    res.json(await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id }));
+    const aprovada = await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id });
+    res.json({ ...aprovada, avisos: checagem.avisos });
   }),
 );
 

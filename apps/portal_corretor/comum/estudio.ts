@@ -248,18 +248,24 @@ export function promptFerramenta(
 export interface Checagem {
   ok: boolean;
   pendencias: string[];
+  /** Lembretes que não impedem aprovar nem publicar (D-89: o CRECI não trava o Estúdio). */
+  avisos: string[];
 }
 
-/** Checagens antes de aprovar (10.5): CRECI, autorização vigente, arte pronta, legenda dentro do limite do canal. */
+/**
+ * Checagens antes de aprovar (10.5): autorização vigente, arte pronta, legenda dentro do limite do
+ * canal. O CRECI sem cadastro vira aviso, não pendência (D-89).
+ */
 export function checarPeca(p: { formato: string; legenda: string | null; hashtags: string | null; arquivos: number; objetivo: string }, ctx: { creci: string | null; imovel: boolean; autorizacaoVigente: boolean }): Checagem {
   const pendencias: string[] = [];
-  if (!ctx.creci) pendencias.push('Cadastre o seu CRECI (Ajustes › Conta): ele vai na arte e na legenda.');
+  const avisos: string[] = [];
+  if (!ctx.creci) avisos.push('Cadastre o seu CRECI (Ajustes › Conta) para ele entrar na instrução e na legenda.');
   if (ctx.imovel && p.objetivo !== 'vendido' && !ctx.autorizacaoVigente) pendencias.push('O imóvel precisa de autorização de venda vigente para ser anunciado.');
-  if (!p.arquivos) pendencias.push('Gere ou envie a arte antes de aprovar.');
+  if (!p.arquivos) pendencias.push('Envie a arte feita no Canva (ou em outra ferramenta) antes de aprovar.');
   if (p.formato === 'carrossel' && p.arquivos === 1) pendencias.push('O carrossel precisa de pelo menos 2 imagens.');
   // Mesmo separador da publicação (legenda, linha em branco, hashtags).
   const total = [p.legenda ?? '', p.hashtags ?? ''].filter(Boolean).join('\n\n');
   if (total.length > 2200) pendencias.push('A legenda passa de 2.200 caracteres (limite do Instagram).');
   if ((p.hashtags ?? '').split(/\s+/).filter((h) => h.startsWith('#')).length > 30) pendencias.push('Mais de 30 hashtags (limite do Instagram).');
-  return { ok: !pendencias.length, pendencias };
+  return { ok: !pendencias.length, pendencias, avisos };
 }
