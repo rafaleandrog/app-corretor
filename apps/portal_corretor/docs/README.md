@@ -12,7 +12,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 
 | Para quem | Tela | O que faz |
 |---|---|---|
-| Corretor | **Início** | O que fazer hoje (quentes sem resposta, abordagens atrasadas, visitas, próximos passos) e o que falta para começar — ver [Funil, temperatura e fila do dia](funil.md) |
+| Corretor | **Início** | Faixa da semana e duas abas: **Hoje** (a fila do dia por motivo — quentes sem resposta, abordagens atrasadas, visitas, próximos passos —, um botão por item) e **Agenda** (pendências dos próximos 14 dias); e o que falta para começar — ver [Funil, temperatura e fila do dia](funil.md) e [Clientes, negócios e agenda](clientes-e-agenda.md) |
 | Corretor | **Desempenho** | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Desempenho, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Clientes** | Duas visões: **Lista** (contatos com filtros prontos Novos · Sem contato · Quentes · Retorno vencido) e **Quadro** (o funil por etapa, arrastar para mover); ficha com negócios, notas, consentimento e linha do tempo; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
 | Corretor | **Imóveis** | Imóveis com fotos, qualidade do anúncio, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
@@ -23,7 +23,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | Reage aos imóveis (gostei, não gostei, quero visitar), vê as visitas, pede para remarcar e manda mensagem ao corretor |
 | Corretor | **Assistente** (menu) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
 | Corretor | **Ajustes** | Uma tela com cinco abas: Conta, Marca, Conexões (Instagram), Funil e abordagens, Atendimento — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
-| Corretor | **Agenda** e **Empreendimentos** (fora do menu) | Saíram do menu e continuam abrindo pelos atalhos do Início, pelo endereço (`/agenda`, `/empreendimentos`) e pelo Assistente, até entrarem em Início e Imóveis. O endereço `/funil` abre Clientes › Quadro |
+| Corretor | **Empreendimentos** (fora do menu) | Saiu do menu e continua abrindo pelo link no pé do Início, pelo endereço (`/empreendimentos`) e pelo Assistente, até virar aba de Imóveis. Os endereços antigos `/agenda` e `/funil` abrem Início › Agenda e Clientes › Quadro |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
 Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, nos imóveis (descrição e leitura de fotos), na Minha página e no Estúdio (textos),

@@ -6,7 +6,6 @@ import './telas/inicio.js';
 import './telas/corretores.js';
 import { renderClientes } from './telas/clientes.js';
 import './telas/ficha-contato.js';
-import './telas/agenda.js';
 import './telas/importar.js';
 import './telas/imoveis.js';
 import './telas/ficha-imovel.js';
@@ -35,10 +34,13 @@ const AJUSTES: Tela = { titulo: 'Ajustes', papel: 'corretor', render: (_p, app) 
 const CLIENTES: Tela = { titulo: 'Clientes', papel: 'corretor', render: (_p, app) => renderClientes(() => app?.requestUpdate()) };
 
 // Uma entrada por rota. A tela só abre para quem tem o papel; o backend barra de novo.
-// `/agenda` e `/empreendimentos` saíram do menu (D-81) e seguem abrindo as telas de hoje até
-// virarem parte de Início e Imóveis.
+// `/empreendimentos` saiu do menu (D-81) e segue abrindo a tela de hoje até virar aba de Imóveis.
+const INICIO: Tela = { titulo: 'Início', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` };
+
 const TELAS: Record<string, Tela> = {
-  '/': { titulo: 'Início', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` },
+  '/': INICIO,
+  // Apelido: a Agenda virou a aba Agenda do Início (D-82).
+  '/agenda': INICIO,
   '/clientes': CLIENTES,
   // Apelido: o Funil virou a visão Quadro de Clientes (D-83).
   '/funil': CLIENTES,
@@ -56,7 +58,6 @@ const TELAS: Record<string, Tela> = {
   '/pagina': { titulo: 'Minha página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
   '/estudio': { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
   '/assistente': { titulo: 'Assistente', papel: 'corretor', render: (_p, app) => renderAssistente(() => app?.requestUpdate()) },
-  '/agenda': { titulo: 'Agenda', papel: 'corretor', render: () => html`<pc-tela-agenda></pc-tela-agenda>` },
   '/ajustes': AJUSTES,
   // Apelidos: o SDK não redireciona, então os endereços antigos abrem Ajustes na aba certa.
   // `/ajustes/conexoes` é também o retorno do Instagram cadastrado na Meta (`?code=&state=`).

@@ -1,7 +1,9 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, dataHora, enviar, mensagemDeErro, reais } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, acoesComMais, chamarApi, chip, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
+import { ABAS_INICIO, APELIDOS_INICIO } from '../../comum/funil';
+import './agenda.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -12,17 +14,28 @@ interface ItemFila {
   temperatura: string | null;
   quando: string | null;
   texto: string;
+  atividade_id?: number;
 }
 
-const TIPO: Record<ItemFila['tipo'], { rotulo: string; cor: string; icone: string }> = {
-  quente_sem_resposta: { rotulo: 'Quente sem resposta', cor: 'erro', icone: 'fa-solid fa-fire' },
-  abordagem_vencida: { rotulo: 'Abordagem atrasada', cor: 'alerta', icone: 'fa-solid fa-clock' },
-  visita: { rotulo: 'Visita', cor: 'info', icone: 'fa-solid fa-door-open' },
-  proximo_passo: { rotulo: 'Próximo passo vencido', cor: 'alerta', icone: 'fa-solid fa-forward' },
-};
+// Grupos da aba Hoje, na ordem da spec 11.1 (é também a ordem em que `GET /inicio` devolve a fila).
+// Passagens do Mensageiro e peças aguardando aprovação entram aqui quando existirem.
+const GRUPOS: { tipo: ItemFila['tipo']; rotulo: string; icone: string }[] = [
+  { tipo: 'quente_sem_resposta', rotulo: 'Quentes sem resposta', icone: 'fa-solid fa-fire' },
+  { tipo: 'abordagem_vencida', rotulo: 'Abordagens atrasadas', icone: 'fa-solid fa-clock' },
+  { tipo: 'visita', rotulo: 'Visitas de hoje e amanhã', icone: 'fa-solid fa-door-open' },
+  { tipo: 'proximo_passo', rotulo: 'Próximos passos vencidos', icone: 'fa-solid fa-forward' },
+];
 
-// Início: o que precisa do corretor agora (fila do dia, spec 10.4 e 11.1), na ordem de urgência,
-// com os atalhos do dia. Guia o primeiro passo enquanto a conta não está completa.
+const ABAS = [...ABAS_INICIO];
+// `/agenda` é apelido da aba Agenda (D-82); escolher uma aba leva a barra para `/`.
+const OPCOES_ABA: OpcoesAba = { apelidos: APELIDOS_INICIO, rota: '/' };
+
+/** A aba do endereço que está na barra agora. */
+export const abaInicio = () => abaDaUrl(ABAS.map((a) => a.id), OPCOES_ABA);
+
+// Início (spec 11.1, D-82): a faixa da semana sobre duas abas. Hoje é a fila do dia agrupada por
+// motivo, cada item com um botão só; Agenda é a lista de 14 dias, montada só quando aberta (ela
+// carrega os próprios dados). Guia o primeiro passo enquanto a conta não está completa.
 @customElement('pc-tela-inicio')
 export class PcTelaInicio extends LitElement {
   @state() private pendente: string[] | null = null;
@@ -31,6 +44,7 @@ export class PcTelaInicio extends LitElement {
   @state() private semana: Record<string, number | null> | null = null;
   @state() private demo = false;
   @state() private gerando = false;
+  @state() private aba = abaInicio();
 
   connectedCallback() {
     super.connectedCallback();
@@ -54,9 +68,15 @@ export class PcTelaInicio extends LitElement {
     }
   }
 
-  private async feita(i: ItemFila) {
+  private escolherAba(id: string) {
+    if (!ABAS.some((a) => a.id === id) || id === this.aba) return;
+    abaNaUrl(id === 'hoje' ? '' : id, OPCOES_ABA);
+    this.aba = id;
+  }
+
+  private async registrar(caminho: () => Promise<unknown>) {
     try {
-      await enviar('POST', `/abordagens/${i.contato_id}/feita`, { texto: i.texto });
+      await caminho();
       urbiVerso.notificar('Registrado.', 'sucesso');
       await this.carregar();
     } catch (e) {
@@ -77,21 +97,64 @@ export class PcTelaInicio extends LitElement {
     }
   }
 
+  /** Um botão por item (princípio 14); o resto no "Mais". */
+  private acoes(i: ItemFila) {
+    const ficha = `/clientes/${i.contato_id}`;
+    const abrir: Acao = { rotulo: 'Abrir', icone: 'fa-solid fa-user', sub: ficha };
+    switch (i.tipo) {
+      case 'quente_sem_resposta':
+        // Abre a ficha; a mensagem sugerida com o WhatsApp entra pelo bloco 4.
+        return acoesComMais({ rotulo: 'Fazer agora', icone: 'fa-solid fa-paper-plane', sub: ficha }, []);
+      case 'abordagem_vencida':
+        return acoesComMais({ rotulo: 'Fazer agora', icone: 'fa-solid fa-paper-plane', sub: ficha }, [
+          { rotulo: 'Fiz', icone: 'fa-solid fa-check', aoEscolher: () => this.registrar(() => enviar('POST', `/abordagens/${i.contato_id}/feita`, { texto: i.texto })) },
+        ]);
+      case 'visita':
+        return acoesComMais(
+          abrir,
+          i.atividade_id
+            ? [{ rotulo: 'Visita feita', icone: 'fa-solid fa-check', aoEscolher: () => this.registrar(() => enviar('PATCH', `/atividades/${i.atividade_id}`, { status: 'feita' })) }]
+            : [],
+        );
+      default:
+        return acoesComMais(abrir, []);
+    }
+  }
+
   private item(i: ItemFila) {
-    const t = TIPO[i.tipo];
+    const quando = i.quando && i.tipo !== 'quente_sem_resposta' && i.tipo !== 'visita' ? ` · ${dataHora(i.quando)}` : '';
     return html`<urbi-linha justificar="entre" quebrar>
       <urbi-stack>
         <urbi-linha quebrar>
-          <urbi-badge cor=${t.cor}>${t.rotulo}</urbi-badge>
           <urbi-prosa>${i.contato_nome}</urbi-prosa>
+          ${chip('temperatura', i.temperatura)}
         </urbi-linha>
-        <urbi-prosa papel="secundario">${i.texto}${i.quando && i.tipo !== 'quente_sem_resposta' ? ` · ${dataHora(i.quando)}` : ''}</urbi-prosa>
+        <urbi-prosa papel="secundario">${i.texto}${quando}</urbi-prosa>
       </urbi-stack>
-      <urbi-linha>
-        ${i.tipo === 'abordagem_vencida' ? html`<urbi-botao variante="texto" pequeno @click=${() => this.feita(i)}>Fiz</urbi-botao>` : ''}
-        <urbi-botao variante="secundario" pequeno href=${urbiVerso.href(`/clientes/${i.contato_id}`)}>Abrir</urbi-botao>
-      </urbi-linha>
+      ${this.acoes(i)}
     </urbi-linha>`;
+  }
+
+  private hoje(fila: ItemFila[]) {
+    if (!fila.length) {
+      return html`<urbi-stack>
+        <urbi-estado-vazio icone="fa-solid fa-mug-hot" mensagem="Nada urgente agora"
+          submensagem="Quentes sem resposta, abordagens atrasadas, visitas de hoje e amanhã e próximos passos vencidos aparecem aqui."></urbi-estado-vazio>
+        <urbi-linha justificar="centro">
+          <urbi-botao variante="secundario" icone="fa-solid fa-calendar-day" @click=${() => this.escolherAba('agenda')}>Ver a agenda</urbi-botao>
+        </urbi-linha>
+      </urbi-stack>`;
+    }
+    return html`<urbi-stack>
+      ${GRUPOS.map((g) => {
+        const itens = fila.filter((i) => i.tipo === g.tipo);
+        return itens.length
+          ? html`<urbi-card titulo=${`${g.rotulo} (${itens.length})`} icone=${g.icone}>
+              <urbi-lista separador .itens=${itens} .render_item=${(i: ItemFila) => this.item(i)}></urbi-lista>
+            </urbi-card>`
+          : nothing;
+      })}
+    </urbi-stack>`;
   }
 
   render() {
@@ -108,15 +171,13 @@ export class PcTelaInicio extends LitElement {
             Para começar, complete ${this.pendente.join(', ')} em Ajustes › Conta.
             <urbi-botao slot="acao" pequeno href=${urbiVerso.href('/ajustes')}>Completar agora</urbi-botao>
           </urbi-banner>`
-        : ''}
-      <urbi-linha quebrar>
-        <urbi-botao pequeno icone="fa-solid fa-user-plus" href=${urbiVerso.href('/clientes')}>Clientes</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-filter" href=${urbiVerso.href('/funil')}>Funil</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-plus" href=${urbiVerso.href('/imoveis')}>Imóveis</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-city" href=${urbiVerso.href('/empreendimentos')}>Empreendimentos</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-calendar-day" href=${urbiVerso.href('/agenda')}>Agenda</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-chart-line" href=${urbiVerso.href('/desempenho')}>Desempenho</urbi-botao>
-      </urbi-linha>
+        : nothing}
+      ${this.demo
+        ? html`<urbi-banner variante="info">
+            Esta é uma conta de teste. Quer ver o app com dados? Gera 10 clientes, negócios em várias etapas, 2 imóveis e visitas.
+            <urbi-botao slot="acao" pequeno ?carregando=${this.gerando} @click=${() => this.gerarDemo()}>Gerar dados de demonstração</urbi-botao>
+          </urbi-banner>`
+        : nothing}
       ${this.semana
         ? html`<urbi-grid min="140px">
             <urbi-kpi rotulo="Contatos novos (7 dias)" .valor=${this.semana.novos_contatos ?? 0}></urbi-kpi>
@@ -124,19 +185,16 @@ export class PcTelaInicio extends LitElement {
             <urbi-kpi rotulo="Visitas feitas (7 dias)" .valor=${this.semana.visitas ?? 0}></urbi-kpi>
             <urbi-kpi rotulo="Comissão prevista" formato="texto" .valor=${this.semana.previsao_c === null ? '—' : reais(this.semana.previsao_c)}></urbi-kpi>
           </urbi-grid>`
-        : ''}
-      ${this.demo
-        ? html`<urbi-banner variante="info">
-            Esta é uma conta de teste. Quer ver o app com dados? Gera 10 clientes, negócios em várias etapas, 2 imóveis e visitas.
-            <urbi-botao slot="acao" pequeno ?carregando=${this.gerando} @click=${() => this.gerarDemo()}>Gerar dados de demonstração</urbi-botao>
-          </urbi-banner>`
-        : ''}
-      <urbi-card titulo="Para hoje" icone="fa-solid fa-list-check">
-        ${this.fila.length
-          ? html`<urbi-lista separador .itens=${this.fila} .render_item=${(i: ItemFila) => this.item(i)}></urbi-lista>`
-          : html`<urbi-estado-vazio icone="fa-solid fa-mug-hot" mensagem="Nada urgente agora"
-              submensagem="Quentes sem resposta, abordagens atrasadas, visitas de hoje e amanhã e próximos passos vencidos aparecem aqui."></urbi-estado-vazio>`}
-      </urbi-card>
+        : nothing}
+      <urbi-abas formato-desktop="botoes" .abas=${ABAS} ativa=${this.aba} @urbi:aba-selecionar=${(e: CustomEvent) => this.escolherAba(e.detail?.id)}>
+        <urbi-hospedeiro slot=${this.aba}>
+          ${this.aba === 'agenda' ? html`<pc-tela-agenda></pc-tela-agenda>` : this.hoje(this.fila)}
+        </urbi-hospedeiro>
+      </urbi-abas>
+      <!-- Empreendimentos fica sem lugar no menu até virar aba de Imóveis (D-84). -->
+      <urbi-linha>
+        <urbi-botao pequeno variante="texto" icone="fa-solid fa-city" href=${urbiVerso.href('/empreendimentos')}>Empreendimentos</urbi-botao>
+      </urbi-linha>
     </urbi-stack>`;
   }
 }
