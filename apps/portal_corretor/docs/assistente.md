@@ -5,7 +5,7 @@ descricao: O chat do menu Assistente — tira dúvidas pelo manual do app, ajuda
 
 # Assistente do Corretor
 
-O **Assistente** fica no menu do app, logo abaixo do Início, e abre um chat. Dá para perguntar por
+O **Assistente** fica no menu do app, entre **Desempenho** e **Ajustes**, e abre um chat. Dá para perguntar por
 escrito ou ditar pelo microfone, quando a transcrição de voz estiver liberada.
 - Ele responde pensando na tela em que você estava antes de abri-lo.
 - Se você sair e voltar, a conversa continua lá, enquanto o app estiver aberto.
