@@ -1,6 +1,6 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { CANAIS, PAPEIS, TEMPERATURAS } from '../comum/crm';
+import { CANAIS, OPCOES_PARADO_DIAS, PAPEIS, PAPEIS_NA_TELA, TEMPERATURAS } from '../comum/crm';
 import { corQualidade, reais, ROTULO_TIPO_IMOVEL, SITUACAO_IMOVEL } from './apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -63,6 +63,12 @@ export function opcoesChip(tipo: Exclude<TipoChip, 'etapa'>): { valor: string; r
   return valores.map((valor) => ({ valor, rotulo: rotuloChip(tipo, valor).rotulo }));
 }
 
+/** Papéis do filtro e do cadastro: só comprador e proprietário (spec 15.9, S11). */
+export const opcoesPapelNaTela = () => PAPEIS_NA_TELA.map((valor) => ({ valor, rotulo: ROTULO_PAPEL[valor] }));
+
+/** "Sem contato há N dias", iguais na Lista e no Quadro de Clientes. */
+export const opcoesParado = () => OPCOES_PARADO_DIAS.map((d) => ({ valor: String(d), rotulo: `${d} dias` }));
+
 /** Chip (`urbi-badge`) de temperatura, papel, origem ou etapa; `motivo` vai no `title`. Sem valor, nada. */
 export function chip(tipo: TipoChip, valor: string | { nome: string; tipo: string } | null | undefined, motivo?: string | null) {
   if (!valor) return nothing;
@@ -85,10 +91,10 @@ export function aplicarFiltros(filtros: URLSearchParams, mudancas: Record<string
   return filtros;
 }
 
-/** Endereço da sub-rota atual com a query dada. */
-export function urlComFiltros(filtros: URLSearchParams) {
+/** Endereço da sub-rota atual (ou de `rota`) com a query dada. */
+export function urlComFiltros(filtros: URLSearchParams, rota = urbiVerso.subRota()) {
   const qs = filtros.toString();
-  return `${urbiVerso.href(urbiVerso.subRota())}${qs ? `?${qs}` : ''}`;
+  return `${urbiVerso.href(rota)}${qs ? `?${qs}` : ''}`;
 }
 
 /** Filtros da URL atual, para a tela guardar e passar a `filtrosNaUrl`. */
@@ -101,14 +107,30 @@ export function filtrosNaUrl(filtros: URLSearchParams, mudancas: Record<string, 
   return filtros;
 }
 
-/** Aba do `urbi-abas` lida de `?aba=`; fora da lista, a primeira (pedido ao shell 8). */
-export function abaDaUrl(abas: string[]) {
-  const aba = filtrosDaUrl().get('aba') ?? '';
+export interface OpcoesAba {
+  /** Parâmetro da query que guarda a aba (padrão `aba`; Clientes usa `visao`). */
+  chave?: string;
+  /** Caminho antigo → aba que ele abre (`/funil` → `quadro`), quando a query não diz. */
+  apelidos?: Record<string, string>;
+  /** Rota canônica da tela: gravar a aba num apelido leva a barra para ela. */
+  rota?: string;
+}
+
+/** Sub-rota atual sem a barra final (`/funil/` e `/funil` são o mesmo endereço). */
+const subAtual = () => urbiVerso.subRota().replace(/(.)\/+$/, '$1') || '/';
+
+/** Aba do `urbi-abas` lida da query, depois do apelido do caminho; fora da lista, a primeira (pedido ao shell 8). */
+export function abaDaUrl(abas: string[], { chave = 'aba', apelidos = {} }: OpcoesAba = {}) {
+  const aba = filtrosDaUrl().get(chave) ?? apelidos[subAtual()] ?? '';
   return abas.includes(aba) ? aba : abas[0];
 }
 
-/** Reflete a aba escolhida em `?aba=`, mantendo os demais parâmetros. */
-export const abaNaUrl = (aba: string) => filtrosNaUrl(filtrosDaUrl(), { aba });
+/** Reflete a aba escolhida na query (vazia tira a chave), mantendo os demais parâmetros. */
+export function abaNaUrl(aba: string, { chave = 'aba', rota }: OpcoesAba = {}) {
+  const filtros = aplicarFiltros(filtrosDaUrl(), { [chave]: aba });
+  history.replaceState(history.state, '', urlComFiltros(filtros, rota));
+  return filtros;
+}
 
 // Cartão de imóvel nas telas autenticadas: `urbi-card` + `urbi-avatar` grande como capa. Exceção
 // nomeada D-65 até o shell oferecer cartão com capa (pedidos ao shell, item 7).

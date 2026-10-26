@@ -4,7 +4,7 @@ import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './telas/inicio.js';
 import './telas/corretores.js';
-import './telas/clientes.js';
+import { renderClientes } from './telas/clientes.js';
 import './telas/ficha-contato.js';
 import './telas/agenda.js';
 import './telas/importar.js';
@@ -12,7 +12,6 @@ import './telas/imoveis.js';
 import './telas/ficha-imovel.js';
 import './telas/empreendimentos.js';
 import './telas/ficha-empreendimento.js';
-import './telas/funil.js';
 import './telas/desempenho.js';
 import './telas/pagina.js';
 import './telas/estudio.js';
@@ -33,14 +32,16 @@ interface Tela {
 }
 
 const AJUSTES: Tela = { titulo: 'Ajustes', papel: 'corretor', render: (_p, app) => renderAjustes(() => app?.requestUpdate()) };
+const CLIENTES: Tela = { titulo: 'Clientes', papel: 'corretor', render: (_p, app) => renderClientes(() => app?.requestUpdate()) };
 
 // Uma entrada por rota. A tela só abre para quem tem o papel; o backend barra de novo.
-// `/funil`, `/agenda` e `/empreendimentos` saíram do menu (D-81) e seguem abrindo as telas de hoje
-// até virarem parte de Clientes, Início e Imóveis.
+// `/agenda` e `/empreendimentos` saíram do menu (D-81) e seguem abrindo as telas de hoje até
+// virarem parte de Início e Imóveis.
 const TELAS: Record<string, Tela> = {
   '/': { titulo: 'Início', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` },
-  '/funil': { titulo: 'Funil', papel: 'corretor', render: () => html`<pc-tela-funil></pc-tela-funil>` },
-  '/clientes': { titulo: 'Clientes', papel: 'corretor', render: () => html`<pc-tela-clientes></pc-tela-clientes>` },
+  '/clientes': CLIENTES,
+  // Apelido: o Funil virou a visão Quadro de Clientes (D-83).
+  '/funil': CLIENTES,
   '/clientes/importar': { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
   '/clientes/:id': { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
   '/imoveis': { titulo: 'Minha carteira', papel: 'corretor', render: () => html`<pc-tela-imoveis></pc-tela-imoveis>` },

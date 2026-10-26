@@ -4,6 +4,8 @@ import type { HelperDados } from '@urbiverso/sdk';
 import {
   CANAIS,
   ETAPAS_PADRAO,
+  instanteDaUrl,
+  limiteParado,
   MOTIVOS_PERDA,
   PIPELINES,
   reaisParaCentavos,
@@ -113,9 +115,19 @@ crmRotas.get(
     if (typeof req.query.temperatura === 'string' && ['frio', 'morno', 'quente'].includes(req.query.temperatura)) {
       filtros.temperatura = req.query.temperatura;
     }
-    const parado = Number(req.query.parado_dias);
-    if (Number.isInteger(parado) && parado > 0 && parado <= 3650) {
-      filtros['ultimo_contato_em[lt]'] = new Date(Date.now() - parado * 86400e3).toISOString();
+    const parado = limiteParado(req.query.parado_dias);
+    if (parado) filtros['ultimo_contato_em[lt]'] = parado;
+    // Filtros prontos (spec 15.8): "Novos" e "Retorno vencido" chegam como data; inválida, ignorada.
+    const desde = instanteDaUrl(req.query['criado_em[gte]']);
+    if (desde) filtros['criado_em[gte]'] = desde;
+    const retorno = instanteDaUrl(req.query['proximo_passo_em[lt]']);
+    if (retorno) filtros['proximo_passo_em[lt]'] = retorno;
+    // Origem é do contato pela referência: os ids das origens daquele canal na conta.
+    const canal = typeof req.query.origem === 'string' ? req.query.origem : '';
+    if ((CANAIS as readonly string[]).includes(canal)) {
+      const origens = await req.dados!.varrerTudo('origens', { filtros: { canal }, maximo: 5000 });
+      if (!origens.length) return res.json({ dados: [], total: 0 });
+      filtros.origem_id = origens.map((o) => o.id).join(',');
     }
     const busca = typeof req.query.busca === 'string' ? req.query.busca.trim().slice(0, 100) : '';
     const pagina = Math.min(Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1), 1000);

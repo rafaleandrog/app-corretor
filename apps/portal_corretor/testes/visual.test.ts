@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { nothing } from 'lit';
 import { CANAIS, PAPEIS, TEMPERATURAS } from '../comum/crm';
-import { abaDaUrl, aplicarFiltros, filtrosDaUrl, filtrosNaUrl, chip, opcoesChip, ROTULO_ORIGEM, ROTULO_PAPEL, rotuloChip } from '../frontend/visual';
+import { abaDaUrl, abaNaUrl, aplicarFiltros, filtrosDaUrl, filtrosNaUrl, chip, opcoesChip, ROTULO_ORIGEM, ROTULO_PAPEL, rotuloChip } from '../frontend/visual';
 
 // Navegador mínimo: a URL da app é `/portal_corretor/<sub>` e o `replaceState` só troca o endereço.
 function navegador(endereco: string) {
@@ -52,6 +52,26 @@ test('abaDaUrl: lê ?aba=, cai na primeira fora da lista', () => {
   assert.equal(abaDaUrl(['carteira', 'empreendimentos']), 'empreendimentos');
   navegador('/portal_corretor/imoveis?aba=outra');
   assert.equal(abaDaUrl(['carteira', 'empreendimentos']), 'carteira');
+});
+
+test('abaDaUrl/abaNaUrl: outra chave, apelido de caminho e gravação na rota canônica', () => {
+  const opcoes = { chave: 'visao', apelidos: { '/funil': 'quadro' }, rota: '/clientes' };
+  navegador('/portal_corretor/clientes');
+  assert.equal(abaDaUrl(['lista', 'quadro'], opcoes), 'lista');
+  navegador('/portal_corretor/clientes?visao=quadro');
+  assert.equal(abaDaUrl(['lista', 'quadro'], opcoes), 'quadro');
+  const { url } = navegador('/portal_corretor/funil/?temperatura=quente');
+  assert.equal(abaDaUrl(['lista', 'quadro'], opcoes), 'quadro', 'o apelido abre o quadro');
+  // Trocar de visão num apelido leva a barra para a rota canônica e mantém os filtros.
+  abaNaUrl('', opcoes);
+  assert.equal(`${url.pathname}${url.search}`, '/portal_corretor/clientes?temperatura=quente');
+  assert.equal(abaDaUrl(['lista', 'quadro'], opcoes), 'lista');
+  abaNaUrl('quadro', opcoes);
+  assert.equal(url.search, '?temperatura=quente&visao=quadro');
+  // Sem opções, o comportamento de antes: `?aba=` na sub-rota atual.
+  navegador('/portal_corretor/imoveis');
+  abaNaUrl('empreendimentos');
+  assert.equal(abaDaUrl(['carteira', 'empreendimentos']), 'empreendimentos');
 });
 
 test('chip: um rótulo e uma cor por valor', () => {

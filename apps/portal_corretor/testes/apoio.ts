@@ -270,6 +270,8 @@ export async function comServidor<T>(
   fn: (chamar: (metodo: string, caminho: string, corpo?: unknown) => Promise<{ status: number; corpo: any }>) => Promise<T>,
 ): Promise<T> {
   const app = express();
+  // Como o shell (banco-de-dados.md): `coluna[op]` chega a `req.query` como chave plana.
+  app.set('query parser', 'simple');
   app.use(express.json());
   app.use((req, _res, next) => {
     (req as any).contexto = {

@@ -5,15 +5,18 @@ descricao: Quadro do funil, temperatura do contato com motivo, abordagens recome
 
 # Funil, temperatura e fila do dia
 
-## Funil
+## Funil: Clientes › Quadro
 
-**Funil** mostra os negócios em quadro, uma coluna por etapa, com o nome do cliente, o título, o
-valor, a temperatura e o aviso de **abordagem atrasada**.
+O funil é a visão **Quadro** de **Clientes** (o botão **Quadro**, ao lado de **Lista**, no alto
+da tela). Ele mostra os negócios em quadro, uma coluna por etapa, com o nome do cliente, o título,
+o valor, a temperatura e o aviso de **abordagem atrasada**. O endereço antigo `/funil` continua
+abrindo o quadro.
 
 - Arraste o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
   motivo, o cartão volta.
 - Toque no cartão para abrir a ficha do cliente.
-- Filtros: funil (compra ou venda e captação), temperatura e "sem contato há N dias".
+- Filtros: funil (compra ou venda e captação), temperatura e "sem contato há" 3, 7, 15, 30 ou 90
+  dias (as mesmas opções da Lista). Ficam no endereço da página.
 - Ganhos e perdidos ficam no quadro por 30 dias; os em andamento ficam sempre.
 
 ## Temperatura do contato
@@ -62,5 +65,5 @@ O Início lista o que precisa do corretor agora, nesta ordem, com cada cliente u
 3. **Visitas de hoje e amanhã**.
 4. **Próximos passos vencidos**.
 
-Mais atalhos para Clientes, Funil, Imóveis e Agenda. As passagens do atendimento automático e os
+Mais atalhos para Clientes, o quadro do funil, Imóveis e Agenda. As passagens do atendimento automático e os
 frios que reagiram a um envio entram com o WhatsApp e com os envios rastreados.
