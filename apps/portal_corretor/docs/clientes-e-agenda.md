@@ -10,15 +10,35 @@ contato, negócio ou atividade de outra conta responde "não encontrado".
 
 ## Clientes
 
-**Clientes** lista os contatos da conta, 50 por página, em ordem alfabética.
+**Clientes** tem duas visões, nos botões do alto da tela:
+
+- **Lista** (a que abre): os contatos da conta, 50 por página, em ordem alfabética.
+- **Quadro**: o funil por etapa, com arrastar para mudar de etapa — ver
+  [Funil, temperatura e fila do dia](funil.md). O endereço antigo `/funil` abre esta visão.
+
+A visão escolhida fica no endereço (`/clientes?visao=quadro`).
+
+Na **Lista**:
 
 - **Busca** por nome, telefone ou e-mail.
-- **Filtros:** papel (comprador, proprietário, investidor, parceiro, fornecedor), temperatura e
-  "parados há mais de N dias" (sem contato registrado nesse tempo; para quem veio de planilha, conta
-  a partir da importação).
+- **Filtros prontos**, um de cada vez:
+
+  | Filtro | Quem aparece |
+  |---|---|
+  | Novos | Cadastrados nos últimos 7 dias |
+  | Sem contato | Sem contato registrado há mais de N dias, o N de **Ajustes › Atendimento** ("Cliente parado depois de"); para quem veio de planilha, conta a partir da importação |
+  | Quentes | Temperatura quente (escolher uma temperatura no filtro tira este, e vice-versa) |
+  | Retorno vencido | O próximo passo combinado já passou da data |
+
+  **Todos** desliga o filtro pronto.
+- **Filtros:** papel (comprador ou proprietário), temperatura e origem (por onde o contato
+  chegou). Combinam com a busca e com o filtro pronto.
 - A busca e os filtros ficam no endereço da página: dá para voltar ou guardar o link.
-- **Novo contato:** nome e telefone ou e-mail. Sem papel informado, o contato entra como comprador.
-  O telefone é guardado no formato internacional (`+55…`); sem o `+`, o app assume Brasil.
+- **Novo contato:** nome, telefone ou e-mail, papel (comprador ou proprietário) e por onde chegou.
+  Sem papel informado, o contato entra como comprador. O telefone é guardado no formato
+  internacional (`+55…`); sem o `+`, o app assume Brasil.
+- **Papéis de rede** (investidor, parceiro, fornecedor) não se escolhem no filtro nem no cadastro;
+  quem já os tem (por planilha ou edição na ficha) continua com eles, e a lista os mostra.
 
 ### Duplicatas
 

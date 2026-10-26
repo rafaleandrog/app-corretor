@@ -12,6 +12,51 @@ export const TIPOS_ATIVIDADE = ['tarefa', 'ligacao', 'mensagem', 'visita', 'reun
 export const STATUS_ATIVIDADE = ['pendente', 'feita', 'cancelada', 'nao_compareceu'] as const;
 export const MOTIVOS_PERDA = ['preco', 'localizacao', 'financiamento', 'desistiu', 'comprou_com_outro', 'sem_resposta', 'outro'] as const;
 
+/** Papéis que a tela oferece no filtro e no cadastro (spec 15.9, S11); os outros ficam no dado. */
+export const PAPEIS_NA_TELA = ['comprador', 'proprietario'] as const;
+
+/** "Sem contato há" — as mesmas opções na Lista e no Quadro de Clientes. */
+export const OPCOES_PARADO_DIAS = [3, 7, 15, 30, 90] as const;
+
+/** Filtros prontos da Lista de Clientes (spec 15.8, D-83): um ativo por vez. */
+export const FILTROS_PRONTOS = ['novos', 'sem_contato', 'quentes', 'retorno_vencido'] as const;
+export type FiltroPronto = (typeof FILTROS_PRONTOS)[number];
+
+/** "Novos" são os cadastrados nestes últimos dias. */
+export const DIAS_NOVOS = 7;
+
+/** `parado_dias` da URL vira o instante de corte de `ultimo_contato_em`; fora de 1..3650, sem filtro. */
+export function limiteParado(v: unknown, agora = Date.now()): string | null {
+  const dias = Number(v);
+  return Number.isInteger(dias) && dias > 0 && dias <= 3650 ? new Date(agora - dias * 86400e3).toISOString() : null;
+}
+
+/** Instante de um filtro de data da URL (`criado_em[gte]`, `proximo_passo_em[lt]`); inválido, sem filtro. */
+export function instanteDaUrl(v: unknown): string | null {
+  if (typeof v !== 'string' || !v.trim()) return null;
+  const t = new Date(v.trim());
+  return Number.isNaN(t.getTime()) ? null : t.toISOString();
+}
+
+/**
+ * Parâmetros de `GET /contatos` para um filtro pronto. `quentes` vira a temperatura; `sem_contato`
+ * usa o N de Ajustes › Atendimento (`dias_cliente_parado`).
+ */
+export function parametrosDoPronto(pronto: string | null, diasParado: number, agora = Date.now()): Record<string, string> {
+  switch (pronto) {
+    case 'novos':
+      return { 'criado_em[gte]': new Date(agora - DIAS_NOVOS * 86400e3).toISOString() };
+    case 'sem_contato':
+      return { parado_dias: String(diasParado) };
+    case 'quentes':
+      return { temperatura: 'quente' };
+    case 'retorno_vencido':
+      return { 'proximo_passo_em[lt]': new Date(agora).toISOString() };
+    default:
+      return {};
+  }
+}
+
 export type Pipeline = (typeof PIPELINES)[number];
 
 export interface Etapa {

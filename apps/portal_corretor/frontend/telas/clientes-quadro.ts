@@ -1,16 +1,16 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, chip, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, opcoes, opcoesChip, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, chip, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, opcoes, opcoesChip, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
 type Linha = Record<string, any>;
 
-// Funil: quadro por etapa (arrastar move; perdido pede motivo), com a temperatura de cada contato
-// e o alerta de abordagem atrasada. Filtros de funil, temperatura e "parado há" ficam na URL.
-@customElement('pc-tela-funil')
-export class PcTelaFunil extends LitElement {
+// Clientes › Quadro (D-83): o funil por etapa (arrastar move; perdido pede motivo), com a temperatura
+// de cada contato e o alerta de abordagem atrasada. Filtros de funil, temperatura e "parado há" ficam na URL.
+@customElement('pc-clientes-quadro')
+export class PcClientesQuadro extends LitElement {
   @state() private quadro: { etapas: Linha[]; negocios: Linha[] } | null = null;
   @state() private falha: string | null = null;
   private filtros = filtrosDaUrl();
@@ -25,7 +25,10 @@ export class PcTelaFunil extends LitElement {
     const geracao = ++this.geracao;
     this.falha = null;
     try {
-      const r = await chamarApi(`/funil/quadro?${this.filtros}`);
+      // Só os filtros do quadro: a URL é dividida com a Lista.
+      const q = new URLSearchParams();
+      for (const k of ['pipeline', 'temperatura', 'parado_dias']) if (this.filtros.get(k)) q.set(k, this.filtros.get(k)!);
+      const r = await chamarApi(`/funil/quadro?${q}`);
       if (geracao === this.geracao) this.quadro = r;
     } catch (e) {
       if (geracao === this.geracao) this.falha = (e as Error).message;
@@ -80,7 +83,7 @@ export class PcTelaFunil extends LitElement {
         .opcoes=${opcoesChip('temperatura')}
         @urbi:select-change=${(e: CustomEvent) => this.filtrar({ temperatura: e.detail.valor })}></urbi-select>
       <urbi-select label="Sem contato há" valor=${this.filtros.get('parado_dias') ?? ''} placeholder="Qualquer tempo"
-        .opcoes=${[{ valor: '3', rotulo: '3 dias' }, { valor: '7', rotulo: '7 dias' }, { valor: '15', rotulo: '15 dias' }, { valor: '30', rotulo: '30 dias' }]}
+        .opcoes=${opcoesParado()}
         @urbi:select-change=${(e: CustomEvent) => this.filtrar({ parado_dias: e.detail.valor })}></urbi-select>
     </urbi-linha>`;
     if (this.falha && !this.quadro) {

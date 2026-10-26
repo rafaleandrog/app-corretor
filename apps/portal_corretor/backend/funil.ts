@@ -4,6 +4,7 @@ import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { CANAIS_ABORDAGEM, iso, ordenarFila, TEMPERATURAS, type TipoFila } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { etapasDaConta, registrar } from './crm';
+import { limiteParado } from '../comum/crm';
 import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { numerosDaSemana } from './numeros';
 
@@ -56,8 +57,7 @@ funilRotas.get(
     const porContato = new Map(contatos.map((c) => [c.id, c]));
     const playbook = await playbookDaConta(dados, etapas);
     const temperatura = typeof req.query.temperatura === 'string' && (TEMPERATURAS as readonly string[]).includes(req.query.temperatura) ? req.query.temperatura : null;
-    const parado = Number(req.query.parado_dias);
-    const limiteParado = Number.isInteger(parado) && parado > 0 ? new Date(Date.now() - parado * DIA).toISOString() : null;
+    const parado = limiteParado(req.query.parado_dias);
     const cartoes = visiveis
       .map((n) => {
         const c = porContato.get(n.contato_id) ?? {};
@@ -77,7 +77,7 @@ funilRotas.get(
           abordagem: abordagem?.abordagem ?? null,
         };
       })
-      .filter((k) => (!temperatura || k.temperatura === temperatura) && (!limiteParado || (iso(k.ultimo_contato_em) ?? '') < limiteParado));
+      .filter((k) => (!temperatura || k.temperatura === temperatura) && (!parado || (iso(k.ultimo_contato_em) ?? '') < parado));
     res.json({ pipeline, etapas: daqui, negocios: cartoes });
   }),
 );

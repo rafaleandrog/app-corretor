@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas } from '../backend/rotas';
-import { normalizarPapeis, reaisParaCentavos, validarEtapas, ETAPAS_PADRAO } from '../comum/crm';
+import { instanteDaUrl, limiteParado, normalizarPapeis, parametrosDoPronto, reaisParaCentavos, validarEtapas, ETAPAS_PADRAO } from '../comum/crm';
 import { gerarCsv, lerCsv, mapearPorModelo, MODELOS_IMPORTACAO, sugerirMapeamento } from '../comum/csv';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
@@ -188,6 +188,54 @@ test('temperatura é marcada pelo corretor e filtra a lista', async () => {
     assert.equal((await chamar('GET', '/contatos?temperatura=quente')).corpo.total, 1);
     assert.equal((await chamar('GET', '/contatos?temperatura=frio')).corpo.total, 0);
   });
+});
+
+test('filtros prontos: cadastrados desde, retorno vencido e origem, cada conta só nos seus', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const q = (p: Record<string, string>) => `/contatos?${new URLSearchParams(p)}`;
+  const agora = new Date().toISOString();
+  const semana = new Date(Date.now() - 7 * 86400e3).toISOString();
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    await chamar('POST', '/contatos', { nome: 'Antigo', telefone: '61911110001', origem_canal: 'placa' });
+    await chamar('POST', '/contatos', { nome: 'Novo', telefone: '61911110002', origem_canal: 'instagram' });
+    const [antigo, novo] = banco.linhas('contatos');
+    antigo.criado_em = '2020-01-01T00:00:00.000Z';
+    antigo.proximo_passo_em = '2020-02-01T00:00:00.000Z';
+    novo.proximo_passo_em = '2999-01-01T00:00:00.000Z';
+    const nomes = async (p: Record<string, string>) => (await chamar('GET', q(p))).corpo.dados.map((c: any) => c.nome);
+    assert.deepEqual(await nomes({ 'criado_em[gte]': semana }), ['Novo']);
+    assert.deepEqual(await nomes({ 'proximo_passo_em[lt]': agora }), ['Antigo']);
+    assert.deepEqual(await nomes({ origem: 'instagram' }), ['Novo']);
+    assert.deepEqual(await nomes({ origem: 'portal' }), [], 'canal sem origem na conta');
+    // Combinam com busca e entre si; data ou canal inválido é ignorado.
+    assert.deepEqual(await nomes({ 'criado_em[gte]': semana, busca: 'antigo' }), []);
+    assert.deepEqual(await nomes({ 'proximo_passo_em[lt]': agora, origem: 'placa' }), ['Antigo']);
+    assert.equal((await chamar('GET', q({ 'criado_em[gte]': 'ontem', origem: 'marte' }))).corpo.total, 2);
+  });
+  // B tem um contato novo e vencido, e não vê os de A por nenhum dos filtros.
+  await comServidor(rotas, B, banco, {}, async (chamar) => {
+    await chamar('POST', '/contatos', { nome: 'De B', telefone: '61911110003', origem_canal: 'instagram' });
+    banco.linhas('contatos').find((c) => c.nome === 'De B')!.proximo_passo_em = '2020-02-01T00:00:00.000Z';
+    const filtros: Record<string, string>[] = [{ 'criado_em[gte]': semana }, { 'proximo_passo_em[lt]': agora }, { origem: 'instagram' }, { origem: 'placa' }];
+    for (const p of filtros) {
+      const r = (await chamar('GET', q(p))).corpo;
+      assert.ok(r.dados.every((c: any) => c.nome === 'De B'), JSON.stringify(p));
+    }
+    assert.equal((await chamar('GET', q({ origem: 'placa' }))).corpo.total, 0);
+  });
+});
+
+test('parâmetros dos filtros prontos e "parado" iguais na lista e no quadro', () => {
+  const t = Date.parse('2026-10-26T12:00:00.000Z');
+  assert.deepEqual(parametrosDoPronto('novos', 10, t), { 'criado_em[gte]': '2026-10-19T12:00:00.000Z' });
+  assert.deepEqual(parametrosDoPronto('sem_contato', 10, t), { parado_dias: '10' });
+  assert.deepEqual(parametrosDoPronto('quentes', 10, t), { temperatura: 'quente' });
+  assert.deepEqual(parametrosDoPronto('retorno_vencido', 10, t), { 'proximo_passo_em[lt]': '2026-10-26T12:00:00.000Z' });
+  assert.deepEqual(parametrosDoPronto('outro', 10, t), {});
+  assert.equal(limiteParado('7', t), '2026-10-19T12:00:00.000Z');
+  for (const v of ['0', '-3', '2.5', 'x', '4000', undefined]) assert.equal(limiteParado(v, t), null, String(v));
+  assert.equal(instanteDaUrl('2026-10-01'), '2026-10-01T00:00:00.000Z');
+  assert.equal(instanteDaUrl('ontem'), null);
 });
 
 test('exportação sai em CSV com separador ponto e vírgula', async () => {
