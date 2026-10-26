@@ -2,7 +2,7 @@ import '@urbiverso/sdk/express';
 import type { Request } from 'express';
 import type { ContextoListener } from '@urbiverso/sdk';
 import { CONFIGURACOES_PADRAO } from '../comum/conta';
-import { iso } from '../comum/funil';
+import { iso, ROTA_AGENDA } from '../comum/funil';
 import { primeiro } from './acesso';
 
 // Lembrete de visita para o corretor (bloco 10, spec 15.1 item 4): notificação na plataforma
@@ -63,5 +63,5 @@ export async function aoLembreteVisita(evento: EventoConta, ctx: ContextoListene
   if (!visita || !ctx.notificacoes) return;
   const hora = new Date(quando).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const partes = [`Lembrete de visita: ${visita.titulo}`, hora, visita.contato_nome, visita.local].filter(Boolean);
-  await ctx.notificacoes.notificar(Number(visita.responsavel_id), partes.join(' · ').slice(0, 300), { rota: 'agenda' });
+  await ctx.notificacoes.notificar(Number(visita.responsavel_id), partes.join(' · ').slice(0, 300), { rota: ROTA_AGENDA });
 }
