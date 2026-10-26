@@ -11,6 +11,8 @@ interface Marca {
   estilo: string;
   assinatura: string | null;
   logo_url: string | null;
+  /** Só em resposta que ressincronizou o que está no ar (salvar, foto, republicar): true = não acompanhou. Ausente (logo) = nada a dizer. */
+  vitrine_desatualizada?: boolean;
 }
 
 const ESTILOS = [
@@ -19,12 +21,16 @@ const ESTILOS = [
   { valor: 'minimalista', rotulo: 'Minimalista' },
 ];
 
-// Ajustes › Marca (D-81): logo, foto, cores, estilo e assinatura que o Estúdio usa nas artes.
+// Ajustes › Marca (D-81, D-85): logo, foto, cores, estilo e assinatura. A marca é única: o Estúdio a
+// usa nas artes, e a cor principal e a foto valem na página pública, nas seleções e no portal.
 // Mesmas rotas de antes (`/estudio/marca`); só o lugar na tela mudou.
 @customElement('pc-tela-marca')
 export class PcTelaMarca extends LitElement {
   @state() private marca: Marca | null = null;
   @state() private falha: string | null = null;
+  /** Salvar gravou a marca, mas o que está no ar não acompanhou: fica até refazer dar certo. */
+  @state() private desatualizada = false;
+  @state() private refazendo = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -40,11 +46,15 @@ export class PcTelaMarca extends LitElement {
     }
   }
 
-  private async acao(fn: () => Promise<unknown>, sucesso: string) {
+  /** Salvar devolve a marca e diz se o que está no ar acompanhou (`vitrine_desatualizada`). */
+  private async acao(fn: () => Promise<Marca>, sucesso: string) {
     try {
-      await fn();
+      const r = await fn();
+      this.marca = r;
+      // Só uma resposta que ressincronizou muda o alerta; sem o campo (logo), ele fica como está.
+      if (r.vitrine_desatualizada === true) this.desatualizada = true;
+      else if (r.vitrine_desatualizada === false) this.desatualizada = false;
       urbiVerso.notificar(sucesso, 'sucesso');
-      await this.carregar();
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
@@ -64,6 +74,21 @@ export class PcTelaMarca extends LitElement {
     if (v) await this.acao(() => enviar('PUT', '/estudio/marca', v), 'Marca salva.');
   }
 
+  /** Refaz a página no ar (se publicada), as seleções e os portais com a marca salva. */
+  private async refazer() {
+    this.refazendo = true;
+    try {
+      const r: Marca = await enviar('POST', '/estudio/marca/republicar');
+      this.marca = r;
+      this.desatualizada = !!r.vitrine_desatualizada;
+      if (!this.desatualizada) urbiVerso.notificar('Página, seleções e portais atualizados.', 'sucesso');
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      this.refazendo = false;
+    }
+  }
+
   private async enviarArquivo(tipo: 'logo' | 'foto', e: CustomEvent) {
     const f = ((e.detail.arquivos as File[]) ?? [])[0];
     if (!f) return;
@@ -76,7 +101,10 @@ export class PcTelaMarca extends LitElement {
     }
     if (!this.marca) return html`<urbi-loading></urbi-loading>`;
     const m = this.marca;
-    return html`<urbi-card titulo="Sua marca" icone="fa-solid fa-palette">
+    const aviso = this.desatualizada
+      ? html`<urbi-banner variante="alerta">A marca foi salva, mas a sua página, as seleções ou o portal do cliente ainda mostram a marca anterior.<urbi-botao slot="acao" pequeno variante="secundario" icone="fa-solid fa-rotate" ?carregando=${this.refazendo} @click=${() => this.refazer()}>Atualizar o que está no ar</urbi-botao></urbi-banner>`
+      : '';
+    return html`${aviso}<urbi-card titulo="Sua marca" icone="fa-solid fa-palette">
       <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-pen" ariaLabel="Editar a marca" title="Editar" @click=${() => this.editar()}></urbi-botao></span>
       <urbi-linha quebrar>
         <urbi-avatar nome="Logo" foto=${m.logo_url ?? ''} icone=${m.logo_url ? '' : 'fa-solid fa-image'} tamanho="56"></urbi-avatar>
@@ -86,7 +114,7 @@ export class PcTelaMarca extends LitElement {
         <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Logo (PNG com fundo transparente fica melhor)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('logo', e)}></urbi-seletor-arquivo>
         <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Sua foto (opcional)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('foto', e)}></urbi-seletor-arquivo>
       </urbi-linha>
-      <urbi-prosa papel="dica">O Estúdio usa esta marca em toda arte que monta.</urbi-prosa>
+      <urbi-prosa papel="dica">Esta marca vale em todo lugar: nas artes do Estúdio, na sua página, nas seleções e no portal do cliente. A cor principal e a sua foto aparecem para o cliente; salvar já atualiza o que está no ar e, se não conseguir, avisa aqui.</urbi-prosa>
     </urbi-card>`;
   }
 }

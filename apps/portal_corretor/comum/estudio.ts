@@ -39,6 +39,9 @@ export interface DadosMarca {
   assinatura: string | null;
 }
 
+/** A marca até o corretor salvar a dele (os mesmos padrões de `marca_conta` no schema). */
+export const MARCA_PADRAO = { cor_primaria: '#0b5394', cor_secundaria: '#f2b705', estilo: 'moderno' } as const;
+
 export function validarMarca(corpo: Record<string, unknown>): Resultado<DadosMarca> {
   const erros: string[] = [];
   const cor = (v: unknown, nome: string) => {

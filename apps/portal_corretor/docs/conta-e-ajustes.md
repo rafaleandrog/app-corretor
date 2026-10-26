@@ -11,7 +11,7 @@ editar.
 | Aba | O que tem |
 |---|---|
 | **Conta** | Seus dados (CRECI e telefone) e os dados da conta |
-| **Marca** | Logo, sua foto, cores, estilo e assinatura das artes — ver [Estúdio de conteúdo](estudio.md#sua-marca) |
+| **Marca** | Logo, sua foto, cores, estilo e assinatura — a marca única do Estúdio, da página, das seleções e do portal (abaixo) |
 | **Conexões** | Instagram — ver [Conexões (Instagram)](conexoes.md) |
 | **Funil e abordagens** | Etapas de cada funil e a abordagem por etapa e temperatura — ver [Funil](funil.md) |
 | **Atendimento** | As regras de atendimento, abaixo |
@@ -36,6 +36,32 @@ direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/
   para os seus clientes.
 - **Tipo**: corretor autônomo, imobiliária ou incorporadora.
 - **CPF ou CNPJ** e **CRECI jurídico** (imobiliária): opcionais.
+
+## A marca
+
+A aba **Marca** guarda a marca da conta, e ela é uma só para tudo o que o cliente vê:
+
+| Onde | O que da marca aparece |
+|---|---|
+| [Estúdio](estudio.md#sua-marca) | Tudo: cores, estilo, assinatura, logo e foto, nas artes |
+| [Minha página](minha-pagina.md) | A cor principal (topo, botões e destaques) |
+| [Seleção e Portal do Cliente](selecoes-e-portal.md) | A cor principal e a sua foto, no topo |
+
+Até você salvar a marca, vale o padrão: azul `#0b5394` e cor de apoio amarela, sem foto. A página
+não tem mais cor própria. Quem tinha escolhido uma cor para a página antes desta versão (que não
+fosse o "Oceano", que já é o azul padrão) e ainda não tinha salvo a marca ganha essa cor como cor
+principal da marca; o app faz isso sozinho, ao iniciar, uma vez por conta. Quem já tinha marca
+salva fica com a marca. Se a página for refeita antes de esse preenchimento rodar, ela sai no azul
+padrão, e o preenchimento não a refaz: ela só ganha a cor quando for refeita de novo, por **Atualizar agora** (Minha página) ou **Atualizar o que está no ar** (Ajustes › Marca), ou ao salvar a marca.
+
+**Salvar a marca, ou trocar a foto, já atualiza o que está no ar**: a página publicada, as seleções
+válidas e os portais dos clientes passam a usar a cor e a foto novas, sem publicar de novo. Se algo
+disso não acompanhar, a marca fica salva mesmo assim e a tela **Marca** mostra o alerta "A marca
+foi salva, mas a sua página, as seleções ou o portal do cliente ainda mostram a marca anterior",
+com o botão **Atualizar o que está no ar**. Ele refaz a página (se estiver publicada), as seleções
+e os portais com a marca salva, e também funciona com a página fora do ar. O **Atualizar agora**
+da Minha página refaz só a página, não as seleções nem os portais. O logo vale só nas artes do
+Estúdio.
 
 ## Atendimento
 

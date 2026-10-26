@@ -24,7 +24,7 @@ escrito ou ditar pelo microfone, quando a transcrição de voz estiver liberada.
 - Se o manual não cobre o assunto, ele diz que não sabe e sugere falar com a equipe da plataforma
   que deu o seu acesso. Ele não inventa funcionalidade.
 
-Na ficha do cliente, o botão **Perguntar ao Assistente** abre o Assistente já sobre aquele cliente.
+Na ficha do cliente, o item **Perguntar ao Assistente** do menu **Mais** abre o Assistente já sobre aquele cliente.
 O nome dele aparece no topo, e **Tirar** volta à conversa geral.
 
 ## O que ele faz, com confirmação
@@ -66,6 +66,11 @@ Sobre um cliente em foco, vão a temperatura, o perfil de busca e os resumos do 
 - **Telefone e e-mail não vão.** Nem as colunas, nem os números e endereços escritos em notas ou na
   mensagem do formulário: o app troca esses trechos por "[telefone]" e "[e-mail]".
 - Cliente anonimizado não entra.
+
+O **Resumir** e a **Mensagem sugerida** da ficha do cliente seguem as mesmas regras: vão para a IA
+a temperatura, o próximo passo, o perfil de busca e os resumos do histórico, com telefone e e-mail
+trocados por "[telefone]" e "[e-mail]". A Mensagem sugerida leva ainda o texto da abordagem do
+playbook, o canal, a etapa e o prazo, também com telefone e e-mail trocados. O resumo só aparece na tela: não é gravado na ficha.
 
 O que vem de outras pessoas (o nome e a mensagem de quem preencheu o formulário, por exemplo) é
 tratado como dado, não como ordem. A resposta da IA aparece sem imagens nem links. O único link é o

@@ -48,18 +48,39 @@ removido libera o telefone.
 
 ### Ficha do contato
 
-Abrir um contato mostra a ficha:
+Abrir um contato mostra a ficha. No topo, o essencial:
 
-- **Dados** e **próximo passo** (o que fazer e quando), editáveis. Nos dados fica a **temperatura**
-  (frio, morno ou quente), que por enquanto o corretor marca à mão; o motivo e a sugestão
-  automática chegam com o quadro do funil.
-- **Notas** livres, que vão para a linha do tempo.
+- os chips de **temperatura** (passe o mouse para ver o motivo), **papel** e **origem**;
+- o **resumo em uma frase**: temperatura com o motivo, a próxima abordagem (o que fazer, por onde e
+  até quando) e o último contato;
+- três botões: **Resumir** (a IA resume o histórico em até três frases; só aparece com a IA do
+  Assistente liberada, e o resumo não fica gravado), **Mensagem sugerida** e **Virar tarefa** (ver
+  [Próxima abordagem](funil.md#próxima-abordagem)). Sem negócio em andamento, ou sem linha do playbook para a etapa e a
+  temperatura dele, não há abordagem, e os dois últimos não aparecem.
+
+Ao lado do botão **Registrar contato** (nota livre, que vai para a linha do tempo), o menu **Mais**
+traz Perguntar ao Assistente e **Remover contato**; com abordagem, também
+Registrar abordagem feita e Pular a abordagem.
+
+Vindo do **Fazer agora** do Início ou de um cartão com **Abordagem atrasada** no quadro, a ficha
+abre já com a **Mensagem sugerida** carregada (o endereço traz `?sugerir=1`), e o **Fazer agora**
+dela abre o WhatsApp. Sem abordagem, ou abrindo a ficha por outro caminho, nada é gerado sozinho.
+
+Abaixo, as seções recolhidas, cada uma com uma linha de resumo; toque para abrir:
+
+- **Dados e próximo passo:** telefone, e-mail, campanha de origem, observações, o próximo passo
+  combinado (o botão com o ícone de seta da seção, **Definir próximo passo**, o define) e o **consentimento** numa linha (registrado em … ·
+  revogar, ou registrar).
 - **Negócios** do contato, com a etapa atual e o botão **Mudar etapa**.
-- **Agenda:** as atividades ligadas ao contato.
-- **Consentimento:** registrar que o cliente aceitou receber mensagens, e revogar.
-- **Linha do tempo:** tudo o que aconteceu com o contato, com autor e hora.
-- **Remover:** o contato sai das listas, mas não é apagado. Contato com negócio em andamento não
-  pode ser removido: encerre o negócio antes.
+- **Seleções e portal:** as seleções de imóveis enviadas e o link do portal do cliente.
+- **Tudo que você mandou:** imóveis, arquivos e mensagens registrados.
+- **Agenda deste cliente:** as atividades ligadas ao contato.
+
+A **linha do tempo** fica aberta: tudo o que aconteceu com o contato, com autor e hora.
+
+O lápis do topo edita nome, telefone, e-mail, papéis (comprador e proprietário), temperatura e
+observações. **Remover** (no menu Mais): o contato sai das listas, mas não é apagado. Contato com
+negócio em andamento não pode ser removido: encerre o negócio antes.
 
 ## Negócios e funil
 

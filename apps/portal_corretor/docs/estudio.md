@@ -17,6 +17,9 @@ sua foto. A arte do gerador do app sai com o seu nome e o CRECI no rodapé, e a 
 aprovada leva o CRECI (o app acrescenta se faltar, inclusive em arte feita no Canva). **Sem CRECI
 cadastrado** (Ajustes › Conta), a peça não pode ser aprovada.
 
+A marca é a mesma da sua página, das seleções e do portal do cliente: a cor principal e a foto
+aparecem lá também ([A marca](conta-e-ajustes.md#a-marca)).
+
 ## Criar
 
 | Botão | O que faz |

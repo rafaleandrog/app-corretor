@@ -101,12 +101,13 @@ export class PcTelaInicio extends LitElement {
   private acoes(i: ItemFila) {
     const ficha = `/clientes/${i.contato_id}`;
     const abrir: Acao = { rotulo: 'Abrir', icone: 'fa-solid fa-user', sub: ficha };
+    // Fazer agora leva à ficha já com a mensagem sugerida (`?sugerir=1`); o WhatsApp abre de lá, no clique do corretor.
+    const fazerAgora: Acao = { rotulo: 'Fazer agora', icone: 'fa-solid fa-paper-plane', sub: `${ficha}?sugerir=1` };
     switch (i.tipo) {
       case 'quente_sem_resposta':
-        // Abre a ficha; a mensagem sugerida com o WhatsApp entra pelo bloco 4.
-        return acoesComMais({ rotulo: 'Fazer agora', icone: 'fa-solid fa-paper-plane', sub: ficha }, []);
+        return acoesComMais(fazerAgora, []);
       case 'abordagem_vencida':
-        return acoesComMais({ rotulo: 'Fazer agora', icone: 'fa-solid fa-paper-plane', sub: ficha }, [
+        return acoesComMais(fazerAgora, [
           { rotulo: 'Fiz', icone: 'fa-solid fa-check', aoEscolher: () => this.registrar(() => enviar('POST', `/abordagens/${i.contato_id}/feita`, { texto: i.texto })) },
         ]);
       case 'visita':

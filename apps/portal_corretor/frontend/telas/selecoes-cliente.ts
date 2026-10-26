@@ -181,6 +181,8 @@ export class PcSelecoesCliente extends LitElement {
     }
     return html`<urbi-card titulo="Seleções e portal" icone="fa-solid fa-heart">
       <span slot="acoes"><urbi-botao variante="secundario" pequeno icone="fa-solid fa-plus" ?carregando=${this.ocupado} @click=${() => this.nova()}>Nova seleção</urbi-botao></span>
+      <urbi-prosa papel="secundario">${this.selecoes.length ? `${this.selecoes.length} seleção(ões)` : 'Nenhuma seleção'} · portal ${this.portal?.ativo ? 'ativo' : 'sem link'}</urbi-prosa>
+      <div slot="detalhe"><urbi-stack>
       ${this.selecoes.length
         ? this.selecoes.map((s) => this.selecao(s))
         : html`<urbi-prosa papel="dica">Monte uma seleção de imóveis: o cliente abre pelo link, sem login, e diz se gostou, não gostou ou quer visitar.</urbi-prosa>`}
@@ -193,6 +195,7 @@ export class PcSelecoesCliente extends LitElement {
           : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-link" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Gerar link do portal</urbi-botao>`}
       </urbi-linha>
       <urbi-prosa papel="dica">O portal mostra ao cliente as seleções válidas, as visitas marcadas e um espaço para ele mandar mensagem ou pedir para remarcar.</urbi-prosa>
+      </urbi-stack></div>
     </urbi-card>`;
   }
 }

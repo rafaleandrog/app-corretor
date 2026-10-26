@@ -71,16 +71,17 @@ function chamarWebhook(nome: keyof typeof webhooks, conta: number | null, corpo:
 test('regras puras da página: endereço, blocos, o que vai a público e o formulário', () => {
   assert.equal(sugerirEndereco('João da Silva Néto'), 'joao-da-silva-neto');
   assert.equal(sugerirEndereco('Zé'), 'corretor-ze');
-  const v = validarPagina({ endereco: 'joao-silva', tema: 'mata', nome_exibicao: 'João', blocos: [{ tipo: 'sobre', ativo: true, texto: 'Oi' }, { tipo: 'contato', instagram: '@joao.corretor' }] });
+  const v = validarPagina({ endereco: 'joao-silva', nome_exibicao: 'João', blocos: [{ tipo: 'sobre', ativo: true, texto: 'Oi' }, { tipo: 'contato', instagram: '@joao.corretor' }] });
   assert.ok(v.ok);
   if (v.ok) {
     assert.equal(v.dados.blocos.length, 7, 'os blocos que faltam entram desligados');
     assert.deepEqual(v.dados.blocos.slice(0, 2).map((b) => b.tipo), ['sobre', 'contato'], 'a ordem é a do corretor');
     assert.equal(v.dados.blocos[1].instagram, 'joao.corretor');
   }
-  assert.equal(validarPagina({ endereco: '-ruim', tema: 'mata', nome_exibicao: 'x', blocos: blocosPadrao() }).ok, false);
-  assert.equal(validarPagina({ endereco: 'bom-nome', tema: 'neon', nome_exibicao: 'x', blocos: blocosPadrao() }).ok, false);
-  assert.equal(validarPagina({ endereco: 'bom-nome', tema: 'mata', nome_exibicao: 'x', blocos: [{ tipo: 'sobre' }, { tipo: 'sobre' }] }).ok, false, 'bloco repetido');
+  assert.equal(validarPagina({ endereco: '-ruim', nome_exibicao: 'x', blocos: blocosPadrao() }).ok, false);
+  const comTema = validarPagina({ endereco: 'bom-nome', tema: 'neon', nome_exibicao: 'x', blocos: blocosPadrao() });
+  assert.ok(comTema.ok && !('tema' in comTema.dados), 'a cor é da marca (D-85): tema que ainda chegue é ignorado');
+  assert.equal(validarPagina({ endereco: 'bom-nome', nome_exibicao: 'x', blocos: [{ tipo: 'sobre' }, { tipo: 'sobre' }] }).ok, false, 'bloco repetido');
   const pub = imovelPublico(
     { codigo: 'IM-0001', tipo: 'casa', proprietario_id: 9, endereco: 'Rua X, 10', endereco_publico: 'bairro', bairro: 'Lago Sul', cidade: 'Brasília', preco_c: 100 },
     [{ tipo: 'foto', publica: true, arquivo: 1, ordem: 2 }, { tipo: 'foto', publica: false, arquivo: 2, ordem: 0 }, { tipo: 'documento', publica: false, arquivo: 3 }, { tipo: 'foto', publica: true, arquivo: 4, ordem: 1 }],

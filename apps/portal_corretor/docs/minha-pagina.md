@@ -10,9 +10,12 @@ descricao: A página pública do corretor por blocos, a ficha de cada imóvel an
 Em **Minha página** o corretor monta a própria página na internet, que abre sem login, no celular
 ou no computador:
 
-- **Endereço e aparência:** o nome que aparece, o endereço (`joao-corretor`, por exemplo) e uma
-  das cinco cores. O endereço é único na plataforma inteira. Se outra pessoa já usa o endereço,
-  o app avisa.
+- **Nome e endereço:** o nome que aparece e o endereço (`joao-corretor`, por exemplo). O endereço
+  é único na plataforma inteira. Se outra pessoa já usa o endereço, o app avisa.
+- **Cor:** a página usa a cor principal da sua marca, em [Ajustes › Marca](conta-e-ajustes.md#a-marca).
+  Mudar a marca muda a página no ar na hora; se não acompanhar, Ajustes › Marca avisa e tem o botão
+  **Atualizar o que está no ar**. Quem tinha escolhido uma cor para a página antes passou a tê-la
+  como cor da marca (menos o "Oceano", que é o azul padrão).
 - **Blocos**, na ordem escolhida, cada um podendo aparecer ou ficar oculto:
 
 | Bloco | O que mostra |

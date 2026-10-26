@@ -14,7 +14,9 @@ abrindo o quadro.
 
 - Arraste o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
   motivo, o cartão volta.
-- Toque no cartão para abrir a ficha do cliente.
+- Toque no cartão para abrir a ficha do cliente. No cartão com **abordagem atrasada**, a ficha abre
+  já com a mensagem sugerida, pronta para o **Fazer agora** (ver
+  [Próxima abordagem](#próxima-abordagem)).
 - Filtros: funil (compra ou venda e captação), temperatura e "sem contato há" 3, 7, 15, 30 ou 90
   dias (as mesmas opções da Lista). Ficam no endereço da página.
 - Ganhos e perdidos ficam no quadro por 30 dias; os em andamento ficam sempre.
@@ -42,13 +44,29 @@ ficha guarda o histórico das últimas mudanças.
 ## Próxima abordagem
 
 Para cada contato com negócio em andamento, a etapa e a temperatura apontam uma abordagem do
-**playbook**: o que fazer, por onde (WhatsApp, ligação, e-mail, visita) e em quanto tempo. O prazo
+**playbook** (sem linha para essa combinação, não há abordagem): o que fazer, por onde (WhatsApp, ligação, e-mail, visita) e em quanto tempo. O prazo
 conta do mais recente entre a entrada na etapa, o último contato e o último "pular".
 
-Na ficha do cliente:
+Na ficha do cliente, a abordagem aparece no topo, no resumo em uma frase, com dois botões:
 
-- **Fiz agora** registra a abordagem na linha do tempo e conta como contato.
-- **Pular** recomeça o prazo a partir de agora.
+- **Mensagem sugerida** mostra o texto pronto para mandar ao cliente. Com a IA liberada, ela adapta
+  a abordagem do playbook ao histórico recente do contato (sem repetir o que já foi mandado; onde
+  faltar imóvel ou horário, deixa um espaço como "[imóvel]" para você completar). Sem a IA, aparece
+  o texto do playbook como está. Revise antes de enviar: nada sai sozinho.
+  - **Fazer agora** abre o WhatsApp do cliente com a mensagem e registra a abordagem na linha do
+    tempo ("Abordagem por WhatsApp: …"), contando como contato. Uma linha só: não entra em "Tudo
+    que você mandou".
+  - Contato sem telefone: o botão vira **Copiar texto**, e você registra depois pelo menu **Mais ›
+    Registrar abordagem feita**.
+- **Virar tarefa** põe a abordagem na agenda: ligação vira ligação, visita vira visita, WhatsApp
+  vira mensagem e e-mail vira tarefa, no prazo do playbook (se o prazo já passou, conta de agora),
+  ligada ao contato e ao negócio.
+
+No menu **Mais** da ficha:
+
+- **Registrar abordagem feita** anota o que você fez por outro caminho (ligou, encontrou) e conta
+  como contato.
+- **Pular a abordagem** recomeça o prazo a partir de agora.
 
 ### Ajustes › Funil e abordagens
 
@@ -73,10 +91,13 @@ Cada item traz o nome, a temperatura, o motivo em uma linha e **um** botão:
 
 | Grupo | Botão | No "Mais" |
 |---|---|---|
-| Quentes sem resposta | **Fazer agora** (abre a ficha do cliente) | — |
-| Abordagens atrasadas | **Fazer agora** (abre a ficha do cliente) | **Fiz**: registra a abordagem feita |
+| Quentes sem resposta | **Fazer agora** (abre a ficha com a mensagem sugerida) | — |
+| Abordagens atrasadas | **Fazer agora** (abre a ficha com a mensagem sugerida) | **Fiz**: registra a abordagem feita |
 | Visitas | **Abrir** (a ficha do cliente) | **Visita feita** |
 | Próximos passos vencidos | **Abrir** (a ficha do cliente) | — |
+
+O WhatsApp abre na ficha, no clique do **Fazer agora** de lá: o Início e o quadro só levam até a
+mensagem pronta (e ela só é gerada se o contato tiver abordagem).
 
 Fila vazia mostra "Nada urgente agora" e o botão **Ver a agenda**.
 

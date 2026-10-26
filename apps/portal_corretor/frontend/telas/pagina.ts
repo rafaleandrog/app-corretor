@@ -7,14 +7,13 @@ import { chamarApi, dataHora, enviar, mensagemDeErro } from '../apoio';
 declare const urbiVerso: UrbiVersoAPI;
 
 interface Visao {
-  pagina: { endereco: string; nome_exibicao: string; tema: string; blocos: Bloco[]; publicada_em: string | null; gerada_por_ia: boolean };
+  pagina: { endereco: string; nome_exibicao: string; blocos: Bloco[]; publicada_em: string | null; gerada_por_ia: boolean };
   salva: boolean;
   url: string;
-  temas: { valor: string; rotulo: string; cor: string }[];
   marcados_para_pagina: number;
 }
 
-// Minha Página: montar por blocos, escolher endereço e cor, publicar. Depois de publicada, a página
+// Minha Página: montar por blocos, escolher o endereço, publicar. A cor é a da marca (Ajustes › Marca). Depois de publicada, a página
 // pública abre numa aba para conferir (exceção de UI declarada na spec 11.5); antes, não há prévia.
 // Uma gravação por vez: cliques seguidos em subir/descer não se sobrepõem.
 @customElement('pc-tela-pagina')
@@ -53,7 +52,7 @@ export class PcTelaPagina extends LitElement {
     const p = { ...this.visao!.pagina, ...mudancas };
     this.salvando = true;
     try {
-      this.visao = await enviar('PUT', '/pagina', { endereco: p.endereco, nome_exibicao: p.nome_exibicao, tema: p.tema, blocos: p.blocos, ...extra });
+      this.visao = await enviar('PUT', '/pagina', { endereco: p.endereco, nome_exibicao: p.nome_exibicao, blocos: p.blocos, ...extra });
       urbiVerso.notificar('Salvo.', 'sucesso');
       return true;
     } catch (e) {
@@ -67,14 +66,13 @@ export class PcTelaPagina extends LitElement {
   private async aparencia() {
     const p = this.visao!.pagina;
     const v = await urbiVerso.formulario({
-      titulo: 'Endereço e aparência',
+      titulo: 'Nome e endereço',
       campos: [
         { nome: 'nome_exibicao', tipo: 'texto', rotulo: 'Nome que aparece na página', obrigatorio: true, valor: p.nome_exibicao },
         { nome: 'endereco', tipo: 'texto', rotulo: 'Endereço (letras minúsculas, números e hífen)', obrigatorio: true, valor: p.endereco },
-        { nome: 'tema', tipo: 'selecao', rotulo: 'Cor da página', opcoes: this.visao!.temas.map((t) => ({ valor: t.valor, rotulo: t.rotulo })), valor: p.tema },
       ],
     });
-    if (v) await this.salvar({ nome_exibicao: String(v.nome_exibicao), endereco: String(v.endereco).trim().toLowerCase(), tema: String(v.tema) });
+    if (v) await this.salvar({ nome_exibicao: String(v.nome_exibicao), endereco: String(v.endereco).trim().toLowerCase() });
   }
 
   private async mover(i: number, passo: number) {
@@ -203,8 +201,7 @@ export class PcTelaPagina extends LitElement {
       </urbi-banner>`;
     }
     if (!this.visao) return html`<urbi-loading></urbi-loading>`;
-    const { pagina: p, salva, temas, marcados_para_pagina } = this.visao;
-    const tema = temas.find((t) => t.valor === p.tema);
+    const { pagina: p, salva, marcados_para_pagina } = this.visao;
     const noAr = !!p.publicada_em;
     return html`<urbi-stack>
       ${!salva ? html`<urbi-banner variante="info">Esta é uma sugestão de página. Ajuste o que quiser: ela é salva na primeira mudança. Depois de publicar, "Abrir minha página" mostra como ficou.</urbi-banner>` : ''}
@@ -226,10 +223,11 @@ export class PcTelaPagina extends LitElement {
                 ${!salva ? html`<urbi-prosa papel="dica">Salve uma mudança antes de publicar.</urbi-prosa>` : ''}`}
         </urbi-linha>
       </urbi-card>
-      <urbi-card titulo="Endereço e aparência" icone="fa-solid fa-palette">
-        <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-pen" ariaLabel="Editar endereço e aparência" title="Editar" @click=${() => this.aparencia()}></urbi-botao></span>
+      <urbi-card titulo="Nome e endereço" icone="fa-solid fa-id-card">
+        <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-pen" ariaLabel="Editar nome e endereço" title="Editar" @click=${() => this.aparencia()}></urbi-botao></span>
         <urbi-prosa>${p.nome_exibicao}</urbi-prosa>
-        <urbi-prosa papel="secundario">Endereço: ${p.endereco} · Cor: ${tema?.rotulo ?? p.tema}</urbi-prosa>
+        <urbi-prosa papel="secundario">Endereço: ${p.endereco}</urbi-prosa>
+        <urbi-prosa papel="dica">A cor da página é a da sua marca, em Ajustes › Marca.</urbi-prosa>
       </urbi-card>
       <urbi-card titulo="Blocos da página" icone="fa-solid fa-table-cells-large">
         <span slot="acoes"><urbi-botao variante="secundario" pequeno icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.ocupado} @click=${() => this.sugerirTextos()}>Escrever com IA</urbi-botao></span>

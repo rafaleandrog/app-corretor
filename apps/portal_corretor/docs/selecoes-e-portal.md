@@ -20,6 +20,10 @@ Na ficha do cliente, em **Seleções e portal**, o botão **Nova seleção** abr
 O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>`. Vale pelo prazo de
 "validade da seleção enviada" de Ajustes › Atendimento (14 dias, se você não mudar).
 
+No topo, o cliente vê o seu nome, o CRECI, o botão de WhatsApp e a sua foto, na cor principal da
+sua marca ([Ajustes › Marca](conta-e-ajustes.md#a-marca)). Mudar a cor ou a foto na marca muda as
+seleções válidas e os portais já enviados, sem mandar link novo.
+
 O que o cliente vê em cada imóvel:
 - fotos públicas, preço, bairro e cidade, área, quartos, vagas e descrição;
 - os botões **Gostei**, **Não gostei** e **Quero visitar**.
@@ -55,7 +59,7 @@ O portal mostra:
 
 | Parte | O que tem |
 |---|---|
-| Topo | O nome do corretor (o da Minha página, se houver), o CRECI e o botão de WhatsApp |
+| Topo | O nome do corretor (o da Minha página, se houver), a foto, o CRECI e o botão de WhatsApp, na cor da marca |
 | Suas visitas | As visitas marcadas, com dia, hora e imóvel. Botões **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar** |
 | Imóveis para você | As seleções válidas, com as reações, que o cliente pode mudar dali mesmo |
 | Fale com o corretor | Uma mensagem livre |

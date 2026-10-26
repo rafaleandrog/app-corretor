@@ -59,7 +59,7 @@ async function estadoDaConta(req: Request): Promise<string> {
 }
 
 /** Dados permitidos de um contato (10.2): sem telefone nem e-mail; o histórico pelos resumos. */
-async function contextoContato(req: Request, contatoId: number): Promise<{ texto: string; nome: string } | null> {
+export async function contextoContato(req: Request, contatoId: number): Promise<{ texto: string; nome: string } | null> {
   const dados = req.dados!;
   const c = await dados.buscar('contatos', contatoId);
   if (!c || c.anonimizado_em) return null;

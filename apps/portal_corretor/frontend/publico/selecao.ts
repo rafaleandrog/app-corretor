@@ -35,6 +35,8 @@ async function postar(url: string, corpo: unknown): Promise<{ ok: boolean; mensa
 }
 
 const estiloSelecao = css`
+  .topo .quem { display: flex; align-items: center; gap: 14px; }
+  .topo .foto-corretor { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; background: var(--foto-vazia); }
   .reacoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .reacoes button { min-height: 44px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--borda-campo); background: var(--papel); color: var(--texto); font: inherit; cursor: pointer; }
   .reacoes button[aria-pressed='true'] { background: var(--acento); border-color: var(--acento); color: var(--papel); font-weight: 600; }
@@ -91,8 +93,13 @@ function topo(corretor: Linha | null, texto: string): TemplateResult {
   const zap = corretor ? linkWhatsapp(corretor.telefone, texto) : null;
   return html`<header class="topo">
     <div class="conteudo">
-      <h1>${corretor?.nome ?? 'Seu corretor'}</h1>
-      <p>Corretor de imóveis${corretor?.creci ? ` · CRECI ${corretor.creci}` : ''}</p>
+      <div class="quem">
+        ${corretor?.foto_url ? html`<img class="foto-corretor" src=${corretor.foto_url} alt=${`Foto de ${corretor.nome ?? 'seu corretor'}`} />` : nothing}
+        <div>
+          <h1>${corretor?.nome ?? 'Seu corretor'}</h1>
+          <p>Corretor de imóveis${corretor?.creci ? ` · CRECI ${corretor.creci}` : ''}</p>
+        </div>
+      </div>
       ${zap ? html`<div class="acoes"><a class="botao verde" href=${zap} target="_blank" rel="noopener">Falar no WhatsApp</a></div>` : nothing}
     </div>
   </header>`;
