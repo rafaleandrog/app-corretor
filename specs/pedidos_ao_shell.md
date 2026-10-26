@@ -41,6 +41,10 @@ A carteira de imóveis pede cartão com foto dominante (referência: imagem 1 da
 
 Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobreviver ao recarregar e poder ser compartilhada por link. Hoje a app lê `?aba=` em `window.location.search` e reflete com `history.replaceState`, à mão em cada tela. **Pedido:** atributo opcional no `urbi-abas` (por exemplo `parametro-url="aba"`) que faça isso pelo shell, ou documentar o padrão recomendado.
 
+## 9. `cancelarAgendamento` no contexto de migração de app (D-86)
+
+**Por quê:** a migração 001 do Estúdio devolve a rascunho as peças agendadas sem aprovação e precisa cancelar, no barramento, o `publicacao_programada` já marcado de cada uma. O `barramento.md` lista `cancelarAgendamento` em `req.eventos`, mas o helper `eventos` do contexto de migração (`upgrade-e-migracoes.md`, § Helper `eventos`) só tem as operações de inscrição. A migração chama o método de forma protegida (`typeof … === 'function'`), então sem ele o agendamento fica órfão e o listener descarta o evento na hora marcada. **Pedido:** expor `cancelarAgendamento` também no contexto de migração de app, ou documentar como uma migração cancela um agendamento.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.
