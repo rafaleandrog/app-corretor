@@ -5,7 +5,10 @@ import { emailValido, normalizarTelefone, telefoneValido } from './conta';
 export const TIPOS_BLOCO = ['apresentacao', 'destaques', 'imoveis', 'sobre', 'bairros', 'formulario', 'contato'] as const;
 export type TipoBloco = (typeof TIPOS_BLOCO)[number];
 
-/** Cores da página pública: dado da página, não token de tema (paginas-publicas.md). */
+/**
+ * As cinco cores que a Minha Página oferecia antes da marca única (D-85). Ficam só para o `aoIniciar`
+ * (backend/semente.ts) levar a cor antiga para `marca_conta`; a cor pública agora é a da marca.
+ */
 export const TEMAS: Record<string, { rotulo: string; cor: string }> = {
   oceano: { rotulo: 'Oceano', cor: '#0b5394' },
   mata: { rotulo: 'Mata', cor: '#1e6b52' },
@@ -69,7 +72,6 @@ const textoCurto = (v: unknown, limite: number) => (typeof v === 'string' ? v.tr
 
 export interface DadosPagina {
   endereco: string;
-  tema: string;
   nome_exibicao: string;
   blocos: Bloco[];
 }
@@ -79,8 +81,7 @@ export function validarPagina(corpo: Record<string, unknown>): Resultado<DadosPa
   const erros: string[] = [];
   const endereco = typeof corpo.endereco === 'string' ? corpo.endereco.trim().toLowerCase() : '';
   if (!FORMATO_ENDERECO.test(endereco)) erros.push('Endereço: de 3 a 40 letras minúsculas, números ou hífen, sem começar nem terminar com hífen.');
-  const tema = typeof corpo.tema === 'string' && TEMAS[corpo.tema] ? corpo.tema : null;
-  if (!tema) erros.push('Escolha uma das cores da página.');
+  // A cor deixou de ser da página (D-85): `tema` que ainda chegue é ignorado; a coluna fica no schema.
   const nome = textoCurto(corpo.nome_exibicao, 120);
   if (!nome) erros.push('Informe o nome que aparece na página.');
   const lista = Array.isArray(corpo.blocos) ? corpo.blocos : null;
@@ -115,7 +116,7 @@ export function validarPagina(corpo: Record<string, unknown>): Resultado<DadosPa
   // Bloco que faltou entra desligado, no fim: a página sempre tem os sete.
   for (const p of blocosPadrao()) if (!vistos.has(p.tipo)) blocos.push({ ...p, ativo: false });
   if (erros.length) return { ok: false, erros };
-  return { ok: true, dados: { endereco, tema: tema!, nome_exibicao: nome!, blocos } };
+  return { ok: true, dados: { endereco, nome_exibicao: nome!, blocos } };
 }
 
 export interface FotoPublica {

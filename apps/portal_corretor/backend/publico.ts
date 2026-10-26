@@ -125,6 +125,13 @@ const idDe = (v: unknown) => {
   return Number.isInteger(n) && n > 0 ? n : null;
 };
 
+/** Topo da seleção e do portal: a foto do corretor sai como URL assinada, nunca como id de arquivo. */
+async function corretorPublico(req: Request, c: Linha | null | undefined) {
+  if (!c) return null;
+  const { foto, ...resto } = c;
+  return { ...resto, foto_url: await urlFoto(req, foto ?? undefined) };
+}
+
 /** Seleção com as URLs das fotos (assinadas na hora); vencida ou fora da vitrine → `null`. */
 async function selecaoPublica(req: Request, conta: number, selecaoId: number) {
   const linha = await vitrine(req.dados!, { tipo: 'selecao', conta, chave: `${conta}:${selecaoId}` });
@@ -137,7 +144,7 @@ async function selecaoPublica(req: Request, conta: number, selecaoId: number) {
       fotos: (await Promise.all((i.fotos ?? []).map(async (f: Linha) => ({ url: await urlFoto(req, f.arquivo), legenda: f.legenda ?? null })))).filter((f) => f.url),
     })),
   );
-  return { id: selecaoId, ...s, itens };
+  return { id: selecaoId, ...s, corretor: await corretorPublico(req, s.corretor), itens };
 }
 
 rotasPublicas.get('/vitrine/selecao', async (req, res, next) => {
@@ -162,7 +169,7 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
     if (!portal) return res.status(404).json({ erro: true, codigo: 'NAO_ENCONTRADO', mensagem: 'Portal indisponível.' });
     const p = portal.dados as Linha;
     const selecoes = (await Promise.all((p.selecoes ?? []).map((sid: number) => selecaoPublica(req, conta!, sid)))).filter(Boolean);
-    res.json({ portal: { corretor: p.corretor, url_acoes: p.url_acoes, agenda: p.agenda ?? [], jornada: p.jornada ?? null, selecoes } });
+    res.json({ portal: { corretor: await corretorPublico(req, p.corretor), url_acoes: p.url_acoes, agenda: p.agenda ?? [], jornada: p.jornada ?? null, selecoes } });
   } catch (e) {
     next(e);
   }

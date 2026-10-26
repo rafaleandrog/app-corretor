@@ -2,9 +2,9 @@ import '@urbiverso/sdk/express';
 import type { Request } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
 import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
-import { imovelPublico, TEMAS, type Bloco } from '../comum/pagina';
+import { imovelPublico, type Bloco } from '../comum/pagina';
 import { primeiro } from './acesso';
-import { atualizarSelecoesDoImovel } from './portal';
+import { aplicarMarcaNaVitrine, atualizarSelecoesDoImovel, marcaPublica } from './portal';
 
 // Vitrine pública (D-55): a única tabela fora da segregação. Guarda só o que o corretor publicou e
 // nenhum dado pessoal; é mantida aqui a cada publicação e lida pelas rotas públicas, que não
@@ -111,16 +111,18 @@ export async function tentarSincronizar(req: Request, imovelId: number): Promise
 export async function conteudoPagina(req: Request, pagina: Linha) {
   const dados = req.dados!;
   const contaId = contaDoRequest(req);
-  const [eu, conta] = await Promise.all([
+  const [eu, conta, marca] = await Promise.all([
     primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
     primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId }),
+    marcaPublica(dados, contaId),
   ]);
   return {
     endereco: pagina.endereco,
     nome: pagina.nome_exibicao,
     creci: eu?.creci ?? conta?.creci_juridico ?? null,
     telefone: eu?.telefone ?? null,
-    cor: TEMAS[pagina.tema]?.cor ?? TEMAS.oceano.cor,
+    // A cor da marca (Ajustes › Marca, D-85); a página não tem mais cor própria.
+    cor: marca.cor,
     blocos: (pagina.blocos as Bloco[]).filter((b) => b.ativo),
     url_formulario: pagina.url_formulario ?? null,
     // Lida pelos links rastreados na hora do clique: republicar a página troca o endereço de entrada
@@ -163,6 +165,30 @@ export async function sincronizarTudo(req: Request): Promise<{ imoveis: number }
   }
   for (const l of await linhasDaConta(dados, conta, 'imovel')) if (!ficam.has(l.chave)) await dados.deletar('vitrine_publica', l.id);
   return { imoveis: ficam.size };
+}
+
+/**
+ * Marca salva (D-85): a vitrine é um retrato, então a página no ar é republicada e as seleções e
+ * portais da conta ganham a cor e a foto novas. Falha aqui não desfaz a marca salva: devolve `false`
+ * e a rota avisa o corretor (`vitrine_desatualizada`), que refaz tudo pelo "Atualizar o que está no
+ * ar" de Ajustes › Marca (`POST /estudio/marca/republicar`, que chama esta mesma função).
+ */
+export async function ressincronizarMarca(req: Request): Promise<boolean> {
+  const conta = contaDoRequest(req);
+  let ok = true;
+  try {
+    if (await paginaPublicada(req.dados!, conta)) await sincronizarTudo(req);
+  } catch (e) {
+    ok = false;
+    console.warn(`[portal_corretor] marca: página não republicada: ${(e as Error).message}`);
+  }
+  try {
+    await aplicarMarcaNaVitrine(req.dados!, conta);
+  } catch (e) {
+    ok = false;
+    console.warn(`[portal_corretor] marca: seleções e portais não atualizados: ${(e as Error).message}`);
+  }
+  return ok;
 }
 
 /** Tira a página e os imóveis da conta da vitrine (os links ficam, e passam a dizer "indisponível"). */

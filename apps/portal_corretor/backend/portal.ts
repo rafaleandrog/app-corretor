@@ -1,7 +1,8 @@
 import type { HelperDados } from '@urbiverso/sdk';
 import { iso } from '../comum/funil';
 import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
-import { imovelPublico, TEMAS } from '../comum/pagina';
+import { MARCA_PADRAO } from '../comum/estudio';
+import { imovelPublico } from '../comum/pagina';
 
 // Seleções e Portal do Cliente na vitrine pública (bloco 5b, D-56, D-73). O cliente abre por link com
 // o token do ingresso `wh`; a rota pública só lê a vitrine. Estas funções servem à rota do corretor
@@ -14,6 +15,25 @@ export interface Corretor {
   creci: string | null;
   telefone: string | null;
   cor: string;
+  /** Arquivo da foto do corretor (`marca_arquivos`); a rota pública troca por uma URL assinada. */
+  foto: number | null;
+}
+
+/**
+ * O que da marca vai a público (D-85): a cor principal e a foto do corretor. Lida sempre com o
+ * filtro da conta: os listeners rodam como SISTEMA e enxergam todas as contas.
+ */
+export async function marcaPublica(dados: HelperDados, conta: number): Promise<{ cor: string; foto: number | null }> {
+  const [marca, foto] = await Promise.all([
+    umaLinha(dados, 'marca_conta', { conta_id: conta, chave: 'conta' }),
+    umaLinha(dados, 'marca_arquivos', { conta_id: conta, tipo: 'foto' }),
+  ]);
+  return { cor: marca?.cor_primaria ?? MARCA_PADRAO.cor_primaria, foto: foto?.arquivo ? Number(foto.arquivo) : null };
+}
+
+/** O topo de uma seleção ou portal com a marca atual da conta; `null` continua `null`. */
+async function comMarca(dados: HelperDados, conta: number, topo: Corretor | null | undefined): Promise<Corretor | null> {
+  return topo ? { ...topo, ...(await marcaPublica(dados, conta)) } : null;
 }
 
 const chave = (conta: number, id: number) => `${conta}:${id}`;
@@ -38,18 +58,19 @@ export async function lerVitrine(dados: HelperDados, conta: number, tipo: string
   return umaLinha(dados, 'vitrine_publica', { conta, tipo, chave: chave(conta, id) });
 }
 
-/** Quem aparece no topo da seleção e do portal: o nome e a cor da página (se houver) e o perfil do corretor. */
+/** Quem aparece no topo da seleção e do portal: o nome da página (se houver), o perfil do corretor e a marca da conta. */
 export async function corretorDaConta(dados: HelperDados, conta: number, usuarioId: number, nomeUsuario: string): Promise<Corretor> {
-  const [pagina, perfil, contaLinha] = await Promise.all([
+  const [pagina, perfil, contaLinha, marca] = await Promise.all([
     umaLinha(dados, 'paginas_corretor', { conta_id: conta, chave: 'conta' }),
     umaLinha(dados, 'perfis_corretor', { conta_id: conta, usuario_id: usuarioId }),
     umaLinha(dados, 'perfil_conta', { conta_id: conta, chave: 'conta' }),
+    marcaPublica(dados, conta),
   ]);
   return {
     nome: pagina?.nome_exibicao || nomeUsuario || contaLinha?.nome || 'Seu corretor',
     creci: perfil?.creci ?? contaLinha?.creci_juridico ?? null,
     telefone: perfil?.telefone ?? null,
-    cor: TEMAS[pagina?.tema]?.cor ?? TEMAS.oceano.cor,
+    ...marca,
   };
 }
 
@@ -85,7 +106,8 @@ export async function publicarSelecao(dados: HelperDados, conta: number, selecao
     enviada_em: iso(selecao.enviada_em),
     expira_em: iso(selecao.expira_em),
     url_reacao: selecao.url_reacao ?? null,
-    corretor: corretor ?? (atual?.dados as Linha | undefined)?.corretor ?? null,
+    // A marca é sempre a atual da conta, mesmo quando o resto do topo é o já publicado.
+    corretor: await comMarca(dados, conta, corretor ?? (atual?.dados as Linha | undefined)?.corretor),
     itens: itens
       .filter((i) => porId.has(i.imovel_id))
       .map((i) => ({ ...imovelPublico(porId.get(i.imovel_id)!, midias.filter((m) => m.imovel_id === i.imovel_id)), reacao: i.reacao ?? null })),
@@ -159,7 +181,7 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
     return;
   }
   const atual = await lerVitrine(dados, conta, 'portal', contatoId);
-  const topo = corretor ?? (atual?.dados as Linha | undefined)?.corretor;
+  const topo = await comMarca(dados, conta, corretor ?? (atual?.dados as Linha | undefined)?.corretor);
   const [contato, selecoes, atividades] = await Promise.all([
     umaLinha(dados, 'contatos', { conta_id: conta, id: contatoId }),
     dados.varrerTudo('selecoes', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'enviada_em', ordem: 'desc', maximo: 200 }),
@@ -195,7 +217,7 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
   const enviadas = selecoes.filter((s) => !s.revogada_em);
   const itens = enviadas.length ? await dados.varrerTudo('selecao_itens', { filtros: { conta_id: conta, selecao_id: enviadas.map((s) => s.id).join(',') }, maximo: 5000 }) : [];
   await gravarVitrine(dados, conta, 'portal', contatoId, {
-    corretor: topo ?? null,
+    corretor: topo,
     url_acoes: acesso.url_acoes ?? null,
     selecoes: validas.map((s) => s.id),
     agenda,
@@ -214,5 +236,29 @@ export async function tentarPortal(dados: HelperDados, conta: number | undefined
     await sincronizarPortal(dados, conta, contatoId, corretor);
   } catch (e) {
     console.warn(`[portal_corretor] portal do cliente ${contatoId}: não sincronizado: ${(e as Error).message}`);
+  }
+}
+
+/** Id do registro pela chave da vitrine (`<conta>:<id>`), só se a chave for desta conta. */
+const idDaChave = (conta: number, c: unknown) => {
+  const [dona, id] = String(c ?? '').split(':').map(Number);
+  return dona === conta && Number.isInteger(id) && id > 0 ? id : null;
+};
+
+/**
+ * Marca salva (D-85): as seleções e os portais que estão na vitrine são republicados com a cor e a
+ * foto novas. O resto do topo (nome, CRECI, telefone de quem enviou) continua o já publicado.
+ */
+export async function aplicarMarcaNaVitrine(dados: HelperDados, conta: number): Promise<void> {
+  const [selecoesNaVitrine, portais] = await Promise.all([
+    dados.varrerTudo('vitrine_publica', { filtros: { conta, tipo: 'selecao' }, maximo: 5000 }),
+    dados.varrerTudo('vitrine_publica', { filtros: { conta, tipo: 'portal' }, maximo: 5000 }),
+  ]);
+  const ids = selecoesNaVitrine.map((l) => idDaChave(conta, l.chave)).filter((id): id is number => !!id);
+  const selecoes = ids.length ? await dados.varrerTudo('selecoes', { filtros: { conta_id: conta, id: ids.join(',') }, maximo: 5000 }) : [];
+  for (const s of selecoes) await publicarSelecao(dados, conta, s);
+  for (const l of portais) {
+    const contatoId = idDaChave(conta, l.chave);
+    if (contatoId) await sincronizarPortal(dados, conta, contatoId);
   }
 }

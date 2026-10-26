@@ -6,6 +6,7 @@ import {
   FORMATOS,
   imovelParaArte,
   INSTRUCAO_PECA,
+  MARCA_PADRAO,
   MAX_SLIDES,
   OBJETIVOS,
   promptCanva,
@@ -18,9 +19,9 @@ import {
   type TextosPeca,
 } from '../comum/estudio';
 import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
-import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './acesso';
+import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { uploadRecusado } from './imoveis';
-import { contaDoRequest } from './vitrine';
+import { contaDoRequest, ressincronizarMarca } from './vitrine';
 
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74): marca, pedido → textos (IA com JSON Schema,
 // ou modelo quando a IA não está disponível), arte montada pelo gerador do app no navegador do
@@ -46,30 +47,36 @@ async function url(req: Request, arquivo: number | null | undefined): Promise<st
   }
 }
 
+/** CRECI da conta de escrita: quem atende várias contas lê todas, e o de outra não pode vir junto. */
 async function creci(req: Request): Promise<string | null> {
   const dados = req.dados!;
+  const contaId = contaDoRequest(req);
   const [eu, conta] = await Promise.all([
-    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id }),
-    primeiro(dados, 'perfil_conta', { chave: 'conta' }),
+    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
+    primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId }),
   ]);
   return eu?.creci ?? conta?.creci_juridico ?? null;
 }
 
-/** A marca da conta (padrão até o corretor salvar), com logo e foto por URL assinada. */
+/**
+ * A marca da conta (padrão até o corretor salvar), com logo e foto por URL assinada. Lida com o
+ * filtro da conta de escrita: quem atende várias contas nunca vê a marca de outra.
+ */
 async function marca(req: Request) {
   const dados = req.dados!;
+  const conta = contaDoRequest(req);
   const [m, arquivos, pagina] = await Promise.all([
-    primeiro(dados, 'marca_conta', { chave: 'conta' }),
-    dados.listar('marca_arquivos', { por_pagina: 5 }),
-    primeiro(dados, 'paginas_corretor', { chave: 'conta' }),
+    primeiro(dados, 'marca_conta', { chave: 'conta', conta_id: conta }),
+    dados.listar('marca_arquivos', { filtros: { conta_id: conta }, por_pagina: 5 }),
+    primeiro(dados, 'paginas_corretor', { chave: 'conta', conta_id: conta }),
   ]);
   const de = (tipo: string) => arquivos.dados.find((a) => a.tipo === tipo);
   return {
     nome: pagina?.nome_exibicao || req.contexto!.usuario.nome || 'Corretor',
     creci: await creci(req),
-    cor_primaria: m?.cor_primaria ?? '#0b5394',
-    cor_secundaria: m?.cor_secundaria ?? '#f2b705',
-    estilo: m?.estilo ?? 'moderno',
+    cor_primaria: m?.cor_primaria ?? MARCA_PADRAO.cor_primaria,
+    cor_secundaria: m?.cor_secundaria ?? MARCA_PADRAO.cor_secundaria,
+    estilo: m?.estilo ?? MARCA_PADRAO.estilo,
     assinatura: m?.assinatura ?? null,
     salva: !!m,
     logo_url: await url(req, de('logo')?.arquivo),
@@ -89,8 +96,37 @@ estudioRotas.put(
   assincrono(async (req, res) => {
     const v = validarMarca(req.body ?? {});
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a marca.', v.erros);
-    await salvarUnico(req.dados!, 'marca_conta', { chave: 'conta' }, { ...v.dados });
-    res.json(await marca(req));
+    // Como `salvarUnico`, mas com a leitura presa à conta de escrita: quem atende várias contas lê
+    // todas, e a linha de outra conta não pode ser tomada pela desta.
+    const dados = req.dados!;
+    const daConta = () => primeiro(dados, 'marca_conta', { chave: 'conta', conta_id: contaDoRequest(req) });
+    const atual = await daConta();
+    if (atual) await dados.atualizar('marca_conta', atual.id, { ...v.dados });
+    else {
+      try {
+        await dados.criar('marca_conta', { chave: 'conta', ...v.dados });
+      } catch (e) {
+        const vencedora = (e as { code?: string })?.code === '23505' ? await daConta() : null;
+        if (!vencedora) throw e;
+        await dados.atualizar('marca_conta', vencedora.id, { ...v.dados });
+      }
+    }
+    // A marca fica salva mesmo se o que está no ar não acompanhar; a tela avisa e oferece refazer.
+    const ok = await ressincronizarMarca(req);
+    res.json({ ...(await marca(req)), vitrine_desatualizada: !ok });
+  }),
+);
+
+/**
+ * Refaz o que está no ar com a marca atual: a página (se publicada), as seleções e os portais.
+ * É o conserto que Ajustes › Marca oferece quando salvar não conseguiu atualizar tudo; funciona com
+ * a página fora do ar.
+ */
+estudioRotas.post(
+  '/estudio/marca/republicar',
+  assincrono(async (req, res) => {
+    const ok = await ressincronizarMarca(req);
+    res.json({ ...(await marca(req)), vitrine_desatualizada: !ok });
   }),
 );
 
@@ -102,7 +138,7 @@ estudioRotas.post(
     const upload = id(req.body?.upload_id);
     if (!tipo || !upload) return erro(res, 422, 'DADOS_INVALIDOS', 'Envie o logo ou a foto.');
     const dados = req.dados!;
-    const atual = await primeiro(dados, 'marca_arquivos', { tipo });
+    const atual = await primeiro(dados, 'marca_arquivos', { tipo, conta_id: contaDoRequest(req) });
     try {
       if (atual) await dados.atualizar('marca_arquivos', atual.id, { arquivo: upload });
       else await dados.criar('marca_arquivos', { tipo, arquivo: upload });
@@ -111,7 +147,11 @@ estudioRotas.post(
       if (recusa) return erro(res, recusa.status, 'UPLOAD_RECUSADO', recusa.mensagem);
       throw e;
     }
-    res.json(await marca(req));
+    // A foto aparece no topo da seleção e do portal; o logo, só nas artes: não ressincroniza e, por
+    // isso, a resposta não traz `vitrine_desatualizada` (não afirma nada sobre o que está no ar).
+    if (tipo !== 'foto') return res.json(await marca(req));
+    const ok = await ressincronizarMarca(req);
+    res.json({ ...(await marca(req)), vitrine_desatualizada: !ok });
   }),
 );
 
