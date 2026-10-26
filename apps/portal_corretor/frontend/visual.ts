@@ -67,7 +67,9 @@ export function opcoesChip(tipo: Exclude<TipoChip, 'etapa'>): { valor: string; r
 export function chip(tipo: TipoChip, valor: string | { nome: string; tipo: string } | null | undefined, motivo?: string | null) {
   if (!valor) return nothing;
   const { rotulo, cor } = rotuloChip(tipo, valor);
-  return html`<urbi-badge cor=${cor} title=${motivo ?? nothing}>${rotulo}</urbi-badge>`;
+  // Texto que a app não controla (nome da etapa, valor fora do catálogo) pede `quebra-linha` (ui-componentes-conteudo, badge).
+  const livre = typeof valor !== 'string' || rotulo === valor;
+  return html`<urbi-badge cor=${cor} title=${motivo ?? nothing} ?quebra-linha=${livre}>${rotulo}</urbi-badge>`;
 }
 
 // Estado na URL (overview.md § Navegação SPA): a sub-rota vem de `href(subRota())`, a query é da

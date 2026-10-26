@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
 import { abrirAssistenteSobre } from './assistente.js';
-import { chamarApi, data, dataHora, enviar, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { chamarApi, data, dataHora, enviar, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -72,7 +72,7 @@ export class PcTelaFichaContato extends LitElement {
           tipo: 'selecao',
           rotulo: 'Temperatura',
           valor: c.temperatura ?? '',
-          opcoes: [{ valor: '', rotulo: 'Sem classificação' }, { valor: 'frio', rotulo: 'Frio' }, { valor: 'morno', rotulo: 'Morno' }, { valor: 'quente', rotulo: 'Quente' }],
+          opcoes: [{ valor: '', rotulo: 'Sem classificação' }, ...opcoesChip('temperatura')],
         },
         { nome: 'temperatura_motivo', tipo: 'texto', rotulo: 'Por que essa temperatura (se mudou)', placeholder: 'Ex.: disse que compra só no ano que vem' },
         { nome: 'observacoes', tipo: 'texto_longo', rotulo: 'Observações', valor: c.observacoes ?? '' },

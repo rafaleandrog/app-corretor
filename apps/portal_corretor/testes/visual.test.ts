@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { nothing } from 'lit';
 import { CANAIS, PAPEIS, TEMPERATURAS } from '../comum/crm';
-import { abaDaUrl, aplicarFiltros, filtrosDaUrl, filtrosNaUrl, opcoesChip, ROTULO_ORIGEM, ROTULO_PAPEL, rotuloChip } from '../frontend/visual';
+import { abaDaUrl, aplicarFiltros, filtrosDaUrl, filtrosNaUrl, chip, opcoesChip, ROTULO_ORIGEM, ROTULO_PAPEL, rotuloChip } from '../frontend/visual';
 
 // Navegador mínimo: a URL da app é `/portal_corretor/<sub>` e o `replaceState` só troca o endereço.
 function navegador(endereco: string) {
@@ -66,4 +67,21 @@ test('chip: um rótulo e uma cor por valor', () => {
   for (const c of CANAIS) assert.ok(ROTULO_ORIGEM[c], c);
   assert.deepEqual(opcoesChip('temperatura').map((o) => o.valor), [...TEMPERATURAS]);
   assert.deepEqual(opcoesChip('temperatura').map((o) => o.rotulo), ['Frio', 'Morno', 'Quente']);
+});
+
+test('chip: etapa aberta/perdida, sem valor, title do motivo e quebra-linha só no texto livre', () => {
+  assert.equal(rotuloChip('etapa', { nome: 'Em contato', tipo: 'aberta' }).cor, 'info');
+  assert.equal(rotuloChip('etapa', { nome: 'Perdido', tipo: 'perdida' }).cor, 'padrao');
+  // Sem valor, nada (o `nothing` do lit).
+  for (const v of [null, undefined, '']) assert.equal(chip('temperatura', v), nothing);
+  // O TemplateResult expõe os valores na ordem dos atributos: cor, title, ?quebra-linha, rótulo.
+  const val = (r: unknown) => (r as { values: unknown[] }).values;
+  assert.deepEqual(val(chip('temperatura', 'quente', 'motivo X')), ['erro', 'motivo X', false, 'Quente']);
+  assert.equal(val(chip('temperatura', 'quente'))[1], nothing);
+  assert.equal(val(chip('temperatura', 'quente', null))[1], nothing);
+  // Rótulo do catálogo não quebra; nome de etapa (dado do corretor) e valor desconhecido, sim.
+  assert.equal(val(chip('temperatura', 'frio'))[2], false);
+  assert.equal(val(chip('papel', 'comprador'))[2], false);
+  assert.equal(val(chip('etapa', { nome: 'Visita marcada', tipo: 'aberta' }))[2], true);
+  assert.equal(val(chip('origem', 'canal_novo'))[2], true);
 });
