@@ -135,7 +135,7 @@ test('publicar agora: só peça aprovada, com Instagram conectado; legenda com C
   });
 });
 
-test('agendar: aprovação manual exige aprovada; janela agenda o rascunho; o listener publica na conta certa', async () => {
+test('agendar: só peça aprovada agenda; o listener publica na conta certa', async () => {
   const banco = new BancoFalso(UNICOS);
   metaFalsa();
   const ev = eventosFalsos();
@@ -158,7 +158,7 @@ test('agendar: aprovação manual exige aprovada; janela agenda o rascunho; o li
     await chamar('POST', `/estudio/pecas/${p.id}/cancelar-agendamento`);
     assert.deepEqual([banco.linhas('pecas').find((x) => x.id === p.id)!.estado, ev.cancelados], ['aprovada', [1]]);
     await chamar('POST', `/estudio/pecas/${p.id}/agendar`, { quando: new Date(Date.parse(quando) - 3600e3).toISOString() });
-    // Rascunho não agenda na aprovação manual.
+    // Rascunho não agenda: o corretor aprova antes (D-86).
     const rascunho = (await chamar('POST', '/estudio/pedido', { pedido: 'institucional', formatos: ['post_1x1'] })).corpo.pecas[0];
     assert.equal((await chamar('POST', `/estudio/pecas/${rascunho.id}/agendar`, { quando })).corpo.codigo, 'ESTADO_INVALIDO');
   });
@@ -178,26 +178,20 @@ test('agendar: aprovação manual exige aprovada; janela agenda o rascunho; o li
   await reagir.publicacao_programada({ payload: atual, conta_id: 100 }, ctx as any);
   assert.equal(banco.linhas('pecas').find((x) => x.id === pecaId)!.publicacao_id, 'm1');
 
-  // Aprovação por janela: o rascunho com arte agenda e é aprovado na hora.
+  // Conta ainda gravada no modo antigo (antes da migração 001): o código não lê o modo, e o rascunho não agenda.
   banco.linhas('configuracoes_conta').push({ id: 9999, conta_id: 100, chave: 'conta', modo_aprovacao_conteudo: 'janela', janela_aprovacao_horas: 24 } as any);
-  let janelaId = 0;
   await comServidor(rotas, ator(100, { eventos: ev }), banco, shell, async (chamar) => {
     const r = (await chamar('POST', '/estudio/pedido', { pedido: 'institucional', formatos: ['post_1x1'] })).corpo.pecas[0];
-    janelaId = r.id;
     await chamar('PUT', `/estudio/pecas/${r.id}/arquivos`, { upload_ids: [21] });
     const ag = await chamar('POST', `/estudio/pecas/${r.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() });
-    assert.equal(ag.status, 200, JSON.stringify(ag.corpo));
+    assert.deepEqual([ag.status, ag.corpo.codigo], [409, 'ESTADO_INVALIDO']);
   });
-  await reagir.publicacao_programada({ payload: ev.agendados[ev.agendados.length - 1].payload, conta_id: 100 }, ctx as any);
-  const j = banco.linhas('pecas').find((x) => x.id === janelaId)!;
-  assert.equal(j.estado, 'publicada');
-  assert.ok(j.aprovada_em, 'aprovada pela janela');
 
   // Outra conta não publica nem agenda a peça de A.
   await comServidor(rotas, ator(200, { eventos: ev }), banco, shell, async (chamar) => {
-    assert.equal((await chamar('POST', `/estudio/pecas/${janelaId}/publicar`)).status, 404);
-    assert.equal((await chamar('POST', `/estudio/pecas/${janelaId}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() })).status, 404);
-    assert.equal((await chamar('POST', `/estudio/pecas/${janelaId}/publicada-fora`, {})).status, 404);
+    assert.equal((await chamar('POST', `/estudio/pecas/${pecaId}/publicar`)).status, 404);
+    assert.equal((await chamar('POST', `/estudio/pecas/${pecaId}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() })).status, 404);
+    assert.equal((await chamar('POST', `/estudio/pecas/${pecaId}/publicada-fora`, {})).status, 404);
   });
 });
 
@@ -265,7 +259,7 @@ test('revisão: peça editada pede nova aprovação, story do Canva não sai pel
   });
 });
 
-test('revisão: janela desligada não aprova sozinha; rotina aceita conta como texto e não insiste em token vencido', async () => {
+test('revisão: o listener não aprova nada; rotina aceita conta como texto e não insiste em token vencido', async () => {
   const banco = new BancoFalso(UNICOS);
   metaFalsa();
   const ev = eventosFalsos();
@@ -277,14 +271,15 @@ test('revisão: janela desligada não aprova sozinha; rotina aceita conta como t
     const r = (await chamar('POST', '/estudio/pedido', { pedido: 'institucional', formatos: ['post_1x1'] })).corpo.pecas[0];
     id = r.id;
     await chamar('PUT', `/estudio/pecas/${r.id}/arquivos`, { upload_ids: [21] });
-    assert.equal((await chamar('POST', `/estudio/pecas/${r.id}/agendar`, { quando: new Date(Date.now() + 3600e3).toISOString() })).status, 200);
   });
-  // O corretor voltou para a aprovação manual antes da hora: o rascunho não sai.
-  banco.linhas('configuracoes_conta').find((c) => c.id === 9999)!.modo_aprovacao_conteudo = 'manual';
+  // Rascunho agendado de antes da D-86 (a migração 001 ainda não rodou): na hora, não sai nem é aprovado.
+  const quando = new Date(Date.now() - 60e3).toISOString();
+  Object.assign(banco.linhas('pecas').find((x) => x.id === id)!, { estado: 'agendada', agendada_para: quando, agendamento_id: 77 });
   const ctx = { ...banco.ctxSistema([{ id: 100, nome: 'A' }]), arquivos, shell };
-  await reagir.publicacao_programada({ payload: ev.agendados[ev.agendados.length - 1].payload, conta_id: 100 }, ctx as any);
+  await reagir.publicacao_programada({ payload: { peca_id: id, agendada_para: quando }, conta_id: 100 }, ctx as any);
   const p = banco.linhas('pecas').find((x) => x.id === id)!;
   assert.deepEqual([p.estado, p.aprovada_em ?? null], ['erro', null]);
+  assert.match(p.erro, /não está aprovada/);
 
   // conta_id como texto (BIGINT): a rotina renova mesmo assim.
   const canal = banco.linhas('canais_sociais')[0];
@@ -340,7 +335,7 @@ test('revisão 2: falha depois da reserva desfaz; destravar só depois de 15 min
   });
 });
 
-test('revisão 2: peça da janela que falhou nas checagens pode ser aprovada de novo', async () => {
+test('revisão 2: peça com erro sem aprovação (de antes da D-86) pode ser aprovada de novo', async () => {
   const banco = new BancoFalso(UNICOS);
   metaFalsa();
   await comServidor(rotas, ator(100), banco, shell, async (chamar) => {

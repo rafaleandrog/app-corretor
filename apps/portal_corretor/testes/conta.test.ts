@@ -22,11 +22,13 @@ test('perfil da conta exige nome e tipo conhecido', () => {
 });
 
 test('configurações respeitam as faixas do schema', () => {
-  const base = { prazo_primeiro_atendimento_min: 5, dias_cliente_parado: 7, validade_selecao_dias: 14, modo_aprovacao_conteudo: 'manual', janela_aprovacao_horas: 24 };
+  const base = { prazo_primeiro_atendimento_min: 5, dias_cliente_parado: 7, validade_selecao_dias: 14 };
   assert.equal(validarConfiguracoes(base).ok, true);
   assert.equal(validarConfiguracoes({ ...base, prazo_primeiro_atendimento_min: 0 }).ok, false);
-  assert.equal(validarConfiguracoes({ ...base, janela_aprovacao_horas: 2.5 }).ok, false);
-  assert.equal(validarConfiguracoes({ ...base, modo_aprovacao_conteudo: 'auto' }).ok, false);
+  assert.equal(validarConfiguracoes({ ...base, validade_selecao_dias: 2.5 }).ok, false);
+  // Sem aprovação por janela (D-86): o modo antigo, se vier de tela em cache, é ignorado e não é gravado.
+  const antigo = validarConfiguracoes({ ...base, modo_aprovacao_conteudo: 'janela', janela_aprovacao_horas: 12 });
+  assert.ok(antigo.ok && !('modo_aprovacao_conteudo' in antigo.dados) && !('janela_aprovacao_horas' in antigo.dados));
   assert.equal(validarConfiguracoes({ ...base, dias_cliente_parado: '10' }).ok, true);
 });
 

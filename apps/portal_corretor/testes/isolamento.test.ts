@@ -19,7 +19,7 @@ test('corretor B não vê a conta, o perfil nem as configurações do corretor A
   await comServidor(rotas, A, banco, semShell, async (chamar) => {
     assert.equal((await chamar('PUT', '/conta/perfil', { nome: 'Marina Imóveis' })).status, 200);
     assert.equal((await chamar('PUT', '/conta/meu-perfil', { creci: 'df-12345-f', telefone: '(61) 99999-0000' })).status, 200);
-    const cfg = { prazo_primeiro_atendimento_min: 3, dias_cliente_parado: 5, validade_selecao_dias: 10, modo_aprovacao_conteudo: 'janela', janela_aprovacao_horas: 12 };
+    const cfg = { prazo_primeiro_atendimento_min: 3, dias_cliente_parado: 5, validade_selecao_dias: 10 };
     assert.equal((await chamar('PUT', '/conta/configuracoes', cfg)).status, 200);
   });
   await comServidor(rotas, B, banco, semShell, async (chamar) => {
