@@ -1,26 +1,55 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, corQualidade, filtrosDaUrl, filtrosNaUrl, formularioEnviar, opcoes, reais, ROTULO_TIPO_IMOVEL, SITUACAO_IMOVEL } from '../apoio.js';
+import type { UrbiVersoAPI } from '@urbiverso/sdk';
+import { ABAS_IMOVEIS, APELIDOS_IMOVEIS } from '../../comum/imoveis';
+import {
+  abaDaUrl,
+  abaNaUrl,
+  cartaoImovel,
+  chamarApi,
+  filtrosDaUrl,
+  filtrosNaUrl,
+  formularioEnviar,
+  opcoes,
+  ROTULO_TIPO_IMOVEL,
+  SITUACAO_IMOVEL,
+  type ImovelCartao,
+  type OpcoesAba,
+} from '../apoio.js';
+import './empreendimentos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
-interface Imovel {
-  id: number;
-  codigo: string;
-  titulo: string | null;
-  tipo: string;
-  situacao: string;
-  bairro: string | null;
-  cidade: string | null;
-  preco_c: number | null;
-  publicavel: boolean;
-  capa_url: string | null;
+// Imóveis em duas abas (D-84, spec 11.1): Carteira e Empreendimentos. A aba fica em `?aba=`
+// (Carteira é a ausência dela) e `/empreendimentos` é apelido que abre a aba Empreendimentos.
+const ABAS = [...ABAS_IMOVEIS];
+const OPCOES_ABA: OpcoesAba = { apelidos: APELIDOS_IMOVEIS, rota: '/imoveis' };
+
+/** A aba do endereço que está na barra agora. */
+export const abaImoveis = () => abaDaUrl(ABAS.map((a) => a.id), OPCOES_ABA);
+
+/** O `urbi-abas` vai direto no body da página (como Clientes); só a aba aberta é montada e carrega o que é dela. */
+export function renderImoveis(atualizar: () => void) {
+  const aba = abaImoveis();
+  const selecionar = (e: CustomEvent) => {
+    const id = e.detail?.id;
+    if (!ABAS.some((a) => a.id === id) || id === aba) return;
+    abaNaUrl(id === 'carteira' ? '' : id, OPCOES_ABA);
+    atualizar();
+  };
+  return html`<urbi-abas formato-desktop="botoes" .abas=${ABAS} ativa=${aba} @urbi:aba-selecionar=${selecionar}>
+    <urbi-hospedeiro slot=${aba}>
+      ${aba === 'empreendimentos' ? html`<pc-tela-empreendimentos></pc-tela-empreendimentos>` : html`<pc-tela-imoveis></pc-tela-imoveis>`}
+    </urbi-hospedeiro>
+  </urbi-abas>`;
+}
+
+interface Imovel extends ImovelCartao {
   qualidade: { nota: number; faltas: string[] };
 }
 
-// Imóveis › Minha carteira: lista com capa, situação e qualidade; busca e situação na URL.
-// Cadastro rápido: só o essencial aqui, e as fotos logo em seguida na ficha.
+// Imóveis › Carteira: cartões com capa, preço, local, cômodos, situação e qualidade; busca e
+// situação na URL. Cadastro rápido: só o essencial aqui, e as fotos logo em seguida na ficha.
 @customElement('pc-tela-imoveis')
 export class PcTelaImoveis extends LitElement {
   @state() private imoveis: Imovel[] = [];
@@ -35,12 +64,19 @@ export class PcTelaImoveis extends LitElement {
     void this.carregar();
   }
 
+  /** Só a busca e a situação vão ao backend: a aba é da tela. */
+  private consulta() {
+    const q = new URLSearchParams();
+    for (const k of ['busca', 'situacao']) if (this.filtros.get(k)) q.set(k, this.filtros.get(k)!);
+    return q;
+  }
+
   private async carregar() {
     const geracao = ++this.geracao;
     this.carregando = true;
     this.falha = null;
     try {
-      const r = await chamarApi(`/imoveis?${this.filtros}`);
+      const r = await chamarApi(`/imoveis?${this.consulta()}`);
       if (geracao !== this.geracao) return;
       this.imoveis = r.dados;
       this.total = r.total;
@@ -75,43 +111,22 @@ export class PcTelaImoveis extends LitElement {
     if (r?.id) urbiVerso.navegarSub(`/imoveis/${r.id}`);
   }
 
-  private colunas(): UrbiColunaTabela[] {
-    return [
-      {
-        id: 'capa',
-        label: '',
-        semRotuloMobile: true,
-        // Miniatura pelo urbi-avatar (exceção nomeada até haver primitivo de galeria — spec 11.5).
-        render: (l) => html`<urbi-avatar nome=${(l as Imovel).codigo} foto=${(l as Imovel).capa_url ?? ''} icone=${(l as Imovel).capa_url ? '' : 'fa-solid fa-image'} tamanho="48"></urbi-avatar>`,
-      },
-      {
-        id: 'codigo',
-        label: 'Imóvel',
-        valor: (l) => {
-          const i = l as Imovel;
-          return `${i.codigo} · ${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}`;
-        },
-      },
-      { id: 'local', label: 'Local', valor: (l) => [(l as Imovel).bairro, (l as Imovel).cidade].filter(Boolean).join(', ') || '—' },
-      { id: 'preco', label: 'Preço', alinhamento: 'direita', valor: (l) => ((l as Imovel).preco_c ? reais((l as Imovel).preco_c) : 'sob consulta') },
-      {
-        id: 'situacao',
-        label: 'Situação',
-        render: (l) => {
-          const i = l as Imovel;
-          const s = SITUACAO_IMOVEL[i.situacao] ?? { rotulo: i.situacao, cor: 'padrao' };
-          return html`<urbi-linha quebrar>
-            <urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>
-            ${i.publicavel ? html`<urbi-badge cor="sucesso">Na página</urbi-badge>` : ''}
-          </urbi-linha>`;
-        },
-      },
-      {
-        id: 'qualidade',
-        label: 'Qualidade',
-        render: (l) => html`<urbi-badge cor=${corQualidade((l as Imovel).qualidade.nota)}>${(l as Imovel).qualidade.nota}</urbi-badge>`,
-      },
-    ];
+  private grade() {
+    if (this.carregando && !this.imoveis.length) return html`<urbi-loading></urbi-loading>`;
+    if (!this.imoveis.length) {
+      return this.consulta().toString()
+        ? html`<urbi-estado-vazio icone="fa-solid fa-magnifying-glass" mensagem="Nenhum imóvel com estes filtros"
+            submensagem="Mude a busca ou a situação."></urbi-estado-vazio>`
+        : html`<urbi-estado-vazio icone="fa-solid fa-house" mensagem="Cadastre o primeiro imóvel"
+            submensagem="Leva poucos minutos: tipo, cidade e as fotos. Use Novo imóvel, aqui em cima."></urbi-estado-vazio>`;
+    }
+    // Cartão com capa pelo `urbi-avatar` grande: exceção nomeada D-65 até o pedido ao shell 7.
+    return html`<urbi-grid min="280px">
+        ${this.imoveis.map((i) => cartaoImovel(i, () => urbiVerso.navegarSub(`/imoveis/${i.id}`)))}
+      </urbi-grid>
+      ${this.total > this.imoveis.length
+        ? html`<urbi-prosa papel="dica">Mostrando ${this.imoveis.length} de ${this.total}. Refine a busca para achar os demais.</urbi-prosa>`
+        : nothing}`;
   }
 
   render() {
@@ -129,12 +144,7 @@ export class PcTelaImoveis extends LitElement {
             ${this.falha}
             <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
           </urbi-banner>`
-        : html`<urbi-tabela responsivo="multiline" clicavel .colunas=${this.colunas()} .linhas=${this.imoveis} ?carregando=${this.carregando}
-              mensagem-vazio=${this.filtros.toString() ? 'Nenhum imóvel com estes filtros.' : 'Nenhum imóvel ainda. Cadastre o primeiro: leva poucos minutos.'}
-              @urbi:tabela-click=${(e: CustomEvent) => urbiVerso.navegarSub(`/imoveis/${(e.detail.linha as Imovel).id}`)}></urbi-tabela>
-            ${this.total > this.imoveis.length
-              ? html`<urbi-prosa papel="dica">Mostrando ${this.imoveis.length} de ${this.total}. Refine a busca para achar os demais.</urbi-prosa>`
-              : ''}`}
+        : this.grade()}
     </urbi-stack>`;
   }
 }

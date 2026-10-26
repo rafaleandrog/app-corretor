@@ -192,10 +192,6 @@ export class PcTelaInicio extends LitElement {
           ${this.aba === 'agenda' ? html`<pc-tela-agenda></pc-tela-agenda>` : this.hoje(this.fila)}
         </urbi-hospedeiro>
       </urbi-abas>
-      <!-- Empreendimentos fica sem lugar no menu até virar aba de Imóveis (D-84). -->
-      <urbi-linha>
-        <urbi-botao pequeno variante="texto" icone="fa-solid fa-city" href=${urbiVerso.href('/empreendimentos')}>Empreendimentos</urbi-botao>
-      </urbi-linha>
     </urbi-stack>`;
   }
 }
