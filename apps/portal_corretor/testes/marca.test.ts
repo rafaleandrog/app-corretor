@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas, rotasPublicas } from '../backend/rotas';
+import { estudioRotas } from '../backend/estudio';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 // Marca única (bloco 7, D-85): a cor principal e a foto de Ajustes › Marca valem na página pública,
@@ -129,4 +130,138 @@ test('marca única: a cor e a foto de Ajustes › Marca valem na página, na sel
   const fotos = banco.linhas('marca_arquivos').map((l: any) => [l.conta_id, l.arquivo]).sort();
   assert.deepEqual(fotos, [[100, 950], [200, 960], [300, 970]]);
   assert.equal(vitrineDe(banco, 100, 'selecao')[0].dados.corretor.cor, '#aa3300', 'a vitrine de A não mudou');
+});
+
+/**
+ * Injeta falha no banco falso sem mexer nele: `pagina` derruba a republicação da página no ar (a
+ * leitura da linha da página na vitrine, em `sincronizarTudo`); `vitrine` derruba a das seleções e
+ * portais (`aplicarMarcaNaVitrine`).
+ */
+function comFalhas(banco: BancoFalso) {
+  const estado: { falha: 'pagina' | 'vitrine' | null } = { falha: null };
+  const original = banco.dados.bind(banco);
+  banco.dados = (conta: number | null, global?: boolean) => {
+    const h = original(conta, global);
+    const varrer = h.varrerTudo;
+    h.varrerTudo = async (tabela: string, op: any = {}) => {
+      if (estado.falha === 'pagina' && tabela === 'vitrine_publica' && op.filtros?.tipo === 'pagina') throw new Error('falha simulada na página');
+      if (estado.falha === 'vitrine' && tabela === 'vitrine_publica' && ['selecao', 'portal'].includes(op.filtros?.tipo)) throw new Error('falha simulada nas seleções');
+      return varrer(tabela, op);
+    };
+    return h;
+  };
+  return estado;
+}
+
+const cores = (banco: BancoFalso, conta: number) => ({
+  pagina: vitrineDe(banco, conta, 'pagina')[0]?.dados.cor,
+  selecao: vitrineDe(banco, conta, 'selecao')[0].dados.corretor.cor,
+  portal: vitrineDe(banco, conta, 'portal')[0].dados.corretor.cor,
+});
+
+test('marca: o que está no ar não acompanhou → a marca fica salva, a resposta avisa e "republicar" refaz as três superfícies', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const falhas = comFalhas(banco);
+  await comServidor(rotas, A, banco, shellFalso(), async (chamar) => {
+    await contaNoAr(chamar, '6197770000');
+    // (1) Tudo certo: sem aviso, as três superfícies com a cor nova.
+    let r = await chamar('PUT', '/estudio/marca', { cor_primaria: '#111111', cor_secundaria: '#ffffff', estilo: 'moderno' });
+    assert.deepEqual([r.status, r.corpo.vitrine_desatualizada], [200, false]);
+    assert.deepEqual(cores(banco, 100), { pagina: '#111111', selecao: '#111111', portal: '#111111' });
+
+    // (2) A republicação da página falha: a marca fica gravada, a resposta avisa.
+    falhas.falha = 'pagina';
+    r = await chamar('PUT', '/estudio/marca', { cor_primaria: '#222222', cor_secundaria: '#ffffff', estilo: 'moderno' });
+    assert.deepEqual([r.status, r.corpo.vitrine_desatualizada, r.corpo.cor_primaria], [200, true, '#222222']);
+    assert.equal(banco.linhas('marca_conta')[0].cor_primaria, '#222222');
+    assert.equal(cores(banco, 100).pagina, '#111111', 'a página no ar ficou com a cor anterior');
+    // (4) O conserto oferecido, com o banco bom: as três superfícies com a cor nova, sem aviso.
+    falhas.falha = null;
+    r = await chamar('POST', '/estudio/marca/republicar');
+    assert.deepEqual([r.status, r.corpo.vitrine_desatualizada], [200, false]);
+    assert.deepEqual(cores(banco, 100), { pagina: '#222222', selecao: '#222222', portal: '#222222' });
+
+    // (3) Seleções e portais falham: a marca fica gravada, a resposta avisa.
+    falhas.falha = 'vitrine';
+    r = await chamar('PUT', '/estudio/marca', { cor_primaria: '#333333', cor_secundaria: '#ffffff', estilo: 'moderno' });
+    assert.deepEqual([r.status, r.corpo.vitrine_desatualizada], [200, true]);
+    assert.equal(banco.linhas('marca_conta')[0].cor_primaria, '#333333');
+    assert.deepEqual(cores(banco, 100), { pagina: '#333333', selecao: '#222222', portal: '#222222' });
+    // (4) O conserto refaz as seleções e os portais.
+    falhas.falha = null;
+    r = await chamar('POST', '/estudio/marca/republicar');
+    assert.deepEqual([r.status, r.corpo.vitrine_desatualizada], [200, false]);
+    assert.deepEqual(cores(banco, 100), { pagina: '#333333', selecao: '#333333', portal: '#333333' });
+    // O conserto falhando de novo continua avisando.
+    falhas.falha = 'vitrine';
+    assert.equal((await chamar('POST', '/estudio/marca/republicar')).corpo.vitrine_desatualizada, true);
+    falhas.falha = null;
+
+    // (4) Com a página fora do ar o conserto também vale: refaz seleções e portais.
+    assert.equal((await chamar('POST', '/pagina/despublicar')).status, 200);
+    falhas.falha = 'vitrine';
+    r = await chamar('PUT', '/estudio/marca', { cor_primaria: '#444444', cor_secundaria: '#ffffff', estilo: 'moderno' });
+    assert.equal(r.corpo.vitrine_desatualizada, true);
+    falhas.falha = null;
+    r = await chamar('POST', '/estudio/marca/republicar');
+    assert.deepEqual([r.status, r.corpo.vitrine_desatualizada], [200, false]);
+    assert.deepEqual(cores(banco, 100), { pagina: undefined, selecao: '#444444', portal: '#444444' });
+  });
+  // A rota de conserto tem a mesma guarda das outras do Estúdio.
+  await comServidor(rotas, { usuario: 9, conta: 100, papeis: ['cliente'] }, banco, shellFalso(), async (chamar) => {
+    assert.equal((await chamar('POST', '/estudio/marca/republicar')).status, 403);
+  });
+});
+
+test('marca: trocar a foto atualiza seleção e portal; falha ao republicar grava a foto e avisa', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const falhas = comFalhas(banco);
+  await comServidor(rotas, A, banco, shellFalso(), async (chamar) => {
+    await contaNoAr(chamar, '6198880000');
+    assert.equal((await chamar('POST', '/estudio/marca/arquivos', { tipo: 'foto', upload_id: 950 })).corpo.vitrine_desatualizada, false);
+    // (5) Troca de foto (já existia: `atualizar`): seleção e portal com a foto nova.
+    const r = await chamar('POST', '/estudio/marca/arquivos', { tipo: 'foto', upload_id: 951 });
+    assert.deepEqual([r.status, r.corpo.vitrine_desatualizada], [200, false]);
+    for (const tipo of ['selecao', 'portal']) assert.equal(vitrineDe(banco, 100, tipo)[0].dados.corretor.foto, 951, `${tipo} com a foto nova`);
+    // (6) Falha ao republicar: o arquivo fica gravado e a resposta avisa.
+    falhas.falha = 'vitrine';
+    const f = await chamar('POST', '/estudio/marca/arquivos', { tipo: 'foto', upload_id: 952 });
+    assert.deepEqual([f.status, f.corpo.vitrine_desatualizada, f.corpo.foto_url], [200, true, '/arquivo/952']);
+    assert.deepEqual(banco.linhas('marca_arquivos').map((l: any) => l.arquivo), [952]);
+    assert.equal(vitrineDe(banco, 100, 'selecao')[0].dados.corretor.foto, 951);
+    falhas.falha = null;
+    assert.equal((await chamar('POST', '/estudio/marca/republicar')).corpo.vitrine_desatualizada, false);
+    for (const tipo of ['selecao', 'portal']) assert.equal(vitrineDe(banco, 100, tipo)[0].dados.corretor.foto, 952);
+  });
+});
+
+test('marca: o CRECI vem da conta de escrita, nunca de outra que o usuário também atende', async () => {
+  const banco = new BancoFalso(UNICOS);
+  // A conta 100 primeiro: sem o filtro de conta, a leitura do conjunto devolveria o dela.
+  banco.linhas('perfis_corretor').push({ id: 9001, conta_id: 100, usuario_id: 3, creci: 'CRECI-100' } as any, { id: 9002, conta_id: 300, usuario_id: 3, creci: 'CRECI-300' } as any);
+  banco.linhas('perfil_conta').push({ id: 9003, conta_id: 100, chave: 'conta', creci_juridico: 'J-100' } as any, { id: 9004, conta_id: 300, chave: 'conta', creci_juridico: 'J-300' } as any);
+  // Direto no router do Estúdio, sem o escopo de conta de `rotas` (escopo.ts): o filtro é da própria
+  // leitura, não depende de quem monta o router.
+  for (const router of [estudioRotas, rotas]) {
+    await comServidor(router, C, banco, shellFalso(), async (chamar) => {
+      assert.equal((await chamar('GET', '/estudio/marca')).corpo.creci, 'CRECI-300');
+    });
+  }
+  await comServidor(rotas, C, banco, shellFalso(), async (chamar) => {
+    assert.equal((await chamar('PUT', '/estudio/marca', { cor_primaria: '#222222', cor_secundaria: '#ffffff', estilo: 'moderno' })).corpo.creci, 'CRECI-300');
+  });
+  // Sem perfil próprio, vale o CRECI jurídico da conta de escrita, não o da outra.
+  const D: Ator = { usuario: 4, conta: 300, contas: [100, 300], papeis: ['corretor'], extras: { arquivos } };
+  for (const router of [estudioRotas, rotas]) {
+    await comServidor(router, D, banco, shellFalso(), async (chamar) => {
+      assert.equal((await chamar('GET', '/estudio/marca')).corpo.creci, 'J-300');
+    });
+  }
+  // Só na conta 100, o mesmo usuário nunca vê o da 300.
+  await comServidor(rotas, { usuario: 3, conta: 100, papeis: ['corretor'], extras: { arquivos } }, banco, shellFalso(), async (chamar) => {
+    assert.equal((await chamar('GET', '/estudio/marca')).corpo.creci, 'CRECI-100');
+  });
+  await comServidor(rotas, { usuario: 4, conta: 100, papeis: ['corretor'], extras: { arquivos } }, banco, shellFalso(), async (chamar) => {
+    assert.equal((await chamar('GET', '/estudio/marca')).corpo.creci, 'J-100');
+  });
 });

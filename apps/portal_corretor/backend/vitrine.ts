@@ -169,21 +169,26 @@ export async function sincronizarTudo(req: Request): Promise<{ imoveis: number }
 
 /**
  * Marca salva (D-85): a vitrine é um retrato, então a página no ar é republicada e as seleções e
- * portais da conta ganham a cor e a foto novas. Falha aqui não desfaz a marca salva: a página
- * volta a acompanhar no "Atualizar agora" ou na próxima publicação.
+ * portais da conta ganham a cor e a foto novas. Falha aqui não desfaz a marca salva: devolve `false`
+ * e a rota avisa o corretor (`vitrine_desatualizada`), que refaz tudo pelo "Atualizar o que está no
+ * ar" de Ajustes › Marca (`POST /estudio/marca/republicar`, que chama esta mesma função).
  */
-export async function ressincronizarMarca(req: Request): Promise<void> {
+export async function ressincronizarMarca(req: Request): Promise<boolean> {
   const conta = contaDoRequest(req);
+  let ok = true;
   try {
     if (await paginaPublicada(req.dados!, conta)) await sincronizarTudo(req);
   } catch (e) {
+    ok = false;
     console.warn(`[portal_corretor] marca: página não republicada: ${(e as Error).message}`);
   }
   try {
     await aplicarMarcaNaVitrine(req.dados!, conta);
   } catch (e) {
+    ok = false;
     console.warn(`[portal_corretor] marca: seleções e portais não atualizados: ${(e as Error).message}`);
   }
+  return ok;
 }
 
 /** Tira a página e os imóveis da conta da vitrine (os links ficam, e passam a dizer "indisponível"). */

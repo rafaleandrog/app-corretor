@@ -2,8 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error migração é JS puro (o runner do shell a importa), sem declaração de tipos.
 import semJanela from '../migracoes/001_sem_aprovacao_por_janela.js';
-// @ts-expect-error idem.
-import marcaUnica from '../migracoes/002_marca_unica.js';
 import { BancoFalso } from './apoio';
 
 /**
@@ -73,29 +71,4 @@ test('migração 001: sem cancelarAgendamento no contexto, a peça volta a rascu
   const m = contextoMigracao(banco);
   await semJanela({ ...m.ctx, eventos: {} });
   assert.deepEqual([banco.linhas('pecas')[0].estado, banco.linhas('pecas')[0].agendamento_id], ['rascunho', null]);
-});
-
-test('migração 002: conta sem marca ganha a cor da página; com marca, a marca prevalece; segunda execução não muda nada', async () => {
-  const banco = new BancoFalso();
-  banco.linhas('paginas_corretor').push(
-    { id: 1, conta_id: 100, chave: 'conta', tema: 'mata' },
-    { id: 2, conta_id: 200, chave: 'conta', tema: 'vinho' },
-    { id: 3, conta_id: 300, chave: 'conta', tema: 'oceano' },
-    { id: 4, conta_id: 400, chave: 'conta', tema: 'desconhecido' },
-  );
-  banco.linhas('marca_conta').push({ id: 1, conta_id: 200, chave: 'conta', cor_primaria: '#123456', cor_secundaria: '#f2b705', estilo: 'moderno' });
-  const m = contextoMigracao(banco);
-  await marcaUnica(m.ctx);
-  const marca = (conta: number) => banco.linhas('marca_conta').filter((l) => l.conta_id === conta);
-  // Mata vai para a marca da conta 100, só nela.
-  assert.deepEqual(marca(100).map((l) => [l.chave, l.cor_primaria]), [['conta', '#1e6b52']]);
-  // A marca salva da conta 200 não muda (nem ganha linha a mais).
-  assert.deepEqual(marca(200).map((l) => l.cor_primaria), ['#123456']);
-  // Oceano já é o padrão da marca, e tema desconhecido não tem cor a levar: nada gravado.
-  assert.deepEqual([marca(300).length, marca(400).length], [0, 0]);
-  assert.deepEqual(m.avisos, []);
-
-  const antes = JSON.stringify([...banco.tabelas]);
-  await marcaUnica(contextoMigracao(banco).ctx);
-  assert.equal(JSON.stringify([...banco.tabelas]), antes, 'idempotente');
 });

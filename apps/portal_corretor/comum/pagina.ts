@@ -6,8 +6,8 @@ export const TIPOS_BLOCO = ['apresentacao', 'destaques', 'imoveis', 'sobre', 'ba
 export type TipoBloco = (typeof TIPOS_BLOCO)[number];
 
 /**
- * As cinco cores que a Minha Página oferecia antes da marca única (D-85). Ficam só para a migração
- * 002 levar a cor antiga para `marca_conta`; a cor pública agora é a da marca.
+ * As cinco cores que a Minha Página oferecia antes da marca única (D-85). Ficam só para o `aoIniciar`
+ * (backend/semente.ts) levar a cor antiga para `marca_conta`; a cor pública agora é a da marca.
  */
 export const TEMAS: Record<string, { rotulo: string; cor: string }> = {
   oceano: { rotulo: 'Oceano', cor: '#0b5394' },

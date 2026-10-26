@@ -47,11 +47,13 @@ async function url(req: Request, arquivo: number | null | undefined): Promise<st
   }
 }
 
+/** CRECI da conta de escrita: quem atende várias contas lê todas, e o de outra não pode vir junto. */
 async function creci(req: Request): Promise<string | null> {
   const dados = req.dados!;
+  const contaId = contaDoRequest(req);
   const [eu, conta] = await Promise.all([
-    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id }),
-    primeiro(dados, 'perfil_conta', { chave: 'conta' }),
+    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
+    primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId }),
   ]);
   return eu?.creci ?? conta?.creci_juridico ?? null;
 }
@@ -109,8 +111,22 @@ estudioRotas.put(
         await dados.atualizar('marca_conta', vencedora.id, { ...v.dados });
       }
     }
-    await ressincronizarMarca(req);
-    res.json(await marca(req));
+    // A marca fica salva mesmo se o que está no ar não acompanhar; a tela avisa e oferece refazer.
+    const ok = await ressincronizarMarca(req);
+    res.json({ ...(await marca(req)), vitrine_desatualizada: !ok });
+  }),
+);
+
+/**
+ * Refaz o que está no ar com a marca atual: a página (se publicada), as seleções e os portais.
+ * É o conserto que Ajustes › Marca oferece quando salvar não conseguiu atualizar tudo; funciona com
+ * a página fora do ar.
+ */
+estudioRotas.post(
+  '/estudio/marca/republicar',
+  assincrono(async (req, res) => {
+    const ok = await ressincronizarMarca(req);
+    res.json({ ...(await marca(req)), vitrine_desatualizada: !ok });
   }),
 );
 
@@ -132,8 +148,8 @@ estudioRotas.post(
       throw e;
     }
     // A foto aparece no topo da seleção e do portal; o logo, só nas artes.
-    if (tipo === 'foto') await ressincronizarMarca(req);
-    res.json(await marca(req));
+    const ok = tipo === 'foto' ? await ressincronizarMarca(req) : true;
+    res.json({ ...(await marca(req)), vitrine_desatualizada: !ok });
   }),
 );
 
