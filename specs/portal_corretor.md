@@ -284,7 +284,7 @@ Vários corretores usam o mesmo app, cada um com seus imóveis e seus clientes. 
 | Camada | Como se garante |
 |---|---|
 | Entre corretores | **Proibição absoluta, garantida pelo banco:** cada corretor é uma conta; todas as tabelas `segregada_por_conta: true` → RLS forçado no PostgreSQL. Nenhuma rota, listener, rotina ou IA consegue ler ou gravar linha de outra conta, nem por erro de código. Nenhuma tabela da app fica fora do regime, **exceto `vitrine_publica` (D-55)**: só o que o corretor publicou, sem dado pessoal |
-| Corretor × cliente na mesma conta | Toda tabela `acesso_externo: "restrito"` (sem CRUD genérico); rotas próprias: role `corretor` lê a conta, role `cliente` lê **só** o que está em `itens_cliente` com o `usuario.id` dele **No MVP (D-56) o cliente não tem conta: vê só o que o link com token dele alcança.** |
+| Corretor × cliente na mesma conta | Toda tabela `acesso_externo: "restrito"` (sem CRUD genérico); rotas próprias: role `corretor` lê a conta, role `cliente` lê **só** o que está em `itens_cliente` com o `usuario.id` dele. **No MVP (D-56) o cliente não tem conta: vê só o que o link com token dele alcança.** |
 | Entre clientes do mesmo corretor | Mesmo filtro por `usuario.id` em `itens_cliente` **No MVP (D-56) o cliente não tem conta: vê só o que o link com token dele alcança.** |
 | Público anônimo | Rotas públicas só devolvem o que tem `visibilidade = publico`, sem dado pessoal |
 | IA | Contexto montado pelo app só com dados da conta e, para o cliente, só com o que ele recebeu |
@@ -1395,7 +1395,7 @@ Cada tela segue o formato: **propósito · referência · colunas · comandos (b
 | Proposta | Abre P15 já ligado ao negócio | `POST /negociacoes` | `negociacao.iniciada` | — |
 | Assumir / Reativar / Devolver | Troca quem atende | `POST /conversas/:id/assumir` · `/devolver` | `conversa.assumida` · `conversa.devolvida` | — |
 
-**Tempo real:** a lista e a conversa atualizam pelo **stream SSE do barramento** (`barramento.md`, § SSE), com `destinatarios` quando o evento só interessa a quem está com a tela aberta; sem atualização periódica (fecha a pendência de tempo real do insumo de 27/10). **Celular:** M2.
+**Tempo real:** a lista e a conversa atualizam pelo **stream SSE do barramento** (`barramento.md`, § Stream SSE), com `destinatarios` quando o evento só interessa a quem está com a tela aberta; sem atualização periódica (fecha a pendência de tempo real do insumo de 27/10). **Celular:** M2.
 
 #### P03 · Clientes — Funil (`/clientes?visao=funil`; apelido `/funil`)
 
@@ -2017,7 +2017,7 @@ Direção do dono: melhorar funcionalidade e visual sem aumentar a complexidade;
 | D-25 | O WhatsApp do relacionamento passa pelo app, conectado por cadastro incorporado com coexistência | Integração por terceiros não oficiais | Histórico, IA e métricas dependem disso; coexistência mantém o aplicativo do corretor |
 | D-26 | Instagram primeiro, com conta Business; Facebook e demais redes depois | Todas as redes no MVP | Foco do dono; mesma aprovação da Meta do WhatsApp |
 | D-27 | Artes pelo Canva Enterprise **da plataforma**, em nome de cada corretor, com separação interna; motor interno como alternativa (D-35). **Revista por D-74, D-89 e D-105:** fora do MVP | Exigir Canva do corretor | Direção do dono (17/10, 2ª rodada); o corretor não terá Canva Enterprise |
-| D-28 | Quatro capacidades de IA (Assistente, Mensageiro, Funil, Estúdio); Mensageiro como produto à parte | Um agente único | Clareza de oferta e de cobrança; o cliente só fala com o Mensageiro |
+| D-28 | Quatro capacidades de IA (Assistente, Mensageiro, Funil, Estúdio); Mensageiro como produto à parte. **Revista por D-97 (27/10):** passa a cinco capacidades, com o Negociador (A5) | Um agente único | Clareza de oferta e de cobrança; o cliente só fala com o Mensageiro |
 | D-29 | Permissões do Mensageiro por ação (não faz / pergunta antes / faz sozinho) | Um nível por agente | Corretor escolhe exatamente o que delegar |
 | D-30 | Assistente nunca executa sem confirmação | Assistente autônomo | Confiança e segurança |
 | D-31 | Corretor cadastra os próprios empreendimentos no MVP | Esperar módulo incorporadora | Corretor vende lançamentos desde o primeiro dia |
@@ -2147,7 +2147,7 @@ Direção do dono: melhorar funcionalidade e visual sem aumentar a complexidade;
 | P-41 | Forma de registrar a autorização do proprietário para "faz sozinho" (anexo assinado, mensagem registrada, aceite no portal na fase 3) (era a P-38 do insumo de 27/10) | MVP, arco 1.2 (D2/D3) |
 | P-42 | Estilo padrão do Negociador (cooperativo) e textos finais do Apêndice D revisados por um especialista em vendas imobiliárias (era a P-39 do insumo de 27/10) | Fase 2 |
 
-**Pendência do insumo de 27/10 resolvida sem número:** a P-37 do insumo ("o frontend recebe eventos em tempo real ou atualiza periodicamente?") fecha pelo stream SSE do barramento (`barramento.md`, § SSE); a P-37 desta spec continua sendo a da prévia de link.
+**Pendência do insumo de 27/10 resolvida sem número:** a P-37 do insumo ("o frontend recebe eventos em tempo real ou atualiza periodicamente?") fecha pelo stream SSE do barramento (`barramento.md`, § Stream SSE); a P-37 desta spec continua sendo a da prévia de link.
 
 **Soluções das dependências do MVP:** seção 9.8 (Meta, hora marcada, webhook, chamadas externas) e 9.4 (Canva).
 
