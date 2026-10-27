@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versão | 1.5 — 18/10/2026 (direção do dono e frameworks do UrbiVerso incorporados; ver 1.1 e 1.2) |
+| Versão | 1.6 — 27/10/2026 (direção do dono e frameworks do UrbiVerso incorporados; ver 1.1 e 1.2; Padrão B e Negociador do insumo de 27/10) |
 | Papel deste documento | Descrever **o app inteiro como deveria funcionar**, sem amarras de plataforma: capacidades, fluxos, arquitetura de referência, componentes e fornecedores. A tradução para o UrbiVerso acontece depois, numa sessão do Claude Code com os docs (seção 16 traz o mapa e a seção 17 a instrução pronta). |
 | Documentos irmãos | `specs/portal_corretor.md` (spec, vale sobre este) · `specs/referencias.md` · `CLAUDE.md` |
 | Regra de leitura | Documento de **intenção de produto** e visão de futuro. Para implementar, vale a spec; onde a plataforma não comportar algo daqui, a spec já registra a alternativa como decisão. |
@@ -31,6 +31,7 @@
 - **Contas do corretor:** WhatsApp, Instagram e Facebook são dele; ele autoriza o app. A plataforma só registra o software na Meta, não tem conta para publicar.
 - **Três modos de publicação no Instagram:** agendar, publicar agora, baixar arquivos (quantas vezes quiser) e agendar por fora no Instagram ou no Meta Business Suite.
 - **Segmentação:** corretor não vê nada de outro corretor; cliente só vê o que recebeu (spec 4.5).
+- **Padrão B oficial nas telas** e novo papel **Negociador** (IA ou humano, com mandato, BATNA, ZOPA e respostas a objeções) — spec 10.9 e 11.
 - **Corretor cadastra os próprios empreendimentos** desde o MVP.
 - **MVP e fases:** os da spec 0.5, seção 15. O MVP é interno (telas, funções, permissões, caminhos, automações, testados pela equipe, sem corretor real); a validação com corretores reais é a fase 2.
 

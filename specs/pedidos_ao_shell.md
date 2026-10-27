@@ -45,6 +45,38 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Por quê:** a migração 001 do Estúdio devolve a rascunho as peças agendadas sem aprovação e precisa cancelar, no barramento, o `publicacao_programada` já marcado de cada uma. O `barramento.md` lista `cancelarAgendamento` em `req.eventos`, mas o helper `eventos` do contexto de migração (`upgrade-e-migracoes.md`, § Helper `eventos`) só tem as operações de inscrição. A migração chama o método de forma protegida (`typeof … === 'function'`), então sem ele o agendamento fica órfão e o listener descarta o evento na hora marcada. **Pedido:** expor `cancelarAgendamento` também no contexto de migração de app, ou documentar como uma migração cancela um agendamento.
 
+## 10. Gaveta (drawer) nas telas autenticadas (spec 1.2, Padrão B)
+
+**Por quê:** o Padrão B (spec 11.0) abre o mandato de negociação (P16) e, em telas estreitas, a coluna de contexto numa gaveta lateral sobre a tela. O catálogo `ui-componentes-*` do SDK 100 não tem gaveta, e o contrato de UI proíbe a tela de escrever CSS estrutural (`position`, altura própria).
+
+**Até lá:** `urbi-modal`, como exceção nomeada (spec 11.9).
+
+**Proposta mínima:** `urbi-gaveta` com lado (direita/baixo), largura em token, foco preso e fechar por Esc, com o mesmo contrato de eventos do `urbi-modal`.
+
+## 11. Barra de progresso (spec 1.2, P01)
+
+**Por quê:** "Primeiros passos" em Hoje (P01) mostra quanto da configuração inicial já foi feito. O SDK 100 tem `urbi-grafico-medidor` e `urbi-kpi`, mas não uma barra de progresso linear simples.
+
+**Até lá:** texto "3 de 5" (exceção nomeada, spec 11.9).
+
+**Proposta mínima:** `urbi-progresso` com `valor`, `maximo` e rótulo acessível.
+
+## 12. Seletor segmentado de três posições (spec 1.2, P11 e P16)
+
+**Por quê:** cada ação do Mensageiro e o nível de autonomia do Negociador se escolhem entre "Não faz · Pergunta antes · Faz sozinho" (ou "Só sugere · Pergunta antes · Faz sozinho"), lado a lado, com a posição visível de relance. O SDK 100 tem `urbi-toggle` (duas posições) e `urbi-select` (lista), não um seletor segmentado.
+
+**Até lá:** `urbi-select` (exceção nomeada, spec 11.9).
+
+**Proposta mínima:** `urbi-segmentado` com opções, valor e evento de mudança, acessível como grupo de rádios.
+
+## 13. Faixa ZOPA (régua com marcas e intervalo colorido) (spec 1.2, P15, D-102)
+
+**Por quê:** a negociação (P15) mostra numa régua horizontal o preço pedido, o alvo, o ponto de recuo, a última oferta, o teto estimado do comprador e a ZOPA pintada entre o recuo e o teto. Não há primitivo de régua ou faixa no SDK 100, e um componente de domínio com CSS próprio pede exceção nomeada.
+
+**Até lá:** os valores em `urbi-kpi`, com a ZOPA dita em texto ("ZOPA estimada: R$ 1,35 mi a R$ 1,42 mi" ou "Sem ZOPA") (spec 11.9).
+
+**Proposta mínima:** `urbi-regua` genérica: mínimo, máximo, marcas com rótulo e cor por papel, e intervalos coloridos; serve também a metas e faixas de preço.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.
