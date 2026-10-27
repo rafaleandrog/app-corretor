@@ -10,7 +10,7 @@ O corretor pode revogar o link quando quiser. Seleção e portal são pensados p
 
 ## Seleção de imóveis
 
-Na ficha do cliente, em **Seleções e portal**, o botão **Nova seleção** abre a montagem:
+Na ficha do cliente, em **Seleções e portal**, o botão **+** (Nova seleção) abre a montagem:
 
 1. Dê um título e, se quiser, uma mensagem.
 2. Escolha de 1 a 12 imóveis da carteira. Só aparecem imóveis **ativos ou reservados com
@@ -52,7 +52,7 @@ com o corretor.
 seleção sai do portal. A ficha mostra cada seleção como válida (com a data limite), vencida ou
 revogada.
 
-O envio da seleção entra em **Tudo que você mandou** e na linha do tempo.
+O envio da seleção entra em **Enviados ao cliente** e no histórico.
 
 ## Portal do Cliente
 
@@ -75,9 +75,9 @@ O portal é uma página só, curada por você (o modelo do Compass One). De cima
 
 ### Próximo passo para o cliente
 
-Na ficha, em **Dados e próximo passo**, o botão **Definir próximo passo** tem o campo **Para o
+Na ficha, no cartão **Próximo passo**, o lápis (**Combinar próximo passo**) tem o campo **Para o
 cliente** (opcional, até 120 letras). O que você escrever ali aparece no topo do portal, por
-exemplo "Visita sábado às 10h". Deixar vazio tira do portal. O próximo passo de cima, o seu, é
+exemplo "Visita sábado às 10h". Deixar vazio tira do portal. O passo combinado, o seu, é
 nota interna: nunca vai ao portal. Mudar o texto entra na linha do tempo.
 
 ### O que falta de você

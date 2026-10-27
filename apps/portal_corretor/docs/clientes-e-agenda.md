@@ -48,43 +48,52 @@ removido libera o telefone.
 
 ### Ficha do contato
 
-Abrir um contato mostra a ficha. No topo, o essencial:
+Abrir um contato mostra a ficha em **duas colunas**, como a ficha de pessoa do Follow Up Boss: à
+esquerda, quem é o cliente e o que fazer; à direita, o histórico. No celular as duas ficam uma
+embaixo da outra, a da esquerda primeiro.
 
-- os chips de **temperatura** (passe o mouse para ver o motivo), **papel** e **origem**;
-- o **resumo em uma frase**: temperatura com o motivo, a próxima abordagem (o que fazer, por onde e
-  até quando) e o último contato;
-- três botões: **Resumir** (a IA resume o histórico em até três frases; só aparece com a IA do
-  Assistente liberada, e o resumo não fica gravado), **Mensagem sugerida** e **Virar tarefa** (ver
-  [Próxima abordagem](funil.md#próxima-abordagem)). Sem negócio em andamento, ou sem linha do playbook para a etapa e a
-  temperatura dele, não há abordagem: **Virar tarefa** não aparece, e a **Mensagem sugerida** começa
-  pelo objetivo **Retorno** (troque nos objetivos de um toque: Apresentação, Retorno, Ainda
-  procurando? e Manter contato).
+**Coluna da esquerda**, de cima para baixo:
 
-Ao lado do botão **Registrar contato** (nota livre, que vai para a linha do tempo), o menu **Mais**
-traz Perguntar ao Assistente e **Remover contato**; com abordagem, também
-Registrar abordagem feita e Pular a abordagem.
+- **Clientes** (voltar) e o menu **Mais**: Editar contato, Perguntar ao Assistente, Remover
+  contato e, com abordagem, Registrar abordagem feita e Pular a abordagem.
+- **O cliente:** o nome, os chips de **temperatura** (passe o mouse para ver o motivo), **papel** e
+  **origem**, uma linha com o motivo da temperatura e o último contato, o telefone e o e-mail e os
+  botões **WhatsApp** (abre a conversa numa aba nova), **Ligar** e **E-mail**. A seta do cartão
+  abre os dados de cadastro: origem e campanha, data de cadastro, observações e o
+  **consentimento** numa linha (registrado em … · revogar, ou registrar).
+- **Próximo passo:** a próxima abordagem do playbook (o que fazer, por onde, até quando e a etapa,
+  com o chip **Atrasada** quando venceu), o passo **combinado** por você e o que o cliente lê no
+  portal. Os botões **Mensagem sugerida** e **Virar tarefa** ficam aqui (ver
+  [Próxima abordagem](funil.md#próxima-abordagem)). Sem negócio em andamento, ou sem linha do
+  playbook para a etapa e a temperatura dele, não há abordagem: **Virar tarefa** não aparece, e a
+  **Mensagem sugerida** começa pelo objetivo **Retorno** (troque nos objetivos de um toque:
+  Apresentação, Retorno, Ainda procurando? e Manter contato). O lápis do cartão, **Combinar
+  próximo passo**, define o passo combinado e o campo **Para o cliente** (opcional, até 120
+  letras), que aparece no topo do portal, por exemplo "Visita sábado às 10h". O passo combinado é
+  nota sua e nunca aparece para o cliente.
+- **Negócios:** cada negócio com a etapa, o valor e o imóvel, e o botão **Mudar etapa**; o **+**
+  abre um negócio novo.
+- **Agenda:** as atividades marcadas com o contato, da mais próxima para a mais distante, com
+  **Feito** e, nas visitas, **Retorno**; o **+** agenda. As já feitas, canceladas ou sem
+  comparecimento ficam na seta do cartão.
+- **Seleções e portal:** as seleções de imóveis enviadas e o link do portal do cliente; o **+**
+  monta uma seleção nova. A seta do cartão abre **o que falta do cliente** (botão **Pedir ao
+  cliente**): pendências como "enviar a documentação", que ele marca como feitas no portal. Ver
+  [Seleções e Portal do Cliente](selecoes-e-portal.md#o-que-falta-de-você).
+
+**Coluna da direita:**
+
+- **Histórico:** no topo, **Registrar contato** (nota livre), **Registrar envio** (ver
+  [Enviados ao cliente](desempenho.md#enviados-ao-cliente)) e **Resumir** (a IA resume o histórico em
+  até três frases; só aparece com a IA do Assistente liberada, e o resumo não fica gravado). Abaixo,
+  tudo o que aconteceu com o contato, com autor e hora.
+- **Enviados ao cliente:** imóveis, arquivos e mensagens registrados, com os cliques no link.
 
 Vindo do **Fazer agora** do Início ou de um cartão com **Abordagem atrasada** no quadro, a ficha
 abre já com a **Mensagem sugerida** carregada (o endereço traz `?sugerir=1`), e o **Fazer agora**
 dela abre o WhatsApp. Sem abordagem, ou abrindo a ficha por outro caminho, nada é gerado sozinho.
 
-Abaixo, as seções recolhidas, cada uma com uma linha de resumo; toque para abrir:
-
-- **Dados e próximo passo:** telefone, e-mail, campanha de origem, observações, o próximo passo
-  combinado (o botão com o ícone de seta da seção, **Definir próximo passo**, o define) e o **consentimento** numa linha (registrado em … ·
-  revogar, ou registrar). No mesmo formulário, o campo **Para o cliente** (opcional, até 120
-  letras) é o que o cliente lê no topo do portal, por exemplo "Visita sábado às 10h". O próximo
-  passo de cima é nota sua e nunca aparece para o cliente.
-- **Negócios** do contato, com a etapa atual e o botão **Mudar etapa**.
-- **Seleções e portal:** as seleções de imóveis enviadas, o link do portal do cliente e **o que
-  falta do cliente** (botão **Pedir ao cliente**): pendências como "enviar a documentação", que
-  ele marca como feitas no portal. Ver [Seleções e Portal do Cliente](selecoes-e-portal.md#o-que-falta-de-você).
-- **Tudo que você mandou:** imóveis, arquivos e mensagens registrados.
-- **Agenda deste cliente:** as atividades ligadas ao contato.
-
-A **linha do tempo** fica aberta: tudo o que aconteceu com o contato, com autor e hora.
-
-O lápis do topo edita nome, telefone, e-mail, papéis (comprador e proprietário), temperatura e
+O lápis do cartão do cliente (ou **Mais › Editar contato**) edita nome, telefone, e-mail, papéis (comprador e proprietário), temperatura e
 observações. **Remover** (no menu Mais): o contato sai das listas, mas não é apagado. Contato com
 negócio em andamento não pode ser removido: encerre o negócio antes.
 

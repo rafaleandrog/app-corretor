@@ -47,7 +47,7 @@ Para cada contato com negócio em andamento, a etapa e a temperatura apontam uma
 **playbook** (sem linha para essa combinação, não há abordagem): o que fazer, por onde (WhatsApp, ligação, e-mail, visita) e em quanto tempo. O prazo
 conta do mais recente entre a entrada na etapa, o último contato e o último "pular".
 
-Na ficha do cliente, a abordagem aparece no topo, no resumo em uma frase, com dois botões:
+Na ficha do cliente, a abordagem aparece no cartão **Próximo passo**, com dois botões:
 
 - **Mensagem sugerida** mostra o texto pronto para mandar ao cliente. Com a IA liberada, ela adapta
   a abordagem do playbook ao histórico recente do contato (sem repetir o que já foi mandado; onde
@@ -58,9 +58,9 @@ Na ficha do cliente, a abordagem aparece no topo, no resumo em uma frase, com do
     contato**. Com a IA liberada, ela escreve para o objetivo com o histórico do contato (as mesmas
     regras: sem telefone nem e-mail); sem a IA, aparece um modelo pronto do objetivo para você
     ajustar. Os objetivos funcionam também sem negócio em andamento.
-  - **Fazer agora** abre o WhatsApp do cliente com a mensagem e registra a abordagem na linha do
-    tempo ("Abordagem por WhatsApp: …"), contando como contato. Uma linha só: não entra em "Tudo
-    que você mandou".
+  - **Fazer agora** abre o WhatsApp do cliente com a mensagem e registra a abordagem no histórico
+    ("Abordagem por WhatsApp: …"), contando como contato. Uma linha só: não entra em "Enviados ao
+    cliente".
   - Contato sem telefone: o botão vira **Copiar texto**, e você registra depois pelo menu **Mais ›
     Registrar abordagem feita**.
 - **Virar tarefa** põe a abordagem na agenda: ligação vira ligação, visita vira visita, WhatsApp

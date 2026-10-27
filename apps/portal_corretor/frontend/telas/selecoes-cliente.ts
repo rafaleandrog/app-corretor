@@ -219,20 +219,20 @@ export class PcSelecoesCliente extends LitElement {
       return html`<urbi-card titulo="Seleções e portal" icone="fa-solid fa-heart"><urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner></urbi-card>`;
     }
     return html`<urbi-card titulo="Seleções e portal" icone="fa-solid fa-heart">
-      <span slot="acoes"><urbi-botao variante="secundario" pequeno icone="fa-solid fa-plus" ?carregando=${this.ocupado} @click=${() => this.nova()}>Nova seleção</urbi-botao></span>
-      <urbi-prosa papel="secundario">${this.selecoes.length ? `${this.selecoes.length} seleção(ões)` : 'Nenhuma seleção'} · portal ${this.portal?.ativo ? 'ativo' : 'sem link'}${this.abertas().length ? ` · ${this.abertas().length} pendência(s) do cliente` : ''}</urbi-prosa>
-      <div slot="detalhe"><urbi-stack>
+      <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-plus" ariaLabel="Nova seleção" title="Nova seleção" ?carregando=${this.ocupado} @click=${() => this.nova()}></urbi-botao></span>
       ${this.selecoes.length
         ? this.selecoes.map((s) => this.selecao(s))
-        : html`<urbi-prosa papel="dica">Monte uma seleção de imóveis: o cliente abre pelo link, sem login, e diz se gostou, não gostou ou quer visitar.</urbi-prosa>`}
+        : html`<urbi-prosa papel="dica">Monte uma seleção de imóveis (+): o cliente abre pelo link, sem login, e diz se gostou, não gostou ou quer visitar.</urbi-prosa>`}
       <urbi-linha quebrar>
         <urbi-prosa>Portal do cliente:</urbi-prosa>
         ${this.portal?.ativo
           ? html`<urbi-badge cor="sucesso">ativo</urbi-badge>
               <urbi-botao pequeno variante="secundario" icone="fa-solid fa-copy" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Copiar link</urbi-botao>
-              <urbi-botao pequeno variante="fantasma" @click=${() => this.revogarPortal()}>Revogar</urbi-botao>`
+              <urbi-botao pequeno variante="texto" @click=${() => this.revogarPortal()}>Revogar</urbi-botao>`
           : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-link" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Gerar link do portal</urbi-botao>`}
       </urbi-linha>
+      ${this.abertas().length ? html`<urbi-prosa papel="alerta">${this.abertas().length} pendência(s) do cliente: veja em "O que falta do cliente", abaixo.</urbi-prosa>` : ''}
+      <div slot="detalhe"><urbi-stack>
       <urbi-prosa papel="dica">O portal mostra ao cliente o próximo passo que você escreveu para ele, as seleções válidas, as visitas marcadas, o que falta dele e um espaço para ele mandar mensagem ou pedir para remarcar.</urbi-prosa>
       <urbi-linha justificar="entre" quebrar>
         <urbi-prosa>O que falta do cliente:</urbi-prosa>

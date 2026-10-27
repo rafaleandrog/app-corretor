@@ -71,16 +71,16 @@ custo por lead, comissão recebida e metas, em versões seguintes.
 O **Início** mostra a faixa da semana: contatos novos, leads, quantos desses leads chegaram ao
 atendimento (e a fatia), visitas feitas nos últimos 7 dias e a comissão prevista.
 
-## Tudo que você mandou
+## Enviados ao cliente
 
-Na ficha do cliente, **Registrar envio** anota o que o corretor mandou (imóvel, arquivo,
+Na ficha do cliente, no topo do **Histórico**, **Registrar envio** anota o que o corretor mandou (imóvel, arquivo,
 mensagem, localização) e por onde (WhatsApp, e-mail, pessoalmente). Com um imóvel, o app devolve
 a mensagem pronta para colar no WhatsApp (nome do cliente, título, bairro e preço; nunca o
 proprietário nem o endereço completo). O envio conta como contato com o cliente e entra na linha
 do tempo. A ficha do imóvel mostra a quem ele foi enviado.
 
-Com a Minha página no ar e o imóvel publicado, a mensagem leva um link rastreado: a ficha do
-cliente mostra quantas vezes ele abriu — ver [Minha página, ficha pública e link rastreado](minha-pagina.md#link-rastreado).
+Com a Minha página no ar e o imóvel publicado, a mensagem leva um link rastreado: o cartão
+**Enviados ao cliente** da ficha mostra quantas vezes ele abriu — ver [Minha página, ficha pública e link rastreado](minha-pagina.md#link-rastreado).
 
 ## Dados de demonstração
 
