@@ -269,7 +269,10 @@ function eventosDaJornada(
     const quando = iso(t.feita_em);
     if (quando) eventos.push({ tipo: 'tarefa', quando, texto: `Feito: ${t.texto}` });
   }
-  return eventos.sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, 50);
+  // O começo fica sempre embaixo: marcado ao meio-dia do dia de início, ele passaria à frente do que
+  // aconteceu de manhã nesse mesmo dia.
+  const [inicio, ...resto] = eventos;
+  return [...resto.sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, 49), inicio];
 }
 
 /** Para rotas que mudam a agenda ou as seleções: o portal acompanha sem derrubar a rota. */
