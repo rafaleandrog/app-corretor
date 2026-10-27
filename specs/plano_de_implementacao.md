@@ -54,6 +54,48 @@ Aprovada pelo dono em 23/10. Fonte: spec 2.6 (princípios 13 e 14), 2.7, 5.1, 11
 
 ---
 
+## Fase 1.6 — Padrão B, Negociador e CRECI opcional (spec 1.2, 27/10/2026)
+
+Plano aprovado pelo dono em 27/10. Fonte: spec 1.2 — 2.8, 5.1, 6.16, 7.1, 10.9, 11 (Padrão B), 13, 14, 15.1 (critérios 8 e 9), D-93 a D-109, P-40 a P-42; guia `specs/telas_padrao_b.md` e mockups `specs/telas/`. Insumo do dono: branch `claude/bold-clarke-8afn50`, pasta `specs/entrada_27-10/` (fica fora da `main`). Guarda-chuva: **#87**. Um PR por item; regras comuns no corpo de #87 (código, testes e docs juntos; isolamento A × B em toda rota nova; `versao` sobe com schema, rota ou pisos; `Closes #<n>`; status e linha no registro). Pisos não mudam (SDK 100.0.0, shell 0.56.37).
+
+| Item | O que é | Issue | Depende de | Status |
+|---|---|---|---|---|
+| A1 | **Spec 1.2:** fundir o insumo de 27/10 na `main`, D-93/D-94, renumeração, guia e mockups, pedidos ao shell 10–13, plano | #88 | — | [x] PR aberto (só texto); aguarda revisão |
+| C1 | **CRECI opcional (D-93):** sem bloqueio nem `CRECI_AUSENTE`, aviso discreto com atalho para o perfil, sem estado de verificação | #89 | A1 | [ ] |
+| B1 | **Moldura do Padrão B:** `urbi-3-colunas` + `urbi-trilho-atalhos` (+ `urbi-inbox`), Criar e Assistente no trilho, menu com os nomes do Padrão B e apelidos (D-103), estados de 11.0.4 | #90 | A1 | [ ] |
+| B2 | **Hoje** (P01, M1) na moldura | #91 | B1, C1 | [ ] |
+| B3 | **Clientes — Lista e ficha** (P04): ficha D-92 no centro e na direita (D-106) | #92 | B1, C1 | [ ] |
+| B4 | **Clientes — Funil e Importar** (P03, P14) | #93 | B3 | [ ] |
+| B5 | **Imóveis** (P06, P07, M3): carteira em lista com miniatura (D-106) | #94 | B1, C1 | [ ] |
+| B6 | **Estúdio** (P08) na moldura, D-89 a D-91 (D-105) | #95 | B1, C1 | [ ] |
+| B7 | **Página e Números** (P09, P10) | #96 | B1, C1 | [ ] |
+| B8 | **Ajustes** (P12, P13 e menu de Ajustes) | #97 | B1, C1 | [ ] |
+| B9 | **Portal do Cliente e página pública** (M4, M5, M6) por token (D-104) | #98 | B1, C1 (grafo de #87) | [ ] |
+| B10 | **Busca global e atalhos** (11.7) | #99 | B1 | [ ] |
+| D1 | **Dados da negociação** (6.16): tabelas, eventos, semente idempotente do Apêndice D | #100 | A1 | [ ] |
+| D2 | **Motor do Negociador** (10.9): slot `negociador`, validações de 10.9.7, sugestão, rotas de 7.1 | #101 | D1 | [ ] |
+| D3 | **Telas P15, P16 e M8** (faixa ZOPA como exceção nomeada) | #102 | D2, B3 | [ ] |
+| D4 | **Ajustes › Negociador** (P17) | #103 | D2, B8 | [ ] |
+| D5 | **Propostas no portal** (M5b) por `wh` com token | #104 | D2, B9 | [ ] |
+| D6 | **Relatório Negociação** (P10, KPIs de 11.2) | #105 | D3, B7 | [ ] |
+| D7 | **Negociador humano** (role `negociador`, 11.6; política multi-usuário, D-108; convite sem CRECI, D-94) | #106 | D3 | [ ] |
+| E1 | **Semente de demonstração** com negociações | #107 | D1 | [ ] |
+| E2 | **Fechamento do arco:** critérios 8 e 9 de 15.1 (R.8), docs da app, versão | #108 | todos | [ ] |
+
+```
+A1 ──┬─ C1 ─┬─ B2 ║ B3 ║ B5 ║ B6 ║ B7 ║ B8 ║ B9   (depois de B1 e C1)
+     ├─ B1 ─┘     B3 ─ B4
+     └─ D1 ─ D2 ─┬─ D3 (depois de B3) ─ D6 (depois de B7)
+                 ├─ D4 (depois de B8)
+                 ├─ D5 (depois de B9)
+                 └─ D7 (depois de D3)
+E1 depois de D1 · B10 depois de B1 · E2 por último
+```
+
+**Fora deste arco (decisão 7 da coordenação, em #87):** as dívidas abertas #32, #38, #39, #40, #62, #68, #69, #73 e #80; P02 Conversas e P11 Mensageiro de verdade (#8 e #9, presos a P-31/P-32); a decisão do proprietário pelo portal (fase 3). **Pedidos ao shell novos:** itens 10 a 13 (gaveta, barra de progresso, seletor segmentado, faixa ZOPA).
+
+---
+
 ## Fase 2 — Validação com corretores reais (spec 15.2)
 
 | # | Bloco | Pronto quando | Status |
@@ -88,6 +130,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
+| 27/10/2026 | Fase 1.6 · A1 | Spec 1.2: insumo de 27/10 (Padrão B, Negociador) fundido na `main` com D-01 a D-92 mantidas; decisões do insumo renumeradas para D-95 a D-102, D-93 (CRECI opcional), D-94 (Negociador sem CRECI) e D-103 a D-109 (coordenação); P-40 encerrada, P-41 e P-42 novas, P-37 do insumo fechada por SSE; 6.16, 10.9, 11 (Padrão B, P01–P17, M1–M8, 11.5–11.9), Apêndices C e D; `specs/telas_padrao_b.md` com nota de divergências e `specs/telas/`; pedidos ao shell 10–13; stack funcional 1.6; `CLAUDE.md`; Fase 1.6 e critérios 8 e 9 no R.8. Só texto, nenhum arquivo em `apps/` | #109 | Revisão do PR; depois C1, B1 e D1 |
 | 27/10/2026 | Pós-1.5 · Ficha (duas colunas) | Ficha do contato simplificada (D-92), no desenho do Follow Up Boss: `urbi-2x1 largura="largo"` com o cliente (chips, motivo e último contato, WhatsApp/Ligar/E-mail, cadastro e consentimento no detalhe), Próximo passo (abordagem com Atrasada, passo combinado, Mensagem sugerida, Virar tarefa), Negócios, Agenda (pendentes à mostra, passadas no detalhe) e Seleções e portal à esquerda; Histórico (Registrar contato, Registrar envio, Resumir) e Enviados ao cliente à direita; "Nova seleção" vira o + da cabeça do cartão; Editar no menu Mais. Só frontend e docs, sem mudança de rota nem versão | (este PR) | Revisão do PR e conferência na instância |
 | 26/10/2026 | Pós-1.5 · Portal (roteiro de visitas) | Portal do Cliente no modelo "tour" da referência: visitas por dia, dia com várias vira roteiro numerado com "Ver o roteiro no mapa"; "Como chegar" por visita (endereço só se publicado; só bairro vira "Ver o bairro no mapa"; região, sem mapa); próxima visita com "hoje / amanhã / em N dias". Só frontend público, `comum/roteiro.ts` com testes | — | Revisão do PR |
 | 26/10/2026 | Pós-1.5 · Ficha (objetivos da mensagem) | Mensagem sugerida com objetivos de um toque (referência Follow Up Boss): Pelo playbook, Apresentação, Retorno, Ainda procurando? e Manter contato; `GET /contatos/:id/mensagem-sugerida?objetivo=` cumpre o objetivo com a IA (slot `funil`, mesmo contexto mascarado) ou devolve o modelo do objetivo, inclusive sem negócio aberto; `comum/mensagens.ts` | — | Portal: roteiro de visitas e "Como chegar" |
@@ -243,6 +286,8 @@ Executado pela equipe na instância intermediária, com a app instalada pelo pac
 | 5 | Números | Carregar os dados de demonstração e conferir à mão funil, conversão e tempo de resposta do Desempenho | Pronto para conferir |
 | 6 | Ajuda | Fazer ao Assistente as 30 perguntas do roteiro (`testes/assistente.test.ts`) e anotar se a resposta está certa e cita o artigo; conferir o link da documentação (P-38) | Pronto para conferir |
 | 7 | Instalação | Instalar e atualizar (versão anterior → atual) sem reprovação | Pronto para conferir |
+| 8 | Negociação (spec 1.2) | As 7 conversas-roteiro de 10.9.9: nenhuma contraproposta abaixo do recuo; nenhum vazamento de recuo, alvo ou BATNA do vendedor (portal, vitrine, eventos); passagem correta ao corretor; um negociador humano de teste vê só a negociação atribuída (com a política multi-usuário ligada) | Espera a Fase 1.6 (D1 a D7) |
+| 9 | Padrão B (spec 1.2) | Todas as telas de 11.1, 11.3 e 11.5 na moldura de 11.0, com os estados de 11.0.4, no computador e no celular | Espera a Fase 1.6 (B1 a B10) |
 
 **Decidido (D-78):** o 0.1.0 sai sem WhatsApp e sem Mensageiro (blocos 6 e 7, travados em P-31/P-32); os critérios 2 e 4 ficam parciais, registrados acima.
 
