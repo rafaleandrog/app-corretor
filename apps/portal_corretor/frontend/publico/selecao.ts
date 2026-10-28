@@ -5,6 +5,11 @@ import { linkWhatsapp } from '../../comum/pagina';
 import {
   abaDoEndereco,
   abasDoPortal,
+  centavosDoValor,
+  propostaAceitavel,
+  type NegociacaoPublica,
+  type PropostaPublica,
+  type SituacaoNegociacao,
   chipDeVisita,
   destinoDoProximoPasso,
   estadoDoErro,
@@ -25,7 +30,8 @@ declare const urbiVerso: UrbiVersoAPI;
 
 // Seleção (`/portal_corretor/s?t=<token>`) e Portal do Cliente (`/portal_corretor/c?t=<token>`),
 // bloco 5b, no modelo Compass One desde o bloco 9 e no formato dos mockups M4 e M5 desde o B9:
-// topo "Meu atendimento" com o próximo passo e abas Conversa · Imóveis · Agenda · Arquivos.
+// topo "Meu atendimento" com o próximo passo e abas Conversa · Imóveis · Agenda · Arquivos, e Propostas
+// (D5, M5b) quando há negociação: ver as rodadas, aceitar a condição do vendedor ou fazer nova oferta.
 // Página pública: lê a vitrine pela rota anônima e manda reações e pedidos ao webhook.
 
 type Linha = Record<string, any>;
@@ -42,6 +48,20 @@ const hora = (q: string) => new Date(q).toLocaleTimeString('pt-BR', { hour: '2-d
 const diaCurto = (q: string) => new Date(q).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
 const token = () => new URLSearchParams(window.location.search).get('t') ?? '';
 const cor = (c: unknown) => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null);
+const SITUACAO_TEXTO: Record<SituacaoNegociacao, string> = {
+  sua_vez: 'Sua vez de responder',
+  com_o_corretor: 'Com o corretor',
+  com_o_proprietario: 'Aguardando a decisão do proprietário',
+  fechada: 'Negócio fechado',
+  encerrada: 'Encerrada',
+  pausada: 'Pausada',
+};
+const ESTADO_PROPOSTA: Partial<Record<PropostaPublica['estado'], string>> = {
+  aceita: 'aceita',
+  recusada: 'recusada',
+  substituida: 'substituída',
+  expirada: 'expirada',
+};
 const primeiroNome = (nome: string | null | undefined) => String(nome ?? '').trim().split(/\s+/)[0] || 'o corretor';
 
 async function postar(url: string, corpo: unknown): Promise<{ ok: boolean; mensagem?: string }> {
@@ -104,6 +124,16 @@ const estiloSelecao = css`
   .jornada li::before { content: ''; position: absolute; left: -29px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--acento); border: 2px solid var(--fundo); }
   .jornada li.inicio::before { background: var(--papel); border-color: var(--acento); }
   .aviso-item { margin-top: 8px; font-size: 0.92rem; }
+  .negociacao { background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; padding: 14px 16px 16px; margin-bottom: 20px; }
+  .negociacao h3 { margin: 0; font-size: 1.05rem; }
+  .situacao { display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 999px; background: var(--fundo); color: var(--texto); font-size: 0.85rem; font-weight: 600; }
+  .situacao.sua_vez { background: var(--ok-fundo); color: var(--ok-texto); }
+  .rodadas { list-style: none; margin: 14px 0 0; padding: 0 0 0 22px; border-left: 2px solid var(--linha); }
+  .rodadas li { position: relative; padding: 0 0 14px; }
+  .rodadas li::before { content: ''; position: absolute; left: -29px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--papel); border: 2px solid var(--acento); }
+  .rodadas li.vendedor::before { background: var(--acento); }
+  .rodadas .valor { font-weight: 700; font-size: 1.1rem; }
+  .confirmar { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--fundo); }
   @media (min-width: 720px) {
     .item .galeria img { aspect-ratio: 16 / 10; }
     .reacoes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -335,6 +365,10 @@ export class PcPortalCliente extends LitElement {
   @state() private remarcando: number | null = null;
   @state() private enviando = false;
   @state() private marcando: number | null = null;
+  /** Proposta do vendedor cujo aceite espera a confirmação (o toque duplo evita aceite por engano). */
+  @state() private confirmandoAceite: number | null = null;
+  /** Negociação com o formulário de nova oferta aberto. */
+  @state() private ofertando: number | null = null;
   /** Onde mostrar o aviso: perto do formulário que enviou. */
   @state() private avisoEm: string | null = null;
   private reacoes: EstadoReacoes = { enviando: new Set(), avisos: new Map(), comentando: null };
@@ -365,6 +399,15 @@ export class PcPortalCliente extends LitElement {
     } catch {
       // sem histórico (pré-visualização): só a aba muda
     }
+    // No celular as abas rolam de lado: a escolhida fica à vista.
+    void this.updateComplete.then(() => this.renderRoot.querySelector<HTMLElement>(`#guia-${aba}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' }));
+  }
+
+  updated(mudou: Map<string, unknown>) {
+    // Aberto direto numa aba (`#propostas`): ela aparece à vista assim que as abas existem.
+    if (mudou.has('estado') && this.estado === 'pronto' && this.aba !== 'conversa') {
+      this.renderRoot.querySelector<HTMLElement>(`#guia-${this.aba}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    }
   }
 
   /** Setas, Home e End trocam de aba, como pede o padrão de abas acessíveis. */
@@ -374,7 +417,7 @@ export class PcPortalCliente extends LitElement {
     const i = ids.indexOf(this.aba);
     const prox = e.key === 'Home' ? ids[0] : e.key === 'End' ? ids[ids.length - 1] : ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length];
     this.irPara(prox);
-    void this.updateComplete.then(() => this.renderRoot.querySelector<HTMLButtonElement>(`#aba-${prox}`)?.focus());
+    void this.updateComplete.then(() => this.renderRoot.querySelector<HTMLButtonElement>(`#guia-${prox}`)?.focus());
   }
 
   /** O cliente marca uma pendência como feita: sai da lista na hora; se falhar, volta com o aviso. */
@@ -572,6 +615,85 @@ export class PcPortalCliente extends LitElement {
     </section>`;
   }
 
+  /** Oferta ou aceite: vai ao webhook do portal; o corretor (ou o Negociador) responde por aqui. */
+  private async proposta(negociacao: number, corpo: Record<string, unknown>, ok: string) {
+    this.enviando = true;
+    const r = await postar(this.portal!.url_acoes, { ...corpo, negociacao });
+    this.enviando = false;
+    this.avisoEm = `negociacao-${negociacao}`;
+    this.aviso = r.ok ? { ok: true, texto: ok } : { ok: false, texto: r.mensagem ?? 'Não foi possível enviar.' };
+    if (r.ok) {
+      this.confirmandoAceite = null;
+      this.ofertando = null;
+      // A resposta entra no portal quando o corretor (ou o Negociador) a registra: relê em seguida.
+      setTimeout(() => void this.carregar(), 2500);
+    }
+  }
+
+  private ofertar(ev: Event, n: NegociacaoPublica) {
+    ev.preventDefault();
+    const valor = centavosDoValor(String(new FormData(ev.target as HTMLFormElement).get('valor') ?? ''));
+    if (!valor) {
+      this.avisoEm = `negociacao-${n.ref}`;
+      this.aviso = { ok: false, texto: 'Escreva o valor em reais, por exemplo 1.380.000.' };
+      return;
+    }
+    void this.proposta(n.ref, { tipo: 'proposta_nova', valor_c: valor }, `Oferta de ${reais(valor)} enviada. ${primeiroNome(this.portal!.corretor?.nome)} responde por aqui.`);
+  }
+
+  private rodada(p: PropostaPublica) {
+    const quem = p.quem === 'voce' ? 'Sua oferta' : 'Proposta do vendedor';
+    const extras = [p.condicoes, p.concessao ? `Inclui: ${p.concessao}` : null, p.contrapartida ? `Em troca de: ${p.contrapartida}` : null].filter(Boolean);
+    return html`<li class=${p.quem}>
+      <div class="suave">${quem}${p.quando ? ` · ${diaCurto(p.quando)}` : ''}${ESTADO_PROPOSTA[p.estado] ? ` · ${ESTADO_PROPOSTA[p.estado]}` : ''}</div>
+      <div class="valor">${reais(p.valor_c)}</div>
+      ${extras.length ? html`<div class="texto">${extras.join('\n')}</div>` : nothing}
+      ${p.quem === 'vendedor' && p.validade_ate ? html`<div class="suave">Vale até ${diaHora(p.validade_ate)}</div>` : nothing}
+    </li>`;
+  }
+
+  /** Propostas (M5b): cada negociação com as rodadas, o aceite da condição e a nova oferta. Nunca o mandato. */
+  private abaPropostas(p: Linha) {
+    const negociacoes: NegociacaoPublica[] = p.negociacoes ?? [];
+    if (!negociacoes.length) return html`<section><p class="suave">Quando houver uma negociação, as propostas aparecem aqui.</p></section>`;
+    return html`<section>
+      <h2>Propostas</h2>
+      <p class="suave">Aceitar uma condição não fecha o negócio: ${primeiroNome(p.corretor?.nome)} confirma com você e com o proprietário.</p>
+      ${negociacoes.map((n) => {
+        const aceitavel = propostaAceitavel(n);
+        const nome = n.imovel ? (n.imovel.titulo ?? n.imovel.codigo ?? 'Imóvel') : 'Imóvel';
+        return html`<article class="negociacao">
+          <h3>${nome}</h3>
+          ${n.imovel && (n.imovel.bairro || n.imovel.cidade) ? html`<div class="suave">${[n.imovel.bairro, n.imovel.cidade].filter(Boolean).join(', ')}</div>` : nothing}
+          <span class="situacao ${n.situacao}">${SITUACAO_TEXTO[n.situacao]}</span>
+          ${n.propostas.length ? html`<ol class="rodadas">${n.propostas.map((x) => this.rodada(x))}</ol>` : html`<p class="suave">Nenhuma proposta ainda.</p>`}
+          ${n.pode_agir
+            ? html`<div class="acoes">
+                ${aceitavel ? html`<button class="botao" type="button" ?disabled=${this.enviando} @click=${() => (this.confirmandoAceite = aceitavel.ref)}>Aceitar condição</button>` : nothing}
+                <button class="botao claro" type="button" ?disabled=${this.enviando} @click=${() => (this.ofertando = this.ofertando === n.ref ? null : n.ref)}>Nova oferta</button>
+              </div>`
+            : nothing}
+          ${aceitavel && this.confirmandoAceite === aceitavel.ref
+            ? html`<div class="confirmar" role="group" aria-label="Confirmar aceite">
+                <p>Aceitar ${reais(aceitavel.valor_c)}? ${primeiroNome(p.corretor?.nome)} recebe o seu aceite e confirma com o proprietário.</p>
+                <div class="acoes">
+                  <button class="botao" type="button" ?disabled=${this.enviando} @click=${() => this.proposta(n.ref, { tipo: 'proposta_aceite', proposta: aceitavel.ref }, 'Aceite enviado. O corretor vai confirmar com você e com o proprietário.')}>Confirmar aceite</button>
+                  <button class="botao claro" type="button" @click=${() => (this.confirmandoAceite = null)}>Cancelar</button>
+                </div>
+              </div>`
+            : nothing}
+          ${this.ofertando === n.ref
+            ? html`<form @submit=${(e: Event) => this.ofertar(e, n)}>
+                <label>Sua oferta (R$)<input name="valor" inputmode="decimal" autocomplete="off" required placeholder="1.380.000" /></label>
+                <div><button class="botao" type="submit" ?disabled=${this.enviando}>${this.enviando ? 'Enviando…' : 'Enviar oferta'}</button></div>
+              </form>`
+            : nothing}
+          ${this.avisoEm === `negociacao-${n.ref}` && this.aviso ? html`<div class="aviso aviso-item ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
+        </article>`;
+      })}
+    </section>`;
+  }
+
   /** Arquivos ainda não têm fonte no app (D-73): a aba diz onde os documentos chegam. */
   private abaArquivos(p: Linha) {
     return html`<section>
@@ -594,13 +716,21 @@ export class PcPortalCliente extends LitElement {
       })}
       <nav class="abas" role="tablist" aria-label="Seu atendimento" @keydown=${(e: KeyboardEvent) => this.teclaNasAbas(e, ids)}>
         ${abas.map(
-          (a) => html`<button type="button" role="tab" id=${`aba-${a.id}`} aria-controls="painel" aria-selected=${this.aba === a.id ? 'true' : 'false'} tabindex=${this.aba === a.id ? '0' : '-1'} @click=${() => this.irPara(a.id)}>
+          (a) => html`<button type="button" role="tab" id=${`guia-${a.id}`} aria-controls="painel" aria-selected=${this.aba === a.id ? 'true' : 'false'} tabindex=${this.aba === a.id ? '0' : '-1'} @click=${() => this.irPara(a.id)}>
             ${a.rotulo}${a.n !== null ? html`<span class="n">${a.n}</span>` : nothing}
           </button>`,
         )}
       </nav>
-      <div class="conteudo" id="painel" role="tabpanel" tabindex="0" aria-labelledby=${`aba-${this.aba}`}>
-        ${this.aba === 'imoveis' ? this.abaImoveis(p) : this.aba === 'agenda' ? this.abaAgenda(p) : this.aba === 'arquivos' ? this.abaArquivos(p) : this.abaConversa(p)}
+      <div class="conteudo" id="painel" role="tabpanel" tabindex="0" aria-labelledby=${`guia-${this.aba}`}>
+        ${this.aba === 'imoveis'
+          ? this.abaImoveis(p)
+          : this.aba === 'agenda'
+            ? this.abaAgenda(p)
+            : this.aba === 'propostas' && ids.includes('propostas')
+              ? this.abaPropostas(p)
+              : this.aba === 'arquivos'
+                ? this.abaArquivos(p)
+                : this.abaConversa(p)}
       </div>
     `;
   }

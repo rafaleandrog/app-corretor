@@ -82,11 +82,39 @@ Cada proposta registra quem propôs (comprador, vendedor ou proprietário), o va
 concessão, a contrapartida e a validade. Nesta versão o corretor **registra** as propostas
 (canal "registro"). A contraproposta do vendedor pode ser enviada pelo **Portal do Cliente** ou pelo **Fazer
 agora** (o app monta a mensagem e o link do WhatsApp do celular do corretor, que envia), sempre
-conferida contra o mandato antes de sair — ver a seção seguinte. Atenção: hoje o portal do cliente
-ainda não mostra propostas. Uma contraproposta enviada "pelo portal" fica gravada como enviada por
-esse canal, mas o cliente só passa a vê-la quando o portal mostrar as propostas, numa versão
-seguinte. Para o cliente receber agora, use o Fazer agora. O WhatsApp do próprio app ainda não
-existe.
+conferida contra o mandato antes de sair — ver a seção seguinte. O WhatsApp do próprio app ainda
+não existe.
+
+### No Portal do Cliente
+
+O cliente vê as propostas na aba **Propostas** do portal dele (ver
+[Seleções e Portal do Cliente](selecoes-e-portal.md#propostas)), por negociação, numa linha do
+tempo:
+- as **ofertas dele**, só com valor, rodada e data (as anotações que você fez ao registrá-las não
+  aparecem);
+- as **propostas do vendedor que foram enviadas** a ele (pelo portal ou pelo Fazer agora), com
+  valor, condições, concessão, contrapartida e validade. A proposta que você só **registrou** não
+  aparece, e a do proprietário nunca aparece.
+
+O que o portal **nunca** mostra: o ponto de recuo, o alvo, a BATNA, o teto estimado do comprador, a
+fonte dessa estimativa e quem conduz. O app monta o que vai ao portal por uma lista de campos
+**permitidos**: campo novo numa tabela não chega ao cliente sem alguém o pôr nessa lista.
+
+Pelo portal o cliente pode:
+- **Fazer nova oferta:** ela entra na escada como oferta do comprador, pelo canal portal, e você
+  recebe o aviso. Se o Negociador IA conduz a negociação, está ligado, tem mandato vigente e o
+  gatilho "oferta registrada ou feita no portal" está marcado, ele roda sozinho sobre a oferta, com
+  as mesmas 7 garantias: no **faz sozinho**, a contraproposta que passa sai pelo portal com o texto
+  montado pelo código; em qualquer outro caso (só sugere, pergunta antes, passagem, IA fora do ar),
+  a negociação vai para "aguardando o corretor", com a tarefa de responder ou de aprovar a sugestão.
+  Uma oferta abaixo do recuo é sempre passagem a você.
+- **Aceitar a condição** da última proposta do vendedor, enquanto ela vale. O aceite **não fecha o
+  acordo**: vira uma oferta do cliente no mesmo valor e a negociação vai para "aguardando o
+  corretor", com a tarefa de confirmar e levar ao proprietário. Quem aceita o acordo é você (ver
+  abaixo).
+
+Com o acordo já com o proprietário, negociação pausada ou encerrada, o cliente só vê, não age.
+Cada ação dele entra na linha do tempo do cliente.
 
 A **rodada** é calculada pelo app: cada oferta do comprador abre uma rodada, e a resposta do
 vendedor ou do proprietário fica na rodada aberta. A negociação guarda o número de rodadas.
@@ -138,8 +166,8 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
   app monta uma mensagem curta só com o valor, a concessão e a contrapartida como estão no seu
   mandato e a validade (por exemplo: "Olá, Ana. O vendedor propõe R$ 1.460.000, com prazo de
   entrega de 90 dias, pedindo em troca entrada de 30%. A proposta vale por 48 horas."). A conversa
-  livre da IA só chega ao cliente depois que você lê e aprova. Como o portal ainda não mostra
-  propostas (ver Propostas), o cliente só a vê quando isso chegar.
+  livre da IA só chega ao cliente depois que você lê e aprova. O cliente vê a proposta na aba
+  Propostas do portal.
 
 **O Negociador nunca aceita o acordo.** Aceitar a proposta do comprador é uma ação separada, feita
 só por quem tem o papel de corretor (o administrador do app também pode, pois vale por todos os

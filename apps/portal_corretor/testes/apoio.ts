@@ -284,12 +284,14 @@ export class BancoFalso {
         async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
           return todas(tabela).filter((l) => !l.removido_em && casa(l, op.filtros)).map((l) => comoLido(tabela, l));
         },
-        async comConta(id: number, fn: (trx: any) => Promise<void>) {
+        // `comConta` roda numa transação (contas.md): desfaz tudo se o bloco lança e, no regime
+        // segregado, aceita `buscar(…, { travar: true })` (banco-de-dados.md § Trava de linha).
+        async comConta(id: number, fn: (trx: any) => Promise<unknown>) {
           if (!contas.some((c) => c.id === id)) throw Object.assign(new Error('conta inativa'), { codigo: 'CONTA_INVALIDA' });
-          const trx = banco.dados(id, true);
-          trx.existe = async (tabela: string, filtros: Record<string, unknown>) =>
+          const base = banco.dados(id, true);
+          base.existe = async (tabela: string, filtros: Record<string, unknown>) =>
             todas(tabela).some((l) => Object.entries(filtros).every(([k, v]) => String(l[k]) === String(v)));
-          return fn(trx);
+          return base.transaction(fn);
         },
       },
     };

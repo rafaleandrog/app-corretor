@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.16; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.17; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -20,7 +20,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Página** (antes, Minha página) | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
 | Visitante | **Página e ficha pública** (sem login) | A página do corretor (capa com foto, nome, CRECI se houver e WhatsApp; imóveis em destaque com **Quero saber mais**) e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
 | Corretor | **Clientes › ficha › Seleções e portal** | Monta seleções de imóveis, gera o link do portal do cliente, pede pendências ao cliente (**Pedir ao cliente**) e escreve o próximo passo que ele vê no portal (no cartão Próximo passo) — ver [Seleções e Portal do Cliente](selecoes-e-portal.md) |
-| Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | O portal "Meu atendimento" com o próximo passo e as abas Conversa, Imóveis, Agenda e Arquivos: reage aos imóveis (gostei, não gostei, quero visitar, comentar), vê as visitas, pede para remarcar, manda mensagem ao corretor e marca como feitas as pendências que o corretor pediu (botão **Feito**); link revogado mostra "Link expirado" |
+| Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | O portal "Meu atendimento" com o próximo passo e as abas Conversa, Imóveis, Agenda, Propostas (quando há negociação: vê as rodadas, aceita a condição do vendedor, que não fecha o acordo, ou faz nova oferta) e Arquivos: reage aos imóveis (gostei, não gostei, quero visitar, comentar), vê as visitas, pede para remarcar, manda mensagem ao corretor e marca como feitas as pendências que o corretor pediu (botão **Feito**); link revogado mostra "Link expirado" |
 | Corretor | **Assistente** (botão, abre à direita da tela) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
 | Corretor | **Ajustes** | Uma tela com cinco abas: Conta, Marca, Conexões (Instagram), Funil e abordagens, Atendimento — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
 | Corretor | **Negociação** (sem tela ainda) | Os dados da negociação de um negócio: o mandato do vendedor (com alvo, recuo e BATNA sigilosos), as propostas por rodada, o Negociador IA (sugere o próximo movimento e confere cada um contra o mandato; nunca aceita o acordo), os ajustes e as respostas a objeções; as telas chegam nas versões seguintes — ver [Negociação e mandato](negociacao.md) |

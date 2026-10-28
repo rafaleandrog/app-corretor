@@ -3,6 +3,7 @@ import { iso } from '../comum/funil';
 import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
 import { MARCA_PADRAO } from '../comum/estudio';
 import { imovelPublico } from '../comum/pagina';
+import { negociacaoPublica } from '../comum/portal-cliente';
 
 // Seleções e Portal do Cliente na vitrine pública (bloco 5b, D-56, D-73). O cliente abre por link com
 // o token do ingresso `wh`; a rota pública só lê a vitrine. Estas funções servem à rota do corretor
@@ -183,11 +184,12 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
   }
   const atual = await lerVitrine(dados, conta, 'portal', contatoId);
   const topo = await comMarca(dados, conta, corretor ?? (atual?.dados as Linha | undefined)?.corretor);
-  const [contato, selecoes, atividades, tarefas] = await Promise.all([
+  const [contato, selecoes, atividades, tarefas, negociacoes] = await Promise.all([
     umaLinha(dados, 'contatos', { conta_id: conta, id: contatoId }),
     dados.varrerTudo('selecoes', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'enviada_em', ordem: 'desc', maximo: 200 }),
     dados.varrerTudo('atividades', { filtros: { conta_id: conta, contato_id: contatoId, tipo: 'visita' }, ordenar: 'quando', ordem: 'asc', maximo: 500 }),
     dados.varrerTudo('tarefas_cliente', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'criado_em', ordem: 'asc', maximo: 200 }),
+    dados.varrerTudo('negociacoes', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'id', ordem: 'asc', maximo: 50 }),
   ]);
   if (!contato) {
     await apagarVitrine(dados, conta, 'portal', contatoId);
@@ -199,7 +201,12 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
     ? await dados.varrerTudo('visitas', { filtros: { conta_id: conta, atividade_id: atividades.map((a) => a.id).join(',') }, maximo: 500 })
     : [];
   const imovelDe = new Map(visitas.map((v) => [v.atividade_id, v.imovel_id]));
-  const imoveisIds = [...new Set(visitas.map((v) => v.imovel_id))];
+  // Propostas (D5, M5b): a negociação perdida sai do portal; as outras, com o que a lista permitida deixa.
+  const abertas = negociacoes.filter((n) => n.estado !== 'perdida');
+  const propostas = abertas.length
+    ? await dados.varrerTudo('propostas', { filtros: { conta_id: conta, negociacao_id: abertas.map((n) => n.id).join(',') }, ordenar: 'id', ordem: 'asc', maximo: 2000 })
+    : [];
+  const imoveisIds = [...new Set([...visitas.map((v) => v.imovel_id), ...abertas.map((n) => n.imovel_id)].filter(Boolean))];
   const imoveis = imoveisIds.length ? await dados.varrerTudo('imoveis', { filtros: { conta_id: conta, id: imoveisIds.join(',') }, maximo: 500 }) : [];
   const imovel = new Map(imoveis.map((i) => [i.id, i]));
   // Do imóvel, só o que pode aparecer num anúncio (o endereço segue `endereco_publico`).
@@ -224,6 +231,8 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
     agenda,
     // "O que falta de você": as pendências que o corretor pediu; a feita sai na sincronização seguinte.
     tarefas: tarefas.filter((t) => !t.feita_em).map((t) => ({ ref: t.id, texto: t.texto })),
+    // Nunca o mandato, o teto estimado nem quem conduz: só o que `negociacaoPublica` permite.
+    negociacoes: abertas.map((n) => negociacaoPublica(n, propostas, imovelPublicoDe(imovel.get(n.imovel_id)))),
     jornada: {
       desde,
       imoveis_recebidos: new Set(itens.map((i) => i.imovel_id)).size,

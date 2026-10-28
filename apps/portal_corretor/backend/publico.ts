@@ -7,6 +7,9 @@ import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
 import { reclassificar } from './inteligencia';
 import { publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
+import { semSigilo } from '../comum/negociacao';
+import { configDaConta, encerrada, gravarPropostaTravada, mandatoVigente } from './negociacao';
+import { executarMotor, type MeioMotor } from './negociador';
 import { aoPublicacaoProgramada } from './instagram';
 import { aoLembreteVisita } from './lembretes';
 
@@ -179,6 +182,8 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
       portal: {
         corretor: await corretorPublico(req, p.corretor), url_acoes: p.url_acoes, proximo_passo: p.proximo_passo ?? null,
         agenda: p.agenda ?? [], tarefas: p.tarefas ?? [], jornada: p.jornada ?? null, selecoes,
+        // Já na lista permitida ao publicar (negociacaoPublica); `semSigilo` de novo na saída, por garantia.
+        negociacoes: semSigilo(p.negociacoes ?? []),
       },
     });
   } catch (e) {
@@ -216,6 +221,11 @@ function origem(req: Request): string {
 
 const REACOES = ['gostei', 'nao_gostei', 'quero_visitar'];
 const ROTULO_REACAO: Record<string, string> = { gostei: 'Gostou do', nao_gostei: 'Não gostou do', quero_visitar: 'Quer visitar o' };
+
+/** O que o cliente faz pelo portal (bloco 9 e D5, M5b). */
+const TIPOS_ACAO = ['mensagem', 'remarcar', 'tarefa_feita', 'proposta_nova', 'proposta_aceite'];
+/** Teto de uma oferta digitada no portal (R$ 1 bilhão): valor acima disso é erro de digitação. */
+const VALOR_MAXIMO_C = 100_000_000_000;
 
 const contaDoIngresso = (req: Request) => {
   const c = Number((req.wh?.contexto as Linha | null)?.conta_id);
@@ -268,17 +278,32 @@ export const webhooks = {
     const conta = contaDoIngresso(req);
     const contatoId = idDe(ctx?.contato_id);
     const corpo = (req.body ?? {}) as Linha;
-    const tipo = ['mensagem', 'remarcar', 'tarefa_feita'].includes(corpo.tipo) ? (corpo.tipo as string) : null;
-    const mensagem = tipo === 'tarefa_feita' ? null : texto(corpo.texto, 1000) || null;
+    const tipo = TIPOS_ACAO.includes(corpo.tipo) ? (corpo.tipo as string) : null;
+    const ehProposta = tipo === 'proposta_nova' || tipo === 'proposta_aceite';
+    // Oferta e aceite não levam texto livre (a conversa segue pela Conversa): o evento carrega só ids e o valor.
+    const mensagem = tipo === 'tarefa_feita' || ehProposta ? null : texto(corpo.texto, 1000) || null;
     const visita = tipo === 'remarcar' ? idDe(corpo.visita) : null;
     const tarefa = tipo === 'tarefa_feita' ? idDe(corpo.tarefa) : null;
-    if (!conta || !contatoId || !tipo || (tipo === 'mensagem' && !mensagem) || (tipo === 'remarcar' && !visita) || (tipo === 'tarefa_feita' && !tarefa)) {
-      return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: tipo === 'mensagem' ? 'Escreva a mensagem.' : 'Pedido inválido.' });
+    const negociacao = ehProposta ? idDe(corpo.negociacao) : null;
+    const proposta = tipo === 'proposta_aceite' ? idDe(corpo.proposta) : null;
+    const valor_c = tipo === 'proposta_nova' && Number.isSafeInteger(corpo.valor_c) && corpo.valor_c > 0 && corpo.valor_c <= VALOR_MAXIMO_C ? (corpo.valor_c as number) : null;
+    if (
+      !conta || !contatoId || !tipo ||
+      (tipo === 'mensagem' && !mensagem) || (tipo === 'remarcar' && !visita) || (tipo === 'tarefa_feita' && !tarefa) ||
+      (ehProposta && !negociacao) || (tipo === 'proposta_aceite' && !proposta) || (tipo === 'proposta_nova' && !valor_c)
+    ) {
+      const msg = tipo === 'mensagem' ? 'Escreva a mensagem.' : tipo === 'proposta_nova' ? 'Informe o valor da oferta em reais.' : 'Pedido inválido.';
+      return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: msg });
     }
     if (!dentroDoLimite(`acao:${conta}:${contatoId}:${origem(req)}`, 5)) {
       return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitos envios seguidos. Espere um minuto.' });
     }
-    await req.eventos!.publicar('acao_cliente_recebida', { contato_id: contatoId, tipo, texto: mensagem, visita, tarefa }, { conta_id: conta });
+    // Se a negociação e a proposta são deste cliente e ainda aceitam, quem confere é o listener (sob a trava).
+    await req.eventos!.publicar(
+      'acao_cliente_recebida',
+      { contato_id: contatoId, tipo, texto: mensagem, visita, tarefa, ...(ehProposta ? { negociacao, proposta, valor_c } : {}) },
+      { conta_id: conta },
+    );
     res.json({ ok: true });
   },
 
@@ -467,11 +492,133 @@ async function tarefaFeita(trx: HelperDados, conta: number, contato: Linha, tare
   return true;
 }
 
+const reaisPt = (c: number) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
+
+/** Negociação em que o cliente não age pelo portal: encerrada, pausada ou com o acordo já com o proprietário. */
+const clienteNaoAge = (n: Linha) => encerrada(n) || n.estado === 'aguardando_proprietario' || n.estado === 'pausada';
+
+/**
+ * Oferta e "aceitar condição" pelo portal (D5, M5b; 10.9.4 e 10.9.5). Tudo sob a trava da negociação,
+ * conferindo que ela é deste cliente, nesta conta. O aceite do cliente NUNCA fecha o acordo: vira uma
+ * oferta dele no mesmo valor e passagem ao corretor (`aguardando_corretor`), que é quem aceita (D-98) e
+ * leva ao proprietário (D-15). A oferta nova entra na escada; se o Negociador conduz e o gatilho
+ * "oferta registrada" está ligado, o motor do D2 roda depois do commit (com as 7 garantias); senão, a
+ * negociação passa ao corretor. Entregue de novo, o mesmo evento não grava a segunda oferta.
+ */
+async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener) {
+  const gravado = await ctx.dados!.comConta!(conta, async (trx) => {
+    const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: p.contato_id }, maximo: 1 }))[0];
+    const nid = idDe(p.negociacao);
+    if (!contato || !nid) return null;
+    const viva = await trx.buscar('negociacoes', nid, { travar: true });
+    // Negociação de outra conta ou de outro cliente: ignorada, como se não existisse.
+    if (!viva || Number(viva.conta_id ?? conta) !== conta || Number(viva.contato_id) !== Number(contato.id) || clienteNaoAge(viva)) return null;
+    const propostas = await trx.varrerTudo('propostas', { filtros: { conta_id: conta, negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 });
+    const ultima = propostas[propostas.length - 1];
+    let valor_c: number;
+    let aceite: Linha | null = null;
+    if (p.tipo === 'proposta_aceite') {
+      aceite = propostas.find((x) => Number(x.id) === Number(p.proposta)) ?? null;
+      // Só a última proposta do vendedor, enviada e dentro da validade; o que já foi respondido não se aceita.
+      if (!aceite || aceite !== ultima || aceite.direcao !== 'vendedor' || aceite.estado !== 'enviada') return null;
+      if (aceite.validade_ate && Date.parse(iso(aceite.validade_ate) ?? '') < Date.now()) return null;
+      valor_c = Number(aceite.valor_c);
+    } else {
+      valor_c = Number(p.valor_c);
+      // O mesmo evento entregue de novo: a oferta igual do portal já é a última.
+      if (ultima && ultima.direcao === 'comprador' && ultima.canal === 'portal' && Number(ultima.valor_c) === valor_c) return null;
+    }
+    const r = await gravarPropostaTravada(trx, nid, {
+      direcao: 'comprador',
+      autor_tipo: 'cliente',
+      autor_usuario_id: null,
+      valor_c,
+      condicoes: null,
+      concessao: null,
+      contrapartida: null,
+      validade_ate: null,
+      canal: 'portal',
+      estado: 'enviada',
+    });
+    if ('recusa' in r) return null;
+    const config = await configDaConta(trx, conta);
+    const mandato = await mandatoVigente(trx, viva);
+    const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+    // O motor roda só numa oferta nova (o aceite é sempre passagem), com o Negociador ligado e conduzindo,
+    // o gatilho "oferta registrada" ligado e mandato vigente.
+    const motor =
+      !aceite && config.ligado && config.gatilhos.oferta_registrada !== false && viva.conduzida_por === 'ia' && !!mandato && String(mandato.validade).slice(0, 10) >= hoje;
+    if (!motor) {
+      await trx.atualizarSe('negociacoes', nid, { estado: 'aguardando_corretor' }, { estado: viva.estado });
+      await tarefa(trx, conta, contato, aceite ? `Cliente aceitou a proposta de ${reaisPt(valor_c)}: confirme e leve ao proprietário` : `Responder a oferta do portal: ${reaisPt(valor_c)}`);
+    }
+    const resumo = aceite
+      ? `Aceitou pelo portal a proposta de ${reaisPt(valor_c)} (${viva.codigo ?? 'negociação'}); o acordo depende de você e do proprietário`
+      : `Ofereceu pelo portal ${reaisPt(valor_c)} (${viva.codigo ?? 'negociação'})`;
+    await linhaDoTempo(trx, contato.id, aceite ? 'portal.proposta_aceite' : 'portal.proposta_nova', resumo, { negociacao_id: nid, proposta_id: r.proposta.id }, conta);
+    await trx.atualizar('contatos', contato.id, { ultimo_contato_em: new Date().toISOString() });
+    await sincronizarPortal(trx, conta, contato.id);
+    return { nid, contatoId: Number(contato.id), proposta: r.proposta, aceite: !!aceite, motor, responsavel: Number(contato.responsavel_id) || null };
+  });
+  if (!gravado) return;
+  const publicar = async (tipo: string, payload: Record<string, number | null>) => {
+    try {
+      await ctx.eventos.publicar(tipo, semSigilo(payload), { conta_id: conta });
+    } catch (e) {
+      console.warn(`[portal_corretor] evento ${tipo} não publicado: ${(e as Error).message}`);
+    }
+  };
+  await publicar(gravado.aceite ? 'proposta_aceite_cliente' : 'proposta_recebida', { negociacao_id: gravado.nid, proposta_id: Number(gravado.proposta.id) });
+  if (!gravado.motor) return;
+
+  // O motor do D2, depois do commit e fora de transação para a chamada de IA, com a escrita na conta.
+  // Quem assina no prompt: o nome da página do corretor, ou o da conta (sem usuário no listener).
+  const [pagina, perfilConta] = await Promise.all([
+    ctx.dados!.varrerTudo('paginas_corretor', { filtros: { conta_id: conta, chave: 'conta' }, maximo: 1 }),
+    ctx.dados!.varrerTudo('perfil_conta', { filtros: { conta_id: conta, chave: 'conta' }, maximo: 1 }),
+  ]);
+  const nome = String(pagina[0]?.nome_exibicao || perfilConta[0]?.nome || '');
+  const meio: MeioMotor = {
+    conta,
+    emLeitura: (fn) => ctx.dados!.comConta!(conta, fn),
+    emTransacao: (fn) => ctx.dados!.comConta!(conta, fn),
+    ia: ctx.ia,
+    hoje: new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }),
+    usuario: { id: gravado.responsavel, nome },
+    publicar,
+  };
+  let enviada = false;
+  let sugestao = false;
+  try {
+    const r = await executarMotor(meio, gravado.nid, { mensagem_cliente: null, canal: 'portal' });
+    if ('execucao' in r) {
+      enviada = !!r.proposta;
+      sugestao = !r.proposta && !r.passagem;
+    }
+  } catch (e) {
+    console.warn(`[portal_corretor] Negociador não rodou na oferta do portal ${gravado.proposta.id}: ${(e as Error).message}`);
+  }
+  await ctx.dados!.comConta!(conta, async (trx) => {
+    const viva = await trx.buscar('negociacoes', gravado.nid, { travar: true });
+    const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: gravado.contatoId }, maximo: 1 }))[0];
+    if (!viva || !contato) return;
+    // Só o envio automático responde ao cliente. Sugestão à espera de aprovação, passagem, IA fora ou
+    // recusa: a oferta não fica sem dono — vai ao corretor, como sem o Negociador.
+    if (!enviada && !clienteNaoAge(viva)) {
+      await trx.atualizarSe('negociacoes', gravado.nid, { estado: 'aguardando_corretor' }, { estado: viva.estado });
+      const valor = reaisPt(Number(gravado.proposta.valor_c));
+      await tarefa(trx, conta, contato, sugestao ? `Aprovar a sugestão do Negociador para a oferta do portal: ${valor}` : `Responder a oferta do portal: ${valor}`);
+    }
+    await sincronizarPortal(trx, conta, contato.id);
+  });
+}
+
 /** Mensagem, pedido de remarcar ou pendência feita vindo do portal: linha do tempo (e tarefa para o corretor). */
 export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoListener) {
   const conta = evento.conta_id;
   if (!conta || !ctx.dados?.comConta) return;
   const p = evento.payload;
+  if (p.tipo === 'proposta_nova' || p.tipo === 'proposta_aceite') return aoPropostaDoPortal(conta, p, ctx);
   await comContaRepetindo(ctx, conta, async (trx) => {
     const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: p.contato_id }, maximo: 1 }))[0];
     if (!contato) return;
