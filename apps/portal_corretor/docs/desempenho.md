@@ -88,41 +88,88 @@ Com a Minha página no ar e o imóvel publicado, a mensagem leva um link rastrea
 ## Dados de demonstração
 
 Nas contas de teste (nome terminado em "(demo)"), Hoje oferece **Gerar dados de
-demonstração** enquanto a conta não tem nenhum contato. Ele cria 10 clientes com origem, 10
-negócios, 2 imóveis e 2 visitas, com o próprio corretor como responsável. Origens que já
-existem são reaproveitadas e os imóveis recebem o próximo código livre. Se alguma etapa padrão
-foi renomeada ou removida, o app avisa qual é e não grava nada.
+demonstração** enquanto a conta não tem nenhum contato. Os dados são os do guia das telas, e o
+corretor de teste é o responsável por tudo. Origens que já existem são reaproveitadas, e imóveis
+e negociações recebem o próximo código livre. Se alguma etapa padrão foi renomeada ou removida, o
+app avisa qual é e não grava nada. Rodar de novo não duplica: com contatos na conta, a geração é
+recusada.
 
-### Conferência manual (últimos 30 dias, logo depois de gerar)
+**Qual conjunto cada conta recebe.** Ao iniciar, o app marca as contas de teste:
 
-| Cliente | Funil | Etapa | Valor | Origem |
+- a de **menor número** (id) é a principal e recebe o conjunto completo do corretor de
+  demonstração, Rafael Gualberto;
+- as outras recebem um conjunto **menor e diferente**, o do segundo corretor, para o roteiro de
+  isolamento: um corretor nunca vê nada do outro.
+
+A marca não muda depois, nem quando aparece uma conta de teste nova.
+
+**O corretor.** O nome que aparece é o do usuário na instância (crie o usuário de teste como
+"Rafael Gualberto"). Se o corretor ainda não tem perfil, ganha um CRECI fictício (DF-12345-F; no
+segundo corretor, DF-54321-F). Se já tem perfil, o perfil fica como está, com ou sem CRECI.
+**Nada depende do CRECI.**
+
+### Conjunto do guia (conta principal)
+
+| Cliente | Etapa | Valor | Origem | Temperatura (pela regra) |
 |---|---|---|---|---|
-| Ana | compra | Novo | R$ 300.000 | Instagram |
-| Bruno | compra | Em atendimento | R$ 500.000 | WhatsApp |
-| Carla | compra | Qualificado (visita amanhã) | R$ 400.000 | Indicação |
-| Diego | compra | Visitou (retorno nota 4) | R$ 700.000 | Portal |
-| Elisa | compra | Proposta | R$ 900.000 | Indicação |
-| Fábio | compra | Ganho (passou por Documentação) | R$ 650.000 | Indicação |
-| Gabi | compra | Ganho (passou por Proposta) | R$ 420.000 | Instagram |
-| Hugo | compra | Perdido por preço (tinha visitado) | R$ 350.000 | Portal |
-| Iara | venda | Autorização assinada | R$ 1.200.000 | Indicação |
-| João | venda | Avaliação | R$ 800.000 | Placa |
+| Ana Ribeiro | Proposta; visita sábado às 10 h; em negociação | R$ 1.450.000 | Instagram | quente |
+| Juliana Prado | Proposta (R$ 920 mil no apartamento do Sudoeste) | R$ 920.000 | Portal imobiliário | quente |
+| Carlos Menezes | Qualificado | R$ 800.000 | Minha Página | morno |
+| Fernanda Souza | Novo (quer lote) | R$ 400.000 | Indicação | morno |
+| Roberto Lima | Em atendimento, sem resposta há 9 dias | R$ 600.000 | WhatsApp | frio |
+| Marcos Teixeira | Visitou o lote há 12 dias (nota 3) | R$ 395.000 | Placa | frio |
 
-Todos com comissão de 5%. Números esperados:
+Todos com comissão de 5%. As temperaturas não são gravadas à mão: saem da regra de sempre, a
+partir da etapa, das visitas e do último contato.
 
-- Leads: **8** (os de compra).
-- Lead → atendimento: 7 de 8 = **88%** (todos menos Ana).
-- Lead → visita: 5 de 8 = **63%** (Diego, Elisa, Fábio, Gabi, Hugo).
-- Visita → proposta: 3 de 5 = **60%** (Elisa, Fábio, Gabi).
-- Proposta → ganho: 2 de 3 = **67%**.
-- Conversão total: 2 de 8 = **25%**.
-- Vendas: **2**; VGV: **R$ 1.070.000**.
-- Captações: **1** (Iara).
-- Visitas feitas: **1** (Diego).
-- Etapas: 8 leads, 7 em atendimento, 5 visitaram, 3 na proposta, 2 ganhos; 8 clientes únicos.
-- Por origem: Indicação 3 leads, 1 ganho e 2 em andamento; Instagram 2 e 1 (1 em andamento); Portal
-  imobiliário 2, 0 ganhos, 1 em andamento e 1 perdido; WhatsApp 1 e 0 (em andamento).
-- Hoje, Sua semana: 10 contatos novos, 8 leads.
-- Motivos de perda: preço, 1.
-- Comissão prevista: 5% × (300 mil × 5% + 500 mil × 10% + 400 mil × 20% + 700 mil × 50% + 900 mil × 70%
-  + 1,2 milhão × 40% + 800 mil × 15%) = **R$ 86.250**.
+| Imóvel | Preço | Situação | Qualidade |
+|---|---|---|---|
+| Casa 4 quartos · Jardim Botânico (320 m²) | R$ 1.450.000 | ativo | 55 |
+| Apartamento 3 quartos · Sudoeste (112 m²) | R$ 980.000 | ativo | 35 |
+| Lote 450 m² · Reserva do Colorado Q1-03 | R$ 395.000 | ativo | 35 |
+| Cobertura 3 quartos · Noroeste | R$ 2.100.000 | rascunho | 25 |
+
+A nota de qualidade é a do cálculo real, e a semente não força nada. Por isso ela não bate com os
+números do guia (92, 78, 64 e 41):
+
+- a semente não tem fotos (30 pontos) nem autorização de venda (15 pontos);
+- a nota anda de 5 em 5.
+
+**A negociação (tela de negociações).** Ana · Casa Jardim Botânico, conduzida pelo Negociador IA:
+
+- **Mandato:** pedido R$ 1.450.000, alvo R$ 1.400.000, ponto de recuo R$ 1.360.000 (sigiloso),
+  4 rodadas, autonomia "pergunta antes", válido por 5 dias. As concessões são o prazo de entrega
+  de 60 dias, em troca de entrada de 30%, e os móveis planejados da cozinha, em troca de
+  fechamento em 7 dias.
+- **Escada:** o vendedor pede 1.450.000; a Ana oferece 1.320.000; o vendedor vai a 1.400.000; a
+  Ana repete 1.320.000. Estamos na rodada 2 (cada oferta do comprador abre uma rodada).
+- **Teto estimado do comprador:** R$ 1.390.000.
+- **Objeção registrada:** preço.
+
+### Conjunto do segundo corretor (as outras contas de teste)
+
+- **Clientes:** Bruno Costa (Em atendimento, WhatsApp, R$ 520.000) e Lívia Rocha (Novo,
+  indicação, R$ 450.000).
+- **Imóvel:** um, o Apartamento 2 quartos · Águas Claras (R$ 520.000).
+- Nenhuma negociação.
+
+### Conferência manual (conta principal, últimos 30 dias, logo depois de gerar)
+
+- Leads: **6**, todos de compra, em 6 clientes únicos.
+- Etapas: 6 leads, 5 em atendimento (todos menos a Fernanda), 3 visitaram (Ana, Juliana e Marcos,
+  porque quem chegou à proposta passou pela visita), 2 na proposta, 0 ganhos.
+- Lead → atendimento: 5 de 6 = **83%**.
+- Lead → visita: 3 de 6 = **50%**.
+- Visita → proposta: 2 de 3 = **67%**.
+- Proposta → ganho: **0%**.
+- Conversão total: **0%**.
+- Vendas: **0**. VGV: **R$ 0**. Captações: **0**.
+- Visitas feitas: **1** (Marcos).
+- Por origem: cada canal com 1 lead em andamento (Instagram, Portal imobiliário, Minha Página,
+  Indicação, WhatsApp, Placa).
+- Hoje, Sua semana: 6 contatos novos, 6 leads, 5 atendidos.
+- Comissão prevista: 5% × (1,45 mi × 70% + 920 mil × 70% + 800 mil × 20% + 400 mil × 5% + 600 mil
+  × 10% + 395 mil × 50%) = **R$ 104.825**.
+- **Negociação:** última oferta × pedido = 1.320.000 ÷ 1.450.000 = **−9%**. ZOPA de R$ 1.360.000
+  (recuo) a R$ 1.390.000 (teto estimado). O vendedor já concedeu R$ 50.000, e a próxima concessão
+  cabe em 40% de (1.400.000 − 1.360.000) = **R$ 16.000**.

@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.16",
+  "versao": "0.1.17",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",

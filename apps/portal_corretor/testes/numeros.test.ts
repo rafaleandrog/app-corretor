@@ -86,24 +86,22 @@ test('semente marca a conta de teste; demonstração gera o conjunto e os númer
     assert.equal(g.status, 201);
     assert.equal((await chamar('POST', '/demo/semear', {})).status, 409, 'só numa conta vazia');
     const n = (await chamar('GET', '/numeros?dias=30')).corpo;
-    // Conferência manual em docs/desempenho.md.
+    // Conferência manual em docs/desempenho.md (conjunto do guia, specs/telas_padrao_b.md §5).
     assert.deepEqual(
       [n.atual.leads, n.atual.lead_atendimento, n.atual.lead_visita, n.atual.visita_proposta, n.atual.proposta_ganho, n.atual.conversao_total, n.atual.ganhos, n.atual.vgv_c, n.atual.captacoes, n.atual.visitas],
-      [8, 0.875, 0.625, 0.6, 0.667, 0.25, 2, 107000000, 1, 1],
+      [6, 0.833, 0.5, 0.667, 0, 0, 0, 0, 0, 1],
     );
-    assert.deepEqual(n.atual.motivos_perda, [{ motivo: 'preco', quantidade: 1 }]);
-    assert.deepEqual(n.atual.por_origem.find((o: any) => o.canal === 'indicacao'), { canal: 'indicacao', leads: 3, ganhos: 1, abertos: 2, perdidos: 0 });
-    assert.deepEqual(n.atual.por_origem.find((o: any) => o.canal === 'portal'), { canal: 'portal', leads: 2, ganhos: 0, abertos: 1, perdidos: 1 });
-    assert.deepEqual(n.atual.etapas, { leads: 8, atendimento: 7, visitou: 5, proposta: 3, ganhos: 2 });
-    assert.equal(n.atual.clientes_unicos, 8);
-    assert.equal(n.serie_leads.atual.reduce((a: number, b: number) => a + b, 0), 8, 'a série soma os leads do período');
-    assert.deepEqual(n.previsao, { valor_c: 8625000, sem_dados: 0 });
+    assert.deepEqual(n.atual.motivos_perda, []);
+    assert.deepEqual(n.atual.etapas, { leads: 6, atendimento: 5, visitou: 3, proposta: 2, ganhos: 0 });
+    assert.equal(n.atual.clientes_unicos, 6);
+    assert.deepEqual(n.atual.por_origem.map((o: any) => [o.canal, o.leads, o.abertos]).sort(), [['indicacao', 1, 1], ['instagram', 1, 1], ['pagina', 1, 1], ['placa', 1, 1], ['portal', 1, 1], ['whatsapp', 1, 1]]);
+    assert.equal(n.serie_leads.atual.reduce((a: number, b: number) => a + b, 0), 6, 'a série soma os leads do período');
+    // 5% × (1,45 mi × 70% + 920 mil × 70% + 800 mil × 20% + 400 mil × 5% + 600 mil × 10% + 395 mil × 50%)
+    assert.deepEqual(n.previsao, { valor_c: 10482500, sem_dados: 0 });
     assert.equal(n.anterior.leads, 0);
     const inicio = (await chamar('GET', '/inicio')).corpo;
-    assert.deepEqual([inicio.semana.novos_contatos, inicio.semana.leads, inicio.semana.atendidos, inicio.semana.previsao_c], [10, 8, 7, 8625000]);
+    assert.deepEqual([inicio.semana.novos_contatos, inicio.semana.leads, inicio.semana.atendidos, inicio.semana.previsao_c], [6, 6, 5, 10482500]);
     assert.equal(inicio.demo_disponivel, false, 'com contatos, a demonstração não se oferece mais');
-    // Carla tem visita marcada amanhã: quente pela regra.
-    assert.equal(banco.linhas('contatos').find((c) => c.nome === 'Carla Demo')!.temperatura, 'quente');
   });
   // Conta que não é de teste não gera.
   await comServidor(rotas, B, banco, {}, async (chamar) => {
@@ -124,12 +122,13 @@ test('demonstração convive com imóvel e origem já cadastrados e explica etap
     const g = await chamar('POST', '/demo/semear', {});
     assert.equal(g.status, 201);
     const codigos = banco.linhas('imoveis').filter((i) => i.conta_id === 300).map((i) => i.codigo).sort();
-    assert.deepEqual(codigos, ['IM-0001', 'IM-0002', 'IM-0003']);
+    assert.deepEqual(codigos, ['IM-0001', 'IM-0002', 'IM-0003', 'IM-0004', 'IM-0005']);
     assert.equal(banco.linhas('origens').filter((o) => o.conta_id === 300 && o.canal === 'portal').length, 1, 'origem existente reaproveitada');
   });
   await comServidor(rotas, D, banco, {}, async (chamar) => {
     await chamar('GET', '/funil/etapas?pipeline=compra'); // semeia as etapas padrão
-    banco.linhas('etapas_funil').find((e) => e.conta_id === 400 && e.nome === 'Visitou')!.nome = 'Já visitou';
+    // A conta 400 recebe o conjunto do segundo corretor, que usa "Em atendimento".
+    banco.linhas('etapas_funil').find((e) => e.conta_id === 400 && e.nome === 'Em atendimento')!.nome = 'Atendendo';
     const r = await chamar('POST', '/demo/semear', {});
     assert.equal(r.status, 422);
     assert.equal(r.corpo.codigo ?? r.corpo.erro?.codigo, 'ETAPAS_ALTERADAS');
