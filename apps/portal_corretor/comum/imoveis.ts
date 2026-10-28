@@ -223,15 +223,16 @@ export interface Qualidade {
 
 /**
  * Qualidade do anúncio, 0 a 100 (spec 6.12). Derivada, nunca gravada. `faltas` diz o que falta,
- * na ordem do peso, para a ficha mostrar "o que falta".
+ * na ordem do peso, para a ficha mostrar "o que falta". O CRECI não entra na nota (D-93): os 10
+ * pontos que eram dele foram para as fotos (30) e a descrição (20); a ficha só mostra o aviso.
  */
 export function qualidadeAnuncio(
   im: Partial<DadosImovel> & { tipo?: string },
-  extras: { fotosPublicas: number; autorizacaoVigente: boolean; creci: boolean },
+  extras: { fotosPublicas: number; autorizacaoVigente: boolean },
 ): Qualidade {
   const itens: [boolean, number, string][] = [
-    [extras.fotosPublicas >= 8, 25, `Pelo menos 8 fotos públicas (tem ${extras.fotosPublicas})`],
-    [(im.descricao ?? '').length >= 400, 15, 'Descrição com pelo menos 400 caracteres'],
+    [extras.fotosPublicas >= 8, 30, `Pelo menos 8 fotos públicas (tem ${extras.fotosPublicas})`],
+    [(im.descricao ?? '').length >= 400, 20, 'Descrição com pelo menos 400 caracteres'],
     [typeof im.preco_c === 'number' && im.preco_c > 0, 15, 'Preço informado'],
     [
       (im.area_util_m2 ?? im.area_total_m2 ?? null) !== null &&
@@ -241,7 +242,6 @@ export function qualidadeAnuncio(
     ],
     [!!im.bairro && !!im.cidade, 10, 'Localização (bairro e cidade)'],
     [extras.autorizacaoVigente, 15, 'Autorização de venda assinada e vigente'],
-    [extras.creci, 10, 'CRECI preenchido em Ajustes › Conta'],
   ];
   return {
     nota: itens.reduce((s, [ok, peso]) => s + (ok ? peso : 0), 0),
@@ -249,14 +249,13 @@ export function qualidadeAnuncio(
   };
 }
 
-/** Seção da ficha que resolve cada item de "o que falta" (`conta` é Ajustes › Conta, fora da ficha). */
-export type SecaoFalta = 'fotos' | 'descricao' | 'dados' | 'autorizacao' | 'conta';
+/** Seção da ficha que resolve cada item de "o que falta". */
+export type SecaoFalta = 'fotos' | 'descricao' | 'dados' | 'autorizacao';
 
 export function secaoDaFalta(falta: string): SecaoFalta {
   if (falta.startsWith('Pelo menos 8 fotos')) return 'fotos';
   if (falta.startsWith('Descrição')) return 'descricao';
   if (falta.startsWith('Autorização')) return 'autorizacao';
-  if (falta.startsWith('CRECI')) return 'conta';
   return 'dados';
 }
 

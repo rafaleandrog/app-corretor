@@ -2,7 +2,7 @@
 // antes de gravar e os testes as exercitam direto. Espelham os `formato`/`intervalo`/`opcoes` do
 // schema.json, para a rota responder com mensagem legível em vez do erro cru do banco.
 
-export type Resultado<T> = { ok: true; dados: T } | { ok: false; erros: string[] };
+export type Resultado<T> = { ok: true; dados: T; avisos?: string[] } | { ok: false; erros: string[] };
 
 export const TIPOS_CONTA = ['corretor_autonomo', 'imobiliaria', 'incorporadora'] as const;
 
@@ -44,12 +44,26 @@ function exigirTexto(corpo: Record<string, unknown>, campos: string[], erros: st
   }
 }
 
-/** CRECI no formato `UF-nnnnn-F` (pessoa física) ou `-J` (jurídica). Aceita minúsculas e espaços. */
+/** Tamanho máximo do CRECI: o `limite` da coluna no schema.json. */
+export const LIMITE_CRECI = 20;
+
+/** O aviso único do CRECI que falta (D-93): o mesmo texto no Estúdio, na página, na ficha e no Início. */
+export const AVISO_CRECI = 'Adicione seu CRECI ao perfil para que ele apareça nos anúncios';
+
+/** Aviso de formato: o CRECI fora do padrão é salvo assim mesmo (D-93), só com este lembrete. */
+export const AVISO_FORMATO_CRECI = 'O CRECI foi salvo, mas não está no formato usual UF-número-F (ex.: DF-12345-F) ou -J. Confira se está certo.';
+
+/**
+ * CRECI em maiúsculas, sem espaços nas pontas e com espaços internos reduzidos a um. O prefixo "CRECI"
+ * digitado (com espaço, dois-pontos, hífen ou ponto depois, ou colado a número) é removido: quem exibe
+ * o valor já acrescenta "CRECI " (D-93). Palavra que só começa com essas letras ("CRECIDF123") fica como está.
+ */
 export function normalizarCreci(v: unknown): string | null {
-  const bruto = texto(v).toUpperCase().replace(/\s+/g, '');
+  const bruto = texto(v).toUpperCase().replace(/\s+/g, ' ').replace(/^(?:CRECI(?![A-Z])[\s:.-]*)+/, '').trim();
   return bruto || null;
 }
 
+/** Formato usual `UF-nnnnn-F` (pessoa física) ou `-J` (jurídica). Só informa: nunca recusa (D-93). */
 export function creciValido(creci: string): boolean {
   return /^[A-Z]{2}-[0-9]{1,6}-[FJ]$/.test(creci);
 }
@@ -84,20 +98,26 @@ export function validarPerfilConta(corpo: Record<string, unknown>): Resultado<Pe
   const documento = opcional(corpo.documento);
   if (documento && documento.length > 20) erros.push('O documento tem no máximo 20 caracteres.');
   const creci_juridico = normalizarCreci(corpo.creci_juridico);
-  if (creci_juridico && creci_juridico.length > 20) erros.push('O CRECI jurídico tem no máximo 20 caracteres.');
+  if (creci_juridico && creci_juridico.length > LIMITE_CRECI) erros.push(`O CRECI jurídico tem no máximo ${LIMITE_CRECI} caracteres.`);
   if (erros.length) return { ok: false, erros };
   return { ok: true, dados: { tipo: tipo as PerfilConta['tipo'], nome, documento, creci_juridico } };
 }
 
+/**
+ * O CRECI é opcional e nunca bloqueia (D-93): fora do formato usual ele é salvo e volta um aviso.
+ * Erro só para o que não cabe na coluna (acima de `LIMITE_CRECI`) ou não é texto.
+ */
 export function validarMeuPerfil(corpo: Record<string, unknown>): Resultado<MeuPerfil> {
   const erros: string[] = [];
+  const avisos: string[] = [];
   exigirTexto(corpo, ['creci', 'telefone'], erros);
   const creci = normalizarCreci(corpo.creci);
-  if (creci && !creciValido(creci)) erros.push('CRECI no formato UF-número-F (ex.: DF-12345-F) ou -J para pessoa jurídica.');
+  if (creci && creci.length > LIMITE_CRECI) erros.push(`O CRECI tem no máximo ${LIMITE_CRECI} caracteres.`);
+  else if (creci && !creciValido(creci)) avisos.push(AVISO_FORMATO_CRECI);
   const telefone = normalizarTelefone(corpo.telefone);
   if (telefone && !telefoneValido(telefone)) erros.push('Telefone inválido. Use DDD e número, ex.: (61) 99999-9999.');
   if (erros.length) return { ok: false, erros };
-  return { ok: true, dados: { creci, telefone } };
+  return { ok: true, dados: { creci, telefone }, avisos };
 }
 
 function inteiroEntre(v: unknown, min: number, max: number): number | null {

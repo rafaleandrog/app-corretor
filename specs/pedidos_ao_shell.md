@@ -77,6 +77,22 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** `urbi-regua` genérica: mínimo, máximo, marcas com rótulo e cor por papel, e intervalos coloridos; serve também a metas e faixas de preço.
 
+## 14. Atalho de trilho que abre menu (spec 1.2, moldura do Padrão B, item B1)
+
+**Por quê:** o guia do Padrão B põe o **Criar** no topo do trilho, abrindo um menu (Novo cliente, Novo imóvel, Novo post, Nova visita, Nova proposta). O `urbi-trilho-atalhos` do SDK 100 só emite `urbi:atalho-click` e não ancora um `urbi-dropdown`; um menu posicionado à mão pediria CSS estrutural.
+
+**Até lá:** o Criar é um `urbi-dropdown` no `actions` do `urbi-shell-page`, no alto de toda tela do corretor (exceção nomeada em 11.9).
+
+**Proposta mínima:** um campo `itens` no `UrbiAtalhoTrilho` (como o submenu do `urbi-menu-contexto`), que abre o menu ancorado no atalho e emite a escolha.
+
+## 15. Saber se o menu da app aparece para quem está vendo (spec 11.0.1, item B1)
+
+**Por quê:** pela regra 11.0.1, onde o menu do shell aparece o trilho fica só com Criar e Assistente. Mas o externo não abre o menu de navegação da app na topbar reduzida (gap em `permissoes.md` § Usuário externo), e a app não pode saber o tipo de quem vê. Sem um sinal, o trilho mostra os itens do menu sempre, e quem é da equipe os vê duas vezes.
+
+**Até lá:** trilho com os itens do menu e o Assistente.
+
+**Proposta mínima:** fechar o gap (o externo abre o menu da app) ou expor em `urbiVerso.contexto()` um booleano "o menu da app está visível".
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

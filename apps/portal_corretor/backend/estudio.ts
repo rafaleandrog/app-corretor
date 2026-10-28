@@ -6,6 +6,7 @@ import {
   FORMATOS,
   imovelParaArte,
   INSTRUCAO_PECA,
+  legendaComCreci,
   MARCA_PADRAO,
   MAX_SLIDES,
   OBJETIVOS,
@@ -376,14 +377,13 @@ estudioRotas.post(
     const arquivos = await req.dados!.listar('peca_arquivos', { filtros: { peca_id: p.id }, por_pagina: 1 });
     const imovel = await imovelDaPeca(req, p.imovel_id ?? null);
     const meuCreci = await creci(req);
-    // CRECI na legenda (10.5): a arte do Canva ou enviada pode vir sem ele, então a legenda garante.
-    // Entra antes da checagem, para o limite de 2.200 valer para o texto que vai ser publicado.
-    const legenda = p.legenda ?? '';
-    const comCreci = meuCreci && !legenda.includes(meuCreci) ? `${legenda}${legenda ? '\n\n' : ''}CRECI ${meuCreci}` : legenda;
-    const checagem = checarPeca({ ...campos(p, arquivos.total), legenda: comCreci }, { creci: meuCreci, imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
+    // CRECI na legenda (10.5) só se couber (D-93): a checagem roda sobre a legenda do corretor, e o
+    // CRECI que não cabe no limite vira aviso, nunca pendência.
+    const comCreci = legendaComCreci(p.legenda ?? null, p.hashtags ?? null, meuCreci);
+    const checagem = checarPeca({ ...campos(p, arquivos.total), legenda: comCreci.legenda || null }, { creci: meuCreci, imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
     if (!checagem.ok) return erro(res, 422, 'CHECAGEM_PENDENTE', 'Antes de aprovar, resolva:', checagem.pendencias);
-    const aprovada = await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id });
-    res.json({ ...aprovada, avisos: checagem.avisos });
+    const aprovada = await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci.legenda || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id });
+    res.json({ ...aprovada, avisos: comCreci.aviso ? [...checagem.avisos, comCreci.aviso] : checagem.avisos });
   }),
 );
 

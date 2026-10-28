@@ -5,13 +5,13 @@ import { ARTIGOS, type ArtigoAjuda } from './ajuda-gerada';
 
 export { ARTIGOS, type ArtigoAjuda };
 
-/** Telas do app: nome, para a IA dizer aonde ir, e o artigo da ajuda que fala dela. */
+/** Telas do app, com os nomes do Padrão B (D-103): nome, para a IA dizer aonde ir, e o artigo da ajuda que fala dela. */
 export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
-  '/': { nome: 'Início', doc: 'funil' },
+  '/': { nome: 'Hoje', doc: 'funil' },
   '/clientes': { nome: 'Clientes', doc: 'clientes-e-agenda' },
   '/imoveis': { nome: 'Imóveis', doc: 'imoveis' },
-  '/desempenho': { nome: 'Desempenho', doc: 'desempenho' },
-  '/pagina': { nome: 'Minha página', doc: 'minha-pagina' },
+  '/numeros': { nome: 'Números', doc: 'desempenho' },
+  '/pagina': { nome: 'Página', doc: 'minha-pagina' },
   '/estudio': { nome: 'Estúdio', doc: 'estudio' },
   // Ajustes é uma tela só (D-81); `/ajustes/<aba>` abre a aba, para o Assistente apontar a certa.
   '/ajustes': { nome: 'Ajustes', doc: 'conta-e-ajustes' },
@@ -22,16 +22,19 @@ export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
   '/ajustes/atendimento': { nome: 'Ajustes › Atendimento', doc: 'conta-e-ajustes' },
   // `/funil` é apelido que abre Clientes na visão Quadro (D-83).
   '/funil': { nome: 'Clientes › Quadro', doc: 'funil' },
-  // `/agenda` é apelido que abre o Início na aba Agenda (D-82).
-  '/agenda': { nome: 'Início › Agenda', doc: 'clientes-e-agenda' },
+  // `/agenda` é apelido que abre Hoje na aba Agenda (D-82).
+  '/agenda': { nome: 'Hoje › Agenda', doc: 'clientes-e-agenda' },
   // `/empreendimentos` é apelido que abre Imóveis na aba Empreendimentos (D-84).
   '/empreendimentos': { nome: 'Imóveis › Empreendimentos', doc: 'imoveis' },
 };
 
+/** Apelidos que não são aba de outra tela: o endereço antigo responde pela tela nova. */
+const APELIDOS: Record<string, string> = { '/conta': '/ajustes/conta', '/desempenho': '/numeros', '/assistente': '/' };
+
 /** Tela base de um endereço (`/clientes/12` → `/clientes`; o apelido `/conta` → Ajustes › Conta). */
 export function telaBase(sub: string): string {
   if (TELAS_APP[sub]) return sub;
-  if (sub === '/conta') return '/ajustes/conta';
+  if (APELIDOS[sub]) return APELIDOS[sub];
   const m = sub.match(/^\/(clientes|imoveis|empreendimentos)\/\d+$/);
   return m ? `/${m[1]}` : '/';
 }

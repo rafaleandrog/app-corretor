@@ -1,21 +1,27 @@
 ---
 titulo: Assistente do Corretor
-descricao: O chat do menu Assistente — tira dúvidas pelo manual do app, ajuda a decidir quem atender e cria lembretes ou agenda peças, sempre com a sua confirmação.
+descricao: O chat que abre à direita de qualquer tela — tira dúvidas pelo manual do app, ajuda a decidir quem atender e cria lembretes ou agenda peças, sempre com a sua confirmação.
 ---
 
 # Assistente do Corretor
 
-O **Assistente** fica no menu do app, entre **Desempenho** e **Ajustes**, e abre um chat. Dá para perguntar por
-escrito ou ditar pelo microfone, quando a transcrição de voz estiver liberada.
-- Ele responde pensando na tela em que você estava antes de abri-lo.
-- Se você sair e voltar, a conversa continua lá, enquanto o app estiver aberto.
+O **Assistente** abre um chat **na coluna da direita da tela em que você está**: a tela continua ali, e
+**Fechar**, no topo do chat, o tira da coluna. Em **Números**, já no desenho novo, a lista e o centro ficam como estavam. Nas demais telas, a tela recarrega ao abrir e ao fechar o Assistente. Ele não está mais no menu:
+- Nas telas no desenho novo (hoje, **Números**), é o botão **Assistente** no fim do trilho, à esquerda.
+- Nas demais, é o botão **Assistente** no alto da tela, ao lado de **Criar**.
+- O endereço antigo `/assistente` abre **Hoje** com o Assistente aberto.
+
+Dá para perguntar por escrito ou ditar pelo microfone, quando a transcrição de voz estiver liberada.
+- Ele responde pensando na tela em que você está.
+- Se você trocar de tela, ele continua aberto, com a mesma conversa, enquanto o app estiver aberto.
+- Quando a IA não está liberada para o app, o topo do chat avisa "IA indisponível agora" e ele responde com os artigos do manual.
 
 ## O que ele responde
 
 | Pergunta | Exemplo | De onde vem a resposta |
 |---|---|---|
 | **Como usar o app** | "como conecto meu Instagram?", "dá para mandar uma seleção para o cliente?" | Deste manual (os artigos da documentação do app) e do que já está ligado na sua conta |
-| **Quem atender** | "quem eu atendo primeiro hoje?" | Da fila do dia do Início, com o motivo de cada um |
+| **Quem atender** | "quem eu atendo primeiro hoje?" | Da fila do dia de Hoje, com o motivo de cada um |
 | **Sobre um cliente** | "esse cliente vale insistir?" | Da ficha do cliente: temperatura, último contato, próximo passo, perfil de busca e histórico recente |
 
 **A resposta:**
@@ -25,7 +31,7 @@ escrito ou ditar pelo microfone, quando a transcrição de voz estiver liberada.
   que deu o seu acesso. Ele não inventa funcionalidade.
 
 Na ficha do cliente, o item **Perguntar ao Assistente** do menu **Mais** abre o Assistente já sobre aquele cliente.
-O nome dele aparece no topo, e **Tirar** volta à conversa geral.
+Abrir o Assistente com a ficha de um cliente na tela também o leva junto. O nome dele aparece no topo, e **Tirar** volta à conversa geral.
 
 ## O que ele faz, com confirmação
 
@@ -56,8 +62,8 @@ decisões precisam da IA.
 
 A IA recebe:
 - a pergunta e as últimas mensagens da conversa;
-- a tela em que você está e um resumo da conta (CRECI cadastrado, Instagram conectado, página
-  publicada, totais);
+- a tela em que você está e um resumo da conta (se há CRECI cadastrado, que é opcional, Instagram
+  conectado, página publicada, totais);
 - a fila do dia (nome, temperatura e motivo);
 - os títulos das peças do Estúdio;
 - os trechos do manual ligados à pergunta.

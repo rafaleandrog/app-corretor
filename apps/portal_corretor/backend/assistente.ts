@@ -84,6 +84,14 @@ function artigosDaResposta(achados: Achado[], citados: unknown) {
   return achados.filter((a) => ids.includes(a.id)).map(({ id, slug, titulo, secao }) => ({ id, slug, titulo, secao }));
 }
 
+// Sonda sem custo para o painel do Assistente (D-109) e o estado "IA indisponível" das telas (11.0.4).
+assistenteRotas.get(
+  '/assistente/ia',
+  assincrono(async (req, res) => {
+    res.json({ assistente: await iaDisponivel(req) });
+  }),
+);
+
 assistenteRotas.post(
   '/assistente/perguntar',
   assincrono(async (req, res) => {
@@ -129,7 +137,7 @@ assistenteRotas.post(
     const agora = new Date();
     const contexto = [
       `AGORA: ${agora.toLocaleString('pt-BR', { timeZone: fuso })} (fuso ${fuso}, deslocamento ${deslocamento(fuso, agora)}; ISO ${agora.toISOString()})`,
-      `TELA ATUAL: ${TELAS_APP[tela]?.nome ?? 'Início'}`,
+      `TELA ATUAL: ${TELAS_APP[tela]?.nome ?? 'Hoje'}`,
       `ESTADO DA CONTA:\n${estado}`,
       fila.length
         ? `FILA DO DIA (mais urgente primeiro):\n${fila.slice(0, 10).map((i) => `- contato #${i.contato_id} ${mascarar(i.contato_nome)} · ${i.tipo} · ${i.temperatura ?? 'sem temperatura'} · ${mascarar(i.texto)}`).join('\n')}`

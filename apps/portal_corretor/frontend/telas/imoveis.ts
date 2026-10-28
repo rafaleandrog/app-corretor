@@ -11,6 +11,7 @@ import {
   filtrosNaUrl,
   formularioEnviar,
   opcoes,
+  pedidoDeCriar,
   ROTULO_TIPO_IMOVEL,
   SITUACAO_IMOVEL,
   type ImovelCartao,
@@ -62,6 +63,8 @@ export class PcTelaImoveis extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
+    // "Novo imóvel" do menu Criar.
+    if (pedidoDeCriar('imovel')) void this.novo();
   }
 
   /** Só a busca e a situação vão ao backend: a aba é da tela. */

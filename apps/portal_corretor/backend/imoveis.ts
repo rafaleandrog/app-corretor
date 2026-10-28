@@ -25,7 +25,7 @@ import {
 } from '../comum/imoveis';
 import { normalizarPapeis } from '../comum/crm';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
-import { tentarSincronizar } from './vitrine';
+import { contaDoRequest, tentarSincronizar } from './vitrine';
 
 // Imóveis (anúncios), mídias, autorizações de venda e empreendimentos (bloco 3). Tabelas
 // segregadas por conta; arquivos servidos só por URL assinada gerada aqui (tabela `restrito`).
@@ -54,11 +54,19 @@ async function url(req: Request, arquivo: number | null | undefined): Promise<st
   }
 }
 
-async function temCreci(dados: HelperDados): Promise<boolean> {
-  const corretor = await primeiro(dados, 'perfis_corretor', { 'creci[nulo]': 'false' });
-  if (corretor) return true;
-  const conta = await primeiro(dados, 'perfil_conta', { chave: 'conta' });
-  return !!conta?.creci_juridico;
+/**
+ * Há CRECI para o aviso da ficha (D-93)? Mesma regra do editor da página (`visao`) e do Estúdio
+ * (`creci`): o perfil do próprio usuário na conta de escrita, ou o jurídico dessa conta. Quem atende
+ * várias contas lê todas, e o CRECI de outro corretor ou de outra conta não pode contar.
+ */
+async function temCreci(req: Request): Promise<boolean> {
+  const dados = req.dados!;
+  const contaId = contaDoRequest(req);
+  const [eu, conta] = await Promise.all([
+    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
+    primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId }),
+  ]);
+  return !!(eu?.creci || conta?.creci_juridico);
 }
 
 /** Erro de `upload_id` recusado pelo framework (vencido, de outro usuário, destino errado). */
@@ -87,10 +95,10 @@ async function complementos(req: Request, imoveis: Record<string, any>[]) {
   return mapa;
 }
 
-function resumo(im: Record<string, any>, extra: { midias: any[]; autorizacoes: any[] }, dia: string, creci: boolean) {
+function resumo(im: Record<string, any>, extra: { midias: any[]; autorizacoes: any[] }, dia: string) {
   const vigente = extra.autorizacoes.some((a) => autorizacaoVigente(a as Autorizacao, dia));
   const fotosPublicas = extra.midias.filter((m) => m.tipo === 'foto' && m.publica).length;
-  const qualidade = qualidadeAnuncio(im, { fotosPublicas, autorizacaoVigente: vigente, creci });
+  const qualidade = qualidadeAnuncio(im, { fotosPublicas, autorizacaoVigente: vigente });
   // Publicável: o que poderá aparecer fora do app (Minha Página, ficha pública) — bloco 5 lê isto.
   const publicavel = im.publicado_pagina && SITUACOES_ANUNCIADAS.includes(im.situacao) && vigente;
   return { qualidade, autorizacao_vigente: vigente, publicavel, fotos_publicas: fotosPublicas };
@@ -151,13 +159,13 @@ imoveisRotas.get(
       pagina,
       por_pagina: POR_PAGINA,
     });
-    const [extras, creci] = await Promise.all([complementos(req, r.dados), temCreci(req.dados!)]);
+    const extras = await complementos(req, r.dados);
     const dia = hoje(req);
     const dados = await Promise.all(
       r.dados.map(async (im) => {
         const extra = extras.get(im.id)!;
         const capa = extra.midias.find((m) => m.tipo === 'foto');
-        return { ...im, ...resumo(im, extra, dia, creci), capa_url: await url(req, capa?.arquivo) };
+        return { ...im, ...resumo(im, extra, dia), capa_url: await url(req, capa?.arquivo) };
       }),
     );
     res.json({ ...r, dados });
@@ -214,7 +222,7 @@ imoveisRotas.get(
     if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
     const [extras, creci, visitas, negocios] = await Promise.all([
       complementos(req, [imovel]),
-      temCreci(dados),
+      temCreci(req),
       dados.listar('visitas', { filtros: { imovel_id: iid }, ordenar: 'id', ordem: 'desc', por_pagina: 100 }),
       dados.listar('negocios', { filtros: { imovel_id: iid }, por_pagina: 100 }),
     ]);
@@ -225,7 +233,9 @@ imoveisRotas.get(
     const porAtividade = new Map(atividades.map((a) => [a.id, a]));
     res.json({
       imovel,
-      ...resumo(imovel, extra, dia, creci),
+      ...resumo(imovel, extra, dia),
+      // Só para o aviso discreto em "o que falta" (D-93): o CRECI não pesa na nota.
+      sem_creci: !creci,
       midias: await Promise.all(extra.midias.map(async (m) => ({ ...m, url: await url(req, m.arquivo) }))),
       autorizacoes: extra.autorizacoes.map((a) => ({ ...a, situacao_efetiva: situacaoAutorizacao(a as Autorizacao, dia), vigente: autorizacaoVigente(a as Autorizacao, dia) })),
       visitas: visitas.dados.map((v) => {

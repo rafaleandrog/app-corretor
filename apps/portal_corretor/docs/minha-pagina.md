@@ -20,7 +20,7 @@ ou no computador:
 
 | Bloco | O que mostra |
 |---|---|
-| Apresentação | A capa: a sua foto (sem foto, as suas iniciais), o nome, o CRECI só se você tiver preenchido, o título e o texto, e os botões **Falar no WhatsApp** e Instagram |
+| Apresentação | A capa: a sua foto (sem foto, as suas iniciais), o nome, o CRECI (só se cadastrado), o título e o texto, e os botões **Falar no WhatsApp** e Instagram |
 | Imóveis em destaque | Até 6 imóveis escolhidos, cada um com o botão **Quero saber mais**, que abre o seu WhatsApp citando o código e o título do imóvel (com o WhatsApp desligado, abre a ficha do imóvel). Numa página nova ele vem ligado, mas sem imóveis escolhidos fica de fora: só aparece com pelo menos um imóvel escolhido e publicado. O título padrão é **Imóveis em destaque**; numa página já salva vale o título gravado, e um título apagado volta a esse nome. Esse bloco não é o que toda página mostra: a página nova traz o bloco **Todos os imóveis** (título padrão **Imóveis à venda**) |
 | Todos os imóveis | Todos os imóveis publicados |
 | Sobre mim | Um texto mais longo |
@@ -44,6 +44,10 @@ publicada antes de a capa ter foto mostra as iniciais até o próximo **Atualiza
 
 O CRECI é opcional (D-93): sem ele, a capa mostra só "Corretor de imóveis", e nada deixa de
 funcionar. Os cartões dos imóveis (na página inteira) também ganham o botão **Quero saber mais**.
+
+O CRECI é opcional: a página publica sem ele, e a apresentação só mostra o CRECI se ele existir.
+Sem o seu CRECI nesta conta e sem o CRECI jurídico dela, o editor mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
+anúncios"*, com o atalho **Ajustes › Conta**.
 
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**
 copia o endereço completo.

@@ -20,8 +20,8 @@ Na ficha do cliente, em **Seleções e portal**, o botão **+** (Nova seleção)
 O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>`. Vale pelo prazo de
 "validade da seleção enviada" de Ajustes › Atendimento (14 dias, se você não mudar).
 
-No topo, o cliente vê o seu nome, o CRECI (só se você tiver preenchido no perfil), o botão de
-WhatsApp e a sua foto (sem foto, as suas iniciais), na cor principal da
+No topo, o cliente vê o seu nome, o CRECI (só se cadastrado), o botão de WhatsApp e a sua
+foto (sem foto, as suas iniciais), na cor principal da
 sua marca ([Ajustes › Marca](conta-e-ajustes.md#a-marca)). Mudar a cor ou a foto na marca muda as
 seleções válidas e os portais já enviados, sem mandar link novo.
 
