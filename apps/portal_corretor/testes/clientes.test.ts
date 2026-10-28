@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { rotas } from '../backend/rotas';
 import { chipsDoPerfilBusca } from '../comum/crm';
-import { contatoDoEndereco, fichaCanonica, resolverEndereco } from '../frontend/enderecos';
+import { contatoDoEndereco, contatoDoItem, fichaCanonica, resolverEndereco } from '../frontend/enderecos';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 // Clientes no Padrão B (B3, issue #92): a ficha mora na Lista (`/clientes?item=<id>`), o caminho antigo
@@ -76,4 +76,17 @@ test('isolamento: o corretor B não abre a ficha de A pela URL, nem o portal, as
     assert.equal((await chamar('GET', '/contatos')).corpo.total, 0, 'a lista de B não tem a Ana');
     assert.equal((await chamar('PATCH', `/contatos/${id}/remover`, {})).status, 404, 'nem remove');
   });
+});
+
+test('?item= só é contato na visão Lista: a notificação de negociação não abre ficha de outro cliente', () => {
+  assert.equal(contatoDoEndereco('/clientes', '?item=7'), 7);
+  assert.equal(contatoDoEndereco('/clientes', '?visao=lista&item=7'), 7);
+  assert.equal(contatoDoEndereco('/clientes', '?visao=negociacoes&item=7'), null);
+  assert.equal(contatoDoEndereco('/clientes', '?visao=quadro&item=7'), null);
+  assert.equal(contatoDoEndereco('/clientes', '?visao=xyz&item=7'), null, 'visão desconhecida não é Lista');
+  assert.equal(contatoDoEndereco('/clientes/7', ''), 7, 'o apelido antigo continua');
+  assert.equal(contatoDoEndereco('/clientes/7', '?sugerir=1'), 7);
+  // O endereço do manifesto (`clientes?visao=negociacoes&item={negociacao_id}`), na função que a tela usa.
+  assert.equal(contatoDoItem('?visao=negociacoes&item=55'), null);
+  assert.equal(contatoDoItem('?item=55'), 55);
 });

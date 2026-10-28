@@ -63,16 +63,28 @@ export function resolverEndereco(sub: string): { chave?: ChaveTela; param?: stri
 }
 
 /**
+ * Contato do `?item=` de Clientes (`?item=7`, spec 11.0.2). O `item` só é contato na Lista: a chave
+ * `visao` ausente ou `lista`. Em qualquer outra (`quadro`, `negociacoes` ou valor desconhecido) o `item`
+ * é de outra coisa (a notificação de negociação abre `?visao=negociacoes&item=<negociacao_id>`) e nenhuma
+ * ficha abre. Regra única: a tela de Clientes e `contatoDoEndereco` usam esta função.
+ */
+export function contatoDoItem(busca = ''): number | null {
+  const q = new URLSearchParams(busca);
+  const visao = q.get('visao');
+  if (visao !== null && visao !== 'lista') return null;
+  const item = q.get('item') ?? '';
+  return /^\d+$/.test(item) ? Number(item) : null;
+}
+
+/**
  * Contato em foco no endereço (ficha aberta), para o Assistente e o Criar levarem o contexto: o item
- * selecionado em Clientes (`/clientes?item=7`, spec 11.0.2) ou o caminho antigo `/clientes/7`.
+ * selecionado na Lista de Clientes (`contatoDoItem`) ou o caminho antigo `/clientes/7`.
  */
 export function contatoDoEndereco(sub: string, busca = ''): number | null {
   const s = normalizar(sub);
   const m = s.match(/^\/clientes\/(\d+)$/);
   if (m) return Number(m[1]);
-  if (s !== '/clientes') return null;
-  const item = new URLSearchParams(busca).get('item') ?? '';
-  return /^\d+$/.test(item) ? Number(item) : null;
+  return s === '/clientes' ? contatoDoItem(busca) : null;
 }
 
 /**

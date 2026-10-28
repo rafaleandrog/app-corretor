@@ -1,6 +1,6 @@
 ---
 titulo: Funil, temperatura e fila do dia
-descricao: Quadro do funil, temperatura do contato com motivo, abordagens recomendadas e a fila do dia em Hoje.
+descricao: A visão Funil de Clientes, temperatura do contato com motivo, abordagens recomendadas e a fila do dia em Hoje.
 ---
 
 # Funil, temperatura e fila do dia
@@ -10,7 +10,7 @@ descricao: Quadro do funil, temperatura do contato com motivo, abordagens recome
 O funil é a visão **Funil** de **Clientes** (o botão **Funil**, ao lado de **Lista**, no alto
 da coluna da esquerda). Ele mostra os negócios em quadro, uma coluna por etapa, com o nome do cliente, o título,
 o valor, a temperatura e o aviso de **abordagem atrasada**. O endereço antigo `/funil` continua
-abrindo o quadro.
+abrindo a visão Funil.
 
 - Arraste o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
   motivo, o cartão volta.
@@ -19,7 +19,7 @@ abrindo o quadro.
   [Próxima abordagem](#próxima-abordagem)).
 - Filtros: funil (compra ou venda e captação), temperatura e "sem contato há" 3, 7, 15, 30 ou 90
   dias (as mesmas opções da Lista). Ficam no endereço da página.
-- Ganhos e perdidos ficam no quadro por 30 dias; os em andamento ficam sempre.
+- Ganhos e perdidos ficam na visão Funil por 30 dias; os em andamento ficam sempre.
 
 ## Temperatura do contato
 
@@ -117,7 +117,7 @@ uma linha e **um** botão, com no máximo uma ação a mais no "Mais":
 | Próximo passo | **Abrir** (a ficha do cliente) | — |
 
 Aparecem 8 cartões; o resto fica em **Mais N para depois**. O WhatsApp abre na ficha, no clique do
-**Fazer agora** de lá: Hoje e o quadro só levam até a mensagem pronta (e ela só é gerada se o contato
+**Fazer agora** de lá: Hoje e a visão Funil só levam até a mensagem pronta (e ela só é gerada se o contato
 tiver abordagem). Fila vazia mostra "Nada urgente agora" e o botão **Cadastrar um cliente**.
 
 **À direita:**

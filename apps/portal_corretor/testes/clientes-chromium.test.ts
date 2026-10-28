@@ -21,6 +21,7 @@ const ORIGEM = 'https://app.exemplo';
 
 const ENTRADA = `
 import { render } from 'lit';
+window.render = render;
 import { renderClientes } from './frontend/telas/clientes';
 const CONTATOS = [
   { id: 7, nome: 'Ana Ribeiro', telefone: '+5561999990001', email: 'ana@exemplo.com', papeis: 'comprador', temperatura: 'quente', origem_canal: 'pagina', proximo_passo: null, proximo_passo_em: null },
@@ -31,7 +32,8 @@ const ficha = (c) => ({
     perfil_busca: { finalidade: 'moradia', tipos: ['apartamento'], regioes: ['Sudoeste'], preco_max_c: 90000000, quartos: 3 } },
   negocios: [{ id: 1, titulo: 'Compra', etapa_nome: 'Visita', etapa_tipo: 'andamento', pipeline: 'compra', valor_estimado_c: 0 }],
   atividades: [], visitas: [], linha_do_tempo: [{ id: 1, resumo: 'Contato registrado', ocorrido_em: '2026-10-02T12:00:00Z', autor_nome: 'Marina' }],
-  consentimento: null, abordagem: null, classificacoes: [],
+  consentimento: null, classificacoes: [],
+  abordagem: c.id === 7 ? { abordagem: 'Ligar para combinar visita', canal_sugerido: 'ligacao', vencida: false, vence_em: null, etapa_nome: 'Visita' } : null,
 });
 const chamadas = [];
 window.chamadas = chamadas;
@@ -57,6 +59,7 @@ window.urbiVerso = {
     // Contato de outra conta: a rota responde 404 (o RLS não devolve a linha).
     if (m && !c) throw Object.assign(new Error('Contato não encontrado.'), { status: 404 });
     if (m && !m[2]) return ficha(c);
+    if (m && m[2] === '/mensagem-sugerida') return { mensagem: 'Oi, Ana!', ia: false };
     if (m && m[2] === '/ia') return { resumo: false, mensagem: false };
     if (m && m[2] === '/portal') return { ativo: true, link: '/portal_corretor/c?t=x', criado_em: '2026-10-03T12:00:00Z' };
     if (m && m[2] === '/tarefas-cliente') return { dados: [] };
@@ -227,6 +230,39 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     f = await ficha();
     assert.equal(f.url, '?item=8');
     assert.match(f.centro, /Bruno Lima/);
+
+    // Voltar à ficha do mesmo contato por "Fazer agora" (`?sugerir=1`) é uma chegada nova: a Mensagem
+    // sugerida carrega de novo e a aba vem do endereço; redesenhar a mesma visita não sugere outra vez.
+    const sugestoes = () => pagina.evaluate(() => (window as any).chamadas.filter((c: string) => c.startsWith('/contatos/7/mensagem-sugerida')).length);
+    const aba = () => pagina.evaluate(() => (window as any).achar(document.querySelector('pc-ficha-contato-foco'), 'urbi-abas')?.getAttribute('ativa'));
+    const chegar = async (busca: string) => {
+      await pagina.evaluate((b: string) => {
+        const w = window as any;
+        w.render(null, document.getElementById('raiz')); // sai de Clientes (Hoje): as duas colunas desconectam
+        history.replaceState(null, '', location.pathname + b);
+        w.desenhar();
+      }, busca);
+      await esperar();
+    };
+    await pagina.goto(`${ORIGEM}/portal_corretor/clientes?item=7&sugerir=1`);
+    await esperar();
+    assert.equal(await sugestoes(), 1, '(a) primeira abertura com sugerir sugere uma vez');
+    assert.equal(await pagina.evaluate(() => location.search), '?item=7', 'o ?sugerir=1 sai do endereço');
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.achar(document.querySelector('pc-ficha-contato-foco'), 'urbi-abas').dispatchEvent(new CustomEvent('urbi:aba-selecionar', { detail: { id: 'enviados' }, bubbles: true, composed: true }));
+    });
+    await esperar();
+    await pagina.evaluate(() => (window as any).desenhar());
+    await esperar();
+    assert.equal(await sugestoes(), 1, '(b) mesma visita: trocar de aba e redesenhar não sugere de novo');
+    assert.equal(await aba(), 'enviados', '(b) o estado da visita se mantém');
+    await chegar('?item=7&sugerir=1&secao=linha');
+    assert.equal(await sugestoes(), 2, '(c) voltar ao mesmo contato com sugerir sugere de novo');
+    assert.equal(await aba(), 'linha', '(c) a aba vem do endereço');
+    await chegar('?item=7');
+    assert.equal(await sugestoes(), 2, '(d) voltar sem sugerir não sugere');
+    assert.equal(await aba(), 'resumo', '(d) aba padrão');
   } finally {
     await navegador.close();
   }

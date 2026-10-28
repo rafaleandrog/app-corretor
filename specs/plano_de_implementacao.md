@@ -64,7 +64,7 @@ Plano aprovado pelo dono em 27/10. Fonte: spec 1.2 — 2.8, 5.1, 6.16, 7.1, 10.9
 | C1 | **CRECI opcional (D-93):** sem bloqueio nem `CRECI_AUSENTE`, aviso discreto com atalho para o perfil, sem estado de verificação | #89 | A1 | [x] PR aberto (0.1.11); aguarda revisão |
 | B1 | **Moldura do Padrão B:** `urbi-3-colunas` + `urbi-trilho-atalhos` (+ `urbi-inbox`), Criar no cabeçalho e Assistente no trilho, menu com os nomes do Padrão B e apelidos (D-103), estados de 11.0.4 | #90 | A1 | [x] PR aberto (moldura em Números; 0.1.12); aguarda revisão |
 | B2 | **Hoje** (P01, M1) na moldura | #91 | B1, C1 | [x] PR aberto (0.1.15) |
-| B3 | **Clientes — Lista e ficha** (P04): ficha D-92 no centro e na direita (D-106) | #92 | B1, C1 | [x] PR aberto (0.1.16) |
+| B3 | **Clientes — Lista e ficha** (P04): ficha D-92 no centro e na direita (D-106) | #92 | B1, C1 | [x] PR aberto (0.1.17) |
 | B4 | **Clientes — Funil e Importar** (P03, P14) | #93 | B3 | [ ] |
 | B5 | **Imóveis** (P06, P07, M3): carteira em lista com miniatura (D-106) | #94 | B1, C1 | [ ] |
 | B6 | **Estúdio** (P08) na moldura, D-89 a D-91 (D-105) | #95 | B1, C1 | [ ] |

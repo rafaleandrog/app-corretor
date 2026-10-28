@@ -14,7 +14,6 @@ import {
   filtrosDaUrl,
   filtrosNaUrl,
   formularioEnviar,
-  itemDaUrl,
   itemNaUrl,
   opcoesChip,
   opcoesPapelNaTela,
@@ -22,6 +21,7 @@ import {
   ROTULO_PAPEL,
   type OpcoesAba,
 } from '../apoio.js';
+import { contatoDoItem } from '../enderecos.js';
 import { estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import './clientes-quadro.js';
@@ -53,11 +53,12 @@ const OPCOES_VISAO: OpcoesAba = { chave: 'visao', apelidos: { '/funil': 'quadro'
 /** A visão do endereço que está na barra agora. */
 export const visaoAtual = () => abaDaUrl(VISOES.map((v) => v.id), OPCOES_VISAO);
 
-/** Cliente selecionado na Lista (`?item=<id>`, spec 11.0.2); só ids numéricos abrem a ficha. */
-export function clienteDaUrl(): number | null {
-  const item = itemDaUrl();
-  return item && /^\d+$/.test(item) ? Number(item) : null;
-}
+/**
+ * Cliente selecionado na Lista (`?item=<id>`, spec 11.0.2); só ids numéricos abrem a ficha, e só quando a
+ * visão do endereço é a Lista (`contatoDoItem`): `?visao=negociacoes&item=<negociacao>` não abre ficha.
+ * Enquanto a visão Negociações não existe (D3), esse endereço mostra a Lista sem ficha aberta.
+ */
+export const clienteDaUrl = (): number | null => contatoDoItem(window.location.search);
 
 /**
  * Clientes na moldura do Padrão B (P04, D-106): a lista à esquerda, a ficha do cliente selecionado no
@@ -69,13 +70,13 @@ export function renderClientes(atualizar: () => void) {
   const visao = visaoAtual();
   const id = visao === 'lista' ? clienteDaUrl() : null;
   const trocarVisao = (v: string) => {
-    if (!VISOES.some((x) => x.id === v) || v === visao) return;
+    if (!VISOES.some((x) => x.id === v)) return;
     abaNaUrl(v === 'lista' ? '' : v, OPCOES_VISAO);
     atualizar();
   };
   const escolher = (contato: number | null) => {
-    // Escolher na visão Funil (ou criar um contato) leva à Lista, onde a ficha mora.
-    if (visao !== 'lista') abaNaUrl('', OPCOES_VISAO);
+    // Escolher na visão Funil (ou criar um contato) leva à Lista, onde a ficha mora; uma `visao` desconhecida também sai.
+    if (filtrosDaUrl().has('visao') || visao !== 'lista') abaNaUrl('', OPCOES_VISAO);
     itemNaUrl(contato);
     atualizar();
   };

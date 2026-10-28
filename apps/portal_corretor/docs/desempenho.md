@@ -76,7 +76,7 @@ e a comissão prevista.
 
 ## Enviados ao cliente
 
-Na ficha do cliente, no topo do **Histórico**, **Registrar envio** anota o que o corretor mandou (imóvel, arquivo,
+Na ficha do cliente, na aba **Enviados** (o botão **+**) ou no topo da aba **Linha do tempo**, **Registrar envio** anota o que o corretor mandou (imóvel, arquivo,
 mensagem, localização) e por onde (WhatsApp, e-mail, pessoalmente). Com um imóvel, o app devolve
 a mensagem pronta para colar no WhatsApp (nome do cliente, título, bairro e preço; nunca o
 proprietário nem o endereço completo). O envio conta como contato com o cliente e entra na linha

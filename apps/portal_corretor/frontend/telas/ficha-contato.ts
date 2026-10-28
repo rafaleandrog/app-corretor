@@ -56,6 +56,8 @@ interface EstadoFicha {
   falha: unknown;
   /** Sonda dos slots (sem custo): Resumir só funciona com a IA do Assistente liberada. */
   ia: { resumo: boolean; mensagem: boolean };
+  /** A sonda respondeu: só então a tela pode afirmar que a IA está indisponível. */
+  iaSondada: boolean;
   resumo: string | null;
   resumindo: boolean;
   sugestao: Sugestao | null;
@@ -80,7 +82,7 @@ export class FichaContato {
   constructor(readonly contatoId: number) {
     const avisar = () => this.ouvintes.forEach((f) => f());
     const inicial: EstadoFicha = {
-      ficha: null, envios: [], etapas: [], falha: null, ia: { resumo: false, mensagem: false },
+      ficha: null, envios: [], etapas: [], falha: null, ia: { resumo: false, mensagem: false }, iaSondada: false,
       resumo: null, resumindo: false, sugestao: null, sugerindo: false, criandoTarefa: false, aba: secaoDaFicha(),
     };
     this.s = new Proxy(inicial, {
@@ -90,6 +92,11 @@ export class FichaContato {
         return true;
       },
     });
+  }
+
+  /** Alguma coluna está mostrando esta ficha (a visita ainda está na tela). */
+  get emUso(): boolean {
+    return this.ouvintes.size > 0;
   }
 
   ouvir(fn: () => void): () => void {
@@ -103,7 +110,10 @@ export class FichaContato {
     if (this.sondada) return;
     this.sondada = true;
     void chamarApi(`/contatos/${this.contatoId}/ia`).then(
-      (r) => (this.s.ia = { resumo: !!r.resumo, mensagem: !!r.mensagem }),
+      (r) => {
+        this.s.ia = { resumo: !!r.resumo, mensagem: !!r.mensagem };
+        this.s.iaSondada = true;
+      },
       () => undefined,
     );
   }
@@ -130,7 +140,8 @@ export class FichaContato {
       ]);
       this.s.ficha = ficha;
       // Contato em foco: o Assistente aberto nesta ficha e a Nova visita do Criar já vêm com ele.
-      lembrarContato({ id: ficha.contato.id, nome: ficha.contato.nome });
+      // Só a ficha que ainda é a aberta: resposta tardia de outro contato não toma o foco.
+      if (aberta?.ficha === this) lembrarContato({ id: ficha.contato.id, nome: ficha.contato.nome });
       this.s.etapas = etapas.etapas;
       this.s.envios = envios.dados;
       if (sugerirAgora && ficha.abordagem) void this.sugerir();
@@ -524,12 +535,12 @@ export class FichaContato {
         <urbi-linha quebrar>
           <urbi-botao pequeno icone="fa-brands fa-whatsapp" ?desabilitado=${!temTelefone} title=${temTelefone ? nothing : 'Sem telefone'} @click=${() => this.abrirWhatsapp()}>Conversa</urbi-botao>
           <urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.s.resumindo} ?desabilitado=${!this.s.ia.resumo}
-            title=${this.s.ia.resumo ? nothing : DICA_IA_INDISPONIVEL} @click=${() => this.resumir()}>Resumir</urbi-botao>
+            title=${this.s.iaSondada && !this.s.ia.resumo ? DICA_IA_INDISPONIVEL : nothing} @click=${() => this.resumir()}>Resumir</urbi-botao>
           ${temTelefone ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-phone" ariaLabel="Ligar" title="Ligar" href=${`tel:${String(c.telefone).replace(/[^\d+]/g, '')}`}></urbi-botao>` : ''}
           ${c.email ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-envelope" ariaLabel="E-mail" title="E-mail" href=${`mailto:${c.email}`}></urbi-botao>` : ''}
           ${this.menuMais()}
         </urbi-linha>
-        ${this.s.ia.resumo ? '' : html`<urbi-prosa papel="fraco">${DICA_IA_INDISPONIVEL}: Resumir volta quando a IA for liberada; a Mensagem sugerida usa o texto do playbook.</urbi-prosa>`}
+        ${this.s.iaSondada && !this.s.ia.resumo ? html`<urbi-prosa papel="fraco">${DICA_IA_INDISPONIVEL}: Resumir volta quando a IA for liberada; a Mensagem sugerida usa o texto do playbook.</urbi-prosa>` : ''}
         ${this.s.resumo
           ? html`<urbi-prosa papel="dica">${this.s.resumo}</urbi-prosa>
               <urbi-prosa papel="fraco">Resumo feito pela IA agora, a partir do histórico; não fica gravado.</urbi-prosa>`
@@ -738,12 +749,17 @@ export class FichaContato {
   }
 }
 
-/** A ficha aberta: uma por vez, da conta ativa. Abrir outro contato (ou trocar de conta) cria outra. */
+/**
+ * A ficha aberta: uma por vez, da conta ativa. Abrir outro contato (ou trocar de conta) cria outra, e
+ * toda nova chegada também: sem coluna ouvindo, a visita anterior acabou e a ficha é lida de novo do
+ * endereço (`?sugerir=1`, `?secao=`), como cada visita montando um elemento novo. As duas colunas da
+ * MESMA visita (uma reconectando, a outra ainda ouvindo) seguem no mesmo estado.
+ */
 let aberta: { conta: number | null; ficha: FichaContato } | null = null;
 
 export function fichaDe(contatoId: number): FichaContato {
   const conta = contaAtiva();
-  if (!aberta || aberta.conta !== conta || aberta.ficha.contatoId !== contatoId) aberta = { conta, ficha: new FichaContato(contatoId) };
+  if (!aberta || aberta.conta !== conta || aberta.ficha.contatoId !== contatoId || !aberta.ficha.emUso) aberta = { conta, ficha: new FichaContato(contatoId) };
   return aberta.ficha;
 }
 

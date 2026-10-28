@@ -100,7 +100,8 @@ nota interna: nunca vai ao portal. Mudar o texto entra na linha do tempo.
 
 ### O que falta de você
 
-Na ficha, em **Seleções e portal**, o botão **Pedir ao cliente** cria uma pendência para ele, por
+Na ficha, na coluna da direita, no cartão **Portal do cliente**, o botão **Pedir ao cliente** (na parte
+**O que falta do cliente**) cria uma pendência para ele, por
 exemplo "confirmar a visita" ou "enviar a documentação" (até 20 abertas por cliente). Ela entra na
 linha do tempo ("Pediu ao cliente: …") e aparece no portal.
 
