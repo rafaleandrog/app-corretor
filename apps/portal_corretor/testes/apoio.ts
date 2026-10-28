@@ -80,6 +80,18 @@ export class BancoFalso {
     minhas.add(chave);
   }
 
+  /** Quantos esperam a trava da linha (`tabela:id`): o teste de corrida confere que alguém esperou. */
+  esperando(chave: string) {
+    return this.travas.get(chave)?.length ?? 0;
+  }
+
+  /**
+   * Pausa opcional DENTRO de uma transação, depois de cada `varrerTudo` (o resultado já lido): o teste
+   * de corrida segura aí a primeira transação, com o que ela travou, enquanto a outra disputa a trava.
+   * Sem ela (o padrão), nada muda.
+   */
+  pausaNaTransacao: ((tabela: string) => Promise<void>) | null = null;
+
   private soltar(minhas: Set<string>) {
     for (const chave of minhas) {
       const fila = this.travas.get(chave)!;
@@ -190,6 +202,11 @@ export class BancoFalso {
           async buscar(tabela: string, id: number, op: { travar?: boolean } = {}) {
             if (op.travar) await banco.travar(`${tabela}:${id}`, minhas);
             return helper.buscar(tabela, id);
+          },
+          async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
+            const r = await helper.varrerTudo(tabela, op);
+            if (banco.pausaNaTransacao) await banco.pausaNaTransacao(tabela);
+            return r;
           },
         };
         const foto = [...banco.tabelas].map(([t, ls]) => ({ t, ls: ls.slice(), copias: ls.map((l) => ({ ...l })) }));

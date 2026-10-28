@@ -31,8 +31,11 @@ test('manifesto e backend andam juntos: rotas públicas, webhooks, eventos e pá
     assert.ok(pilha.some((p: string) => p === caminho || p.startsWith(`${caminho}/`)), `rota pública ${caminho} sem GET`);
   }
   assert.deepEqual(Object.keys(backend.webhooks).sort(), Object.keys(m.webhooks).sort(), 'um handler por webhook declarado');
-  // Os eventos da negociação (D1) só notificam: ninguém no app reage a eles ainda (o motor é o D2).
-  const soNotificam = ['negociacao_iniciada', 'proposta_recebida', 'proposta_registrada', 'mandato_alterado', 'negociacao_encerrada', 'negociacao_limite_atingido'];
+  // Os eventos da negociação (D1 e D2) só notificam: nenhum listener do app reage a eles.
+  const soNotificam = [
+    'negociacao_iniciada', 'proposta_recebida', 'proposta_registrada', 'mandato_alterado', 'negociacao_encerrada', 'negociacao_limite_atingido',
+    'objecao_detectada', 'contraproposta_sugerida', 'contraproposta_enviada', 'negociacao_acordo_proposto', 'negociacao_assumida', 'negociacao_devolvida',
+  ];
   for (const e of soNotificam) assert.ok(m.eventos[e], `evento ${e} declarado`);
   const comListener = Object.keys(m.eventos).filter((e) => !soNotificam.includes(e));
   assert.deepEqual(Object.keys(backend.reagir).sort(), comListener.sort(), 'um listener por evento declarado (fora os que só notificam)');

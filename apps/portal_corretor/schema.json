@@ -2795,6 +2795,36 @@
           "intervalo": {
             "min": 0
           }
+        },
+        "mensagem_cliente": {
+          "tipo": "texto",
+          "limite": 1000
+        },
+        "decisao": {
+          "tipo": "texto",
+          "limite": 15,
+          "obrigatorio": true,
+          "padrao": "pendente",
+          "opcoes": [
+            "pendente",
+            "aprovada",
+            "editada",
+            "descartada",
+            "automatica",
+            "passagem"
+          ]
+        },
+        "proposta_id": {
+          "tipo": "referencia",
+          "tabela_ref": "propostas",
+          "ao_deletar": "anular"
+        },
+        "mensagem_enviada": {
+          "tipo": "texto",
+          "limite": 1000
+        },
+        "decidida_em": {
+          "tipo": "datahora"
         }
       },
       "indices": [

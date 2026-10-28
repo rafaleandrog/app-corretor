@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.16",
+  "versao": "0.1.17",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -27,6 +27,11 @@
         "titulo": "Mensagem sugerida",
         "base": "barato",
         "descricao": "Adapta a abordagem do playbook ao histórico do contato, na ficha (o corretor revisa e envia)"
+      },
+      "negociador": {
+        "titulo": "Negociador",
+        "base": "poder",
+        "descricao": "Lê a objeção, estima o teto do comprador e propõe o próximo movimento dentro do mandato (o app valida antes de mostrar ou enviar)"
       }
     }
   },
@@ -367,6 +372,70 @@
         "negociacao_id"
       ],
       "conteudo": "O Negociador precisa de você numa negociação",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "objecao_detectada": {
+      "descricao": "O Negociador reconheceu uma objeção do comprador numa negociação.",
+      "campos": [
+        "negociacao_id",
+        "objecao_id"
+      ],
+      "conteudo": "Objeção detectada numa negociação",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "contraproposta_sugerida": {
+      "descricao": "O Negociador preparou o próximo movimento e espera a sua aprovação.",
+      "campos": [
+        "negociacao_id",
+        "execucao_id"
+      ],
+      "conteudo": "Contraproposta esperando a sua aprovação",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "contraproposta_enviada": {
+      "descricao": "Uma contraproposta do vendedor saiu pelo portal ou pelo Fazer agora.",
+      "campos": [
+        "negociacao_id",
+        "proposta_id"
+      ],
+      "conteudo": "Contraproposta enviada",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "negociacao_acordo_proposto": {
+      "descricao": "O corretor aceitou a proposta do comprador e levou o acordo à decisão do proprietário.",
+      "campos": [
+        "negociacao_id",
+        "proposta_id"
+      ],
+      "conteudo": "Acordo aguardando a decisão do proprietário",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "negociacao_assumida": {
+      "descricao": "O corretor assumiu a condução de uma negociação.",
+      "campos": [
+        "negociacao_id"
+      ],
+      "conteudo": "Você assumiu uma negociação",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "negociacao_devolvida": {
+      "descricao": "O corretor devolveu a negociação ao Negociador IA.",
+      "campos": [
+        "negociacao_id"
+      ],
+      "conteudo": "Negociação devolvida ao Negociador",
       "api": "negociacoes/{negociacao_id}",
       "rota": "clientes?visao=negociacoes&item={negociacao_id}",
       "segregado_por_conta": true

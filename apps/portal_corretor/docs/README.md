@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.16; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.17; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -23,7 +23,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | O portal "Meu atendimento" com o próximo passo e as abas Conversa, Imóveis, Agenda e Arquivos: reage aos imóveis (gostei, não gostei, quero visitar, comentar), vê as visitas, pede para remarcar, manda mensagem ao corretor e marca como feitas as pendências que o corretor pediu (botão **Feito**); link revogado mostra "Link expirado" |
 | Corretor | **Assistente** (botão, abre à direita da tela) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
 | Corretor | **Ajustes** | Uma tela com cinco abas: Conta, Marca, Conexões (Instagram), Funil e abordagens, Atendimento — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
-| Corretor | **Negociação** (sem tela ainda) | Os dados da negociação de um negócio: o mandato do vendedor (com alvo, recuo e BATNA sigilosos), as propostas por rodada, os ajustes do Negociador e as respostas a objeções; as telas chegam nas versões seguintes — ver [Negociação e mandato](negociacao.md) |
+| Corretor | **Negociação** (sem tela ainda) | Os dados da negociação de um negócio: o mandato do vendedor (com alvo, recuo e BATNA sigilosos), as propostas por rodada, o Negociador IA (sugere o próximo movimento e confere cada um contra o mandato; nunca aceita o acordo), os ajustes e as respostas a objeções; as telas chegam nas versões seguintes — ver [Negociação e mandato](negociacao.md) |
 | Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
 | Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Números e Hoje com o Assistente aberto; `/conta` abre Ajustes › Conta |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
@@ -95,11 +95,12 @@ conexões com a Meta, quando elas chegarem.
 
 ## Para o administrador da instância
 
-- **IA:** o app declara quatro slots próprios: **Conteúdo** e **Assistente do Corretor** (base
-  `normal`), **Leitura de fotos** (base `arquivos`) e **Mensagem sugerida** (slot `funil`, base
-  `barato`: adapta a abordagem do playbook ao histórico, na ficha do cliente). Para ligá-los, em
-  Admin › Instaláveis › Apps › Portal do Corretor › IA, autorize as bases `normal`, `arquivos` e
-  `barato` (chave da plataforma) ou configure uma chave própria em cada slot. Sem isso o app
+- **IA:** o app declara cinco slots próprios: **Conteúdo** e **Assistente do Corretor** (base
+  `normal`), **Leitura de fotos** (base `arquivos`), **Mensagem sugerida** (slot `funil`, base
+  `barato`: adapta a abordagem do playbook ao histórico, na ficha do cliente) e **Negociador**
+  (base `poder`: sugere o próximo movimento da negociação). Para ligá-los, em
+  Admin › Instaláveis › Apps › Portal do Corretor › IA, autorize as bases `normal`, `arquivos`,
+  `barato` e `poder` (chave da plataforma) ou configure uma chave própria em cada slot. Sem isso o app
   funciona, sem os botões de IA, e o Assistente vira busca no manual. Sem a base `barato`, a
   Mensagem sugerida mostra o texto do playbook como está. O microfone do Assistente aparece quando o slot de áudio da
   plataforma estiver liberado para o app.
