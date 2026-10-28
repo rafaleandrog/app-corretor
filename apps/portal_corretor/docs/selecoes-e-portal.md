@@ -10,7 +10,7 @@ O corretor pode revogar o link quando quiser. Seleção e portal são pensados p
 
 ## Seleção de imóveis
 
-Na ficha do cliente, em **Seleções e portal**, o botão **+** (Nova seleção) abre a montagem:
+Na ficha do cliente, na aba **Negócios**, o cartão **Seleções** tem o botão **+** (Nova seleção), que abre a montagem:
 
 1. Dê um título e, se quiser, uma mensagem.
 2. Escolha de 1 a 12 imóveis da carteira. Só aparecem imóveis **ativos ou reservados com
@@ -62,10 +62,11 @@ O envio da seleção entra em **Enviados ao cliente** e no histórico.
 
 ## Portal do Cliente
 
-Na mesma área da ficha, **Gerar link do portal** cria o link do cliente
-(`…/portal_corretor/c?t=<chave>`) e copia uma mensagem pronta. Há **um link por cliente**: clicar
-de novo copia o mesmo link. O link não vence. **Revogar** faz ele parar de abrir, e um novo pode
-ser gerado depois.
+Na ficha do cliente, à direita, o cartão **Portal do cliente** mostra se há link ativo e quando
+foi gerado. **Gerar link do portal** cria o link do cliente (`…/portal_corretor/c?t=<chave>`) e
+copia uma mensagem pronta. Há **um link por cliente**: **Reenviar link** copia de novo a mensagem
+com o mesmo link. O link não vence. **Revogar** faz ele parar de abrir, e um novo pode ser gerado
+depois. O portal abre por link, sem login.
 
 O portal se chama **Meu atendimento** e é curado por você (o modelo do Compass One). No topo
 ficam o nome do corretor (o da Minha página, se houver), a foto (sem foto, as iniciais), o CRECI

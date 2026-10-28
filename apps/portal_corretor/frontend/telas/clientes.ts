@@ -1,6 +1,7 @@
-import { LitElement, html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
-import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
+import { LitElement, html, nothing } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+import { keyed } from 'lit/directives/keyed.js';
+import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
 import { DIAS_NOVOS, FILTROS_PRONTOS, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
 import {
@@ -13,13 +14,18 @@ import {
   filtrosDaUrl,
   filtrosNaUrl,
   formularioEnviar,
+  itemDaUrl,
+  itemNaUrl,
   opcoesChip,
   opcoesPapelNaTela,
   pedidoDeCriar,
   ROTULO_PAPEL,
   type OpcoesAba,
 } from '../apoio.js';
+import { estadoTela } from '../estados.js';
+import { moldura } from '../moldura.js';
 import './clientes-quadro.js';
+import './ficha-contato.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -35,34 +41,63 @@ interface Contato {
   proximo_passo_em: string | null;
 }
 
-// Clientes em duas visões (D-83, spec 11.1): Lista e Quadro (o antigo Funil). A visão fica em
-// `?visao=` (Lista é a ausência dela) e `/funil` é apelido que abre o Quadro.
+// Clientes em duas visões (D-83, spec 11.1 P03/P04): Lista e Funil (o quadro por etapa). A visão fica em
+// `?visao=` (Lista é a ausência dela) e `/funil` é apelido que abre o Funil. A visão Negociações entra
+// aqui com o item D3 do arco (#102).
 const VISOES = [
-  { id: 'lista', label: 'Lista', icone: 'fa-solid fa-list' },
-  { id: 'quadro', label: 'Quadro', icone: 'fa-solid fa-table-columns' },
+  { id: 'lista', rotulo: 'Lista' },
+  { id: 'quadro', rotulo: 'Funil' },
 ];
 const OPCOES_VISAO: OpcoesAba = { chave: 'visao', apelidos: { '/funil': 'quadro' }, rota: '/clientes' };
 
 /** A visão do endereço que está na barra agora. */
 export const visaoAtual = () => abaDaUrl(VISOES.map((v) => v.id), OPCOES_VISAO);
 
+/** Cliente selecionado na Lista (`?item=<id>`, spec 11.0.2); só ids numéricos abrem a ficha. */
+export function clienteDaUrl(): number | null {
+  const item = itemDaUrl();
+  return item && /^\d+$/.test(item) ? Number(item) : null;
+}
+
 /**
- * O `urbi-abas` vai direto no body da página (como Ajustes), para o quadro preencher e rolar por
- * dentro; `atualizar` redesenha o app. Só a visão aberta é montada e carrega o que é dela.
+ * Clientes na moldura do Padrão B (P04, D-106): a lista à esquerda, a ficha do cliente selecionado no
+ * centro (cabeçalho e abas) e, à direita, perfil de busca, portal e privacidade. Na visão Funil, o
+ * quadro ocupa o centro e a direita recolhe. `atualizar` redesenha o app: escolher um cliente só troca o
+ * `?item=` e redesenha, sem navegar (a lista fica onde estava).
  */
 export function renderClientes(atualizar: () => void) {
   const visao = visaoAtual();
-  const selecionar = (e: CustomEvent) => {
-    const id = e.detail?.id;
-    if (!VISOES.some((v) => v.id === id) || id === visao) return;
-    abaNaUrl(id === 'lista' ? '' : id, OPCOES_VISAO);
+  const id = visao === 'lista' ? clienteDaUrl() : null;
+  const trocarVisao = (v: string) => {
+    if (!VISOES.some((x) => x.id === v) || v === visao) return;
+    abaNaUrl(v === 'lista' ? '' : v, OPCOES_VISAO);
     atualizar();
   };
-  return html`<urbi-abas formato-desktop="botoes" .abas=${VISOES} ativa=${visao} @urbi:aba-selecionar=${selecionar}>
-    <urbi-hospedeiro slot=${visao}>
-      ${visao === 'quadro' ? html`<pc-clientes-quadro></pc-clientes-quadro>` : html`<pc-tela-clientes></pc-tela-clientes>`}
-    </urbi-hospedeiro>
-  </urbi-abas>`;
+  const escolher = (contato: number | null) => {
+    // Escolher na visão Funil (ou criar um contato) leva à Lista, onde a ficha mora.
+    if (visao !== 'lista') abaNaUrl('', OPCOES_VISAO);
+    itemNaUrl(contato);
+    atualizar();
+  };
+  const lista = html`<pc-tela-clientes .visao=${visao} .selecionado=${id} .aoEscolher=${escolher} .aoTrocarVisao=${trocarVisao}></pc-tela-clientes>`;
+  if (visao === 'quadro') {
+    return moldura({ menu: '/clientes', lista, centro: html`<pc-clientes-quadro></pc-clientes-quadro>`, rotulos: { lista: 'Clientes', centro: 'Funil' } }, atualizar);
+  }
+  // Trocar de cliente recria as duas colunas da ficha (`keyed`): nada do anterior fica na tela.
+  const centro = id
+    ? keyed(id, html`<pc-ficha-contato-foco .contatoId=${id}></pc-ficha-contato-foco>`)
+    : estadoTela('vazio', {
+        icone: 'fa-solid fa-address-book',
+        mensagem: 'Escolha um cliente',
+        submensagem: 'A ficha abre aqui: próximo passo, linha do tempo, o que foi enviado e os negócios.',
+      });
+  const contexto = id
+    ? keyed(id, html`<pc-ficha-contato-contexto .contatoId=${id}></pc-ficha-contato-contexto>`)
+    : html`<urbi-prosa papel="dica">Com um cliente aberto, aqui ficam o perfil de busca, o portal do cliente e a privacidade.</urbi-prosa>`;
+  return moldura(
+    { menu: '/clientes', lista, centro, contexto, rotulos: { lista: 'Clientes', centro: 'Ficha', contexto: 'Portal' }, painel: id ? 'centro' : 'esquerda' },
+    atualizar,
+  );
 }
 
 const ROTULO_PRONTO: Record<FiltroPronto, string> = {
@@ -72,12 +107,20 @@ const ROTULO_PRONTO: Record<FiltroPronto, string> = {
   retorno_vencido: 'Retorno vencido',
 };
 
+/** Filtro de papel da lista (P04: Todos · Compradores · Proprietários). */
+const PAPEL_NO_PLURAL: Record<string, string> = { comprador: 'Compradores', proprietario: 'Proprietários' };
+
 const ehPronto = (v: string | null): v is FiltroPronto => (FILTROS_PRONTOS as readonly string[]).includes(v ?? '');
 
-// Clientes › Lista: todos os contatos da conta, com busca, filtros prontos e filtros na URL (spec
-// 11: "estado de filtro na URL"), cadastro rápido, importação e exportação.
+// Coluna esquerda de Clientes (P04): título com Importar e Novo, as visões, a busca, os filtros prontos
+// e o papel, e a lista com a temperatura. Os filtros ficam na URL (spec 11: "estado de filtro na URL"),
+// junto com o `?item=` do cliente aberto. Escolher um cliente chama `aoEscolher`, que troca a ficha.
 @customElement('pc-tela-clientes')
 export class PcTelaClientes extends LitElement {
+  @property() visao = 'lista';
+  @property({ attribute: false }) selecionado: number | null = null;
+  @property({ attribute: false }) aoEscolher: (id: number | null) => void = () => {};
+  @property({ attribute: false }) aoTrocarVisao: (visao: string) => void = () => {};
   @state() private contatos: Contato[] = [];
   @state() private total = 0;
   @state() private carregando = true;
@@ -130,6 +173,8 @@ export class PcTelaClientes extends LitElement {
   }
 
   private filtrar(mudancas: Record<string, string>) {
+    // Relê a URL: o cliente aberto (`?item=`) e a visão mudam por fora deste componente.
+    this.filtros = filtrosDaUrl();
     // "Quentes" e o filtro de temperatura dizem a mesma coisa: escolher um tira o outro.
     const extra: string[] = [];
     if ('temperatura' in mudancas && this.filtros.get('pronto') === 'quentes') extra.push('pronto');
@@ -162,7 +207,9 @@ export class PcTelaClientes extends LitElement {
       'POST',
       '/contatos',
     );
-    if (r?.id) urbiVerso.navegarSub(`/clientes/${r.id}`);
+    if (!r?.id) return;
+    await this.carregar();
+    this.aoEscolher(r.id);
   }
 
   private async exportar() {
@@ -180,27 +227,21 @@ export class PcTelaClientes extends LitElement {
     }
   }
 
-  private colunas(): UrbiColunaTabela[] {
-    return [
-      { id: 'nome', label: 'Nome' },
-      { id: 'telefone', label: 'Telefone', valor: (l) => (l as Contato).telefone ?? (l as Contato).email ?? '—' },
-      // Investidor, parceiro e fornecedor não se escolhem na tela, mas aparecem se o contato já os tiver.
-      { id: 'papeis', label: 'Papel', valor: (l) => (l as Contato).papeis.split(',').map((p) => ROTULO_PAPEL[p] ?? p).join(', ') },
-      {
-        id: 'temperatura',
-        label: 'Temperatura',
-        render: (l) =>
-          (l as Contato).temperatura ? html`${chip('temperatura', (l as Contato).temperatura)}` : html`<urbi-prosa papel="fraco" inline>sem classificação</urbi-prosa>`,
-      },
-      {
-        id: 'proximo',
-        label: 'Próximo passo',
-        valor: (l) => {
-          const c = l as Contato;
-          return c.proximo_passo ? `${c.proximo_passo}${c.proximo_passo_em ? ` · ${dataHora(c.proximo_passo_em)}` : ''}` : '—';
-        },
-      },
-    ];
+  /** Uma linha da lista: nome e temperatura; embaixo, o próximo passo ou o contato e a origem. */
+  private linha(c: Contato) {
+    const embaixo = c.proximo_passo
+      ? `${c.proximo_passo}${c.proximo_passo_em ? ` · ${dataHora(c.proximo_passo_em)}` : ''}`
+      : [c.telefone ?? c.email, c.papeis.split(',').map((p) => ROTULO_PAPEL[p] ?? p).join(', ')].filter(Boolean).join(' · ');
+    return html`<urbi-stack>
+      <urbi-linha justificar="entre" quebrar>
+        <urbi-prosa>${c.nome}</urbi-prosa>
+        ${c.temperatura ? chip('temperatura', c.temperatura) : nothing}
+      </urbi-linha>
+      <urbi-linha quebrar>
+        ${c.origem_canal ? chip('origem', c.origem_canal) : nothing}
+        <urbi-prosa papel="fraco" inline>${embaixo || '—'}</urbi-prosa>
+      </urbi-linha>
+    </urbi-stack>`;
   }
 
   private explicacaoDoPronto(pronto: FiltroPronto) {
@@ -223,21 +264,27 @@ export class PcTelaClientes extends LitElement {
     const pronto = this.filtros.get('pronto');
     const ativo = ehPronto(pronto) ? pronto : null;
     return html`<urbi-stack>
-      <urbi-linha quebrar>
-        <urbi-input expandir icone="fa-solid fa-magnifying-glass" placeholder="Buscar por nome, telefone ou e-mail"
-          valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
-        <urbi-botao icone="fa-solid fa-user-plus" @click=${() => this.novo()}>Novo contato</urbi-botao>
-        <urbi-botao variante="secundario" icone="fa-solid fa-file-import" href=${urbiVerso.href('/clientes/importar')}>Importar</urbi-botao>
-        <urbi-botao variante="secundario" icone="fa-solid fa-file-export" @click=${() => this.exportar()}>Exportar</urbi-botao>
+      <urbi-linha justificar="entre" quebrar>
+        <urbi-prosa papel="titulo">Clientes</urbi-prosa>
+        <urbi-linha>
+          <urbi-botao pequeno variante="secundario" icone="fa-solid fa-file-import" href=${urbiVerso.href('/clientes/importar')}>Importar</urbi-botao>
+          <urbi-botao pequeno icone="fa-solid fa-user-plus" @click=${() => this.novo()}>Novo</urbi-botao>
+          <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-file-export" ariaLabel="Exportar contatos" title="Exportar contatos" @click=${() => this.exportar()}></urbi-botao>
+        </urbi-linha>
       </urbi-linha>
+      <urbi-chips-atalho .opcoes=${VISOES} ativo=${this.visao} @urbi:chip-atalho:click=${(e: CustomEvent) => this.aoTrocarVisao(e.detail.id)}></urbi-chips-atalho>
+      <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Nome, telefone ou e-mail"
+        valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
       <urbi-chips-atalho
         .opcoes=${[{ id: 'todos', rotulo: 'Todos' }, ...FILTROS_PRONTOS.map((id) => ({ id, rotulo: ROTULO_PRONTO[id] }))]}
         ativo=${ativo ?? 'todos'}
         @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ pronto: e.detail.id === 'todos' ? '' : e.detail.id })}></urbi-chips-atalho>
+      <urbi-chips-atalho
+        .opcoes=${[{ id: 'todos', rotulo: 'Todos' }, ...opcoesPapelNaTela().map((o) => ({ id: o.valor, rotulo: PAPEL_NO_PLURAL[o.valor] ?? o.rotulo }))]}
+        ativo=${papel || 'todos'}
+        @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ papel: e.detail.id === 'todos' ? '' : e.detail.id })}></urbi-chips-atalho>
       ${ativo ? html`<urbi-prosa papel="dica">${this.explicacaoDoPronto(ativo)}</urbi-prosa>` : ''}
       <urbi-linha quebrar>
-        <urbi-select label="Papel" valor=${papel} placeholder="Todos" .opcoes=${opcoesPapelNaTela()}
-          @urbi:select-change=${(e: CustomEvent) => this.filtrar({ papel: e.detail.valor })}></urbi-select>
         <urbi-select label="Temperatura" valor=${ativo === 'quentes' ? 'quente' : temperatura} placeholder="Todas"
           .opcoes=${opcoesChip('temperatura')}
           @urbi:select-change=${(e: CustomEvent) => this.filtrar({ temperatura: e.detail.valor })}></urbi-select>
@@ -245,13 +292,13 @@ export class PcTelaClientes extends LitElement {
           @urbi:select-change=${(e: CustomEvent) => this.filtrar({ origem: e.detail.valor })}></urbi-select>
       </urbi-linha>
       ${this.falha
-        ? html`<urbi-banner variante="erro">
-            ${this.falha}
-            <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
-          </urbi-banner>`
-        : html`<urbi-tabela responsivo="multiline" clicavel .colunas=${this.colunas()} .linhas=${this.contatos} ?carregando=${this.carregando}
-              mensagem-vazio=${this.filtros.toString() ? 'Nenhum contato com estes filtros.' : 'Nenhum contato ainda. Cadastre o primeiro ou importe uma planilha.'}
-              @urbi:tabela-click=${(e: CustomEvent) => urbiVerso.navegarSub(`/clientes/${(e.detail.linha as Contato).id}`)}></urbi-tabela>
+        ? estadoTela('erro', { aoTentar: () => void this.carregar() })
+        : html`<urbi-lista clicavel separador .itens=${this.contatos} ?carregando=${this.carregando}
+              mensagem-vazio=${this.filtros.toString().replace(/(^|&)(item|visao|secao)=[^&]*/g, '') ? 'Nenhum contato com estes filtros.' : 'Nenhum contato ainda. Cadastre o primeiro (Novo) ou importe uma planilha.'}
+              .itemAtivo=${(c: Contato) => c.id === this.selecionado}
+              .indicador=${(c: Contato) => (c.id === this.selecionado ? 'var(--cor-primaria)' : '')}
+              .render_item=${(c: Contato) => this.linha(c)}
+              @urbi:lista-click=${(e: CustomEvent) => this.aoEscolher((e.detail.item as Contato).id)}></urbi-lista>
             ${this.total > this.contatos.length
               ? html`<urbi-prosa papel="dica">Mostrando ${this.contatos.length} de ${this.total}. Refine a busca para achar os demais.</urbi-prosa>`
               : ''}`}

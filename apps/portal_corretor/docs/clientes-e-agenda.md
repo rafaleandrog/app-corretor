@@ -10,13 +10,25 @@ contato, negócio ou atividade de outra conta responde "não encontrado".
 
 ## Clientes
 
-**Clientes** tem duas visões, nos botões do alto da tela:
+**Clientes** fica em colunas (o desenho novo das telas, ver [Como as telas se organizam](README.md#como-as-telas-se-organizam)):
+a **lista** à esquerda, a **ficha** do cliente escolhido no meio e, à direita, o **perfil de busca**,
+o **portal do cliente** e a **privacidade**. Escolher um cliente na lista abre a ficha sem sair da
+lista; o cliente aberto fica marcado nela e no endereço (`/clientes?item=<número>`): recarregar a
+página ou abrir o link guardado reabre o mesmo cliente. O endereço antigo de uma ficha
+(`/clientes/<número>`) continua funcionando e abre o mesmo cliente na lista. No celular aparece uma
+coluna por vez, com abas (Clientes · Ficha · Portal); sem cliente escolhido, abre na lista.
 
-- **Lista** (a que abre): os contatos da conta, 50 por página, em ordem alfabética.
-- **Quadro**: o funil por etapa, com arrastar para mudar de etapa — ver
-  [Funil, temperatura e fila do dia](funil.md). O endereço antigo `/funil` abre esta visão.
+No alto da lista: **Importar** (planilha), **Novo** (cadastro rápido) e **Exportar** (a planilha dos
+contatos), e as duas visões:
 
-A visão escolhida fica no endereço (`/clientes?visao=quadro`).
+- **Lista** (a que abre): os contatos da conta, 50 por página, em ordem alfabética, cada um com a
+  temperatura, a origem e o próximo passo (ou o telefone).
+- **Funil**: o quadro por etapa, com arrastar para mudar de etapa, no meio da tela (a coluna da
+  direita recolhe) — ver [Funil, temperatura e fila do dia](funil.md). O endereço antigo `/funil`
+  abre esta visão. Escolher um cliente na lista com o Funil aberto volta à Lista com a ficha dele.
+
+A visão escolhida fica no endereço (`/clientes?visao=quadro`). Uma terceira visão, **Negociações**,
+chega com o Negociador.
 
 Na **Lista**:
 
@@ -31,12 +43,12 @@ Na **Lista**:
   | Retorno vencido | O próximo passo combinado já passou da data |
 
   **Todos** desliga o filtro pronto.
-- **Filtros:** papel (comprador ou proprietário), temperatura e origem (por onde o contato
-  chegou). Combinam com a busca e com o filtro pronto.
+- **Papel:** Todos · Compradores · Proprietários. E os filtros de **temperatura** e **origem** (por
+  onde o contato chegou). Tudo combina com a busca e com o filtro pronto.
 - A busca e os filtros ficam no endereço da página: dá para voltar ou guardar o link.
-- **Novo contato:** nome, telefone ou e-mail, papel (comprador ou proprietário) e por onde chegou.
-  Sem papel informado, o contato entra como comprador. O telefone é guardado no formato
-  internacional (`+55…`); sem o `+`, o app assume Brasil.
+- **Novo:** nome, telefone ou e-mail, papel (comprador ou proprietário) e por onde chegou. Sem papel
+  informado, o contato entra como comprador. O telefone é guardado no formato internacional
+  (`+55…`); sem o `+`, o app assume Brasil. Salvo, a ficha do contato novo abre.
 - **Papéis de rede** (investidor, parceiro, fornecedor) não se escolhem no filtro nem no cadastro;
   quem já os tem (por planilha ou edição na ficha) continua com eles, e a lista os mostra.
 
@@ -48,54 +60,66 @@ removido libera o telefone.
 
 ### Ficha do contato
 
-Abrir um contato mostra a ficha em **duas colunas**, como a ficha de pessoa do Follow Up Boss: à
-esquerda, quem é o cliente e o que fazer; à direita, o histórico. No celular as duas ficam uma
-embaixo da outra, a da esquerda primeiro.
+A ficha ocupa o meio e a direita da tela (no desenho da ficha de pessoa do Follow Up Boss).
 
-**Coluna da esquerda**, de cima para baixo:
+**No meio, o cliente.** No alto, o **cabeçalho**: a inicial (ou foto), o nome, o telefone, o e-mail
+e o papel; os chips de **temperatura** (passe o mouse para ver o motivo), **etapa** do negócio em
+andamento e **origem**; uma linha com o motivo da temperatura e o último contato; e os botões:
 
-- **Clientes** (voltar) e o menu **Mais**: Editar contato, Perguntar ao Assistente, Remover
-  contato e, com abordagem, Registrar abordagem feita e Pular a abordagem.
-- **O cliente:** o nome, os chips de **temperatura** (passe o mouse para ver o motivo), **papel** e
-  **origem**, uma linha com o motivo da temperatura e o último contato, o telefone e o e-mail e os
-  botões **WhatsApp** (abre a conversa numa aba nova), **Ligar** e **E-mail**. A seta do cartão
-  abre os dados de cadastro: origem e campanha, data de cadastro, observações e o
-  **consentimento** numa linha (registrado em … · revogar, ou registrar).
-- **Próximo passo:** a próxima abordagem do playbook (o que fazer, por onde, até quando e a etapa,
-  com o chip **Atrasada** quando venceu), o passo **combinado** por você e o que o cliente lê no
-  portal. Os botões **Mensagem sugerida** e **Virar tarefa** ficam aqui (ver
-  [Próxima abordagem](funil.md#próxima-abordagem)). Sem negócio em andamento, ou sem linha do
-  playbook para a etapa e a temperatura dele, não há abordagem: **Virar tarefa** não aparece, e a
-  **Mensagem sugerida** começa pelo objetivo **Retorno** (troque nos objetivos de um toque:
-  Apresentação, Retorno, Ainda procurando? e Manter contato). O lápis do cartão, **Combinar
-  próximo passo**, define o passo combinado e o campo **Para o cliente** (opcional, até 120
-  letras), que aparece no topo do portal, por exemplo "Visita sábado às 10h". O passo combinado é
-  nota sua e nunca aparece para o cliente.
-- **Negócios:** cada negócio com a etapa, o valor e o imóvel, e o botão **Mudar etapa**; o **+**
-  abre um negócio novo.
-- **Agenda:** as atividades marcadas com o contato, da mais próxima para a mais distante, com
-  **Feito** e, nas visitas, **Retorno**; o **+** agenda. As já feitas, canceladas ou sem
-  comparecimento ficam na seta do cartão.
-- **Seleções e portal:** as seleções de imóveis enviadas e o link do portal do cliente; o **+**
-  monta uma seleção nova. A seta do cartão abre **o que falta do cliente** (botão **Pedir ao
-  cliente**): pendências como "enviar a documentação", que ele marca como feitas no portal. Ver
-  [Seleções e Portal do Cliente](selecoes-e-portal.md#o-que-falta-de-você).
+- **Conversa:** abre o WhatsApp do contato numa aba nova (sem telefone, fica desligado).
+- **Resumir:** a IA resume o histórico em até três frases, logo abaixo; o resumo não fica gravado.
+  Sem a IA do Assistente liberada, o botão fica desligado com "IA indisponível agora".
+- **Ligar** e **E-mail** (os ícones), quando há telefone e e-mail.
+- **Mais:** Editar contato, Perguntar ao Assistente (abre o Assistente na coluna da direita, já sobre
+  este cliente), Remover contato e, com abordagem, Registrar abordagem feita e Pular a abordagem.
 
-**Coluna da direita:**
+Embaixo, quatro abas. A aba aberta fica no endereço (`?secao=`) e volta ao recarregar.
 
-- **Histórico:** no topo, **Registrar contato** (nota livre), **Registrar envio** (ver
-  [Enviados ao cliente](desempenho.md#enviados-ao-cliente)) e **Resumir** (a IA resume o histórico em
-  até três frases; só aparece com a IA do Assistente liberada, e o resumo não fica gravado). Abaixo,
-  tudo o que aconteceu com o contato, com autor e hora.
-- **Enviados ao cliente:** imóveis, arquivos e mensagens registrados, com os cliques no link.
+- **Resumo:**
+  - **Próximo passo:** a próxima abordagem do playbook (o que fazer, por onde, até quando e a
+    etapa, com o chip **Atrasada** quando venceu), o passo **combinado** por você e o que o cliente
+    lê no portal. Os botões **Mensagem sugerida** e **Virar tarefa** ficam aqui (ver
+    [Próxima abordagem](funil.md#próxima-abordagem)). Sem negócio em andamento, ou sem linha do
+    playbook para a etapa e a temperatura dele, não há abordagem: **Virar tarefa** não aparece, e a
+    **Mensagem sugerida** começa pelo objetivo **Retorno** (troque nos objetivos de um toque:
+    Apresentação, Retorno, Ainda procurando? e Manter contato). Sem a IA liberada, a mensagem vem do
+    texto do playbook ou do modelo do objetivo. O lápis do cartão, **Combinar próximo passo**, define
+    o passo combinado e o campo **Para o cliente** (opcional, até 120 letras), que aparece no topo do
+    portal, por exemplo "Visita sábado às 10h". O passo combinado é nota sua e nunca aparece para o
+    cliente.
+  - **Cadastro:** origem e campanha, data de cadastro, observações e o **consentimento** numa linha
+    (registrado em … · revogar, ou registrar). O lápis edita o contato.
+- **Linha do tempo:** **Registrar contato** (nota livre) e **Registrar envio** no topo; abaixo, tudo o
+  que aconteceu com o contato, com autor e hora.
+- **Enviados:** imóveis, arquivos e mensagens registrados, com os cliques no link; o **+** registra um
+  envio (ver [Enviados ao cliente](desempenho.md#enviados-ao-cliente)).
+- **Negócios:**
+  - **Negócios:** cada negócio com a etapa, o valor e o imóvel, e o botão **Mudar etapa**; o **+**
+    abre um negócio novo.
+  - **Agenda:** as atividades marcadas com o contato, da mais próxima para a mais distante, com
+    **Feito** e, nas visitas, **Retorno**; o **+** agenda. As já feitas, canceladas ou sem
+    comparecimento ficam na seta do cartão.
+  - **Seleções:** as seleções de imóveis enviadas, com as reações; o **+** monta uma seleção nova
+    (ver [Seleções e Portal do Cliente](selecoes-e-portal.md)).
 
-Vindo do **Fazer agora** de Hoje ou de um cartão com **Abordagem atrasada** no quadro, a ficha
+  A aba **Negociação** chega com o Negociador.
+
+**À direita, o contexto:**
+
+- **Perfil de busca:** o que o cliente procura, em etiquetas (finalidade, tipos, regiões, faixa de
+  preço, quartos, vagas, área). Sem perfil ainda, uma dica.
+- **Portal do cliente:** se há link ativo e quando foi gerado, **Reenviar link** (copia a mensagem com
+  o link de novo), **Revogar**, ou **Gerar link do portal**. A seta do cartão abre **o que falta do
+  cliente** (botão **Pedir ao cliente**). Ver [Seleções e Portal do Cliente](selecoes-e-portal.md#portal-do-cliente).
+- **Privacidade:** **Exportar** (a planilha dos contatos da conta) e **Remover** (o contato sai das
+  listas, mas não é apagado). Contato com negócio em andamento não pode ser removido: encerre o
+  negócio antes.
+
+Vindo do **Fazer agora** de Hoje ou de um cartão com **Abordagem atrasada** no Funil, a ficha
 abre já com a **Mensagem sugerida** carregada (o endereço traz `?sugerir=1`), e o **Fazer agora**
 dela abre o WhatsApp. Sem abordagem, ou abrindo a ficha por outro caminho, nada é gerado sozinho.
 
-O lápis do cartão do cliente (ou **Mais › Editar contato**) edita nome, telefone, e-mail, papéis (comprador e proprietário), temperatura e
-observações. **Remover** (no menu Mais): o contato sai das listas, mas não é apagado. Contato com
-negócio em andamento não pode ser removido: encerre o negócio antes.
+Um cliente de outra conta, aberto por um link ou pelo endereço, mostra "Não encontrado".
 
 ## Negócios e funil
 

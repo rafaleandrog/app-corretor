@@ -5,10 +5,10 @@ descricao: Quadro do funil, temperatura do contato com motivo, abordagens recome
 
 # Funil, temperatura e fila do dia
 
-## Funil: Clientes › Quadro
+## Funil: Clientes › Funil
 
-O funil é a visão **Quadro** de **Clientes** (o botão **Quadro**, ao lado de **Lista**, no alto
-da tela). Ele mostra os negócios em quadro, uma coluna por etapa, com o nome do cliente, o título,
+O funil é a visão **Funil** de **Clientes** (o botão **Funil**, ao lado de **Lista**, no alto
+da coluna da esquerda). Ele mostra os negócios em quadro, uma coluna por etapa, com o nome do cliente, o título,
 o valor, a temperatura e o aviso de **abordagem atrasada**. O endereço antigo `/funil` continua
 abrindo o quadro.
 

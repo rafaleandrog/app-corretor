@@ -23,7 +23,7 @@ export const ENDERECOS: Record<string, ChaveTela> = {
   // Apelido: o Assistente saiu do menu e abre na coluna de contexto (D-109); `/assistente` abre Hoje com ele aberto.
   '/assistente': 'hoje',
   '/clientes': 'clientes',
-  // Apelido: o Funil virou a visão Quadro de Clientes (D-83).
+  // Apelido: o Funil virou a visão Funil de Clientes (D-83).
   '/funil': 'clientes',
   '/clientes/importar': 'importar',
   '/imoveis': 'imoveis',
@@ -51,7 +51,10 @@ const COM_ID: Record<string, ChaveTela> = { clientes: 'cliente', imoveis: 'imove
 /** `/conta/` e `/conta` são a mesma tela; a raiz continua `/`. */
 export const normalizar = (sub: string) => (sub.length > 1 ? sub.replace(/\/+$/, '') : sub) || '/';
 
-/** Rota exata primeiro; depois as de id numérico (`/clientes/:id`, `/imoveis/:id`, `/empreendimentos/:id`). */
+/**
+ * Rota exata primeiro; depois as de id numérico (`/clientes/:id`, `/imoveis/:id`, `/empreendimentos/:id`).
+ * `/clientes/:id` é apelido da ficha na Lista (`fichaCanonica`): o app troca o endereço ao chegar.
+ */
 export function resolverEndereco(sub: string): { chave?: ChaveTela; param?: string } {
   const s = normalizar(sub);
   if (ENDERECOS[s]) return { chave: ENDERECOS[s] };
@@ -59,10 +62,31 @@ export function resolverEndereco(sub: string): { chave?: ChaveTela; param?: stri
   return m ? { chave: COM_ID[m[1]], param: m[2] } : {};
 }
 
-/** Contato em foco no endereço (ficha aberta), para o Assistente e o Criar levarem o contexto. */
-export function contatoDoEndereco(sub: string): number | null {
+/**
+ * Contato em foco no endereço (ficha aberta), para o Assistente e o Criar levarem o contexto: o item
+ * selecionado em Clientes (`/clientes?item=7`, spec 11.0.2) ou o caminho antigo `/clientes/7`.
+ */
+export function contatoDoEndereco(sub: string, busca = ''): number | null {
+  const s = normalizar(sub);
+  const m = s.match(/^\/clientes\/(\d+)$/);
+  if (m) return Number(m[1]);
+  if (s !== '/clientes') return null;
+  const item = new URLSearchParams(busca).get('item') ?? '';
+  return /^\d+$/.test(item) ? Number(item) : null;
+}
+
+/**
+ * Ficha do cliente pelo caminho antigo (`/clientes/7?sugerir=1`): o endereço canônico é a Lista com o
+ * item selecionado (P04, `/clientes?item=7&sugerir=1`). Devolve a query nova, ou `null` se o caminho
+ * não é o antigo. A visão vai para Lista, porque a ficha mora nela.
+ */
+export function fichaCanonica(sub: string, busca = ''): string | null {
   const m = normalizar(sub).match(/^\/clientes\/(\d+)$/);
-  return m ? Number(m[1]) : null;
+  if (!m) return null;
+  const q = new URLSearchParams(busca);
+  q.delete('visao');
+  q.set('item', m[1]);
+  return `?${q}`;
 }
 
 /**
