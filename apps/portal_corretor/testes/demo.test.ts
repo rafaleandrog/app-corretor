@@ -61,7 +61,7 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
     assert.deepEqual(['Ana Ribeiro', 'Carlos Menezes', 'Fernanda Souza'].map(origem), ['instagram', 'pagina', 'indicacao']);
     // Imóveis: a nota de qualidade é a do cálculo real (sem fotos na semente; documentado em docs/desempenho.md).
     const lista = (await chamar('GET', '/imoveis?por_pagina=50')).corpo;
-    const nota = Object.fromEntries((lista.dados ?? lista).map((i: any) => [i.titulo, [i.preco_c, i.situacao, i.qualidade?.nota]]));
+    const nota = Object.fromEntries(lista.dados.map((i: any) => [i.titulo, [i.preco_c, i.situacao, i.qualidade?.nota]]));
     assert.deepEqual(nota, {
       'Casa 4 quartos · Jardim Botânico': [145000000, 'ativo', 55],
       'Apartamento 3 quartos · Sudoeste': [98000000, 'ativo', 35],
@@ -83,7 +83,7 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
     assert.equal(Math.round((n.ultima_oferta_c / n.preco_pedido_c - 1) * 100), -9);
     assert.ok(!('recuo_c' in n) && !JSON.stringify(n).includes('136000000'), 'a lista não leva o recuo');
     const detalhe = (await chamar('GET', `/negociacoes/${n.id}`)).corpo;
-    const propostas = detalhe.propostas ?? banco.linhas('propostas').filter((p) => p.negociacao_id === n.id);
+    const propostas = detalhe.propostas;
     assert.deepEqual(propostas.map((p: any) => [p.rodada, p.direcao, p.valor_c]), [
       [1, 'vendedor', 145000000], [1, 'comprador', 132000000], [1, 'vendedor', 140000000], [2, 'comprador', 132000000],
     ]);
@@ -95,7 +95,8 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
     // KPIs da negociação, à mão: ZOPA de 1,36 mi (recuo) a 1,39 mi (teto estimado); concessão do
     // vendedor até aqui 50 mil; a próxima cabe em 40% de (1,40 − 1,36) = 16 mil.
     assert.deepEqual(zopa(m, banco.linhas('negociacoes').find((x) => x.id === n.id)!.teto_estimado_comprador_c), { existe: true, de_c: 136000000, ate_c: 139000000 });
-    assert.equal(passoMaximo_c(140000000, m.recuo_c, Number(m.passo_max_pct)), 1600000);
+    const posicaoVendedor = propostas.filter((p: any) => p.direcao === 'vendedor').at(-1).valor_c;
+    assert.equal(passoMaximo_c(posicaoVendedor, m.recuo_c, Number(m.passo_max_pct)), 1600000);
     assert.equal(banco.linhas('objecoes_detectadas').filter((o) => o.negociacao_id === n.id)[0].categoria, 'preco');
     // CRECI fictício no perfil do corretor.
     assert.equal(banco.linhas('perfis_corretor').find((p) => p.usuario_id === 1)!.creci, 'DF-12345-F');
@@ -118,7 +119,7 @@ test('segundo corretor: conjunto próprio e menor; nada de um aparece para o out
     assert.equal((await chamar('GET', `/negociacoes/${negA}/mandato`)).status, 404);
     assert.equal((await chamar('GET', `/contatos/${anaA}`)).status, 404);
     const imoveis = (await chamar('GET', '/imoveis')).corpo;
-    assert.deepEqual((imoveis.dados ?? imoveis).map((i: any) => i.titulo), ['Apartamento 2 quartos · Águas Claras']);
+    assert.deepEqual(imoveis.dados.map((i: any) => i.titulo), ['Apartamento 2 quartos · Águas Claras']);
     assert.equal((await chamar('GET', '/numeros?dias=30')).corpo.atual.leads, 2);
   });
   await comServidor(rotas, A, banco, {}, async (chamar) => {
@@ -137,7 +138,7 @@ test('sem CRECI: a semente não sobrescreve o perfil e tudo funciona (D-93)', as
     for (const rota of ['/inicio', '/contatos', '/imoveis', '/negociacoes', `/negociacoes/${nid}`, `/negociacoes/${nid}/mandato`, '/numeros?dias=30']) {
       assert.equal((await chamar('GET', rota)).status, 200, rota);
     }
-    // Registrar uma proposta e mexer no mandato também não pedem CRECI.
+    // Registrar uma proposta também não pede CRECI.
     assert.equal((await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 133000000 })).status, 201);
   });
 });

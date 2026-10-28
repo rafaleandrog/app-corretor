@@ -177,7 +177,7 @@ demoRotas.post(
             { item: 'prazo de entrega de 60 dias', limite: 'até 60 dias', contrapartida: 'entrada de 30%' },
             { item: 'móveis planejados da cozinha', limite: 'só os da cozinha', contrapartida: 'fechamento em 7 dias' },
           ],
-          passo_max_pct: 0.4, rodadas_max: 4, validade: quando(5).slice(0, 10), autonomia: 'pergunta_antes', autorizacao_proprietario: null, alterado_por_id: eu,
+          passo_max_pct: 0.4, rodadas_max: 4, validade: new Date(agora.getTime() + 5 * 86400e3).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }), autonomia: 'pergunta_antes', autorizacao_proprietario: null, alterado_por_id: eu,
         });
         await trx.atualizar('negociacoes', negociacao.id, { mandato_id: mandato.id });
         const escada: [number, 'vendedor' | 'comprador', number, string][] = [

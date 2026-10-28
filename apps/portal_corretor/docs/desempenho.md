@@ -101,7 +101,13 @@ recusada.
 - as outras recebem um conjunto **menor e diferente**, o do segundo corretor, para o roteiro de
   isolamento: um corretor nunca vê nada do outro.
 
-A marca não muda depois, nem quando aparece uma conta de teste nova.
+A marca é decidida quando o app vê a conta pela primeira vez e não muda depois. Por isso, se for
+criada depois uma conta de teste de número menor, ela também vira principal, e a que já era
+principal continua sendo: pode haver mais de uma conta principal.
+
+Depois de uma atualização do app, a conta de teste que já tinha gerado a demonstração antiga
+continua com ela, porque a geração só acontece em conta sem contatos. Para ver o conjunto novo, use
+uma conta de teste que ainda não tenha contatos.
 
 **O corretor.** O nome que aparece é o do usuário na instância (crie o usuário de teste como
 "Rafael Gualberto"). Se o corretor ainda não tem perfil, ganha um CRECI fictício (DF-12345-F; no
