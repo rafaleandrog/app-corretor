@@ -687,6 +687,22 @@ export function vazamentosNoRegistro(
 
 const normalizarItem = (s: string) => semAcento(s).replace(/[^a-z0-9]+/g, ' ').trim();
 
+/**
+ * Mensagem do envio automático ("faz sozinho", decisão do dono depois da revisão do #115): montada
+ * pelo código só com campos estruturados — o valor da contraproposta (já conferido pelas 7
+ * garantias), a concessão e a contrapartida COMO ESTÃO NO MANDATO (texto do corretor) e a validade.
+ * O texto livre do modelo nunca sai sem uma pessoa ler: um detector sobre texto livre não fecha
+ * todos os jeitos de citar o recuo, e aqui não há texto livre para conferir.
+ */
+export function mensagemDoEnvioAutomatico(p: { valor_c: number; item: Concessao | null; validade_horas: number | null; primeiro_nome?: string | null }): string {
+  const nome = (p.primeiro_nome ?? '').replace(/[^\p{L}' -]/gu, '').trim().slice(0, 40);
+  const partes = [`${nome ? `Olá, ${nome}. ` : 'Olá. '}O vendedor propõe ${reais(p.valor_c)}`];
+  if (p.item) partes.push(`, com ${p.item.item}, pedindo em troca ${p.item.contrapartida}`);
+  partes.push('.');
+  if (p.validade_horas) partes.push(` A proposta vale por ${p.validade_horas} horas.`);
+  return partes.join('');
+}
+
 /** Item do mandato a que a concessão corresponde, ou `null` (comparação sem acento e sem pontuação). */
 export function itemDoMandato(concessao: string, concessoes: Concessao[]): Concessao | null {
   const alvo = normalizarItem(concessao);

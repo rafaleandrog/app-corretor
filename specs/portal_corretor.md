@@ -1221,7 +1221,7 @@ No exemplo da referência, com o vendedor aceitando a partir de R$ 1.500 e o com
 |---|---|---|
 | **Só sugere** | Gera o próximo movimento no painel; nada sai | — |
 | **Pergunta antes** (padrão) | Prepara mensagem e contraproposta; o corretor (ou o negociador humano) aprova com um toque em P15 ou M8 e escolhe o canal (portal ou Fazer agora) | Conduz normalmente |
-| **Faz sozinho dentro da faixa** | Responde objeções e envia contrapropostas **entre o alvo e o ponto de recuo**, respeitando passo máximo e número de rodadas; **só no canal do portal** (D-107); exige autorização do proprietário registrada no mandato (D-99, P-41) | Conduz e envia dentro do mandato |
+| **Faz sozinho dentro da faixa** | Envia contrapropostas **entre o alvo e o ponto de recuo**, respeitando passo máximo e número de rodadas, com a mensagem **montada pelo código** a partir dos campos estruturados (D-110); respostas a objeções em texto livre esperam a aprovação; **só no canal do portal** (D-107); exige autorização do proprietário registrada no mandato (D-99, P-41) | Conduz e envia dentro do mandato |
 
 Em qualquer nível: **aceitar o acordo final, reduzir abaixo do recuo, mudar o mandato e falar de comissão são exclusivos do corretor**, e o fechamento depende da decisão registrada do proprietário (D-15, D-98).
 
@@ -2100,6 +2100,7 @@ Direção do dono: melhorar funcionalidade e visual sem aumentar a complexidade;
 | D-107 | **Negociador sem WhatsApp** enquanto P-31/P-32 não forem atendidas: as ofertas entram registradas pelo corretor ou pelo portal (token); a contraproposta sai pelo portal ou por "Fazer agora" (`wa.me`); "faz sozinho" só age no canal do portal (27/10, coordenação, vetável) | Esperar o WhatsApp | O WhatsApp segue bloqueado no SDK 100 (D-59, D-78) |
 | D-108 | O **negociador humano** entra por último no arco 1.2 e exige a política "permite contas multi-usuário" ligada na instância; desligada, o app oferece só o Negociador IA (27/10, coordenação, vetável) | Negociador humano desde o início | `contas.md`: com a política desligada, o segundo externo da conta é recusado |
 | D-109 | O **Assistente** sai do menu e abre na **coluna de contexto** da moldura, a partir do botão do trilho, mantendo lista e item; revê D-76 na forma (o resto de D-76 vale) (27/10, coordenação, vetável) | Tela própria no menu (D-76) | A coluna é do primitivo `urbi-3-colunas`, sem CSS estrutural, que era o motivo de D-76 |
+| D-110 | No **"faz sozinho"**, a mensagem ao cliente é **montada pelo código** só com campos estruturados: o valor da contraproposta (já conferido pelas 7 garantias), a concessão e a contrapartida como estão no mandato e a validade; a proposta gravada não leva texto do modelo. O texto livre da IA só sai depois que uma pessoa lê e aprova ("pergunta antes") (28/10, dono, depois da revisão do #115) | Enviar o texto do modelo conferido por um detector de sigilo | O detector sobre texto livre não fecha todos os jeitos de citar o recuo (três rodadas de revisão acharam formatos novos); sem texto livre no envio automático, não há o que vazar. O detector segue como trava no "pergunta antes" |
 
 ## 17. Pendências
 

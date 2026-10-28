@@ -134,8 +134,12 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
   sua edição passa do recuo ou revela o sigilo (o app recusa e diz por quê).
 - **Faz sozinho:** com o Negociador conduzindo e a autorização do proprietário no mandato, a
   contraproposta que passa nas garantias é registrada sozinha como enviada pelo portal e a
-  negociação passa a "aguardando o cliente". Como o portal ainda não mostra propostas (ver
-  Propostas), o cliente só a vê quando isso chegar.
+  negociação passa a "aguardando o cliente". Nesse envio automático **o texto da IA não sai**: o
+  app monta uma mensagem curta só com o valor, a concessão e a contrapartida como estão no seu
+  mandato e a validade (por exemplo: "Olá, Ana. O vendedor propõe R$ 1.460.000, com prazo de
+  entrega de 90 dias, pedindo em troca entrada de 30%. A proposta vale por 48 horas."). A conversa
+  livre da IA só chega ao cliente depois que você lê e aprova. Como o portal ainda não mostra
+  propostas (ver Propostas), o cliente só a vê quando isso chegar.
 
 **O Negociador nunca aceita o acordo.** Aceitar a proposta do comprador é uma ação separada, feita
 só por quem tem o papel de corretor (o administrador do app também pode, pois vale por todos os

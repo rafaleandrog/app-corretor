@@ -8,6 +8,8 @@ import {
   MAX_MENSAGENS_CONTEXTO,
   SCHEMA_RESPOSTA,
   exigePassagem,
+  itemDoMandato,
+  mensagemDoEnvioAutomatico,
   montarContexto,
   promptSistema,
   sanearResposta,
@@ -329,7 +331,16 @@ negociadorRotas.post(
       // uma proposta): nada sai sozinho; a sugestão fica pendente para o corretor, que revalida ao aprovar.
       const mudou = agora.impressao !== ctx.impressao;
       const cp = resposta?.movimento === 'contraproposta' ? resposta.contraproposta : null;
-      const enviaSozinho = !passagem && !mudou && automatico && canal === 'portal' && !!cp?.valor_c;
+      // O que sai sozinho é só o que o código monta com campos estruturados (decisão do dono): o valor,
+      // a concessão e a contrapartida como estão no mandato e a validade. O texto do modelo, não.
+      const item = cp?.concessao && agora.mandato ? itemDoMandato(cp.concessao, agora.mandato.concessoes) : null;
+      const textoAutomatico = cp?.valor_c
+        ? mensagemDoEnvioAutomatico({ valor_c: cp.valor_c, item, validade_horas: cp.validade_horas, primeiro_nome: String(ctx.contato?.nome ?? '').split(/\s+/)[0] })
+        : null;
+      // Segunda trava: se o próprio texto montado citasse algo sigiloso (o corretor escreveu o recuo no
+      // item do mandato), ele não sai sozinho.
+      const textoLimpo = !!textoAutomatico && !!agora.mandato && vazamentos(textoAutomatico, agora.mandato, permitidosDe(agora.mandato, agora.propostas, cp?.valor_c)).length === 0;
+      const enviaSozinho = !passagem && !mudou && automatico && canal === 'portal' && !!cp?.valor_c && textoLimpo;
       // Sigilo do que se grava e se devolve: contra o mandato lido antes (o que a IA viu) e o de agora.
       const mandatos = [ctx.mandato, agora.mandato].filter((m): m is MandatoMotor => !!m);
       const permitidos = agora.mandato ? permitidosDe(agora.mandato, agora.propostas, cp?.valor_c) : [];
@@ -362,9 +373,11 @@ negociadorRotas.post(
           autor_tipo: 'negociador_ia',
           autor_usuario_id: null,
           valor_c: cp!.valor_c!,
-          condicoes: cp!.condicoes,
-          concessao: cp!.concessao,
-          contrapartida: cp!.contrapartida,
+          // Sem texto do modelo na proposta que o cliente vê: as condições ficam de fora, e a concessão e
+          // a contrapartida são as do mandato.
+          condicoes: null,
+          concessao: item?.item ?? null,
+          contrapartida: item?.contrapartida ?? null,
           validade_ate: cp!.validade_horas ? new Date(Date.now() + cp!.validade_horas * 3600e3) : null,
           canal: 'portal',
           estado: 'enviada',
@@ -386,10 +399,10 @@ negociadorRotas.post(
         tokens_saida: uso.tokens_saida ?? null,
         duracao_ms: uso.duracao_ms ?? null,
         decisao: passagem ? 'passagem' : proposta ? 'automatica' : 'pendente',
-        ...(proposta ? { proposta_id: proposta.id, mensagem_enviada: semRetido(guardada!.mensagem), decidida_em: new Date() } : {}),
+        ...(proposta ? { proposta_id: proposta.id, mensagem_enviada: textoAutomatico, decidida_em: new Date() } : {}),
       });
       const pendenteComContraproposta = !passagem && !proposta && guardada?.movimento === 'contraproposta' && !!guardada.contraproposta?.valor_c;
-      return { execucao, objecao, proposta, validacao, motivos, passagem, guardada, pendenteComContraproposta, zopa: zopa(agora.mandato, teto_c) };
+      return { execucao, objecao, proposta, mensagem_enviada: proposta ? textoAutomatico : null, validacao, motivos, passagem, guardada, pendenteComContraproposta, zopa: zopa(agora.mandato, teto_c) };
     });
     if ('recusa' in resultado && resultado.recusa) return responderRecusa(res, resultado.recusa);
 
@@ -411,6 +424,8 @@ negociadorRotas.post(
         // Só se existe: as pontas da faixa (o recuo) ficam na rota do mandato.
         zopa: { existe: resultado.zopa.existe },
         enviada: resultado.proposta,
+        // O texto que o cliente recebe no envio automático: montado pelo código, sem texto do modelo.
+        mensagem_enviada: resultado.mensagem_enviada,
       }),
     );
   }),
@@ -442,6 +457,8 @@ negociadorRotas.post(
       const feito = await dados.transaction(async (trx) => {
         const viva = await trx.buscar('negociacoes', nid!, { travar: true });
         if (!viva || encerrada(viva)) return 'encerrada' as const;
+        // Um acordo por vez: com um já levado ao proprietário, outro não se aceita.
+        if (viva.estado === ACORDO_PROPOSTO) return 'acordo' as const;
         // Relida sob a trava: só a proposta viva do comprador se aceita, e uma vez só (o segundo
         // clique encontra `aceita` e não republica o evento).
         const atual = await trx.buscar('propostas', pid!);
@@ -453,6 +470,7 @@ negociadorRotas.post(
         return 'aceita' as const;
       });
       if (feito === 'encerrada') return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+      if (feito === 'acordo') return responderRecusa(res, 'acordo');
       if (feito === 'indisponivel') return erro(res, 409, 'PROPOSTA_INDISPONIVEL', 'Esta proposta já foi aceita, recusada, substituída ou expirou.');
       if (feito === 'vencida') return erro(res, 409, 'PROPOSTA_VENCIDA', 'A validade desta proposta já passou: peça ao comprador que a renove.');
       await publicar(req, 'negociacao_acordo_proposto', { negociacao_id: nid!, proposta_id: pid! });

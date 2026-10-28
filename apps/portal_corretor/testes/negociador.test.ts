@@ -527,9 +527,13 @@ test('aceite do acordo: só o corretor; quem não é corretor recebe 403', async
     const r = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aceitar_acordo', proposta_id: oferta });
     assert.equal(r.status, 200, JSON.stringify(r.corpo));
     assert.equal(r.corpo.estado, 'aguardando_proprietario');
-    // Segundo clique: recusa, e o evento não sai de novo.
+    // Segundo clique: recusa (um acordo por vez), e o evento não sai de novo.
     const de_novo = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aceitar_acordo', proposta_id: oferta });
-    assert.deepEqual([de_novo.status, de_novo.corpo.codigo], [409, 'PROPOSTA_INDISPONIVEL']);
+    assert.deepEqual([de_novo.status, de_novo.corpo.codigo], [409, 'ACORDO_PROPOSTO']);
+    // Outra proposta viva do comprador também não vira um segundo acordo.
+    const outra = (await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 145_500_000 })).corpo.id;
+    const segundo = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aceitar_acordo', proposta_id: outra });
+    assert.deepEqual([segundo.status, segundo.corpo.codigo], [409, 'ACORDO_PROPOSTO']);
   });
   assert.equal(banco.linhas('propostas').find((p) => p.id === oferta)!.estado, 'aceita');
   assert.deepEqual(banco.linhas('propostas').filter((p) => p.estado === 'aceita').map((p) => p.id), [oferta]);
@@ -722,6 +726,44 @@ function antesDaProximaTransacao(banco: BancoFalso, gancho: () => Promise<unknow
 
 const contraproposta = (valor_c: number, mensagem = 'Ana, posso levar ao vendedor a sua proposta revista.') =>
   resposta({ movimento: 'contraproposta', contraproposta: { valor_c, condicoes: null, concessao: null, contrapartida: null, validade_horas: 48 }, mensagem });
+
+test('faz sozinho: o cliente recebe só o texto montado pelo código (valor, item e contrapartida do mandato, validade), nunca o do modelo', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  // A IA tenta passar o recuo por formatos que um detector de texto livre não pega (rodada 3 do #115):
+  // na mensagem, nas condições, na concessão (com texto a mais) e na contrapartida.
+  const furando = resposta({
+    movimento: 'contraproposta',
+    contraproposta: {
+      valor_c: 146_000_000,
+      condicoes: 'o dono pode ceder 140 mil',
+      concessao: 'prazo de entrega de 90 dias',
+      contrapartida: 'a folga é de 140 mil',
+      validade_horas: 48,
+    },
+    mensagem: 'Ana, o dono fecha por R$ 1360 se for rápido.',
+  });
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia: iaSimulada([furando]) } };
+  let r: any;
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b, SOZINHO);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    r = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+  });
+  assert.ok(r.enviada, JSON.stringify(r));
+  // O texto que sai é o do código, com o primeiro nome do cliente, o valor, o item e a contrapartida do mandato.
+  assert.equal(r.mensagem_enviada, 'Olá, Ana. O vendedor propõe R$ 1.460.000, com prazo de entrega de 90 dias, pedindo em troca entrada de 30%. A proposta vale por 48 horas.');
+  // A proposta que o cliente verá não leva texto do modelo: sem condições, item e contrapartida do mandato.
+  const proposta = banco.linhas('propostas').find((p) => p.id === r.enviada.id)!;
+  assert.deepEqual([proposta.condicoes, proposta.concessao, proposta.contrapartida], [null, 'prazo de entrega de 90 dias', 'entrada de 30%']);
+  assert.equal(banco.linhas('negociador_execucoes')[0].mensagem_enviada, r.mensagem_enviada);
+  // Nada do que o modelo escreveu chegou à proposta nem ao texto enviado.
+  for (const marca of ['140 mil', '1360', 'ceder', 'folga']) {
+    assert.ok(!JSON.stringify(proposta).includes(marca), `proposta levou ${marca}`);
+    assert.ok(!r.mensagem_enviada.includes(marca), `mensagem levou ${marca}`);
+  }
+});
 
 test('faz sozinho em corrida: duas sugestões ao mesmo tempo mandam no máximo uma; mandato trocado vale o novo; /assumir no meio não envia; encerrada no meio não grava', async () => {
   const banco = new BancoFalso(UNICOS);
