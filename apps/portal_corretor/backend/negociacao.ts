@@ -31,23 +31,23 @@ guardarCorretor(negociacaoRotas, ['/negociacoes', '/negociador']);
 
 type Linha = Record<string, any>;
 
-const id = (v: unknown) => {
+export const id = (v: unknown) => {
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
 };
-const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
-const encerrada = (n: Linha) => (ENCERRADOS as readonly string[]).includes(n.estado);
+export const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
+export const encerrada = (n: Linha) => (ENCERRADOS as readonly string[]).includes(n.estado);
 const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
 
-const NAO_ENCONTRADA = 'Negociação não encontrada.';
-const MENSAGEM_ENCERRADA = 'Esta negociação já foi encerrada.';
+export const NAO_ENCONTRADA = 'Negociação não encontrada.';
+export const MENSAGEM_ENCERRADA = 'Esta negociação já foi encerrada.';
 
 /**
  * Publica um evento da negociação (segregado, payload só com ids). O `semSigilo` é a segunda trava:
  * o payload já nasce só com ids, mas um campo sigiloso nunca chega ao barramento, que os membros da
  * conta leem. A escrita já aconteceu: falha do barramento não desfaz nem derruba a resposta.
  */
-async function publicar(req: Request, tipo: string, payload: Record<string, number | null>) {
+export async function publicar(req: Request, tipo: string, payload: Record<string, number | null>) {
   try {
     await req.eventos?.publicar(tipo, semSigilo(payload));
   } catch (e) {
@@ -56,7 +56,7 @@ async function publicar(req: Request, tipo: string, payload: Record<string, numb
 }
 
 /** Configuração do Negociador da conta, sem gravar (a linha nasce no primeiro PUT). */
-async function configDaConta(dados: HelperDados) {
+export async function configDaConta(dados: HelperDados) {
   const linha = await primeiro(dados, 'config_negociador', { chave: 'conta' });
   if (!linha) return { ...CONFIG_NEGOCIADOR_PADRAO, gatilhos: { ...CONFIG_NEGOCIADOR_PADRAO.gatilhos }, padrao: true };
   return {
@@ -73,7 +73,7 @@ async function configDaConta(dados: HelperDados) {
 }
 
 /** Mandato vigente (o da `negociacoes.mandato_id`), com os campos sigilosos. Uso interno. */
-async function mandatoVigente(dados: HelperDados, negociacao: Linha): Promise<Linha | null> {
+export async function mandatoVigente(dados: HelperDados, negociacao: Linha): Promise<Linha | null> {
   if (!negociacao.mandato_id) return null;
   const m = await dados.buscar('mandatos_negociacao', Number(negociacao.mandato_id));
   return m && Number(m.negociacao_id) === Number(negociacao.id) ? normalizarMandato(m) : null;
@@ -309,6 +309,41 @@ negociacaoRotas.get(
   }),
 );
 
+export interface NovaProposta {
+  direcao: Direcao;
+  autor_tipo: string;
+  autor_usuario_id: number | null;
+  valor_c: number;
+  condicoes: string | null;
+  concessao: string | null;
+  contrapartida: string | null;
+  validade_ate: Date | null;
+  canal: string;
+  estado: string;
+}
+
+/**
+ * Grava uma proposta dentro de uma transação já aberta: trava a negociação ANTES de contar
+ * (banco-de-dados.md, Trava de linha), calcula a rodada e materializa `rodadas`. Duas propostas ao
+ * mesmo tempo se enfileiram aqui, e a segunda conta já com a primeira. Relida travada, ninguém a
+ * encerra entre esta checagem e a escrita. Usada pelo registro do corretor e pelo envio do Negociador.
+ */
+export async function gravarPropostaTravada(
+  trx: HelperDados,
+  nid: number,
+  nova: NovaProposta,
+): Promise<{ recusa: 404 | 409 } | { proposta: Linha; negociacao: Linha }> {
+  const viva = await trx.buscar('negociacoes', nid, { travar: true });
+  if (!viva) return { recusa: 404 };
+  if (encerrada(viva)) return { recusa: 409 };
+  const anteriores = await trx.varrerTudo('propostas', { filtros: { negociacao_id: nid }, maximo: 500 });
+  const rodada = rodadaDaProposta(anteriores.map((p) => p.direcao as Direcao), nova.direcao);
+  const proposta = await trx.criar('propostas', { negociacao_id: nid, rodada, ...nova });
+  // `rodadas` é materializado a cada proposta (6.16), lido da linha travada: nunca regride.
+  if (rodada > Number(viva.rodadas ?? 0)) await trx.atualizar('negociacoes', nid, { rodadas: rodada });
+  return { proposta, negociacao: viva };
+}
+
 // Quem é o autor de cada direção no registro feito pelo corretor (o Negociador grava as suas no D2).
 const AUTOR_DO_REGISTRO: Record<Direcao, string> = { comprador: 'cliente', vendedor: 'corretor', proprietario: 'proprietario' };
 
@@ -341,33 +376,20 @@ negociacaoRotas.post(
       return erro(res, 422, 'CANAL_INDISPONIVEL', 'Por enquanto, só o registro de proposta está disponível; o envio pelo portal e pelo Fazer agora chega em seguida.');
     }
     const direcao = b.direcao as Direcao;
-    const resultado = await dados.transaction(async (trx) => {
-      // Trava a negociação ANTES de contar (banco-de-dados.md, Trava de linha): duas propostas ao
-      // mesmo tempo se enfileiram aqui, e a segunda conta já com a primeira. Relida travada, ninguém
-      // a encerra entre esta checagem e a escrita.
-      const viva = await trx.buscar('negociacoes', nid!, { travar: true });
-      if (!viva) return { recusa: 404 as const };
-      if (encerrada(viva)) return { recusa: 409 as const };
-      const anteriores = await trx.varrerTudo('propostas', { filtros: { negociacao_id: nid }, maximo: 500 });
-      const rodada = rodadaDaProposta(anteriores.map((p) => p.direcao as Direcao), direcao);
-      const criada = await trx.criar('propostas', {
-        negociacao_id: nid,
-        rodada,
+    const resultado = await dados.transaction((trx) =>
+      gravarPropostaTravada(trx, nid!, {
         direcao,
         autor_tipo: AUTOR_DO_REGISTRO[direcao],
         autor_usuario_id: req.contexto?.usuario.id ?? null,
-        valor_c: b.valor_c,
+        valor_c: b.valor_c as number,
         condicoes: texto(b.condicoes, 500),
         concessao: texto(b.concessao, 200),
         contrapartida: texto(b.contrapartida, 200),
         validade_ate,
         canal,
         estado: 'registrada',
-      });
-      // `rodadas` é materializado a cada proposta (6.16), lido da linha travada: nunca regride.
-      if (rodada > Number(viva.rodadas ?? 0)) await trx.atualizar('negociacoes', nid!, { rodadas: rodada });
-      return { proposta: criada };
-    });
+      }),
+    );
     if ('recusa' in resultado) {
       return resultado.recusa === 404 ? erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA) : erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
     }
@@ -434,7 +456,7 @@ negociacaoRotas.put(
 );
 
 /** O playbook da conta por categoria: o padrão (Apêndice D) e a resposta do corretor, quando houver. */
-async function objecoesDaConta(dados: HelperDados) {
+export async function objecoesDaConta(dados: HelperDados) {
   const linhas = await dados.varrerTudo('playbook_objecoes', { maximo: 100 });
   return PLAYBOOK_OBJECOES_PADRAO.map((p) => {
     // Conta criada depois do último boot ainda não tem a semente: o padrão vem da constante.

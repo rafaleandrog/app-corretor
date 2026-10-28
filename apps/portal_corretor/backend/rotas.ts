@@ -16,6 +16,7 @@ import { instagramRotas, renovarTokensInstagram } from './instagram';
 import { assistenteRotas } from './assistente';
 import { fichaRotas } from './ficha';
 import { negociacaoRotas } from './negociacao';
+import { negociadorRotas } from './negociador';
 import { escopoDeConta } from './escopo';
 
 export { aoIniciar } from './semente';
@@ -56,3 +57,4 @@ rotas.use(instagramRotas);
 rotas.use(assistenteRotas);
 rotas.use(fichaRotas);
 rotas.use(negociacaoRotas);
+rotas.use(negociadorRotas);
