@@ -242,6 +242,11 @@ test('sanearResposta: o que foge do schema some; movimento estranho fica para se
   assert.ok(!('extra' in r));
 });
 
+test('sanearResposta: validade da contraproposta tem teto de 168 horas', () => {
+  assert.equal(sanearResposta({ movimento: 'contrapropor', contraproposta: { valor_c: 1, validade_horas: 99999 } }).contraproposta?.validade_horas, 168);
+  assert.equal(sanearResposta({ movimento: 'contrapropor', contraproposta: { valor_c: 1, validade_horas: 48 } }).contraproposta?.validade_horas, 48);
+});
+
 // ------------------------------------------------------------------------------------------------
 // Rotas, com IA simulada
 

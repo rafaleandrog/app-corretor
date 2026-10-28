@@ -122,7 +122,8 @@ export function sanearResposta(bruta: unknown): RespostaNegociador {
           condicoes: textoOuNull(c.condicoes, 500),
           concessao: textoOuNull(c.concessao, 200),
           contrapartida: textoOuNull(c.contrapartida, 200),
-          validade_horas: inteiroPositivo(c.validade_horas),
+          // Teto de 7 dias: o prompt pede 48 h; o modelo não estende a proposta além disso.
+          validade_horas: ((v) => (v === null ? null : Math.min(v, 168)))(inteiroPositivo(c.validade_horas)),
         }
       : null,
     mensagem: textoOuNull(r.mensagem, 1000),
