@@ -231,3 +231,15 @@ export function pedidoDeCriar(tipo: string): boolean {
   filtrosNaUrl(filtros, {}, ['criar']);
   return true;
 }
+
+// CRECI opcional (D-93): quando falta, o mesmo aviso discreto em toda tela que o mostra, com o atalho
+// para Ajustes › Conta. Nunca é pendência nem trava nada. O texto é o de `comum/conta.ts`.
+
+import { AVISO_CRECI } from '../comum/conta';
+
+export function avisoCreci(): TemplateResult {
+  return html`<urbi-linha quebrar>
+    <urbi-prosa papel="dica">${AVISO_CRECI}</urbi-prosa>
+    <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-id-badge" href=${urbiVerso.href('/ajustes/conta')}>Ajustes › Conta</urbi-botao>
+  </urbi-linha>`;
+}

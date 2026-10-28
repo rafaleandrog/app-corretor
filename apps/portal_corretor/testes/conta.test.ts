@@ -1,18 +1,53 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizarTelefone, validarConfiguracoes, validarMeuPerfil, validarPerfilConta } from '../comum/conta';
+import { AVISO_FORMATO_CRECI, LIMITE_CRECI, normalizarTelefone, validarConfiguracoes, validarMeuPerfil, validarPerfilConta } from '../comum/conta';
 import { aoIniciar, ehContaDemo, levarTemaParaMarca, semear } from '../backend/semente';
 import { TEMAS } from '../comum/pagina';
 import { BancoFalso } from './apoio';
 
 test('CRECI e telefone são normalizados e validados', () => {
   const ok = validarMeuPerfil({ creci: ' df-12345-f ', telefone: '(61) 99999-0000' });
-  assert.deepEqual(ok, { ok: true, dados: { creci: 'DF-12345-F', telefone: '+5561999990000' } });
+  assert.deepEqual(ok, { ok: true, dados: { creci: 'DF-12345-F', telefone: '+5561999990000' }, avisos: [] });
   assert.equal(normalizarTelefone('+1 415 555 0100'), '+14155550100');
   assert.equal(normalizarTelefone('5561999990000'), '+5561999990000');
-  const ruim = validarMeuPerfil({ creci: '12345', telefone: '12' });
-  assert.equal(ruim.ok, false);
+  // O telefone inválido continua recusado; o CRECI fora do formato, não (D-93).
+  assert.equal(validarMeuPerfil({ creci: 'DF-1-F', telefone: '12' }).ok, false);
   assert.equal(validarMeuPerfil({}).ok, true);
+});
+
+test('D-93: CRECI fora do formato usual salva com aviso; só o absurdo é erro', () => {
+  const fora = validarMeuPerfil({ creci: '  creci   12345 ' });
+  assert.deepEqual(fora, { ok: true, dados: { creci: '12345', telefone: null }, avisos: [AVISO_FORMATO_CRECI] });
+  const curto = validarMeuPerfil({ creci: '12345' });
+  assert.ok(curto.ok && curto.dados.creci === '12345' && curto.avisos?.length === 1);
+  assert.equal(validarMeuPerfil({ creci: 'x'.repeat(LIMITE_CRECI) }).ok, true, 'até o limite da coluna salva');
+  const longo = validarMeuPerfil({ creci: 'x'.repeat(LIMITE_CRECI + 1) });
+  assert.equal(longo.ok, false, 'acima do limite da coluna é erro');
+  assert.equal(validarMeuPerfil({ creci: 123 }).ok, false, 'não texto é erro');
+});
+
+test('D-93: o prefixo "CRECI" digitado não é gravado (quem exibe já o acrescenta)', () => {
+  const sem = validarMeuPerfil({ creci: 'creci  df 12345' });
+  assert.ok(sem.ok && sem.dados.creci === 'DF 12345' && sem.avisos?.length === 1);
+  const usual = validarMeuPerfil({ creci: 'CRECI: DF-12345-F' });
+  assert.deepEqual(usual, { ok: true, dados: { creci: 'DF-12345-F', telefone: null }, avisos: [] });
+  assert.deepEqual(validarMeuPerfil({ creci: 'Creci - DF-12345-F' }), { ok: true, dados: { creci: 'DF-12345-F', telefone: null }, avisos: [] });
+  const so = validarMeuPerfil({ creci: 'creci' });
+  assert.ok(so.ok && so.dados.creci === null && so.avisos?.length === 0, 'só o prefixo vira vazio');
+  const pontuado = validarMeuPerfil({ creci: ' CRECI: ' });
+  assert.ok(pontuado.ok && pontuado.dados.creci === null);
+  assert.deepEqual(validarMeuPerfil({ creci: 'DF-12345-F' }), { ok: true, dados: { creci: 'DF-12345-F', telefone: null }, avisos: [] });
+  // Palavra que só começa com as letras fica como está (conservador): não é o prefixo.
+  const colada = validarMeuPerfil({ creci: 'CRECIDF123' });
+  assert.ok(colada.ok && colada.dados.creci === 'CRECIDF123');
+  // O limite é medido sem o prefixo.
+  assert.equal(validarMeuPerfil({ creci: `CRECI ${'x'.repeat(LIMITE_CRECI)}` }).ok, true);
+  assert.equal(validarMeuPerfil({ creci: `CRECI ${'x'.repeat(LIMITE_CRECI + 1)}` }).ok, false);
+  // O CRECI jurídico passa pela mesma normalização.
+  const pj = validarPerfilConta({ nome: 'Imob', creci_juridico: 'creci: df-777-j' });
+  assert.ok(pj.ok && pj.dados.creci_juridico === 'DF-777-J');
+  const pjVazio = validarPerfilConta({ nome: 'Imob', creci_juridico: 'CRECI' });
+  assert.ok(pjVazio.ok && pjVazio.dados.creci_juridico === null);
 });
 
 test('perfil da conta exige nome e tipo conhecido', () => {

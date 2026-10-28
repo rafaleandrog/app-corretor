@@ -20,7 +20,7 @@ Na ficha do cliente, em **Seleções e portal**, o botão **+** (Nova seleção)
 O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>`. Vale pelo prazo de
 "validade da seleção enviada" de Ajustes › Atendimento (14 dias, se você não mudar).
 
-No topo, o cliente vê o seu nome, o CRECI, o botão de WhatsApp e a sua foto, na cor principal da
+No topo, o cliente vê o seu nome, o CRECI (se cadastrado), o botão de WhatsApp e a sua foto, na cor principal da
 sua marca ([Ajustes › Marca](conta-e-ajustes.md#a-marca)). Mudar a cor ou a foto na marca muda as
 seleções válidas e os portais já enviados, sem mandar link novo.
 
@@ -65,7 +65,7 @@ O portal é uma página só, curada por você (o modelo do Compass One). De cima
 
 | Parte | O que tem |
 |---|---|
-| Topo | O nome do corretor (o da Minha página, se houver), a foto, o CRECI e o botão de WhatsApp, na cor da marca. Embaixo, o **próximo passo para o cliente**, se você escreveu um |
+| Topo | O nome do corretor (o da Minha página, se houver), a foto, o CRECI (se cadastrado) e o botão de WhatsApp, na cor da marca. Embaixo, o **próximo passo para o cliente**, se você escreveu um |
 | Datas | Em destaque: a **próxima visita** (dia e hora, e quanto falta: hoje, amanhã ou em N dias) e até quando a **seleção vale** (a que vence primeiro) |
 | O que falta de você | As pendências que você pediu, cada uma com o botão **Feito** (só aparece se houver alguma) |
 | Suas visitas | As visitas marcadas, por dia, com hora e imóvel. Um dia com mais de uma visita vira um **roteiro**: as paradas numeradas na ordem do horário e o link **Ver o roteiro no mapa**, com o trajeto todo. Em cada visita, **Como chegar** (abre o mapa do celular com a rota), **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar**. O mapa só usa o que o imóvel mostra em público: com o endereço publicado, a rota vai até ele; só com o bairro, o botão vira **Ver o bairro no mapa**; publicado só como região, não há mapa |

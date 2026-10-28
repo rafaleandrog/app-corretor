@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas } from '../backend/rotas';
-import { checarPeca, imovelParaArte, promptFerramenta, textosDaIa, textosPadrao, validarMarca } from '../comum/estudio';
+import { AVISO_CRECI_NAO_COUBE, checarPeca, imovelParaArte, legendaComCreci, promptFerramenta, textosDaIa, textosPadrao, validarMarca } from '../comum/estudio';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const UNICOS = { contatos: ['telefone'], imoveis: ['codigo'], marca_conta: ['chave'], marca_arquivos: ['tipo'], perfis_corretor: ['usuario_id'] };
@@ -136,12 +136,17 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
     assert.equal((banco.linhas('pecas').find((p) => p.id === pecaId)!.legenda.match(/DF-12345-F/g) ?? []).length, 1);
     await chamar('PATCH', `/estudio/pecas/${pecaId}`, { chamada: 'Nova chamada' });
-    // O CRECI entra antes da checagem: legenda no limite com o CRECI acrescentado não passa.
+    // D-93: o CRECI só entra se couber. Legenda no limite aprova sem ele, com aviso, nunca pendência.
     const linha = banco.linhas('pecas').find((p) => p.id === pecaId)!;
     const original = linha.legenda;
-    linha.legenda = 'a'.repeat(2200 - (linha.hashtags ?? '').length - 2 - 5);
+    const noLimite = 'a'.repeat(2200 - (linha.hashtags ?? '').length - 2 - 5);
+    linha.legenda = noLimite;
     const estouro = await chamar('POST', `/estudio/pecas/${pecaId}/aprovar`);
-    assert.equal(estouro.corpo.codigo, 'CHECAGEM_PENDENTE', 'legenda + CRECI acima de 2.200 é recusada');
+    assert.equal(estouro.status, 200, JSON.stringify(estouro.corpo));
+    assert.notEqual(estouro.corpo.codigo, 'CHECAGEM_PENDENTE');
+    assert.equal(estouro.corpo.legenda, noLimite, 'a legenda fica como está, sem o CRECI');
+    assert.deepEqual(estouro.corpo.avisos, [AVISO_CRECI_NAO_COUBE]);
+    await chamar('POST', `/estudio/pecas/${pecaId}/rejeitar`);
     linha.legenda = original;
     // Fazer em outra ferramenta: instrução e fotos públicas; o Canva é o padrão e tem link para abrir.
     const canva = (await chamar('GET', `/estudio/pecas/${pecaId}/instrucao`)).corpo;

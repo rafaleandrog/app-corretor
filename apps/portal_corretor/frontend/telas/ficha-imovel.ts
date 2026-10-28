@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { secaoDaFalta } from '../../comum/imoveis';
-import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
+import { acoesComMais, avisoCreci, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -15,6 +15,8 @@ interface Ficha {
   autorizacao_vigente: boolean;
   publicavel: boolean;
   fotos_publicas: number;
+  /** Conta sem CRECI: só o aviso discreto em "o que falta" (D-93), fora da nota. */
+  sem_creci?: boolean;
   midias: Linha[];
   autorizacoes: Linha[];
   visitas: Linha[];
@@ -417,23 +419,24 @@ export class PcTelaFichaImovel extends LitElement {
         const aberta = this.ficha!.autorizacoes.find((a) => ['rascunho', 'enviada'].includes(a.situacao));
         return void (aberta ? this.assinar(aberta) : this.novaAutorizacao());
       }
-      case 'conta':
-        return urbiVerso.navegarSub('/ajustes/conta');
       case 'fotos':
         return this.renderRoot.querySelector('#fotos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
 
-  private oQueFalta(qualidade: Ficha['qualidade']) {
-    if (!qualidade.faltas.length) return '';
+  private oQueFalta(qualidade: Ficha['qualidade'], semCreci: boolean) {
+    if (!qualidade.faltas.length && !semCreci) return '';
     return html`<urbi-card titulo="O que falta no anúncio" icone="fa-solid fa-list-check">
       <span slot="acoes"><urbi-badge cor=${corQualidade(qualidade.nota)} title="Qualidade do anúncio">${qualidade.nota}</urbi-badge></span>
-      <urbi-lista separador clicavel .itens=${qualidade.faltas}
-        .render_item=${(f: string) => html`<urbi-linha justificar="entre">
-          <urbi-prosa>${f}</urbi-prosa>
-          <urbi-icone classe="fa-solid fa-chevron-right"></urbi-icone>
-        </urbi-linha>`}
-        @urbi:lista-click=${(e: CustomEvent) => this.resolver(e.detail.item as string)}></urbi-lista>
+      ${qualidade.faltas.length
+        ? html`<urbi-lista separador clicavel .itens=${qualidade.faltas}
+            .render_item=${(f: string) => html`<urbi-linha justificar="entre">
+              <urbi-prosa>${f}</urbi-prosa>
+              <urbi-icone classe="fa-solid fa-chevron-right"></urbi-icone>
+            </urbi-linha>`}
+            @urbi:lista-click=${(e: CustomEvent) => this.resolver(e.detail.item as string)}></urbi-lista>`
+        : ''}
+      ${semCreci ? avisoCreci() : ''}
     </urbi-card>`;
   }
 
@@ -478,7 +481,7 @@ export class PcTelaFichaImovel extends LitElement {
           { rotulo: 'Remover', icone: 'fa-solid fa-trash', perigo: true, aoEscolher: () => void this.remover() },
         ])}
       </urbi-linha>
-      ${this.oQueFalta(qualidade)}
+      ${this.oQueFalta(qualidade, !!this.ficha.sem_creci)}
       <urbi-card titulo=${`${im.codigo} · ${im.titulo ?? ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo}`} icone="fa-solid fa-house">
         ${this.acao('Editar dados', 'fa-solid fa-pen', () => this.editar())}
         <urbi-linha quebrar>
