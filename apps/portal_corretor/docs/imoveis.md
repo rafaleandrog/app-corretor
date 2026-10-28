@@ -31,7 +31,7 @@ a aba Empreendimentos, e `/imoveis/<número>` abre a mesma tela com o imóvel es
 **No centro**, a ficha do imóvel escolhido (abaixo). **À direita**, o contexto dele:
 
 - **Qualidade do anúncio**: a nota de 0 a 100 (verde a partir de 80, âmbar de 60 a 79, vermelho
-  abaixo de 60), com as bolinhas de 0 a 10 no lugar da barra, que o catálogo de telas ainda não
+  abaixo de 60; no código, as cores `sucesso`, `alerta` e `erro` do selo), com as bolinhas de 0 a 10 no lugar da barra, que o catálogo de telas ainda não
   tem. Embaixo, **o que falta**: cada pendência leva ao lugar que a resolve — fotos rola até o
   cartão de fotos; descrição abre a descrição; preço, área, cômodos e localização abrem os dados;
   autorização abre a nova autorização (ou "marcar assinada", se já há uma em andamento). Sem o seu
@@ -44,7 +44,9 @@ a aba Empreendimentos, e `/imoveis/<número>` abre a mesma tela com o imóvel es
   com o que bateu (tipo, região, preço, quartos, vagas, área) e o botão **Enviar**, que abre a
   ficha do cliente para você mandar a seleção. Cada critério do perfil precisa bater; o que o
   perfil não diz não conta, e perfil vazio não combina com nada. O perfil de busca vem da
-  importação de contatos; ainda não há onde editá-lo na tela.
+  importação de contatos; ainda não há onde editá-lo na tela. Contatos anonimizados não entram. Em
+  conta muito grande a busca olha só os primeiros 10 000 contatos com perfil (em ordem de cadastro) e
+  para ao achar 10; os números dos últimos 30 dias contam até 10 000 envios do imóvel no período.
 
 ### Cadastro rápido
 
@@ -64,7 +66,8 @@ a aba Empreendimentos, e `/imoveis/<número>` abre a mesma tela com o imóvel es
 - No alto, o código e o título, **Editar** (os dados) e **Criar conteúdo** (abre o Estúdio com um
   post novo). No **Mais**: situação e remover.
 - A **galeria**: a capa grande e até 8 miniaturas das outras fotos.
-- **Dados**: situação, nota, preço, local, cômodos, proprietário e empreendimento.
+- **Dados**, em grade de pares rótulo/valor: situação, qualidade, tipo, preço, condomínio, local, cômodos,
+  proprietário, empreendimento e características.
 - **Quem vê este imóvel**: se ele está na sua página pública, e o botão **Publicar na página** (ou
   **Tirar da página**, se já está marcado).
 - Os cartões de fotos, descrição, autorização, visitas, envios e negócios mostram um resumo; a

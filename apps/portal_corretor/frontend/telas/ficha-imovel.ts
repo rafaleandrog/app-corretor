@@ -4,6 +4,7 @@ import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { secaoDaFalta } from '../../comum/imoveis';
 import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
+import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -31,9 +32,14 @@ const SITUACAO_AUTORIZACAO: Record<string, { rotulo: string; cor: string }> = {
   revogada: { rotulo: 'Revogada', cor: 'padrao' },
 };
 const hojeIso = () => new Date().toLocaleDateString('sv-SE');
+/** Par rótulo/valor da grade de dados: só primitivos `urbi-*`. */
+const par = (rotulo: string, valor: unknown) => html`<urbi-stack>
+  <urbi-prosa papel="fraco">${rotulo}</urbi-prosa>
+  ${typeof valor === 'string' ? html`<urbi-prosa>${valor}</urbi-prosa>` : valor}
+</urbi-stack>`;
 const mais = (dias: number) => new Date(Date.now() + dias * 86400e3).toLocaleDateString('sv-SE');
 
-/** A ficha avisa que o imóvel mudou (salvou dados, fotos, autorização): o contexto da direita relê. */
+/** A ficha avisa que o imóvel mudou ou saiu (dados, fotos, situação, publicação, autorização): o contexto da direita e a lista da esquerda releem. */
 export const EVENTO_IMOVEL_MUDOU = 'pc:imovel-mudou';
 /** O contexto da direita pede à ficha que abra o que resolve uma pendência de "o que falta". */
 export const EVENTO_RESOLVER_FALTA = 'pc:resolver-falta';
@@ -317,6 +323,9 @@ export class PcTelaFichaImovel extends LitElement {
     if (!ok) return;
     try {
       await enviar('PATCH', `/imoveis/${this.imovelId}/remover`, {});
+      window.dispatchEvent(new CustomEvent(EVENTO_IMOVEL_MUDOU, { detail: { id: this.imovelId, removido: true } }));
+      // Tira o `?item=` do endereço: o centro não fica com a ficha do que saiu.
+      filtrosNaUrl(filtrosDaUrl(), {}, ['item']);
       urbiVerso.navegarSub('/imoveis');
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -499,15 +508,18 @@ export class PcTelaFichaImovel extends LitElement {
         : ''}
       <urbi-card titulo="Dados" icone="fa-solid fa-house">
         ${this.acao('Editar dados', 'fa-solid fa-pen', () => this.editar())}
-        <urbi-linha quebrar>
-          <urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>
-          <urbi-badge cor=${corQualidade(qualidade.nota)}>Qualidade ${qualidade.nota}</urbi-badge>
-        </urbi-linha>
-        <urbi-prosa>${ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo} · ${im.preco_c ? reais(im.preco_c) : 'preço sob consulta'}${im.condominio_c ? ` · condomínio ${reais(im.condominio_c)}` : ''}</urbi-prosa>
-        <urbi-prosa papel="secundario">${[im.bairro, im.cidade, im.uf].filter(Boolean).join(', ')}${comodos.length ? ` · ${comodos.join(' · ')}` : ''}</urbi-prosa>
-        ${im.proprietario_nome ? html`<urbi-prosa papel="secundario">Proprietário: ${im.proprietario_nome}</urbi-prosa>` : ''}
-        ${im.empreendimento_nome ? html`<urbi-prosa papel="secundario">Empreendimento: ${im.empreendimento_nome}</urbi-prosa>` : ''}
-        ${im.caracteristicas ? html`<urbi-prosa papel="dica">${im.caracteristicas}</urbi-prosa>` : ''}
+        <urbi-grid min="170px" gap="12px">
+          ${par('Situação', html`<urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>`)}
+          ${par('Qualidade', html`<urbi-badge cor=${corQualidade(qualidade.nota)}>${qualidade.nota} de 100</urbi-badge>`)}
+          ${par('Tipo', ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo)}
+          ${par('Preço', im.preco_c ? reais(im.preco_c) : 'Sob consulta')}
+          ${im.condominio_c ? par('Condomínio', reais(im.condominio_c)) : ''}
+          ${par('Local', [im.bairro, im.cidade, im.uf].filter(Boolean).join(', ') || 'Não informado')}
+          ${comodos.length ? par('Cômodos', comodos.join(' · ')) : ''}
+          ${im.proprietario_nome ? par('Proprietário', im.proprietario_nome) : ''}
+          ${im.empreendimento_nome ? par('Empreendimento', im.empreendimento_nome) : ''}
+          ${im.caracteristicas ? par('Características', im.caracteristicas) : ''}
+        </urbi-grid>
       </urbi-card>
       <urbi-card titulo="Quem vê este imóvel" icone="fa-solid fa-eye">
         <urbi-stack>

@@ -248,6 +248,50 @@ imoveisRotas.get(
   }),
 );
 
+/** Linhas por ida ao banco e tetos da rota de contexto: `varrerTudo` lança ao passar do `maximo`, e a rota não pode falhar pelo tamanho da conta. */
+const LOTE_CONTEXTO = 500;
+const LIMITE_ENVIOS_CONTEXTO = 10_000;
+const LIMITE_PERFIS_CONTEXTO = 10_000;
+
+/** Lê por páginas até `limite` linhas, sem lançar: passou disso, devolve o que leu. */
+async function lerAte(dados: HelperDados, tabela: string, filtros: Record<string, unknown>, limite: number) {
+  const linhas: Record<string, any>[] = [];
+  for (let pagina = 1; linhas.length < limite; pagina++) {
+    const r = await dados.listar(tabela, { filtros, ordenar: 'id', ordem: 'asc', por_pagina: LOTE_CONTEXTO, pagina });
+    linhas.push(...r.dados);
+    if (pagina >= r.paginas) break;
+  }
+  return linhas.slice(0, limite);
+}
+
+/**
+ * Até 10 compradores com perfil de busca (não anonimizados) que combinam com o imóvel. Procura nos primeiros
+ * `LIMITE_PERFIS_CONTEXTO` contatos com perfil, em ordem de cadastro, e para ao achar 10: em conta enorme a lista
+ * pode ser um subconjunto dos que combinam.
+ */
+async function compradoresQueCombinam(dados: HelperDados, imovel: Record<string, any>) {
+  const achados: { id: number; nome: string; temperatura: string | null; motivos: string[] }[] = [];
+  let lidos = 0;
+  for (let pagina = 1; achados.length < 10 && lidos < LIMITE_PERFIS_CONTEXTO; pagina++) {
+    const r = await dados.listar('contatos', {
+      filtros: { 'perfil_busca[nulo]': 'false', 'anonimizado_em[nulo]': 'true' },
+      ordenar: 'id',
+      ordem: 'asc',
+      por_pagina: LOTE_CONTEXTO,
+      pagina,
+    });
+    lidos += r.dados.length;
+    for (const c of r.dados) {
+      if (achados.length >= 10) break;
+      if (!normalizarPapeis(c.papeis).includes('comprador')) continue;
+      const motivos = combina(c.perfil_busca, imovel);
+      if (motivos) achados.push({ id: c.id, nome: c.nome, temperatura: c.temperatura ?? null, motivos });
+    }
+    if (pagina >= r.paginas) break;
+  }
+  return achados;
+}
+
 /**
  * Coluna da direita da ficha (P06): a qualidade com o que falta, os números dos últimos 30 dias do
  * imóvel e os clientes da conta cujo perfil de busca combina com ele (`combina`, comum/imoveis.ts).
@@ -265,17 +309,12 @@ imoveisRotas.get(
       complementos(req, [imovel]),
       temCreci(req),
       dados.listar('visitas', { filtros: { imovel_id: iid, 'criado_em[gte]': desde }, por_pagina: 1 }),
-      dados.varrerTudo('envios', { filtros: { imovel_id: iid, 'enviado_em[gte]': desde }, maximo: 1000 }),
+      lerAte(dados, 'envios', { imovel_id: iid, 'enviado_em[gte]': desde }, LIMITE_ENVIOS_CONTEXTO),
       dados.listar('negocios', { filtros: { imovel_id: iid }, por_pagina: 1 }),
-      dados.varrerTudo('contatos', { filtros: { 'perfil_busca[nulo]': 'false' }, maximo: 2000 }),
+      compradoresQueCombinam(dados, imovel),
     ]);
     const { qualidade } = resumo(imovel, extras.get(iid!)!, hoje(req));
-    const combinam = perfis
-      .filter((c) => normalizarPapeis(c.papeis).includes('comprador'))
-      .map((c) => ({ c, motivos: combina(c.perfil_busca, imovel) }))
-      .filter((x): x is { c: Record<string, any>; motivos: string[] } => !!x.motivos)
-      .slice(0, 10)
-      .map(({ c, motivos }) => ({ id: c.id, nome: c.nome, temperatura: c.temperatura ?? null, motivos }));
+    const combinam = perfis;
     res.json({
       qualidade,
       sem_creci: !creci,

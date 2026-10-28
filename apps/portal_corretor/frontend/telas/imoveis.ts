@@ -28,6 +28,7 @@ import { moldura } from '../moldura.js';
 import { irParaComQuery } from '../criar.js';
 import { contextoEmpreendimento } from './empreendimentos.js';
 import './empreendimentos.js';
+import { EVENTO_EMPREENDIMENTO_MUDOU } from './ficha-empreendimento.js';
 import { EVENTO_IMOVEL_MUDOU, EVENTO_RESOLVER_FALTA } from './ficha-imovel.js';
 import './ficha-empreendimento.js';
 
@@ -136,12 +137,29 @@ export class PcListaImoveis extends LitElement {
   @state() private falha: unknown = null;
   private filtros = filtrosDaUrl();
   private geracao = 0;
+  /** Sobe quando a ficha muda um empreendimento: a lista da aba é recriada e relê (ver `keyed`). */
+  @state() private versaoEmpreendimentos = 0;
+  // A ficha está na mesma tela e este elemento é reaproveitado: ela avisa por evento que salvou ou
+  // removeu, e a lista relê para refletir nota, capa, situação ou o item que saiu.
+  private aoImovelMudar = () => void this.carregar();
+  private aoEmpreendimentoMudar = () => {
+    this.versaoEmpreendimentos++;
+    void this.carregar();
+  };
 
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
+    window.addEventListener(EVENTO_IMOVEL_MUDOU, this.aoImovelMudar);
+    window.addEventListener(EVENTO_EMPREENDIMENTO_MUDOU, this.aoEmpreendimentoMudar);
     // "Novo imóvel" do menu Criar.
     if (pedidoDeCriar('imovel')) void this.novo();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener(EVENTO_IMOVEL_MUDOU, this.aoImovelMudar);
+    window.removeEventListener(EVENTO_EMPREENDIMENTO_MUDOU, this.aoEmpreendimentoMudar);
   }
 
   /** Só a busca e a situação vão ao backend: a aba é da tela. */
@@ -251,7 +269,7 @@ export class PcListaImoveis extends LitElement {
       <urbi-abas .abas=${abas} ativa=${this.aba} @urbi:aba-selecionar=${(e: CustomEvent) => e.detail?.id !== this.aba && this.aoTrocarAba(e.detail?.id)}>
         <urbi-hospedeiro slot=${this.aba}>
           ${this.aba === 'empreendimentos'
-            ? html`<pc-lista-empreendimentos .selecionado=${this.selecionado} .aoEscolher=${this.aoEscolher}></pc-lista-empreendimentos>`
+            ? keyed(this.versaoEmpreendimentos, html`<pc-lista-empreendimentos .selecionado=${this.selecionado} .aoEscolher=${this.aoEscolher}></pc-lista-empreendimentos>`)
             : html`<urbi-stack>
                 <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Código, título, bairro ou cidade"
                   valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
@@ -277,7 +295,7 @@ interface Contexto {
 
 // Coluna da direita do imóvel (P06): qualidade com nota e o que falta, os números dos últimos 30 dias
 // e os clientes que combinam. A barra de qualidade é lacuna (spec 11.9): a nota vai em `urbi-badge`
-// colorido (≥ 80 sucesso, 60–79 alerta, < 60 perigo) com `urbi-bolinhas` de 0 a 10 — exceção nomeada.
+// colorido (≥ 80 `sucesso`, 60–79 `alerta` âmbar, < 60 `erro` vermelho) com `urbi-bolinhas` de 0 a 10 — exceção nomeada.
 @customElement('pc-contexto-imovel')
 export class PcContextoImovel extends LitElement {
   @property({ type: Number }) imovelId = 0;
