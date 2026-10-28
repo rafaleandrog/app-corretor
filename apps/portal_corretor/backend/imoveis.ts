@@ -54,6 +54,7 @@ async function url(req: Request, arquivo: number | null | undefined): Promise<st
   }
 }
 
+/** Há CRECI na conta (do corretor ou o jurídico)? Só decide se a ficha mostra o aviso (D-93). */
 async function temCreci(dados: HelperDados): Promise<boolean> {
   const corretor = await primeiro(dados, 'perfis_corretor', { 'creci[nulo]': 'false' });
   if (corretor) return true;
@@ -87,10 +88,10 @@ async function complementos(req: Request, imoveis: Record<string, any>[]) {
   return mapa;
 }
 
-function resumo(im: Record<string, any>, extra: { midias: any[]; autorizacoes: any[] }, dia: string, creci: boolean) {
+function resumo(im: Record<string, any>, extra: { midias: any[]; autorizacoes: any[] }, dia: string) {
   const vigente = extra.autorizacoes.some((a) => autorizacaoVigente(a as Autorizacao, dia));
   const fotosPublicas = extra.midias.filter((m) => m.tipo === 'foto' && m.publica).length;
-  const qualidade = qualidadeAnuncio(im, { fotosPublicas, autorizacaoVigente: vigente, creci });
+  const qualidade = qualidadeAnuncio(im, { fotosPublicas, autorizacaoVigente: vigente });
   // Publicável: o que poderá aparecer fora do app (Minha Página, ficha pública) — bloco 5 lê isto.
   const publicavel = im.publicado_pagina && SITUACOES_ANUNCIADAS.includes(im.situacao) && vigente;
   return { qualidade, autorizacao_vigente: vigente, publicavel, fotos_publicas: fotosPublicas };
@@ -151,13 +152,13 @@ imoveisRotas.get(
       pagina,
       por_pagina: POR_PAGINA,
     });
-    const [extras, creci] = await Promise.all([complementos(req, r.dados), temCreci(req.dados!)]);
+    const extras = await complementos(req, r.dados);
     const dia = hoje(req);
     const dados = await Promise.all(
       r.dados.map(async (im) => {
         const extra = extras.get(im.id)!;
         const capa = extra.midias.find((m) => m.tipo === 'foto');
-        return { ...im, ...resumo(im, extra, dia, creci), capa_url: await url(req, capa?.arquivo) };
+        return { ...im, ...resumo(im, extra, dia), capa_url: await url(req, capa?.arquivo) };
       }),
     );
     res.json({ ...r, dados });
@@ -225,7 +226,9 @@ imoveisRotas.get(
     const porAtividade = new Map(atividades.map((a) => [a.id, a]));
     res.json({
       imovel,
-      ...resumo(imovel, extra, dia, creci),
+      ...resumo(imovel, extra, dia),
+      // Só para o aviso discreto em "o que falta" (D-93): o CRECI não pesa na nota.
+      sem_creci: !creci,
       midias: await Promise.all(extra.midias.map(async (m) => ({ ...m, url: await url(req, m.arquivo) }))),
       autorizacoes: extra.autorizacoes.map((a) => ({ ...a, situacao_efetiva: situacaoAutorizacao(a as Autorizacao, dia), vigente: autorizacaoVigente(a as Autorizacao, dia) })),
       visitas: visitas.dados.map((v) => {

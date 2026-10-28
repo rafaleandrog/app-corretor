@@ -22,14 +22,19 @@ direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/
 
 ## Conta › Seus dados: CRECI e telefone
 
-- **CRECI**: é aqui que você cadastra. O formato é `UF-número-F` (pessoa física) ou `-J` (pessoa
-  jurídica), por exemplo `DF-12345-F`. Pode digitar em minúsculas: o app corrige. O CRECI vai no
-  rodapé das artes (pela descrição do Estúdio) e na legenda das peças. Sem ele nada fica travado:
-  o app só lembra de cadastrar.
+- **CRECI** (opcional): é aqui que você cadastra. O formato usual é `UF-número-F` (pessoa física)
+  ou `-J` (pessoa jurídica), por exemplo `DF-12345-F`. Pode digitar em minúsculas: o app passa
+  para maiúsculas e tira os espaços das pontas. Se o CRECI estiver fora desse formato, ele é salvo
+  assim mesmo e o app avisa para você conferir; só recusa o que passa de 20 caracteres. Com o CRECI
+  cadastrado, ele aparece no rodapé das artes (pela descrição do Estúdio), na legenda das peças, na
+  sua página, nas seleções e no portal do cliente.
+- **Sem CRECI nada fica travado.** Onde ele faria falta (o Início, a peça do Estúdio, o editor da
+  página e "o que falta" na ficha do imóvel), aparece só o aviso discreto *"Adicione seu CRECI ao
+  perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta**. O CRECI jurídico da
+  conta também vale: com ele, o aviso some.
 - **Telefone (WhatsApp)** com DDD, por exemplo `(61) 99999-9999` (o zero antes do DDD pode ficar).
   Sem o `+` do país, o app entende que é um número do Brasil e exige DDD e 8 ou 9 dígitos.
-- **Situação do CRECI**: começa como "não verificado". A verificação é feita pela equipe da
-  plataforma e ainda não tem tela nesta versão.
+- Não há verificação nem selo do CRECI: o app não mostra "verificado" nem "não verificado".
 
 ## Conta › Conta
 

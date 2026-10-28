@@ -16,12 +16,16 @@ conta do Instagram precisa estar conectada em [Conexões](conexoes.md).
 A marca fica em **Ajustes › Marca** (o Estúdio tem o atalho **Sua marca**): a cor principal, a cor
 de apoio, o estilo (moderno, clássico ou minimalista), uma assinatura curta opcional (por exemplo
 "Seu corretor no Lago Sul"), o logo, a sua foto e as suas **referências** (abaixo). O Estúdio lê
-a marca de lá a cada peça. A descrição pede o seu nome e o CRECI no rodapé da arte, e a legenda de
-toda peça aprovada leva o CRECI (o app acrescenta se faltar).
+a marca de lá a cada peça. Com o CRECI cadastrado, a descrição pede o seu nome e o CRECI no rodapé
+da arte, e a aprovação acrescenta o CRECI à legenda quando ele falta **e cabe** no limite de 2.200
+caracteres. Se não couber, a legenda fica como está e a aprovação avisa "o CRECI não coube na
+legenda" (confira se ele está na arte): é um aviso, nunca uma pendência.
 
-**O CRECI não trava nada.** Sem CRECI cadastrado (Ajustes › Conta), o Estúdio mostra uma dica no
-cartão Criar (uma linha, não um aviso), a descrição e a legenda saem sem ele, e a peça é aprovada e publicada normalmente, com um
-lembrete na aprovação. Anúncio de imóvel deve mostrar o CRECI: cadastre antes de anunciar de verdade.
+**O CRECI é opcional e não trava nada.** Sem CRECI cadastrado (Ajustes › Conta), a descrição e a
+legenda saem sem ele, e a peça é aprovada, agendada e publicada normalmente. Cada peça ainda não
+publicada mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
+anúncios"*, com o atalho **Ajustes › Conta**; o topo do Estúdio não mostra aviso. A aprovação
+devolve o mesmo lembrete.
 
 A marca é a mesma da sua página, das seleções e do portal do cliente: a cor principal e a foto
 aparecem lá também ([A marca](conta-e-ajustes.md#a-marca)).
@@ -140,7 +144,8 @@ No **Mais**, conforme a situação:
 Peça agendada, publicando ou publicada não muda: Textos, descrição, arte e Remover não aparecem.
 
 **O que a aprovação confere:**
-- o CRECI: se estiver cadastrado, põe na legenda quando faltar; se não, só lembra (não impede);
+- o CRECI: se estiver cadastrado, põe na legenda quando faltar e couber; se não couber, ou se não
+  estiver cadastrado, só avisa (nunca impede);
 - a autorização de venda vigente do imóvel (exceto em "Vendido");
 - a arte pronta (no carrossel, pelo menos 2 imagens);
 - a legenda com até 2.200 caracteres;
@@ -164,7 +169,7 @@ O botão **Publicar** de uma peça aprovada pergunta como:
 - **Story:** o app publica e agenda stories como as outras peças. O story sai sem legenda (o
   Instagram não usa), então o CRECI precisa estar na arte: a descrição pede, mas confira na arte
   antes de aprovar.
-- **Legenda:** leva as hashtags e o CRECI.
+- **Legenda:** leva as hashtags e, se cadastrado e couber no limite, o CRECI.
 
 Publicada pela API, a peça mostra **Ver no Instagram**. A API do Instagram **não apaga**
 publicações: para tirar um post, apague pelo próprio Instagram.

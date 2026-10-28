@@ -44,7 +44,10 @@ async function visao(req: Request) {
   const dados = req.dados!;
   const contaId = contaDoRequest(req);
   const p = await paginaDaConta(dados, contaId);
-  const conta = await primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId });
+  const [conta, eu] = await Promise.all([
+    primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId }),
+    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
+  ]);
   const nome = req.contexto!.usuario.nome || conta?.nome || 'Corretor';
   const imoveis = await dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaId }, por_pagina: 1 });
   const pagina = p ?? { endereco: sugerirEndereco(nome), nome_exibicao: nome, blocos: blocosPadrao(), publicada_em: null, gerada_por_ia: false };
@@ -61,6 +64,8 @@ async function visao(req: Request) {
     // Caminho da página pública; a tela completa com a origem quando a instância não tem URL pública.
     url: `${base}/portal_corretor/p?c=${encodeURIComponent(pagina.endereco)}`,
     marcados_para_pagina: imoveis.total,
+    // CRECI opcional (D-93): a página publica sem ele; o editor só mostra o aviso discreto.
+    sem_creci: !eu?.creci && !conta?.creci_juridico,
   };
 }
 
@@ -196,7 +201,7 @@ paginaRotas.post(
     const tipos = [...new Set(imoveis.dados.map((i) => i.tipo))].slice(0, 5);
     const contexto = [
       `Nome: ${String(req.body?.nome_exibicao ?? req.contexto!.usuario.nome ?? '').slice(0, 120)}`,
-      eu?.creci ? 'Tem CRECI ativo.' : null,
+      eu?.creci ? 'Tem CRECI cadastrado.' : null,
       bairros.length ? `Regiões dos imóveis que anuncia: ${bairros.join('; ')}` : null,
       tipos.length ? `Tipos de imóvel que anuncia: ${tipos.join(', ')}` : null,
       typeof req.body?.observacoes === 'string' && req.body.observacoes.trim() ? `O corretor contou: ${req.body.observacoes.trim().slice(0, 500)}` : null,

@@ -1,18 +1,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizarTelefone, validarConfiguracoes, validarMeuPerfil, validarPerfilConta } from '../comum/conta';
+import { AVISO_FORMATO_CRECI, LIMITE_CRECI, normalizarTelefone, validarConfiguracoes, validarMeuPerfil, validarPerfilConta } from '../comum/conta';
 import { aoIniciar, ehContaDemo, levarTemaParaMarca, semear } from '../backend/semente';
 import { TEMAS } from '../comum/pagina';
 import { BancoFalso } from './apoio';
 
 test('CRECI e telefone são normalizados e validados', () => {
   const ok = validarMeuPerfil({ creci: ' df-12345-f ', telefone: '(61) 99999-0000' });
-  assert.deepEqual(ok, { ok: true, dados: { creci: 'DF-12345-F', telefone: '+5561999990000' } });
+  assert.deepEqual(ok, { ok: true, dados: { creci: 'DF-12345-F', telefone: '+5561999990000' }, avisos: [] });
   assert.equal(normalizarTelefone('+1 415 555 0100'), '+14155550100');
   assert.equal(normalizarTelefone('5561999990000'), '+5561999990000');
-  const ruim = validarMeuPerfil({ creci: '12345', telefone: '12' });
-  assert.equal(ruim.ok, false);
+  // O telefone inválido continua recusado; o CRECI fora do formato, não (D-93).
+  assert.equal(validarMeuPerfil({ creci: 'DF-1-F', telefone: '12' }).ok, false);
   assert.equal(validarMeuPerfil({}).ok, true);
+});
+
+test('D-93: CRECI fora do formato usual salva com aviso; só o absurdo é erro', () => {
+  const fora = validarMeuPerfil({ creci: '  creci   12345 ' });
+  assert.deepEqual(fora, { ok: true, dados: { creci: 'CRECI 12345', telefone: null }, avisos: [AVISO_FORMATO_CRECI] });
+  const curto = validarMeuPerfil({ creci: '12345' });
+  assert.ok(curto.ok && curto.dados.creci === '12345' && curto.avisos?.length === 1);
+  assert.equal(validarMeuPerfil({ creci: 'x'.repeat(LIMITE_CRECI) }).ok, true, 'até o limite da coluna salva');
+  const longo = validarMeuPerfil({ creci: 'x'.repeat(LIMITE_CRECI + 1) });
+  assert.equal(longo.ok, false, 'acima do limite da coluna é erro');
+  assert.equal(validarMeuPerfil({ creci: 123 }).ok, false, 'não texto é erro');
 });
 
 test('perfil da conta exige nome e tipo conhecido', () => {

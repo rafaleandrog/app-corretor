@@ -45,8 +45,8 @@ test('/empreendimentos é apelido de Imóveis na aba Empreendimentos (D-84)', ()
 });
 
 test('o que falta: cada pendência leva à seção que a resolve', () => {
-  const { faltas } = qualidadeAnuncio({ tipo: 'apartamento' }, { fotosPublicas: 0, autorizacaoVigente: false, creci: false });
-  assert.equal(faltas.length, 7, 'imóvel vazio: falta tudo');
+  const { faltas } = qualidadeAnuncio({ tipo: 'apartamento' }, { fotosPublicas: 0, autorizacaoVigente: false });
+  assert.equal(faltas.length, 6, 'imóvel vazio: falta tudo (o CRECI não entra, D-93)');
   assert.deepEqual(
     Object.fromEntries(faltas.map((f) => [f, secaoDaFalta(f)])),
     {
@@ -56,7 +56,6 @@ test('o que falta: cada pendência leva à seção que a resolve', () => {
       'Autorização de venda assinada e vigente': 'autorizacao',
       'Área e cômodos (quartos e banheiros)': 'dados',
       'Localização (bairro e cidade)': 'dados',
-      'CRECI preenchido em Ajustes › Conta': 'conta',
     },
   );
 });
@@ -93,12 +92,13 @@ test('regras puras: código, valores, qualidade, autorização, ordem e descriç
   assert.equal(validarImovel({ quartos: 2.5 }, true).ok, false);
 
   const completo = { tipo: 'apartamento', descricao: 'd'.repeat(400), preco_c: 1, area_util_m2: 80, quartos: 2, banheiros: 1, bairro: 'Asa Sul', cidade: 'Brasília' };
-  assert.deepEqual(qualidadeAnuncio(completo, { fotosPublicas: 8, autorizacaoVigente: true, creci: true }), { nota: 100, faltas: [] });
-  const q = qualidadeAnuncio({ ...completo, quartos: null }, { fotosPublicas: 3, autorizacaoVigente: false, creci: true });
-  assert.equal(q.nota, 100 - 25 - 10 - 15);
+  // Sem CRECI na conta a nota chega a 100 (D-93): o CRECI não pesa.
+  assert.deepEqual(qualidadeAnuncio(completo, { fotosPublicas: 8, autorizacaoVigente: true }), { nota: 100, faltas: [] });
+  const q = qualidadeAnuncio({ ...completo, quartos: null }, { fotosPublicas: 3, autorizacaoVigente: false });
+  assert.equal(q.nota, 100 - 30 - 10 - 15);
   assert.equal(q.faltas[0], 'Pelo menos 8 fotos públicas (tem 3)');
   // Lote não precisa de quartos.
-  assert.equal(qualidadeAnuncio({ ...completo, tipo: 'lote', quartos: null, banheiros: null }, { fotosPublicas: 8, autorizacaoVigente: true, creci: true }).nota, 100);
+  assert.equal(qualidadeAnuncio({ ...completo, tipo: 'lote', quartos: null, banheiros: null }, { fotosPublicas: 8, autorizacaoVigente: true }).nota, 100);
 
   const aut = { situacao: 'assinada', inicio: '2026-01-01', fim: '2026-06-30', documento_midia_id: 5 };
   assert.equal(autorizacaoVigente(aut, '2026-03-01'), true);

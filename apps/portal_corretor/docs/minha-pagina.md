@@ -20,7 +20,7 @@ ou no computador:
 
 | Bloco | O que mostra |
 |---|---|
-| Apresentação | Título e texto no topo, com o nome, o CRECI e os botões de WhatsApp e Instagram |
+| Apresentação | Título e texto no topo, com o nome, o CRECI (se cadastrado) e os botões de WhatsApp e Instagram |
 | Imóveis em destaque | Até 6 imóveis escolhidos |
 | Todos os imóveis | Todos os imóveis publicados |
 | Sobre mim | Um texto mais longo |
@@ -39,6 +39,10 @@ ou no computador:
 
 O nome, o CRECI e o telefone de WhatsApp da página vêm do perfil de quem salva ou publica a página
 (Ajustes › Conta). Mudou o CRECI ou o telefone? Use **Atualizar agora**.
+
+O CRECI é opcional: a página publica sem ele, e a apresentação só mostra o CRECI se ele existir.
+Sem CRECI, o editor mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
+anúncios"*, com o atalho **Ajustes › Conta**.
 
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**
 copia o endereço completo.
