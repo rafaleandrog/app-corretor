@@ -24,7 +24,8 @@ direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/
 
 - **CRECI** (opcional): é aqui que você cadastra. O formato usual é `UF-número-F` (pessoa física)
   ou `-J` (pessoa jurídica), por exemplo `DF-12345-F`. Pode digitar em minúsculas: o app passa
-  para maiúsculas e tira os espaços das pontas. Se o CRECI estiver fora desse formato, ele é salvo
+  para maiúsculas e tira os espaços das pontas. Se você digitar a palavra "CRECI" antes do número
+  (`CRECI: DF-12345-F`), ela é tirada ao salvar, porque o app já a escreve onde o CRECI aparece. Se o CRECI estiver fora desse formato, ele é salvo
   assim mesmo e o app avisa para você conferir; só recusa o que passa de 20 caracteres. Com o CRECI
   cadastrado, ele aparece no rodapé das artes (pela descrição do Estúdio), na legenda das peças, na
   sua página, nas seleções e no portal do cliente.

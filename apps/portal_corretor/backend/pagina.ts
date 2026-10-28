@@ -193,15 +193,17 @@ paginaRotas.post(
     }
     if (!estado?.efetivo) return erro(res, 503, 'IA_INDISPONIVEL', 'A escrita com IA não está disponível agora. Escreva os textos à mão.');
     const dados = req.dados!;
-    const [eu, imoveis] = await Promise.all([
+    const [eu, conta, imoveis] = await Promise.all([
       primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaDoRequest(req) }),
+      primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaDoRequest(req) }),
       dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaDoRequest(req) }, por_pagina: 50 }),
     ]);
     const bairros = [...new Set(imoveis.dados.map((i) => [i.bairro, i.cidade].filter(Boolean).join(', ')).filter(Boolean))].slice(0, 8);
     const tipos = [...new Set(imoveis.dados.map((i) => i.tipo))].slice(0, 5);
     const contexto = [
       `Nome: ${String(req.body?.nome_exibicao ?? req.contexto!.usuario.nome ?? '').slice(0, 120)}`,
-      eu?.creci ? 'Tem CRECI cadastrado.' : null,
+      // Mesma condição do `sem_creci` de `visao`: o jurídico da conta também conta.
+      eu?.creci || conta?.creci_juridico ? 'Tem CRECI cadastrado.' : null,
       bairros.length ? `Regiões dos imóveis que anuncia: ${bairros.join('; ')}` : null,
       tipos.length ? `Tipos de imóvel que anuncia: ${tipos.join(', ')}` : null,
       typeof req.body?.observacoes === 'string' && req.body.observacoes.trim() ? `O corretor contou: ${req.body.observacoes.trim().slice(0, 500)}` : null,

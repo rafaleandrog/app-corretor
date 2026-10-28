@@ -53,9 +53,13 @@ export const AVISO_CRECI = 'Adicione seu CRECI ao perfil para que ele apareça n
 /** Aviso de formato: o CRECI fora do padrão é salvo assim mesmo (D-93), só com este lembrete. */
 export const AVISO_FORMATO_CRECI = 'O CRECI foi salvo, mas não está no formato usual UF-número-F (ex.: DF-12345-F) ou -J. Confira se está certo.';
 
-/** CRECI em maiúsculas, sem espaços nas pontas e com espaços internos reduzidos a um. */
+/**
+ * CRECI em maiúsculas, sem espaços nas pontas e com espaços internos reduzidos a um. O prefixo "CRECI"
+ * digitado (com espaço, dois-pontos, hífen ou ponto depois, ou colado a número) é removido: quem exibe
+ * o valor já acrescenta "CRECI " (D-93). Palavra que só começa com essas letras ("CRECIDF123") fica como está.
+ */
 export function normalizarCreci(v: unknown): string | null {
-  const bruto = texto(v).toUpperCase().replace(/\s+/g, ' ');
+  const bruto = texto(v).toUpperCase().replace(/\s+/g, ' ').replace(/^(?:CRECI(?![A-Z])[\s:.-]*)+/, '').trim();
   return bruto || null;
 }
 

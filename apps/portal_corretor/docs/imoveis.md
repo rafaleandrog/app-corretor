@@ -39,7 +39,7 @@ cadastrar o primeiro.
 - **O que falta no anúncio**, no topo, com a nota: cada pendência leva ao lugar que a resolve —
   fotos rola até o cartão de fotos; descrição abre a descrição; preço, área, cômodos e localização
   abrem os dados; autorização abre a nova autorização (ou "marcar assinada", se já há uma em
-  andamento). Sem CRECI na conta, o cartão mostra também o aviso discreto *"Adicione seu CRECI ao
+  andamento). Sem o seu CRECI nesta conta e sem o CRECI jurídico dela, o cartão mostra também o aviso discreto *"Adicione seu CRECI ao
   perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta**; o CRECI não entra
   na nota. Com o anúncio completo (e o CRECI cadastrado), o cartão some.
 - **Uma ação principal**: **Publicar na página** ou, se já está marcado para a página, **Tirar da

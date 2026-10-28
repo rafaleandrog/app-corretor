@@ -41,7 +41,7 @@ O nome, o CRECI e o telefone de WhatsApp da página vêm do perfil de quem salva
 (Ajustes › Conta). Mudou o CRECI ou o telefone? Use **Atualizar agora**.
 
 O CRECI é opcional: a página publica sem ele, e a apresentação só mostra o CRECI se ele existir.
-Sem CRECI, o editor mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
+Sem o seu CRECI nesta conta e sem o CRECI jurídico dela, o editor mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
 anúncios"*, com o atalho **Ajustes › Conta**.
 
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**

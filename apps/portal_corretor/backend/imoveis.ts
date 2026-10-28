@@ -25,7 +25,7 @@ import {
 } from '../comum/imoveis';
 import { normalizarPapeis } from '../comum/crm';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
-import { tentarSincronizar } from './vitrine';
+import { contaDoRequest, tentarSincronizar } from './vitrine';
 
 // Imóveis (anúncios), mídias, autorizações de venda e empreendimentos (bloco 3). Tabelas
 // segregadas por conta; arquivos servidos só por URL assinada gerada aqui (tabela `restrito`).
@@ -54,12 +54,19 @@ async function url(req: Request, arquivo: number | null | undefined): Promise<st
   }
 }
 
-/** Há CRECI na conta (do corretor ou o jurídico)? Só decide se a ficha mostra o aviso (D-93). */
-async function temCreci(dados: HelperDados): Promise<boolean> {
-  const corretor = await primeiro(dados, 'perfis_corretor', { 'creci[nulo]': 'false' });
-  if (corretor) return true;
-  const conta = await primeiro(dados, 'perfil_conta', { chave: 'conta' });
-  return !!conta?.creci_juridico;
+/**
+ * Há CRECI para o aviso da ficha (D-93)? Mesma regra do editor da página (`visao`) e do Estúdio
+ * (`creci`): o perfil do próprio usuário na conta de escrita, ou o jurídico dessa conta. Quem atende
+ * várias contas lê todas, e o CRECI de outro corretor ou de outra conta não pode contar.
+ */
+async function temCreci(req: Request): Promise<boolean> {
+  const dados = req.dados!;
+  const contaId = contaDoRequest(req);
+  const [eu, conta] = await Promise.all([
+    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
+    primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId }),
+  ]);
+  return !!(eu?.creci || conta?.creci_juridico);
 }
 
 /** Erro de `upload_id` recusado pelo framework (vencido, de outro usuário, destino errado). */
@@ -215,7 +222,7 @@ imoveisRotas.get(
     if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
     const [extras, creci, visitas, negocios] = await Promise.all([
       complementos(req, [imovel]),
-      temCreci(dados),
+      temCreci(req),
       dados.listar('visitas', { filtros: { imovel_id: iid }, ordenar: 'id', ordem: 'desc', por_pagina: 100 }),
       dados.listar('negocios', { filtros: { imovel_id: iid }, por_pagina: 100 }),
     ]);

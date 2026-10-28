@@ -153,11 +153,11 @@ test('sem CRECI: salva o perfil; fora do formato salva com aviso; só o absurdo 
     assert.deepEqual([so.corpo.creci, so.corpo.avisos], [null, []]);
     const fora = await chamar('PUT', '/conta/meu-perfil', { creci: ' creci  df 12345 ', telefone: '61999990000' });
     assert.equal(fora.status, 200, JSON.stringify(fora.corpo));
-    assert.deepEqual([fora.corpo.creci, fora.corpo.avisos], ['CRECI DF 12345', [AVISO_FORMATO_CRECI]]);
-    assert.equal(banco.linhas('perfis_corretor')[0].creci, 'CRECI DF 12345', 'gravado como digitado, normalizado');
+    assert.deepEqual([fora.corpo.creci, fora.corpo.avisos], ['DF 12345', [AVISO_FORMATO_CRECI]]);
+    assert.equal(banco.linhas('perfis_corretor')[0].creci, 'DF 12345', 'gravado como digitado, normalizado');
     const longo = await chamar('PUT', '/conta/meu-perfil', { creci: 'x'.repeat(LIMITE_CRECI + 1) });
     assert.equal(longo.status, 422);
-    assert.equal(banco.linhas('perfis_corretor')[0].creci, 'CRECI DF 12345', 'o recusado não sobrescreve');
+    assert.equal(banco.linhas('perfis_corretor')[0].creci, 'DF 12345', 'o recusado não sobrescreve');
   });
 });
 
@@ -247,4 +247,73 @@ test('com CRECI: aparece na legenda, na página, na seleção, no portal e no ro
   assert.equal(vitrine.find((l) => l.tipo === 'pagina')!.dados.creci, 'DF-12345-F');
   assert.equal(vitrine.find((l) => l.tipo === 'selecao')!.dados.corretor.creci, 'DF-12345-F');
   assert.equal(vitrine.find((l) => l.tipo === 'portal')!.dados.corretor.creci, 'DF-12345-F');
+});
+
+// A1/A2: o `sem_creci` da ficha, o da página e a frase do contexto da IA seguem uma regra só — o
+// perfil do próprio usuário na conta de escrita, ou o jurídico dessa conta. Quem decide é sempre um
+// atendente de várias contas (leitura do conjunto), onde o CRECI alheio estaria ao alcance.
+test('sem_creci da ficha e da página, e a frase da IA: só o CRECI do próprio usuário ou o jurídico da conta de escrita', async () => {
+  const atendente = (extras: Record<string, unknown> = {}): Ator => ({ usuario: 8, conta: 100, contas: [100, 200], papeis: ['corretor'], extras: { arquivos, parametros, ...extras } });
+  const casos: { nome: string; preparar: (banco: BancoFalso) => Promise<void>; esperado: boolean }[] = [
+    { nome: '(1) usuário sem CRECI, conta sem jurídico', preparar: async () => {}, esperado: true },
+    {
+      nome: '(2) usuário sem CRECI, conta com jurídico',
+      preparar: async (banco) => {
+        await comServidor(rotas, ator(), banco, shellFalso(), async (chamar) => {
+          assert.equal((await chamar('PUT', '/conta/perfil', { nome: 'Imobiliária 100', creci_juridico: 'DF-900-J' })).status, 200);
+        });
+      },
+      esperado: false,
+    },
+    {
+      nome: '(3) usuário com CRECI',
+      preparar: async (banco) => {
+        await comServidor(rotas, atendente(), banco, shellFalso(), async (chamar) => {
+          assert.equal((await chamar('PUT', '/conta/meu-perfil', { creci: 'DF-8-F' })).status, 200);
+        });
+      },
+      esperado: false,
+    },
+    {
+      nome: '(4) usuário sem CRECI, conta sem jurídico, CRECI de outro corretor e de outra conta no banco',
+      preparar: async (banco) => {
+        // Outro corretor na mesma conta.
+        await comServidor(rotas, ator(), banco, shellFalso(), async (chamar) => {
+          assert.equal((await chamar('PUT', '/conta/meu-perfil', { creci: 'DF-1-F' })).status, 200);
+        });
+        // Outro corretor e jurídico em outra conta.
+        await comServidor(rotas, { usuario: 2, conta: 200, papeis: ['corretor'] }, banco, shellFalso(), async (chamar) => {
+          assert.equal((await chamar('PUT', '/conta/meu-perfil', { creci: 'DF-2-F' })).status, 200);
+          assert.equal((await chamar('PUT', '/conta/perfil', { nome: 'Imobiliária 200', creci_juridico: 'DF-200-J' })).status, 200);
+        });
+        // O próprio usuário, mas na outra conta.
+        await comServidor(rotas, { ...atendente(), conta: 200 }, banco, shellFalso(), async (chamar) => {
+          assert.equal((await chamar('PUT', '/conta/meu-perfil', { creci: 'DF-8-F' })).status, 200);
+        });
+        assert.equal(banco.linhas('perfis_corretor').filter((l) => l.creci).length, 3);
+      },
+      esperado: true,
+    },
+  ];
+  for (const caso of casos) {
+    const banco = new BancoFalso(UNICOS);
+    await caso.preparar(banco);
+    const contextos: string[] = [];
+    const ia = {
+      estadoSlot: async () => ({ efetivo: true }),
+      consultar: async (o: { contexto: string }) => (contextos.push(o.contexto), { dados: { apresentacao: 'Oi', sobre: 'Sobre' } }),
+    };
+    await comServidor(rotas, atendente({ ia }), banco, shellFalso(), async (chamar) => {
+      const im = (await chamar('POST', '/imoveis', { tipo: 'apartamento', cidade: 'Brasília', bairro: 'Noroeste', titulo: 'Apto' })).corpo;
+      const ficha = await chamar('GET', `/imoveis/${im.id}`);
+      assert.equal(ficha.status, 200, JSON.stringify(ficha.corpo));
+      assert.equal(ficha.corpo.sem_creci, caso.esperado, `ficha ${caso.nome}`);
+      const pagina = await chamar('GET', '/pagina');
+      assert.equal(pagina.status, 200, JSON.stringify(pagina.corpo));
+      assert.equal(pagina.corpo.sem_creci, caso.esperado, `página ${caso.nome}`);
+      assert.equal((await chamar('POST', '/pagina/sugerir-textos', {})).status, 200);
+    });
+    assert.equal(contextos.length, 1);
+    assert.equal(contextos[0].includes('Tem CRECI cadastrado.'), !caso.esperado, `contexto da IA ${caso.nome}`);
+  }
 });
