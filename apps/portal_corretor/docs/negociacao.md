@@ -212,7 +212,7 @@ padrão nunca é apagada nem reescrita.
 
 ## Para o administrador da instância
 
-- **Eventos** (todos da conta do corretor; o clique leva à tela Clientes, mas nesta versão ela só tem as visões Lista e Quadro, então o link ainda não abre a negociação): negociação iniciada,
+- **Eventos** (todos da conta do corretor; o clique leva à tela Clientes, mas nesta versão ela só tem as visões Lista e Funil, então o link ainda não abre a negociação): negociação iniciada,
   oferta do comprador recebida, proposta registrada, mandato alterado, negociação encerrada,
   "o Negociador precisa de você" (passagem ao corretor), objeção detectada, contraproposta
   esperando aprovação, contraproposta enviada, acordo aguardando o proprietário, negociação

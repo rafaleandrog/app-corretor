@@ -17,11 +17,13 @@ export function ehContaDemo(nome: string): boolean {
 export async function semear(ctx: ContextoListener): Promise<number> {
   if (!ctx.dados?.comConta || !ctx.contas) return 0;
   const contas = (await ctx.contas.listarAtivas()).filter((c) => ehContaDemo(c.nome));
+  // A conta de teste de menor id recebe o conjunto do guia; as outras, o do segundo corretor (spec 4.5).
+  const principal = Math.min(...contas.map((c) => c.id));
   const falhas: string[] = [];
   for (const conta of contas) {
     // Uma conta com problema não impede as outras; a falha volta ao shell no fim (iniciar_falhou).
     try {
-      await semearConta(ctx, conta);
+      await semearConta(ctx, conta, conta.id === principal ? 'principal' : 'isolamento');
     } catch (e) {
       falhas.push(`${conta.nome}: ${(e as Error).message}`);
     }
@@ -30,7 +32,7 @@ export async function semear(ctx: ContextoListener): Promise<number> {
   return contas.length;
 }
 
-async function semearConta(ctx: ContextoListener, conta: { id: number; nome: string }) {
+async function semearConta(ctx: ContextoListener, conta: { id: number; nome: string }, conjunto: 'principal' | 'isolamento') {
   await ctx.dados!.comConta!(conta.id, async (trx) => {
     // Em contexto SISTEMA a leitura enxerga todas as contas: filtrar `conta_id` é obrigatório.
     const perfil = (await trx.listar('perfil_conta', { filtros: { conta_id: conta.id, chave: 'conta' }, por_pagina: 1 })).dados[0];
@@ -40,10 +42,12 @@ async function semearConta(ctx: ContextoListener, conta: { id: number; nome: str
         tipo: 'corretor_autonomo',
         nome: conta.nome.trim().slice(0, -SUFIXO_DEMO.length).trim() || conta.nome,
         demo: true,
+        demo_conjunto: conjunto,
       });
-    } else if (!perfil.demo) {
-      // Marca a conta de teste: libera "Gerar dados de demonstração" no Início (bloco 4b).
-      await trx.atualizar('perfil_conta', perfil.id, { demo: true });
+    } else if (!perfil.demo || !perfil.demo_conjunto) {
+      // Marca a conta de teste: libera "Gerar dados de demonstração" no Hoje (bloco 4b). O conjunto,
+      // uma vez marcado, não muda: a conta que já gerou continua com o que gerou.
+      await trx.atualizar('perfil_conta', perfil.id, { demo: true, demo_conjunto: perfil.demo_conjunto ?? conjunto });
     }
     const temConfig = await trx.existe('configuracoes_conta', { conta_id: conta.id, chave: 'conta' });
     if (!temConfig) await trx.criar('configuracoes_conta', { chave: 'conta', ...CONFIGURACOES_PADRAO });

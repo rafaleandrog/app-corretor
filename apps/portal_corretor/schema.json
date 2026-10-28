@@ -43,6 +43,14 @@
           "tipo": "booleano",
           "obrigatorio": true,
           "padrao": false
+        },
+        "demo_conjunto": {
+          "tipo": "texto",
+          "limite": 12,
+          "opcoes": [
+            "principal",
+            "isolamento"
+          ]
         }
       }
     },
