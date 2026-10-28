@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { FERRAMENTA, FERRAMENTAS, FORMATOS, MAX_SLIDES, OBJETIVOS, ROTULO_FORMATO, ROTULO_OBJETIVO, type Ferramenta, type Formato } from '../../comum/estudio';
-import { acoesComMais, chamarApi, dataHora, enviar, juntarDataHora, mensagemDeErro, subirArquivo, type Acao } from '../apoio';
+import { acoesComMais, chamarApi, dataHora, enviar, juntarDataHora, mensagemDeErro, pedidoDeCriar, subirArquivo, type Acao } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -73,6 +73,8 @@ export class PcTelaEstudio extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
+    // "Novo post" do menu Criar: o mesmo formulário do pedido escrito na caixa.
+    if (pedidoDeCriar('post')) void this.novoPedido('');
   }
 
   private async carregar() {

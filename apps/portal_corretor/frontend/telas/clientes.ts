@@ -15,6 +15,7 @@ import {
   formularioEnviar,
   opcoesChip,
   opcoesPapelNaTela,
+  pedidoDeCriar,
   ROTULO_PAPEL,
   type OpcoesAba,
 } from '../apoio.js';
@@ -89,6 +90,8 @@ export class PcTelaClientes extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.iniciar();
+    // "Novo cliente" do menu Criar.
+    if (pedidoDeCriar('cliente')) void this.novo();
   }
 
   private async iniciar() {

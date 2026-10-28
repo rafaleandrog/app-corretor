@@ -8,26 +8,63 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.10; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.11; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
-| Corretor | **Início** | Faixa da semana e duas abas: **Hoje** (a fila do dia por motivo — quentes sem resposta, abordagens atrasadas, visitas, próximos passos —, um botão por item) e **Agenda** (pendências dos próximos 14 dias); e o que falta para começar — ver [Funil, temperatura e fila do dia](funil.md) e [Clientes, negócios e agenda](clientes-e-agenda.md) |
-| Corretor | **Desempenho** | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Desempenho, envios e dados de demonstração](desempenho.md) |
+| Corretor | **Hoje** (antes, Início) | Faixa da semana e duas abas: **Hoje** (a fila do dia por motivo — quentes sem resposta, abordagens atrasadas, visitas, próximos passos —, um botão por item) e **Agenda** (pendências dos próximos 14 dias); e o que falta para começar — ver [Funil, temperatura e fila do dia](funil.md) e [Clientes, negócios e agenda](clientes-e-agenda.md) |
+| Corretor | **Números** (antes, Desempenho) | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Desempenho, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Clientes** | Duas visões: **Lista** (contatos com filtros prontos Novos · Sem contato · Quentes · Retorno vencido) e **Quadro** (o funil por etapa, arrastar para mover); ficha em duas colunas (o cliente, o próximo passo com Mensagem sugerida e Virar tarefa, negócios, agenda e seleções; ao lado, o histórico com Registrar contato e Resumir); importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
 | Corretor | **Imóveis** | Duas abas: **Carteira** (os imóveis em cartões com capa, preço, situação e nota de qualidade) e **Empreendimentos**; ficha com "o que falta no anúncio" no topo, fotos, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA e descrição pronta para gerar a arte no Canva IA (ou em outra ferramenta), envio da arte na peça, aprovação e publicação — ver [Estúdio de conteúdo](estudio.md) |
-| Corretor | **Minha página** | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
+| Corretor | **Página** (antes, Minha página) | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
 | Visitante | **Página e ficha pública** (sem login) | A página do corretor e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
 | Corretor | **Clientes › ficha › Seleções e portal** | Monta seleções de imóveis, gera o link do portal do cliente, pede pendências ao cliente (**Pedir ao cliente**) e escreve o próximo passo que ele vê no portal (no cartão Próximo passo) — ver [Seleções e Portal do Cliente](selecoes-e-portal.md) |
 | Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | Reage aos imóveis (gostei, não gostei, quero visitar), vê as visitas, pede para remarcar, manda mensagem ao corretor e marca como feitas as pendências que o corretor pediu (botão **Feito**) |
-| Corretor | **Assistente** (menu) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
+| Corretor | **Assistente** (botão, abre à direita da tela) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
 | Corretor | **Ajustes** | Uma tela com cinco abas: Conta, Marca, Conexões (Instagram), Funil e abordagens, Atendimento — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
-| Corretor | Endereços antigos | `/agenda`, `/funil` e `/empreendimentos` abrem Início › Agenda, Clientes › Quadro e Imóveis › Empreendimentos |
+| Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
+| Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Quadro, Imóveis › Empreendimentos, Números e Hoje com o Assistente aberto; `/conta` abre Ajustes › Conta |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
 Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, na ficha do cliente (Resumir e Mensagem sugerida), nos imóveis (descrição e leitura de fotos), na Minha página e no Estúdio (textos),
 quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na versão em que chegar.
+
+## Como as telas se organizam
+
+O menu tem, nesta ordem: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. As
+telas estão passando para um desenho só, em colunas (o "Padrão B"). **Números** já está nele; as
+outras chegam nas próximas versões, sem perder nada do que fazem hoje.
+
+| Parte | Onde fica | O que faz |
+|---|---|---|
+| **Trilho** | Faixa estreita à esquerda | Os itens do menu, com o da tela aberta destacado, e o botão **Assistente** no fim. No celular, o botão **Menu** no alto mostra o trilho |
+| **Lista** | Coluna da esquerda | O que existe naquela tela (em Números, os relatórios). O item escolhido fica no endereço (`?item=`): recarregar ou abrir o link guardado reabre o mesmo |
+| **Foco** | Coluna do meio, a mais larga | O que você está fazendo: o item aberto e as ações principais |
+| **Contexto** | Coluna da direita | O que ajuda a decidir sobre o item aberto. O Assistente, quando aberto, ocupa esta coluna |
+
+- As colunas da esquerda e da direita podem ser alargadas, arrastando a divisa, e recolhidas pela setinha no topo delas.
+- No celular, aparece uma coluna por vez, com abas para trocar entre elas.
+
+**Criar**, no alto de toda tela do corretor, abre:
+
+| Opção | O que acontece |
+|---|---|
+| Novo cliente | Abre Clientes já com o cadastro de contato |
+| Novo imóvel | Abre Imóveis já com o cadastro do imóvel |
+| Novo post | Abre o Estúdio já com o pedido de peça |
+| Nova visita | Pede o cliente, o imóvel, o dia e a hora ali mesmo; com a ficha de um cliente aberta, ele já vem escolhido. Depois abre a ficha do cliente |
+| Nova proposta | Abre a ficha do cliente aberto, ou a lista de Clientes para você escolher. A proposta ainda se registra pela ficha, como um negócio |
+
+**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela, e **Fechar** devolve
+a tela como estava — ver [Assistente do Corretor](assistente.md). Nas telas que ainda não estão no
+desenho novo, o botão **Assistente** fica no alto, ao lado de Criar, e o Assistente divide a tela com ela.
+
+**Estados de toda tela:**
+- Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco.
+- Se algo não carregou, aparece uma frase curta com **Tentar de novo**.
+- O que não existe ou é de outra conta aparece como **Não encontrado**.
+- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona.
 
 ## Papéis
 

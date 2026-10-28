@@ -1,7 +1,10 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, filtrosDaUrl, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
+import { chamarApi, filtrosDaUrl, filtrosNaUrl, itemDaUrl, itemNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
+import { estadoDaFalha, estadoTela } from '../estados.js';
+import { moldura } from '../moldura.js';
+import { abrirAssistente } from './assistente.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -26,7 +29,7 @@ function variacao(dias: number, atual: number | null, anterior: number | null, e
   return ehTaxa ? `${s}${Math.round(Math.abs(d) * 100)} pontos que ${quando}` : `${s}${Math.abs(d).toLocaleString('pt-BR')} que ${quando}`;
 }
 
-// Desempenho (spec 11.1 e 11.2): quatro números acima da dobra (leads, conversão total, vendas,
+// Números, antigo Desempenho (spec 11.1 e 11.2; `/desempenho` é apelido, D-103): quatro números acima da dobra (leads, conversão total, vendas,
 // comissão prevista); abaixo, a conversão etapa por etapa (contagens e gráfico contra o período
 // anterior, taxas no detalhe), leads e situação por canal, leads ao longo do período, os demais
 // resultados e motivos de perda, com a comparação ao período anterior em texto pequeno. O período fica em `?dias=`.
@@ -34,7 +37,7 @@ function variacao(dias: number, atual: number | null, anterior: number | null, e
 @customElement('pc-tela-desempenho')
 export class PcTelaDesempenho extends LitElement {
   @state() private dados: Linha | null = null;
-  @state() private falha: string | null = null;
+  @state() private falha: unknown = null;
   @state() private dias = PERIODOS.some((p) => p.valor === filtrosDaUrl().get('dias')) ? Number(filtrosDaUrl().get('dias')) : 30;
   private geracao = 0;
 
@@ -50,7 +53,7 @@ export class PcTelaDesempenho extends LitElement {
       const r = await chamarApi(`/numeros?dias=${this.dias}`);
       if (geracao === this.geracao) this.dados = r;
     } catch (e) {
-      if (geracao === this.geracao) this.falha = (e as Error).message;
+      if (geracao === this.geracao) this.falha = e;
     }
   }
 
@@ -87,13 +90,8 @@ export class PcTelaDesempenho extends LitElement {
   }
 
   render() {
-    if (this.falha && !this.dados) {
-      return html`<urbi-banner variante="erro">
-        ${this.falha}
-        <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
-      </urbi-banner>`;
-    }
-    if (!this.dados) return html`<urbi-loading></urbi-loading>`;
+    if (this.falha && !this.dados) return estadoDaFalha(this.falha, () => void this.carregar());
+    if (!this.dados) return estadoTela('carregando', { mensagem: 'Carregando os números…' });
     const a = this.dados.atual;
     const b = this.dados.anterior;
     const previsao = this.dados.previsao;
@@ -190,10 +188,37 @@ export class PcTelaDesempenho extends LitElement {
               .series=${[{ rotulo: 'Perdas', valores: a.motivos_perda.map((m: Linha) => m.quantidade) }]}></urbi-grafico-colunas>`
           : html`<urbi-prosa papel="dica">Nenhuma perda no período.</urbi-prosa>`}
       </urbi-card>
-      <urbi-prosa papel="dica">
+    </urbi-stack>`;
+  }
+}
+
+// A tela Números na moldura do Padrão B (B1 prova o encaixe nela; o P10 completo é o item B7):
+// relatórios à esquerda, o relatório aberto no centro e o contexto à direita. O relatório aberto
+// fica em `?item=` (sem ele, o Resumo).
+const RELATORIOS = [{ id: 'resumo', titulo: 'Resumo do período', descricao: 'Funil, origens, resultados e perdas' }];
+type Relatorio = (typeof RELATORIOS)[number];
+
+export function renderNumeros(atualizar: () => void) {
+  const aberto = RELATORIOS.find((r) => r.id === itemDaUrl()) ?? RELATORIOS[0];
+  const lista = html`<urbi-prosa papel="secao">Relatórios</urbi-prosa>
+    <urbi-lista clicavel separador .itens=${RELATORIOS} .itemAtivo=${(r: Relatorio) => r.id === aberto.id}
+      .render_item=${(r: Relatorio) => html`<urbi-stack>
+        <urbi-prosa>${r.titulo}</urbi-prosa>
+        <urbi-prosa papel="fraco">${r.descricao}</urbi-prosa>
+      </urbi-stack>`}
+      @urbi:lista-click=${(e: CustomEvent) => (itemNaUrl((e.detail.item as Relatorio).id), atualizar())}></urbi-lista>
+    <urbi-prosa papel="dica">Os relatórios do Mensageiro e do Negociador chegam com eles.</urbi-prosa>`;
+  const contexto = html`<urbi-card titulo="Sobre estes números" icone="fa-solid fa-circle-info">
+    <urbi-stack>
+      <urbi-prosa papel="secundario">
         Tempo de primeiro atendimento e números do atendimento automático (o Mensageiro) chegam com o WhatsApp; conteúdo publicado,
         com o Estúdio; custo por lead, comissão recebida e metas, em versões seguintes.
       </urbi-prosa>
-    </urbi-stack>`;
-  }
+      <urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-comments" @click=${() => abrirAssistente()}>Perguntar ao Assistente</urbi-botao></urbi-linha>
+    </urbi-stack>
+  </urbi-card>`;
+  return moldura(
+    { menu: '/numeros', lista, centro: html`<pc-tela-desempenho></pc-tela-desempenho>`, contexto, rotulos: { lista: 'Relatórios', centro: 'Resumo', contexto: 'Contexto' } },
+    atualizar,
+  );
 }

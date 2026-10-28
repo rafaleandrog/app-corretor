@@ -1,13 +1,15 @@
 import { html } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { enviar, mensagemDeErro } from '../apoio';
+import { chamarApi, enviar, mensagemDeErro } from '../apoio';
+import { contatoDoEndereco } from '../enderecos';
+import { estadoTela } from '../estados';
 
 declare const urbiVerso: UrbiVersoAPI;
 
-// Assistente do Corretor (bloco 9, spec 10.2): tela própria no menu (D-76: o botão flutuante pediria
-// CSS estrutural, que o contrato de UI proíbe). O conteúdo vai direto no body do `urbi-shell-page`,
-// sem elemento intermediário, para o `urbi-chat [expandir]` preencher a tela também no celular
-// (layout do `urbi-chat`). A conversa fica em memória enquanto o app está aberto.
+// Assistente do Corretor (bloco 9, spec 10.2). Abre na coluna de contexto, à direita, de qualquer
+// tela (D-109, revê D-76): esquerda e centro ficam, e fechar devolve o contexto da tela. Sai do menu e
+// vira botão do trilho; `/assistente` é apelido que abre Hoje com ele aberto. A conversa e o "aberto"
+// ficam em memória, fora do componente: sobrevivem à troca de tela enquanto o app está aberto.
 
 interface Proposta {
   tipo: string;
@@ -45,23 +47,73 @@ const conversa = {
   proposta: null as Proposta | null,
   irPara: null as { sub: string; nome: string } | null,
   contato: null as { id: number; nome: string } | null,
-  /** Última tela do app antes do Assistente: vai como "tela atual" para puxar o artigo dela. */
+  /** Tela em que o corretor está: vai como "tela atual" para puxar o artigo dela. */
   telaAnterior: '/',
+  /** Painel aberto na coluna de contexto. */
+  aberto: false,
+  /** Contato da ficha aberta (a ficha avisa ao carregar): o Assistente abre já sobre ele. */
+  foco: null as { id: number; nome: string } | null,
+  /** Slot `assistente` liberado (`GET /assistente/ia`); `null` enquanto a sonda não voltou. */
+  ia: null as boolean | null,
   pensando: false,
   seq: 0,
-  /** Redesenho do app (o `requestUpdate` do componente raiz), passado a cada render. */
+  /** Redesenho do app (o `requestUpdate` do componente raiz), registrado por `aoMudarAssistente`. */
   atualizar: () => {},
 };
 
-/** O app avisa a tela em que o corretor está (fora do Assistente). */
+/** O app avisa a tela em que o corretor está; `/assistente` é Hoje. */
 export function lembrarTela(sub: string) {
-  if (sub !== '/assistente') conversa.telaAnterior = sub;
+  conversa.telaAnterior = sub === '/assistente' ? '/' : sub;
 }
+
+/** A ficha avisa o contato em foco, para o Assistente aberto nela já falar dele. */
+export function lembrarContato(contato: { id: number; nome: string }) {
+  conversa.foco = contato;
+}
+
+/** Contato da ficha aberta agora, se a ficha já avisou quem é. */
+export function contatoEmFoco(): { id: number; nome: string } | null {
+  const id = contatoDoEndereco(conversa.telaAnterior);
+  return id !== null && conversa.foco?.id === id ? conversa.foco : null;
+}
+
+export const assistenteAberto = () => conversa.aberto;
+
+/** Sonda sem custo do slot, uma vez por carga do app: a falha conta como indisponível. */
+let sondou = false;
+function sondarIa() {
+  if (sondou) return;
+  sondou = true;
+  chamarApi('/assistente/ia').then(
+    (r) => ((conversa.ia = !!r?.assistente), conversa.atualizar()),
+    () => ((conversa.ia = false), conversa.atualizar()),
+  );
+}
+
+/** Abre na coluna de contexto, levando o contato da ficha aberta quando não há outro escolhido. */
+export function abrirAssistente() {
+  conversa.contato ??= contatoEmFoco();
+  conversa.aberto = true;
+  sondarIa();
+  conversa.atualizar();
+}
+
+export function fecharAssistente() {
+  conversa.aberto = false;
+  conversa.atualizar();
+}
+
+export const alternarAssistente = () => (conversa.aberto ? fecharAssistente() : abrirAssistente());
 
 /** Abre o Assistente sobre um contato (ficha do contato: "perguntar ao Assistente sobre este cliente"). */
 export function abrirAssistenteSobre(contato: { id: number; nome: string }) {
   conversa.contato = contato;
-  urbiVerso.navegarSub('/assistente');
+  abrirAssistente();
+}
+
+/** Redesenho do app quando a conversa muda (o `requestUpdate` do componente raiz). */
+export function aoMudarAssistente(atualizar: () => void) {
+  conversa.atualizar = atualizar;
 }
 
 const meuId = () => urbiVerso.usuario()?.id ?? 0;
@@ -125,17 +177,21 @@ function recusar() {
 }
 
 /**
- * Conteúdo da tela, como irmãos de fluxo no body da página; o chat por último, com `expandir`.
- * `atualizar` redesenha o app quando a conversa muda.
+ * O painel da coluna de contexto (P05): título com fechar, aviso de IA indisponível, o contato em
+ * foco, a ação proposta e o chat por último, com `expandir` (a moldura o põe num hospedeiro que enche).
  */
-export function renderAssistente(atualizar: () => void) {
-  conversa.atualizar = atualizar;
+export function painelAssistente() {
   const { proposta, irPara, contato } = conversa;
   return html`
+    <urbi-linha justificar="entre">
+      <urbi-prosa papel="secao">Assistente</urbi-prosa>
+      <urbi-botao variante="texto" pequeno icone="fa-solid fa-xmark" @click=${() => fecharAssistente()}>Fechar</urbi-botao>
+    </urbi-linha>
+    ${conversa.ia === false ? estadoTela('ia_indisponivel', { mensagem: 'IA indisponível agora: respondo com os artigos da ajuda do app.' }) : ''}
     ${contato
       ? html`<urbi-linha quebrar>
           <urbi-badge>Sobre: ${contato.nome}</urbi-badge>
-          <urbi-botao variante="texto" pequeno @click=${() => ((conversa.contato = null), atualizar())}>Tirar</urbi-botao>
+          <urbi-botao variante="texto" pequeno @click=${() => ((conversa.contato = null), conversa.atualizar())}>Tirar</urbi-botao>
         </urbi-linha>`
       : ''}
     ${proposta

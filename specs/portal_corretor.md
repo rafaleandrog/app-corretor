@@ -1715,7 +1715,7 @@ Telas autenticadas usam só primitivos `urbi-*` e tokens; as páginas públicas 
 
 | Tela | Primitivos principais |
 |---|---|
-| Moldura | `urbi-3-colunas` (colunas), `urbi-trilho-atalhos` (trilho com Criar e Assistente), `urbi-inbox` onde a esquerda é caixa; `urbi-modal` no lugar de gaveta (lacuna) |
+| Moldura | `urbi-inbox` (raiz, com a sidebar sem largura) + `urbi-trilho-atalhos` no `sidebar-trilho` + `urbi-3-colunas` no `detalhe` (ou `urbi-2x1` com só foco e contexto); `urbi-modal` no lugar de gaveta (lacuna). **Exceções nomeadas do B1:** (a) *Criar fora do trilho*: o `urbi-trilho-atalhos` só emite clique e não ancora o `urbi-dropdown`, então o Criar fica no `actions` do `urbi-shell-page` de toda tela do corretor (pedido ao shell 14); (b) *trilho com o menu*: o externo não abre o menu da app (gap de `permissoes.md` § Usuário externo) e a app não sabe o tipo de quem vê, então o trilho mostra os itens do menu sempre, não só Criar e Assistente (pedido ao shell 15); (c) *Assistente no cabeçalho* das telas ainda fora da moldura, até B2–B9 |
 | P01 Hoje | `urbi-abas` (Hoje · Agenda), `urbi-lista` (fila e agenda), `urbi-kpi` + `urbi-grid` (sua semana), `urbi-badge` (chips), `urbi-botao`; barra de progresso de Primeiros passos (lacuna; até lá, texto "3 de 5") |
 | P02 Conversas, M2 | `urbi-inbox`, `urbi-chat`, `urbi-redator` (anexo e microfone), `urbi-ficha`, `urbi-badge` |
 | P03 Funil | `urbi-kanban`, `urbi-chips-atalho` ou `urbi-badge` interativo (filtros prontos), `urbi-ficha`, `urbi-kpi` |

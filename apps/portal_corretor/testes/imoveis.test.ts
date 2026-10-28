@@ -17,6 +17,7 @@ import {
   validarImovel,
 } from '../comum/imoveis';
 import { TELAS_APP, telaBase } from '../comum/assistente';
+import { resolverEndereco } from '../frontend/enderecos';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const raiz = (arquivo: string) => readFileSync(resolve(process.cwd(), arquivo), 'utf8');
@@ -31,11 +32,10 @@ test('Imóveis: abas Carteira e Empreendimentos, nesta ordem; Carteira é a prim
 test('/empreendimentos é apelido de Imóveis na aba Empreendimentos (D-84)', () => {
   assert.equal(APELIDOS_IMOVEIS['/empreendimentos'], 'empreendimentos');
   assert.ok(ABAS_IMOVEIS.some((a) => a.id === APELIDOS_IMOVEIS['/empreendimentos']));
-  const indice = raiz('frontend/index.ts');
-  assert.match(indice, /'\/imoveis': IMOVEIS,/);
-  assert.match(indice, /'\/empreendimentos': IMOVEIS,/);
+  assert.deepEqual(resolverEndereco('/imoveis'), { chave: 'imoveis' });
+  assert.deepEqual(resolverEndereco('/empreendimentos'), { chave: 'imoveis' });
   // A ficha do empreendimento segue com a rota dela.
-  assert.match(indice, /'\/empreendimentos\/:id'/);
+  assert.deepEqual(resolverEndereco('/empreendimentos/7'), { chave: 'empreendimento', param: '7' });
   // O Início não tem mais o link de Empreendimentos no pé.
   assert.doesNotMatch(raiz('frontend/telas/inicio.ts'), /href\('\/empreendimentos'\)/);
   assert.equal(telaBase('/empreendimentos'), '/empreendimentos');
