@@ -10,6 +10,8 @@ import { CATEGORIAS_OBJECAO, passoMaximo_c, rodadaDaProposta, type Concessao, ty
 
 export const MOVIMENTOS = ['responder_objecao', 'contraproposta', 'pedir_informacao', 'resumir_acordo', 'passar_ao_corretor'] as const;
 export type Movimento = (typeof MOVIMENTOS)[number];
+/** O que `sanearResposta` guarda no lugar de um movimento fora da lista (nunca o texto do modelo). */
+export const MOVIMENTO_FORA_DA_LISTA = 'fora_da_lista';
 
 /** Canais em que uma contraproposta pode sair hoje: sem WhatsApp do app (D-107). */
 export const CANAIS_ENVIO = ['portal', 'wa_me'] as const;
@@ -109,8 +111,11 @@ export function sanearResposta(bruta: unknown): RespostaNegociador {
       : [],
     teto_estimado_comprador_c: inteiroPositivo(r.teto_estimado_comprador_c),
     fonte_estimativa: textoOuNull(r.fonte_estimativa, 300),
-    // Movimento fora da lista (ex.: "aceitar_acordo") fica como veio: `validarMovimento` o bloqueia.
-    movimento: typeof r.movimento === 'string' ? r.movimento.slice(0, 40) : 'passar_ao_corretor',
+    // Movimento fora da lista (ex.: "aceitar_acordo") vira um código fixo: o texto livre do modelo nunca
+    // é guardado nem devolvido, e `validarMovimento` continua o bloqueando (`MOVIMENTO_INVALIDO`).
+    movimento: r.movimento === undefined || r.movimento === null
+      ? 'passar_ao_corretor'
+      : (MOVIMENTOS as readonly unknown[]).includes(r.movimento) ? (r.movimento as Movimento) : MOVIMENTO_FORA_DA_LISTA,
     contraproposta: c
       ? {
           valor_c: inteiroPositivo(c.valor_c),
@@ -286,9 +291,13 @@ const UNIDADES: Record<string, number> = {
   oitocentos: 800, oitocentas: 800, novecentos: 900, novecentas: 900,
 };
 const MILHAR = new Set(['mil', 'k']);
-// "1,36M", "1.36kk" (gíria: mil de mil) e "milh" abreviado. "m²" não chega aqui: `prepararTexto` o troca por "metros".
+// "1,36M", "1.36kk" (gíria: mil de mil) e "milh" abreviado. "m²" não chega aqui: `prepararTexto` o troca por
+// "metros"; o "m" solto só é milhão nas condições de `mEhMilhao` ("10 m de frente" é medida).
 const MILHAO = new Set(['milhao', 'milhoes', 'mi', 'mm', 'milh', 'm', 'kk']);
 const ehMilhao = (t: string) => MILHAO.has(t) || t.startsWith('milh');
+const MEIO = new Set(['meio', 'meia']);
+/** Palavras de medida antes de um número: o "m" depois dele é metro ("pé-direito de 2,80 m"). */
+const MEDIDA = /\b(frente|fundos?|altura|largura|comprimento|profundidade|pe.direito|distancia|testada|terreno|lote|area)\b/;
 
 /** Número escrito com dígitos, em qualquer das convenções de milhar e decimal ("1.360.000", "1,36", "1360000"). */
 function numeroDeDigitos(t: string, antes: 'mil' | 'milhao' | null = null): number {
@@ -305,14 +314,15 @@ function numeroDeDigitos(t: string, antes: 'mil' | 'milhao' | null = null): numb
 }
 
 /**
- * O texto pronto para ler valores: sem acento, minúsculo, "R$" fora, "m²"/"m2" como "metros" (para o
- * "m" de milhão não pegar área) e milhar separado por espaço colado ("1 360 000" vira "1360000").
+ * O texto pronto para ler valores: sem acento, minúsculo, "R$" como a palavra "rs" (marca de dinheiro),
+ * "m²"/"m2" como "metros" (para o "m" de milhão não pegar área) e milhar separado por espaço colado
+ * ("1 360 000" vira "1360000").
  */
 function prepararTexto(texto: string): string {
   return semAcento(texto)
-    .replace(/r\$/g, '  ')
+    .replace(/r\$/g, ' rs ')
     .replace(/(?<![a-z])m[²2](?!\d)/g, ' metros ')
-    .replace(/(?<![\d.,])(\d{1,3})((?:[  ]\d{3})+)(?![\d]|[.,]\d{3})/g, (_m, a: string, b: string) => a + b.replace(/[  ]/g, ''));
+    .replace(/(?<![\d.,])(\d{1,3})((?:[  ]\d{3})+)(?![\d]|[.,]\d{3})/g, (_m, a: string, b: string) => a + b.replace(/[  ]/g, ''));
 }
 
 /** Maior potência de 10 (de mil para cima) que divide o total: "1.000.000 e 360 mil" junta, "1.300.000 e 1.400.000" não. */
@@ -323,6 +333,15 @@ const unidade = (total: number) => {
   return u;
 };
 
+/** Parte decimal dita por extenso depois de "vírgula": 36 → 0,36; 5 → 0,5. */
+const fracao = (n: number) => (n > 0 ? n / 10 ** String(Math.round(n)).length : 0);
+
+interface Token {
+  t: string;
+  ini: number;
+  fim: number;
+}
+
 interface ValorNoTexto {
   /** Valor em reais. */
   v: number;
@@ -331,9 +350,22 @@ interface ValorNoTexto {
   fim: number;
 }
 
+/**
+ * O "m" do token `i` é milhão? Só depois de um número com decimal ("1,36 m", "R$ 1,36M") ou de "R$"
+ * ("R$ 2 m"), e nunca em medida: "10 m de frente", "2,80 m de pé-direito", "pé-direito de 2,80 m".
+ */
+function mEhMilhao(base: string, tokens: Token[], i: number): boolean {
+  const ant = tokens[i - 1];
+  if (!ant || !/^\d/.test(ant.t)) return false;
+  if (['de', 'do', 'da', 'x', 'por', 'quadrados', 'lineares'].includes(tokens[i + 1]?.t ?? '')) return false;
+  const antes = base.slice(Math.max(0, ant.ini - 30), ant.ini);
+  if (MEDIDA.test(antes)) return false;
+  return /[.,]\d{1,2}$/.test(ant.t) || /\brs\s*$/.test(antes);
+}
+
 /** Os valores do texto já preparado, com a posição de cada um (para ler o que vem antes e depois). */
 function lerValores(base: string): ValorNoTexto[] {
-  const tokens = [...base.matchAll(/\d[\d.,]*\d|\d|[a-z]+/g)].map((m) => ({ t: m[0], ini: m.index ?? 0, fim: (m.index ?? 0) + m[0].length }));
+  const tokens: Token[] = [...base.matchAll(/\d[\d.,]*\d|\d|[a-z]+/g)].map((m) => ({ t: m[0], ini: m.index ?? 0, fim: (m.index ?? 0) + m[0].length }));
   const valores: ValorNoTexto[] = [];
   let total = 0;
   let parcial = 0;
@@ -341,20 +373,46 @@ function lerValores(base: string): ValorNoTexto[] {
   let ini = 0;
   let fim = 0;
   let anterior: 'digito' | 'e' | 'outro' = 'outro';
+  // Última escala do valor em curso (1000 ou 1.000.000), se "milhão" veio por extenso, se a parte menor
+  // veio por extenso e a parte inteira antes de uma "vírgula" por extenso.
+  let escala = 0;
+  let milhaoPorExtenso = false;
+  let parcialPorExtenso = false;
+  let inteiroVirgula: number | null = null;
   const fechar = () => {
-    if (ativo) valores.push({ v: total + parcial, ini, fim });
+    if (ativo) {
+      let p = parcial;
+      if (inteiroVirgula !== null) p = inteiroVirgula + fracao(parcial);
+      // "um milhão e duzentos": depois de milhão por extenso, o "mil" fica implícito (1.200.000).
+      else if (milhaoPorExtenso && escala === 1_000_000 && parcialPorExtenso && p > 0 && p < 1000) p *= 1000;
+      // Arredonda ao centavo: a vírgula por extenso soma frações (1 + 0,36 não é exato em ponto flutuante).
+      valores.push({ v: Math.round((total + p) * 100) / 100, ini, fim });
+    }
     total = 0;
     parcial = 0;
     ativo = false;
+    escala = 0;
+    milhaoPorExtenso = false;
+    parcialPorExtenso = false;
+    inteiroVirgula = null;
   };
   const comecar = (posicao: number) => {
     if (!ativo) ini = posicao;
     ativo = true;
   };
+  /** O que vem antes de "mil"/"milhão", com a vírgula por extenso ("um vírgula trinta e seis"). */
+  const antesDaEscala = () => {
+    const n = inteiroVirgula !== null ? inteiroVirgula + fracao(parcial) : parcial || 1;
+    inteiroVirgula = null;
+    parcial = 0;
+    parcialPorExtenso = false;
+    return n;
+  };
   for (const [i, tk] of tokens.entries()) {
     const { t } = tk;
     const proximo = tokens[i + 1]?.t ?? '';
-    const mult = MILHAR.has(proximo) ? 1000 : ehMilhao(proximo) ? 1_000_000 : 1;
+    const proximoMilhao = proximo === 'm' ? mEhMilhao(base, tokens, i + 1) : ehMilhao(proximo);
+    const mult = MILHAR.has(proximo) ? 1000 : proximoMilhao ? 1_000_000 : 1;
     if (/^\d/.test(t)) {
       const v = numeroDeDigitos(t, mult === 1000 ? 'mil' : mult === 1_000_000 ? 'milhao' : null);
       if (!Number.isFinite(v)) {
@@ -368,27 +426,48 @@ function lerValores(base: string): ValorNoTexto[] {
       comecar(tk.ini);
       // Valor já completo ("1.300.000") vai ao total: o "mil" de "e vinte mil" não o multiplica.
       if (mult === 1 && v >= 1000) total += v;
-      else parcial += v;
+      else {
+        parcial += v;
+        parcialPorExtenso = false;
+      }
       fim = tk.fim;
       anterior = 'digito';
+    } else if (MEIO.has(t) && ativo && anterior === 'e' && parcial === 0 && escala) {
+      // "um milhão e meio", "1 milhão e meio": metade da última escala.
+      total += escala / 2;
+      fim = tk.fim;
+      anterior = 'outro';
+    } else if (MEIO.has(t) && !ativo && (MILHAR.has(proximo) || ehMilhao(proximo))) {
+      // "meio milhão".
+      comecar(tk.ini);
+      parcial = 0.5;
+      fim = tk.fim;
+      anterior = 'outro';
     } else if (t in UNIDADES) {
       if (anterior === 'digito') fechar();
       comecar(tk.ini);
       parcial += UNIDADES[t];
+      parcialPorExtenso = true;
       fim = tk.fim;
+      anterior = 'outro';
+    } else if (t === 'virgula' && ativo && anterior === 'outro' && total === 0 && inteiroVirgula === null && parcial > 0) {
+      // "um vírgula trinta e seis milhões": a parte inteira fica guardada até a escala.
+      inteiroVirgula = parcial;
+      parcial = 0;
       anterior = 'outro';
     } else if (MILHAR.has(t) && (ativo || t === 'mil')) {
       // "mil" sozinho ("mil e quinhentos") vale mil.
       comecar(tk.ini);
-      total += (parcial || 1) * 1000;
-      parcial = 0;
+      total += antesDaEscala() * 1000;
+      escala = 1000;
       fim = tk.fim;
       anterior = 'outro';
-    } else if (ehMilhao(t) && (ativo || t.startsWith('milh'))) {
+    } else if (ehMilhao(t) && (t !== 'm' || mEhMilhao(base, tokens, i)) && (ativo || t.startsWith('milh'))) {
       // "milhão" sozinho ("um milhão" já entrou por UNIDADES) vale 1 milhão.
       comecar(tk.ini);
-      total = (total + (parcial || 1)) * 1_000_000;
-      parcial = 0;
+      total = (total + antesDaEscala()) * 1_000_000;
+      escala = 1_000_000;
+      milhaoPorExtenso = t.startsWith('milh');
       fim = tk.fim;
       anterior = 'outro';
     } else if (t === 'e' && ativo) {
@@ -404,50 +483,93 @@ function lerValores(base: string): ValorNoTexto[] {
 
 /**
  * Os valores em reais citados num texto, em dígitos ou por extenso, com "mil"/"milhão"/"mi"/"M"/"k"/"kk":
- * "1.360.000", "1,36 mi", "R$ 1360 mil", "1 360 000", "1 milhão e 360 mil", "um milhão e trezentos e sessenta mil".
+ * "1.360.000", "1,36 mi", "R$ 1360 mil", "1 360 000", "1 milhão e 360 mil", "um milhão e trezentos e
+ * sessenta mil", "um milhão e meio", "um milhão e duzentos", "um vírgula trinta e seis milhões".
  */
 export function valoresCitados(texto: string): number[] {
   return lerValores(prepararTexto(texto)).map((x) => x.v);
 }
 
 /**
- * Palavras que dão pista do limite do vendedor (10.9.7 e Apêndice C, regra 1). Só no sentido de limite:
- * "o piso é de porcelanato", "5º piso" e "no mínimo 3 quartos" são conversa normal de imóvel.
+ * Palavras que dão pista do limite do vendedor (10.9.7 e Apêndice C, regra 1). Só no sentido de limite e
+ * com o vendedor como sujeito (vendedor, dono, proprietário, ele, ela, ou "nosso"): "o piso é de
+ * porcelanato", "no mínimo 3 quartos", "o banco aceita até 30 anos", "o mínimo exigido pelo banco" e
+ * "o condomínio aceita até dois pets" são conversa normal.
  */
+const VENDEDOR_SUJEITO = String.raw`(?:(?:o|a)\s+)?(?:vendedor|vendedora|dono|dona|proprietario|proprietaria)|ele|ela`;
+const DO_VENDEDOR = String.raw`dele|dela|do\s+(?:dono|vendedor|proprietario)|da\s+(?:dona|vendedora|proprietaria)`;
 const PALAVRAS_DE_LIMITE = new RegExp(
   [
-    String.raw`\b(o|seu|sua|nosso|nossa|meu|minha|esse|este|valor|preco)\s+minim[oa]\b(?!\s+de\s+(entrada|sinal|parcela|area|quartos|vagas|documentos))`,
-    String.raw`\bminim[oa]\s+(que|dele|dela|do (dono|vendedor|proprietario))\b`,
-    String.raw`\bpiso\s+(dele|dela|do (dono|vendedor|proprietario)|de (preco|valor|venda|negociacao)|que (ele|ela|o dono|o vendedor|o proprietario|aceit))`,
-    String.raw`\bponto de recuo\b|\brecuo\s+(dele|dela|do (dono|vendedor|proprietario))\b|\bbatna\b`,
-    String.raw`\b(aceita|aceitaria|aceitara|topa|toparia|fecha|fecharia)\s+(ate|um pouco menos|menos|por menos)\b`,
-    String.raw`\b(vende|venderia|baixa|baixaria)\s+(por menos|um pouco mais|mais um pouco)\b`,
-    String.raw`\b(menor valor|valor mais baixo)\s+(que|aceit|possivel|dele|dela|do (dono|vendedor|proprietario))`,
-    String.raw`\babaixo disso\b|\blimite (dele|dela|do (dono|proprietario|vendedor))\b`,
+    // "o mínimo que ele aceita", "o piso dele", "o limite do vendedor", "o recuo dele".
+    String.raw`\b(?:minim[oa]|piso|limite|recuo|menor valor|valor mais baixo)\s+(?:que\s+(?:${VENDEDOR_SUJEITO})\b|(?:${DO_VENDEDOR})\b)`,
+    // "nosso mínimo", "meu piso": o Negociador falando pelo vendedor.
+    String.raw`\b(?:nosso|nossa|meu|minha)\s+(?:valor\s+|preco\s+)?(?:minim[oa]|piso|limite)\b`,
+    // "o dono aceita até", "ele topa um pouco menos", "ele ainda fecha por menos".
+    String.raw`\b(?:${VENDEDOR_SUJEITO})\s+(?:\S+\s+){0,2}?(?:aceita|aceitaria|aceitara|topa|toparia|fecha|fecharia|vende|venderia|baixa|baixaria|abaixa|abaixaria|cede|cederia)\s+(?:ate|um pouco menos|menos|por menos|um pouco mais|mais um pouco|abaixo)\b`,
+    // "abaixo disso ele não vende" (e não "abaixo disso o banco não avalia").
+    String.raw`\babaixo disso[\s,]+(?:\S+\s+){0,2}?(?:${VENDEDOR_SUJEITO})\b`,
+    String.raw`\bponto de recuo\b|\bbatna\b|\bminim[oa] aceitavel\b`,
+    // "Qual o mínimo?": a pergunta ecoada é pista de que existe um.
+    String.raw`\b(?:o|valor|preco)\s+minim[oa]\s*\?`,
   ].join('|'),
 );
 
 // Só palavras gramaticais: as de domínio ("proposta", "anunciado") são justamente o que a BATNA diz.
 const PALAVRAS_VAZIAS = new Set(['para', 'pelo', 'pela', 'pelos', 'pelas', 'como', 'mais', 'menos', 'esse', 'essa', 'este', 'esta', 'isso', 'isto', 'aqui', 'voce', 'entao', 'quando', 'porque', 'muito', 'muita', 'sobre', 'entre', 'depois', 'antes']);
 
-/** Antes do valor: "desconto de 9%", "baixar 140 mil", "menos R$ 140.000". */
-const REDUCAO_ANTES = /\b(desconto|abatimento|reducao|abaixar|baixar|baixo|tirar|tiro|menos)\s+(de\s+)?(ate\s+)?(uns?\s+)?$/;
-/** Depois do valor (e do "%"): "140 mil abaixo do pedido", "R$ 140.000 a menos", "9% de desconto". */
-const REDUCAO_DEPOIS = /^\s*(reais\s+)?(a menos|abaixo|de desconto|de abatimento|de reducao|menor|mais barato)\b/;
+/**
+ * Antes do valor (até 3 palavras entre eles): qualquer verbo ou palavra de redução, em qualquer forma
+ * ("desconto de", "baixar", "baixando", "reduzindo", "descontando", "tirando", "cortar", "abater", "menos").
+ * "pelo menos" e "ao menos" não contam (são tirados antes).
+ */
+const REDUCAO_ANTES = /\b(menos|reduz\w*|reduc\w*|descont\w*|baix\w*|abaix\w*|abat\w*|tir[ao]\w*|cort\w*)\s+(\S+\s+){0,3}$/;
+/** Depois do valor (e do "%"): "140 mil abaixo do pedido", "R$ 140.000 a menos", "9% menos que", "9% de desconto". */
+const REDUCAO_DEPOIS = /^\s*(reais\s+)?(a menos|abaixo|menos|de desconto|de abatimento|de reducao|de corte|menor|mais barato)\b/;
+/** Redução comparada a outra coisa que não o preço: "5% abaixo da média do bairro", "menor que o vizinho". */
+const COMPARACAO = /^\s*(reais\s+)?(a menos|abaixo|menos|menor|mais barato)\s+(que\s+)?(de|da|do|das|dos|o|a|os|as)\s+(media|mercado|regiao|bairro|quadra|vizinh\w*|comparave\w*|similar\w*|parecid\w*|avaliacao|outr[oa]s?|m2|metro\w*)\b/;
+/** Percentual ligado ao preço sem palavra de redução: "91% do pedido", "9% do anunciado", "x% sobre o valor". */
+const DO_PRECO = /^\s*(do|sobre o|em cima do)\s+(valor|preco|pedido|anunciado|anuncio)\b/;
+/** Parte do preço que não é o preço ("entrada de 30% do valor", "financiar 80% do valor"). */
+const PARTE_DO_PRECO = /\b(entrada|sinal|parcela\w*|financ\w*|fgts|comissao|corretagem|itbi|escritura|registro)\b/;
+/** Unidade que não é dinheiro depois do número: "pelo menos 2 vagas", "baixar 2 andares". */
+const UNIDADE_NAO_MONETARIA = /^\s*(m|metros|km|quartos?|suites?|vagas?|banheiros?|andar(es)?|pavimentos?|anos?|mes(es)?|dias?|horas?|h|minutos?|semanas?|vezes|x|unidades?|pets?|parcelas?|rodadas?)\b/;
+/** Depois de um decimal curto, o que mostra que ele está sozinho ("Faço 1,36.", "1,36 e entrega em 90 dias"). */
+const DECIMAL_SOZINHO = /^\s*($|[^a-z0-9%]|(e|ou|com|sem|ja|mas|entao|reais|pra|para|a vista|fechado|fechamos)\b)/;
 /** Referência ao vendedor, para a BATNA de uma palavra só. */
 const VENDEDOR = /\b(vendedor|vendedora|dono|dona|proprietari[oa])\b/;
 
 /**
- * Onde o texto revela o que é sigiloso. Vaza:
- * - valor a ±1% do recuo, do alvo ou de um valor da BATNA, salvo se coincidir (±0,1%) com um valor
- *   público permitido (a própria contraproposta, o preço pedido, as propostas já trocadas);
- * - pista derivada do preço pedido: percentual ou diferença de redução ("9,33% abaixo do pedido",
- *   "140 mil a menos") que, aplicada ao pedido, cai a ±1% do recuo ou do alvo, salvo se levar a um valor
- *   permitido (com a folga do arredondamento do percentual: "3%" cobre de 2,5% a 3,5%);
- * - palavra de limite no sentido de limite ("o mínimo que ele aceita", "o piso dele", "o dono aceita até");
+ * Faixa de preço do imóvel, em centavos: de metade do recuo a 1,5 vez o maior entre pedido, alvo e recuo.
+ * Por quê: tudo o que é sigiloso (recuo, alvo) está dentro dela; nenhum valor normal de conversa que não é
+ * o preço (entrada, condomínio, IPTU, R$/m², FGTS, parcela) chega a metade do recuo; e uma leitura
+ * imperfeita de recuo ou alvo ("um milhão e duzentos" lido 1.000.200, "milhão e meio" lido 1.000.000)
+ * cai nela. Acima de 1,5 vez o pedido nenhum número diz algo do limite do vendedor.
+ */
+const FAIXA_PISO = 0.5;
+const FAIXA_TETO = 1.5;
+/** Multiplicadores de um decimal curto sozinho ("Faço 1,36." = 1,36 milhão; "Faço 980,5" = 980,5 mil). */
+const ABREVIACOES = [1_000_000, 1000];
+
+/**
+ * Onde o texto revela o que é sigiloso. A lógica falha do lado seguro: na faixa de preço do imóvel só
+ * passam valores públicos; o resto é bloqueio, mesmo longe do recuo e do alvo, para que uma leitura
+ * imperfeita do texto vire retenção e nunca vazamento. Vaza:
+ * - valor na faixa de preço (`FAIXA_PISO`..`FAIXA_TETO`) que não coincide (±0,1%) com um valor público
+ *   permitido (a própria contraproposta, o preço pedido, as propostas já trocadas); e valor a ±1% do
+ *   recuo, do alvo ou de um valor da BATNA, em qualquer faixa, salvo se for permitido;
+ * - decimal curto sozinho ("Faço 1,36.") que, lido em milhões ou em milhares, cai na faixa fora dos
+ *   permitidos;
+ * - pista derivada do preço pedido: percentual ou diferença ligada a uma palavra de redução ("9% menos
+ *   que o anunciado", "reduzindo 140 mil", "descontando 9%", "baixando 140") ou percentual "do pedido"/
+ *   "do anunciado"/"do valor" que, aplicado ao pedido, dá valor na faixa fora dos permitidos (com a folga
+ *   do arredondamento do percentual: "3%" cobre de 2,5% a 3,5%);
+ * - palavra de limite com o vendedor como sujeito ("o mínimo que ele aceita", "o piso dele", "o dono
+ *   aceita até", "abaixo disso ele não vende");
  * - a BATNA: 3 palavras significativas seguidas dela; se ela tem só 2, as duas juntas ("outro
- *   comprador"); se tem 1, essa palavra na mesma frase que o vendedor.
- * `mandato.preco_pedido_c` é opcional: sem ele, a pista derivada não é checada.
+ *   comprador"); se tem 1, essa palavra na mesma frase que o vendedor. Paráfrase com sinônimos é risco
+ *   residual aceito.
+ * `mandato.preco_pedido_c` é opcional: sem ele, a pista derivada não é checada; com ele, o pedido é
+ * sempre permitido.
  */
 export function vazamentos(
   texto: string | null | undefined,
@@ -464,33 +586,50 @@ export function vazamentos(
     { nome: 'alvo', c: mandato.alvo_c },
     ...valoresCitados(mandato.batna_vendedor ?? '').filter((v) => v >= 1000).map((v) => ({ nome: 'valor da BATNA', c: Math.round(v * 100) })),
   ];
-  const permitidos = permitidos_c.filter((p) => p > 0);
   const pedido = mandato.preco_pedido_c ?? 0;
+  const permitidos = [...permitidos_c, pedido].filter((p) => p > 0);
+  const permitido = (c: number, folga = 0) => permitidos.some((p) => Math.abs(c - p) <= folga + p * 0.001);
+  const topo = Math.max(pedido, mandato.alvo_c || 0, mandato.recuo_c || 0);
+  const naFaixa = (c: number) => mandato.recuo_c > 0 && c >= mandato.recuo_c * FAIXA_PISO && c <= topo * FAIXA_TETO;
+  /** Um valor (em centavos) que o texto revela, direto ou derivado: vaza se é sigiloso ou se está na faixa. */
+  const conferir = (c: number, folga: number, como: (nome: string) => string) => {
+    if (c <= 0 || permitido(c, folga)) return;
+    const perto = sigilosos.filter((s) => s.c > 0 && proximo(c, s.c, 0.01));
+    for (const s of perto) achados.push(como(s.nome));
+    if (!perto.length && naFaixa(c)) achados.push(como('valor na faixa de preço fora dos valores públicos'));
+  };
   for (const x of lerValores(base)) {
     const c = Math.round(x.v * 100);
-    if (!permitidos.some((p) => proximo(c, p, 0.001))) {
-      for (const s of sigilosos) if (s.c > 0 && proximo(c, s.c, 0.01)) achados.push(`cita o ${s.nome}`);
-    }
-    // Pista derivada: o valor é um percentual ou uma diferença de redução sobre o preço pedido.
-    if (pedido <= 0) continue;
+    const lido = base.slice(x.ini, x.fim);
     const depois = base.slice(x.fim, x.fim + 60);
     const pct = depois.match(/^\s*(%|por cento\b)/);
     const resto = pct ? depois.slice(pct[0].length) : depois;
-    if (!REDUCAO_ANTES.test(base.slice(Math.max(0, x.ini - 40), x.ini)) && !REDUCAO_DEPOIS.test(resto)) continue;
-    let derivado: number;
-    let folga: number;
-    if (pct) {
-      if (x.v >= 100) continue;
-      const casas = (base.slice(x.ini, x.fim).match(/[.,](\d+)$/)?.[1] ?? '').length;
-      derivado = Math.round(pedido * (1 - x.v / 100));
-      folga = (pedido * 0.5 * 10 ** -casas) / 100;
-    } else {
-      derivado = pedido - c;
-      folga = 0;
+    if (!pct) conferir(c, 0, (nome) => `cita o ${nome}`);
+    // Decimal curto sozinho: "Faço 1,36." é 1,36 milhão.
+    if (!pct && /^\d{1,3}[.,]\d{1,2}$/.test(lido) && DECIMAL_SOZINHO.test(depois)) {
+      for (const m of ABREVIACOES) conferir(Math.round(x.v * m * 100), 0, (nome) => `cita o ${nome} abreviado`);
     }
-    if (derivado <= 0) continue;
-    if (permitidos.some((p) => Math.abs(derivado - p) <= folga + p * 0.001)) continue;
-    for (const s of sigilosos) if (s.c > 0 && proximo(derivado, s.c, 0.01)) achados.push(`dá pista do ${s.nome} pelo preço pedido`);
+    // Pista derivada: o valor é um percentual ou uma diferença sobre o preço pedido.
+    if (pedido <= 0) continue;
+    const antes = base.slice(Math.max(0, x.ini - 50), x.ini).replace(/\b(pelo|ao)\s+menos\b/g, ' ');
+    const reducao = REDUCAO_ANTES.test(antes) || (REDUCAO_DEPOIS.test(resto) && !COMPARACAO.test(resto));
+    const casas = (lido.match(/[.,](\d+)$/)?.[1] ?? '').length;
+    const folgaPct = (pedido * 0.5 * 10 ** -casas) / 100;
+    const pista = (nome: string) => (nome.startsWith('valor na faixa') ? `dá pista de ${nome} pelo preço pedido` : `dá pista do ${nome} pelo preço pedido`);
+    if (reducao) {
+      if (pct) {
+        if (x.v < 100) conferir(Math.round(pedido * (1 - x.v / 100)), folgaPct, pista);
+      } else if (!UNIDADE_NAO_MONETARIA.test(resto)) {
+        // A diferença em reais; abreviada ("reduzindo 140" = 140 mil); ou um percentual sem o "%".
+        conferir(pedido - c, 0, pista);
+        if (x.v < 1000) conferir(pedido - Math.round(x.v * 1000 * 100), 0, pista);
+        if (x.v < 100) conferir(Math.round(pedido * (1 - x.v / 100)), folgaPct, pista);
+      }
+    } else if (pct && x.v < 100 && DO_PRECO.test(resto) && !PARTE_DO_PRECO.test(antes)) {
+      // "91% do pedido" (a fração) ou "9% do anunciado" (o desconto): as duas leituras.
+      conferir(Math.round((pedido * x.v) / 100), folgaPct, pista);
+      conferir(Math.round(pedido * (1 - x.v / 100)), folgaPct, pista);
+    }
   }
   if (PALAVRAS_DE_LIMITE.test(norm)) achados.push('fala em mínimo, piso ou limite do vendedor');
   const palavrasBatna = semAcento(mandato.batna_vendedor ?? '')

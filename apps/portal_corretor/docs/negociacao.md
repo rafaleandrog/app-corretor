@@ -111,7 +111,12 @@ conversa com a IA):
    esses valores nos formatos usuais ("1.360.000", "1,36 mi", "1360 mil", por extenso, com pequena
    margem de diferença) e frases como "mínimo", "piso" ou "o dono aceita até". É uma checagem
    automática, que não substitui a sua leitura: confira o texto antes de enviar. A mensagem que o
-   app retém não vai ao cliente e não aparece como sugestão.
+   app retém não vai ao cliente e não aparece como sugestão. Nas mensagens ao cliente, o Negociador
+   só pode citar valores que já são públicos: a contraproposta, o preço pedido e as ofertas já
+   trocadas. Qualquer outro valor na faixa de preço do imóvel faz a mensagem ser retida. Uma
+   alternativa do vendedor dita com outras palavras pode não ser reconhecida pela conferência, por
+   isso essa regra também está nas instruções do Negociador; o risco não some por completo, e é
+   mais um motivo para você ler antes de enviar.
 6. **Validade:** o mandato está vigente; "faz sozinho" só com a autorização do proprietário.
 7. **Canal:** portal ou Fazer agora; "faz sozinho" só pelo portal.
 
@@ -135,7 +140,7 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
 **O Negociador nunca aceita o acordo.** Aceitar a proposta do comprador é uma ação separada, feita
 só por quem tem o papel de corretor (o administrador do app também pode, pois vale por todos os
 papéis). A negociação passa a "aguardando o proprietário", que decide o fechamento. O Negociador
-não precisa de CRECI.
+não precisa de CRECI. Se você aceitar o acordo, o Negociador não sugere nem envia mais nada depois disso (aprovar ou editar uma sugestão que ficou pendente também é recusado; descartar ainda pode).
 
 **Um atendente por vez:** **Assumir** faz você conduzir; **Devolver** entrega de novo ao Negociador
 (se ele estiver ligado nos ajustes).

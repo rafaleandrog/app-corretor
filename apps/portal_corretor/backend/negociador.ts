@@ -49,6 +49,20 @@ type Linha = Record<string, any>;
 const SLOT = 'negociador';
 const MENSAGEM_IA_INDISPONIVEL = 'IA indisponível agora: a negociação segue com você.';
 const MENSAGEM_RETIDA = '[mensagem retida: revelava informação sigilosa do vendedor]';
+const MENSAGEM_ACORDO = 'O acordo já foi aceito e espera a decisão do proprietário: o Negociador não age mais nesta negociação.';
+
+/** Acordo aceito pelo corretor, à espera do proprietário (D-15): o motor não envia nem muda o estado. */
+const ACORDO_PROPOSTO = 'aguardando_proprietario';
+/** Negociação em que o motor não age: encerrada ou com o acordo já com o proprietário. */
+const foraDoMotor = (n: Linha) => encerrada(n) || n.estado === ACORDO_PROPOSTO;
+
+/**
+ * O que, se mudar entre a leitura e a trava, tira o "faz sozinho": o mandato vigente, o estado e quem
+ * conduz a negociação, e cada proposta com o seu estado (uma proposta nova, um aceite do acordo, uma
+ * recusa ou expiração). Mudou: nada sai sozinho; a sugestão fica para o corretor, que revalida ao aprovar.
+ */
+const impressaoDe = (n: Linha, propostas: Linha[]) =>
+  [n.mandato_id ?? 0, n.estado, n.conduzida_por, propostas.map((p) => `${p.id}:${p.estado}`).join(',')].join('|');
 
 /** `estadoSlot` sem custo; falha da sonda conta como indisponível, salvo slot fora do manifesto (bug). */
 async function slotDisponivel(req: Request): Promise<boolean> {
@@ -142,7 +156,7 @@ async function carregar(req: Request, negociacao: Linha) {
   return {
     mandato: paraMotor(mandato),
     propostas: propostas.map(paraResumo),
-    ids_propostas: propostas.map((p) => Number(p.id)).join(','),
+    impressao: impressaoDe(negociacao, propostas),
     mensagens: mensagensDe([...execucoes.dados].reverse()),
     objecoes: objecoes.map((o) => ({ categoria: String(o.categoria), trecho: o.trecho ?? null })),
     playbook: playbook.map((o) => ({ categoria: o.categoria, ...(o.minha ?? o.padrao) })),
@@ -202,7 +216,29 @@ async function estadoTravado(trx: Parameters<typeof gravarPropostaTravada>[0], v
     mandatoVigente(trx, viva),
     trx.varrerTudo('propostas', { filtros: { negociacao_id: Number(viva.id) }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
   ]);
-  return { mandato: paraMotor(mandato), propostas: propostas.map(paraResumo), ids: propostas.map((p) => Number(p.id)).join(',') };
+  return { mandato: paraMotor(mandato), propostas: propostas.map(paraResumo), impressao: impressaoDe(viva, propostas) };
+}
+
+/**
+ * Única escrita de `estado` do motor, com a negociação já travada nesta transação: nunca sobre acordo
+ * proposto nem encerrada (quem chama recusa antes), e só sobre o estado lido sob a trava. Falhar aqui é
+ * bug, e lançar desfaz a transação inteira.
+ */
+async function gravarEstado(trx: Parameters<typeof gravarPropostaTravada>[0], viva: Linha, estado: 'aguardando_corretor' | 'aguardando_cliente') {
+  if (foraDoMotor(viva)) throw new Error(`negociação ${viva.id} em ${viva.estado}: o motor não muda o estado`);
+  const salva = await trx.atualizarSe('negociacoes', Number(viva.id), { estado }, { estado: viva.estado });
+  if (!salva) throw new Error(`negociação ${viva.id} mudou de estado sob a própria trava`);
+}
+
+type RecusaMotor = 'nao_encontrada' | 'encerrada' | 'acordo';
+
+/** Por que o motor não age nesta negociação (encerrada ou acordo proposto), ou null se ele age. */
+const recusaDe = (viva: Linha): RecusaMotor | null => (encerrada(viva) ? 'encerrada' : viva.estado === ACORDO_PROPOSTO ? 'acordo' : null);
+
+function responderRecusa(res: Response, recusa: RecusaMotor) {
+  if (recusa === 'nao_encontrada') return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+  if (recusa === 'encerrada') return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+  return erro(res, 409, 'ACORDO_PROPOSTO', MENSAGEM_ACORDO);
 }
 
 /** Texto retido não sai: a aprovação manda o campo vazio (o corretor edita, se quiser). */
@@ -226,7 +262,7 @@ negociadorRotas.post(
     const nid = id(req.params.id);
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
     if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
-    if (encerrada(negociacao)) return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+    if (foraDoMotor(negociacao)) return responderRecusa(res, recusaDe(negociacao)!);
     const b = (req.body ?? {}) as Record<string, unknown>;
     if (b.mensagem_cliente !== undefined && b.mensagem_cliente !== null && typeof b.mensagem_cliente !== 'string') {
       return erro(res, 422, 'DADOS_INVALIDOS', 'mensagem_cliente: use texto.');
@@ -278,23 +314,27 @@ negociadorRotas.post(
     // /assumir, o PUT do mandato e o registro de proposta gravam na mesma linha e esperam (ou são esperados).
     const resultado = await dados.transaction(async (trx) => {
       const viva = await trx.buscar('negociacoes', nid!, { travar: true });
-      if (!viva) return { recusa: 404 as const };
-      if (encerrada(viva)) return { recusa: 409 as const };
+      // Encerrada ou com o acordo aceito no meio (o corretor aceitou enquanto a IA pensava): nada se
+      // grava, e o `aguardando_proprietario` não é rebaixado.
+      if (!viva) return { recusa: 'nao_encontrada' as const };
+      const recusa = recusaDe(viva);
+      if (recusa) return { recusa };
       const agora = await estadoTravado(trx, viva);
       const automatico = agora.mandato?.autonomia === 'faz_sozinho' && viva.conduzida_por === 'ia';
       const validacao = validarMovimento(movimento, agora.mandato, agora.propostas, { hoje: dia, canal, automatico });
       const teto_c = resposta?.teto_estimado_comprador_c ?? viva.teto_estimado_comprador_c;
       const motivos = exigePassagem({ resposta: movimento, mensagem_cliente, mandato: agora.mandato, propostas: agora.propostas, teto_estimado_c: teto_c, hoje: dia });
       const passagem = validacao.bloqueado_por.length > 0 || validacao.passa_ao_corretor || motivos.length > 0;
-      // O mundo mudou enquanto a IA pensava (outro mandato, outra proposta): nada sai sozinho; a
-      // sugestão fica pendente para o corretor, que revalida ao aprovar.
-      const mudou = Number(viva.mandato_id ?? 0) !== Number(negociacao.mandato_id ?? 0) || agora.ids !== ctx.ids_propostas;
+      // O mundo mudou enquanto a IA pensava (outro mandato, outro estado, outra proposta ou o estado de
+      // uma proposta): nada sai sozinho; a sugestão fica pendente para o corretor, que revalida ao aprovar.
+      const mudou = agora.impressao !== ctx.impressao;
       const cp = resposta?.movimento === 'contraproposta' ? resposta.contraproposta : null;
       const enviaSozinho = !passagem && !mudou && automatico && canal === 'portal' && !!cp?.valor_c;
       // Sigilo do que se grava e se devolve: contra o mandato lido antes (o que a IA viu) e o de agora.
       const mandatos = [ctx.mandato, agora.mandato].filter((m): m is MandatoMotor => !!m);
       const permitidos = agora.mandato ? permitidosDe(agora.mandato, agora.propostas, cp?.valor_c) : [];
-      const guardada = resposta ? respostaGuardavel(resposta, mandatos, permitidos).guardada : null;
+      const guardavel = resposta ? respostaGuardavel(resposta, mandatos, permitidos) : null;
+      const guardada = guardavel?.guardada ?? null;
 
       // A objeção detectada é só inclusão (O5).
       let objecao: Linha | null = null;
@@ -309,13 +349,10 @@ negociadorRotas.post(
           em: new Date(),
         });
       }
-      const mudancas: Record<string, unknown> = {};
       if (guardada?.teto_estimado_comprador_c) {
-        mudancas.teto_estimado_comprador_c = guardada.teto_estimado_comprador_c;
-        mudancas.fonte_estimativa = guardada.fonte_estimativa;
+        await trx.atualizar('negociacoes', nid!, { teto_estimado_comprador_c: guardada.teto_estimado_comprador_c, fonte_estimativa: guardada.fonte_estimativa });
       }
-      if (passagem) mudancas.estado = 'aguardando_corretor';
-      if (Object.keys(mudancas).length) await trx.atualizar('negociacoes', nid!, mudancas);
+      if (passagem) await gravarEstado(trx, viva, 'aguardando_corretor');
 
       // Faz sozinho, dentro do mandato e no portal: a contraproposta sai sem o corretor (10.9.3).
       let proposta: Linha | null = null;
@@ -335,14 +372,15 @@ negociadorRotas.post(
         // A trava já é nossa: recusa aqui é bug, e lançar desfaz tudo.
         if ('recusa' in r) throw new Error(`negociação ${nid} recusou a proposta sob a própria trava`);
         proposta = r.proposta;
-        await trx.atualizar('negociacoes', nid!, { estado: 'aguardando_cliente' });
+        await gravarEstado(trx, viva, 'aguardando_cliente');
       }
       const execucao = await trx.criar('negociador_execucoes', {
         negociacao_id: nid,
         mensagem_cliente,
         entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0) },
         saida: guardada,
-        validacoes: { verificacoes: validacao.verificacoes, passagem: motivos },
+        // O que foi retido por sigilo deixa rastro: só o nome do campo, nunca o conteúdo.
+        validacoes: { verificacoes: validacao.verificacoes, passagem: motivos, retidos: guardavel?.vazados ?? [] },
         bloqueado_por: validacao.bloqueado_por.length ? validacao.bloqueado_por.join(',').slice(0, 300) : null,
         tokens_entrada: uso.tokens_entrada ?? null,
         tokens_saida: uso.tokens_saida ?? null,
@@ -353,9 +391,7 @@ negociadorRotas.post(
       const pendenteComContraproposta = !passagem && !proposta && guardada?.movimento === 'contraproposta' && !!guardada.contraproposta?.valor_c;
       return { execucao, objecao, proposta, validacao, motivos, passagem, guardada, pendenteComContraproposta, zopa: zopa(agora.mandato, teto_c) };
     });
-    if ('recusa' in resultado) {
-      return resultado.recusa === 404 ? erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA) : erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
-    }
+    if ('recusa' in resultado && resultado.recusa) return responderRecusa(res, resultado.recusa);
 
     if (resultado.objecao) await publicar(req, 'objecao_detectada', { negociacao_id: nid!, objecao_id: resultado.objecao.id });
     if (resultado.passagem) await publicar(req, 'negociacao_limite_atingido', { negociacao_id: nid! });
@@ -427,6 +463,8 @@ negociadorRotas.post(
     const execucao = eid ? await dados.buscar('negociador_execucoes', eid) : null;
     if (!execucao || Number(execucao.negociacao_id) !== nid) return erro(res, 404, 'NAO_ENCONTRADO', 'Sugestão não encontrada.');
     if (execucao.decisao !== 'pendente') return erro(res, 409, 'SUGESTAO_JA_DECIDIDA', 'Esta sugestão já foi decidida ou passada a você.');
+    // Com o acordo aceito, nenhuma sugestão antiga sai (descartar continua valendo, para limpar a fila).
+    if (b.acao !== 'descartar' && negociacao.estado === ACORDO_PROPOSTO) return responderRecusa(res, 'acordo');
 
     if (b.acao === 'descartar') {
       const salva = await dados.atualizarSe('negociador_execucoes', eid!, { decisao: 'descartada', decidida_em: new Date() }, { decisao: 'pendente' });
@@ -479,15 +517,17 @@ negociadorRotas.post(
     const dia = hoje(req);
     // Desfecho tipado como união discriminada: só a recusa `bloqueado` carrega a validação.
     type Desfecho =
-      | { recusa: 'nao_encontrada' | 'encerrada' | 'decidida' }
+      | { recusa: RecusaMotor | 'decidida' }
       | { recusa: 'bloqueado'; validacao: ReturnType<typeof validarMovimento> }
       | { proposta: Linha | null };
     const resultado = await dados.transaction(async (trx): Promise<Desfecho> => {
       // Trava a negociação ANTES de qualquer escrita: encerrada não reabre, e a revalidação usa o
       // mandato e as propostas lidos sob a trava (uma aprovação anterior já conta no passo e na rodada).
       const viva = await trx.buscar('negociacoes', nid!, { travar: true });
+      // Encerrada, ou o corretor aceitou o acordo entre a leitura e a trava: a sugestão antiga não sai.
       if (!viva) return { recusa: 'nao_encontrada' as const };
-      if (encerrada(viva)) return { recusa: 'encerrada' as const };
+      const recusa = recusaDe(viva);
+      if (recusa) return { recusa };
       const agora = await estadoTravado(trx, viva);
       // Revalida no código: a edição do corretor também não passa do recuo nem revela o sigilo (10.9.7).
       const validacao = validarMovimento(movimento, agora.mandato, agora.propostas, { hoje: dia, canal, automatico: false });
@@ -520,13 +560,12 @@ negociadorRotas.post(
         mensagem_enviada: movimento.mensagem,
         decidida_em: new Date(),
       });
-      await trx.atualizar('negociacoes', nid!, { estado: 'aguardando_cliente' });
+      await gravarEstado(trx, viva, 'aguardando_cliente');
       return { proposta };
     });
     if ('recusa' in resultado) {
-      if (resultado.recusa === 'nao_encontrada') return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
-      if (resultado.recusa === 'encerrada') return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
-      if (resultado.recusa !== 'bloqueado') return erro(res, 409, 'SUGESTAO_JA_DECIDIDA', 'Esta sugestão já foi decidida.');
+      if (resultado.recusa === 'decidida') return erro(res, 409, 'SUGESTAO_JA_DECIDIDA', 'Esta sugestão já foi decidida.');
+      if (resultado.recusa !== 'bloqueado') return responderRecusa(res, resultado.recusa);
       const { validacao } = resultado;
       return res.status(422).json({
         erro: true,
