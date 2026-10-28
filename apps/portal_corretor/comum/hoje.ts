@@ -75,3 +75,42 @@ export function dicaDoAssistente(fila: { tipo: TipoFila }[], passos: PassoInicia
   if (falta) return `Próximo passo para deixar a conta pronta: ${falta.rotulo.toLowerCase()}. O Assistente explica como.`;
   return 'Nada urgente agora. Pergunte ao Assistente quais clientes vale a pena retomar esta semana.';
 }
+
+// ---------- Carga de Hoje: de qual conta são os dados que a tela pode desenhar ----------
+
+/**
+ * Os dados de Hoje vivem fora do componente e valem para UMA conta. `conta` é a dona do que está aqui
+ * (e da carga em voo); `geracao` numera as cargas, para a resposta atrasada de outra conta cair fora.
+ */
+export interface CargaHoje<T> {
+  conta: number | null | undefined;
+  dados: T | null;
+  falha: unknown;
+  geracao: number;
+  carregando: boolean;
+}
+
+export const cargaVazia = <T>(): CargaHoje<T> => ({ conta: undefined, dados: null, falha: null, geracao: 0, carregando: false });
+
+/**
+ * O corretor entrou em Hoje com `contaAtual`. Entrada na mesma conta mantém tudo (sem piscar); conta
+ * diferente descarta dados, falha e carga em voo: nada da conta anterior chega a ser desenhado.
+ */
+export function entrarEmHoje<T>(c: CargaHoje<T>, contaAtual: number | null): CargaHoje<T> {
+  if (c.conta === contaAtual) return c;
+  return { conta: contaAtual, dados: null, falha: null, geracao: c.geracao + 1, carregando: false };
+}
+
+export const iniciarCarga = <T>(c: CargaHoje<T>): CargaHoje<T> => ({ ...c, geracao: c.geracao + 1, carregando: true, falha: null });
+
+/** Resposta (ou falha) da carga `geracao`: só vale se ainda é a carga corrente. A falha derruba os dados velhos. */
+export function receberCarga<T>(c: CargaHoje<T>, geracao: number, r: { dados: T } | { falha: unknown }): CargaHoje<T> {
+  if (geracao !== c.geracao) return c;
+  return 'dados' in r ? { ...c, dados: r.dados, falha: null, carregando: false } : { ...c, dados: null, falha: r.falha, carregando: false };
+}
+
+/** O que desenhar: a falha tem precedência; sem dados da conta ativa, "carregando". */
+export function telaDeHoje<T>(c: CargaHoje<T>): 'dados' | 'falha' | 'carregando' {
+  if (c.falha) return 'falha';
+  return c.dados ? 'dados' : 'carregando';
+}

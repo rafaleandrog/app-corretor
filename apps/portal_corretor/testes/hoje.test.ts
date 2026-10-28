@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { rotas } from '../backend/rotas';
 import { ORDEM_FILA } from '../comum/funil';
-import { ACOES_FILA, dicaDoAssistente, PASSOS_INICIAIS, primeirosPassos, TIPO_NA_FILA } from '../comum/hoje';
+import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, iniciarCarga, PASSOS_INICIAIS, primeirosPassos, receberCarga, telaDeHoje, TIPO_NA_FILA } from '../comum/hoje';
 import { CAMPOS_SIGILOSOS } from '../comum/negociacao';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
@@ -104,4 +104,83 @@ test('GET /inicio: passagens sem sigilo, agenda só de hoje, e nada de uma conta
     assert.deepEqual([r.passagens, r.agenda_hoje, r.fila], [[], [], []]);
     assert.equal(r.primeiros_passos.filter((p: any) => p.feito).length, 0);
   });
+});
+
+// Carga de Hoje: os dados vivem no módulo; o app chama `aoAbrirHoje` a cada entrada e na troca de conta.
+type Dados = { de: string };
+/** O que a tela desenha: os dados só aparecem se forem da conta ativa. */
+const desenhado = (c: ReturnType<typeof cargaVazia<Dados>>) => (telaDeHoje(c) === 'dados' ? c.dados!.de : telaDeHoje(c));
+/** Uma carga completa para `conta`: entra, inicia e recebe. */
+function carregada(c: ReturnType<typeof cargaVazia<Dados>>, conta: number, de: string) {
+  const e = iniciarCarga(entrarEmHoje(c, conta));
+  return receberCarga(e, e.geracao, { dados: { de } });
+}
+
+test('Hoje: troca de conta nunca desenha dados da conta anterior', () => {
+  let c = carregada(cargaVazia<Dados>(), 100, 'A');
+  assert.equal(desenhado(c), 'A');
+  // Troca para B: antes da resposta nova, nada de A.
+  c = entrarEmHoje(c, 200);
+  assert.equal(desenhado(c), 'carregando');
+  // A resposta de A (carga já em voo) chega atrasada depois da troca: ignorada.
+  const emVooA = iniciarCarga(entrarEmHoje(carregada(cargaVazia<Dados>(), 100, 'A'), 100));
+  let atrasada = entrarEmHoje(emVooA, 200);
+  atrasada = receberCarga(atrasada, emVooA.geracao, { dados: { de: 'A' } });
+  assert.equal(desenhado(atrasada), 'carregando');
+  assert.equal(atrasada.dados, null);
+  // Resposta de B: mostra B.
+  c = iniciarCarga(c);
+  c = receberCarga(c, c.geracao, { dados: { de: 'B' } });
+  assert.equal(desenhado(c), 'B');
+  // Mesmo depois de B carregar, a resposta velha de A segue ignorada.
+  assert.equal(desenhado(receberCarga(c, emVooA.geracao, { dados: { de: 'A' } })), 'B');
+});
+
+test('Hoje: entrada na mesma conta mantém os dados (sem piscar) e a recarga que falha mostra a falha', () => {
+  let c = carregada(cargaVazia<Dados>(), 100, 'A');
+  const de_novo = entrarEmHoje(c, 100);
+  assert.equal(de_novo, c, 'mesma conta: nada é descartado');
+  assert.equal(desenhado(de_novo), 'A');
+  // Recarga em voo: segue A até a resposta.
+  c = iniciarCarga(de_novo);
+  assert.equal(desenhado(c), 'A');
+  // A recarga falha: falha, nunca dados velhos.
+  c = receberCarga(c, c.geracao, { falha: new Error('rede') });
+  assert.equal(desenhado(c), 'falha');
+  assert.equal(c.dados, null);
+  // "Tentar de novo": volta a carregar e, chegando, mostra os dados.
+  c = iniciarCarga(c);
+  assert.equal(desenhado(c), 'carregando');
+  c = receberCarga(c, c.geracao, { dados: { de: 'A' } });
+  assert.equal(desenhado(c), 'A');
+  // Falha atrasada de uma carga superada também é ignorada.
+  const velha = c.geracao;
+  c = iniciarCarga(c);
+  assert.equal(desenhado(receberCarga(c, velha, { falha: new Error('velha') })), 'A');
+});
+
+test('Hoje: a tela usa a carga por conta, sem ler dados soltos do módulo', () => {
+  const tela = raiz('frontend/telas/inicio.ts');
+  assert.match(tela, /entrarEmHoje\(antes, contaAtiva\(\)\)/);
+  assert.match(tela, /telaDeHoje\(estado\.carga\)/);
+});
+
+test('GET /inicio: com leitura sem escopo do banco, o estado de Hoje ainda é só da conta ativa (A completa, B vazia)', async () => {
+  const banco = new BancoFalso(UNICOS);
+  // A, completa, com CRECI no perfil do corretor e no jurídico da conta.
+  banco.linhas('perfil_conta').push({ id: 1, conta_id: 100, chave: 'conta', nome: 'Imóveis da Ana', creci_juridico: 'J-123' });
+  banco.linhas('perfis_corretor').push({ id: 2, conta_id: 100, usuario_id: 1, telefone: '+5561999990000', creci: 'F-123' });
+  banco.linhas('canais_sociais').push({ id: 3, conta_id: 100, rede: 'instagram', usuario: 'ana', desconectado_em: null });
+  banco.linhas('imoveis').push({ id: 4, conta_id: 100, codigo: 'IM-1', tipo: 'casa', situacao: 'disponivel' });
+  banco.linhas('paginas_corretor').push({ id: 5, conta_id: 100, chave: 'conta', endereco: 'ana', publicada_em: new Date().toISOString() });
+  // `contas` liga no BancoFalso a leitura de todas as contas (como o SISTEMA) e, com uma conta só, o
+  // `escopoDeConta` não restringe: só o filtro de conta do próprio `estadoDaConta` separa A de B. Se ele
+  // deixar de escopar, B enxerga as linhas de A e o teste fica vermelho.
+  const ver = (ator: Ator) => comServidor(rotas, ator, banco, {}, async (chamar) => (await chamar('GET', '/inicio')).corpo);
+  const a = await ver({ usuario: 1, conta: 100, contas: [100], papeis: ['corretor'] });
+  assert.equal(a.primeiros_passos.filter((p: any) => p.feito).length, 5, 'o dado de A existe');
+  assert.equal(a.sem_creci, false);
+  const b = await ver({ usuario: 2, conta: 200, contas: [200], papeis: ['corretor'] });
+  assert.equal(b.primeiros_passos.filter((p: any) => p.feito).length, 0);
+  assert.equal(b.sem_creci, true);
 });

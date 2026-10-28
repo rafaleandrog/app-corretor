@@ -1,8 +1,8 @@
 import { html, nothing } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, contaAtiva, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
 import { ABAS_INICIO, APELIDOS_INICIO, type TipoFila } from '../../comum/funil';
-import { ACOES_FILA, dicaDoAssistente, FILA_VISIVEL, TIPO_NA_FILA, type AcaoFila, type PassoInicial } from '../../comum/hoje';
+import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, FILA_VISIVEL, iniciarCarga, receberCarga, telaDeHoje, TIPO_NA_FILA, type AcaoFila, type PassoInicial } from '../../comum/hoje';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -59,38 +59,43 @@ export const abaInicio = () => abaDaUrl(ABAS, OPCOES_ABA);
 // Assistente. Os dados vêm de uma chamada só (`GET /inicio`) e ficam fora do componente, como os da
 // moldura: as três colunas leem o mesmo estado, e o app pede o redesenho.
 const estado = {
-  dados: null as DadosHoje | null,
-  falha: null as unknown,
+  /** Dados, falha e carga de UMA conta (comum/hoje.ts); só se desenha o que é da conta ativa. */
+  carga: cargaVazia<DadosHoje>(),
   /** Slot de IA liberado (`GET /assistente/ia`); `null` enquanto a sonda não voltou. */
   ia: null as boolean | null,
-  carregando: false,
   /** Marcado a cada entrada na tela (e na troca de conta): o próximo desenho recarrega. */
   vencido: true,
   verTudo: false,
   gerandoDemo: false,
-  geracao: 0,
 };
 
 /** O app avisa que o corretor entrou em Hoje (ou trocou de conta): os dados são relidos. */
 export function aoAbrirHoje() {
+  trocarDeConta();
   estado.vencido = true;
   estado.verTudo = false;
 }
 
+/** Conta diferente da dona dos dados: zera tudo (e a sonda de IA) antes de qualquer desenho. */
+function trocarDeConta() {
+  const antes = estado.carga;
+  estado.carga = entrarEmHoje(antes, contaAtiva());
+  if (estado.carga !== antes) estado.ia = null;
+}
+
 async function carregar(atualizar: () => void) {
-  const geracao = ++estado.geracao;
-  estado.carregando = true;
+  trocarDeConta();
+  estado.carga = iniciarCarga(estado.carga);
+  const geracao = estado.carga.geracao;
   estado.vencido = false;
-  estado.falha = null;
   try {
     const [dados, ia] = await Promise.all([chamarApi('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]);
-    if (geracao !== estado.geracao) return;
-    estado.dados = dados;
-    estado.ia = ia;
+    const antes = estado.carga;
+    estado.carga = receberCarga(antes, geracao, { dados });
+    if (estado.carga !== antes) estado.ia = ia;
   } catch (e) {
-    if (geracao === estado.geracao) estado.falha = e;
+    estado.carga = receberCarga(estado.carga, geracao, { falha: e });
   } finally {
-    if (geracao === estado.geracao) estado.carregando = false;
     atualizar();
   }
 }
@@ -315,11 +320,13 @@ function direita(d: DadosHoje, atualizar: () => void) {
 
 /** Hoje na moldura: trilho · esquerda · centro · direita (abas no celular, M1). */
 export function renderHoje(atualizar: () => void) {
-  if (estado.vencido && !estado.carregando) void carregar(atualizar);
-  const d = estado.dados;
+  trocarDeConta();
+  if (estado.vencido && !estado.carga.carregando) void carregar(atualizar);
+  // Entrada na mesma conta mantém os dados na tela enquanto relê (sem piscar); a falha da releitura vale mais que eles.
+  const d = telaDeHoje(estado.carga) === 'dados' ? estado.carga.dados : null;
   const rotulos = { lista: 'Hoje', centro: 'Fila', contexto: 'Agenda' };
   if (!d) {
-    const conteudo = estado.falha ? estadoDaFalha(estado.falha, () => carregar(atualizar)) : estadoTela('carregando');
+    const conteudo = estado.carga.falha ? estadoDaFalha(estado.carga.falha, () => carregar(atualizar)) : estadoTela('carregando');
     return moldura({ menu: '/', centro: conteudo }, atualizar);
   }
   return moldura({ menu: '/', lista: esquerda(d, atualizar), centro: centro(d, atualizar), contexto: direita(d, atualizar), rotulos }, atualizar);
