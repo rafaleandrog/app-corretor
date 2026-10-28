@@ -41,7 +41,7 @@ export const ROTULO_BLOCO: Record<TipoBloco, string> = {
 export function blocosPadrao(): Bloco[] {
   return [
     { tipo: 'apresentacao', ativo: true, titulo: 'Encontre o imóvel certo comigo', texto: null },
-    { tipo: 'destaques', ativo: true, titulo: 'Destaques', codigos: [] },
+    { tipo: 'destaques', ativo: true, titulo: 'Imóveis em destaque', codigos: [] },
     { tipo: 'imoveis', ativo: true, titulo: 'Imóveis à venda' },
     { tipo: 'sobre', ativo: false, titulo: 'Sobre mim', texto: null },
     { tipo: 'bairros', ativo: false, titulo: 'Onde eu atendo', lista: [] },

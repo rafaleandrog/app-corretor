@@ -2,6 +2,17 @@ import { LitElement, html, nothing, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { linkWhatsapp } from '../../comum/pagina';
+import {
+  abaDoEndereco,
+  abasDoPortal,
+  chipDeVisita,
+  destinoDoProximoPasso,
+  estadoDoErro,
+  imoveisDoPortal,
+  iniciais,
+  reacaoDada,
+  type AbaPortal,
+} from '../../comum/portal-cliente';
 import { linkComoChegar, linkRoteiro, lugarNoMapa, quantoFalta, roteiroPorDia, type VisitaDoPortal } from '../../comum/roteiro';
 import { ROTULO_TIPO_IMOVEL } from '../apoio';
 import { estiloPublico } from './estilo';
@@ -11,13 +22,14 @@ import { css } from 'lit';
 declare const urbiVerso: UrbiVersoAPI;
 
 // Seleção (`/portal_corretor/s?t=<token>`) e Portal do Cliente (`/portal_corretor/c?t=<token>`),
-// bloco 5b, no modelo Compass One desde o bloco 9: uma página só, curada pelo corretor, com o
-// próximo passo e as datas no topo, cartões de foto dominante, o que falta do cliente e a jornada.
+// bloco 5b, no modelo Compass One desde o bloco 9 e no formato dos mockups M4 e M5 desde o B9:
+// topo "Meu atendimento" com o próximo passo e abas Conversa · Imóveis · Agenda · Arquivos.
 // Página pública: lê a vitrine pela rota anônima e manda reações e pedidos ao webhook.
 
 type Linha = Record<string, any>;
 const reais = (c: number | null | undefined) => (c ? (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'Preço sob consulta');
 const local = (i: Linha) => [i.bairro, i.cidade].filter(Boolean).join(', ');
+const nomeImovel = (i: Linha) => i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo ?? i.codigo;
 const REACOES = [
   { valor: 'gostei', rotulo: '♥ Gostei' },
   { valor: 'nao_gostei', rotulo: '✕ Não gostei' },
@@ -27,8 +39,8 @@ const diaHora = (q: string) => new Date(q).toLocaleString('pt-BR', { weekday: 'l
 const hora = (q: string) => new Date(q).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 const diaCurto = (q: string) => new Date(q).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
 const token = () => new URLSearchParams(window.location.search).get('t') ?? '';
-const naoExiste = (e: unknown) => (e as { status?: number }).status === 404 || (e as { codigo?: string }).codigo === 'NAO_ENCONTRADO';
 const cor = (c: unknown) => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null);
+const primeiroNome = (nome: string | null | undefined) => String(nome ?? '').trim().split(/\s+/)[0] || 'o corretor';
 
 async function postar(url: string, corpo: unknown): Promise<{ ok: boolean; mensagem?: string }> {
   try {
@@ -42,17 +54,24 @@ async function postar(url: string, corpo: unknown): Promise<{ ok: boolean; mensa
 }
 
 const estiloSelecao = css`
+  .topo .rotulo { margin: 0 0 12px; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; }
   .topo .quem { display: flex; align-items: center; gap: 14px; }
   .topo .foto-corretor { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex: none; background: var(--foto-vazia); }
-  .topo .passo { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: var(--papel); color: var(--texto); }
+  .topo .iniciais { width: 64px; height: 64px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; background: var(--papel); color: var(--acento); font-weight: 700; font-size: 1.3rem; }
+  .topo .passo { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: var(--papel); color: var(--texto); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .topo .passo small { display: block; color: var(--suave); font-size: 0.85rem; }
   .topo .passo strong { font-size: 1.15rem; }
+  .topo .passo .botao { flex: none; min-height: 40px; padding: 8px 16px; }
+  .abas { position: sticky; top: 0; z-index: 2; display: flex; gap: 0; overflow-x: auto; background: var(--papel); border-bottom: 1px solid var(--linha); padding: 0 8px; }
+  .abas button { flex: none; min-height: 48px; padding: 10px 9px; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--suave); font: inherit; font-weight: 600; cursor: pointer; }
+  .abas button[aria-selected='true'] { color: var(--acento); border-bottom-color: var(--acento); }
+  .abas .n { display: inline-block; min-width: 22px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--fundo); color: var(--texto); font-size: 0.82rem; text-align: center; }
   .datas { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 20px; }
   .datas div { background: var(--papel); border: 1px solid var(--linha); border-left: 4px solid var(--acento); border-radius: 12px; padding: 10px 14px; }
   .datas small { display: block; color: var(--suave); font-size: 0.85rem; }
   .datas strong { font-size: 1.05rem; }
-  .reacoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-  .reacoes button { min-height: 52px; padding: 8px 6px; border-radius: 12px; border: 1px solid var(--borda-campo); background: var(--papel); color: var(--texto); font: inherit; font-weight: 600; cursor: pointer; }
+  .reacoes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+  .reacoes button { min-height: 48px; padding: 8px 6px; border-radius: 12px; border: 1px solid var(--borda-campo); background: var(--papel); color: var(--texto); font: inherit; font-weight: 600; cursor: pointer; }
   .reacoes button[aria-pressed='true'] { background: var(--acento); border-color: var(--acento); color: var(--papel); }
   .item { background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
   .item .corpo { padding: 14px 16px 16px; }
@@ -60,7 +79,14 @@ const estiloSelecao = css`
   .item .galeria { border-radius: 0; gap: 0; }
   .item .galeria img { border-radius: 0; flex-basis: 100%; }
   .item .lugar { font-weight: 600; }
+  .item .cabeca { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; background: var(--ok-fundo); color: var(--ok-texto); font-size: 0.85rem; font-weight: 600; }
   .sem-foto { aspect-ratio: 4 / 3; background: var(--foto-vazia); }
+  .outros { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .outros button { width: 100%; display: grid; grid-template-columns: 72px 1fr auto; gap: 12px; align-items: center; text-align: left; padding: 8px; border-radius: 12px; border: 1px solid var(--linha); background: var(--papel); color: var(--texto); font: inherit; cursor: pointer; }
+  .outros img, .outros .miniatura { width: 72px; height: 56px; border-radius: 8px; object-fit: cover; background: var(--foto-vazia); }
+  .outros strong { display: block; }
+  .outros .reacao { font-size: 0.85rem; color: var(--suave); }
   .agenda li { list-style: none; background: var(--papel); border: 1px solid var(--linha); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
   .agenda { padding: 0; margin: 0; }
   .agenda li.parada { display: grid; grid-template-columns: 32px 1fr; column-gap: 12px; }
@@ -78,41 +104,69 @@ const estiloSelecao = css`
   .aviso-item { margin-top: 8px; font-size: 0.92rem; }
   @media (min-width: 720px) {
     .item .galeria img { aspect-ratio: 16 / 10; }
+    .reacoes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   }
 `;
 
-/** Estado de envio por imóvel: um envio por vez e o aviso ao lado do próprio imóvel. */
+/** Estado de envio por imóvel: um envio por vez, o comentário aberto e o aviso ao lado do próprio imóvel. */
 export interface EstadoReacoes {
   enviando: Set<string>;
   avisos: Map<string, { ok: boolean; texto: string }>;
+  comentando: string | null;
 }
 
-/** Cartão de um imóvel da seleção, com galeria e os botões de reação. */
-function itemSelecao(i: Linha, reagir: ((codigo: string, reacao: string) => void) | null, estado: EstadoReacoes): TemplateResult {
+interface OpcoesItem {
+  reagir: ((codigo: string, reacao: string) => void) | null;
+  comentar: ((codigo: string, texto: string) => void) | null;
+  abrirComentario: (codigo: string | null) => void;
+  chip?: string | null;
+}
+
+/** Cartão de um imóvel, com galeria, os botões de reação e "Comentar" (M5). */
+function itemSelecao(i: Linha, estado: EstadoReacoes, o: OpcoesItem): TemplateResult {
   const aviso = estado.avisos.get(i.codigo);
+  const ocupado = estado.enviando.has(i.codigo);
   return html`<article class="item">
     ${i.fotos?.length
-      ? html`<div class="galeria">${i.fotos.map((f: Linha, n: number) => html`<img src=${f.url} alt=${f.legenda ?? `Foto ${n + 1} de ${i.titulo ?? i.codigo}`} loading="lazy" />`)}</div>`
+      ? html`<div class="galeria">${i.fotos.map((f: Linha, n: number) => html`<img src=${f.url} alt=${f.legenda ?? `Foto ${n + 1} de ${i.fotos.length}: ${nomeImovel(i)}`} loading="lazy" />`)}</div>`
       : html`<div class="sem-foto"></div>`}
     <div class="corpo">
-      <div class="preco">${reais(i.preco_c)}</div>
+      <div class="cabeca">
+        <div class="preco">${reais(i.preco_c)}</div>
+        ${o.chip ? html`<span class="chip">${o.chip}</span>` : nothing}
+      </div>
       ${local(i) ? html`<div class="lugar">${local(i)}</div>` : nothing}
-      <div class="suave">${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</div>
+      <div class="suave">${nomeImovel(i)}${i.fotos?.length > 1 ? ` · ${i.fotos.length} fotos` : ''}</div>
       ${iconesImovel(i)}
       ${i.descricao ? html`<details><summary class="suave">Ver descrição</summary><p class="texto">${i.descricao}</p></details>` : nothing}
-      ${reagir
-        ? html`<div class="reacoes" role="group" aria-label=${`O que você achou de ${i.titulo ?? i.codigo}?`}>
+      ${o.reagir
+        ? html`<div class="reacoes" role="group" aria-label=${`O que você achou de ${nomeImovel(i)}?`}>
             ${REACOES.map(
-              (r) => html`<button type="button" aria-pressed=${i.reacao === r.valor ? 'true' : 'false'} ?disabled=${estado.enviando.has(i.codigo)} @click=${() => reagir(i.codigo, r.valor)}>${r.rotulo}</button>`,
+              (r) => html`<button type="button" aria-pressed=${i.reacao === r.valor ? 'true' : 'false'} ?disabled=${ocupado} @click=${() => o.reagir!(i.codigo, r.valor)}>${r.rotulo}</button>`,
             )}
+            ${o.comentar
+              ? html`<button type="button" aria-expanded=${estado.comentando === i.codigo ? 'true' : 'false'} ?disabled=${ocupado} @click=${() => o.abrirComentario(estado.comentando === i.codigo ? null : i.codigo)}>Comentar</button>`
+              : nothing}
           </div>
+          ${o.comentar && estado.comentando === i.codigo
+            ? html`<form
+                @submit=${(e: Event) => {
+                  e.preventDefault();
+                  const t = String(new FormData(e.target as HTMLFormElement).get('comentario') ?? '').trim();
+                  if (t) o.comentar!(i.codigo, t);
+                }}
+              >
+                <label>Seu comentário sobre este imóvel<textarea name="comentario" required maxlength="300"></textarea></label>
+                <div><button class="botao" type="submit" ?disabled=${ocupado}>${ocupado ? 'Enviando…' : 'Enviar comentário'}</button></div>
+              </form>`
+            : nothing}
           ${aviso ? html`<div class="aviso aviso-item ${aviso.ok ? '' : 'erro'}" role=${aviso.ok ? 'status' : 'alert'}>${aviso.texto}</div>` : nothing}`
         : nothing}
     </div>
   </article>`;
 }
 
-/** Datas-chave do topo: a próxima visita e até quando a seleção vale (a que vence primeiro). */
+/** Datas-chave: a próxima visita e até quando a seleção vale (a que vence primeiro). */
 function datasChave(proximaVisita: string | null, valeAte: string | null): TemplateResult | typeof nothing {
   if (!proximaVisita && !valeAte) return nothing;
   return html`<div class="datas">
@@ -121,18 +175,28 @@ function datasChave(proximaVisita: string | null, valeAte: string | null): Templ
   </div>`;
 }
 
-function topo(corretor: Linha | null, texto: string, proximoPasso: string | null = null): TemplateResult {
+/** Topo do corretor: foto (ou iniciais), nome, CRECI só se existir (D-93), WhatsApp e o próximo passo. */
+function topo(corretor: Linha | null, texto: string, extra: { rotulo?: string; proximoPasso?: string | null; ver?: () => void } = {}): TemplateResult {
   const zap = corretor ? linkWhatsapp(corretor.telefone, texto) : null;
+  const nome = corretor?.nome ?? 'Seu corretor';
   return html`<header class="topo">
     <div class="conteudo">
+      ${extra.rotulo ? html`<p class="rotulo">${extra.rotulo}</p>` : nothing}
       <div class="quem">
-        ${corretor?.foto_url ? html`<img class="foto-corretor" src=${corretor.foto_url} alt=${`Foto de ${corretor.nome ?? 'seu corretor'}`} />` : nothing}
+        ${corretor?.foto_url
+          ? html`<img class="foto-corretor" src=${corretor.foto_url} alt=${`Foto de ${nome}`} />`
+          : html`<span class="iniciais" aria-hidden="true">${iniciais(nome)}</span>`}
         <div>
-          <h1>${corretor?.nome ?? 'Seu corretor'}</h1>
+          <h1>${nome}</h1>
           <p>Corretor de imóveis${corretor?.creci ? ` · CRECI ${corretor.creci}` : ''}</p>
         </div>
       </div>
-      ${proximoPasso ? html`<div class="passo"><small>Próximo passo</small><strong>${proximoPasso}</strong></div>` : nothing}
+      ${extra.proximoPasso
+        ? html`<div class="passo">
+            <div><small>Próximo passo</small><strong>${extra.proximoPasso}</strong></div>
+            ${extra.ver ? html`<button class="botao" type="button" @click=${extra.ver}>Ver</button>` : nothing}
+          </div>`
+        : nothing}
       ${zap ? html`<div class="acoes"><a class="botao verde" href=${zap} target="_blank" rel="noopener">Falar no WhatsApp</a></div>` : nothing}
     </div>
   </header>`;
@@ -161,13 +225,52 @@ async function enviarReacao(selecao: Linha, codigo: string, reacao: string, esta
   atualizar();
 }
 
+/**
+ * "Comentar" (M5): vai pelo mesmo `reacao_selecao`, junto com a reação já dada. Sem reação ainda,
+ * no portal vira mensagem ao corretor (`acao_cliente`) citando o imóvel; na seleção avulsa, pede
+ * antes o Gostei ou o Não gostei.
+ */
+async function enviarComentario(selecao: Linha, codigo: string, texto: string, urlAcoes: string | null, estado: EstadoReacoes, atualizar: () => void) {
+  const item = selecao.itens.find((i: Linha) => i.codigo === codigo);
+  if (!item || estado.enviando.has(codigo)) return;
+  let r: { ok: boolean; mensagem?: string };
+  estado.avisos.delete(codigo);
+  if (item.reacao && selecao.url_reacao) {
+    estado.enviando.add(codigo);
+    atualizar();
+    r = await postar(selecao.url_reacao, { imovel_codigo: codigo, reacao: item.reacao, comentario: texto });
+  } else if (urlAcoes) {
+    estado.enviando.add(codigo);
+    atualizar();
+    r = await postar(urlAcoes, { tipo: 'mensagem', texto: `Sobre o imóvel ${codigo} (${nomeImovel(item)}): ${texto}` });
+  } else {
+    estado.avisos.set(codigo, { ok: false, texto: 'Diga antes se gostou ou não deste imóvel.' });
+    atualizar();
+    return;
+  }
+  estado.enviando.delete(codigo);
+  if (r.ok) {
+    estado.comentando = null;
+    estado.avisos.set(codigo, { ok: true, texto: 'Comentário enviado ao corretor.' });
+  } else estado.avisos.set(codigo, { ok: false, texto: r.mensagem ?? 'Não foi possível enviar.' });
+  atualizar();
+}
+
+/** "Link expirado" (token revogado, vencido ou trocado) e "tente de novo" (rede). */
+function telaDeErro(estado: 'expirado' | 'falha', oQue: string, tentar: () => void): TemplateResult {
+  if (estado === 'expirado') {
+    return html`<div class="centro" role="alert"><h2>Link expirado</h2><p class="suave">${oQue} não está mais disponível por este link. Peça um novo ao corretor que enviou.</p></div>`;
+  }
+  return html`<div class="centro"><h2>Não foi possível abrir agora</h2><p><button class="botao" @click=${tentar}>Tentar de novo</button></p></div>`;
+}
+
 @customElement('pc-selecao-publica')
 export class PcSelecaoPublica extends LitElement {
   static styles = [estiloPublico, estiloSelecao];
 
   @state() private selecao: Linha | null = null;
-  @state() private estado: 'carregando' | 'pronto' | 'indisponivel' | 'falha' = 'carregando';
-  private reacoes: EstadoReacoes = { enviando: new Set(), avisos: new Map() };
+  @state() private estado: 'carregando' | 'pronto' | 'expirado' | 'falha' = 'carregando';
+  private reacoes: EstadoReacoes = { enviando: new Set(), avisos: new Map(), comentando: null };
 
   connectedCallback() {
     super.connectedCallback();
@@ -183,15 +286,15 @@ export class PcSelecaoPublica extends LitElement {
       document.title = `${r.selecao.titulo} · ${r.selecao.corretor?.nome ?? 'Seu corretor'}`;
       this.estado = 'pronto';
     } catch (e) {
-      this.estado = naoExiste(e) ? 'indisponivel' : 'falha';
+      this.estado = estadoDoErro(e);
     }
   }
 
   render() {
     if (this.estado === 'carregando') return html`<div class="centro suave">Carregando…</div>`;
-    if (this.estado === 'indisponivel') return html`<div class="centro"><h2>Seleção expirada ou indisponível</h2><p class="suave">Peça uma nova ao corretor que enviou o link.</p></div>`;
-    if (this.estado === 'falha') return html`<div class="centro"><h2>Não foi possível abrir agora</h2><p><button class="botao" @click=${() => { this.estado = 'carregando'; void this.carregar(); }}>Tentar de novo</button></p></div>`;
+    if (this.estado !== 'pronto') return telaDeErro(this.estado, 'Esta seleção', () => { this.estado = 'carregando'; void this.carregar(); });
     const s = this.selecao!;
+    const atualizar = () => this.requestUpdate();
     return html`
       ${topo(s.corretor, `Olá! Vi a seleção "${s.titulo}".`)}
       <div class="conteudo">
@@ -203,7 +306,13 @@ export class PcSelecaoPublica extends LitElement {
         </section>
         <section>
           ${s.itens.length
-            ? s.itens.map((i: Linha) => itemSelecao(i, (codigo, reacao) => enviarReacao(s, codigo, reacao, this.reacoes, () => this.requestUpdate()), this.reacoes))
+            ? s.itens.map((i: Linha) =>
+                itemSelecao(i, this.reacoes, {
+                  reagir: (codigo, reacao) => enviarReacao(s, codigo, reacao, this.reacoes, atualizar),
+                  comentar: (codigo, texto) => enviarComentario(s, codigo, texto, null, this.reacoes, atualizar),
+                  abrirComentario: (codigo) => { this.reacoes.comentando = codigo; atualizar(); },
+                }),
+              )
             : html`<p class="suave">Os imóveis desta seleção não estão mais anunciados. Fale com o corretor.</p>`}
         </section>
       </div>
@@ -216,13 +325,17 @@ export class PcPortalCliente extends LitElement {
   static styles = [estiloPublico, estiloSelecao];
 
   @state() private portal: Linha | null = null;
-  @state() private estado: 'carregando' | 'pronto' | 'indisponivel' | 'falha' = 'carregando';
+  @state() private estado: 'carregando' | 'pronto' | 'expirado' | 'falha' = 'carregando';
+  @state() private aba: AbaPortal = abaDoEndereco(window.location.hash);
+  /** Imóvel em destaque na aba Imóveis; `null` é o primeiro da lista. */
+  @state() private destaque: string | null = null;
   @state() private aviso: { ok: boolean; texto: string } | null = null;
   @state() private remarcando: number | null = null;
   @state() private enviando = false;
+  @state() private marcando: number | null = null;
   /** Onde mostrar o aviso: perto do formulário que enviou. */
   @state() private avisoEm: string | null = null;
-  private reacoes: EstadoReacoes = { enviando: new Set(), avisos: new Map() };
+  private reacoes: EstadoReacoes = { enviando: new Set(), avisos: new Map(), comentando: null };
 
   connectedCallback() {
     super.connectedCallback();
@@ -235,14 +348,31 @@ export class PcPortalCliente extends LitElement {
       this.portal = r.portal;
       const c = cor(r.portal.corretor?.cor);
       if (c) this.style.setProperty('--acento', c);
-      document.title = `Seu portal · ${r.portal.corretor?.nome ?? 'Seu corretor'}`;
+      document.title = `Meu atendimento · ${r.portal.corretor?.nome ?? 'Seu corretor'}`;
       this.estado = 'pronto';
     } catch (e) {
-      this.estado = naoExiste(e) ? 'indisponivel' : 'falha';
+      this.estado = estadoDoErro(e);
     }
   }
 
-  @state() private marcando: number | null = null;
+  /** Troca de aba e guarda no endereço (`#imoveis`), sem perder o token da busca. */
+  private irPara(aba: AbaPortal) {
+    this.aba = aba;
+    try {
+      history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${aba}`);
+    } catch {
+      // sem histórico (pré-visualização): só a aba muda
+    }
+  }
+
+  /** Setas trocam de aba, como pede o padrão de abas acessíveis. */
+  private teclaNasAbas(e: KeyboardEvent, ids: AbaPortal[]) {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const i = ids.indexOf(this.aba);
+    const prox = ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length];
+    this.irPara(prox);
+    void this.updateComplete.then(() => this.renderRoot.querySelector<HTMLButtonElement>(`#aba-${prox}`)?.focus());
+  }
 
   /** O cliente marca uma pendência como feita: sai da lista na hora; se falhar, volta com o aviso. */
   private async feito(t: Linha) {
@@ -341,59 +471,126 @@ export class PcPortalCliente extends LitElement {
     </ol>`;
   }
 
-  render() {
-    if (this.estado === 'carregando') return html`<div class="centro suave">Carregando…</div>`;
-    if (this.estado === 'indisponivel') return html`<div class="centro"><h2>Portal indisponível</h2><p class="suave">O link pode ter sido trocado. Peça um novo ao seu corretor.</p></div>`;
-    if (this.estado === 'falha') return html`<div class="centro"><h2>Não foi possível abrir agora</h2><p><button class="botao" @click=${() => { this.estado = 'carregando'; void this.carregar(); }}>Tentar de novo</button></p></div>`;
-    const p = this.portal!;
-    const j = p.jornada;
-    const tarefas: Linha[] = p.tarefas ?? [];
+  /**
+   * Conversa (M4): o histórico que o portal já tem (a jornada) e o campo "Escreva para <corretor>"
+   * pelo `acao_cliente`. As respostas do corretor chegam pelo WhatsApp: o portal não guarda as
+   * mensagens trocadas (D-73, sem texto do cliente na vitrine).
+   */
+  private abaConversa(p: Linha) {
+    const nome = primeiroNome(p.corretor?.nome);
+    const zap = p.corretor ? linkWhatsapp(p.corretor.telefone, 'Olá! Estou no meu portal e queria falar com você.') : null;
     const valeAte = (p.selecoes as Linha[]).map((s) => s.expira_em).filter(Boolean).sort()[0] ?? null;
     return html`
-      ${topo(p.corretor, 'Olá! Estou no meu portal e queria falar com você.', p.proximo_passo ?? null)}
-      <div class="conteudo">
-        ${datasChave((p.agenda as Linha[]).find((v) => v.quando && Date.parse(v.quando) >= Date.now())?.quando ?? null, valeAte)}
-        ${tarefas.length || this.avisoEm === 'tarefas'
-          ? html`<section>
-              <h2>O que falta de você</h2>
-              ${tarefas.length
-                ? html`<ul class="pendencias">
-                    ${tarefas.map(
-                      (t) => html`<li>
-                        <span>${t.texto}</span>
-                        <button class="botao" type="button" ?disabled=${this.marcando !== null} aria-label=${`Feito: ${t.texto}`} @click=${() => this.feito(t)}>${this.marcando === t.ref ? 'Enviando…' : 'Feito'}</button>
-                      </li>`,
-                    )}
-                  </ul>`
-                : html`<p class="suave">Nada pendente agora.</p>`}
-              ${this.avisoEm === 'tarefas' && this.aviso ? html`<div class="aviso aviso-item ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
-            </section>`
+      ${datasChave((p.agenda as Linha[]).find((v) => v.quando && Date.parse(v.quando) >= Date.now())?.quando ?? null, valeAte)}
+      ${p.jornada ? html`<section><h2>Histórico</h2>${this.jornada(p.jornada)}</section>` : nothing}
+      <section>
+        <h2>Escreva para ${nome}</h2>
+        ${p.url_acoes
+          ? html`<div class="caixa">
+              <form @submit=${(e: Event) => this.acao(e, { tipo: 'mensagem' })}>
+                <label>Mensagem para ${nome}<textarea name="texto" required maxlength="1000"></textarea></label>
+                ${this.avisoEm === 'mensagem' && this.aviso ? html`<div class="aviso ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
+                <div><button class="botao" type="submit" ?disabled=${this.enviando}>Enviar</button></div>
+              </form>
+            </div>
+            <p class="suave">${nome} responde pelo WhatsApp.</p>`
           : nothing}
-        <section>
-          <h2>Suas visitas</h2>
-          ${p.agenda.length ? this.agenda(p.agenda) : html`<p class="suave">Nenhuma visita marcada.</p>`}
-        </section>
-        <section>
-          <h2>Imóveis para você</h2>
-          ${p.selecoes.length
-            ? p.selecoes.map(
-                (s: Linha) => html`<h3>${s.titulo}</h3>
-                  ${s.mensagem ? html`<p class="texto">${s.mensagem}</p>` : nothing}
-                  ${s.itens.map((i: Linha) => itemSelecao(i, (codigo, reacao) => enviarReacao(s, codigo, reacao, this.reacoes, () => this.requestUpdate()), this.reacoes))}`,
-              )
-            : html`<p class="suave">Quando o corretor separar imóveis para você, eles aparecem aqui.</p>`}
-        </section>
-        <section>
-          <h2>Fale com o corretor</h2>
-          <div class="caixa">
-            <form @submit=${(e: Event) => this.acao(e, { tipo: 'mensagem' })}>
-              <label>Mensagem<textarea name="texto" required maxlength="1000"></textarea></label>
-              ${this.avisoEm === 'mensagem' && this.aviso ? html`<div class="aviso ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
-              <div><button class="botao" type="submit" ?disabled=${this.enviando}>Enviar</button></div>
-            </form>
-          </div>
-        </section>
-        ${j ? html`<section><h2>Sua jornada</h2>${this.jornada(j)}</section>` : nothing}
+        ${zap ? html`<div class="acoes"><a class="botao verde" href=${zap} target="_blank" rel="noopener">Conversar no WhatsApp</a></div>` : nothing}
+      </section>
+    `;
+  }
+
+  /** Imóveis (M5): o destaque com galeria e reações, os outros com a reação dada e "O que falta de você". */
+  private abaImoveis(p: Linha) {
+    const lista = imoveisDoPortal(p.selecoes ?? []);
+    const tarefas: Linha[] = p.tarefas ?? [];
+    const atual = lista.find((x) => x.imovel.codigo === this.destaque) ?? lista[0];
+    const atualizar = () => this.requestUpdate();
+    return html`
+      ${atual
+        ? html`<section>
+            <p class="suave">${primeiroNome(p.corretor?.nome)} escolheu para você${atual.imovel.fotos?.length > 1 ? ' · deslize as fotos' : ''}</p>
+            ${itemSelecao(atual.imovel, this.reacoes, {
+              reagir: (codigo, reacao) => enviarReacao(atual.selecao, codigo, reacao, this.reacoes, atualizar),
+              comentar: (codigo, texto) => enviarComentario(atual.selecao, codigo, texto, p.url_acoes ?? null, this.reacoes, atualizar),
+              abrirComentario: (codigo) => { this.reacoes.comentando = codigo; atualizar(); },
+              chip: chipDeVisita(atual.imovel.codigo, p.agenda ?? []),
+            })}
+          </section>`
+        : html`<section><p class="suave">Quando o corretor separar imóveis para você, eles aparecem aqui.</p></section>`}
+      ${lista.length > 1
+        ? html`<section>
+            <h2>Outros imóveis</h2>
+            <ul class="outros">
+              ${lista
+                .filter((x) => x !== atual)
+                .map(
+                  ({ imovel: i }) => html`<li>
+                    <button type="button" @click=${() => { this.destaque = i.codigo; this.reacoes.comentando = null; }}>
+                      ${i.fotos?.[0]?.url ? html`<img src=${i.fotos[0].url} alt="" loading="lazy" />` : html`<span class="miniatura"></span>`}
+                      <span><strong>${nomeImovel(i)}</strong><span class="suave">${[i.bairro, reais(i.preco_c)].filter(Boolean).join(' · ')}</span></span>
+                      <span class="reacao">${reacaoDada(i.reacao)}</span>
+                    </button>
+                  </li>`,
+                )}
+            </ul>
+          </section>`
+        : nothing}
+      ${tarefas.length || this.avisoEm === 'tarefas'
+        ? html`<section>
+            <h2>O que falta de você</h2>
+            ${tarefas.length
+              ? html`<ul class="pendencias">
+                  ${tarefas.map(
+                    (t) => html`<li>
+                      <span>${t.texto}</span>
+                      <button class="botao" type="button" ?disabled=${this.marcando !== null} aria-label=${`Feito: ${t.texto}`} @click=${() => this.feito(t)}>${this.marcando === t.ref ? 'Enviando…' : 'Feito'}</button>
+                    </li>`,
+                  )}
+                </ul>`
+              : html`<p class="suave">Nada pendente agora.</p>`}
+            ${this.avisoEm === 'tarefas' && this.aviso ? html`<div class="aviso aviso-item ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
+          </section>`
+        : nothing}
+    `;
+  }
+
+  private abaAgenda(p: Linha) {
+    return html`<section>
+      <h2>Suas visitas</h2>
+      ${p.agenda.length ? this.agenda(p.agenda) : html`<p class="suave">Nenhuma visita marcada.</p>`}
+    </section>`;
+  }
+
+  /** Arquivos ainda não têm fonte no app (D-73): a aba diz onde os documentos chegam. */
+  private abaArquivos(p: Linha) {
+    return html`<section>
+      <h2>Arquivos</h2>
+      <p class="suave">Nenhum arquivo por aqui ainda. Por enquanto, ${primeiroNome(p.corretor?.nome)} envia documentos e contratos pelo WhatsApp.</p>
+    </section>`;
+  }
+
+  render() {
+    if (this.estado === 'carregando') return html`<div class="centro suave">Carregando…</div>`;
+    if (this.estado !== 'pronto') return telaDeErro(this.estado, 'Seu portal', () => { this.estado = 'carregando'; void this.carregar(); });
+    const p = this.portal!;
+    const abas = abasDoPortal(p);
+    const ids = abas.map((a) => a.id);
+    return html`
+      ${topo(p.corretor, 'Olá! Estou no meu portal e queria falar com você.', {
+        rotulo: 'Meu atendimento',
+        proximoPasso: p.proximo_passo ?? null,
+        ver: () => this.irPara(destinoDoProximoPasso(p)),
+      })}
+      <nav class="abas" role="tablist" aria-label="Seu atendimento" @keydown=${(e: KeyboardEvent) => this.teclaNasAbas(e, ids)}>
+        ${abas.map(
+          (a) => html`<button type="button" role="tab" id=${`aba-${a.id}`} aria-controls="painel" aria-selected=${this.aba === a.id ? 'true' : 'false'} tabindex=${this.aba === a.id ? '0' : '-1'} @click=${() => this.irPara(a.id)}>
+            ${a.rotulo}${a.n !== null ? html`<span class="n">${a.n}</span>` : nothing}
+          </button>`,
+        )}
+      </nav>
+      <div class="conteudo" id="painel" role="tabpanel" aria-labelledby=${`aba-${this.aba}`}>
+        ${this.aba === 'imoveis' ? this.abaImoveis(p) : this.aba === 'agenda' ? this.abaAgenda(p) : this.aba === 'arquivos' ? this.abaArquivos(p) : this.abaConversa(p)}
       </div>
     `;
   }

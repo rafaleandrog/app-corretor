@@ -1,6 +1,6 @@
 ---
 titulo: Seleções e Portal do Cliente
-descricao: Seleção de imóveis que o cliente abre pelo link e marca gostei, não gostei ou quero visitar, e o portal do cliente com o próximo passo, as datas, as seleções, as visitas, o que falta do cliente, a jornada e um espaço para falar com o corretor.
+descricao: Seleção de imóveis que o cliente abre pelo link e marca gostei, não gostei, quero visitar ou comenta, e o portal do cliente (Meu atendimento) com o próximo passo e as abas Conversa, Imóveis, Agenda e Arquivos.
 ---
 
 # Seleções e Portal do Cliente
@@ -20,7 +20,8 @@ Na ficha do cliente, em **Seleções e portal**, o botão **+** (Nova seleção)
 O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>`. Vale pelo prazo de
 "validade da seleção enviada" de Ajustes › Atendimento (14 dias, se você não mudar).
 
-No topo, o cliente vê o seu nome, o CRECI, o botão de WhatsApp e a sua foto, na cor principal da
+No topo, o cliente vê o seu nome, o CRECI (só se você tiver preenchido no perfil), o botão de
+WhatsApp e a sua foto (sem foto, as suas iniciais), na cor principal da
 sua marca ([Ajustes › Marca](conta-e-ajustes.md#a-marca)). Mudar a cor ou a foto na marca muda as
 seleções válidas e os portais já enviados, sem mandar link novo.
 
@@ -28,7 +29,12 @@ Logo abaixo do topo, em destaque, a data até quando a seleção vale.
 
 Cada imóvel é um cartão de **foto grande** (as fotos passam de lado), pensado para o celular:
 - preço em destaque, bairro e cidade, e ícones de quartos, área e vagas; a descrição abre num toque;
-- três botões grandes: **Gostei**, **Não gostei** e **Quero visitar**.
+- botões grandes: **Gostei**, **Não gostei**, **Quero visitar** e **Comentar**.
+
+**Comentar** abre um campo (até 300 letras). O comentário vai junto com a reação já dada e
+aparece na linha do tempo, por exemplo "Gostou do IM-0001: a cozinha é pequena (seleção
+"Casas")". Sem reação ainda, a seleção avulsa pede antes o Gostei ou o Não gostei; no portal,
+o comentário vai como mensagem ao corretor, citando o imóvel.
 
 Os ícones de quartos, área e vagas são os mesmos na sua página e na ficha pública do imóvel
 ([Minha página](minha-pagina.md)). Lá a foto fica menor: na página, em grade; na ficha, as fotos
@@ -61,17 +67,28 @@ Na mesma área da ficha, **Gerar link do portal** cria o link do cliente
 de novo copia o mesmo link. O link não vence. **Revogar** faz ele parar de abrir, e um novo pode
 ser gerado depois.
 
-O portal é uma página só, curada por você (o modelo do Compass One). De cima para baixo:
+O portal se chama **Meu atendimento** e é curado por você (o modelo do Compass One). No topo
+ficam o nome do corretor (o da Minha página, se houver), a foto (sem foto, as iniciais), o CRECI
+só se você tiver preenchido, e o botão de WhatsApp, na cor da marca. Embaixo, em destaque, o
+**próximo passo para o cliente**, se você escreveu um, com o botão **Ver**: ele leva à aba Agenda
+quando há visita marcada e à aba Imóveis quando não há.
 
-| Parte | O que tem |
+Logo abaixo do topo, as abas **Conversa · Imóveis N · Agenda N · Arquivos N**. A aba fica no
+endereço (`…#imoveis`), então o cliente volta para a mesma aba ao recarregar.
+
+| Aba | O que tem |
 |---|---|
-| Topo | O nome do corretor (o da Minha página, se houver), a foto, o CRECI e o botão de WhatsApp, na cor da marca. Embaixo, o **próximo passo para o cliente**, se você escreveu um |
-| Datas | Em destaque: a **próxima visita** (dia e hora, e quanto falta: hoje, amanhã ou em N dias) e até quando a **seleção vale** (a que vence primeiro) |
-| O que falta de você | As pendências que você pediu, cada uma com o botão **Feito** (só aparece se houver alguma) |
-| Suas visitas | As visitas marcadas, por dia, com hora e imóvel. Um dia com mais de uma visita vira um **roteiro**: as paradas numeradas na ordem do horário e o link **Ver o roteiro no mapa**, com o trajeto todo. Em cada visita, **Como chegar** (abre o mapa do celular com a rota), **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar**. O mapa só usa o que o imóvel mostra em público: com o endereço publicado, a rota vai até ele; só com o bairro, o botão vira **Ver o bairro no mapa**; publicado só como região, não há mapa |
-| Imóveis para você | As seleções válidas, em cartões de foto grande, com as reações, que o cliente pode mudar dali mesmo |
-| Fale com o corretor | Uma mensagem livre |
-| Sua jornada | Uma linha do tempo, da mais recente para a mais antiga: cada seleção recebida ("Recebeu 3 imóveis: Casas no Noroeste"), cada visita feita ("Visitou Apto com varanda, Noroeste"), cada pendência resolvida e, embaixo, o começo |
+| Conversa | As datas em destaque: a **próxima visita** (dia e hora, e quanto falta: hoje, amanhã ou em N dias) e até quando a **seleção vale** (a que vence primeiro). O **histórico**: uma linha do tempo, da mais recente para a mais antiga, com cada seleção recebida ("Recebeu 3 imóveis: Casas no Noroeste"), cada visita feita ("Visitou Apto com varanda, Noroeste"), cada pendência resolvida e, embaixo, o começo. O campo **Escreva para <seu nome>** e o botão **Conversar no WhatsApp** |
+| Imóveis | O imóvel em **destaque**, em cartão de foto grande (as fotos passam de lado), com o selo **Visita sáb.** quando há visita marcada a ele e os botões **Gostei · Não gostei · Quero visitar · Comentar**. Embaixo, **Outros imóveis**, cada um com a miniatura, o bairro, o preço e a reação dada ("Gostei", "Sem reação"); um toque põe o imóvel no destaque. Por fim, **O que falta de você**: as pendências que você pediu, cada uma com o botão **Feito** (só aparece se houver alguma). O número da aba conta os imóveis das seleções válidas, sem repetir o mesmo imóvel |
+| Agenda | As visitas marcadas, por dia, com hora e imóvel. Um dia com mais de uma visita vira um **roteiro**: as paradas numeradas na ordem do horário e o link **Ver o roteiro no mapa**, com o trajeto todo. Em cada visita, **Como chegar** (abre o mapa do celular com a rota), **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar**. O mapa só usa o que o imóvel mostra em público: com o endereço publicado, a rota vai até ele; só com o bairro, o botão vira **Ver o bairro no mapa**; publicado só como região, não há mapa. O número da aba conta as visitas que ainda vão acontecer |
+| Arquivos | Ainda sem arquivos (D-73): a aba avisa que, por enquanto, os documentos chegam pelo WhatsApp. O número fica em 0 |
+
+A Conversa não guarda as mensagens trocadas: o que o cliente escreve vai para a sua linha do
+tempo, e a resposta sai pelo seu WhatsApp. A aba de Propostas entra com a negociação.
+
+**Link expirado:** um link revogado, trocado ou vencido (portal ou seleção) abre a tela **Link
+expirado**, que pede um novo ao corretor. Se o problema for a conexão, a tela oferece **Tentar de
+novo**.
 
 ### Próximo passo para o cliente
 
@@ -98,7 +115,7 @@ não for deste cliente ou já estiver feita, nada muda.
 O ícone de lixeira ao lado de cada pendência a remove: ela sai da ficha e do portal.
 
 **O que o cliente manda pelo portal:**
-- **Mensagem:** entra na linha do tempo ("Mensagem pelo portal: …") e cria a tarefa "Responder
+- **Mensagem** (pela Conversa, ou por **Comentar** num imóvel ainda sem reação): entra na linha do tempo ("Mensagem pelo portal: …") e cria a tarefa "Responder
   a mensagem do portal".
 - **Pedido para remarcar:** entra na linha do tempo com o horário que ele sugeriu e cria a
   tarefa "Remarcar visita: …". A visita em si só muda quando o corretor muda.

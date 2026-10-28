@@ -20,8 +20,8 @@ ou no computador:
 
 | Bloco | O que mostra |
 |---|---|
-| Apresentação | Título e texto no topo, com o nome, o CRECI e os botões de WhatsApp e Instagram |
-| Imóveis em destaque | Até 6 imóveis escolhidos |
+| Apresentação | A capa: a sua foto (sem foto, as suas iniciais), o nome, o CRECI só se você tiver preenchido, o título e o texto, e os botões **Falar no WhatsApp** e Instagram |
+| Imóveis em destaque | Até 6 imóveis escolhidos, cada um com o botão **Quero saber mais**, que abre o seu WhatsApp citando o código e o título do imóvel (com o WhatsApp desligado, abre a ficha do imóvel) |
 | Todos os imóveis | Todos os imóveis publicados |
 | Sobre mim | Um texto mais longo |
 | Bairros que atendo | Uma lista de bairros ou regiões |
@@ -38,7 +38,12 @@ ou no computador:
   contar.
 
 O nome, o CRECI e o telefone de WhatsApp da página vêm do perfil de quem salva ou publica a página
-(Ajustes › Conta). Mudou o CRECI ou o telefone? Use **Atualizar agora**.
+(Ajustes › Conta). Mudou o CRECI ou o telefone? Use **Atualizar agora**. A foto da capa é a foto da
+sua marca ([Ajustes › Marca](conta-e-ajustes.md#a-marca)) e acompanha a marca como a cor. Página
+publicada antes de a capa ter foto mostra as iniciais até o próximo **Atualizar agora**.
+
+O CRECI é opcional (D-93): sem ele, a capa mostra só "Corretor de imóveis", e nada deixa de
+funcionar. Os cartões dos imóveis (na página inteira) também ganham o botão **Quero saber mais**.
 
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**
 copia o endereço completo.

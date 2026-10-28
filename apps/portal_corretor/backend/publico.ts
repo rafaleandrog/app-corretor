@@ -41,6 +41,12 @@ const hoje = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/S
 const noPrazo = (l: Linha | null) => !!l && (!l.dados?.vigente_ate || String(l.dados.vigente_ate) >= hoje());
 
 const texto = (v: unknown, limite: number) => (typeof v === 'string' ? v.trim().slice(0, limite) : '');
+/** Página como sai ao visitante: a foto do corretor vira URL assinada, nunca id de arquivo. */
+async function paginaPublica(req: Request, dados: Linha) {
+  const { foto, ...resto } = (dados ?? {}) as Linha;
+  return { ...resto, foto_url: await urlFoto(req, foto ?? undefined) };
+}
+
 const naoEncontrado = (res: Response) => res.status(404).json({ erro: true, codigo: 'NAO_ENCONTRADO', mensagem: 'Página não encontrada.' });
 
 /** Página do corretor com os cartões dos imóveis publicados. */
@@ -60,7 +66,7 @@ rotasPublicas.get('/vitrine/pagina', async (req, res, next) => {
         };
       }),
     );
-    res.json({ pagina: pagina.dados, imoveis: cartoes });
+    res.json({ pagina: await paginaPublica(req, pagina.dados as Linha), imoveis: cartoes });
   } catch (e) {
     next(e);
   }
@@ -76,7 +82,7 @@ rotasPublicas.get('/vitrine/imovel', async (req, res, next) => {
     if (!pagina || !noPrazo(linha)) return naoEncontrado(res);
     const { vigente_ate: _prazo, ...im } = linha!.dados as Linha;
     const fotos = await Promise.all((im.fotos ?? []).map(async (f: Linha) => ({ url: await urlFoto(req, f.arquivo), legenda: f.legenda ?? null })));
-    res.json({ pagina: pagina.dados, imovel: { ...im, fotos: fotos.filter((f) => f.url) } });
+    res.json({ pagina: await paginaPublica(req, pagina.dados as Linha), imovel: { ...im, fotos: fotos.filter((f) => f.url) } });
   } catch (e) {
     next(e);
   }

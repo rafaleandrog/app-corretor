@@ -123,6 +123,8 @@ export async function conteudoPagina(req: Request, pagina: Linha) {
     telefone: eu?.telefone ?? null,
     // A cor da marca (Ajustes › Marca, D-85); a página não tem mais cor própria.
     cor: marca.cor,
+    // A foto do corretor (Ajustes › Marca) para a capa (M6); a rota pública troca por uma URL assinada.
+    foto: marca.foto,
     blocos: (pagina.blocos as Bloco[]).filter((b) => b.ativo),
     url_formulario: pagina.url_formulario ?? null,
     // Lida pelos links rastreados na hora do clique: republicar a página troca o endereço de entrada
