@@ -79,7 +79,7 @@ test('regras puras do portal: abas com contagem, [Ver], aba do endereço, chip d
   ];
   assert.deepEqual(recadosDasSelecoes(duas).map((r) => [r.titulo, r.mensagem, r.imoveis]), [['Para morar', 'Veja estes', 1], ['Plano B', 'E estes', 1]], 'as duas mensagens chegam, mesmo com imóvel repetido');
   const t0 = Date.parse('2026-10-28T12:00:00Z');
-  assert.equal(proximaVisita([{ quando: '2026-10-28T11:30:00Z' }, { quando: '2026-10-29T10:00:00Z' }], t0), '2026-10-28T11:30:00Z', 'visita há 30 min ainda conta, como na aba Agenda');
+  assert.equal(proximaVisita([{ quando: '2026-10-29T10:00:00Z' }, { quando: '2026-10-28T11:30:00Z' }], t0), '2026-10-28T11:30:00Z', 'visita há 30 min ainda conta, como na aba Agenda');
   assert.equal(proximaVisita([{ quando: '2026-10-28T10:30:00Z' }], t0), null);
   assert.equal(destinoDoProximoPasso({ ...portal, agenda: [] }, agora), 'imoveis');
   assert.deepEqual(['#imoveis', '#agenda', '#arquivos', '#propostas', ''].map(abaDoEndereco), ['imoveis', 'agenda', 'arquivos', 'conversa', 'conversa']);

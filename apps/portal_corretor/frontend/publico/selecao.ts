@@ -367,11 +367,12 @@ export class PcPortalCliente extends LitElement {
     }
   }
 
-  /** Setas trocam de aba, como pede o padrão de abas acessíveis. */
+  /** Setas, Home e End trocam de aba, como pede o padrão de abas acessíveis. */
   private teclaNasAbas(e: KeyboardEvent, ids: AbaPortal[]) {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
     const i = ids.indexOf(this.aba);
-    const prox = ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length];
+    const prox = e.key === 'Home' ? ids[0] : e.key === 'End' ? ids[ids.length - 1] : ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length];
     this.irPara(prox);
     void this.updateComplete.then(() => this.renderRoot.querySelector<HTMLButtonElement>(`#aba-${prox}`)?.focus());
   }
@@ -513,7 +514,7 @@ export class PcPortalCliente extends LitElement {
       ${recados.length
         ? html`<section>
             <h2>${recados.length > 1 ? 'Suas seleções' : 'Sua seleção'}</h2>
-            ${recados.map((r) => html`<h3>${r.titulo}</h3>${r.mensagem ? html`<p class="texto">${r.mensagem}</p>` : nothing}`)}
+            ${recados.map((r) => html`${r.titulo ? html`<h3>${r.titulo}</h3>` : nothing}${r.mensagem ? html`<p class="texto">${r.mensagem}</p>` : nothing}`)}
           </section>`
         : nothing}
       ${atual
@@ -598,7 +599,7 @@ export class PcPortalCliente extends LitElement {
           </button>`,
         )}
       </nav>
-      <div class="conteudo" id="painel" role="tabpanel" aria-labelledby=${`aba-${this.aba}`}>
+      <div class="conteudo" id="painel" role="tabpanel" tabindex="0" aria-labelledby=${`aba-${this.aba}`}>
         ${this.aba === 'imoveis' ? this.abaImoveis(p) : this.aba === 'agenda' ? this.abaAgenda(p) : this.aba === 'arquivos' ? this.abaArquivos(p) : this.abaConversa(p)}
       </div>
     `;

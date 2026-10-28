@@ -21,7 +21,7 @@ ou no computador:
 | Bloco | O que mostra |
 |---|---|
 | Apresentação | A capa: a sua foto (sem foto, as suas iniciais), o nome, o CRECI só se você tiver preenchido, o título e o texto, e os botões **Falar no WhatsApp** e Instagram |
-| Imóveis em destaque | Até 6 imóveis escolhidos, cada um com o botão **Quero saber mais**, que abre o seu WhatsApp citando o código e o título do imóvel (com o WhatsApp desligado, abre a ficha do imóvel) |
+| Imóveis em destaque | Até 6 imóveis escolhidos, cada um com o botão **Quero saber mais**, que abre o seu WhatsApp citando o código e o título do imóvel (com o WhatsApp desligado, abre a ficha do imóvel). Numa página nova ele vem ligado, mas sem imóveis escolhidos fica de fora: só aparece com pelo menos um imóvel escolhido e publicado. O título padrão é **Imóveis em destaque**; numa página já salva vale o título gravado, e um título apagado volta a esse nome. Esse bloco não é o que toda página mostra: a página nova traz o bloco **Todos os imóveis** (título padrão **Imóveis à venda**) |
 | Todos os imóveis | Todos os imóveis publicados |
 | Sobre mim | Um texto mais longo |
 | Bairros que atendo | Uma lista de bairros ou regiões |
