@@ -188,4 +188,6 @@ isso o corretor o envia só ao cliente e o revoga se ele for parar em outras mã
 - **Eventos:** `reacao_recebida`, `acao_cliente_recebida` e `proposta_aceite_cliente` são da conta:
   só os membros da conta os veem. `acao_cliente_recebida` leva também o `valor_c` da oferta; já
   `proposta_aceite_cliente` e `proposta_recebida` publicam só ids (a negociação e a proposta).
+  O `valor_c` sai do registro do webhook (só o registro; o evento segue com ele). Se o link do
+  portal for revogado antes de a oferta ou o aceite ser processado, o pedido é descartado.
 - **Páginas públicas:** `/portal_corretor/s` (seleção) e `/portal_corretor/c` (portal).

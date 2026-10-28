@@ -680,7 +680,7 @@ export class PcPortalCliente extends LitElement {
     const texto = String(new FormData(form).get('texto') ?? '').trim();
     if (!texto) return;
     this.enviando = true;
-    const r = await postar(this.portal!.url_acoes, { tipo: 'mensagem', texto: `Sobre a negociação do imóvel ${nomeImovelNeg}: ${texto}` });
+    const r = await postar(this.portal!.url_acoes, { tipo: 'mensagem', texto: `Sobre a negociação do imóvel ${nomeImovelNeg.slice(0, 80)}: ${texto}` });
     this.enviando = false;
     this.avisoEm = `negociacao-${n.ref}`;
     this.erroOferta = null;
