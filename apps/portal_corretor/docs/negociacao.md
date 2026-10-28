@@ -1,14 +1,15 @@
 ---
 titulo: Negociação e mandato
-descricao: As negociações de um negócio, o mandato do vendedor (o que é sigiloso e quem vê), as propostas, os ajustes do Negociador e as respostas a objeções.
+descricao: As negociações de um negócio, o mandato do vendedor (o que é sigiloso e quem vê), as propostas, o Negociador IA (como decide e o que nunca faz), os ajustes e as respostas a objeções.
 ---
 
 # Negociação e mandato
 
 A partir da versão 0.1.13 o app guarda as **negociações**: a etapa em que o corretor (ou o
 **Negociador**, o assistente de negociação do app) troca propostas com o comprador até um acordo.
-Nesta versão existem os dados e as regras; as telas (Clientes › Negociações, o formulário do
-mandato e Ajustes › Negociador) e as sugestões do Negociador chegam nas versões seguintes. Até lá,
+Na versão 0.1.15 chega o **Negociador IA**: ele lê a conversa, sugere o próximo movimento e
+confere cada sugestão contra o mandato antes de qualquer coisa sair. As telas (Clientes ›
+Negociações, o formulário do mandato e Ajustes › Negociador) chegam nas versões seguintes. Até lá,
 nenhum item novo aparece no menu, e **Criar › Nova proposta** só abre a ficha do cliente.
 
 ## Negociação
@@ -79,11 +80,64 @@ Outro corretor nunca vê nada da negociação de outra conta: a resposta é "nã
 
 Cada proposta registra quem propôs (comprador, vendedor ou proprietário), o valor, as condições, a
 concessão, a contrapartida e a validade. Nesta versão o corretor **registra** as propostas
-(canal "registro"); o envio pelo Portal do Cliente e pelo **Fazer agora** (o WhatsApp do celular
-do corretor) chega com o Negociador, sempre conferido contra o mandato antes de sair.
+(canal "registro"). A contraproposta do vendedor sai pelo **Portal do Cliente** ou pelo **Fazer
+agora** (o app monta a mensagem e o link do WhatsApp do celular do corretor, que envia), sempre
+conferida contra o mandato antes de sair — ver a seção seguinte. O WhatsApp do próprio app ainda
+não existe.
 
 A **rodada** é calculada pelo app: cada oferta do comprador abre uma rodada, e a resposta do
 vendedor ou do proprietário fica na rodada aberta. A negociação guarda o número de rodadas.
+
+## Como o Negociador IA decide e o que ele nunca faz
+
+Ao pedir uma sugestão (com a última mensagem do cliente, se houver), o Negociador recebe o imóvel,
+o mandato, a escada de propostas, as últimas 30 mensagens da negociação, as objeções já vistas e as
+suas respostas a objeções. Ele devolve uma leitura (a objeção do cliente, o que interessa a ele, uma
+estimativa do teto do comprador) e **um movimento**: responder a objeção, pedir informação,
+contrapropor, resumir o acordo ou passar a você. O alvo, o ponto de recuo e a BATNA do vendedor vão
+para ele marcados como sigilosos.
+
+**Antes de mostrar ou enviar qualquer coisa, o app confere 7 garantias** (no código, não na
+conversa com a IA):
+
+1. **Piso:** a contraproposta nunca fica abaixo do ponto de recuo (igual ao recuo pode).
+2. **Passo:** a concessão de preço cabe no passo máximo da rodada e não é maior que a anterior.
+3. **Rodadas:** não passa do número de rodadas do mandato.
+4. **Concessões:** só itens do mandato, cada um com a contrapartida.
+5. **Sigilo:** a mensagem não cita o recuo, o alvo nem a BATNA do vendedor, em nenhum formato
+   ("1.360.000", "1,36 mi", "1360 mil", por extenso, até 1% de diferença), nem fala em "mínimo",
+   "piso" ou "o dono aceita até". Uma mensagem assim é retida e nunca aparece.
+6. **Validade:** o mandato está vigente; "faz sozinho" só com a autorização do proprietário.
+7. **Canal:** portal ou Fazer agora; "faz sozinho" só pelo portal.
+
+Se alguma falha, **nada sai**: a negociação vai para "aguardando o corretor", você recebe o aviso
+"o Negociador precisa de você" e a execução fica registrada com o motivo. O Negociador também
+**passa a você** quando o comprador oferece abaixo do recuo, quando acabam as rodadas, quando o
+cliente aceita (o acordo é sempre seu), quando ele pede algo fora do mandato, fala de comissão,
+permuta, financiamento fora do comum, documentos ou assunto jurídico, quando é agressivo ou pede
+uma pessoa, quando o mandato venceu ou não existe e quando **não há ZOPA** (o teto estimado do
+comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
+
+**O que acontece com a sugestão, por autonomia:**
+- **Só sugere** e **Pergunta antes:** a sugestão espera você. Você **aprova** (escolhendo portal ou
+  Fazer agora), **edita** ou **descarta**. Aprovar ou editar confere as 7 garantias de novo: nem a
+  sua edição passa do recuo ou revela o sigilo (o app recusa e diz por quê).
+- **Faz sozinho:** com o Negociador conduzindo e a autorização do proprietário no mandato, a
+  contraproposta que passa nas garantias sai sozinha pelo portal.
+
+**O Negociador nunca aceita o acordo.** Aceitar a proposta do comprador é uma ação separada, só do
+corretor: a negociação passa a "aguardando o proprietário", que decide o fechamento. Ele também
+não precisa de CRECI.
+
+**Um atendente por vez:** **Assumir** faz você conduzir; **Devolver** entrega de novo ao Negociador
+(se ele estiver ligado nos ajustes).
+
+**Simulador:** o motor pode ser testado numa negociação fictícia (a tela dele, em Ajustes ›
+Negociador, chega numa versão seguinte): você escreve a mensagem do comprador e vê a resposta e as
+7 garantias marcadas (✓ ou ✗). Nada é gravado.
+
+**Sem IA** (o administrador não liberou o slot, ou a IA não respondeu), o pedido de sugestão diz
+"IA indisponível agora" e a negociação segue com você.
 
 ## Ajustes do Negociador
 
@@ -109,8 +163,11 @@ padrão nunca é apagada nem reescrita.
 ## Para o administrador da instância
 
 - **Eventos** (todos da conta do corretor; o clique leva à tela Clientes, mas nesta versão ela só tem as visões Lista e Quadro, então o link ainda não abre a negociação): negociação iniciada,
-  oferta do comprador recebida, proposta registrada, mandato alterado, negociação encerrada e
-  "o Negociador precisa de você" (limite do mandato atingido; passa a sair com o Negociador). O
-  conteúdo desses eventos nunca leva valores do mandato.
+  oferta do comprador recebida, proposta registrada, mandato alterado, negociação encerrada,
+  "o Negociador precisa de você" (passagem ao corretor), objeção detectada, contraproposta
+  esperando aprovação, contraproposta enviada, acordo aguardando o proprietário, negociação
+  assumida e devolvida. O conteúdo desses eventos nunca leva valores do mandato.
+- **IA:** o Negociador usa o slot **Negociador** (base `poder`). Sem ele autorizado, o pedido de
+  sugestão responde "IA indisponível agora" e o corretor conduz.
 - **Respostas a objeções:** semeadas a cada início do app, em toda conta ativa, sem duplicar. Conta
   criada depois do último início recebe as respostas no próximo; até lá, essa conta não tem as respostas. Nesta versão ainda não existe tela de respostas a objeções: elas só existem nos dados da conta.
