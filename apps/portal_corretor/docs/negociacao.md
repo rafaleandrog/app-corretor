@@ -65,7 +65,7 @@ R$ 872.000). Como o intervalo encolhe, a concessão diminui a cada rodada.
 ### O que é sigiloso e quem vê
 
 **Alvo, ponto de recuo e BATNA do vendedor nunca são revelados pelo Negociador** (regra do dono do
-produto). No app, eles só aparecem para o **corretor da conta** e para o **administrador do app** (que precisa estar associado a uma conta), e só no mandato da negociação. A equipe da plataforma (papel de operação) não passa nas telas e rotas de negociação.
+produto). No app, eles só aparecem para o **corretor da conta** e para o **administrador do app** (que precisa estar associado a uma conta), e só no mandato da negociação. A equipe da plataforma com só o papel de operação não passa nas telas e rotas de negociação (o guarda exige o papel `corretor` ou o nível de administrador do app); quem tem operação e também é administrador do app passa, desde que esteja associado a uma conta.
 Ficam fora de:
 - a lista e o detalhe da negociação (o mandato aparece ali só com o que não é sigiloso);
 - as propostas;

@@ -107,7 +107,8 @@ const centavos = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) &
 const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
 // `Date.parse` aceita dia que não existe ('2026-02-31' vira 3 de março): a data só vale se voltar igual.
 const dataValida = (v: unknown): v is string => {
-  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  // Ano 0000 existe no JS, mas não na coluna `data` do PostgreSQL: a gravação falharia como 500 em vez de 422.
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v) || v.startsWith('0000')) return false;
   const d = new Date(`${v}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
 };
