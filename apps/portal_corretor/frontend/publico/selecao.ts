@@ -371,23 +371,53 @@ export class PcPortalCliente extends LitElement {
   @state() private ofertando: number | null = null;
   /** Onde mostrar o aviso: perto do formulário que enviou. */
   @state() private avisoEm: string | null = null;
+  /** Negociação com o campo "Mensagem ao corretor" aberto. */
+  @state() private mensagemEm: number | null = null;
+  /** Negociação cujo valor da oferta está inválido (liga o erro ao campo). */
+  @state() private erroOferta: number | null = null;
   private reacoes: EstadoReacoes = { enviando: new Set(), avisos: new Map(), comentando: null };
+  /** Releituras agendadas depois de oferta/aceite; saem com o componente. */
+  private releituras: number[] = [];
 
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
   }
 
-  private async carregar() {
+  disconnectedCallback() {
+    this.cancelarReleituras();
+    super.disconnectedCallback();
+  }
+
+  private cancelarReleituras() {
+    for (const t of this.releituras) clearTimeout(t);
+    this.releituras = [];
+  }
+
+  /** A resposta chega quando o corretor (ou o Negociador) a registra: relê algumas vezes, sem piscar a tela. */
+  private agendarReleituras() {
+    this.cancelarReleituras();
+    this.releituras = [2500, 8000, 20000, 45000].map((ms) => window.setTimeout(() => void this.carregar(true), ms));
+  }
+
+  /** Foco no elemento do portal assim que a tela se atualiza (confirmação, formulário). */
+  private focar(seletor: string) {
+    void this.updateComplete.then(() => this.renderRoot.querySelector<HTMLElement>(seletor)?.focus());
+  }
+
+  private async carregar(silencioso = false) {
     try {
       const r = await urbiVerso.api(`/pub/portal_corretor/vitrine/portal?t=${encodeURIComponent(token())}`, { anonimo: true });
       this.portal = r.portal;
+      // Endereço com aba que o cliente não tem (`#propostas` sem negociação): cai na Conversa.
+      if (!abasDoPortal(r.portal).some((a) => a.id === this.aba)) this.aba = 'conversa';
       const c = cor(r.portal.corretor?.cor);
       if (c) this.style.setProperty('--acento', c);
       document.title = `Meu atendimento · ${r.portal.corretor?.nome ?? 'Seu corretor'}`;
       this.estado = 'pronto';
     } catch (e) {
-      this.estado = estadoDoErro(e);
+      // Releitura em segundo plano que falha não derruba a tela que já está pronta.
+      if (!silencioso) this.estado = estadoDoErro(e);
     }
   }
 
@@ -414,7 +444,7 @@ export class PcPortalCliente extends LitElement {
   private teclaNasAbas(e: KeyboardEvent, ids: AbaPortal[]) {
     if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return;
     e.preventDefault();
-    const i = ids.indexOf(this.aba);
+    const i = Math.max(0, ids.indexOf(this.aba));
     const prox = e.key === 'Home' ? ids[0] : e.key === 'End' ? ids[ids.length - 1] : ids[(i + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length];
     this.irPara(prox);
     void this.updateComplete.then(() => this.renderRoot.querySelector<HTMLButtonElement>(`#guia-${prox}`)?.focus());
@@ -625,8 +655,7 @@ export class PcPortalCliente extends LitElement {
     if (r.ok) {
       this.confirmandoAceite = null;
       this.ofertando = null;
-      // A resposta entra no portal quando o corretor (ou o Negociador) a registra: relê em seguida.
-      setTimeout(() => void this.carregar(), 2500);
+      this.agendarReleituras();
     }
   }
 
@@ -635,10 +664,31 @@ export class PcPortalCliente extends LitElement {
     const valor = centavosDoValor(String(new FormData(ev.target as HTMLFormElement).get('valor') ?? ''));
     if (!valor) {
       this.avisoEm = `negociacao-${n.ref}`;
+      this.erroOferta = n.ref;
       this.aviso = { ok: false, texto: 'Escreva o valor em reais, por exemplo 1.380.000.' };
+      this.focar(`#valor-${n.ref}`);
       return;
     }
+    this.erroOferta = null;
     void this.proposta(n.ref, { tipo: 'proposta_nova', valor_c: valor }, `Oferta de ${reais(valor)} enviada. ${primeiroNome(this.portal!.corretor?.nome)} responde por aqui.`);
+  }
+
+  /** Mensagem ao corretor sobre a negociação: o mesmo webhook da Conversa, citando o imóvel no texto. */
+  private async mensagemDaNegociacao(ev: Event, n: NegociacaoPublica, nomeImovelNeg: string) {
+    ev.preventDefault();
+    const form = ev.target as HTMLFormElement;
+    const texto = String(new FormData(form).get('texto') ?? '').trim();
+    if (!texto) return;
+    this.enviando = true;
+    const r = await postar(this.portal!.url_acoes, { tipo: 'mensagem', texto: `Sobre a negociação do imóvel ${nomeImovelNeg}: ${texto}` });
+    this.enviando = false;
+    this.avisoEm = `negociacao-${n.ref}`;
+    this.erroOferta = null;
+    this.aviso = r.ok ? { ok: true, texto: `Mensagem enviada. ${primeiroNome(this.portal!.corretor?.nome)} responde pelo WhatsApp.` } : { ok: false, texto: r.mensagem ?? 'Não foi possível enviar.' };
+    if (r.ok) {
+      form.reset();
+      this.mensagemEm = null;
+    }
   }
 
   private rodada(p: PropostaPublica) {
@@ -669,26 +719,33 @@ export class PcPortalCliente extends LitElement {
           ${n.propostas.length ? html`<ol class="rodadas">${n.propostas.map((x) => this.rodada(x))}</ol>` : html`<p class="suave">Nenhuma proposta ainda.</p>`}
           ${n.pode_agir
             ? html`<div class="acoes">
-                ${aceitavel ? html`<button class="botao" type="button" ?disabled=${this.enviando} @click=${() => (this.confirmandoAceite = aceitavel.ref)}>Aceitar condição</button>` : nothing}
-                <button class="botao claro" type="button" ?disabled=${this.enviando} @click=${() => (this.ofertando = this.ofertando === n.ref ? null : n.ref)}>Nova oferta</button>
+                ${aceitavel ? html`<button class="botao" type="button" ?disabled=${this.enviando} id=${`aceitar-${n.ref}`} @click=${() => { this.confirmandoAceite = aceitavel.ref; this.focar(`#confirmar-aceite-${n.ref}`); }}>Aceitar condição</button>` : nothing}
+                <button class="botao claro" type="button" ?disabled=${this.enviando} @click=${() => { const abrir = this.ofertando !== n.ref; this.ofertando = abrir ? n.ref : null; this.erroOferta = null; if (abrir) this.focar(`#valor-${n.ref}`); }}>Fazer nova oferta</button>
+                <button class="botao claro" type="button" ?disabled=${this.enviando} @click=${() => { const abrir = this.mensagemEm !== n.ref; this.mensagemEm = abrir ? n.ref : null; if (abrir) this.focar(`#mensagem-${n.ref}`); }}>Mensagem ao corretor</button>
               </div>`
             : nothing}
           ${aceitavel && this.confirmandoAceite === aceitavel.ref
             ? html`<div class="confirmar" role="group" aria-label="Confirmar aceite">
                 <p>Aceitar ${reais(aceitavel.valor_c)}? ${primeiroNome(p.corretor?.nome)} recebe o seu aceite e confirma com o proprietário.</p>
                 <div class="acoes">
-                  <button class="botao" type="button" ?disabled=${this.enviando} @click=${() => this.proposta(n.ref, { tipo: 'proposta_aceite', proposta: aceitavel.ref }, 'Aceite enviado. O corretor vai confirmar com você e com o proprietário.')}>Confirmar aceite</button>
-                  <button class="botao claro" type="button" @click=${() => (this.confirmandoAceite = null)}>Cancelar</button>
+                  <button class="botao" type="button" id=${`confirmar-aceite-${n.ref}`} ?disabled=${this.enviando} @click=${() => this.proposta(n.ref, { tipo: 'proposta_aceite', proposta: aceitavel.ref }, 'Aceite enviado. O corretor vai confirmar com você e com o proprietário.')}>Confirmar aceite</button>
+                  <button class="botao claro" type="button" @click=${() => { this.confirmandoAceite = null; this.focar(`#aceitar-${n.ref}`); }}>Cancelar</button>
                 </div>
               </div>`
             : nothing}
           ${this.ofertando === n.ref
             ? html`<form @submit=${(e: Event) => this.ofertar(e, n)}>
-                <label>Sua oferta (R$)<input name="valor" inputmode="decimal" autocomplete="off" required placeholder="1.380.000" /></label>
+                <label>Sua oferta (R$)<input id=${`valor-${n.ref}`} name="valor" inputmode="decimal" autocomplete="off" required placeholder="1.380.000" aria-invalid=${this.erroOferta === n.ref ? 'true' : 'false'} aria-describedby=${this.erroOferta === n.ref ? `erro-valor-${n.ref}` : nothing} /></label>
                 <div><button class="botao" type="submit" ?disabled=${this.enviando}>${this.enviando ? 'Enviando…' : 'Enviar oferta'}</button></div>
               </form>`
             : nothing}
-          ${this.avisoEm === `negociacao-${n.ref}` && this.aviso ? html`<div class="aviso aviso-item ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
+          ${this.mensagemEm === n.ref
+            ? html`<form @submit=${(e: Event) => this.mensagemDaNegociacao(e, n, nome)}>
+                <label>Mensagem para ${primeiroNome(p.corretor?.nome)} sobre ${nome}<textarea id=${`mensagem-${n.ref}`} name="texto" required maxlength="900"></textarea></label>
+                <div><button class="botao" type="submit" ?disabled=${this.enviando}>${this.enviando ? 'Enviando…' : 'Enviar mensagem'}</button></div>
+              </form>`
+            : nothing}
+          ${this.avisoEm === `negociacao-${n.ref}` && this.aviso ? html`<div id=${`erro-valor-${n.ref}`} class="aviso aviso-item ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
         </article>`;
       })}
     </section>`;
@@ -708,6 +765,8 @@ export class PcPortalCliente extends LitElement {
     const p = this.portal!;
     const abas = abasDoPortal(p);
     const ids = abas.map((a) => a.id);
+    // A aba atual é sempre uma das que existem (o endereço pode pedir `#propostas` sem negociação).
+    const atual: AbaPortal = ids.includes(this.aba) ? this.aba : 'conversa';
     return html`
       ${topo(p.corretor, 'Olá! Estou no meu portal e queria falar com você.', {
         rotulo: 'Meu atendimento',
@@ -716,19 +775,19 @@ export class PcPortalCliente extends LitElement {
       })}
       <nav class="abas" role="tablist" aria-label="Seu atendimento" @keydown=${(e: KeyboardEvent) => this.teclaNasAbas(e, ids)}>
         ${abas.map(
-          (a) => html`<button type="button" role="tab" id=${`guia-${a.id}`} aria-controls="painel" aria-selected=${this.aba === a.id ? 'true' : 'false'} tabindex=${this.aba === a.id ? '0' : '-1'} @click=${() => this.irPara(a.id)}>
+          (a) => html`<button type="button" role="tab" id=${`guia-${a.id}`} aria-controls="painel" aria-selected=${atual === a.id ? 'true' : 'false'} tabindex=${atual === a.id ? '0' : '-1'} @click=${() => this.irPara(a.id)}>
             ${a.rotulo}${a.n !== null ? html`<span class="n">${a.n}</span>` : nothing}
           </button>`,
         )}
       </nav>
-      <div class="conteudo" id="painel" role="tabpanel" tabindex="0" aria-labelledby=${`guia-${this.aba}`}>
-        ${this.aba === 'imoveis'
+      <div class="conteudo" id="painel" role="tabpanel" tabindex="0" aria-labelledby=${`guia-${atual}`}>
+        ${atual === 'imoveis'
           ? this.abaImoveis(p)
-          : this.aba === 'agenda'
+          : atual === 'agenda'
             ? this.abaAgenda(p)
-            : this.aba === 'propostas' && ids.includes('propostas')
+            : atual === 'propostas'
               ? this.abaPropostas(p)
-              : this.aba === 'arquivos'
+              : atual === 'arquivos'
                 ? this.abaArquivos(p)
                 : this.abaConversa(p)}
       </div>

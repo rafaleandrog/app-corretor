@@ -59,9 +59,32 @@ function shellFalso() {
   };
 }
 
+/** Chaves do payload contra `campos` do manifesto: o barramento recusa chave ausente e chave a mais. */
+function desvioDe(tipo: string, payload: Record<string, unknown>): string | null {
+  const declarado = (manifesto.eventos as Record<string, { campos: string[] }>)[tipo];
+  if (!declarado) return null;
+  const a = Object.keys(payload).sort().join(',');
+  const b = [...declarado.campos].sort().join(',');
+  return a === b ? null : `${tipo}: publicou [${a}], declarado [${b}]`;
+}
+
+/** Barramento falso que recusa como o real (payload fechado) e guarda o desvio, que o `publicar` do código pode engolir. */
 function eventosFalsos() {
   const publicados: { tipo: string; payload: Record<string, unknown>; opcoes?: any }[] = [];
-  return { publicados, publicar: async (tipo: string, payload: Record<string, unknown>, opcoes?: any) => (publicados.push({ tipo, payload, opcoes }), { id: publicados.length }) };
+  const desvios: string[] = [];
+  return {
+    publicados,
+    desvios,
+    publicar: async (tipo: string, payload: Record<string, unknown>, opcoes?: any) => {
+      const d = desvioDe(tipo, payload);
+      if (d) {
+        desvios.push(d);
+        throw new Error(`CAMPOS: ${d}`);
+      }
+      publicados.push({ tipo, payload, opcoes });
+      return { id: publicados.length };
+    },
+  };
 }
 
 const resposta = (r: Record<string, unknown>) => ({
@@ -88,11 +111,12 @@ function iaSimulada(respostas: Record<string, unknown>[]) {
 /** Webhook do portal com o contexto do ingresso do cliente; devolve o que o handler publicou. */
 async function webhook(contexto: Record<string, unknown>, corpo: unknown, ip = '10.9.0.1') {
   const publicados: { tipo: string; payload: any; opcoes: any }[] = [];
+  const desvios: string[] = [];
   const r: { status: number; corpo: any; res: any } = { status: 200, corpo: null, res: null };
   r.res = { status: (s: number) => ((r.status = s), r.res), json: (c: unknown) => ((r.corpo = c), r.res) };
-  const req: any = { body: corpo, headers: {}, ip, wh: { webhook: 'acao_cliente', modo: 'recorrente', ingresso_id: 1, contexto, contador_usos: 0, criado_por: 1 }, eventos: { publicar: async (tipo: string, payload: any, opcoes: any) => publicados.push({ tipo, payload, opcoes }) } };
+  const req: any = { body: corpo, headers: {}, ip, wh: { webhook: 'acao_cliente', modo: 'recorrente', ingresso_id: 1, contexto, contador_usos: 0, criado_por: 1 }, eventos: { publicar: async (tipo: string, payload: any, opcoes: any) => { const d = desvioDe(tipo, payload); if (d) { desvios.push(d); throw new Error(`CAMPOS: ${d}`); } publicados.push({ tipo, payload, opcoes }); } } };
   await webhooks.acao_cliente(req, r.res);
-  return { ...r, publicados };
+  return { ...r, publicados, desvios };
 }
 
 /** Uma conta com cliente, imóvel anunciado, negociação com mandato e o link do portal do cliente. */
@@ -118,6 +142,7 @@ const ctxListener = (banco: BancoFalso, ev: ReturnType<typeof eventosFalsos>, ia
 async function entregar(contexto: Record<string, unknown>, corpo: unknown, ctx: any) {
   const w = await webhook(contexto, corpo);
   assert.equal(w.status, 200, JSON.stringify(w.corpo));
+  assert.deepEqual(w.desvios, [], 'o handler publica exatamente as chaves declaradas');
   for (const p of w.publicados) await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: p.opcoes.conta_id }, ctx);
   return w;
 }
@@ -160,6 +185,7 @@ test('vazamento: o JSON público do portal, com mandato preenchido, não traz re
     // O corretor registra a oferta do cliente e manda uma contraproposta pelo portal (aprovada).
     await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 130_000_000, condicoes: 'disse que o teto é 1,40 mi' });
     await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'proprietario', valor_c: 137_000_000 });
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 148_500_000 });
     await banco.dados(100).atualizar('negociacoes', nid, { teto_estimado_comprador_c: 140_000_000, fonte_estimativa: 'Ana disse que o banco aprova até 1,4' });
   });
   await comServidor(rotasPublicas, { usuario: 0, conta: null, papeis: [] }, banco, shell, async (chamar: Chamar) => {
@@ -168,6 +194,9 @@ test('vazamento: o JSON público do portal, com mandato preenchido, não traz re
     const json = JSON.stringify(r.corpo);
     assert.equal(r.corpo.portal.negociacoes.length, 1);
     assert.deepEqual(r.corpo.portal.negociacoes[0].propostas.map((p: any) => [p.quem, p.valor_c]), [['voce', 130_000_000]]);
+    const registrada = banco.linhas('propostas').find((x) => x.direcao === 'vendedor' && x.valor_c === 148_500_000);
+    assert.equal(registrada?.estado, 'registrada', 'a proposta do vendedor lançada pelo corretor fica só registrada');
+    assert.ok(!json.includes('148500000'), 'a proposta registrada do vendedor não sai no portal');
     for (const proibido of [String(RECUO), String(ALVO), '1.360.000', '1.450.000', 'vizinho', 'sessenta dias', '140000000', '137000000', 'teto', 'banco aprova', 'disse que',
       'recuo', 'alvo_c', 'batna', 'mandato', 'fonte_estimativa', 'conduzida_por', 'SQS 308', 'Ana Comprador', '77777', 'ana100@']) {
       assert.ok(!json.includes(proibido), `portal sem ${proibido}`);
@@ -198,6 +227,7 @@ test('aceite do cliente: vira oferta dele e passagem ao corretor, nunca acordo n
 
   const w = await entregar(contexto, { tipo: 'proposta_aceite', negociacao: nid, proposta: vend.id }, ctx);
   assert.deepEqual(Object.keys(w.publicados[0].payload).filter((k) => w.publicados[0].payload[k] !== null && w.publicados[0].payload[k] !== undefined).sort(), ['contato_id', 'negociacao', 'proposta', 'tipo']);
+  assert.deepEqual(ev.desvios, []);
   await entregar(contexto, { tipo: 'proposta_aceite', negociacao: nid, proposta: vend.id }, ctx);
   const props = banco.linhas('propostas').filter((p) => p.negociacao_id === nid);
   assert.equal(props.length, 3, 'uma oferta do cliente no valor aceito, uma vez só');
@@ -263,6 +293,8 @@ test('oferta nova abaixo do recuo, com faz sozinho e a IA tentando descer: nenhu
   const ctx = ctxListener(banco, ev, ia);
   await entregar({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_nova', negociacao: nid, valor_c: 120_000_000 }, ctx);
   const props = banco.linhas('propostas').filter((p) => p.negociacao_id === nid);
+  assert.equal(ia.chamadas.length, 1, 'a IA foi chamada: a barreira do recuo é do código, não da ausência de consulta');
+  assert.deepEqual(ev.desvios, []);
   assert.deepEqual(props.map((p) => [p.direcao, p.canal, p.valor_c]), [['comprador', 'portal', 120_000_000]], 'só a oferta do cliente; nada do vendedor');
   assert.ok(!props.some((p) => p.direcao === 'vendedor' && p.valor_c < RECUO));
   const neg = banco.linhas('negociacoes').find((n) => n.id === nid)!;
@@ -319,4 +351,140 @@ test('sem o Negociador conduzindo ou com o gatilho desligado: a oferta vai ao co
   await banco.dados(100).atualizar('negociacoes', nid, { estado: 'aguardando_proprietario' });
   await entregar({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_nova', negociacao: nid, valor_c: 142_000_000 }, ctx);
   assert.equal(banco.linhas('propostas').filter((p) => p.negociacao_id === nid).length, 1);
+});
+
+/** Mandato com o vendedor já tendo enviado uma contraproposta ao cliente (aguardando_cliente). */
+async function comProposta(banco: BancoFalso, nid: number, extra: Record<string, unknown> = {}) {
+  const d = banco.dados(100);
+  await d.criar('propostas', { negociacao_id: nid, rodada: 1, direcao: 'comprador', autor_tipo: 'cliente', valor_c: 130_000_000, canal: 'registro', estado: 'registrada' });
+  const vend = await d.criar('propostas', { negociacao_id: nid, rodada: 1, direcao: 'vendedor', autor_tipo: 'corretor', valor_c: 146_000_000, canal: 'portal', estado: 'enviada', validade_ate: new Date(Date.now() + 86400e3).toISOString(), ...extra });
+  await d.atualizar('negociacoes', nid, { estado: 'aguardando_cliente' });
+  return vend;
+}
+
+test('payload fechado: para os 5 tipos o handler publica exatamente as chaves de `campos` do manifesto', async () => {
+  limparLimites();
+  const campos = (manifesto.eventos as Record<string, { campos: string[] }>).acao_cliente_recebida.campos;
+  const contexto = { conta_id: 100, contato_id: 7 };
+  const corpos: Record<string, unknown>[] = [
+    { tipo: 'mensagem', texto: 'Posso visitar no sábado?' },
+    { tipo: 'remarcar', visita: 3, texto: 'outro dia' },
+    { tipo: 'tarefa_feita', tarefa: 4 },
+    { tipo: 'proposta_nova', negociacao: 5, valor_c: 140_000_000 },
+    { tipo: 'proposta_aceite', negociacao: 5, proposta: 9 },
+  ];
+  for (const corpo of corpos) {
+    const w = await webhook(contexto, corpo, `10.8.0.${corpos.indexOf(corpo) + 1}`);
+    assert.equal(w.status, 200, `${corpo.tipo}: ${JSON.stringify(w.corpo)}`);
+    assert.equal(w.publicados.length, 1);
+    assert.equal(w.publicados[0].tipo, 'acao_cliente_recebida');
+    assert.deepEqual(Object.keys(w.publicados[0].payload).sort(), [...campos].sort(), `${corpo.tipo}: chaves iguais às declaradas`);
+    assert.deepEqual(w.desvios, []);
+  }
+});
+
+test('aceite vale com proposta do proprietário ou registro do vendedor depois: mesma regra do portal (lista pública)', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  const { nid, contatoId } = await montar(banco, shell, A, MANDATO);
+  const vend = await comProposta(banco, nid);
+  const d = banco.dados(100);
+  await d.criar('propostas', { negociacao_id: nid, rodada: 1, direcao: 'proprietario', autor_tipo: 'corretor', valor_c: 137_000_000, canal: 'registro', estado: 'registrada' });
+  await d.criar('propostas', { negociacao_id: nid, rodada: 1, direcao: 'vendedor', autor_tipo: 'corretor', valor_c: 147_000_000, canal: 'registro', estado: 'registrada' });
+  // O portal ainda oferece o aceite (a lista pública termina na proposta enviada)...
+  const portal = banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal');
+  const publica = negociacaoPublica(banco.linhas('negociacoes').find((n) => n.id === nid)!, banco.linhas('propostas'), null);
+  assert.equal(propostaAceitavel(publica)?.ref, vend.id, `o portal oferece o aceite (${portal ? 'vitrine presente' : 'sem vitrine'})`);
+  // ...e o listener usa a mesma regra: aceita.
+  await entregar({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_aceite', negociacao: nid, proposta: vend.id }, ctxListener(banco, ev));
+  const minha = banco.linhas('propostas').filter((p) => p.negociacao_id === nid).at(-1)!;
+  assert.deepEqual([minha.direcao, minha.canal, minha.valor_c], ['comprador', 'portal', 146_000_000]);
+  assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'aguardando_corretor');
+  assert.deepEqual(ev.desvios, []);
+});
+
+test('aceite depois da revogação do acesso do cliente: nada é gravado', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  const { nid, contatoId } = await montar(banco, shell, A, MANDATO);
+  const vend = await comProposta(banco, nid);
+  const w = await webhook({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_aceite', negociacao: nid, proposta: vend.id });
+  assert.equal(w.status, 200);
+  await comServidor(rotas, A, banco, shell, async (chamar: Chamar) => {
+    assert.equal((await chamar('PATCH', `/contatos/${contatoId}/portal/revogar`)).status, 200);
+  });
+  const antes = banco.linhas('propostas').length;
+  const atividades = banco.linhas('atividades').length;
+  for (const p of w.publicados) await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: p.opcoes.conta_id }, ctxListener(banco, ev));
+  assert.equal(banco.linhas('propostas').length, antes, 'nenhuma oferta gravada');
+  assert.equal(banco.linhas('atividades').length, atividades, 'nenhuma tarefa criada');
+  assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'aguardando_cliente', 'estado intacto');
+  assert.ok(!ev.publicados.some((e) => /^proposta_/.test(e.tipo)), 'nenhum evento de proposta');
+});
+
+test('autonomia pergunta_antes: a sugestão espera a aprovação, com a tarefa "Aprovar a sugestão" e a negociação com o corretor', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  const { nid, contatoId } = await montar(banco, shell, A, MANDATO);
+  const ia = iaSimulada([contraproposta(146_000_000, 'Ana, consigo levar ao vendedor R$ 1.460.000.')]);
+  await entregar({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_nova', negociacao: nid, valor_c: 140_000_000 }, ctxListener(banco, ev, ia));
+  assert.equal(ia.chamadas.length, 1);
+  assert.equal(banco.linhas('propostas').filter((p) => p.negociacao_id === nid && p.direcao === 'vendedor').length, 0, 'nada sai ao cliente sem aprovação');
+  assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'aguardando_corretor');
+  assert.ok(banco.linhas('atividades').some((a) => a.tipo === 'tarefa' && /^Aprovar a sugestão/.test(a.titulo)));
+  assert.ok(ev.publicados.some((e) => e.tipo === 'contraproposta_sugerida'));
+  assert.deepEqual(ev.desvios, []);
+});
+
+test('IA indisponível (sem slot efetivo ou consulta que falha): a oferta vai ao corretor com a tarefa', async () => {
+  const falhas: Record<string, (ia: ReturnType<typeof iaSimulada>) => unknown> = {
+    'sem slot efetivo': (ia) => ({ ...ia, estadoSlot: async (slot: string) => ({ pedido: slot, efetivo: null, backup: null }) }),
+    'consulta lançando com codigo': (ia) => ({ ...ia, consultar: async () => { throw Object.assign(new Error('fora do ar'), { codigo: 'IA_INDISPONIVEL' }); } }),
+  };
+  for (const [nome, montarIa] of Object.entries(falhas)) {
+    limparLimites();
+    const banco = new BancoFalso(UNICOS);
+    const shell = shellFalso();
+    const ev = eventosFalsos();
+    const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+    const { nid, contatoId } = await montar(banco, shell, A, SOZINHO);
+    await entregar({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_nova', negociacao: nid, valor_c: 140_000_000 }, ctxListener(banco, ev, montarIa(iaSimulada([]))));
+    assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'aguardando_corretor', nome);
+    assert.ok(banco.linhas('atividades').some((a) => a.tipo === 'tarefa' && /oferta do portal/.test(a.titulo)), nome);
+    assert.equal(banco.linhas('propostas').filter((p) => p.negociacao_id === nid && p.direcao === 'vendedor').length, 0, nome);
+    assert.deepEqual(ev.desvios, [], nome);
+  }
+});
+
+test('o corretor respondeu no meio do motor: o estado não regride e a tarefa não é criada', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  const { nid, contatoId } = await montar(banco, shell, A, MANDATO);
+  const ia = iaSimulada([contraproposta(146_000_000, 'Ana, consigo levar ao vendedor R$ 1.460.000.')]);
+  const base = iaSimulada([]);
+  // Durante a chamada de IA, o corretor envia a sua resposta (proposta do vendedor) e a negociação fica com o cliente.
+  const iaComCorretor = {
+    ...base,
+    consultar: async (o: unknown) => {
+      const r = await ia.consultar(o);
+      await banco.dados(100).criar('propostas', { negociacao_id: nid, rodada: 2, direcao: 'vendedor', autor_tipo: 'corretor', valor_c: 147_000_000, canal: 'portal', estado: 'enviada' });
+      await banco.dados(100).atualizar('negociacoes', nid, { estado: 'aguardando_cliente' });
+      return r;
+    },
+  };
+  await entregar({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_nova', negociacao: nid, valor_c: 140_000_000 }, ctxListener(banco, ev, iaComCorretor));
+  assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'aguardando_cliente', 'não regride');
+  assert.ok(!banco.linhas('atividades').some((a) => a.tipo === 'tarefa' && /Aprovar a sugestão|oferta do portal/.test(a.titulo)));
 });

@@ -246,6 +246,7 @@
         "valor_c": {
           "tipo": "number",
           "obrigatorio": false,
+          "descartar": true,
           "exemplo": 138000000
         }
       }

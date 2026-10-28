@@ -83,7 +83,7 @@ cliente volta para a mesma aba ao recarregar; no celular, a aba escolhida rola p
 | Conversa | As datas em destaque: a **próxima visita** (dia e hora, e quanto falta: hoje, amanhã ou em N dias) e até quando a **seleção vale** (a que vence primeiro). O **histórico**: uma linha do tempo, da mais recente para a mais antiga, com cada seleção recebida ("Recebeu 3 imóveis: Casas no Noroeste"), cada visita feita ("Visitou Apto com varanda, Noroeste"), cada pendência resolvida e, embaixo, o começo. O campo **Escreva para <seu nome>** e o botão **Conversar no WhatsApp** |
 | Imóveis | No alto, **Suas seleções** (**Sua seleção**, se houver só uma): o título e a mensagem que o corretor escreveu em cada seleção válida que tenha um dos dois; seleção sem título nem mensagem não aparece, e a que só repete imóveis de outra aparece se tiver um dos dois. Sem nenhuma, o bloco some. Depois, o imóvel em **destaque**, com o nome da seleção a que pertence (só quando ela tem título), em cartão de foto grande (as fotos passam de lado), com o selo **Visita sáb.** quando há visita marcada a ele e os botões **Gostei · Não gostei · Quero visitar · Comentar**. Embaixo, **Outros imóveis**, cada um com a miniatura, o bairro, o preço e a reação dada ("Gostei", "Sem reação"); um toque põe o imóvel no destaque. Por fim, **O que falta de você**: as pendências que você pediu, cada uma com o botão **Feito** (só aparece se houver alguma). O número da aba conta os imóveis das seleções válidas, sem repetir o mesmo imóvel |
 | Agenda | As visitas marcadas, por dia, com hora e imóvel. Um dia com mais de uma visita vira um **roteiro**: as paradas numeradas na ordem do horário e o link **Ver o roteiro no mapa**, com o trajeto todo. Em cada visita, **Como chegar** (abre o mapa do celular com a rota), **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar**. O mapa só usa o que o imóvel mostra em público: com o endereço publicado, a rota vai até ele; só com o bairro, o botão vira **Ver o bairro no mapa**; publicado só como região, não há mapa. O número da aba, o botão **Ver**, o selo de visita e a "Próxima visita" da Conversa usam o mesmo critério: visita que ainda vai acontecer ou que começou há até 1 hora (para a visita em andamento não sumir) |
-| Propostas | Ver [Propostas](#propostas), abaixo. O número conta as propostas do vendedor que esperam a resposta do cliente |
+| Propostas | Ver [Propostas](#propostas), abaixo. O número conta as negociações com uma proposta do vendedor esperando a resposta do cliente (no máximo uma por negociação, fora as vencidas) |
 | Arquivos | Ainda sem arquivos (D-73): a aba avisa que, por enquanto, os documentos chegam pelo WhatsApp. O número fica em 0 |
 
 A Conversa não guarda as mensagens trocadas: o que o cliente escreve vai para a sua linha do
@@ -94,11 +94,18 @@ tempo, e a resposta sai pelo seu WhatsApp.
 Uma negociação por imóvel (a perdida some do portal), com o momento dela ("Sua vez de responder",
 "Com o corretor", "Aguardando a decisão do proprietário", "Negócio fechado", "Pausada") e as rodadas
 numa linha do tempo: as ofertas do cliente (só o valor e a data) e as propostas do vendedor que
-foram enviadas a ele, com condições, concessão, contrapartida e validade. Abaixo, dois botões:
+foram enviadas a ele, com condições, concessão, contrapartida e validade. Abaixo, três botões:
 - **Aceitar condição** (só na última proposta do vendedor, dentro da validade): pede confirmação
   ("Aceitar R$ 1.460.000?") e avisa que **aceitar não fecha o negócio** — você confirma com ele e
   com o proprietário;
-- **Nova oferta:** o cliente digita o valor em reais (por exemplo, 1.380.000).
+- **Fazer nova oferta:** o cliente digita o valor em reais (por exemplo, 1.380.000);
+- **Mensagem ao corretor:** abre um campo de texto ali mesmo, na negociação. A mensagem vai pelo mesmo
+  caminho da aba Conversa e já cita o imóvel ("Sobre a negociação do imóvel …"), então o corretor
+  sabe de qual negociação se trata.
+
+Ao abrir a confirmação do aceite ou a nova oferta, o cursor já vai para ela. Depois de uma oferta ou
+de um aceite, o portal se atualiza sozinho algumas vezes por cerca de um minuto, para mostrar a
+resposta assim que ela chegar.
 
 Com o acordo já com o proprietário, negociação pausada ou encerrada, os botões somem. O que acontece
 depois de cada ação está em [Negociação › No Portal do Cliente](negociacao.md#no-portal-do-cliente).
@@ -179,6 +186,6 @@ isso o corretor o envia só ao cliente e o revoga se ele for parar em outras mã
     `tarefa`, `negociacao`, `valor_c` (a oferta, em centavos) ou `proposta`. Oferta e aceite não
     levam texto livre.
 - **Eventos:** `reacao_recebida`, `acao_cliente_recebida` e `proposta_aceite_cliente` são da conta:
-  só os membros da conta os veem. O aceite e a oferta do cliente publicam só ids
-  (`proposta_aceite_cliente` e `proposta_recebida`: a negociação e a proposta).
+  só os membros da conta os veem. `acao_cliente_recebida` leva também o `valor_c` da oferta; já
+  `proposta_aceite_cliente` e `proposta_recebida` publicam só ids (a negociação e a proposta).
 - **Páginas públicas:** `/portal_corretor/s` (seleção) e `/portal_corretor/c` (portal).

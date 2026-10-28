@@ -100,7 +100,7 @@ O que o portal **nunca** mostra: o ponto de recuo, o alvo, a BATNA, o teto estim
 fonte dessa estimativa e quem conduz. O app monta o que vai ao portal por uma lista de campos
 **permitidos**: campo novo numa tabela não chega ao cliente sem alguém o pôr nessa lista.
 
-Pelo portal o cliente pode:
+Pelo portal o cliente tem três botões:
 - **Fazer nova oferta:** ela entra na escada como oferta do comprador, pelo canal portal, e você
   recebe o aviso. Se o Negociador IA conduz a negociação, está ligado, tem mandato vigente e o
   gatilho "oferta registrada ou feita no portal" está marcado, ele roda sozinho sobre a oferta, com
@@ -108,6 +108,8 @@ Pelo portal o cliente pode:
   montado pelo código; em qualquer outro caso (só sugere, pergunta antes, passagem, IA fora do ar),
   a negociação vai para "aguardando o corretor", com a tarefa de responder ou de aprovar a sugestão.
   Uma oferta abaixo do recuo é sempre passagem a você.
+- **Mensagem ao corretor:** um texto livre sobre a negociação, que chega a você como qualquer
+  mensagem do portal, já citando o imóvel. Não é oferta nem aceite e não mexe na escada.
 - **Aceitar a condição** da última proposta do vendedor, enquanto ela vale. O aceite **não fecha o
   acordo**: vira uma oferta do cliente no mesmo valor e a negociação vai para "aguardando o
   corretor", com a tarefa de confirmar e levar ao proprietário. Quem aceita o acordo é você (ver

@@ -8,6 +8,7 @@ import { validarLead } from '../comum/pagina';
 import { reclassificar } from './inteligencia';
 import { publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 import { semSigilo } from '../comum/negociacao';
+import { negociacaoPublica, propostaAceitavel } from '../comum/portal-cliente';
 import { configDaConta, encerrada, gravarPropostaTravada, mandatoVigente } from './negociacao';
 import { executarMotor, type MeioMotor } from './negociador';
 import { aoPublicacaoProgramada } from './instagram';
@@ -298,10 +299,11 @@ export const webhooks = {
     if (!dentroDoLimite(`acao:${conta}:${contatoId}:${origem(req)}`, 5)) {
       return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitos envios seguidos. Espere um minuto.' });
     }
+    // Payload fechado (barramento): toda chave declarada em `campos` sai, com `null` onde não se aplica.
     // Se a negociação e a proposta são deste cliente e ainda aceitam, quem confere é o listener (sob a trava).
     await req.eventos!.publicar(
       'acao_cliente_recebida',
-      { contato_id: contatoId, tipo, texto: mensagem, visita, tarefa, ...(ehProposta ? { negociacao, proposta, valor_c } : {}) },
+      { contato_id: contatoId, tipo, texto: mensagem, visita, tarefa, negociacao, proposta, valor_c },
       { conta_id: conta },
     );
     res.json({ ok: true });
@@ -510,18 +512,22 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
     const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: p.contato_id }, maximo: 1 }))[0];
     const nid = idDe(p.negociacao);
     if (!contato || !nid) return null;
+    // Acesso do cliente revogado entre o envio e o processamento: nada é gravado (mesma leitura do sincronizarPortal).
+    const acesso = (await trx.varrerTudo('acessos_cliente', { filtros: { conta_id: conta, contato_id: contato.id, 'revogado_em[nulo]': 'true' }, maximo: 1 }))[0];
+    if (!acesso) return null;
     const viva = await trx.buscar('negociacoes', nid, { travar: true });
-    // Negociação de outra conta ou de outro cliente: ignorada, como se não existisse.
-    if (!viva || Number(viva.conta_id ?? conta) !== conta || Number(viva.contato_id) !== Number(contato.id) || clienteNaoAge(viva)) return null;
+    // Negociação de outra conta (ou sem conta) ou de outro cliente: ignorada, como se não existisse.
+    if (!viva || Number(viva.conta_id) !== conta || Number(viva.contato_id) !== Number(contato.id) || clienteNaoAge(viva)) return null;
     const propostas = await trx.varrerTudo('propostas', { filtros: { conta_id: conta, negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 });
     const ultima = propostas[propostas.length - 1];
     let valor_c: number;
     let aceite: Linha | null = null;
     if (p.tipo === 'proposta_aceite') {
       aceite = propostas.find((x) => Number(x.id) === Number(p.proposta)) ?? null;
-      // Só a última proposta do vendedor, enviada e dentro da validade; o que já foi respondido não se aceita.
-      if (!aceite || aceite !== ultima || aceite.direcao !== 'vendedor' || aceite.estado !== 'enviada') return null;
-      if (aceite.validade_ate && Date.parse(iso(aceite.validade_ate) ?? '') < Date.now()) return null;
+      // A mesma regra do portal: a proposta aceitável sobre a lista PÚBLICA (sem registro interno nem a do
+      // proprietário), enviada e dentro da validade; o que já foi respondido não se aceita.
+      const aceitavel = propostaAceitavel(negociacaoPublica(viva, propostas, null));
+      if (!aceite || !aceitavel || aceitavel.ref !== Number(aceite.id)) return null;
       valor_c = Number(aceite.valor_c);
     } else {
       valor_c = Number(p.valor_c);
@@ -604,7 +610,11 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
     if (!viva || !contato) return;
     // Só o envio automático responde ao cliente. Sugestão à espera de aprovação, passagem, IA fora ou
     // recusa: a oferta não fica sem dono — vai ao corretor, como sem o Negociador.
-    if (!enviada && !clienteNaoAge(viva)) {
+    // Sob a trava: se o corretor já respondeu no meio (proposta do vendedor depois da oferta gravada) ou o
+    // estado já saiu do que o cliente alcança, nada regride.
+    const propostas = await trx.varrerTudo('propostas', { filtros: { conta_id: conta, negociacao_id: gravado.nid }, ordenar: 'id', ordem: 'asc', maximo: 500 });
+    const respondida = propostas.some((x) => x.direcao === 'vendedor' && Number(x.id) > Number(gravado.proposta.id));
+    if (!enviada && !respondida && !clienteNaoAge(viva)) {
       await trx.atualizarSe('negociacoes', gravado.nid, { estado: 'aguardando_corretor' }, { estado: viva.estado });
       const valor = reaisPt(Number(gravado.proposta.valor_c));
       await tarefa(trx, conta, contato, sugestao ? `Aprovar a sugestão do Negociador para a oferta do portal: ${valor}` : `Responder a oferta do portal: ${valor}`);

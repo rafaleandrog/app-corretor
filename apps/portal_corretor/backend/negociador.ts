@@ -305,7 +305,7 @@ export async function executarMotor(meio: MeioMotor, nid: number, entrada: { men
   const dia = meio.hoje;
   const lido = await meio.emLeitura(async (dados) => {
     const negociacao = await dados.buscar('negociacoes', nid);
-    if (!negociacao || Number(negociacao.conta_id ?? meio.conta) !== meio.conta) return null;
+    if (!negociacao || Number(negociacao.conta_id) !== meio.conta) return null;
     return { negociacao, ctx: await carregar(dados, negociacao, meio.conta, meio.usuario.id) };
   });
   if (!lido) return { recusa: 'nao_encontrada' };
