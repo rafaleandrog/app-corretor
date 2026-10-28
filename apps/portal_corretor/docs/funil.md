@@ -1,6 +1,6 @@
 ---
 titulo: Funil, temperatura e fila do dia
-descricao: Quadro do funil, temperatura do contato com motivo, abordagens recomendadas e a fila do dia no Início.
+descricao: Quadro do funil, temperatura do contato com motivo, abordagens recomendadas e a fila do dia em Hoje.
 ---
 
 # Funil, temperatura e fila do dia
@@ -79,40 +79,59 @@ Abaixo das etapas, a tabela de abordagens por etapa e temperatura. O app semeia 
 para cada etapa da semente e cada temperatura; toque numa linha para mudar o texto, o canal e o
 prazo. Etapas criadas pelo corretor começam sem abordagem: use **Nova abordagem**.
 
-## Início: Hoje e Agenda
+## Hoje (antes, Início)
 
-No topo do Início, a **faixa da semana**: contatos novos, leads e visitas feitas nos últimos 7 dias
-e a comissão prevista. Abaixo, duas abas.
+**Hoje** responde "o que eu faço agora". Ela vem no desenho novo, em três colunas (no celular, uma por
+vez, em abas: **Hoje · Fila · Agenda**).
 
-**Hoje** é a fila do dia: o que precisa de você agora, em grupos nesta ordem, com cada cliente uma
-vez só (no motivo mais urgente):
+**À esquerda:**
+
+- O dia por extenso e o estado do Mensageiro (por enquanto, "ainda não disponível": ele chega com o WhatsApp).
+- **Precisa de você**: as negociações que esperam a sua decisão e os clientes quentes sem resposta,
+  cada um com o botão **Abrir** (a ficha do cliente). O **Assumir** de uma negociação chega com o
+  Negociador (D2/D3); a tela de negociação ainda não existe.
+- **Primeiros passos · x de 5**, com as bolinhas de progresso e um **Fazer** em cada passo pendente:
+  dar nome à conta, informar o seu telefone, conectar o Instagram, cadastrar o primeiro imóvel e
+  publicar a Página. Some quando os 5 estão feitos. Quando o WhatsApp e o Mensageiro existirem, os
+  passos deles entram aqui.
+- O CRECI **não** é um passo: sem ele, aparece só o aviso discreto *"Adicione seu CRECI ao perfil para
+  que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta** (o CRECI jurídico da conta também vale).
+- Nas contas de teste ainda sem contatos, o convite para **Gerar dados de demonstração**.
+
+**No centro**, a **fila do dia** em cartões, na ordem do mais urgente, com cada cliente uma vez só
+(no motivo mais urgente):
 
 1. **Quentes sem resposta**: quente e mais de um dia sem contato.
 2. **Abordagens atrasadas**: o prazo do playbook passou.
 3. **Visitas de hoje e amanhã**.
 4. **Próximos passos vencidos**.
 
-Cada item traz o nome, a temperatura, o motivo em uma linha e **um** botão:
+Cada cartão traz o tipo (Quente, Atrasada, Visita, Próximo passo), a temperatura, o nome, o motivo em
+uma linha e **um** botão, com no máximo uma ação a mais no "Mais":
 
-| Grupo | Botão | No "Mais" |
+| Tipo | Botão | No "Mais" |
 |---|---|---|
-| Quentes sem resposta | **Fazer agora** (abre a ficha com a mensagem sugerida) | — |
-| Abordagens atrasadas | **Fazer agora** (abre a ficha com a mensagem sugerida) | **Fiz**: registra a abordagem feita |
-| Visitas | **Abrir** (a ficha do cliente) | **Visita feita** |
-| Próximos passos vencidos | **Abrir** (a ficha do cliente) | — |
+| Quente | **Fazer agora** (abre a ficha com a mensagem sugerida) | — |
+| Atrasada | **Fazer agora** (abre a ficha com a mensagem sugerida) | **Fiz**: registra a abordagem feita |
+| Visita | **Abrir** (a ficha do cliente) | **Visita feita** |
+| Próximo passo | **Abrir** (a ficha do cliente) | — |
 
-O WhatsApp abre na ficha, no clique do **Fazer agora** de lá: o Início e o quadro só levam até a
-mensagem pronta (e ela só é gerada se o contato tiver abordagem).
+Aparecem 8 cartões; o resto fica em **Mais N para depois**. O WhatsApp abre na ficha, no clique do
+**Fazer agora** de lá: Hoje e o quadro só levam até a mensagem pronta (e ela só é gerada se o contato
+tiver abordagem). Fila vazia mostra "Nada urgente agora" e o botão **Cadastrar um cliente**.
 
-Fila vazia mostra "Nada urgente agora" e o botão **Ver a agenda**.
+**À direita:**
 
-**Agenda** é a lista dos próximos 14 dias (ver [Clientes, negócios e agenda](clientes-e-agenda.md#agenda)).
-Ela só carrega quando você abre a aba. O endereço `/agenda` abre o Início direto nessa aba.
+- **Agenda de hoje**: o que está pendente hoje, por horário. **Ver agenda** troca o centro pela lista
+  dos próximos 14 dias (ver [Clientes, negócios e agenda](clientes-e-agenda.md#agenda)), e **Voltar
+  para a fila** desfaz. O endereço `/agenda` abre Hoje direto na agenda.
+- **Sua semana**: contatos novos, leads e visitas feitas nos últimos 7 dias, e a comissão prevista.
+- **Dica do Assistente**: uma sugestão a partir do que está na tela (os quentes sem resposta, as
+  abordagens atrasadas ou o próximo passo pendente), com **Perguntar ao Assistente**. Quando a IA não
+  está liberada, o botão fica desligado com "IA indisponível agora", e uma faixa no alto do centro
+  avisa; o resto de Hoje funciona.
 
-Os banners "complete a conta" (o nome da conta e o seu telefone) e, nas contas de teste, "gerar
-dados de demonstração" aparecem acima da faixa enquanto valem. O CRECI é opcional e não entra nos
-primeiros passos: sem ele, aparece só o aviso discreto *"Adicione seu CRECI ao perfil para que ele
-apareça nos anúncios"*, com o atalho **Ajustes › Conta**. Empreendimentos fica na aba de mesmo nome em **Imóveis**.
+Tudo vem numa chamada só (`GET /inicio`), relida a cada vez que você entra em Hoje ou troca de conta.
 
 As passagens do atendimento automático, as peças aguardando aprovação e os frios que reagiram a um
 envio entram na fila com o WhatsApp, com o Estúdio e com os envios rastreados.

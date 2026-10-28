@@ -71,8 +71,8 @@ em 12 meses.
 atendimento automático (o Mensageiro) chegam com o WhatsApp; conteúdo publicado, com o Estúdio;
 custo por lead, comissão recebida e metas, em versões seguintes.
 
-O **Início** mostra a faixa da semana: contatos novos, leads, quantos desses leads chegaram ao
-atendimento (e a fatia), visitas feitas nos últimos 7 dias e a comissão prevista.
+**Hoje** mostra, à direita, **Sua semana**: contatos novos, leads e visitas feitas nos últimos 7 dias
+e a comissão prevista.
 
 ## Enviados ao cliente
 
@@ -87,7 +87,7 @@ Com a Minha página no ar e o imóvel publicado, a mensagem leva um link rastrea
 
 ## Dados de demonstração
 
-Nas contas de teste (nome terminado em "(demo)"), o Início oferece **Gerar dados de
+Nas contas de teste (nome terminado em "(demo)"), Hoje oferece **Gerar dados de
 demonstração** enquanto a conta não tem nenhum contato. Ele cria 10 clientes com origem, 10
 negócios, 2 imóveis e 2 visitas, com o próprio corretor como responsável. Origens que já
 existem são reaproveitadas e os imóveis recebem o próximo código livre. Se alguma etapa padrão
@@ -122,7 +122,7 @@ Todos com comissão de 5%. Números esperados:
 - Etapas: 8 leads, 7 em atendimento, 5 visitaram, 3 na proposta, 2 ganhos; 8 clientes únicos.
 - Por origem: Indicação 3 leads, 1 ganho e 2 em andamento; Instagram 2 e 1 (1 em andamento); Portal
   imobiliário 2, 0 ganhos, 1 em andamento e 1 perdido; WhatsApp 1 e 0 (em andamento).
-- Início, faixa da semana: 10 contatos novos, 8 leads, 7 em atendimento (88%).
+- Hoje, Sua semana: 10 contatos novos, 8 leads.
 - Motivos de perda: preço, 1.
 - Comissão prevista: 5% × (300 mil × 5% + 500 mil × 10% + 400 mil × 20% + 700 mil × 50% + 900 mil × 70%
   + 1,2 milhão × 40% + 800 mil × 15%) = **R$ 86.250**.

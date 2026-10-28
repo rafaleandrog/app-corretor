@@ -29,7 +29,7 @@ direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/
   assim mesmo e o app avisa para você conferir; só recusa o que passa de 20 caracteres. Com o CRECI
   cadastrado, ele aparece no rodapé das artes (pela descrição do Estúdio), na legenda das peças, na
   sua página, nas seleções e no portal do cliente.
-- **Sem CRECI nada fica travado.** Onde ele faria falta (o Início, a peça do Estúdio, o editor da
+- **Sem CRECI nada fica travado.** Onde ele faria falta (Hoje, a peça do Estúdio, o editor da
   página e "o que falta" na ficha do imóvel), aparece só o aviso discreto *"Adicione seu CRECI ao
   perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta**. O CRECI jurídico da
   conta também vale: com ele, o aviso some.

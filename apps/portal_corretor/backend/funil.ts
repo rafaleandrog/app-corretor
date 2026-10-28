@@ -7,6 +7,9 @@ import { etapasDaConta, registrar } from './crm';
 import { limiteParado } from '../comum/crm';
 import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { numerosDaSemana } from './numeros';
+import { contaDoRequest, paginaDaConta } from './vitrine';
+import { primeirosPassos } from '../comum/hoje';
+import { semSigilo } from '../comum/negociacao';
 
 // Funil (bloco 4): quadro por etapa, playbook de abordagens, fila do dia do Início e a rotina que
 // esfria quem ficou sem contato. Tudo segregado por conta pelo `req.dados`.
@@ -235,18 +238,85 @@ export async function filaDoDia(dados: HelperDados, fuso: string): Promise<ItemF
   return fila;
 }
 
+/**
+ * "Precisa de você" (P01): negociações que pararam esperando o corretor. Só o que a tela mostra sai
+ * daqui, e ainda por `semSigilo` (recuo, alvo e BATNA nunca chegam a Hoje).
+ */
+async function passagens(dados: HelperDados) {
+  const r = await dados.listar('negociacoes', { filtros: { estado: 'aguardando_corretor' }, ordenar: 'atualizado_em', ordem: 'asc', por_pagina: 20 });
+  const ids = [...new Set(r.dados.map((n) => n.contato_id).filter(Boolean))];
+  const contatos = ids.length ? await dados.varrerTudo('contatos', { filtros: { id: ids.join(',') }, maximo: 100 }) : [];
+  const nome = new Map(contatos.map((c) => [c.id, c.nome]));
+  return semSigilo(
+    r.dados.map((n) => ({
+      negociacao_id: n.id,
+      codigo: n.codigo ?? null,
+      contato_id: n.contato_id ?? null,
+      contato_nome: (n.contato_id && nome.get(n.contato_id)) || 'Cliente',
+      motivo: 'A negociação espera a sua decisão',
+    })),
+  );
+}
+
+/** Agenda de hoje (P01, direita): atividades pendentes do dia, na ordem do horário. */
+async function agendaDeHoje(dados: HelperDados, fuso: string) {
+  const hoje = limitesDoDia(fuso);
+  const r = await dados.listar('atividades', {
+    filtros: { status: 'pendente', 'quando[gte]': hoje.inicio, 'quando[lt]': hoje.fim },
+    ordenar: 'quando',
+    ordem: 'asc',
+    por_pagina: 20,
+  });
+  return r.dados.map((a) => ({ id: a.id, tipo: a.tipo, titulo: a.titulo, quando: a.quando, contato_id: a.contato_id ?? null, contato_nome: a.contato_nome ?? null }));
+}
+
+/**
+ * Primeiros passos e CRECI (P01, esquerda), da conta de escrita e do próprio usuário — a mesma regra
+ * do editor da página e do Estúdio. O CRECI não é passo (D-93): volta só `sem_creci`, para o aviso.
+ */
+async function estadoDaConta(req: Request) {
+  const dados = req.dados!;
+  const conta = contaDoRequest(req);
+  const [perfil, eu, instagram, imoveis, pagina] = await Promise.all([
+    primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: conta }),
+    primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: conta }),
+    primeiro(dados, 'canais_sociais', { conta_id: conta, rede: 'instagram', 'desconectado_em[nulo]': 'true' }),
+    dados.listar('imoveis', { filtros: { conta_id: conta }, por_pagina: 1 }),
+    paginaDaConta(dados, conta),
+  ]);
+  return {
+    perfil,
+    primeiros_passos: primeirosPassos({
+      conta: !!perfil?.nome,
+      telefone: !!eu?.telefone,
+      instagram: !!instagram,
+      imovel: imoveis.total > 0,
+      pagina: !!pagina?.publicada_em,
+    }),
+    sem_creci: !eu?.creci && !perfil?.creci_juridico,
+  };
+}
+
 funilRotas.get(
   '/inicio',
   assincrono(async (req: Request, res) => {
     const dados = req.dados!;
     const fuso = req.contexto?.fuso || 'America/Sao_Paulo';
-    const fila = await filaDoDia(dados, fuso);
+    const [fila, conta, precisa, agenda_hoje] = await Promise.all([filaDoDia(dados, fuso), estadoDaConta(req), passagens(dados), agendaDeHoje(dados, fuso)]);
     // A faixa da semana é complementar: se o cálculo falhar, a fila do dia continua de pé.
     const semana = await numerosDaSemana(dados).catch(() => null);
     // A demonstração só se oferece em conta de teste ainda sem nenhum contato.
-    const perfil = await primeiro(dados, 'perfil_conta', { chave: 'conta' });
-    const demo_disponivel = !!perfil?.demo && !(await dados.listar('contatos', { por_pagina: 1 })).total;
-    res.json({ fila, total: fila.length, semana, demo_disponivel });
+    const demo_disponivel = !!conta.perfil?.demo && !(await dados.listar('contatos', { por_pagina: 1 })).total;
+    res.json({
+      fila,
+      total: fila.length,
+      passagens: precisa,
+      agenda_hoje,
+      primeiros_passos: conta.primeiros_passos,
+      sem_creci: conta.sem_creci,
+      semana,
+      demo_disponivel,
+    });
   }),
 );
 
