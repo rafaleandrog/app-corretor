@@ -11,15 +11,40 @@ de outra conta (proprietário, empreendimento, imóvel, documento) é recusado c
 
 ## Carteira
 
-No menu, **Imóveis** abre uma tela com duas abas: **Carteira** (a primeira) e **Empreendimentos**.
-A aba fica no endereço da página, então o link que você guardar volta na mesma aba; o endereço
-antigo `/empreendimentos` abre direto a aba Empreendimentos.
+No menu, **Imóveis** abre no desenho novo, em três colunas (no celular, uma por vez, em abas:
+**Carteira · Ficha · Contexto**). Sem imóvel escolhido, o celular abre na lista.
 
-A Carteira mostra os imóveis em **cartões**, que se encaixam conforme a largura da tela: quanto mais larga, mais cartões cabem por linha. Cada cartão tem no mínimo cerca de 280 pixels, então no celular, em geral, sai **um por linha**. Cada cartão tem a foto de capa, o código e o título, o preço, o bairro e a cidade, os
-quartos, a área e as vagas, a situação, a marca **Na página** quando o imóvel está anunciado e a
-nota de qualidade. Busca por código, título, bairro ou cidade e filtro por situação (ficam no
-endereço da página). Toque no cartão para abrir a ficha. Sem nenhum imóvel, a tela convida a
-cadastrar o primeiro.
+**À esquerda**, o título **Imóveis** com **Novo** e duas abas, cada uma com o total: **Carteira**
+(a primeira) e **Empreendimentos**. Na Carteira:
+
+- **Busca** por código, título, bairro ou cidade.
+- **Chips** de situação, um de cada vez: **Todos**, **Ativos**, **Rascunhos** e **Vendidos** (as
+  demais situações aparecem em Todos).
+- A **lista**, do mais recente para o mais antigo, com a miniatura da capa, o código e o título, o
+  preço e o local, a situação e a nota de qualidade. Sem nenhum imóvel, a lista convida a cadastrar
+  o primeiro.
+
+A busca, o chip, a aba e o imóvel escolhido ficam no endereço da página (`/imoveis?item=<número>`),
+então o link que você guardar volta no mesmo lugar. O endereço antigo `/empreendimentos` abre direto
+a aba Empreendimentos, e `/imoveis/<número>` abre a mesma tela com o imóvel escolhido.
+
+**No centro**, a ficha do imóvel escolhido (abaixo). **À direita**, o contexto dele:
+
+- **Qualidade do anúncio**: a nota de 0 a 100 (verde a partir de 80, âmbar de 60 a 79, vermelho
+  abaixo de 60), com as bolinhas de 0 a 10 no lugar da barra, que o catálogo de telas ainda não
+  tem. Embaixo, **o que falta**: cada pendência leva ao lugar que a resolve — fotos rola até o
+  cartão de fotos; descrição abre a descrição; preço, área, cômodos e localização abrem os dados;
+  autorização abre a nova autorização (ou "marcar assinada", se já há uma em andamento). Sem o seu
+  CRECI nesta conta e sem o CRECI jurídico dela, aparece também o aviso discreto *"Adicione seu
+  CRECI ao perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta**; o CRECI não
+  entra na nota.
+- **Últimos 30 dias**: visitas marcadas, a quantos clientes o imóvel foi enviado, os cliques nesses
+  envios e os negócios ligados a ele (este último, de todo o período).
+- **Clientes que combinam**: até 10 compradores da conta cujo **perfil de busca** bate com o imóvel,
+  com o que bateu (tipo, região, preço, quartos, vagas, área) e o botão **Enviar**, que abre a
+  ficha do cliente para você mandar a seleção. Cada critério do perfil precisa bater; o que o
+  perfil não diz não conta, e perfil vazio não combina com nada. O perfil de busca vem da
+  importação de contatos; ainda não há onde editá-lo na tela.
 
 ### Cadastro rápido
 
@@ -36,14 +61,12 @@ cadastrar o primeiro.
 
 ### A ficha do imóvel
 
-- **O que falta no anúncio**, no topo, com a nota: cada pendência leva ao lugar que a resolve —
-  fotos rola até o cartão de fotos; descrição abre a descrição; preço, área, cômodos e localização
-  abrem os dados; autorização abre a nova autorização (ou "marcar assinada", se já há uma em
-  andamento). Sem o seu CRECI nesta conta e sem o CRECI jurídico dela, o cartão mostra também o aviso discreto *"Adicione seu CRECI ao
-  perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta**; o CRECI não entra
-  na nota. Com o anúncio completo (e o CRECI cadastrado), o cartão some.
-- **Uma ação principal**: **Publicar na página** ou, se já está marcado para a página, **Tirar da
-  página**. O resto fica em **Mais**: editar dados, situação e remover.
+- No alto, o código e o título, **Editar** (os dados) e **Criar conteúdo** (abre o Estúdio com um
+  post novo). No **Mais**: situação e remover.
+- A **galeria**: a capa grande e até 8 miniaturas das outras fotos.
+- **Dados**: situação, nota, preço, local, cômodos, proprietário e empreendimento.
+- **Quem vê este imóvel**: se ele está na sua página pública, e o botão **Publicar na página** (ou
+  **Tirar da página**, se já está marcado).
 - Os cartões de fotos, descrição, autorização, visitas, envios e negócios mostram um resumo; a
   lista completa abre pela seta do cartão. Sem foto, os arquivos ficam à mostra.
 - O formulário de dados pede só o que o corretor usa agora; campos das fases seguintes
@@ -59,7 +82,7 @@ hora.
 
 ### Qualidade do anúncio (0 a 100)
 
-Calculada a cada leitura, nunca gravada. A ficha mostra o que falta, na ordem do peso:
+Calculada a cada leitura, nunca gravada. O contexto da ficha mostra o que falta, na ordem do peso:
 
 | Item | Pontos |
 |---|---|
@@ -74,7 +97,7 @@ O CRECI é opcional e não pesa na nota: um imóvel completo chega a 100 com ou 
 
 ### Descrição com IA
 
-**Escrever com IA** sugere título, descrição e destaques a partir dos dados cadastrados e dos
+**Melhorar com IA** sugere título, descrição e destaques a partir dos dados cadastrados e dos
 ambientes vistos nas fotos. A sugestão abre para o corretor revisar; só é salva quando ele
 confirma. A IA não recebe os campos de proprietário, endereço completo e comissão (o título, as
 características e a descrição que o corretor escreveu vão como estão), e é instruída a não
@@ -117,8 +140,9 @@ Negócios também podem ser ligados a um imóvel; a ficha do imóvel mostra os n
 
 ## Empreendimentos
 
-Ficam na aba **Empreendimentos** de **Imóveis** (o endereço `/empreendimentos` abre a aba; a ficha
-de cada um continua em `/empreendimentos/<número>`). São os lançamentos que o corretor vende, com nome (sem repetir),
+Ficam na aba **Empreendimentos** de **Imóveis**, na mesma moldura: a lista à esquerda (busca e
+**Novo**), a ficha no centro e, à direita, os atalhos para vender (**Criar conteúdo**). O endereço
+`/empreendimentos` abre a aba, e `/empreendimentos/<número>` abre a mesma tela com ele escolhido. São os lançamentos que o corretor vende, com nome (sem repetir),
 construtora, tipo (prédio, condomínio de casas, loteamento), fase (lançamento, em obras, pronto),
 local, faixa de preço, tipologias e descrição.
 

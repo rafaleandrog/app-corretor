@@ -1,7 +1,8 @@
 import { LitElement, html } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
-import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
+import { customElement, property, state } from 'lit/decorators.js';
+import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { chamarApi, formularioEnviar, reais } from '../apoio.js';
+import { estadoDaFalha, estadoTela } from '../estados.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -12,12 +13,15 @@ export const TIPO_EMPREENDIMENTO: Record<string, string> = { vertical: 'Prédio'
 export const faixa = (e: Linha) =>
   e.preco_min_c || e.preco_max_c ? [e.preco_min_c ? reais(e.preco_min_c) : null, e.preco_max_c ? reais(e.preco_max_c) : null].filter(Boolean).join(' a ') : '—';
 
-// Imóveis › Empreendimentos: lançamentos que o próprio corretor cadastra (nome, construtora, fase,
-// tipologias, faixa de preço) e os materiais que pode enviar ao cliente.
-@customElement('pc-tela-empreendimentos')
-export class PcTelaEmpreendimentos extends LitElement {
+// Imóveis › Empreendimentos na moldura (P06): a lista à esquerda (busca e [Novo]), a ficha no centro
+// (`pc-tela-ficha-empreendimento`) e o contexto à direita. Lançamentos que o próprio corretor cadastra
+// (nome, construtora, fase, tipologias, faixa de preço) e os materiais que pode enviar ao cliente.
+@customElement('pc-lista-empreendimentos')
+export class PcListaEmpreendimentos extends LitElement {
+  @property({ attribute: false }) selecionado: number | null = null;
+  @property({ attribute: false }) aoEscolher: (id: number) => void = () => {};
   @state() private lista: Linha[] | null = null;
-  @state() private falha: string | null = null;
+  @state() private falha: unknown = null;
   @state() private busca = '';
   private geracao = 0;
 
@@ -33,7 +37,7 @@ export class PcTelaEmpreendimentos extends LitElement {
       const r = await chamarApi(`/empreendimentos${this.busca ? `?busca=${encodeURIComponent(this.busca)}` : ''}`);
       if (geracao === this.geracao) this.lista = r.dados; // resposta velha não sobrescreve a nova
     } catch (e) {
-      if (geracao === this.geracao) this.falha = (e as Error).message;
+      if (geracao === this.geracao) this.falha = e;
     }
   }
 
@@ -51,37 +55,63 @@ export class PcTelaEmpreendimentos extends LitElement {
       'POST',
       '/empreendimentos',
     );
-    if (r?.id) urbiVerso.navegarSub(`/empreendimentos/${r.id}`);
+    if (r?.id) {
+      await this.carregar();
+      this.aoEscolher(r.id);
+    }
   }
 
-  private colunas(): UrbiColunaTabela[] {
-    return [
-      { id: 'nome', label: 'Empreendimento' },
-      { id: 'construtora', label: 'Construtora', valor: (l) => (l as Linha).construtora ?? '—' },
-      { id: 'local', label: 'Local', valor: (l) => [(l as Linha).regiao, (l as Linha).cidade].filter(Boolean).join(', ') || '—' },
-      { id: 'fase', label: 'Fase', render: (l) => html`<urbi-badge cor="info">${FASE[(l as Linha).fase] ?? (l as Linha).fase}</urbi-badge>` },
-      { id: 'faixa', label: 'Preços', valor: (l) => faixa(l as Linha) },
-    ];
+  private conteudo() {
+    if (this.falha && !this.lista) return estadoDaFalha(this.falha, () => this.carregar());
+    if (!this.lista) return estadoTela('carregando');
+    if (!this.lista.length) {
+      return this.busca
+        ? estadoTela('vazio', { icone: 'fa-solid fa-magnifying-glass', mensagem: 'Nenhum empreendimento com esta busca' })
+        : estadoTela('vazio', {
+            icone: 'fa-solid fa-city',
+            mensagem: 'Nenhum empreendimento ainda',
+            submensagem: 'Cadastre os lançamentos que você vende.',
+            acao: { rotulo: 'Cadastrar empreendimento', icone: 'fa-solid fa-plus', aoEscolher: () => void this.novo() },
+          });
+    }
+    return html`<urbi-lista separador clicavel .itens=${this.lista} .itemAtivo=${(e: Linha) => e.id === this.selecionado}
+      .render_item=${(e: Linha) => html`<urbi-stack>
+        <urbi-prosa truncar>${e.nome}</urbi-prosa>
+        <urbi-prosa papel="fraco" truncar>${[e.construtora, [e.regiao, e.cidade].filter(Boolean).join(', ')].filter(Boolean).join(' · ') || '—'}</urbi-prosa>
+        <urbi-linha quebrar>
+          <urbi-badge cor="info">${FASE[e.fase] ?? e.fase}</urbi-badge>
+          <urbi-prosa papel="fraco" inline>${faixa(e)}</urbi-prosa>
+        </urbi-linha>
+      </urbi-stack>`}
+      @urbi:lista-click=${(ev: CustomEvent) => this.aoEscolher((ev.detail.item as Linha).id)}></urbi-lista>`;
   }
 
   render() {
     return html`<urbi-stack>
-      <urbi-linha quebrar>
-        <urbi-input expandir icone="fa-solid fa-magnifying-glass" placeholder="Buscar por nome, construtora ou cidade" valor=${this.busca}
+      <urbi-linha>
+        <urbi-input expandir icone="fa-solid fa-magnifying-glass" placeholder="Nome, construtora ou cidade" valor=${this.busca}
           @urbi:input-change=${(e: CustomEvent) => {
             this.busca = e.detail.valor;
             void this.carregar();
           }}></urbi-input>
-        <urbi-botao icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo empreendimento</urbi-botao>
+        <urbi-botao pequeno icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo</urbi-botao>
       </urbi-linha>
-      ${this.falha
-        ? html`<urbi-banner variante="erro">
-            ${this.falha}
-            <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
-          </urbi-banner>`
-        : html`<urbi-tabela responsivo="multiline" clicavel .colunas=${this.colunas()} .linhas=${this.lista ?? []} ?carregando=${!this.lista}
-            mensagem-vazio="Nenhum empreendimento. Cadastre os lançamentos que você vende."
-            @urbi:tabela-click=${(e: CustomEvent) => urbiVerso.navegarSub(`/empreendimentos/${(e.detail.linha as Linha).id}`)}></urbi-tabela>`}
+      ${this.conteudo()}
     </urbi-stack>`;
   }
+}
+
+/**
+ * Coluna da direita do empreendimento: o que se faz com ele a partir daqui. A ficha (centro) já traz
+ * dados, materiais e unidades; aqui ficam os atalhos para vender: unidades na carteira e conteúdo.
+ */
+export function contextoEmpreendimento() {
+  return html`<urbi-card titulo="Para vender este empreendimento" icone="fa-solid fa-bullhorn">
+    <urbi-stack>
+      <urbi-prosa papel="secundario">Ligue as unidades da carteira a ele (na ficha de cada imóvel, Editar dados) e envie os materiais ao cliente pela ficha dele.</urbi-prosa>
+      <urbi-linha quebrar>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" href=${urbiVerso.href('/estudio')}>Criar conteúdo</urbi-botao>
+      </urbi-linha>
+    </urbi-stack>
+  </urbi-card>`;
 }

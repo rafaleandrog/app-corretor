@@ -4,6 +4,7 @@ import type { HelperDados } from '@urbiverso/sdk';
 import {
   AMBIENTES,
   autorizacaoVigente,
+  combina,
   contextoDescricao,
   INSTRUCAO_DESCRICAO,
   INSTRUCAO_FOTO,
@@ -243,6 +244,48 @@ imoveisRotas.get(
         return { ...v, quando: a?.quando ?? null, status: a?.status ?? null, contato_id: a?.contato_id ?? null, contato_nome: a?.contato_nome ?? null };
       }),
       negocios: negocios.dados,
+    });
+  }),
+);
+
+/**
+ * Coluna da direita da ficha (P06): a qualidade com o que falta, os números dos últimos 30 dias do
+ * imóvel e os clientes da conta cujo perfil de busca combina com ele (`combina`, comum/imoveis.ts).
+ * Tudo pelo `req.dados`: o imóvel de outra conta é "não encontrado", e os clientes são os da conta.
+ */
+imoveisRotas.get(
+  '/imoveis/:id/contexto',
+  assincrono(async (req, res) => {
+    const iid = id(req.params.id);
+    const dados = req.dados!;
+    const imovel = iid ? await dados.buscar('imoveis', iid) : null;
+    if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
+    const desde = new Date(Date.now() - 30 * 86400e3).toISOString();
+    const [extras, creci, visitas, envios, negocios, perfis] = await Promise.all([
+      complementos(req, [imovel]),
+      temCreci(req),
+      dados.listar('visitas', { filtros: { imovel_id: iid, 'criado_em[gte]': desde }, por_pagina: 1 }),
+      dados.varrerTudo('envios', { filtros: { imovel_id: iid, 'enviado_em[gte]': desde }, maximo: 1000 }),
+      dados.listar('negocios', { filtros: { imovel_id: iid }, por_pagina: 1 }),
+      dados.varrerTudo('contatos', { filtros: { 'perfil_busca[nulo]': 'false' }, maximo: 2000 }),
+    ]);
+    const { qualidade } = resumo(imovel, extras.get(iid!)!, hoje(req));
+    const combinam = perfis
+      .filter((c) => normalizarPapeis(c.papeis).includes('comprador'))
+      .map((c) => ({ c, motivos: combina(c.perfil_busca, imovel) }))
+      .filter((x): x is { c: Record<string, any>; motivos: string[] } => !!x.motivos)
+      .slice(0, 10)
+      .map(({ c, motivos }) => ({ id: c.id, nome: c.nome, temperatura: c.temperatura ?? null, motivos }));
+    res.json({
+      qualidade,
+      sem_creci: !creci,
+      numeros: {
+        visitas: visitas.total,
+        enviados: new Set(envios.map((e) => e.contato_id)).size,
+        cliques: envios.reduce((s, e) => s + (Number(e.cliques) || 0), 0),
+        negocios: negocios.total,
+      },
+      combinam,
     });
   }),
 );

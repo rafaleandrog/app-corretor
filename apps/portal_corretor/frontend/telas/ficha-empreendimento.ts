@@ -114,8 +114,7 @@ export class PcTelaFichaEmpreendimento extends LitElement {
     const { empreendimento: e, materiais, imoveis } = this.ficha;
     return html`<urbi-stack>
       ${banner}
-      <urbi-linha justificar="entre" quebrar>
-        <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/empreendimentos')}>Empreendimentos</urbi-botao>
+      <urbi-linha justificar="fim">
         <urbi-botao variante="perigo" pequeno icone="fa-solid fa-trash" @click=${() => this.remover()}>Remover</urbi-botao>
       </urbi-linha>
       <urbi-card titulo=${e.nome} icone="fa-solid fa-city">
