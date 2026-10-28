@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { FERRAMENTA, FERRAMENTAS, FORMATOS, MAX_SLIDES, OBJETIVOS, ROTULO_FORMATO, ROTULO_OBJETIVO, type Ferramenta, type Formato } from '../../comum/estudio';
-import { acoesComMais, chamarApi, dataHora, enviar, juntarDataHora, mensagemDeErro, subirArquivo, type Acao } from '../apoio';
+import { acoesComMais, avisoCreci, chamarApi, dataHora, enviar, juntarDataHora, mensagemDeErro, subirArquivo, type Acao } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -54,7 +54,7 @@ const ETAPAS: { id: string; rotulo: string; cor: string; casa: (p: Linha) => boo
 // Estúdio de Conteúdo (D-74, D-86, D-89, D-90): pedido em texto ou voz (urbi-redator). Aqui saem só
 // os textos e a descrição da arte (prompt em blocos) com as fotos e o logo; a imagem é gerada no Canva
 // IA (ou em outra ferramenta) e enviada de volta na própria peça. Aprovação e publicação; o CRECI sem
-// cadastro nunca trava (D-89). Peças em listas por etapa, com o próximo passo e uma ação principal
+// cadastro nunca trava (D-89, D-93): só o aviso discreto na peça ainda não publicada. Peças em listas por etapa, com o próximo passo e uma ação principal
 // pelo estado; o resto no "Mais".
 // Prévia da arte por urbi-avatar (exceção de "cartão de arte", 11.5).
 @customElement('pc-tela-estudio')
@@ -459,6 +459,7 @@ export class PcTelaEstudio extends LitElement {
         ${semArte && !travada ? html`<urbi-prosa papel="dica">1. Copie a descrição${abrir ? ` e abra o ${ferramenta.rotulo}` : ''}. 2. Cole a descrição e anexe as fotos e o logo. 3. Baixe a arte pronta (JPG ou PNG) e envie aqui.</urbi-prosa>` : ''}
         ${!semArte && aprovavel(p) ? html`<urbi-prosa papel="dica">Próximo passo: confira a arte e aprove.</urbi-prosa>` : ''}
         ${p.estado === 'aprovada' ? html`<urbi-prosa papel="dica">Próximo passo: publique agora, agende ou baixe para publicar você.</urbi-prosa>` : ''}
+        ${!travada && this.marca && !this.marca.creci ? avisoCreci() : ''}
         <urbi-linha quebrar>
           ${this.acoes(p)}
           ${semArte && !travada && abrir ? html`<urbi-botao variante="secundario" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(abrir, '_blank', 'noopener')}>Abrir o ${ferramenta.rotulo}</urbi-botao>` : ''}
@@ -484,7 +485,7 @@ export class PcTelaEstudio extends LitElement {
     const m = this.marca;
     const etapa = ETAPAS.find((e) => e.id === this.etapa) ?? ETAPAS[0];
     const visiveis = this.pecas.filter(etapa.casa);
-    // O CRECI não aparece como aviso no topo (D-89, D-90): é uma linha da dica, e só quando falta.
+    // O CRECI não aparece como aviso no topo (D-89, D-90, D-93): o aviso fica na peça, e só quando falta.
     return html`<urbi-stack>
       <urbi-card titulo="Criar" icone="fa-solid fa-wand-magic-sparkles">
         <urbi-redator
@@ -497,7 +498,7 @@ export class PcTelaEstudio extends LitElement {
         <urbi-linha quebrar>
           <urbi-botao variante="secundario" icone="fa-solid fa-box-open" ?carregando=${!!this.trabalhando} @click=${() => this.pacote()}>Pacote de lançamento</urbi-botao>
         </urbi-linha>
-        ${this.trabalhando ? html`<urbi-prosa papel="secundario">${this.trabalhando}</urbi-prosa>` : html`<urbi-prosa papel="dica">O app escreve os textos e uma descrição clara da arte, com a sua marca, o preço e o bairro. Você cola no Canva IA, gera, baixa e envia de volta na peça. Prefere Claude Design ou outra? Use "Mais › Usar outra ferramenta".${m.creci ? '' : ' Com o CRECI cadastrado (Ajustes › Conta, opcional), ele entra no rodapé e na legenda.'}</urbi-prosa>`}
+        ${this.trabalhando ? html`<urbi-prosa papel="secundario">${this.trabalhando}</urbi-prosa>` : html`<urbi-prosa papel="dica">O app escreve os textos e uma descrição clara da arte, com a sua marca, o preço e o bairro. Você cola no Canva IA, gera, baixa e envia de volta na peça. Prefere Claude Design ou outra? Use "Mais › Usar outra ferramenta".</urbi-prosa>`}
         <urbi-linha><urbi-botao pequeno variante="fantasma" icone="fa-solid fa-palette" href=${urbiVerso.href('/ajustes/marca')}>Sua marca (logo, cores, estilo)</urbi-botao></urbi-linha>
       </urbi-card>
       <urbi-card titulo="Peças" icone="fa-solid fa-images">

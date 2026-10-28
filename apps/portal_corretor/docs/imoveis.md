@@ -39,7 +39,9 @@ cadastrar o primeiro.
 - **O que falta no anúncio**, no topo, com a nota: cada pendência leva ao lugar que a resolve —
   fotos rola até o cartão de fotos; descrição abre a descrição; preço, área, cômodos e localização
   abrem os dados; autorização abre a nova autorização (ou "marcar assinada", se já há uma em
-  andamento); CRECI leva a Ajustes › Conta. Com o anúncio completo, o cartão some.
+  andamento). Sem o seu CRECI nesta conta e sem o CRECI jurídico dela, o cartão mostra também o aviso discreto *"Adicione seu CRECI ao
+  perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta**; o CRECI não entra
+  na nota. Com o anúncio completo (e o CRECI cadastrado), o cartão some.
 - **Uma ação principal**: **Publicar na página** ou, se já está marcado para a página, **Tirar da
   página**. O resto fica em **Mais**: editar dados, situação e remover.
 - Os cartões de fotos, descrição, autorização, visitas, envios e negócios mostram um resumo; a
@@ -61,13 +63,14 @@ Calculada a cada leitura, nunca gravada. A ficha mostra o que falta, na ordem do
 
 | Item | Pontos |
 |---|---|
-| 8 ou mais fotos que podem aparecer no anúncio | 25 |
-| Descrição com 400 caracteres ou mais | 15 |
+| 8 ou mais fotos que podem aparecer no anúncio | 30 |
+| Descrição com 400 caracteres ou mais | 20 |
 | Preço informado | 15 |
 | Autorização de venda assinada e vigente | 15 |
 | Área e cômodos (quartos e banheiros; lote, galpão, rural, sala e loja só a área) | 10 |
 | Localização (bairro e cidade) | 10 |
-| CRECI preenchido em Ajustes › Conta | 10 |
+
+O CRECI é opcional e não pesa na nota: um imóvel completo chega a 100 com ou sem CRECI.
 
 ### Descrição com IA
 

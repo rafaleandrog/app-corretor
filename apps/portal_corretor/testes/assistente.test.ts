@@ -28,7 +28,7 @@ const ROTEIRO: [string, string, string][] = [
   ['dá para usar o Canva para fazer a arte?', '/estudio', 'estudio'],
   ['onde mudo as cores da minha marca?', '/estudio', 'estudio'],
   ['o que é o pacote de lançamento?', '/', 'estudio'],
-  ['por que a peça não pode ser aprovada sem CRECI?', '/estudio', 'estudio'],
+  ['o CRECI entra na legenda da peça?', '/estudio', 'estudio'],
   ['como mando uma seleção de imóveis para o cliente?', '/clientes', 'selecoes-e-portal'],
   ['o cliente consegue ver as visitas marcadas?', '/', 'selecoes-e-portal'],
   ['como revogo o link do portal do cliente?', '/clientes', 'selecoes-e-portal'],

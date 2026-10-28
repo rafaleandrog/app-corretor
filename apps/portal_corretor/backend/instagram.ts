@@ -1,7 +1,7 @@
 import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import type { ContextoListener, HelperDados, ParametroHelper } from '@urbiverso/sdk';
-import { checarPeca } from '../comum/estudio';
+import { checarPeca, legendaComCreci } from '../comum/estudio';
 import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
 import { iso } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
@@ -117,12 +117,6 @@ interface Ambiente {
   shell: { urlApp(sub: string): string };
 }
 
-/** Legenda com o CRECI (10.5: CRECI na peça ou na legenda), acrescentado se faltar. */
-function legendaComCreci(p: Linha, creci: string | null): string {
-  const legenda = String(p.legenda ?? '');
-  return creci && !legenda.includes(creci) ? [legenda, `CRECI ${creci}`].filter(Boolean).join('\n\n') : legenda;
-}
-
 async function creciDaConta(dados: HelperDados, conta: number, usuario: number | null): Promise<string | null> {
   const perfis = await dados.varrerTudo('perfis_corretor', { filtros: { conta_id: conta }, maximo: 50 });
   const eu = perfis.find((x) => x.usuario_id === usuario && x.creci) ?? perfis.find((x) => x.creci);
@@ -164,8 +158,9 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
       const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
       vigente = auts.some((a) => autorizacaoVigente(a as Autorizacao, hoje));
     }
-    // A checagem roda sobre o texto que vai ser publicado, já com o CRECI: nada é cortado depois.
-    const legenda = legendaComCreci(p, creci);
+    // CRECI na legenda (10.5) só se couber no limite (D-93): se não couber, sai sem ele, nunca
+    // recusa. A checagem roda sobre o texto que vai ser publicado: nada é cortado depois.
+    const { legenda } = legendaComCreci(p.legenda ?? null, p.hashtags ?? null, creci);
     const checagem = checarPeca({ formato: p.formato, objetivo: p.objetivo, legenda: legenda || null, hashtags: p.hashtags ?? null, arquivos: urls.length }, { creci, imovel: !!p.imovel_id, autorizacaoVigente: vigente });
     if (!checagem.ok) return recusar(`Não publicada: ${checagem.pendencias.join(' ')}`);
     const canal = await conexao(dados, conta);

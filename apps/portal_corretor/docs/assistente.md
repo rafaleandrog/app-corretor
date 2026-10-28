@@ -56,8 +56,8 @@ decisões precisam da IA.
 
 A IA recebe:
 - a pergunta e as últimas mensagens da conversa;
-- a tela em que você está e um resumo da conta (CRECI cadastrado, Instagram conectado, página
-  publicada, totais);
+- a tela em que você está e um resumo da conta (se há CRECI cadastrado, que é opcional, Instagram
+  conectado, página publicada, totais);
 - a fila do dia (nome, temperatura e motivo);
 - os títulos das peças do Estúdio;
 - os trechos do manual ligados à pergunta.

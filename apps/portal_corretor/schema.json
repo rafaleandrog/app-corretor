@@ -62,8 +62,7 @@
         },
         "creci": {
           "tipo": "texto",
-          "limite": 20,
-          "formato": "^[A-Z]{2}-[0-9]{1,6}-[FJ]$"
+          "limite": 20
         },
         "creci_situacao": {
           "tipo": "texto",

@@ -109,8 +109,10 @@ Fila vazia mostra "Nada urgente agora" e o botão **Ver a agenda**.
 **Agenda** é a lista dos próximos 14 dias (ver [Clientes, negócios e agenda](clientes-e-agenda.md#agenda)).
 Ela só carrega quando você abre a aba. O endereço `/agenda` abre o Início direto nessa aba.
 
-Os banners "complete a conta" e, nas contas de teste, "gerar dados de demonstração" aparecem acima
-da faixa enquanto valem. Empreendimentos fica na aba de mesmo nome em **Imóveis**.
+Os banners "complete a conta" (o nome da conta e o seu telefone) e, nas contas de teste, "gerar
+dados de demonstração" aparecem acima da faixa enquanto valem. O CRECI é opcional e não entra nos
+primeiros passos: sem ele, aparece só o aviso discreto *"Adicione seu CRECI ao perfil para que ele
+apareça nos anúncios"*, com o atalho **Ajustes › Conta**. Empreendimentos fica na aba de mesmo nome em **Imóveis**.
 
 As passagens do atendimento automático, as peças aguardando aprovação e os frios que reagiram a um
 envio entram na fila com o WhatsApp, com o Estúdio e com os envios rastreados.
