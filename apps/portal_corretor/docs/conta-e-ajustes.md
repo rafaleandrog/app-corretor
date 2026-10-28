@@ -51,7 +51,7 @@ A aba **Marca** guarda a marca da conta, e ela é uma só para tudo o que o clie
 | Onde | O que da marca aparece |
 |---|---|
 | [Estúdio](estudio.md#sua-marca) | Tudo: cores, estilo, assinatura, logo e foto, na descrição para o Canva e no logo para anexar; as referências, só na descrição (o cliente nunca as vê) |
-| [Minha página](minha-pagina.md) | A cor principal (topo, botões e destaques) |
+| [Minha página](minha-pagina.md) | A cor principal (topo, botões e destaques) e a sua foto na capa; sem foto, a capa mostra as iniciais |
 | [Seleção e Portal do Cliente](selecoes-e-portal.md) | A cor principal e a sua foto, no topo |
 
 Até você salvar a marca, vale o padrão: azul `#0b5394` e cor de apoio amarela, sem foto. A página

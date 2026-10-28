@@ -1,8 +1,9 @@
-import { LitElement, html, nothing } from 'lit';
+import { LitElement, css, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import type { Bloco } from '../../comum/pagina';
 import { linkWhatsapp } from '../../comum/pagina';
+import { iniciais } from '../../comum/portal-cliente';
 import { ROTULO_TIPO_IMOVEL } from '../apoio';
 import { estiloPublico } from './estilo';
 import { iconesImovel } from './icones';
@@ -15,6 +16,8 @@ interface PaginaPublica {
   creci: string | null;
   telefone: string | null;
   cor: string;
+  /** Foto do corretor (Ajustes › Marca), já como URL assinada; página publicada antes do B9 não tem. */
+  foto_url?: string | null;
   blocos: Bloco[];
   url_formulario: string | null;
 }
@@ -35,11 +38,22 @@ interface Cartao {
 const reais = (c: number | null | undefined) => (c ? (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'Preço sob consulta');
 const local = (i: { bairro?: string | null; cidade?: string | null }) => [i.bairro, i.cidade].filter(Boolean).join(', ');
 
-// Minha Página (`/portal_corretor/p?c=<endereço>`) e ficha pública do imóvel (`…&i=<código>`).
+const estiloPagina = css`
+  header.topo .capa { display: flex; align-items: center; gap: 16px; }
+  header.topo .foto-corretor { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; flex: none; background: var(--foto-vazia); border: 3px solid var(--papel); }
+  header.topo .iniciais { width: 88px; height: 88px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; background: var(--papel); color: var(--acento); font-weight: 700; font-size: 1.6rem; }
+  .cartao .ver { display: block; color: inherit; text-decoration: none; }
+  .cartao .acoes { margin: 0; padding: 0 14px 14px; }
+  .cartao .acoes .botao { width: 100%; }
+`;
+
+// Minha Página (`/portal_corretor/p?c=<endereço>`) e ficha pública do imóvel (`…&i=<código>`), no
+// formato do mockup M6 desde o B9: capa com foto, nome, CRECI só se houver (D-93) e WhatsApp;
+// imóveis em destaque com "Quero saber mais"; a cor da marca do corretor (D-85).
 // Página pública: lê só a vitrine (rota GET anônima) e envia o formulário ao webhook da conta.
 @customElement('pc-pagina-publica')
 export class PcPaginaPublica extends LitElement {
-  static styles = estiloPublico;
+  static styles = [estiloPublico, estiloPagina];
 
   @state() private pagina: PaginaPublica | null = null;
   @state() private imoveis: Cartao[] = [];
@@ -155,17 +169,29 @@ export class PcPaginaPublica extends LitElement {
     </section>`;
   }
 
+  /** "Quero saber mais" (M6): abre o WhatsApp do corretor citando o imóvel; sem WhatsApp, a ficha. */
+  private querSaberMais(i: Cartao) {
+    const contato = this.bloco('contato');
+    const zap = contato?.whatsapp !== false ? linkWhatsapp(this.pagina!.telefone, `Olá! Quero saber mais sobre o imóvel ${i.codigo}${i.titulo ? ` (${i.titulo})` : ''}.`) : null;
+    return zap
+      ? html`<a class="botao" href=${zap} target="_blank" rel="noopener">Quero saber mais</a>`
+      : html`<a class="botao" href=${this.urlImovel(i.codigo)}>Quero saber mais</a>`;
+  }
+
   private cartao(i: Cartao) {
-    return html`<a class="cartao" href=${this.urlImovel(i.codigo)}>
-      ${i.capa ? html`<img src=${i.capa} alt=${i.titulo ?? ''} loading="lazy" />` : html`<div class="sem-foto"></div>`}
-      <div class="corpo">
-        <div class="preco">${reais(i.preco_c)}</div>
-        <div>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</div>
-        <div class="suave">${local(i)}</div>
-        ${iconesImovel(i)}
-        ${i.situacao === 'reservado' ? html`<div class="suave">Reservado</div>` : nothing}
-      </div>
-    </a>`;
+    return html`<article class="cartao">
+      <a class="ver" href=${this.urlImovel(i.codigo)}>
+        ${i.capa ? html`<img src=${i.capa} alt=${i.titulo ?? ''} loading="lazy" />` : html`<div class="sem-foto"></div>`}
+        <div class="corpo">
+          <div class="preco">${reais(i.preco_c)}</div>
+          <div>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</div>
+          <div class="suave">${local(i)}</div>
+          ${iconesImovel(i)}
+          ${i.situacao === 'reservado' ? html`<div class="suave">Reservado</div>` : nothing}
+        </div>
+      </a>
+      <div class="acoes">${this.querSaberMais(i)}</div>
+    </article>`;
   }
 
   private topo(chamada?: string | null) {
@@ -175,8 +201,13 @@ export class PcPaginaPublica extends LitElement {
     const zap = contato?.whatsapp !== false ? linkWhatsapp(p.telefone, this.imovel ? `Olá! Vi o imóvel ${this.imovel.codigo} na sua página.` : 'Olá! Vi sua página e quero falar sobre imóveis.') : null;
     return html`<header class="topo">
       <div class="conteudo">
-        <h1>${p.nome}</h1>
-        <p>Corretor de imóveis${p.creci ? ` · CRECI ${p.creci}` : ''}</p>
+        <div class="capa">
+          ${p.foto_url ? html`<img class="foto-corretor" src=${p.foto_url} alt=${`Foto de ${p.nome}`} />` : html`<span class="iniciais" aria-hidden="true">${iniciais(p.nome)}</span>`}
+          <div>
+            <h1>${p.nome}</h1>
+            <p>Corretor de imóveis${p.creci ? ` · CRECI ${p.creci}` : ''}</p>
+          </div>
+        </div>
         ${chamada ? html`<p class="texto">${chamada}</p>` : nothing}
         <div class="acoes">
           ${zap ? html`<a class="botao verde" href=${zap} target="_blank" rel="noopener">Falar no WhatsApp</a>` : nothing}
@@ -195,7 +226,7 @@ export class PcPaginaPublica extends LitElement {
         ${blocos.map((b) => {
           if (b.tipo === 'destaques') {
             const lista = (b.codigos ?? []).map((c) => this.imoveis.find((i) => i.codigo === c)).filter((i): i is Cartao => !!i);
-            return lista.length ? html`<section><h2>${b.titulo || 'Destaques'}</h2><div class="grade">${lista.map((i) => this.cartao(i))}</div></section>` : nothing;
+            return lista.length ? html`<section><h2>${b.titulo || 'Imóveis em destaque'}</h2><div class="grade">${lista.map((i) => this.cartao(i))}</div></section>` : nothing;
           }
           if (b.tipo === 'imoveis') {
             return html`<section>
