@@ -16,12 +16,15 @@ const completo = (link: string) => (link.startsWith('/') ? `${window.location.or
 // Na ficha do cliente (bloco 5b): seleções enviadas com as reações, o link do portal do cliente e,
 // desde o bloco 9, "o que falta do cliente" (pendências que ele marca como feitas no portal).
 // Dispara `mudou` para a ficha recarregar o histórico de envios e a linha do tempo.
+// Na ficha do Padrão B (P04) cada parte mora numa coluna: as seleções na aba Negócios (`parte="selecoes"`)
+// e o portal com as pendências na direita (`parte="portal"`); cada parte só carrega o que é dela.
 @customElement('pc-selecoes-cliente')
 export class PcSelecoesCliente extends LitElement {
   @property({ type: Number }) contatoId = 0;
   @property() nome = '';
+  @property() parte: 'selecoes' | 'portal' = 'selecoes';
   @state() private selecoes: Linha[] = [];
-  @state() private portal: { ativo: boolean; link: string | null } | null = null;
+  @state() private portal: { ativo: boolean; link: string | null; criado_em?: string | null } | null = null;
   @state() private tarefas: Linha[] = [];
   @state() private falha: string | null = null;
   @state() private ocupado = false;
@@ -43,13 +46,14 @@ export class PcSelecoesCliente extends LitElement {
     // Troca rápida de cliente: só a resposta do último pedido vale.
     const meu = ++this.pedido;
     try {
-      const [s, p, t] = await Promise.all([
-        chamarApi(`/selecoes?contato_id=${this.contatoId}`),
-        chamarApi(`/contatos/${this.contatoId}/portal`),
-        chamarApi(`/contatos/${this.contatoId}/tarefas-cliente`),
-      ]);
+      if (this.parte === 'selecoes') {
+        const s = await chamarApi(`/selecoes?contato_id=${this.contatoId}`);
+        if (meu !== this.pedido) return;
+        this.selecoes = s.dados;
+        return;
+      }
+      const [p, t] = await Promise.all([chamarApi(`/contatos/${this.contatoId}/portal`), chamarApi(`/contatos/${this.contatoId}/tarefas-cliente`)]);
       if (meu !== this.pedido) return;
-      this.selecoes = s.dados;
       this.portal = p;
       this.tarefas = t.dados;
     } catch (e) {
@@ -214,23 +218,39 @@ export class PcSelecoesCliente extends LitElement {
     return this.tarefas.filter((t) => !t.feita_em);
   }
 
-  render() {
-    if (this.falha) {
-      return html`<urbi-card titulo="Seleções e portal" icone="fa-solid fa-heart"><urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner></urbi-card>`;
-    }
-    return html`<urbi-card titulo="Seleções e portal" icone="fa-solid fa-heart">
+  private falhaNoCartao(titulo: string, icone: string) {
+    return html`<urbi-card titulo=${titulo} icone=${icone}><urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner></urbi-card>`;
+  }
+
+  /** Aba Negócios: as seleções enviadas, com as reações, e a nova seleção (+). */
+  private renderSelecoes() {
+    if (this.falha) return this.falhaNoCartao('Seleções', 'fa-solid fa-heart');
+    return html`<urbi-card titulo="Seleções" icone="fa-solid fa-heart">
       <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-plus" ariaLabel="Nova seleção" title="Nova seleção" ?carregando=${this.ocupado} @click=${() => this.nova()}></urbi-botao></span>
       ${this.selecoes.length
         ? this.selecoes.map((s) => this.selecao(s))
         : html`<urbi-prosa papel="dica">Monte uma seleção de imóveis (+): o cliente abre pelo link, sem login, e diz se gostou, não gostou ou quer visitar.</urbi-prosa>`}
-      <urbi-linha quebrar>
-        <urbi-prosa>Portal do cliente:</urbi-prosa>
-        ${this.portal?.ativo
-          ? html`<urbi-badge cor="sucesso">ativo</urbi-badge>
-              <urbi-botao pequeno variante="secundario" icone="fa-solid fa-copy" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Copiar link</urbi-botao>
-              <urbi-botao pequeno variante="texto" @click=${() => this.revogarPortal()}>Revogar</urbi-botao>`
-          : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-link" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Gerar link do portal</urbi-botao>`}
-      </urbi-linha>
+    </urbi-card>`;
+  }
+
+  /**
+   * Coluna da direita: o portal do cliente por link com token (D-56, D-73, D-104), sem login. "Liberar
+   * item" do mockup é, no MVP, gerar o link, mandar de novo (copiar) e revogar.
+   */
+  private renderPortal() {
+    if (this.falha) return this.falhaNoCartao('Portal do cliente', 'fa-solid fa-door-open');
+    return html`<urbi-card titulo="Portal do cliente" icone="fa-solid fa-door-open">
+      ${this.portal?.ativo
+        ? html`<urbi-linha quebrar>
+              <urbi-badge cor="sucesso">link ativo</urbi-badge>
+              ${this.portal.criado_em ? html`<urbi-prosa papel="fraco" inline>gerado em ${data(this.portal.criado_em)}</urbi-prosa>` : ''}
+            </urbi-linha>
+            <urbi-linha quebrar>
+              <urbi-botao pequeno variante="secundario" icone="fa-solid fa-copy" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Reenviar link</urbi-botao>
+              <urbi-botao pequeno variante="texto" @click=${() => this.revogarPortal()}>Revogar</urbi-botao>
+            </urbi-linha>`
+        : html`<urbi-prosa papel="secundario">Sem link ativo.</urbi-prosa>
+            <urbi-linha><urbi-botao pequeno variante="secundario" icone="fa-solid fa-link" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Gerar link do portal</urbi-botao></urbi-linha>`}
       ${this.abertas().length ? html`<urbi-prosa papel="alerta">${this.abertas().length} pendência(s) do cliente: veja em "O que falta do cliente", abaixo.</urbi-prosa>` : ''}
       <div slot="detalhe"><urbi-stack>
       <urbi-prosa papel="dica">O portal mostra ao cliente o próximo passo que você escreveu para ele, as seleções válidas, as visitas marcadas, o que falta dele e um espaço para ele mandar mensagem ou pedir para remarcar.</urbi-prosa>
@@ -249,5 +269,9 @@ export class PcSelecoesCliente extends LitElement {
         : html`<urbi-prosa papel="fraco">Nada pedido. Ex.: "confirmar a visita", "enviar a documentação".</urbi-prosa>`}
       </urbi-stack></div>
     </urbi-card>`;
+  }
+
+  render() {
+    return this.parte === 'portal' ? this.renderPortal() : this.renderSelecoes();
   }
 }

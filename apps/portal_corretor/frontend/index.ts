@@ -5,7 +5,6 @@ import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { aoAbrirHoje, renderHoje } from './telas/inicio.js';
 import './telas/corretores.js';
 import { renderClientes } from './telas/clientes.js';
-import './telas/ficha-contato.js';
 import './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
 import './telas/ficha-imovel.js';
@@ -15,7 +14,7 @@ import './telas/pagina.js';
 import './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assistente.js';
-import { normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
+import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
 import { botaoAssistente, menuCriar } from './criar.js';
 import { contaAtiva, contasDoUsuario, escolherConta, semConta } from './apoio.js';
@@ -40,9 +39,10 @@ interface Tela {
 // abre para quem tem o papel; o backend barra de novo.
 const TELAS: Record<ChaveTela, Tela> = {
   hoje: { titulo: 'Hoje', papel: 'corretor', moldura: true, aoAbrir: aoAbrirHoje, render: (_p, app) => renderHoje(() => app?.requestUpdate()) },
-  clientes: { titulo: 'Clientes', papel: 'corretor', render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
+  clientes: { titulo: 'Clientes', papel: 'corretor', moldura: true, render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
   importar: { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
-  cliente: { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
+  // `/clientes/:id` é apelido: `chegar` troca o endereço por `/clientes?item=:id` antes de desenhar.
+  cliente: { titulo: 'Clientes', papel: 'corretor', moldura: true, render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
   imoveis: { titulo: 'Imóveis', papel: 'corretor', render: (_p, app) => renderImoveis(() => app?.requestUpdate()) },
   imovel: { titulo: 'Imóvel', papel: 'corretor', render: (id) => html`<pc-tela-ficha-imovel .imovelId=${Number(id)}></pc-tela-ficha-imovel>` },
   empreendimento: {
@@ -120,6 +120,12 @@ export class AppPortalCorretor extends LitElement {
 
   /** O Assistente responde pela tela em que o corretor está; `/assistente` abre Hoje com ele aberto. */
   private chegar(sub: string) {
+    // Ficha pelo caminho antigo (`/clientes/7`): vira o cliente selecionado na Lista (P04), sem empilhar histórico.
+    const ficha = fichaCanonica(sub, window.location.search);
+    if (ficha) {
+      history.replaceState(history.state, '', `${urbiVerso.href('/clientes')}${ficha}`);
+      sub = '/clientes';
+    }
     this.sub = sub;
     this.avisarTela(sub);
     lembrarTela(sub);

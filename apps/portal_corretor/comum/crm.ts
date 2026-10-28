@@ -234,3 +234,36 @@ export function validarEtapas(pipeline: Pipeline, lista: unknown): Resultado<(Et
   if (erros.length) return { ok: false, erros };
   return { ok: true, dados: etapas };
 }
+
+/**
+ * Perfil de busca do contato (`contatos.perfil_busca`, spec 6.4: tipos, regiões, faixa de preço `_c`,
+ * área mínima, quartos, vagas, finalidade) em chips curtos para a ficha (P04). Tolerante: o JSON vem
+ * de fora (importação, Mensageiro) e o que não reconhece fica de fora, sem erro.
+ */
+export function chipsDoPerfilBusca(perfil: unknown): string[] {
+  if (!perfil || typeof perfil !== 'object' || Array.isArray(perfil)) return [];
+  const p = perfil as Record<string, unknown>;
+  const lista = (v: unknown) => (Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : []).map((x) => String(x).trim()).filter(Boolean);
+  const numero = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null);
+  const mil = (c: number) => {
+    const r = c / 100;
+    return r >= 1_000_000 ? `R$ ${(r / 1_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} mi` : `R$ ${Math.round(r / 1000).toLocaleString('pt-BR')} mil`;
+  };
+  const chips: string[] = [];
+  const finalidade = typeof p.finalidade === 'string' ? p.finalidade.trim() : '';
+  if (finalidade) chips.push(finalidade.charAt(0).toUpperCase() + finalidade.slice(1));
+  for (const t of lista(p.tipos)) chips.push(t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g, ' '));
+  for (const r of lista(p.regioes)) chips.push(r);
+  const min = numero(p.preco_min_c);
+  const max = numero(p.preco_max_c);
+  if (min && max) chips.push(`${mil(min)} a ${mil(max)}`);
+  else if (max) chips.push(`até ${mil(max)}`);
+  else if (min) chips.push(`a partir de ${mil(min)}`);
+  const quartos = numero(p.quartos);
+  if (quartos) chips.push(`${quartos}+ quarto${quartos > 1 ? 's' : ''}`);
+  const vagas = numero(p.vagas);
+  if (vagas) chips.push(`${vagas}+ vaga${vagas > 1 ? 's' : ''}`);
+  const area = numero(p.area_min_m2 ?? p.area_min);
+  if (area) chips.push(`${area} m² ou mais`);
+  return chips;
+}

@@ -1,13 +1,14 @@
-import { LitElement, html } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { LitElement, html, nothing } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
 import { abrirAssistenteSobre, lembrarContato } from './assistente.js';
 import { OBJETIVOS_MENSAGEM } from '../../comum/mensagens';
 import { tarefaDaAbordagem } from '../../comum/funil';
-import { PAPEIS_NA_TELA } from '../../comum/crm';
+import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
-import { chamarApi, chip, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -33,38 +34,106 @@ interface Sugestao {
 const CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 const STATUS_ATIVIDADE: Record<string, string> = { pendente: 'Pendente', feita: 'Feita', cancelada: 'Cancelada', nao_compareceu: 'Não compareceu' };
 
-// Ficha do contato (spec 11.1, D-92), no desenho da ficha de pessoa do Follow Up Boss: à esquerda
-// quem é (chips, telefone, dados no detalhe), o próximo passo com a Mensagem sugerida e Virar tarefa,
-// negócios, agenda e seleções, cada um com a lista à mostra; à direita o histórico, com Registrar
-// contato, Registrar envio e Resumir no topo, e o que foi enviado.
-@customElement('pc-tela-ficha-contato')
-export class PcTelaFichaContato extends LitElement {
-  @property({ type: Number }) contatoId = 0;
-  @state() private ficha: Ficha | null = null;
-  @state() private envios: Linha[] = [];
-  @state() private etapas: Linha[] = [];
-  @state() private falha: string | null = null;
-  /** Sonda dos slots (sem custo): Resumir só aparece com a IA do Assistente liberada. */
-  @state() private ia = { resumo: false, mensagem: false };
-  @state() private resumo: string | null = null;
-  @state() private resumindo = false;
-  @state() private sugestao: Sugestao | null = null;
-  @state() private sugerindo = false;
-  @state() private criandoTarefa = false;
-  /** `?sugerir=1` (Início e quadro): carrega a mensagem sugerida uma vez, e só com abordagem. */
-  private sugerirDaUrl = filtrosDaUrl().get('sugerir') === '1';
+/**
+ * Abas da ficha no centro (P04). A aba Negociação entra aqui, depois de Negócios, com o item D3 do
+ * arco (#102); até lá ela não aparece (princípio 15.9: nada sem uso na tela).
+ */
+export const ABAS_FICHA = [
+  { id: 'resumo', label: 'Resumo' },
+  { id: 'linha', label: 'Linha do tempo' },
+  { id: 'enviados', label: 'Enviados' },
+  { id: 'negocios', label: 'Negócios' },
+] as const;
+type AbaFicha = (typeof ABAS_FICHA)[number]['id'];
+/** A aba fica em `?secao=` (a `?aba=` é de outras telas), e sobrevive a recarregar. */
+const OPCOES_SECAO = { chave: 'secao' };
+export const secaoDaFicha = (): AbaFicha => abaDaUrl(ABAS_FICHA.map((a) => a.id), OPCOES_SECAO) as AbaFicha;
 
-  connectedCallback() {
-    super.connectedCallback();
+interface EstadoFicha {
+  ficha: Ficha | null;
+  envios: Linha[];
+  etapas: Linha[];
+  falha: unknown;
+  /** Sonda dos slots (sem custo): Resumir só funciona com a IA do Assistente liberada. */
+  ia: { resumo: boolean; mensagem: boolean };
+  /** A sonda respondeu: só então a tela pode afirmar que a IA está indisponível. */
+  iaSondada: boolean;
+  resumo: string | null;
+  resumindo: boolean;
+  sugestao: Sugestao | null;
+  sugerindo: boolean;
+  criandoTarefa: boolean;
+  aba: AbaFicha;
+}
+
+// Ficha do contato (spec 11.1 P04, D-92, D-106) na moldura do Padrão B: o cliente no centro
+// (cabeçalho e as abas Resumo · Linha do tempo · Enviados · Negócios) e, à direita, o perfil de busca,
+// o portal do cliente e a privacidade. As duas colunas são dois elementos (`pc-ficha-contato-foco` e
+// `pc-ficha-contato-contexto`) que leem o MESMO estado: esta classe carrega uma vez, faz as ações e
+// avisa os dois para redesenhar. Uma ficha por vez: a da conta e do contato abertos (`fichaDe`).
+export class FichaContato {
+  private ouvintes = new Set<() => void>();
+  /** Estado da ficha: toda escrita avisa as duas colunas. */
+  readonly s: EstadoFicha;
+  /** `?sugerir=1` (Hoje e Funil): carrega a mensagem sugerida uma vez, e só com abordagem. */
+  private sugerirDaUrl = filtrosDaUrl().get('sugerir') === '1';
+  private sondada = false;
+
+  constructor(readonly contatoId: number) {
+    const avisar = () => this.ouvintes.forEach((f) => f());
+    const inicial: EstadoFicha = {
+      ficha: null, envios: [], etapas: [], falha: null, ia: { resumo: false, mensagem: false }, iaSondada: false,
+      resumo: null, resumindo: false, sugestao: null, sugerindo: false, criandoTarefa: false, aba: secaoDaFicha(),
+    };
+    this.s = new Proxy(inicial, {
+      set(alvo, chave, valor) {
+        (alvo as unknown as Record<string | symbol, unknown>)[chave] = valor;
+        avisar();
+        return true;
+      },
+    });
+  }
+
+  /** Alguma coluna está mostrando esta ficha (a visita ainda está na tela). */
+  get emUso(): boolean {
+    return this.ouvintes.size > 0;
+  }
+
+  /** Esta ainda é a ficha na tela: a aberta e com alguma coluna ouvindo (a visita não acabou). */
+  private get ativa(): boolean {
+    return aberta?.ficha === this && this.emUso;
+  }
+
+  ouvir(fn: () => void): () => void {
+    this.ouvintes.add(fn);
+    return () => this.ouvintes.delete(fn);
+  }
+
+  /** O centro abriu: (re)lê a ficha e, na primeira vez, sonda os slots de IA. */
+  entrar() {
     void this.carregar();
+    if (this.sondada) return;
+    this.sondada = true;
     void chamarApi(`/contatos/${this.contatoId}/ia`).then(
-      (r) => (this.ia = { resumo: !!r.resumo, mensagem: !!r.mensagem }),
-      () => undefined,
+      (r) => {
+        this.s.ia = { resumo: !!r.resumo, mensagem: !!r.mensagem };
+        this.s.iaSondada = true;
+      },
+      // Sonda que falha (rede, 5xx) vale como "indisponível": a tela explica o Resumir desligado em vez de calar.
+      () => {
+        this.s.iaSondada = true;
+      },
     );
   }
 
-  private async carregar() {
-    this.falha = null;
+  escolherAba(id: string) {
+    if (!ABAS_FICHA.some((a) => a.id === id) || id === this.s.aba) return;
+    abaNaUrl(id === 'resumo' ? '' : id, OPCOES_SECAO);
+    this.s.aba = id as AbaFicha;
+  }
+
+  async carregar() {
+    this.s.falha = null;
     const sugerirAgora = this.sugerirDaUrl;
     if (sugerirAgora) {
       this.sugerirDaUrl = false;
@@ -77,14 +146,16 @@ export class PcTelaFichaContato extends LitElement {
         // O histórico de envios é complementar: se falhar, a ficha abre sem ele.
         chamarApi(`/envios?contato_id=${this.contatoId}`).catch(() => ({ dados: [] })),
       ]);
-      this.ficha = ficha;
+      this.s.ficha = ficha;
       // Contato em foco: o Assistente aberto nesta ficha e a Nova visita do Criar já vêm com ele.
-      lembrarContato({ id: ficha.contato.id, nome: ficha.contato.nome });
-      this.etapas = etapas.etapas;
-      this.envios = envios.dados;
-      if (sugerirAgora && ficha.abordagem) void this.sugerir();
+      // Só a ficha que ainda é a aberta: resposta tardia de outro contato não toma o foco.
+      if (this.ativa) lembrarContato({ id: ficha.contato.id, nome: ficha.contato.nome });
+      this.s.etapas = etapas.etapas;
+      this.s.envios = envios.dados;
+      // Idem para a sugestão do `?sugerir=1`: ficha que o corretor já deixou não gasta IA nem alerta sobre outra.
+      if (sugerirAgora && ficha.abordagem && this.ativa) void this.sugerir();
     } catch (e) {
-      this.falha = (e as Error).message;
+      this.s.falha = e;
     }
   }
 
@@ -93,7 +164,7 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   private editar() {
-    const c = this.ficha!.contato;
+    const c = this.s.ficha!.contato;
     // Na tela, só comprador e proprietário (spec 15.9, S11); outro papel que veio da planilha fica.
     const papeis: string[] = c.papeis.split(',').filter(Boolean);
     const outros = papeis.filter((p) => !(PAPEIS_NA_TELA as readonly string[]).includes(p));
@@ -124,7 +195,7 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   private proximoPasso() {
-    const c = this.ficha!.contato;
+    const c = this.s.ficha!.contato;
     const quando = c.proximo_passo_em ? new Date(c.proximo_passo_em) : null;
     void formularioEnviar(
       'Próximo passo',
@@ -177,7 +248,7 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   private async moverEtapa(negocio: Linha) {
-    const etapas = this.etapas.filter((e) => e.pipeline === negocio.pipeline && e.ativa);
+    const etapas = this.s.etapas.filter((e) => e.pipeline === negocio.pipeline && e.ativa);
     const v = await urbiVerso.formulario({
       titulo: 'Mudar etapa',
       campos: [
@@ -216,7 +287,7 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   private retornoVisita(a: Linha) {
-    const v = this.ficha!.visitas.find((x: Linha) => x.atividade_id === a.id);
+    const v = this.s.ficha!.visitas.find((x: Linha) => x.atividade_id === a.id);
     void formularioEnviar(
       'Retorno da visita',
       [
@@ -260,6 +331,7 @@ export class PcTelaFichaContato extends LitElement {
     if (!ok) return;
     try {
       await enviar('PATCH', `/contatos/${this.contatoId}/remover`, {});
+      // A lista recarrega sem ele, e a ficha fecha (sai o `?item=`).
       urbiVerso.navegarSub('/clientes');
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -267,7 +339,7 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   private async abordagemFeita() {
-    const a = this.ficha!.abordagem!;
+    const a = this.s.ficha!.abordagem!;
     const v = await urbiVerso.formulario({
       titulo: 'Registrar abordagem',
       campos: [{ nome: 'texto', tipo: 'texto_longo', rotulo: 'O que você fez', valor: a.abordagem }],
@@ -277,19 +349,19 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   private async adiarAbordagem() {
-    this.sugestao = null;
+    this.s.sugestao = null;
     await this.tentar('Não foi possível pular', () => enviar('POST', `/abordagens/${this.contatoId}/adiar`, {}));
   }
 
   /** Resumir (slot `assistente`): só mostrado, nunca gravado. */
   private async resumir() {
-    this.resumindo = true;
+    this.s.resumindo = true;
     try {
-      this.resumo = (await enviar('POST', `/contatos/${this.contatoId}/resumo`, {})).resumo;
+      this.s.resumo = (await enviar('POST', `/contatos/${this.contatoId}/resumo`, {})).resumo;
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível resumir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
-      this.resumindo = false;
+      this.s.resumindo = false;
     }
   }
 
@@ -298,16 +370,16 @@ export class PcTelaFichaContato extends LitElement {
    * (Apresentação, Retorno…). Sem IA, a rota devolve o texto do playbook ou o modelo do objetivo.
    * Sem abordagem (nenhum negócio aberto), começa pelo Retorno.
    */
-  private async sugerir(objetivo = this.ficha?.abordagem ? 'playbook' : 'retorno') {
-    if (this.sugerindo) return;
-    this.sugerindo = true;
+  private async sugerir(objetivo = this.s.ficha?.abordagem ? 'playbook' : 'retorno') {
+    if (this.s.sugerindo) return;
+    this.s.sugerindo = true;
     try {
       const r = await chamarApi(`/contatos/${this.contatoId}/mensagem-sugerida${objetivo === 'playbook' ? '' : `?objetivo=${objetivo}`}`);
-      this.sugestao = { mensagem: r.mensagem, ia: !!r.ia, objetivo };
+      this.s.sugestao = { mensagem: r.mensagem, ia: !!r.ia, objetivo };
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível sugerir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
-      this.sugerindo = false;
+      this.s.sugerindo = false;
     }
   }
 
@@ -322,14 +394,14 @@ export class PcTelaFichaContato extends LitElement {
    * bloqueia a janela), e registra a abordagem (uma linha na linha do tempo). Sem telefone, só copia.
    */
   private fazerAgora() {
-    const texto = this.sugestao?.mensagem ?? this.ficha!.abordagem!.abordagem;
-    const link = linkWhatsapp(this.ficha!.contato.telefone, texto);
+    const texto = this.s.sugestao?.mensagem ?? this.s.ficha!.abordagem!.abordagem;
+    const link = linkWhatsapp(this.s.ficha!.contato.telefone, texto);
     if (!link) {
       void this.copiar(texto);
       return;
     }
     window.open(link, '_blank', 'noopener');
-    this.sugestao = null;
+    this.s.sugestao = null;
     void this.tentar('Não foi possível registrar a abordagem', async () => {
       await enviar('POST', `/abordagens/${this.contatoId}/feita`, { canal: 'whatsapp', texto });
       urbiVerso.notificar('Abordagem registrada.', 'sucesso');
@@ -338,22 +410,22 @@ export class PcTelaFichaContato extends LitElement {
 
   /** Virar tarefa: a próxima abordagem vira atividade na agenda, no prazo do playbook. */
   private async virarTarefa() {
-    if (this.criandoTarefa) return;
-    this.criandoTarefa = true;
+    if (this.s.criandoTarefa) return;
+    this.s.criandoTarefa = true;
     try {
-      const corpo = tarefaDaAbordagem(this.ficha!.abordagem as Parameters<typeof tarefaDaAbordagem>[0], this.contatoId);
+      const corpo = tarefaDaAbordagem(this.s.ficha!.abordagem as Parameters<typeof tarefaDaAbordagem>[0], this.contatoId);
       await this.tentar('Não foi possível criar a tarefa', async () => {
         await enviar('POST', '/atividades', corpo);
         urbiVerso.notificar(`Tarefa criada para ${dataHora(corpo.quando)}.`, 'sucesso');
       });
     } finally {
-      this.criandoTarefa = false;
+      this.s.criandoTarefa = false;
     }
   }
 
   /** Uma linha sob os chips: o motivo da temperatura e o último contato. */
   private linhaDoTopo(): string {
-    const c = this.ficha!.contato;
+    const c = this.s.ficha!.contato;
     const partes = [c.temperatura_motivo, `último contato ${c.ultimo_contato_em ? `em ${data(c.ultimo_contato_em)}` : 'nunca'}`].filter(Boolean);
     const texto = partes.join(' · ');
     return `${texto.charAt(0).toUpperCase()}${texto.slice(1)}.`;
@@ -361,7 +433,7 @@ export class PcTelaFichaContato extends LitElement {
 
   /** Abre o WhatsApp do contato numa aba nova, sem mensagem pronta. */
   private abrirWhatsapp() {
-    const link = linkWhatsapp(this.ficha!.contato.telefone, '');
+    const link = linkWhatsapp(this.s.ficha!.contato.telefone, '');
     if (link) window.open(link, '_blank', 'noopener');
   }
 
@@ -403,7 +475,7 @@ export class PcTelaFichaContato extends LitElement {
 
   /** Imóvel e nota da visita, para a linha da agenda. */
   private visitaDe(a: Linha) {
-    const v = this.ficha!.visitas.find((x: Linha) => x.atividade_id === a.id);
+    const v = this.s.ficha!.visitas.find((x: Linha) => x.atividade_id === a.id);
     return v ? ` · ${v.imovel_codigo ?? 'imóvel'}${v.feedback_nota ? ` · nota ${v.feedback_nota}/5` : ''}` : '';
   }
 
@@ -413,14 +485,14 @@ export class PcTelaFichaContato extends LitElement {
 
   /** Abre o Assistente sobre este contato (spec 11.1: "perguntar ao Assistente sobre este cliente"). */
   private perguntarAssistente() {
-    const c = this.ficha!.contato;
+    const c = this.s.ficha!.contato;
     abrirAssistenteSobre({ id: c.id, nome: c.nome });
   }
 
 
   /** Menu Mais do topo: o que não tem lugar fixo na ficha. */
   private menuMais() {
-    const a = this.ficha!.abordagem;
+    const a = this.s.ficha!.abordagem;
     const itens = [
       { rotulo: 'Editar contato', icone: 'fa-solid fa-pen', fn: () => this.editar() },
       { rotulo: 'Perguntar ao Assistente', icone: 'fa-solid fa-comments', fn: () => this.perguntarAssistente() },
@@ -440,47 +512,74 @@ export class PcTelaFichaContato extends LitElement {
     </urbi-dropdown>`;
   }
 
-  /** Quem é: nome, chips, motivo e último contato, telefone e e-mail, e os dados de cadastro no detalhe. */
-  private cartaoPessoa() {
-    const { contato: c, consentimento } = this.ficha!;
+  /** Etapa do negócio em andamento (o primeiro aberto), para o chip do cabeçalho. */
+  private etapaAtual() {
+    const n = this.s.ficha!.negocios.find((x) => x.etapa_tipo !== 'ganho' && x.etapa_tipo !== 'perdido') ?? null;
+    return n?.etapa_nome ? { nome: n.etapa_nome, tipo: n.etapa_tipo } : null;
+  }
+
+  /**
+   * Cabeçalho da ficha (P04): avatar, nome, telefone, e-mail e papel; chips de temperatura, etapa e
+   * origem; Conversa (o WhatsApp do contato) e Resumir. Ligar, E-mail e o menu Mais ficam ao lado.
+   */
+  renderCabecalho() {
+    const c = this.s.ficha!.contato;
     const temTelefone = !!linkWhatsapp(c.telefone, '-');
-    return html`<urbi-card titulo=${c.nome} icone="fa-solid fa-user">
+    const papeis = c.papeis.split(',').filter(Boolean).map((p: string) => ROTULO_PAPEL[p] ?? p).join(', ');
+    return html`<urbi-card>
+      <urbi-stack>
+        <urbi-linha quebrar>
+          <urbi-avatar nome=${c.nome} tamanho="48"></urbi-avatar>
+          <urbi-stack>
+            <urbi-prosa papel="titulo">${c.nome}</urbi-prosa>
+            <urbi-prosa papel="secundario">${[c.telefone, c.email, papeis].filter(Boolean).join(' · ') || 'Sem telefone nem e-mail.'}</urbi-prosa>
+          </urbi-stack>
+        </urbi-linha>
+        <urbi-linha quebrar>
+          ${chip('temperatura', c.temperatura, c.temperatura_motivo)}
+          ${chip('etapa', this.etapaAtual())}
+          ${chip('origem', c.origem_canal)}
+        </urbi-linha>
+        <urbi-prosa papel="secundario">${this.linhaDoTopo()}</urbi-prosa>
+        <urbi-linha quebrar>
+          <urbi-botao pequeno icone="fa-brands fa-whatsapp" ?desabilitado=${!temTelefone} title=${temTelefone ? nothing : 'Sem telefone'} @click=${() => this.abrirWhatsapp()}>Conversa</urbi-botao>
+          <urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.s.resumindo} ?desabilitado=${!this.s.ia.resumo}
+            title=${this.s.iaSondada && !this.s.ia.resumo ? DICA_IA_INDISPONIVEL : nothing} @click=${() => this.resumir()}>Resumir</urbi-botao>
+          ${temTelefone ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-phone" ariaLabel="Ligar" title="Ligar" href=${`tel:${String(c.telefone).replace(/[^\d+]/g, '')}`}></urbi-botao>` : ''}
+          ${c.email ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-envelope" ariaLabel="E-mail" title="E-mail" href=${`mailto:${c.email}`}></urbi-botao>` : ''}
+          ${this.menuMais()}
+        </urbi-linha>
+        ${this.s.iaSondada && !this.s.ia.resumo ? html`<urbi-prosa papel="fraco">${DICA_IA_INDISPONIVEL}: Resumir volta quando a IA for liberada; a Mensagem sugerida usa o texto do playbook.</urbi-prosa>` : ''}
+        ${this.s.resumo
+          ? html`<urbi-prosa papel="dica">${this.s.resumo}</urbi-prosa>
+              <urbi-prosa papel="fraco">Resumo feito pela IA agora, a partir do histórico; não fica gravado.</urbi-prosa>`
+          : ''}
+      </urbi-stack>
+    </urbi-card>`;
+  }
+
+  /** Cadastro (aba Resumo): de onde veio, quando entrou, as observações e o consentimento. */
+  private cartaoCadastro() {
+    const { contato: c, consentimento } = this.s.ficha!;
+    return html`<urbi-card titulo="Cadastro" icone="fa-solid fa-id-card">
       ${this.acao('Editar contato', 'fa-solid fa-pen', () => this.editar())}
+      <urbi-prosa papel="secundario">
+        Chegou por ${rotuloChip('origem', c.origem_canal ?? '').rotulo || 'origem não informada'}${c.origem_campanha ? ` (campanha ${c.origem_campanha})` : ''} · cadastrado em ${data(c.criado_em)}${c.temperatura_autor === 'corretor' ? ' · temperatura marcada por você' : ''}
+      </urbi-prosa>
+      ${c.observacoes ? html`<urbi-prosa papel="dica" pre>${c.observacoes}</urbi-prosa>` : ''}
       <urbi-linha quebrar>
-        ${chip('temperatura', c.temperatura, c.temperatura_motivo)}
-        ${c.papeis.split(',').filter(Boolean).map((p: string) => chip('papel', p))}
-        ${chip('origem', c.origem_canal)}
+        ${consentimento
+          ? html`<urbi-prosa>Consentimento registrado em ${dataHora(consentimento.aceito_em)} (${consentimento.canal}).</urbi-prosa>
+              <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(false)}>Revogar</urbi-botao>`
+          : html`<urbi-prosa papel="dica">Sem consentimento: o atendimento automático só usa mensagens-modelo aprovadas.</urbi-prosa>
+              <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(true)}>Registrar</urbi-botao>`}
       </urbi-linha>
-      <urbi-prosa papel="secundario">${this.linhaDoTopo()}</urbi-prosa>
-      <urbi-prosa>${[c.telefone, c.email].filter(Boolean).join(' · ') || 'Sem telefone nem e-mail.'}</urbi-prosa>
-      ${temTelefone || c.email
-        ? html`<urbi-linha quebrar>
-            ${temTelefone ? html`<urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" @click=${() => this.abrirWhatsapp()}>WhatsApp</urbi-botao>` : ''}
-            ${temTelefone ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-phone" href=${`tel:${String(c.telefone).replace(/[^\d+]/g, '')}`}>Ligar</urbi-botao>` : ''}
-            ${c.email ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-envelope" href=${`mailto:${c.email}`}>E-mail</urbi-botao>` : ''}
-          </urbi-linha>`
-        : ''}
-      <div slot="detalhe">
-        <urbi-stack>
-          <urbi-prosa papel="secundario">
-            Chegou por ${rotuloChip('origem', c.origem_canal ?? '').rotulo || 'origem não informada'}${c.origem_campanha ? ` (campanha ${c.origem_campanha})` : ''} · cadastrado em ${data(c.criado_em)}${c.temperatura_autor === 'corretor' ? ' · temperatura marcada por você' : ''}
-          </urbi-prosa>
-          ${c.observacoes ? html`<urbi-prosa papel="dica" pre>${c.observacoes}</urbi-prosa>` : ''}
-          <urbi-linha quebrar>
-            ${consentimento
-              ? html`<urbi-prosa>Consentimento registrado em ${dataHora(consentimento.aceito_em)} (${consentimento.canal}).</urbi-prosa>
-                  <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(false)}>Revogar</urbi-botao>`
-              : html`<urbi-prosa papel="dica">Sem consentimento: o atendimento automático só usa mensagens-modelo aprovadas.</urbi-prosa>
-                  <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(true)}>Registrar</urbi-botao>`}
-          </urbi-linha>
-        </urbi-stack>
-      </div>
     </urbi-card>`;
   }
 
   /** O que fazer agora: a abordagem do playbook, o passo combinado e a mensagem sugerida. */
   private cartaoProximoPasso() {
-    const { contato: c, abordagem: a } = this.ficha!;
+    const { contato: c, abordagem: a } = this.s.ficha!;
     const temTelefone = !!linkWhatsapp(c.telefone, '-');
     return html`<urbi-card titulo="Próximo passo" icone="fa-solid fa-forward">
       ${this.acao('Combinar próximo passo', 'fa-solid fa-pen', () => this.proximoPasso())}
@@ -495,28 +594,28 @@ export class PcTelaFichaContato extends LitElement {
           : html`<urbi-prosa papel="dica">Nada combinado e nenhum negócio em andamento. Use o lápis para combinar o próximo passo.</urbi-prosa>`}
       ${c.proximo_passo ? html`<urbi-prosa papel="secundario">Combinado: ${c.proximo_passo}${c.proximo_passo_em ? ` · ${dataHora(c.proximo_passo_em)}` : ''}</urbi-prosa>` : ''}
       ${c.proximo_passo_cliente ? html`<urbi-prosa papel="fraco">No portal do cliente: ${c.proximo_passo_cliente}</urbi-prosa>` : ''}
-      ${this.sugestao
-        ? html`<urbi-chips-atalho ativo=${this.sugestao.objetivo}
+      ${this.s.sugestao
+        ? html`<urbi-chips-atalho ativo=${this.s.sugestao.objetivo}
               .opcoes=${[...(a ? [{ id: 'playbook', rotulo: 'Pelo playbook' }] : []), ...Object.entries(OBJETIVOS_MENSAGEM).map(([id, rotulo]) => ({ id, rotulo }))]}
               @urbi:chip-atalho:click=${(e: CustomEvent) => void this.sugerir(e.detail.id)}></urbi-chips-atalho>
-            <urbi-prosa pre>${this.sugestao.mensagem}</urbi-prosa>
-            <urbi-prosa papel="fraco">${this.sugestao.ia
-              ? `Escrita pela IA a partir ${this.sugestao.objetivo === 'playbook' ? 'do playbook' : 'do objetivo'} e do histórico: revise antes de enviar.`
-              : this.sugestao.objetivo === 'playbook' ? 'Texto do playbook (a IA da mensagem sugerida não está liberada).' : 'Modelo pronto (a IA da mensagem sugerida não está liberada): ajuste ao seu jeito.'}</urbi-prosa>
+            <urbi-prosa pre>${this.s.sugestao.mensagem}</urbi-prosa>
+            <urbi-prosa papel="fraco">${this.s.sugestao.ia
+              ? `Escrita pela IA a partir ${this.s.sugestao.objetivo === 'playbook' ? 'do playbook' : 'do objetivo'} e do histórico: revise antes de enviar.`
+              : this.s.sugestao.objetivo === 'playbook' ? 'Texto do playbook (a IA da mensagem sugerida não está liberada).' : 'Modelo pronto (a IA da mensagem sugerida não está liberada): ajuste ao seu jeito.'}</urbi-prosa>
             <urbi-linha quebrar>
               <urbi-botao pequeno icone=${temTelefone ? 'fa-brands fa-whatsapp' : 'fa-solid fa-copy'} @click=${() => this.fazerAgora()}>${temTelefone ? 'Fazer agora' : 'Copiar texto'}</urbi-botao>
-              ${temTelefone ? html`<urbi-botao pequeno variante="texto" @click=${() => this.copiar(this.sugestao!.mensagem)}>Copiar</urbi-botao>` : ''}
-              <urbi-botao pequeno variante="texto" @click=${() => (this.sugestao = null)}>Fechar</urbi-botao>
+              ${temTelefone ? html`<urbi-botao pequeno variante="texto" @click=${() => this.copiar(this.s.sugestao!.mensagem)}>Copiar</urbi-botao>` : ''}
+              <urbi-botao pequeno variante="texto" @click=${() => (this.s.sugestao = null)}>Fechar</urbi-botao>
             </urbi-linha>`
         : html`<urbi-linha quebrar>
-            <urbi-botao pequeno icone="fa-solid fa-message" ?carregando=${this.sugerindo} @click=${() => this.sugerir()}>Mensagem sugerida</urbi-botao>
-            ${a ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" ?carregando=${this.criandoTarefa} @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>` : ''}
+            <urbi-botao pequeno icone="fa-solid fa-message" ?carregando=${this.s.sugerindo} @click=${() => this.sugerir()}>Mensagem sugerida</urbi-botao>
+            ${a ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" ?carregando=${this.s.criandoTarefa} @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>` : ''}
           </urbi-linha>`}
     </urbi-card>`;
   }
 
   private cartaoNegocios() {
-    const negocios = this.ficha!.negocios;
+    const negocios = this.s.ficha!.negocios;
     return html`<urbi-card titulo="Negócios" icone="fa-solid fa-handshake">
       ${this.acao('Novo negócio', 'fa-solid fa-plus', () => void this.novoNegocio())}
       ${negocios.length
@@ -535,7 +634,7 @@ export class PcTelaFichaContato extends LitElement {
   }
 
   private cartaoAgenda() {
-    const atividades = this.ficha!.atividades;
+    const atividades = this.s.ficha!.atividades;
     const pendentes = atividades.filter((x) => x.status === 'pendente').sort((x, y) => String(x.quando).localeCompare(String(y.quando)));
     const passadas = atividades.filter((x) => x.status !== 'pendente');
     const linha = (x: Linha) => html`<urbi-linha justificar="entre" quebrar>
@@ -544,7 +643,7 @@ export class PcTelaFichaContato extends LitElement {
         <urbi-prosa papel="fraco">${dataHora(x.quando)}${x.local ? ` · ${x.local}` : ''}${this.visitaDe(x)}</urbi-prosa>
       </urbi-stack>
       <urbi-linha>
-        ${this.ficha!.visitas.some((v: Linha) => v.atividade_id === x.id)
+        ${this.s.ficha!.visitas.some((v: Linha) => v.atividade_id === x.id)
           ? html`<urbi-botao variante="texto" pequeno @click=${() => this.retornoVisita(x)}>Retorno</urbi-botao>`
           : ''}
         ${x.status === 'pendente'
@@ -561,21 +660,14 @@ export class PcTelaFichaContato extends LitElement {
     </urbi-card>`;
   }
 
-  /** Coluna da direita (referência Follow Up Boss): o histórico, com o registro e o resumo no topo. */
+  /** Aba Linha do tempo (referência Follow Up Boss): tudo o que aconteceu, com Registrar contato no topo. */
   private cartaoHistorico() {
-    const linha_do_tempo = this.ficha!.linha_do_tempo;
-    return html`<urbi-card titulo="Histórico" icone="fa-solid fa-clock-rotate-left">
+    const linha_do_tempo = this.s.ficha!.linha_do_tempo;
+    return html`<urbi-card titulo="Linha do tempo" icone="fa-solid fa-clock-rotate-left">
       <urbi-linha quebrar>
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-comment" @click=${() => this.nota()}>Registrar contato</urbi-botao>
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-paper-plane" @click=${() => void this.registrarEnvio()}>Registrar envio</urbi-botao>
-        ${this.ia.resumo
-          ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.resumindo} @click=${() => this.resumir()}>Resumir</urbi-botao>`
-          : ''}
       </urbi-linha>
-      ${this.resumo
-        ? html`<urbi-prosa papel="dica">${this.resumo}</urbi-prosa>
-            <urbi-prosa papel="fraco">Resumo feito pela IA agora, a partir do histórico; não fica gravado.</urbi-prosa>`
-        : ''}
       ${linha_do_tempo.length
         ? html`<urbi-lista separador .itens=${linha_do_tempo} .render_item=${(l: Linha) => html`<urbi-prosa>${l.resumo}</urbi-prosa>
               <urbi-prosa papel="fraco">${dataHora(l.ocorrido_em)} · ${l.autor_nome ?? 'sistema'}</urbi-prosa>`}></urbi-lista>`
@@ -585,41 +677,136 @@ export class PcTelaFichaContato extends LitElement {
 
   private cartaoEnvios() {
     return html`<urbi-card titulo="Enviados ao cliente" icone="fa-solid fa-paper-plane">
-      ${this.envios.length
-        ? html`<urbi-lista separador .itens=${this.envios} .render_item=${(e: Linha) => html`<urbi-prosa>${e.imovel_codigo ? `${e.imovel_codigo}${e.imovel_titulo ? ` · ${e.imovel_titulo}` : ''}` : (e.descricao ?? e.tipo)}</urbi-prosa>
+      ${this.acao('Registrar envio', 'fa-solid fa-plus', () => void this.registrarEnvio())}
+      ${this.s.envios.length
+        ? html`<urbi-lista separador .itens=${this.s.envios} .render_item=${(e: Linha) => html`<urbi-prosa>${e.imovel_codigo ? `${e.imovel_codigo}${e.imovel_titulo ? ` · ${e.imovel_titulo}` : ''}` : (e.descricao ?? e.tipo)}</urbi-prosa>
               <urbi-prosa papel="fraco">${dataHora(e.enviado_em)} · ${e.canal}${e.cliques ? ` · ${e.cliques} clique(s)` : ''}</urbi-prosa>`}></urbi-lista>`
         : html`<urbi-prosa papel="dica">Nada registrado. Anote os imóveis e arquivos que mandar em Registrar envio: aqui aparecem os cliques.</urbi-prosa>`}
     </urbi-card>`;
   }
 
-  render() {
-    const banner = this.falha
-      ? html`<urbi-banner variante="erro">
-          ${this.falha}
-          <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
-        </urbi-banner>`
-      : '';
+
+  /** Exportar (Privacidade): o CSV de contatos da conta, a rota que já existe (`GET /contatos/exportar`). */
+  private async exportar() {
+    try {
+      const r = await chamarFetch('/contatos/exportar');
+      if (!r.ok) throw new Error('A exportação falhou.');
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contatos.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
+    }
+  }
+
+  /** Centro: o cabeçalho e as abas. Falha sem ficha na tela vira o estado do B1 (404 = "Não encontrado"). */
+  renderCentro() {
+    const { ficha, falha } = this.s;
+    if (!ficha) return falha ? estadoDaFalha(falha, () => void this.carregar()) : estadoTela('carregando');
     // Falha ao recarregar depois de uma ação mantém a ficha que já estava na tela.
-    if (this.falha && !this.ficha) return banner;
-    if (!this.ficha) return html`<urbi-loading></urbi-loading>`;
-    // Duas colunas no computador (pessoa e o que fazer | histórico); no celular, uma embaixo da outra.
-    return html`<urbi-2x1 largura="largo">
-      <urbi-hospedeiro slot="esquerda">
-        ${banner}
-        <urbi-linha justificar="entre">
-          <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/clientes')}>Clientes</urbi-botao>
-          ${this.menuMais()}
+    const aviso = falha ? estadoTela('erro', { mensagem: 'Não foi possível atualizar a ficha.', aoTentar: () => void this.carregar() }) : '';
+    const aba = this.s.aba;
+    return html`<urbi-stack>
+      ${aviso}
+      ${this.renderCabecalho()}
+      <urbi-abas formato-desktop="abas" .abas=${ABAS_FICHA} ativa=${aba} @urbi:aba-selecionar=${(e: CustomEvent) => this.escolherAba(e.detail?.id)}>
+        <urbi-stack slot=${aba}>${this.conteudoDaAba(aba)}</urbi-stack>
+      </urbi-abas>
+    </urbi-stack>`;
+  }
+
+  /** O conteúdo de D-92 distribuído nas abas; só a aba aberta é montada. */
+  private conteudoDaAba(aba: AbaFicha) {
+    const c = this.s.ficha!.contato;
+    switch (aba) {
+      case 'resumo':
+        return html`${this.cartaoProximoPasso()}${this.cartaoCadastro()}`;
+      case 'linha':
+        return this.cartaoHistorico();
+      case 'enviados':
+        return this.cartaoEnvios();
+      case 'negocios':
+        return html`${this.cartaoNegocios()}${this.cartaoAgenda()}
+          <pc-selecoes-cliente parte="selecoes" .contatoId=${c.id} .nome=${c.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>`;
+    }
+  }
+
+  /** Direita: perfil de busca, portal do cliente (por token) e privacidade. */
+  renderContexto() {
+    const ficha = this.s.ficha;
+    if (!ficha) return this.s.falha ? '' : estadoTela('carregando');
+    const c = ficha.contato;
+    const perfil = chipsDoPerfilBusca(c.perfil_busca);
+    return html`<urbi-stack>
+      <urbi-card titulo="Perfil de busca" icone="fa-solid fa-magnifying-glass-location">
+        ${perfil.length
+          ? html`<urbi-linha quebrar>${perfil.map((p) => html`<urbi-badge>${p}</urbi-badge>`)}</urbi-linha>`
+          : html`<urbi-prosa papel="dica">Ainda sem perfil de busca. Anote o que ele procura nas observações (Editar contato).</urbi-prosa>`}
+      </urbi-card>
+      <pc-selecoes-cliente parte="portal" .contatoId=${c.id} .nome=${c.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>
+      <urbi-card titulo="Privacidade" icone="fa-solid fa-user-shield">
+        <urbi-prosa papel="secundario">Exportar baixa a planilha dos seus contatos. Remover tira este contato da lista; o histórico fica guardado.</urbi-prosa>
+        <urbi-linha quebrar>
+          <urbi-botao pequeno variante="secundario" icone="fa-solid fa-file-export" @click=${() => this.exportar()}>Exportar</urbi-botao>
+          <urbi-botao pequeno variante="texto" icone="fa-solid fa-trash" @click=${() => void this.remover()}>Remover</urbi-botao>
         </urbi-linha>
-        ${this.cartaoPessoa()}
-        ${this.cartaoProximoPasso()}
-        ${this.cartaoNegocios()}
-        ${this.cartaoAgenda()}
-        <pc-selecoes-cliente .contatoId=${this.ficha.contato.id} .nome=${this.ficha.contato.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>
-      </urbi-hospedeiro>
-      <urbi-hospedeiro slot="direita">
-        ${this.cartaoHistorico()}
-        ${this.cartaoEnvios()}
-      </urbi-hospedeiro>
-    </urbi-2x1>`;
+      </urbi-card>
+    </urbi-stack>`;
+  }
+}
+
+/**
+ * A ficha aberta: uma por vez, da conta ativa. Abrir outro contato (ou trocar de conta) cria outra, e
+ * toda nova chegada também: sem coluna ouvindo, a visita anterior acabou e a ficha é lida de novo do
+ * endereço (`?sugerir=1`, `?secao=`), como cada visita montando um elemento novo. As duas colunas da
+ * MESMA visita (uma reconectando, a outra ainda ouvindo) seguem no mesmo estado.
+ */
+let aberta: { conta: number | null; ficha: FichaContato } | null = null;
+
+export function fichaDe(contatoId: number): FichaContato {
+  const conta = contaAtiva();
+  if (!aberta || aberta.conta !== conta || aberta.ficha.contatoId !== contatoId || !aberta.ficha.emUso) aberta = { conta, ficha: new FichaContato(contatoId) };
+  return aberta.ficha;
+}
+
+/** Base das duas colunas: assina a ficha do contato e redesenha quando ela muda. */
+abstract class ColunaDaFicha extends LitElement {
+  @property({ type: Number }) contatoId = 0;
+  protected ficha: FichaContato | null = null;
+  private soltar?: () => void;
+
+  connectedCallback() {
+    super.connectedCallback();
+    this.ficha = fichaDe(this.contatoId);
+    this.soltar = this.ficha.ouvir(() => this.requestUpdate());
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.soltar?.();
+  }
+}
+
+/** Centro da ficha: abre (e relê) a ficha ao entrar. */
+@customElement('pc-ficha-contato-foco')
+export class PcFichaContatoFoco extends ColunaDaFicha {
+  connectedCallback() {
+    super.connectedCallback();
+    this.ficha!.entrar();
+  }
+
+  render() {
+    return this.ficha?.renderCentro() ?? nothing;
+  }
+}
+
+/** Direita da ficha: perfil de busca, portal e privacidade, do mesmo estado do centro. */
+@customElement('pc-ficha-contato-contexto')
+export class PcFichaContatoContexto extends ColunaDaFicha {
+  render() {
+    return this.ficha?.renderContexto() ?? nothing;
   }
 }

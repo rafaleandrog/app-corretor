@@ -22,9 +22,9 @@ export const OPCOES_CRIAR: { id: OpcaoCriar; rotulo: string; icone: string }[] =
   { id: 'proposta', rotulo: 'Nova proposta', icone: 'fa-solid fa-file-signature' },
 ];
 
-/** Para onde cada opção leva, a partir da sub-rota atual (`null`: abre o formulário aqui mesmo). */
-export function destinoDeCriar(opcao: OpcaoCriar, sub: string): string | null {
-  const contato = contatoDoEndereco(sub);
+/** Para onde cada opção leva, a partir da sub-rota e da query atuais (`null`: abre o formulário aqui mesmo). */
+export function destinoDeCriar(opcao: OpcaoCriar, sub: string, busca = ''): string | null {
+  const contato = contatoDoEndereco(sub, busca);
   switch (opcao) {
     case 'cliente':
       return '/clientes?criar=cliente';
@@ -34,7 +34,7 @@ export function destinoDeCriar(opcao: OpcaoCriar, sub: string): string | null {
       return '/estudio?criar=post';
     case 'proposta':
       // Sem cliente aberto, a lista: a proposta nasce na ficha de quem está negociando.
-      return contato ? `/clientes/${contato}` : '/clientes';
+      return contato ? `/clientes?item=${contato}` : '/clientes';
     case 'visita':
       return null;
   }
@@ -79,7 +79,7 @@ export function irParaComQuery(destino: string) {
 }
 
 export function criar(opcao: OpcaoCriar) {
-  const destino = destinoDeCriar(opcao, urbiVerso.subRota());
+  const destino = destinoDeCriar(opcao, urbiVerso.subRota(), window.location.search);
   if (destino) irParaComQuery(destino);
   else void novaVisita();
 }
