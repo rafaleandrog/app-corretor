@@ -27,9 +27,29 @@ export function imoveisDoPortal(selecoes: Linha[]): { imovel: Linha; selecao: Li
   return lista;
 }
 
+/** Uma seleção como o cliente a lê: o título e a mensagem que o corretor escreveu, e quantos imóveis ela traz. */
+export interface RecadoDeSelecao {
+  titulo: string;
+  mensagem: string | null;
+  imoveis: number;
+}
+
+/** Todas as seleções válidas, na ordem recebida, sem perder nenhuma (mesmo a que só repete imóveis de outra). */
+export function recadosDasSelecoes(selecoes: Linha[]): RecadoDeSelecao[] {
+  return selecoes
+    .filter((s) => s.titulo || s.mensagem)
+    .map((s) => ({ titulo: String(s.titulo ?? ''), mensagem: s.mensagem ? String(s.mensagem) : null, imoveis: (s.itens ?? []).length }));
+}
+
 /** Visitas ainda por acontecer (até 1 h atrás, para a visita em andamento não sumir). */
 export function visitasFuturas(agenda: Linha[], agora = Date.now()): Linha[] {
   return agenda.filter((v) => v.quando && Date.parse(v.quando) >= agora - 3600e3);
+}
+
+/** Próxima visita: a mais cedo entre as que ainda vão acontecer (mesmo critério de `visitasFuturas`). */
+export function proximaVisita(agenda: Linha[], agora = Date.now()): string | null {
+  const q = visitasFuturas(agenda, agora).map((v) => String(v.quando)).sort((a, b) => Date.parse(a) - Date.parse(b));
+  return q[0] ?? null;
 }
 
 /**

@@ -9,6 +9,8 @@ import {
   destinoDoProximoPasso,
   estadoDoErro,
   imoveisDoPortal,
+  proximaVisita,
+  recadosDasSelecoes,
   iniciais,
   reacaoDada,
   type AbaPortal,
@@ -61,7 +63,7 @@ const estiloSelecao = css`
   .topo .passo { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: var(--papel); color: var(--texto); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .topo .passo small { display: block; color: var(--suave); font-size: 0.85rem; }
   .topo .passo strong { font-size: 1.15rem; }
-  .topo .passo .botao { flex: none; min-height: 40px; padding: 8px 16px; }
+  .topo .passo .botao { flex: none; min-height: 44px; padding: 8px 16px; }
   .abas { position: sticky; top: 0; z-index: 2; display: flex; gap: 0; overflow-x: auto; background: var(--papel); border-bottom: 1px solid var(--linha); padding: 0 8px; }
   .abas button { flex: none; min-height: 48px; padding: 10px 9px; border: 0; border-bottom: 3px solid transparent; background: none; color: var(--suave); font: inherit; font-weight: 600; cursor: pointer; }
   .abas button[aria-selected='true'] { color: var(--acento); border-bottom-color: var(--acento); }
@@ -481,7 +483,7 @@ export class PcPortalCliente extends LitElement {
     const zap = p.corretor ? linkWhatsapp(p.corretor.telefone, 'Olá! Estou no meu portal e queria falar com você.') : null;
     const valeAte = (p.selecoes as Linha[]).map((s) => s.expira_em).filter(Boolean).sort()[0] ?? null;
     return html`
-      ${datasChave((p.agenda as Linha[]).find((v) => v.quando && Date.parse(v.quando) >= Date.now())?.quando ?? null, valeAte)}
+      ${datasChave(proximaVisita(p.agenda ?? []), valeAte)}
       ${p.jornada ? html`<section><h2>Histórico</h2>${this.jornada(p.jornada)}</section>` : nothing}
       <section>
         <h2>Escreva para ${nome}</h2>
@@ -506,10 +508,17 @@ export class PcPortalCliente extends LitElement {
     const tarefas: Linha[] = p.tarefas ?? [];
     const atual = lista.find((x) => x.imovel.codigo === this.destaque) ?? lista[0];
     const atualizar = () => this.requestUpdate();
+    const recados = recadosDasSelecoes(p.selecoes ?? []);
     return html`
+      ${recados.length
+        ? html`<section>
+            <h2>${recados.length > 1 ? 'Suas seleções' : 'Sua seleção'}</h2>
+            ${recados.map((r) => html`<h3>${r.titulo}</h3>${r.mensagem ? html`<p class="texto">${r.mensagem}</p>` : nothing}`)}
+          </section>`
+        : nothing}
       ${atual
         ? html`<section>
-            <p class="suave">${primeiroNome(p.corretor?.nome)} escolheu para você${atual.imovel.fotos?.length > 1 ? ' · deslize as fotos' : ''}</p>
+            <p class="suave">${primeiroNome(p.corretor?.nome)} escolheu para você${atual.selecao.titulo ? html` · da seleção <strong>${atual.selecao.titulo}</strong>` : nothing}${atual.imovel.fotos?.length > 1 ? ' · deslize as fotos' : ''}</p>
             ${itemSelecao(atual.imovel, this.reacoes, {
               reagir: (codigo, reacao) => enviarReacao(atual.selecao, codigo, reacao, this.reacoes, atualizar),
               comentar: (codigo, texto) => enviarComentario(atual.selecao, codigo, texto, p.url_acoes ?? null, this.reacoes, atualizar),

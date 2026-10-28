@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas, rotasPublicas } from '../backend/rotas';
 import { limparLimites } from '../backend/publico';
-import { abaDoEndereco, abasDoPortal, chipDeVisita, destinoDoProximoPasso, estadoDoErro, imoveisDoPortal, iniciais, reacaoDada } from '../comum/portal-cliente';
+import { abaDoEndereco, abasDoPortal, chipDeVisita, destinoDoProximoPasso, estadoDoErro, imoveisDoPortal, iniciais, proximaVisita, reacaoDada, recadosDasSelecoes } from '../comum/portal-cliente';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 // Bloco B9 (#98): Portal do Cliente e página pública no formato dos mockups M4, M5 e M6, sempre
@@ -73,6 +73,14 @@ test('regras puras do portal: abas com contagem, [Ver], aba do endereço, chip d
   );
   assert.deepEqual(imoveisDoPortal(portal.selecoes).map((x) => x.imovel.codigo), ['IM-1', 'IM-2']);
   assert.equal(destinoDoProximoPasso(portal, agora), 'agenda');
+  const duas = [
+    { titulo: 'Para morar', mensagem: 'Veja estes', itens: [{ codigo: 'IM-1' }] },
+    { titulo: 'Plano B', mensagem: 'E estes', itens: [{ codigo: 'IM-1' }] },
+  ];
+  assert.deepEqual(recadosDasSelecoes(duas).map((r) => [r.titulo, r.mensagem, r.imoveis]), [['Para morar', 'Veja estes', 1], ['Plano B', 'E estes', 1]], 'as duas mensagens chegam, mesmo com imóvel repetido');
+  const t0 = Date.parse('2026-10-28T12:00:00Z');
+  assert.equal(proximaVisita([{ quando: '2026-10-28T11:30:00Z' }, { quando: '2026-10-29T10:00:00Z' }], t0), '2026-10-28T11:30:00Z', 'visita há 30 min ainda conta, como na aba Agenda');
+  assert.equal(proximaVisita([{ quando: '2026-10-28T10:30:00Z' }], t0), null);
   assert.equal(destinoDoProximoPasso({ ...portal, agenda: [] }, agora), 'imoveis');
   assert.deepEqual(['#imoveis', '#agenda', '#arquivos', '#propostas', ''].map(abaDoEndereco), ['imoveis', 'agenda', 'arquivos', 'conversa', 'conversa']);
   assert.match(chipDeVisita('IM-1', portal.agenda, agora, 'America/Sao_Paulo')!, /^Visita sáb/);
