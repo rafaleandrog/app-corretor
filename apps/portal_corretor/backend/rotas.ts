@@ -15,6 +15,7 @@ import { estudioRotas } from './estudio';
 import { instagramRotas, renovarTokensInstagram } from './instagram';
 import { assistenteRotas } from './assistente';
 import { fichaRotas } from './ficha';
+import { negociacaoRotas } from './negociacao';
 import { escopoDeConta } from './escopo';
 
 export { aoIniciar } from './semente';
@@ -54,3 +55,4 @@ rotas.use(estudioRotas);
 rotas.use(instagramRotas);
 rotas.use(assistenteRotas);
 rotas.use(fichaRotas);
+rotas.use(negociacaoRotas);

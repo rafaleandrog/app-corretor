@@ -2,6 +2,7 @@ import type { AoIniciarApp, ContextoListener } from '@urbiverso/sdk';
 import { CONFIGURACOES_PADRAO } from '../comum/conta';
 import { MARCA_PADRAO } from '../comum/estudio';
 import { TEMAS } from '../comum/pagina';
+import { PLAYBOOK_OBJECOES_PADRAO } from '../comum/negociacao';
 
 // Semente de demonstração (spec 12.2), idempotente: roda a cada boot e só cria o que falta.
 // Alcança apenas as contas cujo nome termina em "(demo)" — as contas de teste da equipe, criadas à
@@ -90,12 +91,62 @@ async function temaParaMarcaConta(ctx: ContextoListener, contaId: number): Promi
   return criou;
 }
 
-// As duas tarefas são independentes: a falha de uma não impede a outra. Se alguma falhar, o hook lança
-// no fim com as duas mensagens — o shell registra `iniciar_falhou` e a app segue operacional
+// Playbook de objeções do Negociador (Apêndice D, spec 6.16): as 10 respostas padrão entram em
+// `playbook_objecoes` com `origem: padrao` em cada conta ativa. Idempotente: só cria a categoria que
+// falta e nunca reescreve a linha (nem a padrão, nem a "minha resposta" do corretor, que é outra
+// linha com `origem: corretor`). Conta criada depois do boot é semeada no próximo; até lá, a rota
+// devolve o padrão da constante.
+export async function semearObjecoes(ctx: ContextoListener): Promise<number> {
+  if (!ctx.dados?.comConta || !ctx.contas) return 0;
+  const contas = await ctx.contas.listarAtivas();
+  const falhas: string[] = [];
+  let criadas = 0;
+  for (const conta of contas) {
+    try {
+      criadas += await objecoesDaConta(ctx, conta.id);
+    } catch (e) {
+      falhas.push(`${conta.nome}: ${(e as Error).message}`);
+    }
+  }
+  if (falhas.length) throw new Error(`Playbook de objeções incompleto — ${falhas.join('; ')}`);
+  return criadas;
+}
+
+async function objecoesDaConta(ctx: ContextoListener, contaId: number): Promise<number> {
+  let criadas = 0;
+  await ctx.dados!.comConta!(contaId, async (trx) => {
+    // Em contexto SISTEMA a leitura enxerga todas as contas: filtrar `conta_id` é obrigatório.
+    const existentes = await trx.varrerTudo('playbook_objecoes', { filtros: { conta_id: contaId, origem: 'padrao' }, maximo: 100 });
+    const ja = new Set(existentes.map((l) => l.categoria));
+    for (const p of PLAYBOOK_OBJECOES_PADRAO) {
+      if (ja.has(p.categoria)) continue;
+      // Sem capturar o erro de único (23505): `comConta` roda dentro da transação que o framework abriu
+      // (contas.md, "depois que o framework abriu a transação"), e no PostgreSQL um erro de único a
+      // deixa abortada — engolir o erro e seguir faria o bloco voltar normal, o commit virar rollback
+      // e `criadas` contar linhas desfeitas. Se outro boot semeou a mesma categoria entre a leitura e
+      // a escrita, o erro sobe, o bloco inteiro é desfeito e a função lança: a falha é desta conta
+      // (o laço de `semearObjecoes` a junta) e o próximo boot, já vendo as linhas, completa o que falta.
+      await trx.criar('playbook_objecoes', {
+        categoria: p.categoria,
+        fala_cliente: p.fala_cliente,
+        pergunta_exploracao: p.pergunta_exploracao,
+        resposta_base: p.resposta_base,
+        proximo_passo: p.proximo_passo,
+        origem: 'padrao',
+      });
+      criadas++;
+    }
+  });
+  // Só chega aqui com o bloco confirmado; qualquer erro (da escrita ou do commit) lançou antes.
+  return criadas;
+}
+
+// As tarefas são independentes: a falha de uma não impede as outras. Se alguma falhar, o hook lança
+// no fim com as mensagens — o shell registra `iniciar_falhou` e a app segue operacional
 // (overview.md § Hooks de ciclo de vida); no próximo boot, cada uma retoma só o que falta.
 export const aoIniciar: AoIniciarApp = async (ctx) => {
   const falhas: string[] = [];
-  for (const tarefa of [semear, levarTemaParaMarca]) {
+  for (const tarefa of [semear, levarTemaParaMarca, semearObjecoes]) {
     try {
       await tarefa(ctx);
     } catch (e) {

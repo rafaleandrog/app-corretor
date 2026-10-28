@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.12",
+  "versao": "0.1.13",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -305,6 +305,70 @@
       "conteudo": "Hora do lembrete de uma visita",
       "api": "atividades",
       "rota": "?aba=agenda",
+      "segregado_por_conta": true
+    },
+    "negociacao_iniciada": {
+      "descricao": "O corretor abriu uma negociação para um negócio.",
+      "campos": [
+        "negociacao_id",
+        "negocio_id"
+      ],
+      "conteudo": "Negociação iniciada",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "proposta_recebida": {
+      "descricao": "Chegou uma oferta do comprador numa negociação.",
+      "campos": [
+        "negociacao_id",
+        "proposta_id"
+      ],
+      "conteudo": "Nova oferta do comprador",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "proposta_registrada": {
+      "descricao": "Uma proposta do vendedor ou do proprietário foi registrada numa negociação.",
+      "campos": [
+        "negociacao_id",
+        "proposta_id"
+      ],
+      "conteudo": "Proposta registrada na negociação",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "mandato_alterado": {
+      "descricao": "O mandato de uma negociação foi criado ou alterado (sem valores no evento).",
+      "campos": [
+        "negociacao_id",
+        "mandato_id"
+      ],
+      "conteudo": "Mandato de negociação alterado",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "negociacao_encerrada": {
+      "descricao": "Uma negociação foi encerrada, ganha ou perdida.",
+      "campos": [
+        "negociacao_id"
+      ],
+      "conteudo": "Negociação encerrada",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "negociacao_limite_atingido": {
+      "descricao": "O Negociador parou num limite do mandato e passou a negociação ao corretor.",
+      "campos": [
+        "negociacao_id"
+      ],
+      "conteudo": "O Negociador precisa de você numa negociação",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
       "segregado_por_conta": true
     }
   },

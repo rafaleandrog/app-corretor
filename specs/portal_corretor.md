@@ -744,16 +744,17 @@ Todas as tabelas abaixo seguem a regra da 4.5: `segregada_por_conta: true` e `ac
 
 | Coluna | Tipo | Obr. | Observação |
 |---|---|---|---|
-| negocio_id, anuncio_id, contato_id | ref | sim | |
+| negocio_id, imovel_id, contato_id | ref | sim | O anúncio é o imóvel da carteira (`imoveis`); `contato_id` vem do negócio |
 | estado | enum `ativa`/`aguardando_cliente`/`aguardando_corretor`/`aguardando_proprietario`/`ganha`/`perdida`/`pausada` | sim | |
 | conduzida_por | enum `ia`/`humano`/`corretor` | sim | `humano` só com a política multi-usuário ligada (D-108) |
 | negociador_usuario_id | ref `shell.usuarios` | quando humano | |
-| mandato_id | ref | não | Sem mandato, o Negociador só sugere |
+| mandato_id | inteiro | não | Sem mandato, o Negociador só sugere. Inteiro sem chave estrangeira: `mandatos_negociacao` já aponta para a negociação, e o ciclo de referências não é aceito pelo framework de dados (D1) |
 | teto_estimado_comprador_c | inteiro | não | Última estimativa; com `fonte_estimativa` (texto) |
 | batna_estimada_comprador | texto | não | |
 | valor_final_c | inteiro | quando ganha | |
 | motivo_perda | enum (6.2) | quando perdida | |
-| rodadas | inteiro | sim | Materializado a cada proposta |
+| rodadas | inteiro | sim | Materializado a cada proposta: cada oferta do comprador abre uma rodada; a resposta do vendedor ou do proprietário fica na rodada aberta (D1) |
+| encerrada_em | datahora | quando ganha ou perdida | |
 
 **`mandatos_negociacao`** (S; **sigiloso**: nunca vai ao portal do cliente, a página pública, à vitrine nem a exportação do cliente).
 
@@ -763,22 +764,22 @@ Todas as tabelas abaixo seguem a regra da 4.5: `segregada_por_conta: true` e `ac
 | preco_pedido_c, alvo_c, recuo_c | inteiro | sim | Validação recuo ≤ alvo ≤ pedido |
 | batna_vendedor | texto | não | Sigiloso |
 | concessoes | json | sim | Lista `{item, limite, contrapartida}` |
-| passo_max_pct | decimal | sim | Padrão 0,40 do intervalo restante |
+| passo_max_pct | decimal | sim | Padrão 0,40. Maior que 0 e até 1. **Fórmula (O6):** o passo máximo de uma rodada é `passo_max_pct × (posição atual do vendedor − recuo)`, isto é, a fração do intervalo pedido→recuo que ainda resta; a posição atual é o preço pedido na primeira rodada e a última contraproposta do vendedor depois. Ex.: 0,40, pedido 1.000, recuo 800 → até 80 na 1ª concessão (920), até 48 na 2ª (872). Função única `passoMaximo_c` em `comum/negociacao.ts` |
 | rodadas_max | inteiro | sim | Padrão 4 |
 | validade | data | sim | |
 | autonomia | enum `sugere`/`pergunta_antes`/`faz_sozinho` | sim | `faz_sozinho` só age no canal do portal (D-107) |
 | autorizacao_proprietario | json | quando `faz_sozinho` | `{tipo: anexo|mensagem, arquivo_id, data}`; forma final em P-41 |
 | versao | inteiro | sim | |
 
-**`propostas`** (6.4) ganha: `negociacao_id`, `rodada` (inteiro), `direcao` (`comprador`/`vendedor`/`proprietario`), `autor_tipo` (`cliente`/`corretor`/`negociador_ia`/`negociador_humano`/`proprietario`), `concessao` (json), `contrapartida` (json), `validade_ate` (datahora), `canal` (`registro` = registrada pelo corretor / `portal` = feita ou enviada pelo Portal do Cliente por token / `wa_me` = enviada pelo "Fazer agora", que abre o WhatsApp do celular do corretor e registra o envio / `whatsapp` = API do WhatsApp, só quando P-31/P-32 forem atendidas). As propostas passam a existir **no MVP** (antes estavam na fase 3; D-100).
+**`propostas`** (6.4) ganha: `negociacao_id`, `rodada` (inteiro), `direcao` (`comprador`/`vendedor`/`proprietario`), `autor_tipo` (`cliente`/`corretor`/`negociador_ia`/`negociador_humano`/`proprietario`), `concessao` (json), `contrapartida` (json), `validade_ate` (datahora), `canal` (`registro` = registrada pelo corretor / `portal` = feita ou enviada pelo Portal do Cliente por token / `wa_me` = enviada pelo "Fazer agora", que abre o WhatsApp do celular do corretor e registra o envio / `whatsapp` = API do WhatsApp, só quando P-31/P-32 forem atendidas; reservado, O12), `estado` (`registrada`/`enviada`/`aceita`/`recusada`/`substituida`/`expirada`) e `autor_usuario_id` (quem registrou). As propostas passam a existir **no MVP** (antes estavam na fase 3; D-100). No D1 a rota só aceita `canal: registro`; `portal` e `wa_me` chegam com as validações de 10.9.7 (D2).
 
 **`atribuicoes_negociacao`**: `negociacao_id`, `usuario_id` (negociador humano), `atribuida_por`, `ativa`. Define o que o role `negociador` enxerga (11.6); toda rota filtra por `usuario_id = usuario.id` para esse role.
 
-**`objecoes_detectadas`** (só inclusão): `negociacao_id`, `contato_id`, `categoria` (Apêndice D), `trecho`, `detectada_por` (`ia`/`humano`), `tratada` (booleano), `em`.
+**`objecoes_detectadas`** (só inclusão): `negociacao_id`, `contato_id`, `categoria` (Apêndice D), `trecho`, `detectada_por` (`ia`/`humano`), `tratada` (booleano), `em`. A tabela nasce no D1; **quem grava é o motor do Negociador (D2)**, que também publica `objecao.detectada` (O5).
 
 **`config_negociador`** (uma por conta): `ligado`, `conduz_padrao` (`ia`/`humano`; padrão `ia`, D-94), `negociador_padrao_id`, `gatilhos` (json), `estilo` (`cooperativo`/`firme`/`consultivo`), `instrucoes_corretor` (texto, até 4.000), `assinatura_humana` (texto que o cliente vê), `versao`.
 
-**`playbook_objecoes`**: `categoria`, `pergunta_exploracao`, `resposta_base`, `proximo_passo`, `origem` (`padrao`/`corretor`). Semeado com o Apêndice D em `aoIniciar` (idempotente); o corretor edita por categoria.
+**`playbook_objecoes`**: `categoria`, `fala_cliente` ("O que o cliente diz" do Apêndice D), `pergunta_exploracao`, `resposta_base`, `proximo_passo`, `origem` (`padrao`/`corretor`). Semeado com o Apêndice D em `aoIniciar` (idempotente, em toda conta ativa); o corretor edita por categoria: "minha resposta" é uma linha própria com `origem: corretor` (única por categoria), e "usar padrão" a remove; a linha `padrao` nunca é reescrita.
 
 **`negociador_execucoes`** (só inclusão): como `agente_execucoes` (6.6), com `validacoes` (json do resultado de 10.9.7), `bloqueado_por` (texto) e `aprovada_sem_edicao` (booleano).
 
@@ -1755,13 +1756,13 @@ Declarados em `manifesto.eventos` com `campos`, `conteudo`, `api` e `rota`, todo
 
 **Eventos das telas do Padrão B (1.2, completam o catálogo):** `mensagem.enviada`, `envio.criado`, `conversa.devolvida`, `acesso_cliente.convidado`, `atividade.criada`, `imovel.criado`, `imovel.visibilidade_mudou`, `pagina.publicada`, `contatos.importados`, `visita.pedida`; **auditáveis**: `canal.conectado`, `canal.desconectado`, `mensageiro.permissoes_alteradas`. Todos `segregado_por_conta: true`; os que já existem em 0.1.0 com outro nome (ex.: `lead_recebido`, `publicacao_programada`) ficam como estão, e o catálogo vigente é o do `manifesto.json`.
 
-**Eventos de negociação (1.2):** `negociacao.iniciada`, `proposta.recebida`, `contraproposta.sugerida`, `contraproposta.enviada`, `objecao.detectada`, `negociacao.limite_atingido`, `negociacao.acordo_proposto`, `proposta.decidida`, `proposta.aceite_cliente`, `negociacao.assumida`, `negociacao.encerrada`; **auditáveis**: `mandato.alterado`, `negociador.config_alterada`. Todos `segregado_por_conta: true`; os que envolvem mandato **nunca carregam valores sigilosos** no conteúdo do evento (só o id), porque os membros da conta leem os eventos dela. Telas abertas atualizam pelo stream SSE do barramento (`barramento.md`), com `destinatarios` quando couber.
+**Eventos de negociação (1.2):** `negociacao.iniciada`, `proposta.recebida`, `proposta.registrada` (nasceu no D1: proposta do vendedor ou do proprietário registrada pelo corretor), `contraproposta.sugerida`, `contraproposta.enviada`, `objecao.detectada`, `negociacao.limite_atingido`, `negociacao.acordo_proposto`, `proposta.decidida`, `proposta.aceite_cliente`, `negociacao.assumida`, `negociacao.encerrada`; **auditáveis**: `mandato.alterado`, `negociador.config_alterada`. No manifesto, os nomes usam sublinhado em vez de ponto (`negociacao_iniciada`); dos eventos listados aqui, só os que já estão no manifesto existem hoje, e os demais chegam com o motor do Negociador (D2) e o negociador humano (D7). Todos `segregado_por_conta: true`; os que envolvem mandato **nunca carregam valores sigilosos** no conteúdo do evento (só o id), porque os membros da conta leem os eventos dela. Telas abertas atualizam pelo stream SSE do barramento (`barramento.md`), com `destinatarios` quando couber.
 
 ### 13.2 Erros de negócio
 
 `AUTORIZACAO_AUSENTE`, `AUTORIZACAO_VENCIDA`, `FORA_DA_JANELA_WHATSAPP`, `MODELO_NAO_APROVADO`, `COTA_ATINGIDA`, `CONSENTIMENTO_REVOGADO`, `UNIDADE_INDISPONIVEL`, `RESERVA_JA_EXISTE`, `ACIMA_DA_ALCADA`, `TOKEN_EXPIRADO`, `DUPLICATA`, `CIENCIA_TITULAR_AUSENTE`, `CANAL_DESCONECTADO`. Cada um com frase para a tela no catálogo do manifesto. **Sai `CRECI_AUSENTE` (D-93):** a falta de CRECI nunca é erro, só aviso.
 
-**Erros da negociação (1.2):** `MANDATO_AUSENTE`, `MANDATO_VENCIDO`, `ABAIXO_DO_RECUO`, `PASSO_ACIMA_DO_LIMITE`, `RODADAS_ESGOTADAS`, `CONCESSAO_FORA_DO_MANDATO`, `SIGILO_VIOLADO`, `AUTORIZACAO_PROPRIETARIO_AUSENTE` (os bloqueios de 10.9.7), `RECUO_ACIMA_DO_ALVO` (validação do mandato) e `MULTI_USUARIO_DESLIGADO` (convite de negociador humano com a política desligada, D-108).
+**Erros da negociação (1.2):** `MANDATO_AUSENTE`, `MANDATO_VENCIDO`, `ABAIXO_DO_RECUO`, `PASSO_ACIMA_DO_LIMITE`, `RODADAS_ESGOTADAS`, `CONCESSAO_FORA_DO_MANDATO`, `SIGILO_VIOLADO`, `AUTORIZACAO_PROPRIETARIO_AUSENTE` (os bloqueios de 10.9.7), `RECUO_ACIMA_DO_ALVO` (validação do mandato), `MANDATO_INVALIDO` (422, com `motivo`: `alvo_acima_do_pedido` para alvo acima do preço pedido, O4, ou `campos_invalidos` com `detalhes`) e `MULTI_USUARIO_DESLIGADO` (convite de negociador humano com a política desligada, D-108).
 
 ### 13.3 Notificações
 
