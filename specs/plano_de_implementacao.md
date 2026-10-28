@@ -73,13 +73,13 @@ Plano aprovado pelo dono em 27/10. Fonte: spec 1.2 — 2.8, 5.1, 6.16, 7.1, 10.9
 | B9 | **Portal do Cliente e página pública** (M4, M5, M6) por token (D-104) | #98 | A1 (roteiro de #87: páginas públicas têm CSS próprio) | [x] PR aberto; aguarda revisão |
 | B10 | **Busca global e atalhos** (11.7) | #99 | B1 | [ ] |
 | D1 | **Dados da negociação** (6.16): tabelas, eventos, semente idempotente do Apêndice D | #100 | A1 | [x] PR aberto (0.1.13); aguarda revisão |
-| D2 | **Motor do Negociador** (10.9): slot `negociador`, validações de 10.9.7, sugestão, rotas de 7.1 | #101 | D1 | [x] PR aberto (0.1.16); aguarda revisão |
+| D2 | **Motor do Negociador** (10.9): slot `negociador`, validações de 10.9.7, sugestão, rotas de 7.1 | #101 | D1 | [x] implementado (0.1.16, PR #115) |
 | D3 | **Telas P15, P16 e M8** (faixa ZOPA como exceção nomeada) | #102 | D2, B3 | [ ] |
 | D4 | **Ajustes › Negociador** (P17) | #103 | D2, B8 | [ ] |
 | D5 | **Propostas no portal** (M5b) por `wh` com token | #104 | D2, B9 | [ ] |
 | D6 | **Relatório Negociação** (P10, KPIs de 11.2) | #105 | D3, B7 | [ ] |
 | D7 | **Negociador humano** (role `negociador`, 11.6; política multi-usuário, D-108; convite sem CRECI, D-94) | #106 | D3 | [ ] |
-| E1 | **Semente de demonstração** com negociações | #107 | D1 | [ ] |
+| E1 | **Semente de demonstração** com negociações | #107 | D1 | [x] PR aberto (0.1.17); aguarda revisão |
 | E2 | **Fechamento do arco:** critérios 8 e 9 de 15.1 (R.8), docs da app, versão | #108 | todos | [ ] |
 
 ```
@@ -130,6 +130,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
+| 28/10/2026 | Fase 1.6 · E1 | Semente de demonstração do Padrão B (0.1.17): `/demo/semear` troca o conjunto fixo pelo do guia (§5): Rafael Gualberto com CRECI fictício só se ainda não tem perfil; Ana, Juliana, Carlos, Fernanda, Roberto e Marcos, com temperaturas pela regra; 4 imóveis com a nota de qualidade real; a negociação do P15 (mandato, escada, teto, objeção). `perfil_conta.demo_conjunto` marcado no boot: a conta de teste de menor id é a principal; as outras recebem o conjunto menor do segundo corretor (isolamento). Testes: idempotência, KPIs à mão, sem CRECI, isolamento | PR de #107 | Revisão do PR; depois D3 (espera B4) |
 | 28/10/2026 | Fase 1.6 · D2 | Motor do Negociador IA (0.1.16): slot `negociador` (base `poder`); `comum/negociador.ts` puro (prompt em 2 partes do Apêndice C, contexto com sigilo marcado, `SCHEMA_RESPOSTA`, `validarMovimento` com as 7 garantias de 10.9.7, sigilo por valor ±1% em dígitos, mil, milhão e por extenso, `exigePassagem` de 10.9.5, ZOPA); rotas `/negociacoes/:id/sugestao`, `/decisao` (aprovar, editar com revalidação, descartar, aceitar acordo só do corretor), `/assumir`, `/devolver`, `/negociador/teste` e `/negociador/ia`; faz sozinho só no portal; objeções gravadas; 6 eventos novos; as 7 conversas-roteiro com IA simulada que tenta furar. Sem tela (D3/D4) | PR de #101 | Revisão do PR; depois D3 (espera B4) e E1 |
 | 28/10/2026 | Fase 1.6 · D1 | Dados da negociação (0.1.13): 8 tabelas de 6.16, rotas `/negociacoes` (lista, detalhe, PATCH/encerrar), `/negociacoes/:id/mandato` (versões; recuo ≤ alvo ≤ pedido; faz sozinho com autorização), `/negociacoes/:id/propostas` (só `canal: registro`; rodada calculada), `/negociador/config` e `/negociador/objecoes`; `semSigilo()` única; 6 eventos só com ids; semente do Apêndice D em `aoIniciar` em toda conta; adendo O4/O5/O6/O12 na spec; `docs/negociacao.md`. Sem tela (D3/D4) | PR de #100 | Revisão do PR; depois D2 e E1 |
 | 28/10/2026 | Fase 1.6 · B1 | Moldura do Padrão B (`frontend/moldura.ts`): `urbi-inbox` com o trilho (`urbi-trilho-atalhos`: os itens do menu, porque o externo não abre o menu da app, e o Assistente) e `urbi-3-colunas` (lista, foco, contexto) ou `urbi-2x1`; Números migrada como prova do encaixe; Criar (`urbi-dropdown`) no cabeçalho de toda tela do corretor; Assistente na coluna de contexto (D-109), `/assistente` abre Hoje com ele; `?item=`; os 7 estados de 11.0.4 (`frontend/estados.ts`) e `GET /assistente/ia`; menu com os nomes do Padrão B e apelidos em `frontend/enderecos.ts`; teste no Chromium da estrutura; versão 0.1.12 (a 0.1.11 foi do C1) | (este PR) | Revisão; depois B2 a B10 migram as demais telas |
