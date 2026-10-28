@@ -1,0 +1,462 @@
+import '@urbiverso/sdk/express';
+import { Router, type Request } from 'express';
+import type { HelperDados } from '@urbiverso/sdk';
+import {
+  CATEGORIAS_OBJECAO,
+  CONFIG_NEGOCIADOR_PADRAO,
+  DIRECOES,
+  ENCERRADOS,
+  ESTADOS_NEGOCIACAO,
+  ESTILOS,
+  GATILHOS,
+  LIMITE_INSTRUCOES,
+  MOTIVOS_PERDA,
+  PLAYBOOK_OBJECOES_PADRAO,
+  proximoCodigoNegociacao,
+  rodadaDaProposta,
+  semSigilo,
+  validarMandato,
+  type Direcao,
+} from '../comum/negociacao';
+import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './acesso';
+
+// Negociação (bloco D1 da fase 1.6; spec 6.16, 7.1, 10.9.2, 10.9.3, 13 e Apêndice D). Só os dados e
+// as rotas do corretor: o motor do Negociador (sugestão, validações de 10.9.7, envio pelo portal ou
+// pelo Fazer agora) é o D2; o negociador humano, o D7. Sigilo (regra do dono): recuo, alvo e BATNA
+// do vendedor só saem em GET /negociacoes/:id/mandato. Toda outra resposta e todo evento passam por
+// `semSigilo()`.
+export const negociacaoRotas = Router();
+guardarCorretor(negociacaoRotas, ['/negociacoes', '/negociador']);
+
+type Linha = Record<string, any>;
+
+const id = (v: unknown) => {
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
+const encerrada = (n: Linha) => (ENCERRADOS as readonly string[]).includes(n.estado);
+const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
+
+const NAO_ENCONTRADA = 'Negociação não encontrada.';
+const MENSAGEM_ENCERRADA = 'Esta negociação já foi encerrada.';
+
+/**
+ * Publica um evento da negociação (segregado, payload só com ids). O `semSigilo` é a segunda trava:
+ * o payload já nasce só com ids, mas um campo sigiloso nunca chega ao barramento, que os membros da
+ * conta leem. A escrita já aconteceu: falha do barramento não desfaz nem derruba a resposta.
+ */
+async function publicar(req: Request, tipo: string, payload: Record<string, number | null>) {
+  try {
+    await req.eventos?.publicar(tipo, semSigilo(payload));
+  } catch (e) {
+    console.warn(`[portal_corretor] evento ${tipo} não publicado: ${(e as Error).message}`);
+  }
+}
+
+/** Configuração do Negociador da conta, sem gravar (a linha nasce no primeiro PUT). */
+async function configDaConta(dados: HelperDados) {
+  const linha = await primeiro(dados, 'config_negociador', { chave: 'conta' });
+  if (!linha) return { ...CONFIG_NEGOCIADOR_PADRAO, gatilhos: { ...CONFIG_NEGOCIADOR_PADRAO.gatilhos }, padrao: true };
+  return {
+    ligado: !!linha.ligado,
+    conduz_padrao: linha.conduz_padrao,
+    negociador_padrao_id: linha.negociador_padrao_id ?? null,
+    gatilhos: { ...CONFIG_NEGOCIADOR_PADRAO.gatilhos, ...(linha.gatilhos ?? {}) },
+    estilo: linha.estilo,
+    instrucoes_corretor: linha.instrucoes_corretor ?? null,
+    assinatura_humana: linha.assinatura_humana ?? null,
+    versao: Number(linha.versao),
+    padrao: false,
+  };
+}
+
+/** Mandato vigente (o da `negociacoes.mandato_id`), com os campos sigilosos. Uso interno. */
+async function mandatoVigente(dados: HelperDados, negociacao: Linha): Promise<Linha | null> {
+  if (!negociacao.mandato_id) return null;
+  const m = await dados.buscar('mandatos_negociacao', Number(negociacao.mandato_id));
+  return m && Number(m.negociacao_id) === Number(negociacao.id) ? normalizarMandato(m) : null;
+}
+
+/** `decimal` chega como texto do banco: a fração volta como número. */
+function normalizarMandato(m: Linha): Linha {
+  return { ...m, passo_max_pct: Number(m.passo_max_pct) };
+}
+
+negociacaoRotas.get(
+  '/negociacoes',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const filtros: Record<string, unknown> = {};
+    const estados = typeof req.query.estado === 'string' ? req.query.estado.split(',').filter((e) => (ESTADOS_NEGOCIACAO as readonly string[]).includes(e)) : [];
+    if (estados.length) filtros.estado = estados.join(',');
+    for (const chave of ['contato_id', 'negocio_id', 'imovel_id']) {
+      const v = id(req.query[chave]);
+      if (v) filtros[chave] = v;
+    }
+    const por_pagina = Math.min(100, id(req.query.por_pagina) ?? 50);
+    const pagina = id(req.query.pagina) ?? 1;
+    const r = await dados.listar('negociacoes', { filtros, ordenar: 'atualizado_em', ordem: 'desc', pagina, por_pagina });
+    const ids = r.dados.map((n) => n.id);
+    const mandatos = r.dados.map((n) => n.mandato_id).filter(Boolean);
+    const [ofertas, vigentes] = await Promise.all([
+      ids.length
+        ? dados.varrerTudo('propostas', { filtros: { negociacao_id: ids.join(','), direcao: 'comprador' }, ordenar: 'id', ordem: 'desc', maximo: 5000 })
+        : [],
+      mandatos.length ? dados.varrerTudo('mandatos_negociacao', { filtros: { id: mandatos.join(',') }, maximo: 100 }) : [],
+    ]);
+    const ultima = new Map<number, Linha>();
+    for (const p of ofertas) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
+    // Da lista só sai o preço pedido do mandato (não é sigiloso): a tela mostra "última oferta × pedido".
+    const pedido = new Map(vigentes.map((m) => [Number(m.id), Number(m.preco_pedido_c)]));
+    const linhas = r.dados.map((n) => ({
+      ...n,
+      ultima_oferta_c: ultima.get(Number(n.id))?.valor_c ?? null,
+      ultima_oferta_em: ultima.get(Number(n.id))?.criado_em ?? null,
+      preco_pedido_c: n.mandato_id ? (pedido.get(Number(n.mandato_id)) ?? null) : null,
+    }));
+    res.json(semSigilo({ ...r, dados: linhas }));
+  }),
+);
+
+negociacaoRotas.post(
+  '/negociacoes',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const negocioId = id(req.body?.negocio_id);
+    const imovelId = id(req.body?.imovel_id);
+    if (!negocioId || !imovelId) return erro(res, 422, 'DADOS_INVALIDOS', 'Informe o negócio e o imóvel da negociação.');
+    // `buscar` só enxerga a conta ativa: negócio ou imóvel de outra conta é "não encontrado".
+    const [negocio, imovel] = await Promise.all([dados.buscar('negocios', negocioId), dados.buscar('imoveis', imovelId)]);
+    if (!negocio) return erro(res, 404, 'NAO_ENCONTRADO', 'Negócio não encontrado.');
+    if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
+    // Uma negociação em andamento por negócio (6.16): a encerrada não impede uma nova.
+    const abertas = await dados.listar('negociacoes', { filtros: { negocio_id: negocioId }, por_pagina: 100 });
+    const aberta = abertas.dados.find((n) => !encerrada(n));
+    if (aberta) return erro(res, 409, 'NEGOCIACAO_EXISTENTE', `Este negócio já está em negociação (${aberta.codigo}).`);
+    // Quem conduz: o pedido, ou o Negociador IA (D-94) — o corretor, se o Negociador estiver desligado.
+    // `humano` chega com o negociador humano (D7, política multi-usuário).
+    const config = await configDaConta(dados);
+    const pedida = req.body?.conduzida_por;
+    if (pedida !== undefined && pedida !== 'ia' && pedida !== 'corretor') {
+      return erro(res, 422, 'DADOS_INVALIDOS', 'Quem conduz: use ia ou corretor.');
+    }
+    const conduzida_por = pedida ?? (config.ligado ? 'ia' : 'corretor');
+    for (let tentativa = 0; tentativa < 5; tentativa++) {
+      const codigos = (await dados.listar('negociacoes', { filtros: { 'codigo[busca]': 'NG-' }, ordenar: 'id', ordem: 'desc', por_pagina: 200 })).dados.map((n) => n.codigo);
+      try {
+        const negociacao = await dados.criar('negociacoes', {
+          codigo: proximoCodigoNegociacao(codigos),
+          negocio_id: negocioId,
+          imovel_id: imovelId,
+          contato_id: negocio.contato_id,
+          estado: 'ativa',
+          conduzida_por,
+          rodadas: 0,
+        });
+        await publicar(req, 'negociacao_iniciada', { negociacao_id: negociacao.id, negocio_id: negocioId });
+        return res.status(201).json(semSigilo(negociacao));
+      } catch (e) {
+        if (!violouUnico(e)) throw e;
+      }
+    }
+    return erro(res, 409, 'CODIGO_REPETIDO', 'Não foi possível gerar o código agora. Tente de novo.');
+  }),
+);
+
+negociacaoRotas.get(
+  '/negociacoes/:id',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const nid = id(req.params.id);
+    const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
+    if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+    const [mandato, propostas, objecoes] = await Promise.all([
+      mandatoVigente(dados, negociacao),
+      dados.varrerTudo('propostas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
+      dados.varrerTudo('objecoes_detectadas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
+    ]);
+    // O mandato aparece aqui só no resumo, sem recuo, alvo nem BATNA (o completo é a rota /mandato).
+    res.json(semSigilo({ ...negociacao, mandato, propostas, objecoes }));
+  }),
+);
+
+negociacaoRotas.patch(
+  '/negociacoes/:id',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const nid = id(req.params.id);
+    const atual = nid ? await dados.buscar('negociacoes', nid) : null;
+    if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+    if (encerrada(atual)) return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const mudancas: Record<string, unknown> = {};
+    const erros: string[] = [];
+    if (b.estado !== undefined) {
+      if (!(ESTADOS_NEGOCIACAO as readonly unknown[]).includes(b.estado)) erros.push('estado: valor desconhecido.');
+      else mudancas.estado = b.estado;
+    }
+    if (b.conduzida_por !== undefined) {
+      if (b.conduzida_por !== 'ia' && b.conduzida_por !== 'corretor') erros.push('conduzida_por: use ia ou corretor.');
+      else mudancas.conduzida_por = b.conduzida_por;
+    }
+    for (const campo of ['teto_estimado_comprador_c', 'valor_final_c']) {
+      if (b[campo] === undefined) continue;
+      if (b[campo] !== null && !(Number.isInteger(b[campo]) && (b[campo] as number) >= 0)) erros.push(`${campo}: use centavos (inteiro).`);
+      else mudancas[campo] = b[campo];
+    }
+    if (b.fonte_estimativa !== undefined) mudancas.fonte_estimativa = texto(b.fonte_estimativa, 300);
+    if (b.batna_estimada_comprador !== undefined) mudancas.batna_estimada_comprador = texto(b.batna_estimada_comprador, 500);
+    if (b.motivo_perda !== undefined) {
+      if (b.motivo_perda !== null && !(MOTIVOS_PERDA as readonly unknown[]).includes(b.motivo_perda)) erros.push('motivo_perda: valor desconhecido.');
+      else mudancas.motivo_perda = b.motivo_perda;
+    }
+    if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a negociação.', erros);
+    if (!Object.keys(mudancas).length) return erro(res, 422, 'DADOS_INVALIDOS', 'Nada para alterar.');
+    const fim = mudancas.estado === 'ganha' || mudancas.estado === 'perdida';
+    if (mudancas.estado === 'ganha' && !((mudancas.valor_final_c ?? atual.valor_final_c) > 0)) {
+      return erro(res, 422, 'DADOS_INVALIDOS', 'Para encerrar como ganha, informe o valor final.');
+    }
+    if (mudancas.estado === 'perdida' && !(mudancas.motivo_perda ?? atual.motivo_perda)) {
+      return erro(res, 422, 'DADOS_INVALIDOS', 'Para encerrar como perdida, informe o motivo.');
+    }
+    if (fim) mudancas.encerrada_em = new Date();
+    // Condicionada ao estado lido: dois encerramentos simultâneos não publicam duas vezes.
+    const salva = await dados.atualizarSe('negociacoes', nid!, mudancas, { estado: atual.estado });
+    if (!salva) return erro(res, 409, 'NEGOCIACAO_ALTERADA', 'A negociação mudou enquanto você editava. Abra de novo.');
+    if (fim) await publicar(req, 'negociacao_encerrada', { negociacao_id: nid! });
+    res.json(semSigilo(salva));
+  }),
+);
+
+// Única rota que devolve recuo, alvo e BATNA do vendedor: o corretor da conta (guardarCorretor).
+negociacaoRotas.get(
+  '/negociacoes/:id/mandato',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const nid = id(req.params.id);
+    const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
+    if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+    const versoes = await dados.varrerTudo('mandatos_negociacao', { filtros: { negociacao_id: nid }, ordenar: 'versao', ordem: 'desc', maximo: 200 });
+    res.json({ vigente: await mandatoVigente(dados, negociacao), versoes: versoes.map(normalizarMandato) });
+  }),
+);
+
+negociacaoRotas.put(
+  '/negociacoes/:id/mandato',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const nid = id(req.params.id);
+    const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
+    if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+    if (encerrada(negociacao)) return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+    const v = validarMandato((req.body ?? {}) as Record<string, unknown>);
+    if (!v.ok) return res.status(v.status).json({ erro: true, codigo: v.codigo, motivo: v.motivo, mensagem: v.mensagem, ...(v.detalhes ? { detalhes: v.detalhes } : {}) });
+    // Cada alteração é uma versão nova; as anteriores ficam (histórico). A vigente é a da negociação.
+    let mandato: Linha;
+    try {
+      mandato = await dados.transaction(async (trx) => {
+        const ultima = (await trx.listar('mandatos_negociacao', { filtros: { negociacao_id: nid }, ordenar: 'versao', ordem: 'desc', por_pagina: 1 })).dados[0];
+        const criado = await trx.criar('mandatos_negociacao', {
+          ...v.dados,
+          negociacao_id: nid,
+          versao: (ultima ? Number(ultima.versao) : 0) + 1,
+          alterado_por_id: req.contexto?.usuario.id ?? null,
+        });
+        await trx.atualizar('negociacoes', nid!, { mandato_id: criado.id });
+        return criado;
+      });
+    } catch (e) {
+      if (!violouUnico(e)) throw e;
+      return erro(res, 409, 'MANDATO_ALTERADO', 'O mandato foi alterado agora por outra tela. Abra de novo.');
+    }
+    // Sem valores: só os ids (13.1).
+    await publicar(req, 'mandato_alterado', { negociacao_id: nid!, mandato_id: mandato.id });
+    res.json(normalizarMandato(mandato));
+  }),
+);
+
+negociacaoRotas.get(
+  '/negociacoes/:id/propostas',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const nid = id(req.params.id);
+    const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
+    if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+    const propostas = await dados.varrerTudo('propostas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 });
+    res.json(semSigilo({ dados: propostas }));
+  }),
+);
+
+// Quem é o autor de cada direção no registro feito pelo corretor (o Negociador grava as suas no D2).
+const AUTOR_DO_REGISTRO: Record<Direcao, string> = { comprador: 'cliente', vendedor: 'corretor', proprietario: 'proprietario' };
+
+negociacaoRotas.post(
+  '/negociacoes/:id/propostas',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const nid = id(req.params.id);
+    const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
+    if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+    if (encerrada(negociacao)) return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const erros: string[] = [];
+    if (!(DIRECOES as readonly unknown[]).includes(b.direcao)) erros.push('direcao: use comprador, vendedor ou proprietario.');
+    if (!(Number.isInteger(b.valor_c) && (b.valor_c as number) > 0)) erros.push('valor_c: informe o valor em centavos.');
+    let validade_ate: Date | null = null;
+    if (b.validade_ate !== undefined && b.validade_ate !== null) {
+      const d = typeof b.validade_ate === 'string' ? new Date(b.validade_ate) : null;
+      if (!d || Number.isNaN(d.getTime())) erros.push('validade_ate: use data e hora (ISO).');
+      else validade_ate = d;
+    }
+    for (const campo of ['concessao', 'contrapartida']) {
+      if (b[campo] !== undefined && b[campo] !== null && typeof b[campo] !== 'string') erros.push(`${campo}: use texto.`);
+    }
+    if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a proposta.', erros);
+    // No D1 só existe o registro feito pelo corretor. Enviar pelo portal ou pelo Fazer agora passa
+    // pelas validações do mandato no código (10.9.7), que chegam com o motor do Negociador (D2).
+    const canal = b.canal ?? 'registro';
+    if (canal !== 'registro') {
+      return erro(res, 422, 'CANAL_INDISPONIVEL', 'Por enquanto, só o registro de proposta está disponível; o envio pelo portal e pelo Fazer agora chega em seguida.');
+    }
+    const direcao = b.direcao as Direcao;
+    const proposta = await dados.transaction(async (trx) => {
+      const anteriores = await trx.varrerTudo('propostas', { filtros: { negociacao_id: nid }, maximo: 500 });
+      const rodada = rodadaDaProposta(anteriores.map((p) => p.direcao as Direcao), direcao);
+      const criada = await trx.criar('propostas', {
+        negociacao_id: nid,
+        rodada,
+        direcao,
+        autor_tipo: AUTOR_DO_REGISTRO[direcao],
+        autor_usuario_id: req.contexto?.usuario.id ?? null,
+        valor_c: b.valor_c,
+        condicoes: texto(b.condicoes, 500),
+        concessao: texto(b.concessao, 200),
+        contrapartida: texto(b.contrapartida, 200),
+        validade_ate,
+        canal,
+        estado: 'registrada',
+      });
+      // `rodadas` é materializado a cada proposta (6.16).
+      if (rodada > Number(negociacao.rodadas ?? 0)) await trx.atualizar('negociacoes', nid!, { rodadas: rodada });
+      return criada;
+    });
+    await publicar(req, direcao === 'comprador' ? 'proposta_recebida' : 'proposta_registrada', { negociacao_id: nid!, proposta_id: proposta.id });
+    res.status(201).json(semSigilo(proposta));
+  }),
+);
+
+negociacaoRotas.get(
+  '/negociador/config',
+  assincrono(async (req, res) => {
+    res.json(await configDaConta(req.dados!));
+  }),
+);
+
+negociacaoRotas.put(
+  '/negociador/config',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    const atual = await configDaConta(dados);
+    const erros: string[] = [];
+    const valores: Record<string, unknown> = {};
+    if (b.ligado !== undefined) {
+      if (typeof b.ligado !== 'boolean') erros.push('ligado: use verdadeiro ou falso.');
+      else valores.ligado = b.ligado;
+    }
+    if (b.conduz_padrao !== undefined) {
+      if (b.conduz_padrao !== 'ia' && b.conduz_padrao !== 'humano') erros.push('conduz_padrao: use ia ou humano.');
+      // A pessoa que negocia é escolhida no convite do negociador humano (D7), que ainda não existe.
+      else if (b.conduz_padrao === 'humano' && !atual.negociador_padrao_id) erros.push('conduz_padrao: convide e escolha um negociador humano antes.');
+      else valores.conduz_padrao = b.conduz_padrao;
+    }
+    if (b.estilo !== undefined) {
+      if (!(ESTILOS as readonly unknown[]).includes(b.estilo)) erros.push('estilo: use cooperativo, firme ou consultivo.');
+      else valores.estilo = b.estilo;
+    }
+    if (b.gatilhos !== undefined) {
+      const g = b.gatilhos as Record<string, unknown>;
+      if (!g || typeof g !== 'object' || Array.isArray(g) || Object.entries(g).some(([k, v]) => !(GATILHOS as readonly string[]).includes(k) || typeof v !== 'boolean')) {
+        erros.push(`gatilhos: marque verdadeiro ou falso em ${GATILHOS.join(', ')}.`);
+      } else valores.gatilhos = { ...atual.gatilhos, ...g };
+    }
+    if (b.instrucoes_corretor !== undefined) {
+      if (b.instrucoes_corretor !== null && typeof b.instrucoes_corretor !== 'string') erros.push('instrucoes_corretor: use texto.');
+      else if (typeof b.instrucoes_corretor === 'string' && b.instrucoes_corretor.trim().length > LIMITE_INSTRUCOES) {
+        erros.push(`instrucoes_corretor: até ${LIMITE_INSTRUCOES.toLocaleString('pt-BR')} caracteres.`);
+      } else valores.instrucoes_corretor = texto(b.instrucoes_corretor, LIMITE_INSTRUCOES);
+    }
+    if (b.assinatura_humana !== undefined) {
+      if (b.assinatura_humana !== null && typeof b.assinatura_humana !== 'string') erros.push('assinatura_humana: use texto.');
+      else if (typeof b.assinatura_humana === 'string' && b.assinatura_humana.trim().length > 120) erros.push('assinatura_humana: até 120 caracteres.');
+      else valores.assinatura_humana = texto(b.assinatura_humana, 120);
+    }
+    if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira os ajustes do Negociador.', erros);
+    // A primeira gravação leva os padrões junto (a linha nasce aqui, nunca dentro de um GET).
+    const base = atual.padrao
+      ? { ligado: atual.ligado, conduz_padrao: atual.conduz_padrao, gatilhos: atual.gatilhos, estilo: atual.estilo }
+      : {};
+    await salvarUnico(dados, 'config_negociador', { chave: 'conta' }, { ...base, ...valores, versao: atual.versao + 1 });
+    res.json(await configDaConta(dados));
+  }),
+);
+
+/** O playbook da conta por categoria: o padrão (Apêndice D) e a resposta do corretor, quando houver. */
+async function objecoesDaConta(dados: HelperDados) {
+  const linhas = await dados.varrerTudo('playbook_objecoes', { maximo: 100 });
+  return PLAYBOOK_OBJECOES_PADRAO.map((p) => {
+    // Conta criada depois do último boot ainda não tem a semente: o padrão vem da constante.
+    const padrao = linhas.find((l) => l.categoria === p.categoria && l.origem === 'padrao') ?? p;
+    const minha = linhas.find((l) => l.categoria === p.categoria && l.origem === 'corretor') ?? null;
+    const resposta = (l: Linha) => ({ pergunta_exploracao: l.pergunta_exploracao, resposta_base: l.resposta_base, proximo_passo: l.proximo_passo });
+    return {
+      categoria: p.categoria,
+      titulo: p.titulo,
+      fala_cliente: padrao.fala_cliente ?? p.fala_cliente,
+      padrao: resposta(padrao),
+      minha: minha ? { id: minha.id, ...resposta(minha) } : null,
+      usando: minha ? 'corretor' : 'padrao',
+    };
+  });
+}
+
+negociacaoRotas.get(
+  '/negociador/objecoes',
+  assincrono(async (req, res) => {
+    res.json({ dados: await objecoesDaConta(req.dados!) });
+  }),
+);
+
+// Uma categoria por vez: "editar a minha resposta" grava a do corretor; "usar padrão" a remove.
+negociacaoRotas.put(
+  '/negociador/objecoes',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    if (!(CATEGORIAS_OBJECAO as readonly unknown[]).includes(b.categoria)) return erro(res, 422, 'DADOS_INVALIDOS', 'Categoria de objeção desconhecida.');
+    const minha = await primeiro(dados, 'playbook_objecoes', { categoria: b.categoria, origem: 'corretor' });
+    if (b.usar_padrao === true) {
+      if (minha) await dados.remover('playbook_objecoes', minha.id, req.contexto?.usuario.id);
+    } else {
+      const limites: Record<string, number> = { pergunta_exploracao: 300, resposta_base: 1000, proximo_passo: 500 };
+      const erros = Object.entries(limites)
+        .filter(([campo, limite]) => typeof b[campo] !== 'string' || !(b[campo] as string).trim() || (b[campo] as string).trim().length > limite)
+        .map(([campo, limite]) => `${campo}: obrigatório, até ${limite} caracteres.`);
+      if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a resposta.', erros);
+      const valores = Object.fromEntries(Object.keys(limites).map((c) => [c, (b[c] as string).trim()]));
+      const padrao = PLAYBOOK_OBJECOES_PADRAO.find((p) => p.categoria === b.categoria)!;
+      if (minha) await dados.atualizar('playbook_objecoes', minha.id, valores);
+      else {
+        try {
+          await dados.criar('playbook_objecoes', { categoria: b.categoria, origem: 'corretor', fala_cliente: padrao.fala_cliente, ...valores });
+        } catch (e) {
+          if (!violouUnico(e)) throw e;
+          return erro(res, 409, 'OBJECAO_ALTERADA', 'Esta resposta foi salva agora por outra tela. Abra de novo.');
+        }
+      }
+    }
+    const item = (await objecoesDaConta(dados)).find((o) => o.categoria === b.categoria);
+    res.json(item);
+  }),
+);

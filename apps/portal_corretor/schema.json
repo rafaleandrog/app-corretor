@@ -2163,6 +2163,629 @@
           ]
         }
       ]
+    },
+    "negociacoes": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "id_legivel": "{codigo}",
+      "colunas": {
+        "codigo": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true
+        },
+        "negocio_id": {
+          "tipo": "referencia",
+          "tabela_ref": "negocios",
+          "ao_deletar": "restringir",
+          "obrigatorio": true,
+          "campos_incluir": [
+            "titulo as negocio_titulo"
+          ]
+        },
+        "imovel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "imoveis",
+          "ao_deletar": "restringir",
+          "obrigatorio": true,
+          "campos_incluir": [
+            "codigo as imovel_codigo",
+            "titulo as imovel_titulo"
+          ]
+        },
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "ao_deletar": "restringir",
+          "obrigatorio": true,
+          "campos_incluir": [
+            "nome as contato_nome"
+          ]
+        },
+        "negociador_usuario_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular",
+          "campos_incluir": [
+            "nome as negociador_nome"
+          ]
+        },
+        "mandato_id": {
+          "tipo": "inteiro"
+        },
+        "estado": {
+          "tipo": "texto",
+          "limite": 30,
+          "obrigatorio": true,
+          "padrao": "ativa",
+          "opcoes": [
+            "ativa",
+            "aguardando_cliente",
+            "aguardando_corretor",
+            "aguardando_proprietario",
+            "ganha",
+            "perdida",
+            "pausada"
+          ]
+        },
+        "conduzida_por": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "ia",
+          "opcoes": [
+            "ia",
+            "humano",
+            "corretor"
+          ]
+        },
+        "teto_estimado_comprador_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "fonte_estimativa": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "batna_estimada_comprador": {
+          "tipo": "texto",
+          "limite": 500
+        },
+        "valor_final_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "motivo_perda": {
+          "tipo": "texto",
+          "limite": 30,
+          "opcoes": [
+            "preco",
+            "localizacao",
+            "financiamento",
+            "desistiu",
+            "comprou_com_outro",
+            "sem_resposta",
+            "outro"
+          ]
+        },
+        "rodadas": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 0,
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "encerrada_em": {
+          "tipo": "datahora"
+        }
+      },
+      "unicos": [
+        [
+          "codigo"
+        ]
+      ],
+      "indices": [
+        [
+          "negocio_id"
+        ],
+        [
+          "contato_id"
+        ],
+        [
+          "estado"
+        ]
+      ]
+    },
+    "mandatos_negociacao": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "negociacao_id": {
+          "tipo": "referencia",
+          "tabela_ref": "negociacoes",
+          "ao_deletar": "restringir",
+          "obrigatorio": true
+        },
+        "preco_pedido_c": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 1
+          }
+        },
+        "alvo_c": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 1
+          }
+        },
+        "recuo_c": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 1
+          }
+        },
+        "batna_vendedor": {
+          "tipo": "texto",
+          "limite": 1000
+        },
+        "concessoes": {
+          "tipo": "json",
+          "obrigatorio": true
+        },
+        "passo_max_pct": {
+          "tipo": "decimal",
+          "precisao": 4,
+          "escala": 3,
+          "obrigatorio": true,
+          "padrao": 0.4,
+          "intervalo": {
+            "min": 0,
+            "min_exclusivo": true,
+            "max": 1
+          }
+        },
+        "rodadas_max": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 4,
+          "intervalo": {
+            "min": 1,
+            "max": 50
+          }
+        },
+        "validade": {
+          "tipo": "data",
+          "obrigatorio": true
+        },
+        "autonomia": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "pergunta_antes",
+          "opcoes": [
+            "sugere",
+            "pergunta_antes",
+            "faz_sozinho"
+          ]
+        },
+        "autorizacao_proprietario": {
+          "tipo": "json"
+        },
+        "versao": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 1
+          }
+        },
+        "alterado_por_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular"
+        }
+      },
+      "unicos": [
+        [
+          "negociacao_id",
+          "versao"
+        ]
+      ]
+    },
+    "propostas": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "negociacao_id": {
+          "tipo": "referencia",
+          "tabela_ref": "negociacoes",
+          "ao_deletar": "restringir",
+          "obrigatorio": true
+        },
+        "rodada": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 1
+          }
+        },
+        "direcao": {
+          "tipo": "texto",
+          "limite": 15,
+          "obrigatorio": true,
+          "opcoes": [
+            "comprador",
+            "vendedor",
+            "proprietario"
+          ]
+        },
+        "autor_tipo": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "opcoes": [
+            "cliente",
+            "corretor",
+            "negociador_ia",
+            "negociador_humano",
+            "proprietario"
+          ]
+        },
+        "autor_usuario_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular",
+          "campos_incluir": [
+            "nome as autor_nome"
+          ]
+        },
+        "valor_c": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "intervalo": {
+            "min": 1
+          }
+        },
+        "condicoes": {
+          "tipo": "texto",
+          "limite": 500
+        },
+        "concessao": {
+          "tipo": "json"
+        },
+        "contrapartida": {
+          "tipo": "json"
+        },
+        "validade_ate": {
+          "tipo": "datahora"
+        },
+        "canal": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "registro",
+          "opcoes": [
+            "registro",
+            "portal",
+            "wa_me",
+            "whatsapp"
+          ]
+        },
+        "estado": {
+          "tipo": "texto",
+          "limite": 15,
+          "obrigatorio": true,
+          "padrao": "registrada",
+          "opcoes": [
+            "registrada",
+            "enviada",
+            "aceita",
+            "recusada",
+            "substituida",
+            "expirada"
+          ]
+        }
+      },
+      "indices": [
+        [
+          "negociacao_id"
+        ]
+      ]
+    },
+    "atribuicoes_negociacao": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "negociacao_id": {
+          "tipo": "referencia",
+          "tabela_ref": "negociacoes",
+          "ao_deletar": "restringir",
+          "obrigatorio": true
+        },
+        "usuario_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as usuario_nome"
+          ]
+        },
+        "atribuida_por": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular"
+        },
+        "ativa": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": true
+        }
+      },
+      "indices": [
+        [
+          "negociacao_id"
+        ],
+        [
+          "usuario_id"
+        ]
+      ]
+    },
+    "objecoes_detectadas": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "negociacao_id": {
+          "tipo": "referencia",
+          "tabela_ref": "negociacoes",
+          "ao_deletar": "restringir",
+          "obrigatorio": true
+        },
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "ao_deletar": "restringir",
+          "obrigatorio": true
+        },
+        "categoria": {
+          "tipo": "texto",
+          "limite": 30,
+          "obrigatorio": true,
+          "opcoes": [
+            "preco",
+            "pensar",
+            "mais_barato",
+            "localizacao",
+            "estado_imovel",
+            "financiamento",
+            "decisao_compartilhada",
+            "prazo",
+            "custos_fixos",
+            "documentacao",
+            "outra"
+          ]
+        },
+        "trecho": {
+          "tipo": "texto",
+          "limite": 500
+        },
+        "detectada_por": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "ia",
+            "humano"
+          ]
+        },
+        "tratada": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        }
+      },
+      "indices": [
+        [
+          "negociacao_id"
+        ]
+      ]
+    },
+    "config_negociador": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "chave": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "conta",
+          "opcoes": [
+            "conta"
+          ],
+          "unico": true
+        },
+        "ligado": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": true
+        },
+        "conduz_padrao": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "ia",
+          "opcoes": [
+            "ia",
+            "humano"
+          ]
+        },
+        "negociador_padrao_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular",
+          "campos_incluir": [
+            "nome as negociador_padrao_nome"
+          ]
+        },
+        "gatilhos": {
+          "tipo": "json",
+          "obrigatorio": true
+        },
+        "estilo": {
+          "tipo": "texto",
+          "limite": 15,
+          "obrigatorio": true,
+          "padrao": "cooperativo",
+          "opcoes": [
+            "cooperativo",
+            "firme",
+            "consultivo"
+          ]
+        },
+        "instrucoes_corretor": {
+          "tipo": "texto_longo"
+        },
+        "assinatura_humana": {
+          "tipo": "texto",
+          "limite": 120
+        },
+        "versao": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 1,
+          "intervalo": {
+            "min": 1
+          }
+        }
+      }
+    },
+    "playbook_objecoes": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "soft_delete": true,
+      "colunas": {
+        "categoria": {
+          "tipo": "texto",
+          "limite": 30,
+          "obrigatorio": true,
+          "opcoes": [
+            "preco",
+            "pensar",
+            "mais_barato",
+            "localizacao",
+            "estado_imovel",
+            "financiamento",
+            "decisao_compartilhada",
+            "prazo",
+            "custos_fixos",
+            "documentacao"
+          ]
+        },
+        "fala_cliente": {
+          "tipo": "texto",
+          "limite": 200
+        },
+        "pergunta_exploracao": {
+          "tipo": "texto",
+          "limite": 300,
+          "obrigatorio": true
+        },
+        "resposta_base": {
+          "tipo": "texto",
+          "limite": 1000,
+          "obrigatorio": true
+        },
+        "proximo_passo": {
+          "tipo": "texto",
+          "limite": 500,
+          "obrigatorio": true
+        },
+        "origem": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "padrao",
+            "corretor"
+          ]
+        }
+      },
+      "unicos": [
+        {
+          "colunas": [
+            "categoria",
+            "origem"
+          ],
+          "onde": [
+            {
+              "coluna": "removido_em",
+              "operador": "nulo"
+            }
+          ]
+        }
+      ]
+    },
+    "negociador_execucoes": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "negociacao_id": {
+          "tipo": "referencia",
+          "tabela_ref": "negociacoes",
+          "ao_deletar": "restringir",
+          "obrigatorio": true
+        },
+        "entrada": {
+          "tipo": "json"
+        },
+        "saida": {
+          "tipo": "json"
+        },
+        "validacoes": {
+          "tipo": "json"
+        },
+        "bloqueado_por": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "aprovada_sem_edicao": {
+          "tipo": "booleano"
+        },
+        "tokens_entrada": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "tokens_saida": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "duracao_ms": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        }
+      },
+      "indices": [
+        [
+          "negociacao_id"
+        ]
+      ]
     }
   }
 }

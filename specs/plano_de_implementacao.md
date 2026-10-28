@@ -72,7 +72,7 @@ Plano aprovado pelo dono em 27/10. Fonte: spec 1.2 — 2.8, 5.1, 6.16, 7.1, 10.9
 | B8 | **Ajustes** (P12, P13 e menu de Ajustes) | #97 | B1, C1 | [ ] |
 | B9 | **Portal do Cliente e página pública** (M4, M5, M6) por token (D-104) | #98 | B1, C1 (grafo de #87) | [ ] |
 | B10 | **Busca global e atalhos** (11.7) | #99 | B1 | [ ] |
-| D1 | **Dados da negociação** (6.16): tabelas, eventos, semente idempotente do Apêndice D | #100 | A1 | [ ] |
+| D1 | **Dados da negociação** (6.16): tabelas, eventos, semente idempotente do Apêndice D | #100 | A1 | [x] PR aberto (0.1.11); aguarda revisão |
 | D2 | **Motor do Negociador** (10.9): slot `negociador`, validações de 10.9.7, sugestão, rotas de 7.1 | #101 | D1 | [ ] |
 | D3 | **Telas P15, P16 e M8** (faixa ZOPA como exceção nomeada) | #102 | D2, B3 | [ ] |
 | D4 | **Ajustes › Negociador** (P17) | #103 | D2, B8 | [ ] |
@@ -130,6 +130,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
+| 28/10/2026 | Fase 1.6 · D1 | Dados da negociação (0.1.11): 8 tabelas de 6.16, rotas `/negociacoes` (lista, detalhe, PATCH/encerrar), `/negociacoes/:id/mandato` (versões; recuo ≤ alvo ≤ pedido; faz sozinho com autorização), `/negociacoes/:id/propostas` (só `canal: registro`; rodada calculada), `/negociador/config` e `/negociador/objecoes`; `semSigilo()` única; 6 eventos só com ids; semente do Apêndice D em `aoIniciar` em toda conta; adendo O4/O5/O6/O12 na spec; `docs/negociacao.md`. Sem tela (D3/D4) | PR de #100 | Revisão do PR; depois D2 e E1 |
 | 27/10/2026 | Fase 1.6 · A1 | Spec 1.2: insumo de 27/10 (Padrão B, Negociador) fundido na `main` com D-01 a D-92 mantidas; decisões do insumo renumeradas para D-95 a D-102, D-93 (CRECI opcional), D-94 (Negociador sem CRECI) e D-103 a D-109 (coordenação); P-40 encerrada, P-41 e P-42 novas, P-37 do insumo fechada por SSE; 6.16, 10.9, 11 (Padrão B, P01–P17, M1–M8, 11.5–11.9), Apêndices C e D; `specs/telas_padrao_b.md` com nota de divergências e `specs/telas/`; pedidos ao shell 10–13; stack funcional 1.6; `CLAUDE.md`; Fase 1.6 e critérios 8 e 9 no R.8. Só texto, nenhum arquivo em `apps/` | #109 | Revisão do PR; depois C1, B1 e D1 |
 | 27/10/2026 | Pós-1.5 · Ficha (duas colunas) | Ficha do contato simplificada (D-92), no desenho do Follow Up Boss: `urbi-2x1 largura="largo"` com o cliente (chips, motivo e último contato, WhatsApp/Ligar/E-mail, cadastro e consentimento no detalhe), Próximo passo (abordagem com Atrasada, passo combinado, Mensagem sugerida, Virar tarefa), Negócios, Agenda (pendentes à mostra, passadas no detalhe) e Seleções e portal à esquerda; Histórico (Registrar contato, Registrar envio, Resumir) e Enviados ao cliente à direita; "Nova seleção" vira o + da cabeça do cartão; Editar no menu Mais. Só frontend e docs, sem mudança de rota nem versão | (este PR) | Revisão do PR e conferência na instância |
 | 26/10/2026 | Pós-1.5 · Portal (roteiro de visitas) | Portal do Cliente no modelo "tour" da referência: visitas por dia, dia com várias vira roteiro numerado com "Ver o roteiro no mapa"; "Como chegar" por visita (endereço só se publicado; só bairro vira "Ver o bairro no mapa"; região, sem mapa); próxima visita com "hoje / amanhã / em N dias". Só frontend público, `comum/roteiro.ts` com testes | — | Revisão do PR |

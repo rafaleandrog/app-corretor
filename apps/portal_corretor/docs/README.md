@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.10; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.11; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -23,6 +23,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | Reage aos imóveis (gostei, não gostei, quero visitar), vê as visitas, pede para remarcar, manda mensagem ao corretor e marca como feitas as pendências que o corretor pediu (botão **Feito**) |
 | Corretor | **Assistente** (menu) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
 | Corretor | **Ajustes** | Uma tela com cinco abas: Conta, Marca, Conexões (Instagram), Funil e abordagens, Atendimento — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
+| Corretor | **Negociação** (sem tela ainda) | Os dados da negociação de um negócio: o mandato do vendedor (com alvo, recuo e BATNA sigilosos), as propostas por rodada, os ajustes do Negociador e as respostas a objeções; as telas chegam nas versões seguintes — ver [Negociação e mandato](negociacao.md) |
 | Corretor | Endereços antigos | `/agenda`, `/funil` e `/empreendimentos` abrem Início › Agenda, Clientes › Quadro e Imóveis › Empreendimentos |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 

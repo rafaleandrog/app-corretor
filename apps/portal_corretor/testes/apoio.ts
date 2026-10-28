@@ -299,7 +299,9 @@ export async function comServidor<T>(
         body: corpo === undefined ? undefined : JSON.stringify(corpo),
       });
       const texto = await r.text();
-      return { status: r.status, corpo: texto ? JSON.parse(texto) : null };
+      // Corpo que não é JSON (o CSV das exportações) volta como texto.
+      const tipo = r.headers.get('content-type') ?? '';
+      return { status: r.status, corpo: !texto ? null : tipo.includes('json') || !tipo ? JSON.parse(texto) : texto };
     });
   } finally {
     servidor.close();
