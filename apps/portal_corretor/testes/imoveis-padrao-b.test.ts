@@ -171,7 +171,7 @@ test('contexto: contato anonimizado não combina; conta com mais contatos e envi
     assert.equal(r.status, 200);
     assert.ok(r.corpo.qualidade.nota >= 0 && Array.isArray(r.corpo.qualidade.faltas));
     assert.deepEqual(r.corpo.numeros, { visitas: 0, enviados: 50, cliques: 1100, negocios: 0 });
-    assert.deepEqual(r.corpo.combinam.map((c: { id: number }) => c.id), [ana.id, fim.id], 'sem a anonimizada, com o que está além das 2000 primeiras');
+    assert.deepEqual(r.corpo.combinam.map((c: { id: number }) => c.id), [ana.id, fim.id], 'sem a anonimizada; a rota não falha com mais de 2000 contatos com perfil (o teto antigo)');
     assert.ok(r.corpo.combinam.length <= 10);
   });
 });

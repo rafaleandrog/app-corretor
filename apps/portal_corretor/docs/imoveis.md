@@ -38,7 +38,7 @@ a aba Empreendimentos, e `/imoveis/<número>` abre a mesma tela com o imóvel es
   CRECI nesta conta e sem o CRECI jurídico dela, aparece também o aviso discreto *"Adicione seu
   CRECI ao perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta**; o CRECI não
   entra na nota.
-- **Últimos 30 dias**: visitas marcadas, a quantos clientes o imóvel foi enviado, os cliques nesses
+- **Últimos 30 dias**: visitas cadastradas nos últimos 30 dias, a quantos clientes o imóvel foi enviado, os cliques nesses
   envios e os negócios ligados a ele (este último, de todo o período).
 - **Clientes que combinam**: até 10 compradores da conta cujo **perfil de busca** bate com o imóvel,
   com o que bateu (tipo, região, preço, quartos, vagas, área) e o botão **Enviar**, que abre a

@@ -303,7 +303,9 @@ export class PcContextoImovel extends LitElement {
   @state() private falha: unknown = null;
   private geracao = 0;
   private aoMudar = (e: Event) => {
-    if ((e as CustomEvent).detail?.id === this.imovelId) void this.carregar();
+    const d = (e as CustomEvent).detail;
+    // Imóvel removido não existe mais: não refaz a leitura de /contexto (daria "não encontrado").
+    if (d?.id === this.imovelId && !d.removido) void this.carregar();
   };
 
   connectedCallback() {
