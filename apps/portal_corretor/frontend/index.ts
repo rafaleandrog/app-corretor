@@ -10,11 +10,14 @@ import './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
 import './telas/ficha-imovel.js';
 import './telas/ficha-empreendimento.js';
-import './telas/desempenho.js';
+import { renderNumeros } from './telas/desempenho.js';
 import './telas/pagina.js';
 import './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
-import { lembrarTela, renderAssistente } from './telas/assistente.js';
+import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assistente.js';
+import { normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
+import { comAssistente } from './moldura.js';
+import { botaoAssistente, menuCriar } from './criar.js';
 import { contaAtiva, contasDoUsuario, escolherConta, semConta } from './apoio.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
@@ -27,63 +30,37 @@ interface Tela {
   papel: 'corretor' | 'operacao';
   /** `app` é o componente raiz: telas montadas direto no body da página pedem redesenho a ele. */
   render: (param?: string, app?: LitElement) => unknown;
+  /** A tela já vem na moldura do Padrão B (trilho, lista, foco, contexto): o Assistente abre dentro dela. */
+  moldura?: boolean;
 }
 
-const AJUSTES: Tela = { titulo: 'Ajustes', papel: 'corretor', render: (_p, app) => renderAjustes(() => app?.requestUpdate()) };
-const CLIENTES: Tela = { titulo: 'Clientes', papel: 'corretor', render: (_p, app) => renderClientes(() => app?.requestUpdate()) };
-const IMOVEIS: Tela = { titulo: 'Imóveis', papel: 'corretor', render: (_p, app) => renderImoveis(() => app?.requestUpdate()) };
-
-// Uma entrada por rota. A tela só abre para quem tem o papel; o backend barra de novo.
-const INICIO: Tela = { titulo: 'Início', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` };
-
-const TELAS: Record<string, Tela> = {
-  '/': INICIO,
-  // Apelido: a Agenda virou a aba Agenda do Início (D-82).
-  '/agenda': INICIO,
-  '/clientes': CLIENTES,
-  // Apelido: o Funil virou a visão Quadro de Clientes (D-83).
-  '/funil': CLIENTES,
-  '/clientes/importar': { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
-  '/clientes/:id': { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
-  '/imoveis': IMOVEIS,
-  '/imoveis/:id': { titulo: 'Imóvel', papel: 'corretor', render: (id) => html`<pc-tela-ficha-imovel .imovelId=${Number(id)}></pc-tela-ficha-imovel>` },
-  // Apelido: Empreendimentos virou a aba Empreendimentos de Imóveis (D-84).
-  '/empreendimentos': IMOVEIS,
-  '/empreendimentos/:id': {
+// Uma entrada por tela; os endereços (com os apelidos antigos) estão em `enderecos.ts`. A tela só
+// abre para quem tem o papel; o backend barra de novo.
+const TELAS: Record<ChaveTela, Tela> = {
+  hoje: { titulo: 'Hoje', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` },
+  clientes: { titulo: 'Clientes', papel: 'corretor', render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
+  importar: { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
+  cliente: { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
+  imoveis: { titulo: 'Imóveis', papel: 'corretor', render: (_p, app) => renderImoveis(() => app?.requestUpdate()) },
+  imovel: { titulo: 'Imóvel', papel: 'corretor', render: (id) => html`<pc-tela-ficha-imovel .imovelId=${Number(id)}></pc-tela-ficha-imovel>` },
+  empreendimento: {
     titulo: 'Empreendimento',
     papel: 'corretor',
     render: (id) => html`<pc-tela-ficha-empreendimento .empreendimentoId=${Number(id)}></pc-tela-ficha-empreendimento>`,
   },
-  '/desempenho': { titulo: 'Desempenho', papel: 'corretor', render: () => html`<pc-tela-desempenho></pc-tela-desempenho>` },
-  '/pagina': { titulo: 'Minha página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
-  '/estudio': { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
-  '/assistente': { titulo: 'Assistente', papel: 'corretor', render: (_p, app) => renderAssistente(() => app?.requestUpdate()) },
-  '/ajustes': AJUSTES,
-  // Apelidos: o SDK não redireciona, então os endereços antigos abrem Ajustes na aba certa.
-  // `/ajustes/conexoes` é também o retorno do Instagram cadastrado na Meta (`?code=&state=`).
-  '/conta': AJUSTES,
-  '/ajustes/conta': AJUSTES,
-  '/ajustes/marca': AJUSTES,
-  '/ajustes/conexoes': AJUSTES,
-  '/ajustes/funil': AJUSTES,
-  '/ajustes/atendimento': AJUSTES,
-  '/corretores': { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
+  estudio: { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
+  pagina: { titulo: 'Página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
+  numeros: { titulo: 'Números', papel: 'corretor', moldura: true, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
+  ajustes: { titulo: 'Ajustes', papel: 'corretor', render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
+  corretores: { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
-
-/** Rota exata primeiro; depois as de parâmetro numérico (`/clientes/:id`, `/imoveis/:id`…). */
-function resolver(sub: string): { tela?: Tela; param?: string } {
-  if (TELAS[sub]) return { tela: TELAS[sub] };
-  const m = sub.match(/^\/(clientes|imoveis|empreendimentos)\/(\d+)$/);
-  return m ? { tela: TELAS[`/${m[1]}/:id`], param: m[2] } : {};
-}
-
-/** `/conta/` e `/conta` são a mesma tela; a raiz continua `/`. */
-const normalizar = (sub: string) => (sub.length > 1 ? sub.replace(/\/+$/, '') : sub) || '/';
 
 // Tag fixa pela plataforma: `app-` + appId com hífens.
 @customElement('app-portal-corretor')
 export class AppPortalCorretor extends LitElement {
   @state() private sub = normalizar(urbiVerso.subRota());
+  /** Cada navegação conta: voltar ao mesmo endereço (um pedido do Criar) recria a tela. */
+  @state() private visita = 0;
   @state() private carregado = false;
   @state() private papeis: string[] = [];
   @state() private contas: { id: number; nome: string }[] = [];
@@ -122,14 +99,21 @@ export class AppPortalCorretor extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    lembrarTela(this.sub);
+    aoMudarAssistente(() => this.requestUpdate());
+    this.chegar(normalizar(urbiVerso.subRota()));
     this.cancelarRota = urbiVerso.escutarRota((sub) => {
-      this.sub = normalizar(sub);
-      // O Assistente responde pela tela em que o corretor estava antes de abri-lo.
-      lembrarTela(this.sub);
+      this.visita++;
+      this.chegar(normalizar(sub));
     });
     this.aoMudarContexto();
     window.addEventListener('urbi:contexto-app', this.aoMudarContexto);
+  }
+
+  /** O Assistente responde pela tela em que o corretor está; `/assistente` abre Hoje com ele aberto. */
+  private chegar(sub: string) {
+    this.sub = sub;
+    lembrarTela(sub);
+    if (sub === '/assistente') abrirAssistente();
   }
 
   disconnectedCallback() {
@@ -156,14 +140,23 @@ export class AppPortalCorretor extends LitElement {
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-building-user" mensagem="Você ainda não está em nenhuma conta"
         submensagem="As telas do corretor trabalham sempre dentro de uma conta. Associe seu usuário a uma conta em Admin › Acesso › Contas (ou peça a quem cuida das contas da plataforma) e recarregue a página."></urbi-estado-vazio>`;
     }
-    // `keyed` pelo endereço: trocar de cliente recria a tela em vez de reaproveitar o estado.
-    return keyed(`${this.sub}|${this.conta}`, tela.render(param, this));
+    // `keyed` pelo endereço e pela navegação: trocar de cliente recria a tela em vez de reaproveitar o estado.
+    const conteudo = keyed(`${this.sub}|${this.conta}|${this.visita}`, tela.render(param, this));
+    // Telas fora da moldura (migram nos itens B2 a B9) dividem a página com o Assistente quando ele abre.
+    return tela.papel === 'corretor' && !tela.moldura ? comAssistente(conteudo) : conteudo;
+  }
+
+  /** Criar em toda tela do corretor; o Assistente no cabeçalho só onde ainda não há trilho. */
+  private acoes(tela: Tela | undefined) {
+    if (!tela || tela.papel !== 'corretor' || !this.papeis.includes('corretor') || this.semConta) return nothing;
+    return html`${menuCriar()}${tela.moldura ? nothing : botaoAssistente()}`;
   }
 
   render() {
-    // A equipe da plataforma não tem carteira: no Início ela cai direto na lista de corretores.
+    // A equipe da plataforma não tem carteira: em Hoje ela cai direto na lista de corretores.
     const soEquipe = !this.papeis.includes('corretor') && this.papeis.includes('operacao');
-    const { tela, param } = this.sub === '/' && soEquipe ? { tela: TELAS['/corretores'], param: undefined } : resolver(this.sub);
-    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.seletorDeConta()}${this.conteudo(tela, param)}</urbi-shell-page>`;
+    const { chave, param } = this.sub === '/' && soEquipe ? { chave: 'corretores' as const, param: undefined } : resolverEndereco(this.sub);
+    const tela = chave ? TELAS[chave] : undefined;
+    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.acoes(tela)}${this.seletorDeConta()}${this.conteudo(tela, param)}</urbi-shell-page>`;
   }
 }

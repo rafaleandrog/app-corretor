@@ -1,7 +1,7 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { abaDaUrl, abaNaUrl, acoesComMais, chamarApi, chip, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
 import { ABAS_INICIO, APELIDOS_INICIO } from '../../comum/funil';
 import './agenda.js';
 
@@ -39,6 +39,8 @@ export const abaInicio = () => abaDaUrl(ABAS.map((a) => a.id), OPCOES_ABA);
 @customElement('pc-tela-inicio')
 export class PcTelaInicio extends LitElement {
   @state() private pendente: string[] | null = null;
+  /** CRECI é opcional (D-93): não entra nos primeiros passos, só no aviso discreto. */
+  @state() private semCreci = false;
   @state() private fila: ItemFila[] | null = null;
   @state() private falha: string | null = null;
   @state() private semana: Record<string, number | null> | null = null;
@@ -57,9 +59,9 @@ export class PcTelaInicio extends LitElement {
       const [conta, inicio] = await Promise.all([chamarApi('/conta'), chamarApi('/inicio')]);
       const falta: string[] = [];
       if (!conta.perfil) falta.push('o nome da conta');
-      if (!conta.meu_perfil?.creci) falta.push('o seu CRECI');
       if (!conta.meu_perfil?.telefone) falta.push('o seu telefone');
       this.pendente = falta;
+      this.semCreci = !conta.meu_perfil?.creci && !conta.perfil?.creci_juridico;
       this.fila = inicio.fila;
       this.semana = inicio.semana ?? null;
       this.demo = !!inicio.demo_disponivel;
@@ -173,6 +175,7 @@ export class PcTelaInicio extends LitElement {
             <urbi-botao slot="acao" pequeno href=${urbiVerso.href('/ajustes')}>Completar agora</urbi-botao>
           </urbi-banner>`
         : nothing}
+      ${this.semCreci ? avisoCreci() : nothing}
       ${this.demo
         ? html`<urbi-banner variante="info">
             Esta é uma conta de teste. Quer ver o app com dados? Gera 10 clientes, negócios em várias etapas, 2 imóveis e visitas.

@@ -30,7 +30,7 @@ contaRotas.get(
     res.json({
       perfil: perfil ?? null,
       configuracoes: configuracoes ?? { ...CONFIGURACOES_PADRAO, padrao: true },
-      meu_perfil: meuPerfil ?? { creci: null, telefone: null, creci_situacao: 'nao_verificado' },
+      meu_perfil: meuPerfil ?? { creci: null, telefone: null },
     });
   }),
 );
@@ -64,8 +64,9 @@ contaRotas.put(
     const v = validarMeuPerfil(req.body ?? {});
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira seus dados.', v.erros);
     // `usuario_id` vem sempre do contexto, nunca do corpo: o corretor só edita o próprio perfil.
-    // `creci_situacao` não é editável por aqui (verificação manual, P-12).
+    // `creci_situacao` fica inerte no schema (D-93): nada a grava nem a lê para decidir fluxo.
     const linha = await salvarUnico(req.dados!, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id }, { ...v.dados });
-    res.json(linha);
+    // CRECI fora do formato usual é salvo; o aviso volta junto (D-93).
+    res.json({ ...linha, avisos: v.avisos ?? [] });
   }),
 );

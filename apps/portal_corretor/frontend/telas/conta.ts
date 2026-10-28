@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi } from '../apoio.js';
+import { avisoCreci, chamarApi } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -13,7 +13,7 @@ interface DadosConta {
     validade_selecao_dias: number;
     lembrete_visita_horas: number;
   };
-  meu_perfil: { creci: string | null; telefone: string | null; creci_situacao: string };
+  meu_perfil: { creci: string | null; telefone: string | null };
 }
 
 const TIPOS = [
@@ -21,11 +21,6 @@ const TIPOS = [
   { valor: 'imobiliaria', rotulo: 'Imobiliária' },
   { valor: 'incorporadora', rotulo: 'Incorporadora' },
 ];
-const SITUACAO: Record<string, { cor: string; rotulo: string }> = {
-  nao_verificado: { cor: 'alerta', rotulo: 'CRECI não verificado' },
-  verificado: { cor: 'sucesso', rotulo: 'CRECI verificado' },
-  irregular: { cor: 'erro', rotulo: 'CRECI irregular' },
-};
 const nada = 'não informado';
 
 // Ajustes › Conta (seus dados e a conta) e Ajustes › Atendimento: o mesmo `GET /conta`, cada aba
@@ -56,8 +51,10 @@ export class PcTelaConta extends LitElement {
     const valores = await urbiVerso.formulario({ titulo, campos });
     if (!valores) return;
     try {
-      await chamarApi(rota, { method: 'PUT', body: JSON.stringify({ ...fixos, ...valores }), headers: { 'Content-Type': 'application/json' } });
-      urbiVerso.notificar('Salvo.', 'sucesso');
+      const r = await chamarApi(rota, { method: 'PUT', body: JSON.stringify({ ...fixos, ...valores }), headers: { 'Content-Type': 'application/json' } });
+      // Salvo com aviso (CRECI fora do formato usual, D-93): avisa sem desfazer nada.
+      const avisos: string[] = Array.isArray(r?.avisos) ? r.avisos : [];
+      urbiVerso.notificar(avisos.length ? `Salvo. ${avisos.join(' ')}` : 'Salvo.', avisos.length ? 'info' : 'sucesso');
       await this.carregar();
     } catch (e) {
       const falha = e as Error & { detalhes?: string[] };
@@ -68,7 +65,7 @@ export class PcTelaConta extends LitElement {
   private editarMeuPerfil() {
     const p = this.dados!.meu_perfil;
     void this.editar('Seus dados', '/conta/meu-perfil', [
-      { nome: 'creci', tipo: 'texto', rotulo: 'CRECI', valor: p.creci ?? '', placeholder: 'DF-12345-F' },
+      { nome: 'creci', tipo: 'texto', rotulo: 'CRECI (opcional)', valor: p.creci ?? '', placeholder: 'DF-12345-F' },
       { nome: 'telefone', tipo: 'texto', rotulo: 'Telefone (WhatsApp)', valor: p.telefone ?? '', placeholder: '(61) 99999-9999' },
     ]);
   }
@@ -79,7 +76,7 @@ export class PcTelaConta extends LitElement {
       { nome: 'nome', tipo: 'texto', rotulo: 'Nome da conta', obrigatorio: true, valor: p?.nome ?? '' },
       { nome: 'tipo', tipo: 'selecao', rotulo: 'Tipo', opcoes: TIPOS, valor: p?.tipo ?? 'corretor_autonomo' },
       { nome: 'documento', tipo: 'texto', rotulo: 'CPF ou CNPJ (opcional)', valor: p?.documento ?? '' },
-      { nome: 'creci_juridico', tipo: 'texto', rotulo: 'CRECI jurídico (imobiliária)', valor: p?.creci_juridico ?? '' },
+      { nome: 'creci_juridico', tipo: 'texto', rotulo: 'CRECI jurídico (imobiliária, opcional)', valor: p?.creci_juridico ?? '' },
     ]);
   }
 
@@ -115,16 +112,13 @@ export class PcTelaConta extends LitElement {
         </urbi-prosa>
       </urbi-card>`;
     }
-    const situacao = SITUACAO[eu.creci_situacao] ?? SITUACAO.nao_verificado;
     const tipo = TIPOS.find((t) => t.valor === perfil?.tipo)?.rotulo ?? nada;
     return html`<urbi-stack>
       <urbi-card titulo="Seus dados" icone="fa-solid fa-id-badge">
         ${this.botaoEditar('Editar seus dados', () => this.editarMeuPerfil())}
-        <urbi-linha quebrar>
-          <urbi-prosa>${urbiVerso.usuario()?.nome ?? ''}</urbi-prosa>
-          <urbi-badge cor=${situacao.cor}>${situacao.rotulo}</urbi-badge>
-        </urbi-linha>
+        <urbi-prosa>${urbiVerso.usuario()?.nome ?? ''}</urbi-prosa>
         <urbi-prosa papel="secundario">CRECI: ${eu.creci ?? nada} · Telefone: ${eu.telefone ?? nada}</urbi-prosa>
+        ${eu.creci || perfil?.creci_juridico ? '' : avisoCreci()}
       </urbi-card>
       <urbi-card titulo="Conta" icone="fa-solid fa-building">
         ${this.botaoEditar('Editar a conta', () => this.editarPerfil())}

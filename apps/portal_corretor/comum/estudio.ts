@@ -1,3 +1,5 @@
+import { AVISO_CRECI } from './conta';
+
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74). Puro: formatos, objetivos, a validação da
 // marca, os textos padrão (quando a IA não está disponível), o pedido à IA, a instrução para outra ferramenta
 // e as checagens antes de aprovar. A plataforma não gera imagem (10.6): a arte é montada por modelo.
@@ -276,27 +278,48 @@ export function promptFerramenta(
 
 const ROTULO_ESTILO_EN: Record<string, string> = { moderno: 'Modern', classico: 'Classic', minimalista: 'Minimalist' };
 
+/** Limite da legenda no Instagram, contando as hashtags (mesmo separador da publicação). */
+export const LIMITE_LEGENDA = 2200;
+
+export const AVISO_CRECI_NAO_COUBE = 'O CRECI não coube na legenda (limite de 2.200 caracteres do Instagram): confira se ele está na arte.';
+
+/** Legenda e hashtags como vão ao Instagram: legenda, linha em branco, hashtags. */
+export function textoPublicado(legenda: string | null, hashtags: string | null): string {
+  return [legenda ?? '', hashtags ?? ''].filter(Boolean).join('\n\n');
+}
+
+/**
+ * CRECI na legenda (10.5), só se couber (D-93): a arte pode vir sem ele, então a legenda o leva
+ * quando há espaço. Se não couber no limite, a legenda fica como está e volta um aviso, nunca uma
+ * pendência. Legenda que já cita o CRECI não ganha outro.
+ */
+export function legendaComCreci(legenda: string | null, hashtags: string | null, creci: string | null): { legenda: string; aviso: string | null } {
+  const atual = legenda ?? '';
+  if (!creci || atual.includes(creci)) return { legenda: atual, aviso: null };
+  const com = [atual, `CRECI ${creci}`].filter(Boolean).join('\n\n');
+  if (textoPublicado(com, hashtags).length > LIMITE_LEGENDA) return { legenda: atual, aviso: AVISO_CRECI_NAO_COUBE };
+  return { legenda: com, aviso: null };
+}
+
 export interface Checagem {
   ok: boolean;
   pendencias: string[];
-  /** Lembretes que não impedem aprovar nem publicar (D-89: o CRECI não trava o Estúdio). */
+  /** Lembretes que não impedem aprovar nem publicar (D-89, D-93: o CRECI nunca trava nada). */
   avisos: string[];
 }
 
 /**
  * Checagens antes de aprovar (10.5): autorização vigente, arte pronta, legenda dentro do limite do
- * canal. O CRECI sem cadastro vira aviso, não pendência (D-89).
+ * canal. O CRECI sem cadastro vira aviso, nunca pendência (D-89, D-93).
  */
 export function checarPeca(p: { formato: string; legenda: string | null; hashtags: string | null; arquivos: number; objetivo: string }, ctx: { creci: string | null; imovel: boolean; autorizacaoVigente: boolean }): Checagem {
   const pendencias: string[] = [];
   const avisos: string[] = [];
-  if (!ctx.creci) avisos.push('Cadastre o seu CRECI (Ajustes › Conta) para ele entrar na descrição e na legenda.');
+  if (!ctx.creci) avisos.push(AVISO_CRECI);
   if (ctx.imovel && p.objetivo !== 'vendido' && !ctx.autorizacaoVigente) pendencias.push('O imóvel precisa de autorização de venda vigente para ser anunciado.');
   if (!p.arquivos) pendencias.push('Envie a arte feita no Canva (ou em outra ferramenta) antes de aprovar.');
   if (p.formato === 'carrossel' && p.arquivos === 1) pendencias.push('O carrossel precisa de pelo menos 2 imagens.');
-  // Mesmo separador da publicação (legenda, linha em branco, hashtags).
-  const total = [p.legenda ?? '', p.hashtags ?? ''].filter(Boolean).join('\n\n');
-  if (total.length > 2200) pendencias.push('A legenda passa de 2.200 caracteres (limite do Instagram).');
+  if (textoPublicado(p.legenda, p.hashtags).length > LIMITE_LEGENDA) pendencias.push('A legenda passa de 2.200 caracteres (limite do Instagram).');
   if ((p.hashtags ?? '').split(/\s+/).filter((h) => h.startsWith('#')).length > 30) pendencias.push('Mais de 30 hashtags (limite do Instagram).');
   return { ok: !pendencias.length, pendencias, avisos };
 }

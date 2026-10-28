@@ -1,13 +1,16 @@
 ---
-titulo: Desempenho, envios e dados de demonstração
+titulo: Números, envios e dados de demonstração
 descricao: Os números do corretor (leads, conversão por etapa e por canal, gráficos, vendas, VGV, previsão de comissão), o histórico de envios e a conta de demonstração.
 ---
 
-# Desempenho, envios e dados de demonstração
+# Números, envios e dados de demonstração
 
-## Desempenho
+## Números
 
-**Desempenho** mostra os números do período escolhido (7, 30 ou 90 dias, ou 12 meses),
+**Números** (o antigo Desempenho; o endereço `/desempenho` continua abrindo) já está no desenho em
+colunas: à esquerda, os relatórios (por enquanto, o **Resumo do período**); no meio, o relatório
+aberto; à direita, o que ainda não tem fonte e o botão **Perguntar ao Assistente**. O relatório
+aberto fica no endereço (`?item=resumo`). O Resumo mostra os números do período escolhido (7, 30 ou 90 dias, ou 12 meses),
 comparados ao período anterior de mesmo tamanho. O período fica no endereço (`?dias=30`). A troca não cria entrada no
 histórico do navegador (o Voltar não desfaz a escolha), mas recarregar a página ou abrir o link
 guardado mantém o mesmo período.
@@ -64,7 +67,7 @@ tabela por origem traz leads, em andamento, ganhos, perdidos e a conversão de c
 mesma posição. Intervalo de um dia em 7 e 30 dias, de uma semana em 90 dias e de um doze avos do ano
 em 12 meses.
 
-**Motivos de perda** (gráfico de colunas) fecham a tela. Um parágrafo no fim explica o que ainda não tem fonte: tempo de primeiro atendimento e números do
+**Motivos de perda** (gráfico de colunas) fecham o relatório. Na coluna da direita, **Sobre estes números** explica o que ainda não tem fonte: tempo de primeiro atendimento e números do
 atendimento automático (o Mensageiro) chegam com o WhatsApp; conteúdo publicado, com o Estúdio;
 custo por lead, comissão recebida e metas, em versões seguintes.
 

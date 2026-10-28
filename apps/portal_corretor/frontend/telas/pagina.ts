@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { ROTULO_BLOCO, type Bloco } from '../../comum/pagina';
-import { chamarApi, dataHora, enviar, mensagemDeErro } from '../apoio';
+import { avisoCreci, chamarApi, dataHora, enviar, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -11,6 +11,8 @@ interface Visao {
   salva: boolean;
   url: string;
   marcados_para_pagina: number;
+  /** Conta sem CRECI: só o aviso discreto no editor (D-93); a página publica sem ele. */
+  sem_creci?: boolean;
 }
 
 // Minha Página: montar por blocos, escolher o endereço, publicar. A cor é a da marca (Ajustes › Marca). Depois de publicada, a página
@@ -228,6 +230,7 @@ export class PcTelaPagina extends LitElement {
         <urbi-prosa>${p.nome_exibicao}</urbi-prosa>
         <urbi-prosa papel="secundario">Endereço: ${p.endereco}</urbi-prosa>
         <urbi-prosa papel="dica">A cor da página é a da sua marca, em Ajustes › Marca.</urbi-prosa>
+        ${this.visao.sem_creci ? avisoCreci() : ''}
       </urbi-card>
       <urbi-card titulo="Blocos da página" icone="fa-solid fa-table-cells-large">
         <span slot="acoes"><urbi-botao variante="secundario" pequeno icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.ocupado} @click=${() => this.sugerirTextos()}>Escrever com IA</urbi-botao></span>

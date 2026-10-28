@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
-import { abrirAssistenteSobre } from './assistente.js';
+import { abrirAssistenteSobre, lembrarContato } from './assistente.js';
 import { OBJETIVOS_MENSAGEM } from '../../comum/mensagens';
 import { tarefaDaAbordagem } from '../../comum/funil';
 import { PAPEIS_NA_TELA } from '../../comum/crm';
@@ -78,6 +78,8 @@ export class PcTelaFichaContato extends LitElement {
         chamarApi(`/envios?contato_id=${this.contatoId}`).catch(() => ({ dados: [] })),
       ]);
       this.ficha = ficha;
+      // Contato em foco: o Assistente aberto nesta ficha e a Nova visita do Criar já vêm com ele.
+      lembrarContato({ id: ficha.contato.id, nome: ficha.contato.nome });
       this.etapas = etapas.etapas;
       this.envios = envios.dados;
       if (sugerirAgora && ficha.abordagem) void this.sugerir();
