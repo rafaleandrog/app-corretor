@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { rotas } from '../backend/rotas';
 import { ORDEM_FILA } from '../comum/funil';
-import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, iniciarCarga, PASSOS_INICIAIS, primeirosPassos, receberCarga, telaDeHoje, TIPO_NA_FILA } from '../comum/hoje';
+import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, iniciarCarga, marcarEntrada, mostrarTudo, PASSOS_INICIAIS, precisaCarregar, primeirosPassos, receberCarga, telaDeHoje, TIPO_NA_FILA } from '../comum/hoje';
 import { CAMPOS_SIGILOSOS } from '../comum/negociacao';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
@@ -159,10 +159,89 @@ test('Hoje: entrada na mesma conta mantém os dados (sem piscar) e a recarga que
   assert.equal(desenhado(receberCarga(c, velha, { falha: new Error('velha') })), 'A');
 });
 
-test('Hoje: a tela usa a carga por conta, sem ler dados soltos do módulo', () => {
+test('Hoje: a tela não guarda dados, falha nem recarga soltos no módulo (só a carga por conta)', () => {
   const tela = raiz('frontend/telas/inicio.ts');
-  assert.match(tela, /entrarEmHoje\(antes, contaAtiva\(\)\)/);
-  assert.match(tela, /telaDeHoje\(estado\.carga\)/);
+  for (const solto of ['estado.dados', 'estado.falha', 'estado.vencido', 'estado.verTudo']) assert.ok(!tela.includes(solto), `${solto} vive na carga`);
+  assert.ok(tela.includes('telaDeHoje(estado.carga)'), 'o que se desenha sai da carga');
+});
+
+test('Hoje: falha de A some na troca para B (carregando, com carga a pedir), não "falha"', () => {
+  let c = iniciarCarga(entrarEmHoje(cargaVazia<Dados>(), 100));
+  c = receberCarga(c, c.geracao, { falha: new Error('rede') });
+  assert.equal(desenhado(c), 'falha');
+  c = entrarEmHoje(c, 200);
+  assert.equal(desenhado(c), 'carregando');
+  assert.equal(c.falha, null);
+  assert.ok(precisaCarregar(c), 'a carga de B é pedida');
+  c = iniciarCarga(c);
+  assert.equal(desenhado(c), 'carregando');
+  assert.ok(!precisaCarregar(c), 'com carga em voo não pede outra');
+});
+
+test('Hoje: A→B→A descarta a resposta velha de A', () => {
+  const emVooA = iniciarCarga(entrarEmHoje(cargaVazia<Dados>(), 100));
+  let c = entrarEmHoje(entrarEmHoje(emVooA, 200), 100);
+  assert.equal(desenhado(c), 'carregando');
+  assert.ok(precisaCarregar(c));
+  c = receberCarga(c, emVooA.geracao, { dados: { de: 'A velha' } });
+  assert.equal(desenhado(c), 'carregando', 'a resposta da primeira passagem por A não vale');
+  c = iniciarCarga(c);
+  c = receberCarga(c, c.geracao, { dados: { de: 'A nova' } });
+  assert.equal(desenhado(c), 'A nova');
+});
+
+test('Hoje: primeira entrada com conta null pede a carga uma vez e não laça', () => {
+  let c = entrarEmHoje(cargaVazia<Dados>(), null);
+  assert.equal(c.conta, null);
+  assert.equal(desenhado(c), 'carregando');
+  assert.ok(precisaCarregar(c));
+  c = iniciarCarga(c);
+  // Render de novo (entrarEmHoje com a mesma conta null) não pede outra carga nem descarta a em voo.
+  c = entrarEmHoje(c, null);
+  assert.ok(!precisaCarregar(c));
+  c = receberCarga(c, c.geracao, { dados: { de: 'sem conta' } });
+  assert.equal(desenhado(c), 'sem conta');
+  assert.ok(!precisaCarregar(entrarEmHoje(c, null)), 'carregada, nada mais a pedir');
+});
+
+test('Hoje: conta que muda sem aoAbrir (outra aba) descarta tudo, zera o "ver tudo" e pede nova carga', () => {
+  let c = carregada(cargaVazia<Dados>(), 100, 'A');
+  c = mostrarTudo(c);
+  assert.ok(!precisaCarregar(c), 'carregada e sem entrada nova: nada a pedir');
+  // Só o render percebe a conta nova (entrarEmHoje), sem marcarEntrada.
+  c = entrarEmHoje(c, 200);
+  assert.equal(desenhado(c), 'carregando');
+  assert.equal(c.verTudo, false);
+  assert.ok(precisaCarregar(c), 'a tela não fica presa em "carregando" sem carga em voo');
+  c = iniciarCarga(c);
+  c = receberCarga(c, c.geracao, { dados: { de: 'B' } });
+  assert.equal(desenhado(c), 'B');
+  assert.ok(!precisaCarregar(c), 'sem laço de recarga');
+});
+
+test('Hoje: entrar de novo na mesma conta relê sem piscar e fecha o "ver tudo"; a falha da releitura aparece', () => {
+  let c = mostrarTudo(carregada(cargaVazia<Dados>(), 100, 'A'));
+  c = marcarEntrada(entrarEmHoje(c, 100));
+  assert.equal(desenhado(c), 'A');
+  assert.equal(c.verTudo, false);
+  assert.ok(precisaCarregar(c));
+  c = iniciarCarga(c);
+  assert.equal(desenhado(c), 'A');
+  assert.ok(!precisaCarregar(c));
+  c = receberCarga(c, c.geracao, { falha: new Error('rede') });
+  assert.equal(desenhado(c), 'falha');
+  assert.ok(!precisaCarregar(c), 'falha não reabre carga sozinha (o "Tentar de novo" é do corretor)');
+});
+
+test('Hoje: falha com valor falso, ou resposta sem dados, ainda é "falha"', () => {
+  for (const falha of [undefined, null, 0, '']) {
+    const c = iniciarCarga(entrarEmHoje(cargaVazia<Dados>(), 100));
+    assert.equal(desenhado(receberCarga(c, c.geracao, { falha })), 'falha', String(falha));
+  }
+  const c = iniciarCarga(entrarEmHoje(cargaVazia<Dados>(), 100));
+  const vazia = receberCarga(c, c.geracao, { dados: null as unknown as Dados });
+  assert.equal(telaDeHoje(vazia), 'falha');
+  assert.ok(!precisaCarregar(vazia));
 });
 
 test('GET /inicio: com leitura sem escopo do banco, o estado de Hoje ainda é só da conta ativa (A completa, B vazia)', async () => {

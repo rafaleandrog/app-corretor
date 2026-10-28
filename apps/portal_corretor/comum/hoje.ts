@@ -81,36 +81,56 @@ export function dicaDoAssistente(fila: { tipo: TipoFila }[], passos: PassoInicia
 /**
  * Os dados de Hoje vivem fora do componente e valem para UMA conta. `conta` é a dona do que está aqui
  * (e da carga em voo); `geracao` numera as cargas, para a resposta atrasada de outra conta cair fora.
+ * `resultado` diz explicitamente o que a última carga entregou (a tela não deduz pelo valor);
+ * `pendente` é a necessidade de recarga (entrada nova ou conta nova) e `verTudo` é do que se vê dela.
  */
 export interface CargaHoje<T> {
   conta: number | null | undefined;
   dados: T | null;
   falha: unknown;
+  resultado: 'nenhum' | 'dados' | 'falha';
   geracao: number;
   carregando: boolean;
+  pendente: boolean;
+  verTudo: boolean;
 }
 
-export const cargaVazia = <T>(): CargaHoje<T> => ({ conta: undefined, dados: null, falha: null, geracao: 0, carregando: false });
+export const cargaVazia = <T>(): CargaHoje<T> => ({ conta: undefined, dados: null, falha: null, resultado: 'nenhum', geracao: 0, carregando: false, pendente: true, verTudo: false });
 
 /**
- * O corretor entrou em Hoje com `contaAtual`. Entrada na mesma conta mantém tudo (sem piscar); conta
- * diferente descarta dados, falha e carga em voo: nada da conta anterior chega a ser desenhado.
+ * A conta ativa é `contaAtual`. Mesma conta mantém tudo (sem piscar); conta diferente, venha de onde vier
+ * (entrada, troca no seletor, outra aba), descarta dados, falha e carga em voo, zera o "ver tudo" e
+ * marca a recarga como pendente: nada da conta anterior chega a ser desenhado e a nova carga é pedida.
  */
 export function entrarEmHoje<T>(c: CargaHoje<T>, contaAtual: number | null): CargaHoje<T> {
   if (c.conta === contaAtual) return c;
-  return { conta: contaAtual, dados: null, falha: null, geracao: c.geracao + 1, carregando: false };
+  return { conta: contaAtual, dados: null, falha: null, resultado: 'nenhum', geracao: c.geracao + 1, carregando: false, pendente: true, verTudo: false };
 }
 
-export const iniciarCarga = <T>(c: CargaHoje<T>): CargaHoje<T> => ({ ...c, geracao: c.geracao + 1, carregando: true, falha: null });
+/** Nova entrada na tela, na mesma conta: os dados seguem na tela e são relidos; o "ver tudo" recomeça fechado. */
+export const marcarEntrada = <T>(c: CargaHoje<T>): CargaHoje<T> => ({ ...c, pendente: true, verTudo: false });
 
-/** Resposta (ou falha) da carga `geracao`: só vale se ainda é a carga corrente. A falha derruba os dados velhos. */
+/** A tela deve pedir uma carga agora: há recarga pendente e nenhuma em voo (sem isso, render→carga→render não termina). */
+export const precisaCarregar = <T>(c: CargaHoje<T>): boolean => c.pendente && !c.carregando;
+
+/** Começa uma carga: a falha anterior sai (vira "carregando"); os dados da mesma conta seguem na tela até a resposta. */
+export const iniciarCarga = <T>(c: CargaHoje<T>): CargaHoje<T> => ({ ...c, geracao: c.geracao + 1, carregando: true, pendente: false, falha: null, resultado: c.resultado === 'falha' ? 'nenhum' : c.resultado });
+
+export const mostrarTudo = <T>(c: CargaHoje<T>): CargaHoje<T> => ({ ...c, verTudo: true });
+
+/**
+ * Resposta (ou falha) da carga `geracao`: só vale se ainda é a carga corrente. A falha derruba os dados
+ * velhos. Resposta sem dados (nulo) é falha: nunca um "dados" que a tela não tem o que desenhar.
+ */
 export function receberCarga<T>(c: CargaHoje<T>, geracao: number, r: { dados: T } | { falha: unknown }): CargaHoje<T> {
   if (geracao !== c.geracao) return c;
-  return 'dados' in r ? { ...c, dados: r.dados, falha: null, carregando: false } : { ...c, dados: null, falha: r.falha, carregando: false };
+  if ('dados' in r && r.dados != null) return { ...c, dados: r.dados, falha: null, resultado: 'dados', carregando: false };
+  const falha = 'dados' in r ? new Error('Resposta vazia') : r.falha;
+  return { ...c, dados: null, falha, resultado: 'falha', carregando: false };
 }
 
-/** O que desenhar: a falha tem precedência; sem dados da conta ativa, "carregando". */
+/** O que desenhar, pelo resultado explícito: a falha vale mais que dados velhos; sem resultado da conta ativa, "carregando". */
 export function telaDeHoje<T>(c: CargaHoje<T>): 'dados' | 'falha' | 'carregando' {
-  if (c.falha) return 'falha';
-  return c.dados ? 'dados' : 'carregando';
+  if (c.resultado === 'falha') return 'falha';
+  return c.resultado === 'dados' && c.dados != null ? 'dados' : 'carregando';
 }

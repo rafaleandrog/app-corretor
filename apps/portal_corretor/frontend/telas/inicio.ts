@@ -2,7 +2,7 @@ import { html, nothing } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, contaAtiva, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
 import { ABAS_INICIO, APELIDOS_INICIO, type TipoFila } from '../../comum/funil';
-import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, FILA_VISIVEL, iniciarCarga, receberCarga, telaDeHoje, TIPO_NA_FILA, type AcaoFila, type PassoInicial } from '../../comum/hoje';
+import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, FILA_VISIVEL, iniciarCarga, marcarEntrada, mostrarTudo, precisaCarregar, receberCarga, telaDeHoje, TIPO_NA_FILA, type AcaoFila, type PassoInicial } from '../../comum/hoje';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -63,20 +63,16 @@ const estado = {
   carga: cargaVazia<DadosHoje>(),
   /** Slot de IA liberado (`GET /assistente/ia`); `null` enquanto a sonda não voltou. */
   ia: null as boolean | null,
-  /** Marcado a cada entrada na tela (e na troca de conta): o próximo desenho recarrega. */
-  vencido: true,
-  verTudo: false,
   gerandoDemo: false,
 };
 
 /** O app avisa que o corretor entrou em Hoje (ou trocou de conta): os dados são relidos. */
 export function aoAbrirHoje() {
   trocarDeConta();
-  estado.vencido = true;
-  estado.verTudo = false;
+  estado.carga = marcarEntrada(estado.carga);
 }
 
-/** Conta diferente da dona dos dados: zera tudo (e a sonda de IA) antes de qualquer desenho. */
+/** Conta diferente da dona dos dados: zera tudo (e a sonda de IA) e deixa a recarga pendente, antes de qualquer desenho. */
 function trocarDeConta() {
   const antes = estado.carga;
   estado.carga = entrarEmHoje(antes, contaAtiva());
@@ -87,7 +83,6 @@ async function carregar(atualizar: () => void) {
   trocarDeConta();
   estado.carga = iniciarCarga(estado.carga);
   const geracao = estado.carga.geracao;
-  estado.vencido = false;
   try {
     const [dados, ia] = await Promise.all([chamarApi('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]);
     const antes = estado.carga;
@@ -259,7 +254,7 @@ function centro(d: DadosHoje, atualizar: () => void) {
       })}
     </urbi-stack>`;
   }
-  const visiveis = estado.verTudo ? d.fila : d.fila.slice(0, FILA_VISIVEL);
+  const visiveis = estado.carga.verTudo ? d.fila : d.fila.slice(0, FILA_VISIVEL);
   const resto = d.fila.length - visiveis.length;
   return html`<urbi-stack>
     ${faixaIa}
@@ -270,7 +265,7 @@ function centro(d: DadosHoje, atualizar: () => void) {
     ${visiveis.map((i) => cartao(i, atualizar))}
     ${resto > 0
       ? html`<urbi-linha justificar="centro">
-          <urbi-botao variante="secundario" @click=${() => ((estado.verTudo = true), atualizar())}>Mais ${resto} para depois</urbi-botao>
+          <urbi-botao variante="secundario" @click=${() => ((estado.carga = mostrarTudo(estado.carga)), atualizar())}>Mais ${resto} para depois</urbi-botao>
         </urbi-linha>`
       : nothing}
   </urbi-stack>`;
@@ -321,12 +316,12 @@ function direita(d: DadosHoje, atualizar: () => void) {
 /** Hoje na moldura: trilho · esquerda · centro · direita (abas no celular, M1). */
 export function renderHoje(atualizar: () => void) {
   trocarDeConta();
-  if (estado.vencido && !estado.carga.carregando) void carregar(atualizar);
+  if (precisaCarregar(estado.carga)) void carregar(atualizar);
   // Entrada na mesma conta mantém os dados na tela enquanto relê (sem piscar); a falha da releitura vale mais que eles.
   const d = telaDeHoje(estado.carga) === 'dados' ? estado.carga.dados : null;
   const rotulos = { lista: 'Hoje', centro: 'Fila', contexto: 'Agenda' };
   if (!d) {
-    const conteudo = estado.carga.falha ? estadoDaFalha(estado.carga.falha, () => carregar(atualizar)) : estadoTela('carregando');
+    const conteudo = telaDeHoje(estado.carga) === 'falha' ? estadoDaFalha(estado.carga.falha, () => carregar(atualizar)) : estadoTela('carregando');
     return moldura({ menu: '/', centro: conteudo }, atualizar);
   }
   return moldura({ menu: '/', lista: esquerda(d, atualizar), centro: centro(d, atualizar), contexto: direita(d, atualizar), rotulos }, atualizar);

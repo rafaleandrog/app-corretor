@@ -131,7 +131,9 @@ tiver abordagem). Fila vazia mostra "Nada urgente agora" e o botão **Cadastrar 
   está liberada, o botão fica desligado com "IA indisponível agora", e uma faixa no alto do centro
   avisa; o resto de Hoje funciona.
 
-Tudo vem numa chamada só (`GET /inicio`), relida a cada vez que você entra em Hoje ou troca de conta.
+Tudo vem numa chamada só (`GET /inicio`), relida a cada vez que você entra em Hoje ou troca de conta. Ao trocar de conta, Hoje mostra
+"carregando" até chegarem os dados da conta nova (nada da conta anterior fica na tela); se a
+releitura falhar, aparece o erro com **Tentar de novo** no lugar dos dados.
 
 As passagens do atendimento automático, as peças aguardando aprovação e os frios que reagiram a um
 envio entram na fila com o WhatsApp, com o Estúdio e com os envios rastreados.
