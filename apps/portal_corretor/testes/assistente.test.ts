@@ -147,7 +147,7 @@ test('rota do Assistente: sem IA busca na ajuda; com IA manda contexto sem telef
     };
     const r = (await chamar('POST', '/assistente/perguntar', { pergunta: 'me lembra de ligar para a Ana amanhã', tela: `/clientes/${anaId}`, contato_id: anaId, historico: [{ autor: 'eu', texto: 'oi' }] })).corpo;
     assert.equal(r.sem_ia, false);
-    assert.deepEqual(r.tela, { sub: '/agenda', nome: 'Início › Agenda' });
+    assert.deepEqual(r.tela, { sub: '/agenda', nome: 'Hoje › Agenda' });
     assert.equal(r.acao.rota, '/atividades');
     assert.equal(r.acao.corpo.contato_id, anaId);
     assert.deepEqual(r.artigos, [], 'artigo inventado não volta');
@@ -186,5 +186,23 @@ test('rota do Assistente: sem IA busca na ajuda; com IA manda contexto sem telef
   // Sem o papel de corretor, a rota é barrada.
   await comServidor(rotas, { usuario: 3, conta: 100, papeis: ['operacao'] }, banco, {}, async (chamar) => {
     assert.equal((await chamar('POST', '/assistente/perguntar', { pergunta: 'oi' })).status, 403);
+  });
+});
+
+test('GET /assistente/ia: sonda o slot sem custo para o painel e o estado "IA indisponível"; só corretor', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, AcomIA, banco, {}, async (chamar) => {
+    assert.deepEqual((await chamar('GET', '/assistente/ia')).corpo, { assistente: true });
+  });
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    assert.deepEqual((await chamar('GET', '/assistente/ia')).corpo, { assistente: false });
+  });
+  // A sonda falha: conta como indisponível, não como erro.
+  const iaQuebrada = { estadoSlot: async () => { throw new Error('fora do ar'); } };
+  await comServidor(rotas, { ...A, extras: { ia: iaQuebrada } }, banco, {}, async (chamar) => {
+    assert.deepEqual((await chamar('GET', '/assistente/ia')).corpo, { assistente: false });
+  });
+  await comServidor(rotas, { usuario: 7, conta: 300, papeis: [] }, banco, {}, async (chamar) => {
+    assert.equal((await chamar('GET', '/assistente/ia')).status, 403);
   });
 });

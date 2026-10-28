@@ -212,6 +212,26 @@ export function acoesComMais(principal: Acao, secundarias: Acao[]): TemplateResu
   </urbi-linha>`;
 }
 
+// Item selecionado na lista (spec 11.0.2): `?item=<id>` por `replaceState`, como os filtros. Recarregar
+// a página ou abrir o link reabre o mesmo item no centro e na direita.
+
+/** Id do item selecionado na URL atual (texto: a lista pode ter ids que não são números). */
+export const itemDaUrl = (): string | null => filtrosDaUrl().get('item') || null;
+
+/** Grava (ou tira, com vazio) o item selecionado, mantendo os filtros e sem empilhar histórico. */
+export const itemNaUrl = (id: string | number | null) => filtrosNaUrl(filtrosDaUrl(), { item: id });
+
+/**
+ * Pedido do menu Criar (`?criar=<tipo>`) para a tela que abre a criação. Consome o parâmetro (sai
+ * da URL, para recarregar não abrir de novo) e diz se o pedido era este.
+ */
+export function pedidoDeCriar(tipo: string): boolean {
+  const filtros = filtrosDaUrl();
+  if (filtros.get('criar') !== tipo) return false;
+  filtrosNaUrl(filtros, {}, ['criar']);
+  return true;
+}
+
 // CRECI opcional (D-93): quando falta, o mesmo aviso discreto em toda tela que o mostra, com o atalho
 // para Ajustes › Conta. Nunca é pendência nem trava nada. O texto é o de `comum/conta.ts`.
 
