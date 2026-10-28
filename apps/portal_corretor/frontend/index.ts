@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import './telas/inicio.js';
+import { aoAbrirHoje, renderHoje } from './telas/inicio.js';
 import './telas/corretores.js';
 import { renderClientes } from './telas/clientes.js';
 import './telas/ficha-contato.js';
@@ -32,12 +32,14 @@ interface Tela {
   render: (param?: string, app?: LitElement) => unknown;
   /** A tela já vem na moldura do Padrão B (trilho, lista, foco, contexto): o Assistente abre dentro dela. */
   moldura?: boolean;
+  /** Tela que guarda os dados fora do componente: a cada entrada (e troca de conta) eles são relidos. */
+  aoAbrir?: () => void;
 }
 
 // Uma entrada por tela; os endereços (com os apelidos antigos) estão em `enderecos.ts`. A tela só
 // abre para quem tem o papel; o backend barra de novo.
 const TELAS: Record<ChaveTela, Tela> = {
-  hoje: { titulo: 'Hoje', papel: 'corretor', render: () => html`<pc-tela-inicio></pc-tela-inicio>` },
+  hoje: { titulo: 'Hoje', papel: 'corretor', moldura: true, aoAbrir: aoAbrirHoje, render: (_p, app) => renderHoje(() => app?.requestUpdate()) },
   clientes: { titulo: 'Clientes', papel: 'corretor', render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
   importar: { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
   cliente: { titulo: 'Cliente', papel: 'corretor', render: (id) => html`<pc-tela-ficha-contato .contatoId=${Number(id)}></pc-tela-ficha-contato>` },
@@ -82,7 +84,14 @@ export class AppPortalCorretor extends LitElement {
   private aoEscolherConta = (e: CustomEvent) => {
     escolherConta(Number(e.detail.valor));
     this.conta = contaAtiva();
+    this.avisarTela(this.sub);
   };
+
+  /** A tela do endereço que guarda dados fora do componente os relê (`aoAbrir`). */
+  private avisarTela(sub: string) {
+    const chave = resolverEndereco(sub).chave;
+    if (chave) TELAS[chave].aoAbrir?.();
+  }
 
   private seletorDeConta() {
     if (this.contas.length < 2) return nothing;
@@ -112,6 +121,7 @@ export class AppPortalCorretor extends LitElement {
   /** O Assistente responde pela tela em que o corretor está; `/assistente` abre Hoje com ele aberto. */
   private chegar(sub: string) {
     this.sub = sub;
+    this.avisarTela(sub);
     lembrarTela(sub);
     if (sub === '/assistente') abrirAssistente();
   }

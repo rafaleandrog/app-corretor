@@ -89,7 +89,7 @@ embaixo da outra, a da esquerda primeiro.
   tudo o que aconteceu com o contato, com autor e hora.
 - **Enviados ao cliente:** imóveis, arquivos e mensagens registrados, com os cliques no link.
 
-Vindo do **Fazer agora** do Início ou de um cartão com **Abordagem atrasada** no quadro, a ficha
+Vindo do **Fazer agora** de Hoje ou de um cartão com **Abordagem atrasada** no quadro, a ficha
 abre já com a **Mensagem sugerida** carregada (o endereço traz `?sugerir=1`), e o **Fazer agora**
 dela abre o WhatsApp. Sem abordagem, ou abrindo a ficha por outro caminho, nada é gerado sozinho.
 
@@ -126,7 +126,7 @@ aparecer para os negócios novos.
 Atividades são tarefas, ligações, mensagens, visitas, reuniões e retornos, com dia, hora e local,
 ligadas ou não a um contato e a um negócio.
 
-A **Agenda** é uma aba do Início (o endereço `/agenda` abre o Início nela). Mostra as pendentes
+A **Agenda** abre em Hoje, pelo **Ver agenda** da Agenda de hoje (o endereço `/agenda` abre Hoje direto nela). Mostra as pendentes
 dos próximos 14 dias agrupadas em Atrasadas, Hoje, Amanhã e os dias seguintes, até 500 de uma vez;
 passando disso, um aviso pede para resolver as atrasadas. Cada atividade tem o botão **Feito**; no
 **Mais**, abrir o cliente, "não veio" (visitas) e cancelar. Marcar como **feita** registra o contato
@@ -137,7 +137,7 @@ O detalhe da visita (imóvel visitado e retorno do cliente) fica na ficha do im�
 
 **Lembrete de visita:** um dia antes de cada visita pendente (ou no prazo escolhido em Ajustes ›
 Atendimento), você recebe uma notificação na plataforma com a visita, a hora, o
-cliente e o local. Clicar nela abre o Início na aba Agenda.
+cliente e o local. Clicar nela abre Hoje na agenda dos próximos 14 dias.
 - Visita feita, cancelada ou removida antes da hora não gera lembrete.
 - Visita marcada para dali a menos tempo que o prazo também não gera.
 - Mudar o prazo (ou desligar com 0) vale na hora para os lembretes que ainda não saíram; com outro

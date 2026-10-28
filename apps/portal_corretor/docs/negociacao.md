@@ -7,7 +7,7 @@ descricao: As negociações de um negócio, o mandato do vendedor (o que é sigi
 
 A partir da versão 0.1.13 o app guarda as **negociações**: a etapa em que o corretor (ou o
 **Negociador**, o assistente de negociação do app) troca propostas com o comprador até um acordo.
-Na versão 0.1.15 chega o **Negociador IA**: ele lê a conversa, sugere o próximo movimento e
+Na versão 0.1.16 chega o **Negociador IA**: ele lê a conversa, sugere o próximo movimento e
 confere cada sugestão contra o mandato antes de qualquer coisa sair. As telas (Clientes ›
 Negociações, o formulário do mandato e Ajustes › Negociador) chegam nas versões seguintes. Até lá,
 nenhum item novo aparece no menu, e **Criar › Nova proposta** só abre a ficha do cliente.
