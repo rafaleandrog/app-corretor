@@ -73,7 +73,8 @@ export function lembrarContato(contato: { id: number; nome: string }) {
 
 /** Contato da ficha aberta agora, se a ficha já avisou quem é. */
 export function contatoEmFoco(): { id: number; nome: string } | null {
-  const id = contatoDoEndereco(conversa.telaAnterior);
+  // A ficha em Clientes é o item selecionado na URL (`?item=`), que muda sem trocar de tela.
+  const id = contatoDoEndereco(conversa.telaAnterior, typeof window === 'undefined' ? '' : window.location.search);
   return id !== null && conversa.foco?.id === id ? conversa.foco : null;
 }
 

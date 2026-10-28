@@ -97,7 +97,7 @@ export function renderImoveis(atualizar: () => void, rota: { imovel?: number; em
           : estadoTela('vazio', { icone: 'fa-solid fa-city', mensagem: 'Escolha um empreendimento na lista', submensagem: 'A ficha abre aqui, com os materiais e as unidades da carteira.' }),
         contexto: item ? contextoEmpreendimento() : nothing,
         rotulos: { lista: 'Empreendimentos', centro: 'Ficha', contexto: 'Contexto' },
-        ativo: item ? 'centro' : 'lista',
+        painel: item ? 'centro' : 'esquerda',
       },
       atualizar,
     );
@@ -111,7 +111,7 @@ export function renderImoveis(atualizar: () => void, rota: { imovel?: number; em
         : estadoTela('vazio', { icone: 'fa-solid fa-house', mensagem: 'Escolha um imóvel na lista', submensagem: 'A ficha abre aqui: fotos, dados, descrição e autorização.' }),
       contexto: item ? keyed(`c${item}`, html`<pc-contexto-imovel .imovelId=${item}></pc-contexto-imovel>`) : nothing,
       rotulos: { lista: 'Carteira', centro: 'Ficha', contexto: 'Contexto' },
-      ativo: item ? 'centro' : 'lista',
+      painel: item ? 'centro' : 'esquerda',
     },
     atualizar,
   );

@@ -34,8 +34,8 @@ export interface OpcoesMoldura {
   contexto?: unknown;
   /** Rótulos das abas do celular. */
   rotulos?: { lista?: string; centro?: string; contexto?: string };
-  /** Painel que o celular mostra primeiro: o centro (padrão) ou a lista, quando nada está escolhido. */
-  ativo?: 'lista' | 'centro';
+  /** Coluna aberta no celular (padrão: o centro). Clientes sem cliente escolhido abre na lista. */
+  painel?: 'esquerda' | 'centro' | 'direita';
 }
 
 /** No celular o inbox mostra um painel por vez: o trilho ("Menu") ou as colunas. */
@@ -82,11 +82,13 @@ function colunas(op: OpcoesMoldura): TemplateResult {
     </urbi-2x1>`;
   }
   // Larguras do guia (telas_padrao_b.md §2): lista 340–380, contexto 300–360, Assistente 380–440.
+  // Sem contexto (o Funil de Clientes), a direita fica recolhida e o centro ganha a largura.
   return html`<urbi-3-colunas slot="detalhe" redimensionavel colapsavel-esquerda colapsavel-direita
+    ?colapsada-direita=${!aberto && op.contexto === undefined}
     largura-esquerda="360px" largura-direita=${aberto ? '400px' : '320px'}
     largura-min-esquerda="260px" largura-max-esquerda="40%" largura-min-direita="280px" largura-max-direita="45%"
     label-esquerda=${r.lista ?? 'Lista'} label-centro=${r.centro ?? 'Foco'} label-direita=${aberto ? 'Assistente' : (r.contexto ?? 'Contexto')}
-    painel-ativo=${aberto ? 'direita' : op.ativo === 'lista' ? 'esquerda' : 'centro'}>
+    painel-ativo=${aberto ? 'direita' : (op.painel ?? 'centro')}>
     ${coluna('esquerda', op.lista)}
     ${coluna('centro', op.centro)}
     ${aberto ? direitaAssistente('direita') : coluna('direita', op.contexto ?? nothing)}
