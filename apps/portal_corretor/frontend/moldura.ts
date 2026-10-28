@@ -37,7 +37,7 @@ export interface OpcoesMoldura {
 }
 
 /** No celular o inbox mostra um painel por vez: o trilho ("Menu") ou as colunas. */
-const estado = { menuNoCelular: false };
+const estado = { menuNoCelular: false, ultimoMenu: null as string | null };
 
 /** Itens do trilho: o menu do corretor (D-103) e o Assistente (D-109). */
 export function itensDoTrilho(menu: string): UrbiAtalhoTrilho[] {
@@ -58,14 +58,25 @@ function aoAtalho(e: CustomEvent, atualizar: () => void) {
 /** Coluna com respiro, que enche e rola por dentro (o `urbi-hospedeiro` é o dono do respiro). */
 const coluna = (slot: string, conteudo: unknown) => html`<urbi-hospedeiro slot=${slot} expandir>${conteudo}</urbi-hospedeiro>`;
 
+/**
+ * Coluna da direita com o Assistente aberto: o chat é filho direto do painel, com `expandir`, para
+ * manter o fill no celular (ui-componentes-conteudo.md § Layout do chat). No `urbi-2x1` o topo vai na
+ * zona fixa `direita-topo` (ui-componentes-layout.md § urbi-2x1); o `urbi-3-colunas` não tem zona de
+ * topo, então o topo é irmão de altura natural do chat no slot (a coluna é `.slot-wrapper`: o filho
+ * `[expandir]` enche o que sobra, ui.md política de slot).
+ */
+function direitaAssistente(slotTopo: 'direita-topo' | 'direita') {
+  const { topo, chat } = painelAssistente();
+  return html`<urbi-hospedeiro slot=${slotTopo}>${topo}</urbi-hospedeiro>${chat}`;
+}
+
 function colunas(op: OpcoesMoldura): TemplateResult {
   const aberto = assistenteAberto();
-  const direita = aberto ? painelAssistente() : op.contexto;
   const r = op.rotulos ?? {};
   if (op.lista === undefined) {
     return html`<urbi-2x1 slot="detalhe">
       ${coluna('esquerda', op.centro)}
-      ${direita === undefined ? nothing : coluna('direita', direita)}
+      ${aberto ? direitaAssistente('direita-topo') : op.contexto === undefined ? nothing : coluna('direita', op.contexto)}
     </urbi-2x1>`;
   }
   // Larguras do guia (telas_padrao_b.md §2): lista 340–380, contexto 300–360, Assistente 380–440.
@@ -76,12 +87,15 @@ function colunas(op: OpcoesMoldura): TemplateResult {
     painel-ativo=${aberto ? 'direita' : 'centro'}>
     ${coluna('esquerda', op.lista)}
     ${coluna('centro', op.centro)}
-    ${coluna('direita', direita ?? nothing)}
+    ${aberto ? direitaAssistente('direita') : coluna('direita', op.contexto ?? nothing)}
   </urbi-3-colunas>`;
 }
 
 /** A moldura de uma tela do corretor. `atualizar` redesenha o app (trilho, Assistente, celular). */
 export function moldura(op: OpcoesMoldura, atualizar: () => void): TemplateResult {
+  // Tela diferente da última desenhada (Criar, link, botão do navegador): o celular volta às colunas.
+  if (estado.ultimoMenu !== op.menu) estado.menuNoCelular = false;
+  estado.ultimoMenu = op.menu;
   return html`<urbi-inbox largura-sidebar="0px" largura-min-sidebar="0px" sem-redimensionar texto-voltar="Menu"
     ?detalhe-visivel=${!estado.menuNoCelular}
     @urbi:inbox-voltar=${() => ((estado.menuNoCelular = true), atualizar())}>
@@ -97,5 +111,5 @@ export function moldura(op: OpcoesMoldura, atualizar: () => void): TemplateResul
  */
 export function comAssistente(tela: unknown): unknown {
   if (!assistenteAberto()) return tela;
-  return html`<urbi-2x1>${coluna('esquerda', tela)}${coluna('direita', painelAssistente())}</urbi-2x1>`;
+  return html`<urbi-2x1>${coluna('esquerda', tela)}${direitaAssistente('direita-topo')}</urbi-2x1>`;
 }

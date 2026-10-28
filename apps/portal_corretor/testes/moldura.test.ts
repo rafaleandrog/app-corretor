@@ -59,6 +59,14 @@ function navegador(endereco: string) {
   return { url, navegou, chamadas };
 }
 
+/** O `urbi-chat` é filho direto do painel: nenhum `urbi-hospedeiro` aberto à sua volta. */
+function chatSolto(h: string) {
+  const i = h.indexOf('<urbi-chat');
+  assert.ok(i >= 0, 'o chat está na página');
+  assert.ok(h.lastIndexOf('<urbi-hospedeiro', i) < h.lastIndexOf('</urbi-hospedeiro>', i), 'sem hospedeiro em volta do chat');
+  assert.match(h.slice(i), /^<urbi-chat\s+slot="direita"\s+expandir/);
+}
+
 const MARCAS: Record<EstadoTela, RegExp[]> = {
   carregando: [/<urbi-loading/],
   vazio: [/<urbi-estado-vazio/, /Nenhum imóvel ainda/, /<urbi-botao[^>]*>Cadastrar o primeiro imóvel/],
@@ -167,7 +175,9 @@ test('o Assistente abre e fecha na coluna de contexto e leva o contato em foco (
   assert.match(h, /slot="esquerda" expandir>LISTA/);
   assert.match(h, /slot="centro" expandir>CENTRO/);
   assert.doesNotMatch(h, /CONTEXTO/);
-  assert.match(h, /<urbi-hospedeiro slot="direita" expandir>[\s\S]*Assistente[\s\S]*Fechar[\s\S]*<urbi-chat/);
+  // Topo (título, Fechar, aviso, contato) num hospedeiro de altura natural; o chat solto no slot `direita`.
+  assert.match(h, /<urbi-hospedeiro slot="direita">[\s\S]*Assistente[\s\S]*Fechar[\s\S]*Sobre: Ana Souza[\s\S]*<\/urbi-hospedeiro>\s*<urbi-chat/);
+  chatSolto(h);
   assert.match(h, /Sobre: Ana Souza/, 'leva o contato da ficha aberta');
   assert.match(h, /IA indisponível agora/, 'slot desligado: o Assistente avisa e segue pela ajuda');
   assert.match(h, /painel-ativo="direita"/, 'no celular, a aba do Assistente');
@@ -182,8 +192,63 @@ test('o Assistente abre e fecha na coluna de contexto e leva o contato em foco (
   // Tela fora da moldura: aberto, divide a página com ela; fechado, a tela segue igual.
   assert.equal(comAssistente('TELA'), 'TELA');
   abrirAssistenteSobre({ id: 9, nome: 'Bruno' });
-  assert.match(texto(comAssistente('TELA')), /<urbi-2x1><urbi-hospedeiro slot="esquerda" expandir>TELA<\/urbi-hospedeiro><urbi-hospedeiro slot="direita" expandir>[\s\S]*Sobre: Bruno/);
+  const solta = texto(comAssistente('TELA'));
+  assert.match(solta, /<urbi-2x1><urbi-hospedeiro slot="esquerda" expandir>TELA<\/urbi-hospedeiro><urbi-hospedeiro slot="direita-topo">[\s\S]*Sobre: Bruno[\s\S]*<\/urbi-hospedeiro>\s*<urbi-chat/);
+  chatSolto(solta);
+  // `urbi-2x1` da moldura (sem lista): o mesmo desenho, topo na zona fixa e chat solto em `direita`.
+  const dois = texto(moldura({ menu: '/', centro: 'CENTRO', contexto: 'CONTEXTO' }, () => {}));
+  assert.match(dois, /<urbi-2x1 slot="detalhe">[\s\S]*<urbi-hospedeiro slot="direita-topo">[\s\S]*Sobre: Bruno/);
+  chatSolto(dois);
   fecharAssistente();
+});
+
+test('cada abertura do Assistente sonda de novo e a resposta antiga não vence a nova', async () => {
+  const { chamadas } = navegador('/portal_corretor/numeros');
+  const g = globalThis as unknown as { urbiVerso: { api: (r: string) => Promise<unknown> } };
+  const pendentes: ((v: unknown) => void)[] = [];
+  g.urbiVerso.api = (rota) => (chamadas.push(rota), new Promise((ok) => pendentes.push(ok)));
+  const op = { menu: '/numeros', centro: 'CENTRO', contexto: 'CONTEXTO' };
+  fecharAssistente();
+  abrirAssistente();
+  fecharAssistente();
+  abrirAssistente();
+  assert.equal(chamadas.filter((c) => c === '/assistente/ia').length, 2, 'uma sonda por abertura');
+  // A segunda diz que o slot está livre; a primeira, atrasada, diz que não: não sobrescreve.
+  pendentes[1]({ assistente: true });
+  await new Promise((r) => setTimeout(r, 0));
+  pendentes[0]({ assistente: false });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.doesNotMatch(texto(moldura(op, () => {})), /IA indisponível/);
+  // Falha passageira da última sonda avisa; a abertura seguinte sonda de novo e limpa o aviso.
+  fecharAssistente();
+  abrirAssistente();
+  fecharAssistente();
+  abrirAssistente();
+  assert.equal(chamadas.filter((c) => c === '/assistente/ia').length, 4);
+  pendentes[3]({ assistente: true });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.doesNotMatch(texto(moldura(op, () => {})), /IA indisponível/);
+  fecharAssistente();
+});
+
+test('no celular, trocar de tela por fora do trilho devolve as colunas', () => {
+  navegador('/portal_corretor/numeros');
+  fecharAssistente();
+  let atualizacoes = 0;
+  const voltar = (h: unknown) => {
+    const m = (h as { values: unknown[] }).values.find((v) => typeof v === 'function' && (v as () => void).length === 0);
+    assert.ok(m, 'o Voltar do inbox está ligado');
+    (m as () => void)();
+  };
+  const op = (menu: string) => ({ menu, centro: 'CENTRO', contexto: 'CONTEXTO' });
+  // O primeiro valor do template da moldura é o `?detalhe-visivel`.
+  const visivel = (h: unknown) => (h as { values: unknown[] }).values[0];
+  const a = moldura(op('/numeros'), () => atualizacoes++);
+  assert.equal(visivel(a), true, 'colunas à vista');
+  voltar(a); // o Voltar mostra o trilho
+  assert.equal(visivel(moldura(op('/numeros'), () => {})), false, 'mesma tela: segue no trilho');
+  assert.equal(visivel(moldura(op('/clientes'), () => {})), true, 'outra tela: volta às colunas');
+  assert.equal(atualizacoes, 1);
 });
 
 test('`?item=` guarda o item selecionado e sobrevive a recarregar', () => {

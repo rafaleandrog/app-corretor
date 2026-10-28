@@ -1,4 +1,4 @@
-import { html } from 'lit';
+import { html, type TemplateResult } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { chamarApi, enviar, mensagemDeErro } from '../apoio';
 import { contatoDoEndereco } from '../enderecos';
@@ -79,14 +79,16 @@ export function contatoEmFoco(): { id: number; nome: string } | null {
 
 export const assistenteAberto = () => conversa.aberto;
 
-/** Sonda sem custo do slot, uma vez por carga do app: a falha conta como indisponível. */
-let sondou = false;
+/**
+ * Sonda sem custo do slot, a cada abertura: uma falha passageira não gruda até recarregar nem
+ * atravessa a troca de conta. Só a resposta da sonda mais recente vale.
+ */
+let sondaSeq = 0;
 function sondarIa() {
-  if (sondou) return;
-  sondou = true;
+  const minha = ++sondaSeq;
   chamarApi('/assistente/ia').then(
-    (r) => ((conversa.ia = !!r?.assistente), conversa.atualizar()),
-    () => ((conversa.ia = false), conversa.atualizar()),
+    (r) => minha === sondaSeq && ((conversa.ia = !!r?.assistente), conversa.atualizar()),
+    () => minha === sondaSeq && ((conversa.ia = false), conversa.atualizar()),
   );
 }
 
@@ -177,12 +179,14 @@ function recusar() {
 }
 
 /**
- * O painel da coluna de contexto (P05): título com fechar, aviso de IA indisponível, o contato em
- * foco, a ação proposta e o chat por último, com `expandir` (a moldura o põe num hospedeiro que enche).
+ * O painel da coluna de contexto (P05) em duas peças: `topo` (título com fechar, aviso de IA
+ * indisponível, contato em foco, ação proposta) e `chat`, com `expandir`. O chat tem de ser filho
+ * DIRETO do painel (ui-componentes-conteudo.md § Layout do chat): num hospedeiro ele perde o fill no
+ * celular. Por isso a moldura põe o `topo` num hospedeiro (dono do respiro) e o chat solto no slot.
  */
-export function painelAssistente() {
+export function painelAssistente(): { topo: TemplateResult; chat: TemplateResult } {
   const { proposta, irPara, contato } = conversa;
-  return html`
+  const topo = html`
     <urbi-linha justificar="entre">
       <urbi-prosa papel="secao">Assistente</urbi-prosa>
       <urbi-botao variante="texto" pequeno icone="fa-solid fa-xmark" @click=${() => fecharAssistente()}>Fechar</urbi-botao>
@@ -206,7 +210,9 @@ export function painelAssistente() {
     ${irPara
       ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-arrow-right" href=${urbiVerso.href(irPara.sub)}>Abrir ${irPara.nome}</urbi-botao></urbi-linha>`
       : ''}
-    <urbi-chat
+  `;
+  const chat = html`<urbi-chat
+      slot="direita"
       expandir
       .itens=${conversa.mensagens}
       .usuarioAtualId=${meuId()}
@@ -215,6 +221,6 @@ export function painelAssistente() {
       chave-audio="portal_corretor:assistente"
       placeholder=${conversa.pensando ? 'Pensando…' : 'Pergunte sobre o app, um cliente ou peça um lembrete'}
       .aoEnviar=${(d: { texto: string }) => perguntar(d.texto)}
-    ></urbi-chat>
-  `;
+    ></urbi-chat>`;
+  return { topo, chat };
 }

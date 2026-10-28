@@ -13,7 +13,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Para quem | Tela | O que faz |
 |---|---|---|
 | Corretor | **Hoje** (antes, Início) | Faixa da semana e duas abas: **Hoje** (a fila do dia por motivo — quentes sem resposta, abordagens atrasadas, visitas, próximos passos —, um botão por item) e **Agenda** (pendências dos próximos 14 dias); e o que falta para começar — ver [Funil, temperatura e fila do dia](funil.md) e [Clientes, negócios e agenda](clientes-e-agenda.md) |
-| Corretor | **Números** (antes, Desempenho) | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Desempenho, envios e dados de demonstração](desempenho.md) |
+| Corretor | **Números** (antes, Desempenho) | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Números, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Clientes** | Duas visões: **Lista** (contatos com filtros prontos Novos · Sem contato · Quentes · Retorno vencido) e **Quadro** (o funil por etapa, arrastar para mover); ficha em duas colunas (o cliente, o próximo passo com Mensagem sugerida e Virar tarefa, negócios, agenda e seleções; ao lado, o histórico com Registrar contato e Resumir); importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
 | Corretor | **Imóveis** | Duas abas: **Carteira** (os imóveis em cartões com capa, preço, situação e nota de qualidade) e **Empreendimentos**; ficha com "o que falta no anúncio" no topo, fotos, autorização de venda, descrição com IA e visitas — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA e descrição pronta para gerar a arte no Canva IA (ou em outra ferramenta), envio da arte na peça, aprovação e publicação — ver [Estúdio de conteúdo](estudio.md) |
@@ -60,11 +60,11 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 a tela como estava — ver [Assistente do Corretor](assistente.md). Nas telas que ainda não estão no
 desenho novo, o botão **Assistente** fica no alto, ao lado de Criar, e o Assistente divide a tela com ela.
 
-**Estados de toda tela:**
-- Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco.
-- Se algo não carregou, aparece uma frase curta com **Tentar de novo**.
-- O que não existe ou é de outra conta aparece como **Não encontrado**.
-- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona.
+**Estados de toda tela** (**Números** já usa os estados comuns, de `frontend/estados.ts`; as demais telas passam a usá-los ao entrar no desenho novo):
+- Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco. A maioria das telas já mostra o indicador.
+- Se algo não carregou, aparece uma frase curta com **Tentar de novo**. A maioria das telas já tem o botão.
+- O que não existe ou é de outra conta aparece como **Não encontrado**. Hoje isso vale só em **Números**.
+- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona. Hoje o aviso aparece no painel do **Assistente**.
 
 ## Papéis
 

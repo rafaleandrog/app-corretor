@@ -65,9 +65,22 @@ export async function novaVisita() {
   if (r?.id && r.contato_id) urbiVerso.navegarSub(`/clientes/${r.contato_id}`);
 }
 
+/**
+ * Vai para a sub-rota levando a query. `navegarSub` não promete preservá-la (o overview.md diz que a
+ * sub-rota vem do path), então, com query, monta-se a URL por `urbiVerso.href(sub)` e empilha-se com
+ * `pushState` + `PopStateEvent('popstate')`: é o que o doc descreve que `navegarSub` faz, e o que acorda
+ * o `escutarRota` (mesmo com o destino igual à tela atual).
+ */
+export function irParaComQuery(destino: string) {
+  const i = destino.indexOf('?');
+  if (i < 0) return urbiVerso.navegarSub(destino);
+  history.pushState(history.state, '', `${urbiVerso.href(destino.slice(0, i))}${destino.slice(i)}`);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 export function criar(opcao: OpcaoCriar) {
   const destino = destinoDeCriar(opcao, urbiVerso.subRota());
-  if (destino) urbiVerso.navegarSub(destino);
+  if (destino) irParaComQuery(destino);
   else void novaVisita();
 }
 

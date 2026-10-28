@@ -74,7 +74,13 @@ export class PcTelaEstudio extends LitElement {
     super.connectedCallback();
     void this.carregar();
     // "Novo post" do menu Criar: o mesmo formulário do pedido escrito na caixa.
-    if (pedidoDeCriar('post')) void this.novoPedido('');
+    if (pedidoDeCriar('post')) {
+      // Cancelar o formulário lança 'cancelado' (o urbi-redator o trata); aqui é só fechar. Outro erro aparece.
+      this.novoPedido('').catch((e) => {
+        if (e instanceof Error && e.message === 'cancelado') return;
+        void urbiVerso.alertar({ titulo: 'Não foi possível abrir o pedido', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      });
+    }
   }
 
   private async carregar() {

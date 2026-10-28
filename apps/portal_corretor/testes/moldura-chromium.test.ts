@@ -19,9 +19,9 @@ function playwright(): any {
 
 const ENTRADA = `
 import { render } from 'lit';
-import { moldura } from './frontend/moldura';
+import { comAssistente, moldura } from './frontend/moldura';
 import { ESTADOS, estadoTela } from './frontend/estados';
-import { aoMudarAssistente, fecharAssistente } from './frontend/telas/assistente';
+import { abrirAssistente, aoMudarAssistente, fecharAssistente } from './frontend/telas/assistente';
 const navegou = [];
 window.navegou = navegou;
 window.urbiVerso = {
@@ -34,11 +34,22 @@ window.urbiVerso = {
   notificar: () => {},
 };
 const raiz = document.getElementById('raiz');
-const desenhar = () => render(moldura({ menu: '/numeros', lista: 'LISTA', centro: 'CENTRO', contexto: 'CONTEXTO' }, desenhar), raiz);
-window.desenhar = desenhar;
+let modo = 'completa';
+let menu = '/numeros';
+const desenhar = () => render(
+  modo === 'sem-lista' ? moldura({ menu, centro: 'CENTRO', contexto: 'CONTEXTO' }, desenhar)
+    : modo === 'comAssistente' ? comAssistente('TELA')
+    : moldura({ menu, lista: 'LISTA', centro: 'CENTRO', contexto: 'CONTEXTO' }, desenhar),
+  raiz,
+);
+window.desenhar = () => ((modo = 'completa'), desenhar());
+window.desenharSemLista = () => ((modo = 'sem-lista'), desenhar());
+window.desenharComAssistente = () => ((modo = 'comAssistente'), desenhar());
+window.desenharMenu = (m) => ((menu = m), (modo = 'completa'), desenhar());
 // Como o app raiz (index.ts): a conversa redesenha a página quando muda.
 aoMudarAssistente(desenhar);
 window.fecharAssistente = fecharAssistente;
+window.abrirAssistente = abrirAssistente;
 window.estados = () => ESTADOS.map((t) => {
   const div = document.createElement('div');
   render(estadoTela(t, { aoTentar: () => {}, acao: { rotulo: 'Resolver', aoEscolher: () => {} } }), div);
@@ -97,7 +108,9 @@ test('moldura no Chromium: árvore de primitivos, trilho ligado, Assistente na d
       const direita = document.querySelector('urbi-3-colunas > urbi-hospedeiro[slot="direita"]')!;
       const r = {
         navegou: (window as any).navegou.slice(),
-        chat: !!direita.querySelector('urbi-chat[expandir]'),
+        // O chat é filho DIRETO da coluna (sem hospedeiro entre eles), com `expandir`; o topo é o hospedeiro irmão.
+        chat: !!document.querySelector('urbi-3-colunas > urbi-chat[slot="direita"][expandir]'),
+        chatEmHospedeiro: !!document.querySelector('urbi-hospedeiro urbi-chat'),
         contexto: direita.textContent!.includes('CONTEXTO'),
         centro: document.querySelector('urbi-hospedeiro[slot="centro"]')!.textContent!.trim(),
         largura: document.querySelector('urbi-3-colunas')!.getAttribute('largura-direita'),
@@ -109,11 +122,47 @@ test('moldura no Chromium: árvore de primitivos, trilho ligado, Assistente na d
       return r;
     });
     assert.deepEqual(depois.navegou, ['/clientes']);
-    assert.equal(depois.chat, true);
+    assert.equal(depois.chat, true, 'chat filho direto do slot direita do urbi-3-colunas');
+    assert.equal(depois.chatEmHospedeiro, false, 'nenhum hospedeiro em volta do chat');
     assert.equal(depois.centro, 'CENTRO', 'o centro fica');
     assert.equal(depois.largura, '400px');
     assert.deepEqual(depois.ativo, ['assistente']);
     assert.equal(depois.contexto, true, 'fechar devolve o contexto');
+
+    // Sem lista (`urbi-2x1`) e tela fora da moldura (`comAssistente`): topo na zona `direita-topo`, chat solto em `direita`.
+    const doisLayouts = await pagina.evaluate(async () => {
+      const w = window as any;
+      const medir = () => ({
+        chat: !!document.querySelector('urbi-2x1 > urbi-chat[slot="direita"][expandir]'),
+        topo: !!document.querySelector('urbi-2x1 > urbi-hospedeiro[slot="direita-topo"] urbi-botao[icone="fa-solid fa-xmark"]'),
+        emHospedeiro: !!document.querySelector('urbi-hospedeiro urbi-chat'),
+      });
+      w.fecharAssistente();
+      w.desenharSemLista();
+      w.abrirAssistente();
+      await new Promise((r) => setTimeout(r, 0));
+      const semLista = medir();
+      w.fecharAssistente();
+      w.desenharComAssistente();
+      w.abrirAssistente();
+      await new Promise((r) => setTimeout(r, 0));
+      const comAssist = medir();
+      w.fecharAssistente();
+      return { semLista, comAssist };
+    });
+    for (const [nome, m] of Object.entries(doisLayouts)) assert.deepEqual(m, { chat: true, topo: true, emHospedeiro: false }, nome);
+
+    // Celular: o Voltar mostra o trilho e trocar de tela por fora dele devolve as colunas.
+    const celular = await pagina.evaluate(() => {
+      const w = window as any;
+      w.desenhar();
+      const inbox = () => document.querySelector('#raiz > urbi-inbox')!;
+      inbox().dispatchEvent(new CustomEvent('urbi:inbox-voltar', { bubbles: true, composed: true }));
+      const noTrilho = !inbox().hasAttribute('detalhe-visivel');
+      w.desenharMenu('/clientes');
+      return { noTrilho, depois: inbox().hasAttribute('detalhe-visivel') };
+    });
+    assert.deepEqual(celular, { noTrilho: true, depois: true });
 
     // Os 7 estados no DOM: cada um com o primitivo certo.
     const estados = Object.fromEntries(await pagina.evaluate(() => (window as any).estados()));

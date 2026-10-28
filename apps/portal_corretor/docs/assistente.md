@@ -6,7 +6,7 @@ descricao: O chat que abre à direita de qualquer tela — tira dúvidas pelo ma
 # Assistente do Corretor
 
 O **Assistente** abre um chat **na coluna da direita da tela em que você está**: a tela continua ali, e
-**Fechar**, no topo do chat, a devolve como estava. Ele não está mais no menu:
+**Fechar**, no topo do chat, o tira da coluna. Em **Números**, já no desenho novo, a lista e o centro ficam como estavam. Nas demais telas, a tela recarrega ao abrir e ao fechar o Assistente. Ele não está mais no menu:
 - Nas telas no desenho novo (hoje, **Números**), é o botão **Assistente** no fim do trilho, à esquerda.
 - Nas demais, é o botão **Assistente** no alto da tela, ao lado de **Criar**.
 - O endereço antigo `/assistente` abre **Hoje** com o Assistente aberto.
