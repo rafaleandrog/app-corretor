@@ -56,9 +56,11 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 | Nova visita | Pede o cliente, o imóvel, o dia e a hora ali mesmo; com a ficha de um cliente aberta, ele já vem escolhido. Depois abre a ficha do cliente |
 | Nova proposta | Abre a ficha do cliente aberto, ou a lista de Clientes para você escolher. A proposta ainda se registra pela ficha, como um negócio |
 
-**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela, e **Fechar** devolve
-a tela como estava — ver [Assistente do Corretor](assistente.md). Nas telas que ainda não estão no
-desenho novo, o botão **Assistente** fica no alto, ao lado de Criar, e o Assistente divide a tela com ela.
+**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela. Em **Números**, já no
+desenho novo, **Fechar** devolve o contexto no lugar do Assistente, e a lista e o centro ficam como estavam.
+Nas telas que ainda não estão no desenho novo, o botão **Assistente** fica no alto, ao lado de Criar, e o
+Assistente divide a tela com ela; abrir e fechar recarrega a tela, que não volta exatamente como estava —
+ver [Assistente do Corretor](assistente.md).
 
 **Estados de toda tela** (**Números** já usa os estados comuns, de `frontend/estados.ts`; as demais telas passam a usá-los ao entrar no desenho novo):
 - Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco. A maioria das telas já mostra o indicador.

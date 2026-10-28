@@ -66,10 +66,10 @@ export async function novaVisita() {
 }
 
 /**
- * Vai para a sub-rota levando a query. `navegarSub` não promete preservá-la (o overview.md diz que a
- * sub-rota vem do path), então, com query, monta-se a URL por `urbiVerso.href(sub)` e empilha-se com
- * `pushState` + `PopStateEvent('popstate')`: é o que o doc descreve que `navegarSub` faz, e o que acorda
- * o `escutarRota` (mesmo com o destino igual à tela atual).
+ * Vai para a sub-rota levando a query. `navegarSub` não promete preservá-la; o overview.md diz que `subRota()` deriva a
+ * sub-rota do path, sem a query. Com query, monta-se a URL por `urbiVerso.href(sub)` e empilha-se com `pushState`
+ * + `PopStateEvent('popstate')`: o doc diz que é isso que `navegarSub` faz e o que acorda o `escutarRota`.
+ * Mesmo com o destino igual à tela atual, quem recria a tela é o `index.ts` (`visita++` no `escutarRota`), não o doc.
  */
 export function irParaComQuery(destino: string) {
   const i = destino.indexOf('?');
