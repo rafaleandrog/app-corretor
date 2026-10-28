@@ -286,12 +286,16 @@ const UNIDADES: Record<string, number> = {
   oitocentos: 800, oitocentas: 800, novecentos: 900, novecentas: 900,
 };
 const MILHAR = new Set(['mil', 'k']);
-const MILHAO = new Set(['milhao', 'milhoes', 'mi', 'mm', 'milh']);
+// "1,36M", "1.36kk" (gíria: mil de mil) e "milh" abreviado. "m²" não chega aqui: `prepararTexto` o troca por "metros".
+const MILHAO = new Set(['milhao', 'milhoes', 'mi', 'mm', 'milh', 'm', 'kk']);
+const ehMilhao = (t: string) => MILHAO.has(t) || t.startsWith('milh');
 
 /** Número escrito com dígitos, em qualquer das convenções de milhar e decimal ("1.360.000", "1,36", "1360000"). */
-function numeroDeDigitos(t: string, antesDeMultiplicador = false): number {
-  // Antes de "mil"/"milhão"/"mi" o separador é decimal ("1,365 milhão", "1.5 mi"), nunca milhar.
-  if (antesDeMultiplicador && /^\d+[.,]\d+$/.test(t)) return Number(t.replace(',', '.'));
+function numeroDeDigitos(t: string, antes: 'mil' | 'milhao' | null = null): number {
+  // Antes de "mil", ponto seguido de 3 dígitos é milhar ("R$ 1.360 mil" = 1.360.000).
+  if (antes === 'mil' && /^\d{1,3}\.\d{3}$/.test(t)) return Number(t.replace('.', ''));
+  // Antes de "mil"/"milhão"/"mi" o separador é decimal ("1,365 milhão", "1.5 mi", "1,5 mil").
+  if (antes && /^\d+[.,]\d+$/.test(t)) return Number(t.replace(',', '.'));
   const temPonto = t.includes('.');
   const temVirgula = t.includes(',');
   if (temPonto && temVirgula) return Number(t.replace(/\./g, '').replace(',', '.'));
@@ -301,85 +305,199 @@ function numeroDeDigitos(t: string, antesDeMultiplicador = false): number {
 }
 
 /**
- * Os valores em reais citados num texto, em dígitos ou por extenso, com "mil"/"milhão"/"mi"/"k":
- * "1.360.000", "1,36 mi", "R$ 1360 mil", "1 milhão e 360 mil", "um milhão e trezentos e sessenta mil".
+ * O texto pronto para ler valores: sem acento, minúsculo, "R$" fora, "m²"/"m2" como "metros" (para o
+ * "m" de milhão não pegar área) e milhar separado por espaço colado ("1 360 000" vira "1360000").
  */
-export function valoresCitados(texto: string): number[] {
-  const tokens = semAcento(texto).replace(/r\$/g, ' ').match(/\d[\d.,]*\d|\d|[a-z]+/g) ?? [];
-  const valores: number[] = [];
+function prepararTexto(texto: string): string {
+  return semAcento(texto)
+    .replace(/r\$/g, '  ')
+    .replace(/(?<![a-z])m[²2](?!\d)/g, ' metros ')
+    .replace(/(?<![\d.,])(\d{1,3})((?:[  ]\d{3})+)(?![\d]|[.,]\d{3})/g, (_m, a: string, b: string) => a + b.replace(/[  ]/g, ''));
+}
+
+/** Maior potência de 10 (de mil para cima) que divide o total: "1.000.000 e 360 mil" junta, "1.300.000 e 1.400.000" não. */
+const unidade = (total: number) => {
+  if (!Number.isInteger(total) || total < 1000) return 1;
+  let u = 1000;
+  while (total % (u * 10) === 0) u *= 10;
+  return u;
+};
+
+interface ValorNoTexto {
+  /** Valor em reais. */
+  v: number;
+  /** Onde começa e onde termina no texto preparado. */
+  ini: number;
+  fim: number;
+}
+
+/** Os valores do texto já preparado, com a posição de cada um (para ler o que vem antes e depois). */
+function lerValores(base: string): ValorNoTexto[] {
+  const tokens = [...base.matchAll(/\d[\d.,]*\d|\d|[a-z]+/g)].map((m) => ({ t: m[0], ini: m.index ?? 0, fim: (m.index ?? 0) + m[0].length }));
+  const valores: ValorNoTexto[] = [];
   let total = 0;
   let parcial = 0;
   let ativo = false;
+  let ini = 0;
+  let fim = 0;
+  let anterior: 'digito' | 'e' | 'outro' = 'outro';
   const fechar = () => {
-    if (ativo) valores.push(total + parcial);
+    if (ativo) valores.push({ v: total + parcial, ini, fim });
     total = 0;
     parcial = 0;
     ativo = false;
   };
-  for (const [i, t] of tokens.entries()) {
+  const comecar = (posicao: number) => {
+    if (!ativo) ini = posicao;
+    ativo = true;
+  };
+  for (const [i, tk] of tokens.entries()) {
+    const { t } = tk;
+    const proximo = tokens[i + 1]?.t ?? '';
+    const mult = MILHAR.has(proximo) ? 1000 : ehMilhao(proximo) ? 1_000_000 : 1;
     if (/^\d/.test(t)) {
-      // Dois números seguidos sem conector ("2 quartos, 1.300.000") são valores diferentes.
-      if (ativo && parcial !== 0) fechar();
-      const proximo = tokens[i + 1] ?? '';
-      const v = numeroDeDigitos(t, MILHAR.has(proximo) || MILHAO.has(proximo) || proximo.startsWith('milh'));
-      if (!Number.isFinite(v)) continue;
-      parcial += v;
-      ativo = true;
+      const v = numeroDeDigitos(t, mult === 1000 ? 'mil' : mult === 1_000_000 ? 'milhao' : null);
+      if (!Number.isFinite(v)) {
+        fechar();
+        anterior = 'outro';
+        continue;
+      }
+      // Número depois de número é outro valor ("2 quartos, 1.300.000"), salvo a parte menor depois de "e"
+      // ("1 milhão e 360 mil"); "1.300.000 e 1.400.000" são dois.
+      if (ativo && !(anterior === 'e' && parcial === 0 && total > 0 && v * mult < unidade(total))) fechar();
+      comecar(tk.ini);
+      // Valor já completo ("1.300.000") vai ao total: o "mil" de "e vinte mil" não o multiplica.
+      if (mult === 1 && v >= 1000) total += v;
+      else parcial += v;
+      fim = tk.fim;
+      anterior = 'digito';
     } else if (t in UNIDADES) {
+      if (anterior === 'digito') fechar();
+      comecar(tk.ini);
       parcial += UNIDADES[t];
-      ativo = true;
-    } else if (MILHAR.has(t) && ativo) {
+      fim = tk.fim;
+      anterior = 'outro';
+    } else if (MILHAR.has(t) && (ativo || t === 'mil')) {
+      // "mil" sozinho ("mil e quinhentos") vale mil.
+      comecar(tk.ini);
       total += (parcial || 1) * 1000;
       parcial = 0;
-    } else if (MILHAO.has(t) && (ativo || t.startsWith('milh'))) {
+      fim = tk.fim;
+      anterior = 'outro';
+    } else if (ehMilhao(t) && (ativo || t.startsWith('milh'))) {
       // "milhão" sozinho ("um milhão" já entrou por UNIDADES) vale 1 milhão.
+      comecar(tk.ini);
       total = (total + (parcial || 1)) * 1_000_000;
       parcial = 0;
-      ativo = true;
+      fim = tk.fim;
+      anterior = 'outro';
     } else if (t === 'e' && ativo) {
-      continue;
+      anterior = 'e';
     } else {
       fechar();
+      anterior = 'outro';
     }
   }
   fechar();
-  return valores.filter((v) => v > 0);
+  return valores.filter((x) => x.v > 0);
 }
 
-/** Palavras que dão pista do limite do vendedor (10.9.7 e Apêndice C, regra 1). */
-const PALAVRAS_DE_LIMITE =
-  /\b(minimo|minima|piso|recuo|batna)\b|\b(aceita|aceitaria|aceitara|topa|toparia|fecha|fecharia) (ate|um pouco menos)\b|\bmenor valor\b|\bvalor mais baixo\b|\babaixo disso\b|\blimite do (dono|proprietario|vendedor)\b/;
+/**
+ * Os valores em reais citados num texto, em dígitos ou por extenso, com "mil"/"milhão"/"mi"/"M"/"k"/"kk":
+ * "1.360.000", "1,36 mi", "R$ 1360 mil", "1 360 000", "1 milhão e 360 mil", "um milhão e trezentos e sessenta mil".
+ */
+export function valoresCitados(texto: string): number[] {
+  return lerValores(prepararTexto(texto)).map((x) => x.v);
+}
+
+/**
+ * Palavras que dão pista do limite do vendedor (10.9.7 e Apêndice C, regra 1). Só no sentido de limite:
+ * "o piso é de porcelanato", "5º piso" e "no mínimo 3 quartos" são conversa normal de imóvel.
+ */
+const PALAVRAS_DE_LIMITE = new RegExp(
+  [
+    String.raw`\b(o|seu|sua|nosso|nossa|meu|minha|esse|este|valor|preco)\s+minim[oa]\b(?!\s+de\s+(entrada|sinal|parcela|area|quartos|vagas|documentos))`,
+    String.raw`\bminim[oa]\s+(que|dele|dela|do (dono|vendedor|proprietario))\b`,
+    String.raw`\bpiso\s+(dele|dela|do (dono|vendedor|proprietario)|de (preco|valor|venda|negociacao)|que (ele|ela|o dono|o vendedor|o proprietario|aceit))`,
+    String.raw`\bponto de recuo\b|\brecuo\s+(dele|dela|do (dono|vendedor|proprietario))\b|\bbatna\b`,
+    String.raw`\b(aceita|aceitaria|aceitara|topa|toparia|fecha|fecharia)\s+(ate|um pouco menos|menos|por menos)\b`,
+    String.raw`\b(vende|venderia|baixa|baixaria)\s+(por menos|um pouco mais|mais um pouco)\b`,
+    String.raw`\b(menor valor|valor mais baixo)\s+(que|aceit|possivel|dele|dela|do (dono|vendedor|proprietario))`,
+    String.raw`\babaixo disso\b|\blimite (dele|dela|do (dono|proprietario|vendedor))\b`,
+  ].join('|'),
+);
 
 // Só palavras gramaticais: as de domínio ("proposta", "anunciado") são justamente o que a BATNA diz.
 const PALAVRAS_VAZIAS = new Set(['para', 'pelo', 'pela', 'pelos', 'pelas', 'como', 'mais', 'menos', 'esse', 'essa', 'este', 'esta', 'isso', 'isto', 'aqui', 'voce', 'entao', 'quando', 'porque', 'muito', 'muita', 'sobre', 'entre', 'depois', 'antes']);
 
+/** Antes do valor: "desconto de 9%", "baixar 140 mil", "menos R$ 140.000". */
+const REDUCAO_ANTES = /\b(desconto|abatimento|reducao|abaixar|baixar|baixo|tirar|tiro|menos)\s+(de\s+)?(ate\s+)?(uns?\s+)?$/;
+/** Depois do valor (e do "%"): "140 mil abaixo do pedido", "R$ 140.000 a menos", "9% de desconto". */
+const REDUCAO_DEPOIS = /^\s*(reais\s+)?(a menos|abaixo|de desconto|de abatimento|de reducao|menor|mais barato)\b/;
+/** Referência ao vendedor, para a BATNA de uma palavra só. */
+const VENDEDOR = /\b(vendedor|vendedora|dono|dona|proprietari[oa])\b/;
+
 /**
- * Onde o texto revela o que é sigiloso. Valor a ±1% do recuo, do alvo ou de um valor da BATNA vaza,
- * salvo se coincidir (±0,1%) com um valor público permitido (a própria contraproposta, o preço
- * pedido, as propostas já trocadas). Também vaza: palavra de limite ("mínimo", "piso", "o dono
- * aceita até") e trecho de 3 palavras da BATNA.
+ * Onde o texto revela o que é sigiloso. Vaza:
+ * - valor a ±1% do recuo, do alvo ou de um valor da BATNA, salvo se coincidir (±0,1%) com um valor
+ *   público permitido (a própria contraproposta, o preço pedido, as propostas já trocadas);
+ * - pista derivada do preço pedido: percentual ou diferença de redução ("9,33% abaixo do pedido",
+ *   "140 mil a menos") que, aplicada ao pedido, cai a ±1% do recuo ou do alvo, salvo se levar a um valor
+ *   permitido (com a folga do arredondamento do percentual: "3%" cobre de 2,5% a 3,5%);
+ * - palavra de limite no sentido de limite ("o mínimo que ele aceita", "o piso dele", "o dono aceita até");
+ * - a BATNA: 3 palavras significativas seguidas dela; se ela tem só 2, as duas juntas ("outro
+ *   comprador"); se tem 1, essa palavra na mesma frase que o vendedor.
+ * `mandato.preco_pedido_c` é opcional: sem ele, a pista derivada não é checada.
  */
-export function vazamentos(texto: string | null | undefined, mandato: Pick<MandatoMotor, 'recuo_c' | 'alvo_c' | 'batna_vendedor'>, permitidos_c: number[] = []): string[] {
+export function vazamentos(
+  texto: string | null | undefined,
+  mandato: Pick<MandatoMotor, 'recuo_c' | 'alvo_c' | 'batna_vendedor'> & { preco_pedido_c?: number | null },
+  permitidos_c: number[] = [],
+): string[] {
   if (!texto) return [];
   const achados: string[] = [];
   const norm = semAcento(texto);
+  const base = prepararTexto(texto);
   const proximo = (a: number, b: number, tol: number) => Math.abs(a - b) <= Math.abs(b) * tol;
   const sigilosos: { nome: string; c: number }[] = [
     { nome: 'recuo', c: mandato.recuo_c },
     { nome: 'alvo', c: mandato.alvo_c },
     ...valoresCitados(mandato.batna_vendedor ?? '').filter((v) => v >= 1000).map((v) => ({ nome: 'valor da BATNA', c: Math.round(v * 100) })),
   ];
-  for (const v of valoresCitados(texto)) {
-    const c = Math.round(v * 100);
-    if (permitidos_c.some((p) => p > 0 && proximo(c, p, 0.001))) continue;
-    for (const s of sigilosos) if (s.c > 0 && proximo(c, s.c, 0.01)) achados.push(`cita o ${s.nome}`);
+  const permitidos = permitidos_c.filter((p) => p > 0);
+  const pedido = mandato.preco_pedido_c ?? 0;
+  for (const x of lerValores(base)) {
+    const c = Math.round(x.v * 100);
+    if (!permitidos.some((p) => proximo(c, p, 0.001))) {
+      for (const s of sigilosos) if (s.c > 0 && proximo(c, s.c, 0.01)) achados.push(`cita o ${s.nome}`);
+    }
+    // Pista derivada: o valor é um percentual ou uma diferença de redução sobre o preço pedido.
+    if (pedido <= 0) continue;
+    const depois = base.slice(x.fim, x.fim + 60);
+    const pct = depois.match(/^\s*(%|por cento\b)/);
+    const resto = pct ? depois.slice(pct[0].length) : depois;
+    if (!REDUCAO_ANTES.test(base.slice(Math.max(0, x.ini - 40), x.ini)) && !REDUCAO_DEPOIS.test(resto)) continue;
+    let derivado: number;
+    let folga: number;
+    if (pct) {
+      if (x.v >= 100) continue;
+      const casas = (base.slice(x.ini, x.fim).match(/[.,](\d+)$/)?.[1] ?? '').length;
+      derivado = Math.round(pedido * (1 - x.v / 100));
+      folga = (pedido * 0.5 * 10 ** -casas) / 100;
+    } else {
+      derivado = pedido - c;
+      folga = 0;
+    }
+    if (derivado <= 0) continue;
+    if (permitidos.some((p) => Math.abs(derivado - p) <= folga + p * 0.001)) continue;
+    for (const s of sigilosos) if (s.c > 0 && proximo(derivado, s.c, 0.01)) achados.push(`dá pista do ${s.nome} pelo preço pedido`);
   }
   if (PALAVRAS_DE_LIMITE.test(norm)) achados.push('fala em mínimo, piso ou limite do vendedor');
   const palavrasBatna = semAcento(mandato.batna_vendedor ?? '')
     .split(/[^a-z0-9]+/)
     .filter((w) => w.length >= 4 && !PALAVRAS_VAZIAS.has(w));
+  const palavrasTexto = norm.split(/[^a-z0-9]+/).filter(Boolean).join(' ');
   if (palavrasBatna.length >= 3) {
-    const palavrasTexto = norm.split(/[^a-z0-9]+/).filter(Boolean).join(' ');
     for (let i = 0; i + 3 <= palavrasBatna.length; i++) {
       // Três palavras significativas seguidas da BATNA, na mesma ordem, com até 2 palavras entre elas.
       const [a, b, c] = palavrasBatna.slice(i, i + 3);
@@ -388,8 +506,41 @@ export function vazamentos(texto: string | null | undefined, mandato: Pick<Manda
         break;
       }
     }
+  } else if (palavrasBatna.length === 2) {
+    // BATNA curta ("outro comprador"): as duas palavras juntas, na ordem, com até 2 entre elas e plural
+    // aceito. Uma delas sozinha ("comprador", "proposta") é conversa normal.
+    const [a, b] = palavrasBatna;
+    if (new RegExp(`\\b${a}\\w*(?:\\s+\\S+){0,2}\\s+${b}\\w*\\b`).test(palavrasTexto)) achados.push('cita a BATNA do vendedor');
+  } else if (palavrasBatna.length === 1) {
+    // BATNA de uma palavra ("alugar"): só vaza na mesma frase que fala do vendedor.
+    const re = new RegExp(`\\b${palavrasBatna[0]}\\w*\\b`);
+    if (norm.split(/[.!?;\n]+/).some((f) => re.test(f) && VENDEDOR.test(f))) achados.push('cita a BATNA do vendedor');
   }
   return [...new Set(achados)];
+}
+
+/** Campos de texto livre que o motor guarda (no histórico, na ficha), sem passar pelo cliente. */
+export const CAMPOS_REGISTRO = ['fonte_estimativa', 'resumo_rodada', 'motivo', 'interesses_identificados'] as const;
+export type CampoRegistro = (typeof CAMPOS_REGISTRO)[number];
+
+/**
+ * Sigilo nos campos guardados da resposta (os que `validarMovimento` não varre por não saírem ao
+ * cliente): cada campo com vazamento e o que vazou. Lista vazia = pode guardar como está. O backend
+ * decide o que fazer com o campo que vaza (descartar antes de gravar).
+ */
+export function vazamentosNoRegistro(
+  resposta: Partial<Pick<RespostaNegociador, CampoRegistro>>,
+  mandato: Pick<MandatoMotor, 'recuo_c' | 'alvo_c' | 'batna_vendedor'> & { preco_pedido_c?: number | null },
+  permitidos_c: number[] = [],
+): { campo: CampoRegistro; achados: string[] }[] {
+  const saida: { campo: CampoRegistro; achados: string[] }[] = [];
+  for (const campo of CAMPOS_REGISTRO) {
+    const valor = resposta[campo];
+    const textos = Array.isArray(valor) ? valor : [valor];
+    const achados = [...new Set(textos.flatMap((t) => vazamentos(typeof t === 'string' ? t : null, mandato, permitidos_c)))];
+    if (achados.length) saida.push({ campo, achados });
+  }
+  return saida;
 }
 
 // ---------------------------------------------------------------------------------------------------
@@ -491,9 +642,13 @@ export function validarMovimento(
       if (!itemDoMandato(cp.concessao, mandato.concessoes)) det.concessoes = 'concessão fora do mandato';
       else if (!cp.contrapartida) det.concessoes = 'concessão sem contrapartida';
     }
-    // 5. Sigilo: a mensagem e as condições não revelam recuo, alvo nem BATNA.
+    // 5. Sigilo: nenhum texto que pode chegar ao cliente ou ficar guardado com a proposta revela recuo,
+    // alvo nem BATNA: a mensagem e, da contraproposta (mesmo fora do movimento "contraproposta"), as
+    // condições, a concessão e a contrapartida. Concessão que casa com o item do mandato mas traz texto a
+    // mais ("prazo de entrega de 90 dias; nosso mínimo é 1.360.000") é pega aqui, pelo texto a mais.
     const permitidos = [cp?.valor_c ?? 0, mandato.preco_pedido_c, ...propostas.map((p) => p.valor_c)];
-    const vaz = [...vazamentos(resposta.mensagem, mandato, permitidos), ...vazamentos(cp?.condicoes, mandato, permitidos)];
+    const c = resposta.contraproposta;
+    const vaz = [resposta.mensagem, c?.condicoes, c?.concessao, c?.contrapartida].flatMap((t) => vazamentos(t, mandato, permitidos));
     if (vaz.length) det.sigilo = [...new Set(vaz)].join('; ');
   }
   // 7. Canal: sem WhatsApp do app; "faz sozinho" só no portal (D-107).
@@ -542,12 +697,14 @@ export const MOTIVOS_PASSAGEM = [
 export type MotivoPassagem = (typeof MOTIVOS_PASSAGEM)[number];
 
 const SINAIS: [MotivoPassagem, RegExp][] = [
-  ['cliente_aceita', /\b(aceito|fechado|fechamos|pode fechar|vamos fechar|eu topo|negocio fechado|ta combinado|esta combinado)\b/],
+  // "fechado" só como resposta ("Fechado!", "tá fechado"): "condomínio fechado" é do imóvel.
+  ['cliente_aceita', /\b(aceito|fechou|fechamos|pode fechar|vamos fechar|eu topo|negocio fechado|(ta|esta) fechado|ta combinado|esta combinado)\b|(^|[.!?,;:]\s*)fechado\b/],
   ['comissao', /\bcomiss(ao|oes)\b|\bcorretagem\b/],
   ['permuta', /\bpermuta\b|\btroca(r)? (pelo|por um|por meu|meu)\b|\bdou (meu|minha) (carro|apartamento|casa|terreno)\b/],
   ['financiamento_complexo', /\bconsorcio\b|\brepasse\b|\bcarta de credito\b|\bdois financiamentos\b|\bparcela(r|mento)? (direto )?com o (dono|proprietario|vendedor)\b|\bfinanciamento direto\b/],
   ['documentacao', /\b(escritura|matricula|certidao|certidoes|inventario|usucapiao|averbacao|habite-se|regularizacao)\b/],
-  ['juridico', /\b(advogad[oa]|processo|processar|justica|juridic[oa]|contrato de gaveta|penhora)\b/],
+  // "processo" sozinho é do dia a dia ("processo de financiamento aprovado"); só o judicial passa.
+  ['juridico', /\b(advogad[oa]|processar|processo (judicial|na justica|contra)|(entrar|entro|abrir|abro) (com )?(um )?processo|justica|juridic[oa]|contrato de gaveta|penhora)\b/],
   ['agressividade', /\b(idiota|ladr(ao|oes)|palhacada|vagabund[oa]|imbecil|otario|vai se ferrar|safad[oa]|golpe|golpista|vou te pegar|ameaca)\b/],
   ['pede_pessoa', /\b(falar|conversar) com (o|a|um|uma) (corretor|corretora|pessoa|humano|atendente|responsavel|dono|proprietario)\b|\bquero uma pessoa\b|\bvoce e (um )?robo\b/],
 ];
@@ -584,7 +741,7 @@ export function exigePassagem(p: {
   return [...motivos];
 }
 
-/** Frase de cada motivo de passagem, para o resumo que entra no topo de Hoje. */
+/** Frase de cada motivo de passagem, que as rotas do Negociador devolvem ao corretor em `motivos_passagem`. */
 export const DESCRICAO_PASSAGEM: Record<MotivoPassagem, string> = {
   oferta_abaixo_do_recuo: 'oferta do comprador abaixo do ponto de recuo',
   limite_de_rodadas: 'limite de rodadas do mandato atingido',

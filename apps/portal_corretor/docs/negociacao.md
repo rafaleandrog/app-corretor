@@ -80,10 +80,13 @@ Outro corretor nunca vê nada da negociação de outra conta: a resposta é "nã
 
 Cada proposta registra quem propôs (comprador, vendedor ou proprietário), o valor, as condições, a
 concessão, a contrapartida e a validade. Nesta versão o corretor **registra** as propostas
-(canal "registro"). A contraproposta do vendedor sai pelo **Portal do Cliente** ou pelo **Fazer
+(canal "registro"). A contraproposta do vendedor pode ser enviada pelo **Portal do Cliente** ou pelo **Fazer
 agora** (o app monta a mensagem e o link do WhatsApp do celular do corretor, que envia), sempre
-conferida contra o mandato antes de sair — ver a seção seguinte. O WhatsApp do próprio app ainda
-não existe.
+conferida contra o mandato antes de sair — ver a seção seguinte. Atenção: hoje o portal do cliente
+ainda não mostra propostas. Uma contraproposta enviada "pelo portal" fica gravada como enviada por
+esse canal, mas o cliente só passa a vê-la quando o portal mostrar as propostas, numa versão
+seguinte. Para o cliente receber agora, use o Fazer agora. O WhatsApp do próprio app ainda não
+existe.
 
 A **rodada** é calculada pelo app: cada oferta do comprador abre uma rodada, e a resposta do
 vendedor ou do proprietário fica na rodada aberta. A negociação guarda o número de rodadas.
@@ -104,9 +107,11 @@ conversa com a IA):
 2. **Passo:** a concessão de preço cabe no passo máximo da rodada e não é maior que a anterior.
 3. **Rodadas:** não passa do número de rodadas do mandato.
 4. **Concessões:** só itens do mandato, cada um com a contrapartida.
-5. **Sigilo:** a mensagem não cita o recuo, o alvo nem a BATNA do vendedor, em nenhum formato
-   ("1.360.000", "1,36 mi", "1360 mil", por extenso, até 1% de diferença), nem fala em "mínimo",
-   "piso" ou "o dono aceita até". Uma mensagem assim é retida e nunca aparece.
+5. **Sigilo:** a mensagem não pode citar o recuo, o alvo nem a BATNA do vendedor. O app procura
+   esses valores nos formatos usuais ("1.360.000", "1,36 mi", "1360 mil", por extenso, com pequena
+   margem de diferença) e frases como "mínimo", "piso" ou "o dono aceita até". É uma checagem
+   automática, que não substitui a sua leitura: confira o texto antes de enviar. A mensagem que o
+   app retém não vai ao cliente e não aparece como sugestão.
 6. **Validade:** o mandato está vigente; "faz sozinho" só com a autorização do proprietário.
 7. **Canal:** portal ou Fazer agora; "faz sozinho" só pelo portal.
 
@@ -123,10 +128,13 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
   Fazer agora), **edita** ou **descarta**. Aprovar ou editar confere as 7 garantias de novo: nem a
   sua edição passa do recuo ou revela o sigilo (o app recusa e diz por quê).
 - **Faz sozinho:** com o Negociador conduzindo e a autorização do proprietário no mandato, a
-  contraproposta que passa nas garantias sai sozinha pelo portal.
+  contraproposta que passa nas garantias é registrada sozinha como enviada pelo portal e a
+  negociação passa a "aguardando o cliente". Como o portal ainda não mostra propostas (ver
+  Propostas), o cliente só a vê quando isso chegar.
 
-**O Negociador nunca aceita o acordo.** Aceitar a proposta do comprador é uma ação separada, só do
-corretor: a negociação passa a "aguardando o proprietário", que decide o fechamento. Ele também
+**O Negociador nunca aceita o acordo.** Aceitar a proposta do comprador é uma ação separada, feita
+só por quem tem o papel de corretor (o administrador do app também pode, pois vale por todos os
+papéis). A negociação passa a "aguardando o proprietário", que decide o fechamento. O Negociador
 não precisa de CRECI.
 
 **Um atendente por vez:** **Assumir** faz você conduzir; **Devolver** entrega de novo ao Negociador
@@ -136,8 +144,13 @@ não precisa de CRECI.
 Negociador, chega numa versão seguinte): você escreve a mensagem do comprador e vê a resposta e as
 7 garantias marcadas (✓ ou ✗). Nada é gravado.
 
-**Sem IA** (o administrador não liberou o slot, ou a IA não respondeu), o pedido de sugestão diz
-"IA indisponível agora" e a negociação segue com você.
+**Sem IA:** há dois casos. Se a IA não está disponível na instância, o pedido de sugestão responde
+"IA indisponível agora: a negociação segue com você." Se a IA estava disponível mas não respondeu,
+a mensagem é "A IA não respondeu agora. Tente de novo em instantes; a negociação segue com você."
+Nos dois casos nada é gravado e nada muda na negociação (nem o estado, nem quem conduz): você
+conduz com as propostas e o Fazer agora, e pode pedir a sugestão de novo depois. Sem mandato
+vigente (ou com o mandato vencido) o app nem consulta a IA: a negociação vai para "aguardando o
+corretor" e você recebe o aviso "o Negociador precisa de você".
 
 ## Ajustes do Negociador
 
@@ -167,7 +180,11 @@ padrão nunca é apagada nem reescrita.
   "o Negociador precisa de você" (passagem ao corretor), objeção detectada, contraproposta
   esperando aprovação, contraproposta enviada, acordo aguardando o proprietário, negociação
   assumida e devolvida. O conteúdo desses eventos nunca leva valores do mandato.
-- **IA:** o Negociador usa o slot **Negociador** (base `poder`). Sem ele autorizado, o pedido de
-  sugestão responde "IA indisponível agora" e o corretor conduz.
+- **IA:** o Negociador usa o slot **Negociador**, que é um slot próprio do app e herda a base
+  `poder`. Não há autorização separada para ele: o que o administrador libera, em Admin ›
+  Instaláveis › Apps › Portal do Corretor › IA, é o uso da chave da plataforma na base `poder`
+  (ou configura uma chave própria do app para o slot). Se a base `poder` não estiver liberada, o
+  sistema tenta `normal` e depois `barato`, e o Negociador roda com um modelo menor. Só quando
+  nenhum deles resolve, o pedido de sugestão responde "IA indisponível agora" e o corretor conduz.
 - **Respostas a objeções:** semeadas a cada início do app, em toda conta ativa, sem duplicar. Conta
   criada depois do último início recebe as respostas no próximo; até lá, essa conta não tem as respostas. Nesta versão ainda não existe tela de respostas a objeções: elas só existem nos dados da conta.
