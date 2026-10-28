@@ -40,12 +40,55 @@ function comoLido(tabela: string, l: Record<string, any>) {
 
 export type Linha = Record<string, any> & { id: number; conta_id: number };
 
+/** Condição de um único parcial (banco-de-dados.md § Único parcial): só `AND`, operadores fechados. */
+export interface CondicaoUnico {
+  coluna: string;
+  operador: 'igual' | 'diferente' | 'nulo' | 'nao_nulo';
+  valor?: string | number | boolean;
+}
+/** Único: `'a+b'` (forma antiga, entre as linhas vivas) ou o grupo com predicado `onde`, como no schema.json. */
+export type Unico = string | { colunas: string[]; onde: CondicaoUnico[] };
+
+/** A linha entra no índice parcial? Como no PostgreSQL, `coluna <> valor` com coluna nula não casa. */
+function satisfaz(l: Record<string, any>, onde: CondicaoUnico[]) {
+  return onde.every(({ coluna, operador, valor }) => {
+    const v = l[coluna];
+    const nulo = v === null || v === undefined;
+    if (operador === 'nulo') return nulo;
+    if (operador === 'nao_nulo') return !nulo;
+    if (nulo) return false;
+    return operador === 'igual' ? String(v) === String(valor) : String(v) !== String(valor);
+  });
+}
+
 export class BancoFalso {
   private seq = 0;
   readonly tabelas = new Map<string, Linha[]>();
   // Únicos por tabela, compostos com a conta (como no schema segregado). Composto: 'pipeline+nome'.
   // Valem no criar e no atualizar, entre as linhas vivas (como o único parcial em removido_em nulo).
-  constructor(private unicos: Record<string, string[]> = {}) {}
+  // O grupo com `onde` vale só entre as linhas que satisfazem o predicado — e o predicado é inteiro
+  // do autor: nada de `removido_em` implícito, como no framework.
+  constructor(private unicos: Record<string, Unico[]> = {}) {}
+  /** Travas de linha (`buscar(…, { travar: true })`): chave `tabela:id` → fila de quem espera. */
+  private travas = new Map<string, (() => void)[]>();
+
+  /** Pega a trava da linha; resolve quando ela é sua. Solta-se no fim da transação. */
+  private async travar(chave: string, minhas: Set<string>) {
+    if (minhas.has(chave)) return;
+    if (this.travas.has(chave)) await new Promise<void>((ok) => this.travas.get(chave)!.push(ok));
+    else this.travas.set(chave, []);
+    minhas.add(chave);
+  }
+
+  private soltar(minhas: Set<string>) {
+    for (const chave of minhas) {
+      const fila = this.travas.get(chave)!;
+      const proximo = fila.shift();
+      if (proximo) proximo();
+      else this.travas.delete(chave);
+    }
+    minhas.clear();
+  }
 
   linhas(tabela: string): Linha[] {
     if (!this.tabelas.has(tabela)) this.tabelas.set(tabela, []);
@@ -90,11 +133,12 @@ export class BancoFalso {
     };
     const colide = (tabela: string, linha: Linha) => {
       for (const unico of banco.unicos[tabela] ?? []) {
-        const cols = unico.split('+');
-        if (cols.some((c) => linha[c] === null || linha[c] === undefined)) continue;
-        const vizinhas = GLOBAIS.has(tabela) ? visiveis(tabela) : banco.linhas(tabela).filter((l) => l.conta_id === linha.conta_id && !l.removido_em);
-        if (vizinhas.some((l) => l.id !== linha.id && cols.every((c) => l[c] === linha[c]))) {
-          throw Object.assign(new Error(`unico ${tabela}.${unico}`), { code: '23505' });
+        const cols = typeof unico === 'string' ? unico.split('+') : unico.colunas;
+        const noIndice = (l: Record<string, any>) => (typeof unico === 'string' ? !l.removido_em : satisfaz(l, unico.onde));
+        if (cols.some((c) => linha[c] === null || linha[c] === undefined) || !noIndice(linha)) continue;
+        const daConta = GLOBAIS.has(tabela) ? banco.linhas(tabela) : banco.linhas(tabela).filter((l) => l.conta_id === linha.conta_id);
+        if (daConta.some((l) => l.id !== linha.id && noIndice(l) && cols.every((c) => l[c] === linha[c]))) {
+          throw Object.assign(new Error(`unico ${tabela}.${cols.join('+')}`), { code: '23505' });
         }
       }
     };
@@ -108,7 +152,9 @@ export class BancoFalso {
       async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
         return consultar(tabela, op).map((l) => comoLido(tabela, l));
       },
-      async buscar(tabela: string, id: number) {
+      async buscar(tabela: string, id: number, op: { travar?: boolean } = {}) {
+        // Como o framework: a trava só vale dentro de transaction() (a `buscar` dela trava de verdade).
+        if (op.travar) throw Object.assign(new Error('travar só vale dentro de transaction()'), { codigo: 'VOCABULARIO_INVALIDO' });
         const l = visiveis(tabela).find((x) => x.id === id);
         return l ? comoLido(tabela, l) : null;
       },
@@ -135,10 +181,20 @@ export class BancoFalso {
         return true;
       },
       /** Transação: se `fn` lança, desfaz tudo o que ela gravou (no lugar, mantendo as referências). */
+      // `buscar(…, { travar: true })` dentro dela serializa quem trava a mesma linha até o fim (o
+      // `SELECT … FOR UPDATE`): o segundo espera o primeiro terminar e lê o que ele gravou.
       async transaction(fn: (trx: any) => Promise<unknown>) {
+        const minhas = new Set<string>();
+        const trx = {
+          ...helper,
+          async buscar(tabela: string, id: number, op: { travar?: boolean } = {}) {
+            if (op.travar) await banco.travar(`${tabela}:${id}`, minhas);
+            return helper.buscar(tabela, id);
+          },
+        };
         const foto = [...banco.tabelas].map(([t, ls]) => ({ t, ls: ls.slice(), copias: ls.map((l) => ({ ...l })) }));
         try {
-          return await fn(helper);
+          return await fn(trx);
         } catch (e) {
           const vistas = new Set(foto.map((f) => f.t));
           for (const [t, ls] of banco.tabelas) if (!vistas.has(t)) ls.length = 0;
@@ -151,6 +207,8 @@ export class BancoFalso {
             });
           }
           throw e;
+        } finally {
+          banco.soltar(minhas);
         }
       },
       async existe(tabela: string, filtros: Record<string, unknown>) {

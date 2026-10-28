@@ -19,7 +19,8 @@ export const PASSO_MAX_PADRAO = 0.4;
 export const RODADAS_MAX_PADRAO = 4;
 
 /**
- * Campos do mandato que só saem em `GET /negociacoes/:id/mandato` para o corretor da conta. Nenhuma
+ * Campos do mandato que só saem para o corretor da conta nas rotas do mandato: `GET
+ * /negociacoes/:id/mandato` e a resposta do `PUT` dela (a versão que ele acabou de gravar). Nenhuma
  * outra rota, evento ou exportação os carrega: tudo o que sai passa por `semSigilo()`.
  */
 export const CAMPOS_SIGILOSOS = ['recuo_c', 'alvo_c', 'batna_vendedor'] as const;
@@ -104,7 +105,14 @@ export interface RecusaMandato {
 
 const centavos = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
 const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
-const dataValida = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+// `Date.parse` aceita dia que não existe ('2026-02-31' vira 3 de março): a data só vale se voltar igual.
+const dataValida = (v: unknown): v is string => {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const d = new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+};
+/** Escala de `mandatos_negociacao.passo_max_pct` no schema.json (decimal, 3 casas). */
+const ESCALA_PASSO = 1000;
 
 /** Valida o corpo do PUT do mandato (P16): recuo ≤ alvo ≤ pedido, passo, rodadas e autonomia. */
 export function validarMandato(corpo: Record<string, unknown>): { ok: true; dados: MandatoValido } | RecusaMandato {
@@ -115,8 +123,10 @@ export function validarMandato(corpo: Record<string, unknown>): { ok: true; dado
   if (preco_pedido_c === null) erros.push('preco_pedido_c: informe o preço pedido, em centavos.');
   if (alvo_c === null) erros.push('alvo_c: informe o alvo, em centavos.');
   if (recuo_c === null) erros.push('recuo_c: informe o ponto de recuo, em centavos.');
-  const passo_max_pct = corpo.passo_max_pct === undefined || corpo.passo_max_pct === null ? PASSO_MAX_PADRAO : Number(corpo.passo_max_pct);
-  if (!Number.isFinite(passo_max_pct) || passo_max_pct <= 0 || passo_max_pct > 1) erros.push('passo_max_pct: use uma fração maior que 0 e até 1 (0,40 = 40%).');
+  const passo_bruto = corpo.passo_max_pct === undefined || corpo.passo_max_pct === null ? PASSO_MAX_PADRAO : Number(corpo.passo_max_pct);
+  // Validado já na escala do banco: 0,0004 viraria 0,000 lá e cairia no CHECK (> 0).
+  const passo_max_pct = Math.round(passo_bruto * ESCALA_PASSO) / ESCALA_PASSO;
+  if (!Number.isFinite(passo_max_pct) || passo_max_pct <= 0 || passo_bruto > 1) erros.push('passo_max_pct: use uma fração maior que 0 e até 1 (0,40 = 40%).');
   const rodadas_max = corpo.rodadas_max === undefined || corpo.rodadas_max === null ? RODADAS_MAX_PADRAO : Number(corpo.rodadas_max);
   if (!Number.isInteger(rodadas_max) || rodadas_max < 1 || rodadas_max > 50) erros.push('rodadas_max: use um número inteiro de 1 a 50.');
   if (!dataValida(corpo.validade)) erros.push('validade: informe a data no formato AAAA-MM-DD.');

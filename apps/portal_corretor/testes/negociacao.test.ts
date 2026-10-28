@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import manifesto from '../manifesto.json';
+import schema from '../schema.json';
 import { rotas } from '../backend/rotas';
 import { semearObjecoes } from '../backend/semente';
 import {
@@ -12,12 +13,15 @@ import {
   semSigilo,
   validarMandato,
 } from '../comum/negociacao';
-import { BancoFalso, comServidor, type Ator } from './apoio';
+import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
 
 // Negociação (D1, issue #100): isolamento A × B em toda rota nova, sigilo do mandato (recuo, alvo e
 // BATNA do vendedor só em GET /negociacoes/:id/mandato), validações e semente do Apêndice D.
 
-const UNICOS = { negociacoes: ['codigo'], mandatos_negociacao: ['negociacao_id+versao'], playbook_objecoes: ['categoria+origem'], config_negociador: ['chave'] };
+// O único parcial "uma negociação em andamento por negócio" vem do próprio schema.json (o banco falso
+// imita o predicado). Vai antes do `codigo` para que a colisão de dois POST simultâneos caia nele.
+const EM_ANDAMENTO = (schema.tabelas.negociacoes.unicos as unknown[]).find((u) => !Array.isArray(u)) as Exclude<Unico, string>;
+const UNICOS: Record<string, Unico[]> = { negociacoes: [EM_ANDAMENTO, 'codigo'], mandatos_negociacao: ['negociacao_id+versao'], playbook_objecoes: ['categoria+origem'], config_negociador: ['chave'] };
 
 // Valores sigilosos fáceis de achar em qualquer texto que saia (JSON, CSV, evento).
 const RECUO = 87_654_321;
@@ -353,4 +357,220 @@ test('conta nova (sem semente ainda): a rota devolve o padrão da constante sem 
     assert.equal(lista[1].padrao.pergunta_exploracao, PLAYBOOK_OBJECOES_PADRAO[1].pergunta_exploracao);
   });
   assert.equal(banco.linhas('playbook_objecoes').length, 0);
+});
+
+test('schema: uma negociação não encerrada por negócio é garantida pelo banco (único parcial)', async () => {
+  assert.deepEqual(EM_ANDAMENTO, {
+    colunas: ['negocio_id'],
+    onde: [
+      { coluna: 'estado', operador: 'diferente', valor: 'ganha' },
+      { coluna: 'estado', operador: 'diferente', valor: 'perdida' },
+    ],
+  });
+  const banco = new BancoFalso(UNICOS);
+  const { negocio, imovel, contato } = await base(banco, 100);
+  const d = banco.dados(100);
+  const linha = (codigo: string, estado: string) => ({ codigo, negocio_id: negocio.id, imovel_id: imovel.id, contato_id: contato.id, estado, conduzida_por: 'ia', rodadas: 0 });
+  const primeira = await d.criar('negociacoes', linha('NG-0001', 'pausada'));
+  await assert.rejects(d.criar('negociacoes', linha('NG-0002', 'ativa')), (e: any) => e.code === '23505', 'pausada também está em andamento');
+  await d.atualizar('negociacoes', primeira.id, { estado: 'perdida', motivo_perda: 'preco' });
+  await d.criar('negociacoes', linha('NG-0003', 'ativa'));
+  await d.criar('negociacoes', linha('NG-0004', 'ganha'));
+  // Outra conta, mesmo id de negócio: o único é composto com a conta.
+  await banco.dados(200).criar('negociacoes', linha('NG-0001', 'ativa'));
+});
+
+/** Segura as `n` primeiras chamadas de `verbo` em `tabela` até as `n` chegarem (força a corrida). */
+function barreira(banco: BancoFalso, verbo: 'criar' | 'buscar', tabela: string, n: number) {
+  const original = banco.dados.bind(banco);
+  let chegaram = 0;
+  let soltar = () => {};
+  const todas = new Promise<void>((ok) => (soltar = ok));
+  (banco as any).dados = (conta: number | null, global = false) => {
+    const h = original(conta, global);
+    const verdadeiro = h[verbo];
+    h[verbo] = async (t: string, ...resto: unknown[]) => {
+      if (t === tabela && chegaram < n) {
+        if (++chegaram === n) soltar();
+        await todas;
+      }
+      return verdadeiro(t, ...resto);
+    };
+    return h;
+  };
+}
+
+test('dois POST simultâneos no mesmo negócio: uma 201 e uma 409 NEGOCIACAO_EXISTENTE, nunca duas ativas', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  // Os dois passam pela leitura "já existe?" antes de qualquer um gravar.
+  barreira(banco, 'criar', 'negociacoes', 2);
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const corpo = { negocio_id: negocio.id, imovel_id: imovel.id };
+    const r = await Promise.all([chamar('POST', '/negociacoes', corpo), chamar('POST', '/negociacoes', corpo)]);
+    assert.deepEqual(r.map((x) => x.status).sort(), [201, 409], JSON.stringify(r.map((x) => x.corpo)));
+    assert.equal(r.find((x) => x.status === 409)!.corpo.codigo, 'NEGOCIACAO_EXISTENTE');
+  });
+  const ativas = banco.linhas('negociacoes').filter((n) => n.negocio_id === negocio.id && !['ganha', 'perdida'].includes(n.estado));
+  assert.equal(ativas.length, 1);
+  assert.equal(ev.publicados.filter((e) => e.tipo === 'negociacao_iniciada').length, 1);
+});
+
+test('PATCH: ganha com valor_final_c null explícito não passa; ganha sempre grava valor > 0, perdida sempre o motivo', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    assert.equal((await chamar('PATCH', `/negociacoes/${nid}`, { valor_final_c: 90_000_000, motivo_perda: 'preco' })).status, 200);
+    // O `??` caía no valor antigo e gravava null.
+    assert.equal((await chamar('PATCH', `/negociacoes/${nid}`, { estado: 'ganha', valor_final_c: null })).status, 422);
+    assert.equal((await chamar('PATCH', `/negociacoes/${nid}`, { estado: 'ganha', valor_final_c: 0 })).status, 422);
+    assert.equal((await chamar('PATCH', `/negociacoes/${nid}`, { estado: 'perdida', motivo_perda: null })).status, 422);
+    const linha = banco.linhas('negociacoes').find((n) => n.id === nid)!;
+    assert.deepEqual([linha.estado, linha.valor_final_c, linha.motivo_perda], ['ativa', 90_000_000, 'preco'], 'nada gravado');
+
+    // Corrida: um PATCH apaga o valor enquanto outro encerra como ganha apoiado nele. Em qualquer
+    // ordem, a linha final nunca é ganha sem valor.
+    const r = await Promise.all([
+      chamar('PATCH', `/negociacoes/${nid}`, { valor_final_c: null }),
+      chamar('PATCH', `/negociacoes/${nid}`, { estado: 'ganha' }),
+    ]);
+    const final = banco.linhas('negociacoes').find((n) => n.id === nid)!;
+    if (final.estado === 'ganha') assert.ok(final.valor_final_c > 0, `ganha sem valor: ${JSON.stringify(r.map((x) => x.status))}`);
+    // Encerrada, nada muda (nem o valor).
+    if (final.estado === 'ganha') assert.equal((await chamar('PATCH', `/negociacoes/${nid}`, { valor_final_c: null })).status, 409);
+  });
+  // Perdida apoiada no motivo já gravado.
+  const outro = await banco.dados(100).criar('negocios', { contato_id: (await base(banco, 100)).contato.id, titulo: 'Outro', pipeline: 'compra', etapa_id: 1, responsavel_id: 1 });
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: outro.id, imovel_id: imovel.id })).corpo.id;
+    await chamar('PATCH', `/negociacoes/${nid}`, { motivo_perda: 'financiamento' });
+    const perdida = await chamar('PATCH', `/negociacoes/${nid}`, { estado: 'perdida' });
+    assert.equal(perdida.status, 200);
+    assert.equal(perdida.corpo.motivo_perda, 'financiamento');
+  });
+});
+
+test('propostas simultâneas: rodadas distintas e `rodadas` nunca regride; encerrada no meio do caminho → 409 sem gravar', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  let nid = 0;
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    nid = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 80_000_000 })).corpo.rodada, 1);
+  });
+  // As duas passam pela leitura inicial (fora da transação) antes de qualquer uma contar.
+  barreira(banco, 'buscar', 'negociacoes', 2);
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const r = await Promise.all([
+      chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 82_000_000 }),
+      chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 83_000_000 }),
+    ]);
+    assert.deepEqual(r.map((x) => x.status), [201, 201]);
+    assert.deepEqual(r.map((x) => x.corpo.rodada).sort(), [2, 3], 'nunca 2 e 2');
+  });
+  assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.rodadas, 3);
+
+  // A negociação é encerrada entre a leitura inicial da rota e a transação.
+  const original = banco.dados.bind(banco);
+  let armado = true;
+  (banco as any).dados = (conta: number | null, global = false) => {
+    const h = original(conta, global);
+    const buscar = h.buscar;
+    h.buscar = async (t: string, id: number, op?: unknown) => {
+      const r = await buscar(t, id, op);
+      if (t === 'negociacoes' && armado) {
+        armado = false;
+        Object.assign(banco.linhas('negociacoes').find((n) => n.id === id)!, { estado: 'perdida', motivo_perda: 'preco' });
+      }
+      return r;
+    };
+    return h;
+  };
+  const antes = banco.linhas('propostas').length;
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const r = await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 84_000_000 });
+    assert.equal(r.status, 409, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.codigo, 'NEGOCIACAO_ENCERRADA');
+  });
+  assert.equal(banco.linhas('propostas').length, antes, 'nada gravado');
+  assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.rodadas, 3);
+});
+
+test('mandato: data que não existe é 422 MANDATO_INVALIDO (validade e data da autorização)', async () => {
+  for (const validade of ['2026-02-31', '2026-02-29', '2026-04-31', '2026-13-01', '2026-00-10']) {
+    const r = validarMandato({ ...MANDATO, validade });
+    assert.ok(!r.ok && r.codigo === 'MANDATO_INVALIDO', validade);
+  }
+  assert.equal(validarMandato({ ...MANDATO, validade: '2028-02-29' }).ok, true, 'ano bissexto');
+  const autorizacao = validarMandato({ ...MANDATO, autonomia: 'faz_sozinho', autorizacao_proprietario: { tipo: 'mensagem', data: '2026-02-30' } });
+  assert.ok(!autorizacao.ok && autorizacao.codigo === 'MANDATO_INVALIDO');
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    const r = await chamar('PUT', `/negociacoes/${nid}/mandato`, { ...MANDATO, validade: '2026-02-31' });
+    assert.deepEqual([r.status, r.corpo.codigo], [422, 'MANDATO_INVALIDO']);
+  });
+  assert.equal(banco.linhas('mandatos_negociacao').length, 0);
+});
+
+test('mandato: passo aceito nunca vira 0 (nem passa de 1) na escala de 3 casas do banco', () => {
+  const coluna = schema.tabelas.mandatos_negociacao.colunas.passo_max_pct;
+  assert.equal(coluna.escala, 3);
+  assert.equal(validarMandato({ ...MANDATO, passo_max_pct: 0.0004 }).ok, false, '0,0004 viraria 0,000');
+  for (const passo of [0.0004, 0.0005, 0.0006, 0.001, 0.0015, 0.4, 0.33333, 0.9996, 0.99999, 1, 1.0004, 1e-9]) {
+    const r = validarMandato({ ...MANDATO, passo_max_pct: passo });
+    if (!r.ok) continue;
+    const noBanco = Math.round(r.dados.passo_max_pct * 1000) / 1000;
+    assert.ok(noBanco > 0 && noBanco <= 1, `passo ${passo} aceito e gravado como ${noBanco}`);
+    assert.equal(r.dados.passo_max_pct, noBanco, `passo ${passo} já sai na escala do banco`);
+  }
+  assert.equal(validarMandato({ ...MANDATO, passo_max_pct: 1.0004 }).ok, false);
+});
+
+test('isolamento: PUT de B em /negociador/config e /negociador/objecoes não toca as linhas de A', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    assert.equal((await chamar('PUT', '/negociador/config', { estilo: 'firme', instrucoes_corretor: 'Da conta A.' })).status, 200);
+    assert.equal((await chamar('PUT', '/negociador/objecoes', { categoria: 'preco', pergunta_exploracao: 'P A', resposta_base: 'R da conta A', proximo_passo: 'N A' })).status, 200);
+  });
+  await comServidor(rotas, ator(2, 200, ev), banco, {}, async (chamar) => {
+    const cfg = await chamar('PUT', '/negociador/config', { estilo: 'consultivo', instrucoes_corretor: 'Da conta B.', ligado: false });
+    assert.deepEqual([cfg.status, cfg.corpo.versao], [200, 1], 'B cria a própria linha');
+    assert.equal((await chamar('PUT', '/negociador/objecoes', { categoria: 'preco', pergunta_exploracao: 'P B', resposta_base: 'R da conta B', proximo_passo: 'N B' })).status, 200);
+    assert.equal((await chamar('PUT', '/negociador/objecoes', { categoria: 'preco', usar_padrao: true })).status, 200, 'B volta ao padrão');
+  });
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const cfg = (await chamar('GET', '/negociador/config')).corpo;
+    assert.deepEqual([cfg.estilo, cfg.instrucoes_corretor, cfg.ligado, cfg.versao], ['firme', 'Da conta A.', true, 1]);
+    const preco = (await chamar('GET', '/negociador/objecoes')).corpo.dados.find((o: any) => o.categoria === 'preco');
+    assert.equal(preco.usando, 'corretor');
+    assert.equal(preco.minha.resposta_base, 'R da conta A');
+  });
+  assert.equal(banco.linhas('config_negociador').filter((l) => l.conta_id === 100).length, 1);
+});
+
+test('lista: cada negociação mostra a própria última oferta, mesmo quando a mais recente da conta é de outra', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel, contato } = await base(banco, 100);
+  const outro = await banco.dados(100).criar('negocios', { contato_id: contato.id, titulo: 'Outra compra', pipeline: 'compra', etapa_id: 1, responsavel_id: 1 });
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const n1 = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    const n2 = (await chamar('POST', '/negociacoes', { negocio_id: outro.id, imovel_id: imovel.id })).corpo.id;
+    await chamar('POST', `/negociacoes/${n1}/propostas`, { direcao: 'comprador', valor_c: 80_000_000 });
+    await chamar('POST', `/negociacoes/${n1}/propostas`, { direcao: 'vendedor', valor_c: 93_000_000 });
+    await chamar('POST', `/negociacoes/${n2}/propostas`, { direcao: 'comprador', valor_c: 70_000_000 });
+    const lista = (await chamar('GET', '/negociacoes')).corpo.dados;
+    const de = (id: number) => lista.find((l: any) => l.id === id);
+    assert.equal(lista.length, 2);
+    assert.equal(de(n1).ultima_oferta_c, 80_000_000, 'a de n1, não a mais recente da conta');
+    assert.equal(de(n2).ultima_oferta_c, 70_000_000);
+  });
 });

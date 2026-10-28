@@ -23,8 +23,9 @@ import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './aces
 // Negociação (bloco D1 da fase 1.6; spec 6.16, 7.1, 10.9.2, 10.9.3, 13 e Apêndice D). Só os dados e
 // as rotas do corretor: o motor do Negociador (sugestão, validações de 10.9.7, envio pelo portal ou
 // pelo Fazer agora) é o D2; o negociador humano, o D7. Sigilo (regra do dono): recuo, alvo e BATNA
-// do vendedor só saem em GET /negociacoes/:id/mandato. Toda outra resposta e todo evento passam por
-// `semSigilo()`.
+// do vendedor só saem para o corretor da conta nas duas rotas do mandato: GET /negociacoes/:id/mandato
+// e a resposta do PUT /negociacoes/:id/mandato (que devolve a versão que ele acabou de gravar). Toda
+// outra resposta e todo evento passam por `semSigilo()`.
 export const negociacaoRotas = Router();
 guardarCorretor(negociacaoRotas, ['/negociacoes', '/negociador']);
 
@@ -76,6 +77,12 @@ async function mandatoVigente(dados: HelperDados, negociacao: Linha): Promise<Li
   if (!negociacao.mandato_id) return null;
   const m = await dados.buscar('mandatos_negociacao', Number(negociacao.mandato_id));
   return m && Number(m.negociacao_id) === Number(negociacao.id) ? normalizarMandato(m) : null;
+}
+
+/** A negociação em andamento (não encerrada) do negócio, se houver. */
+async function negociacaoAberta(dados: HelperDados, negocioId: number): Promise<Linha | null> {
+  const r = await dados.listar('negociacoes', { filtros: { negocio_id: negocioId }, por_pagina: 100 });
+  return r.dados.find((n) => !encerrada(n)) ?? null;
 }
 
 /** `decimal` chega como texto do banco: a fração volta como número. */
@@ -130,9 +137,10 @@ negociacaoRotas.post(
     const [negocio, imovel] = await Promise.all([dados.buscar('negocios', negocioId), dados.buscar('imoveis', imovelId)]);
     if (!negocio) return erro(res, 404, 'NAO_ENCONTRADO', 'Negócio não encontrado.');
     if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
-    // Uma negociação em andamento por negócio (6.16): a encerrada não impede uma nova.
-    const abertas = await dados.listar('negociacoes', { filtros: { negocio_id: negocioId }, por_pagina: 100 });
-    const aberta = abertas.dados.find((n) => !encerrada(n));
+    // Uma negociação em andamento por negócio (6.16): a encerrada não impede uma nova. A leitura aqui
+    // só dá a mensagem com o código; quem garante é o único parcial do schema.json (negocio_id onde o
+    // estado não é ganha nem perdida), que recusa a segunda criada ao mesmo tempo.
+    const aberta = await negociacaoAberta(dados, negocioId);
     if (aberta) return erro(res, 409, 'NEGOCIACAO_EXISTENTE', `Este negócio já está em negociação (${aberta.codigo}).`);
     // Quem conduz: o pedido, ou o Negociador IA (D-94) — o corretor, se o Negociador estiver desligado.
     // `humano` chega com o negociador humano (D7, política multi-usuário).
@@ -158,6 +166,10 @@ negociacaoRotas.post(
         return res.status(201).json(semSigilo(negociacao));
       } catch (e) {
         if (!violouUnico(e)) throw e;
+        // Dois únicos na tabela: o do `codigo` (tenta outro código) e o da negociação em andamento por
+        // negócio (outra tela criou agora). Relê para saber qual foi, sem depender do nome do índice.
+        const outra = await negociacaoAberta(dados, negocioId);
+        if (outra) return erro(res, 409, 'NEGOCIACAO_EXISTENTE', `Este negócio já está em negociação (${outra.codigo}).`);
       }
     }
     return erro(res, 409, 'CODIGO_REPETIDO', 'Não foi possível gerar o código agora. Tente de novo.');
@@ -214,22 +226,30 @@ negociacaoRotas.patch(
     if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a negociação.', erros);
     if (!Object.keys(mudancas).length) return erro(res, 422, 'DADOS_INVALIDOS', 'Nada para alterar.');
     const fim = mudancas.estado === 'ganha' || mudancas.estado === 'perdida';
-    if (mudancas.estado === 'ganha' && !((mudancas.valor_final_c ?? atual.valor_final_c) > 0)) {
-      return erro(res, 422, 'DADOS_INVALIDOS', 'Para encerrar como ganha, informe o valor final.');
+    // O valor que fica gravado é o do pedido quando ele traz o campo (null inclusive), senão o atual.
+    const final = (campo: string) => (campo in mudancas ? mudancas[campo] : atual[campo]);
+    const condicoes: Record<string, unknown> = { estado: atual.estado };
+    if (mudancas.estado === 'ganha') {
+      if (!(Number(final('valor_final_c')) > 0)) return erro(res, 422, 'DADOS_INVALIDOS', 'Para encerrar como ganha, informe o valor final.');
+      // Apoiado no valor já gravado: outro PATCH não pode apagá-lo entre a leitura e esta escrita.
+      if (!('valor_final_c' in mudancas)) condicoes.valor_final_c = atual.valor_final_c;
     }
-    if (mudancas.estado === 'perdida' && !(mudancas.motivo_perda ?? atual.motivo_perda)) {
-      return erro(res, 422, 'DADOS_INVALIDOS', 'Para encerrar como perdida, informe o motivo.');
+    if (mudancas.estado === 'perdida') {
+      if (!final('motivo_perda')) return erro(res, 422, 'DADOS_INVALIDOS', 'Para encerrar como perdida, informe o motivo.');
+      if (!('motivo_perda' in mudancas)) condicoes.motivo_perda = atual.motivo_perda;
     }
     if (fim) mudancas.encerrada_em = new Date();
-    // Condicionada ao estado lido: dois encerramentos simultâneos não publicam duas vezes.
-    const salva = await dados.atualizarSe('negociacoes', nid!, mudancas, { estado: atual.estado });
+    // Condicionada ao estado lido (e ao valor ou motivo em que o encerramento se apoia): dois
+    // encerramentos simultâneos não publicam duas vezes, e nenhum grava ganha sem valor.
+    const salva = await dados.atualizarSe('negociacoes', nid!, mudancas, condicoes);
     if (!salva) return erro(res, 409, 'NEGOCIACAO_ALTERADA', 'A negociação mudou enquanto você editava. Abra de novo.');
     if (fim) await publicar(req, 'negociacao_encerrada', { negociacao_id: nid! });
     res.json(semSigilo(salva));
   }),
 );
 
-// Única rota que devolve recuo, alvo e BATNA do vendedor: o corretor da conta (guardarCorretor).
+// Com a resposta do PUT abaixo, as únicas que devolvem recuo, alvo e BATNA do vendedor: só ao
+// corretor da conta (guardarCorretor).
 negociacaoRotas.get(
   '/negociacoes/:id/mandato',
   assincrono(async (req, res) => {
@@ -272,6 +292,7 @@ negociacaoRotas.put(
     }
     // Sem valores: só os ids (13.1).
     await publicar(req, 'mandato_alterado', { negociacao_id: nid!, mandato_id: mandato.id });
+    // Ao corretor que gravou, a versão completa (com recuo, alvo e BATNA), como no GET do mandato.
     res.json(normalizarMandato(mandato));
   }),
 );
@@ -320,7 +341,13 @@ negociacaoRotas.post(
       return erro(res, 422, 'CANAL_INDISPONIVEL', 'Por enquanto, só o registro de proposta está disponível; o envio pelo portal e pelo Fazer agora chega em seguida.');
     }
     const direcao = b.direcao as Direcao;
-    const proposta = await dados.transaction(async (trx) => {
+    const resultado = await dados.transaction(async (trx) => {
+      // Trava a negociação ANTES de contar (banco-de-dados.md, Trava de linha): duas propostas ao
+      // mesmo tempo se enfileiram aqui, e a segunda conta já com a primeira. Relida travada, ninguém
+      // a encerra entre esta checagem e a escrita.
+      const viva = await trx.buscar('negociacoes', nid!, { travar: true });
+      if (!viva) return { recusa: 404 as const };
+      if (encerrada(viva)) return { recusa: 409 as const };
       const anteriores = await trx.varrerTudo('propostas', { filtros: { negociacao_id: nid }, maximo: 500 });
       const rodada = rodadaDaProposta(anteriores.map((p) => p.direcao as Direcao), direcao);
       const criada = await trx.criar('propostas', {
@@ -337,10 +364,14 @@ negociacaoRotas.post(
         canal,
         estado: 'registrada',
       });
-      // `rodadas` é materializado a cada proposta (6.16).
-      if (rodada > Number(negociacao.rodadas ?? 0)) await trx.atualizar('negociacoes', nid!, { rodadas: rodada });
-      return criada;
+      // `rodadas` é materializado a cada proposta (6.16), lido da linha travada: nunca regride.
+      if (rodada > Number(viva.rodadas ?? 0)) await trx.atualizar('negociacoes', nid!, { rodadas: rodada });
+      return { proposta: criada };
     });
+    if ('recusa' in resultado) {
+      return resultado.recusa === 404 ? erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA) : erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+    }
+    const { proposta } = resultado;
     await publicar(req, direcao === 'comprador' ? 'proposta_recebida' : 'proposta_registrada', { negociacao_id: nid!, proposta_id: proposta.id });
     res.status(201).json(semSigilo(proposta));
   }),

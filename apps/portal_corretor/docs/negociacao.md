@@ -24,7 +24,9 @@ conta. Ela recebe um código `NG-0001`, `NG-0002`… e guarda o cliente do negó
   ajustes, a negociação nova começa conduzida pelo corretor. O negociador humano (uma pessoa
   convidada pelo corretor) chega numa versão seguinte.
 - **Leitura do comprador:** teto estimado, a fonte da estimativa e a alternativa provável do
-  comprador (BATNA estimada do comprador). Não são sigilosos.
+  comprador. Essa alternativa é o que a sigla **BATNA** quer dizer: o que a pessoa faria se não
+  fechasse este negócio (por exemplo, comprar outro imóvel parecido). Aqui é uma estimativa do
+  comprador. Não são sigilosos.
 
 ## Mandato: até onde o Negociador pode ir
 
@@ -35,9 +37,9 @@ O **mandato** é o combinado do corretor com o proprietário para aquela negocia
 | Preço pedido | O valor anunciado (a âncora) |
 | **Alvo** | Onde o vendedor quer fechar — **sigiloso** |
 | **Ponto de recuo** | O valor abaixo do qual o vendedor prefere não fechar — **sigiloso** |
-| **BATNA do vendedor** | A melhor alternativa dele sem este acordo (ex.: "manter anunciado 60 dias") — **sigilosa** |
+| **BATNA do vendedor** | A melhor alternativa do vendedor se não houver este acordo (ex.: "manter anunciado 60 dias") — **sigilosa** |
 | Concessões | O que o vendedor pode ceder (prazo, itens, forma de pagamento), cada uma com a **contrapartida** a pedir em troca |
-| Passo máximo | Quanto do preço pode ceder numa rodada (padrão 40%; ver abaixo) |
+| Passo máximo | Que parte do que ainda falta até o ponto de recuo o vendedor pode ceder numa rodada (padrão 40%; ver abaixo) |
 | Rodadas | Número máximo de rodadas (padrão 4) |
 | Validade | Até quando o mandato vale |
 | Autonomia | **Só sugere**, **Pergunta antes** (padrão) ou **Faz sozinho dentro da faixa** |
@@ -63,7 +65,7 @@ R$ 872.000). Como o intervalo encolhe, a concessão diminui a cada rodada.
 ### O que é sigiloso e quem vê
 
 **Alvo, ponto de recuo e BATNA do vendedor nunca são revelados pelo Negociador** (regra do dono do
-produto). No app, eles só aparecem para o **corretor da conta**, e só no mandato da negociação.
+produto). No app, eles só aparecem para o **corretor da conta** e para o **administrador do app** (que precisa estar associado a uma conta), e só no mandato da negociação. A equipe da plataforma (papel de operação) não passa nas telas e rotas de negociação.
 Ficam fora de:
 - a lista e o detalhe da negociação (o mandato aparece ali só com o que não é sigiloso);
 - as propostas;
@@ -106,9 +108,9 @@ padrão nunca é apagada nem reescrita.
 
 ## Para o administrador da instância
 
-- **Eventos** (todos da conta do corretor, com link para a negociação): negociação iniciada,
+- **Eventos** (todos da conta do corretor; o clique leva à tela Clientes, mas nesta versão ela só tem as visões Lista e Quadro, então o link ainda não abre a negociação): negociação iniciada,
   oferta do comprador recebida, proposta registrada, mandato alterado, negociação encerrada e
   "o Negociador precisa de você" (limite do mandato atingido; passa a sair com o Negociador). O
   conteúdo desses eventos nunca leva valores do mandato.
 - **Respostas a objeções:** semeadas a cada início do app, em toda conta ativa, sem duplicar. Conta
-  criada depois do último início recebe as respostas no próximo; até lá, a tela mostra o padrão.
+  criada depois do último início recebe as respostas no próximo; até lá, essa conta não tem as respostas. Nesta versão ainda não existe tela de respostas a objeções: elas só existem nos dados da conta.

@@ -120,24 +120,24 @@ async function objecoesDaConta(ctx: ContextoListener, contaId: number): Promise<
     const ja = new Set(existentes.map((l) => l.categoria));
     for (const p of PLAYBOOK_OBJECOES_PADRAO) {
       if (ja.has(p.categoria)) continue;
-      try {
-        await trx.criar('playbook_objecoes', {
-          categoria: p.categoria,
-          fala_cliente: p.fala_cliente,
-          pergunta_exploracao: p.pergunta_exploracao,
-          resposta_base: p.resposta_base,
-          proximo_passo: p.proximo_passo,
-          origem: 'padrao',
-        });
-        criadas++;
-      } catch (e) {
-        // Outro boot semeou a mesma categoria entre a leitura e a escrita: já está lá. Para aqui (o
-        // bloco pode estar numa transação que o erro invalidou); o que faltar entra no próximo boot.
-        if ((e as { code?: string }).code !== '23505') throw e;
-        break;
-      }
+      // Sem capturar o erro de único (23505): `comConta` roda dentro da transação que o framework abriu
+      // (contas.md, "depois que o framework abriu a transação"), e no PostgreSQL um erro de único a
+      // deixa abortada — engolir o erro e seguir faria o bloco voltar normal, o commit virar rollback
+      // e `criadas` contar linhas desfeitas. Se outro boot semeou a mesma categoria entre a leitura e
+      // a escrita, o erro sobe, o bloco inteiro é desfeito e a função lança: a falha é desta conta
+      // (o laço de `semearObjecoes` a junta) e o próximo boot, já vendo as linhas, completa o que falta.
+      await trx.criar('playbook_objecoes', {
+        categoria: p.categoria,
+        fala_cliente: p.fala_cliente,
+        pergunta_exploracao: p.pergunta_exploracao,
+        resposta_base: p.resposta_base,
+        proximo_passo: p.proximo_passo,
+        origem: 'padrao',
+      });
+      criadas++;
     }
   });
+  // Só chega aqui com o bloco confirmado; qualquer erro (da escrita ou do commit) lançou antes.
   return criadas;
 }
 

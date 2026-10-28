@@ -2287,7 +2287,24 @@
       "unicos": [
         [
           "codigo"
-        ]
+        ],
+        {
+          "colunas": [
+            "negocio_id"
+          ],
+          "onde": [
+            {
+              "coluna": "estado",
+              "operador": "diferente",
+              "valor": "ganha"
+            },
+            {
+              "coluna": "estado",
+              "operador": "diferente",
+              "valor": "perdida"
+            }
+          ]
+        }
       ],
       "indices": [
         [
