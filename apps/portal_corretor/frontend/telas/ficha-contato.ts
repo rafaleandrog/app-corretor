@@ -99,6 +99,11 @@ export class FichaContato {
     return this.ouvintes.size > 0;
   }
 
+  /** Esta ainda é a ficha na tela: a aberta e com alguma coluna ouvindo (a visita não acabou). */
+  private get ativa(): boolean {
+    return aberta?.ficha === this && this.emUso;
+  }
+
   ouvir(fn: () => void): () => void {
     this.ouvintes.add(fn);
     return () => this.ouvintes.delete(fn);
@@ -114,7 +119,10 @@ export class FichaContato {
         this.s.ia = { resumo: !!r.resumo, mensagem: !!r.mensagem };
         this.s.iaSondada = true;
       },
-      () => undefined,
+      // Sonda que falha (rede, 5xx) vale como "indisponível": a tela explica o Resumir desligado em vez de calar.
+      () => {
+        this.s.iaSondada = true;
+      },
     );
   }
 
@@ -141,10 +149,11 @@ export class FichaContato {
       this.s.ficha = ficha;
       // Contato em foco: o Assistente aberto nesta ficha e a Nova visita do Criar já vêm com ele.
       // Só a ficha que ainda é a aberta: resposta tardia de outro contato não toma o foco.
-      if (aberta?.ficha === this) lembrarContato({ id: ficha.contato.id, nome: ficha.contato.nome });
+      if (this.ativa) lembrarContato({ id: ficha.contato.id, nome: ficha.contato.nome });
       this.s.etapas = etapas.etapas;
       this.s.envios = envios.dados;
-      if (sugerirAgora && ficha.abordagem) void this.sugerir();
+      // Idem para a sugestão do `?sugerir=1`: ficha que o corretor já deixou não gasta IA nem alerta sobre outra.
+      if (sugerirAgora && ficha.abordagem && this.ativa) void this.sugerir();
     } catch (e) {
       this.s.falha = e;
     }

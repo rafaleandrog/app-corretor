@@ -21,7 +21,7 @@ import {
   ROTULO_PAPEL,
   type OpcoesAba,
 } from '../apoio.js';
-import { contatoDoItem } from '../enderecos.js';
+import { buscaDaVisao, contatoDoItem } from '../enderecos.js';
 import { estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import './clientes-quadro.js';
@@ -71,7 +71,10 @@ export function renderClientes(atualizar: () => void) {
   const id = visao === 'lista' ? clienteDaUrl() : null;
   const trocarVisao = (v: string) => {
     if (!VISOES.some((x) => x.id === v)) return;
+    // O `item` só segue para a Lista se já era contato nela (`buscaDaVisao`): o de negociação ou do Funil sai.
+    const mantemItem = new URLSearchParams(buscaDaVisao(window.location.search, visao, v)).has('item');
     abaNaUrl(v === 'lista' ? '' : v, OPCOES_VISAO);
+    if (!mantemItem) itemNaUrl(null);
     atualizar();
   };
   const escolher = (contato: number | null) => {

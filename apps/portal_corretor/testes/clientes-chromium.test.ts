@@ -38,6 +38,7 @@ const ficha = (c) => ({
 const chamadas = [];
 window.chamadas = chamadas;
 window.navegou = [];
+window.alertas = [];
 window.urbiVerso = {
   subRota: () => location.pathname.replace(/^\\/portal_corretor/, '') || '/',
   href: (s) => '/portal_corretor' + s,
@@ -45,6 +46,7 @@ window.urbiVerso = {
   usuario: () => ({ id: 1, nome: 'Marina' }),
   contexto: () => ({ conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }], contaEscrita: 100 } }),
   notificar: () => {},
+  alertar: async (a) => { window.alertas.push(a.titulo); },
   api: async (rota) => {
     chamadas.push(rota);
     const [caminho] = rota.split('?');
@@ -58,8 +60,14 @@ window.urbiVerso = {
     const c = m && CONTATOS.find((x) => x.id === Number(m[1]));
     // Contato de outra conta: a rota responde 404 (o RLS não devolve a linha).
     if (m && !c) throw Object.assign(new Error('Contato não encontrado.'), { status: 404 });
-    if (m && !m[2]) return ficha(c);
+    if (m && !m[2]) {
+      if (c.id === 7 && window.seguraFicha) await window.seguraFicha;
+      return ficha(c);
+    }
+    if (m && m[2] === '/mensagem-sugerida' && window.sugerirFalha) throw new Error('IA fora do ar');
     if (m && m[2] === '/mensagem-sugerida') return { mensagem: 'Oi, Ana!', ia: false };
+    if (m && m[2] === '/ia' && window.seguraSonda) await window.seguraSonda;
+    if (m && m[2] === '/ia' && window.sondaFalha) throw Object.assign(new Error('Erro de rede'), { status: 503 });
     if (m && m[2] === '/ia') return { resumo: false, mensagem: false };
     if (m && m[2] === '/portal') return { ativo: true, link: '/portal_corretor/c?t=x', criado_em: '2026-10-03T12:00:00Z' };
     if (m && m[2] === '/tarefas-cliente') return { dados: [] };
@@ -99,6 +107,85 @@ window.achar = (raiz, seletor) => {
   return null;
 };
 `;
+
+/** Monta a página de teste (o pacote da tela e a api falsa) e devolve o navegador para fechar no fim. */
+async function montar(pw: any) {
+  const pacote = await build({
+    stdin: { contents: ENTRADA, resolveDir: process.cwd(), loader: 'ts' },
+    bundle: true,
+    write: false,
+    format: 'iife',
+    target: 'es2022',
+    tsconfig: 'tsconfig.json',
+    logLevel: 'silent',
+  });
+  const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><div id="raiz"></div><script>${PROFUNDO}</script><script>${pacote.outputFiles[0].text}</script></body></html>`;
+  const navegador = await pw.chromium.launch();
+  const pagina = await navegador.newPage({ viewport: { width: 1440, height: 900 } });
+  await pagina.route(`${ORIGEM}/**`, (r: any) => r.fulfill({ contentType: 'text/html', body: html }));
+  return { navegador, pagina };
+}
+
+test('Ficha: sonda de IA que falha explica o Resumir desligado; antes de a sonda terminar, não afirma nada', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    // A sonda fica presa: o Resumir está desligado, mas a tela ainda não diz "indisponível".
+    await pagina.addInitScript(() => {
+      const w = window as any;
+      w.sondaFalha = true;
+      w.seguraSonda = new Promise((resolver) => (w.soltarSonda = resolver));
+    });
+    const texto = () => pagina.evaluate(() => (window as any).profundo(document.querySelector('pc-ficha-contato-foco')));
+    await pagina.goto(`${ORIGEM}/portal_corretor/clientes?item=7`);
+    await pagina.waitForTimeout(50);
+    assert.match(await texto(), /Resumir/);
+    assert.doesNotMatch(await texto(), /indisponível/i, 'antes de a sonda terminar a tela não afirma "indisponível"');
+    // A sonda termina com erro 503: o Resumir segue desligado e a dica de IA indisponível aparece.
+    await pagina.evaluate(() => (window as any).soltarSonda());
+    await pagina.waitForTimeout(100);
+    assert.match(await texto(), /IA indisponível agora/, 'sonda que falhou vira "indisponível" com a explicação');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Ficha: resposta atrasada de A depois de trocar para B não sugere nem alerta sobre B', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.addInitScript(() => {
+      const w = window as any;
+      w.sugerirFalha = true;
+      w.seguraFicha = new Promise((resolver) => (w.soltarFicha = resolver));
+    });
+    await pagina.goto(`${ORIGEM}/portal_corretor/clientes?item=7&sugerir=1`);
+    await pagina.waitForTimeout(50);
+    // O corretor troca para o Bruno antes de a ficha da Ana voltar.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.achar(document, 'urbi-lista').dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: { id: 8 } }, bubbles: true, composed: true }));
+    });
+    await pagina.waitForTimeout(50);
+    await pagina.evaluate(() => (window as any).soltarFicha());
+    await pagina.waitForTimeout(100);
+    const r = await pagina.evaluate(() => {
+      const w = window as any;
+      return {
+        sugestoes: w.chamadas.filter((c: string) => c.startsWith('/contatos/7/mensagem-sugerida')).length,
+        alertas: w.alertas.slice(),
+        centro: w.profundo(document.querySelector('pc-ficha-contato-foco')),
+      };
+    });
+    assert.match(r.centro, /Bruno Lima/);
+    assert.equal(r.sugestoes, 0, 'a ficha que deixou de ser a aberta não chama a IA');
+    assert.deepEqual(r.alertas, [], 'nem alerta sobre a ficha de outro cliente');
+  } finally {
+    await navegador.close();
+  }
+});
 
 test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= e ?secao= ao recarregar, Funil e isolamento', async (t) => {
   const pw = playwright();

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { rotas } from '../backend/rotas';
 import { chipsDoPerfilBusca } from '../comum/crm';
-import { contatoDoEndereco, contatoDoItem, fichaCanonica, resolverEndereco } from '../frontend/enderecos';
+import { buscaDaVisao, contatoDoEndereco, contatoDoItem, fichaCanonica, resolverEndereco } from '../frontend/enderecos';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 // Clientes no Padrão B (B3, issue #92): a ficha mora na Lista (`/clientes?item=<id>`), o caminho antigo
@@ -89,4 +89,25 @@ test('?item= só é contato na visão Lista: a notificação de negociação nã
   // O endereço do manifesto (`clientes?visao=negociacoes&item={negociacao_id}`), na função que a tela usa.
   assert.equal(contatoDoItem('?visao=negociacoes&item=55'), null);
   assert.equal(contatoDoItem('?item=55'), 55);
+});
+
+test('trocar de visão: o ?item= de outra visão nunca vira contato na Lista (tabela-verdade)', () => {
+  // Notificação de negociação: a tela mostra a Lista (visão desconhecida cai na primeira), mas o item é da negociação.
+  assert.equal(buscaDaVisao('?visao=negociacoes&item=55', 'lista', 'lista'), '');
+  assert.equal(buscaDaVisao('?visao=quadro&item=7', 'quadro', 'lista'), '');
+  // Já na Lista, clicar Lista não desfaz a seleção.
+  assert.equal(buscaDaVisao('?item=7', 'lista', 'lista'), 'item=7');
+  assert.equal(buscaDaVisao('?visao=lista&item=7', 'lista', 'lista'), 'item=7');
+  // Lista -> Funil mantém o item na URL (a ficha não abre no Funil); voltar à Lista o descarta.
+  const noFunil = buscaDaVisao('?item=7', 'lista', 'quadro');
+  assert.equal(noFunil, 'item=7&visao=quadro');
+  assert.equal(contatoDoItem(`?${noFunil}`), null);
+  assert.equal(buscaDaVisao(`?${noFunil}`, 'quadro', 'lista'), '');
+  // Apelido `/funil?item=7`: sem `visao` na query, mas a visão atual é o Funil.
+  assert.equal(buscaDaVisao('?item=7', 'quadro', 'lista'), '');
+  // Funil -> Funil não muda nada além da chave; os demais parâmetros ficam em todos os casos.
+  assert.equal(buscaDaVisao('?visao=quadro', 'quadro', 'quadro'), 'visao=quadro');
+  assert.equal(buscaDaVisao('?q=ana&papel=comprador&visao=negociacoes&item=55', 'lista', 'lista'), 'q=ana&papel=comprador');
+  assert.equal(buscaDaVisao('?q=ana&papel=comprador&item=7', 'lista', 'lista'), 'q=ana&papel=comprador&item=7');
+  assert.equal(buscaDaVisao('?q=ana&visao=quadro&item=7', 'quadro', 'lista'), 'q=ana');
 });

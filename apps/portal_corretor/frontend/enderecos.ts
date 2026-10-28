@@ -77,6 +77,22 @@ export function contatoDoItem(busca = ''): number | null {
 }
 
 /**
+ * Query depois de trocar a visão de Clientes (`para`: `lista` ou `quadro`), a partir da `busca` atual e da
+ * visão `atual` que a tela mostra (já com o apelido `/funil`). Os demais parâmetros ficam. Ir à Lista só
+ * mantém o `item` que já era contato na Lista (`contatoDoItem` e `atual === 'lista'`): um `item` que veio com
+ * outra visão (`negociacoes`, `quadro`, desconhecida) ou que passou pelo Funil é de outra coisa e sai.
+ * Clicar na visão em que já se está não desfaz a seleção. Regra única de `trocarVisao`.
+ */
+export function buscaDaVisao(busca: string, atual: string, para: string): string {
+  const q = new URLSearchParams(busca);
+  if (para === 'lista') {
+    if (!(atual === 'lista' && contatoDoItem(busca) !== null)) q.delete('item');
+    q.delete('visao');
+  } else q.set('visao', para);
+  return q.toString();
+}
+
+/**
  * Contato em foco no endereço (ficha aberta), para o Assistente e o Criar levarem o contexto: o item
  * selecionado na Lista de Clientes (`contatoDoItem`) ou o caminho antigo `/clientes/7`.
  */
