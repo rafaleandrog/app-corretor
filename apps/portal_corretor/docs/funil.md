@@ -89,7 +89,7 @@ vez, em abas: **Hoje · Fila · Agenda**).
 - O dia por extenso e o estado do Mensageiro (por enquanto, "ainda não disponível": ele chega com o WhatsApp).
 - **Precisa de você**: as negociações que esperam a sua decisão e os clientes quentes sem resposta,
   cada um com o botão **Abrir** (a ficha do cliente). O **Assumir** de uma negociação chega com o
-  Negociador (D2/D3); a tela de negociação ainda não existe.
+  Negociador (D2/D3); a tela de negociação ainda não existe. A lista mostra até 20 negociações e até 50 clientes quentes.
 - **Primeiros passos · x de 5**, com as bolinhas de progresso e um **Fazer** em cada passo pendente:
   dar nome à conta, informar o seu telefone, conectar o Instagram, cadastrar o primeiro imóvel e
   publicar a Página. Some quando os 5 estão feitos. Quando o WhatsApp e o Mensageiro existirem, os
@@ -122,18 +122,18 @@ tiver abordagem). Fila vazia mostra "Nada urgente agora" e o botão **Cadastrar 
 
 **À direita:**
 
-- **Agenda de hoje**: o que está pendente hoje, por horário. **Ver agenda** troca o centro pela lista
+- **Agenda de hoje**: o que está pendente hoje, por horário, até 20 compromissos. **Ver agenda** troca o centro pela lista
   dos próximos 14 dias (ver [Clientes, negócios e agenda](clientes-e-agenda.md#agenda)), e **Voltar
   para a fila** desfaz. O endereço `/agenda` abre Hoje direto na agenda.
 - **Sua semana**: contatos novos, leads e visitas feitas nos últimos 7 dias, e a comissão prevista.
 - **Dica do Assistente**: uma sugestão a partir do que está na tela (os quentes sem resposta, as
-  abordagens atrasadas ou o próximo passo pendente), com **Perguntar ao Assistente**. Quando a IA não
+  abordagens atrasadas ou o primeiro passo ainda não feito dos Primeiros passos; sem nada disso, a dica é "Nada urgente agora…"), com **Perguntar ao Assistente**. Quando a IA não
   está liberada, o botão fica desligado com "IA indisponível agora", e uma faixa no alto do centro
   avisa; o resto de Hoje funciona.
 
 Tudo vem numa chamada só (`GET /inicio`), relida a cada vez que você entra em Hoje ou troca de conta. Ao trocar de conta, Hoje mostra
 "carregando" até chegarem os dados da conta nova (nada da conta anterior fica na tela); se a
-releitura falhar, aparece o erro com **Tentar de novo** no lugar dos dados.
+releitura falhar, aparece o erro com **Tentar de novo** no lugar dos dados; se a resposta for 403 ou 404, aparece **Não encontrado**.
 
 As passagens do atendimento automático, as peças aguardando aprovação e os frios que reagiram a um
 envio entram na fila com o WhatsApp, com o Estúdio e com os envios rastreados.

@@ -7,7 +7,7 @@ declare const urbiVerso: UrbiVersoAPI;
 
 type Atividade = Record<string, any>;
 
-// Agenda (aba do Início, D-82): o que está pendente nos próximos 14 dias, agrupado por dia, mais o
+// Agenda de 14 dias (visão do centro de Hoje, aberta por "Ver agenda"; D-82): o que está pendente nos próximos 14 dias, agrupado por dia, mais o
 // que ficou atrasado. Lista por dia em vez de calendário: o catálogo de UI ainda não tem calendário (spec 11.5).
 @customElement('pc-tela-agenda')
 export class PcTelaAgenda extends LitElement {

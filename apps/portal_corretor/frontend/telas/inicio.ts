@@ -82,6 +82,7 @@ function trocarDeConta() {
 async function carregar(atualizar: () => void) {
   trocarDeConta();
   estado.carga = iniciarCarga(estado.carga);
+  atualizar();
   const geracao = estado.carga.geracao;
   try {
     const [dados, ia] = await Promise.all([chamarApi('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]);

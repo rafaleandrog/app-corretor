@@ -34,7 +34,7 @@ quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na 
 ## Como as telas se organizam
 
 O menu tem, nesta ordem: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. As
-telas estão passando para um desenho só, em colunas (o "Padrão B"). **Números** já está nele; as
+telas estão passando para um desenho só, em colunas (o "Padrão B"). **Hoje** e **Números** já estão nele; as
 outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 
 | Parte | Onde fica | O que faz |
