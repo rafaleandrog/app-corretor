@@ -169,5 +169,5 @@ export const ROTULO_AMBIENTE: Record<string, string> = {
   fachada: 'Fachada', sala: 'Sala', cozinha: 'Cozinha', quarto: 'Quarto', banheiro: 'Banheiro', varanda: 'Varanda',
   area_lazer: 'Área de lazer', vista: 'Vista', garagem: 'Garagem', planta: 'Planta', outro: 'Outro',
 };
-/** Cor do selo de qualidade (0–100). */
-export const corQualidade = (nota: number) => (nota >= 80 ? 'sucesso' : nota >= 50 ? 'alerta' : 'erro');
+/** Cor do `urbi-badge` da nota de qualidade (0–100): ≥ 80 `sucesso` (verde), 60–79 `alerta` (âmbar), < 60 `erro` (vermelho). */
+export const corQualidade = (nota: number) => (nota >= 80 ? 'sucesso' : nota >= 60 ? 'alerta' : 'erro');

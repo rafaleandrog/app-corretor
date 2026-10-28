@@ -4,6 +4,7 @@ import type { HelperDados } from '@urbiverso/sdk';
 import {
   AMBIENTES,
   autorizacaoVigente,
+  combina,
   contextoDescricao,
   INSTRUCAO_DESCRICAO,
   INSTRUCAO_FOTO,
@@ -243,6 +244,87 @@ imoveisRotas.get(
         return { ...v, quando: a?.quando ?? null, status: a?.status ?? null, contato_id: a?.contato_id ?? null, contato_nome: a?.contato_nome ?? null };
       }),
       negocios: negocios.dados,
+    });
+  }),
+);
+
+/** Linhas por ida ao banco e tetos da rota de contexto: `varrerTudo` lança ao passar do `maximo`, e a rota não pode falhar pelo tamanho da conta. */
+const LOTE_CONTEXTO = 500;
+const LIMITE_ENVIOS_CONTEXTO = 10_000;
+const LIMITE_PERFIS_CONTEXTO = 10_000;
+
+/** Lê por páginas até `limite` linhas, sem lançar: passou disso, devolve o que leu. */
+async function lerAte(dados: HelperDados, tabela: string, filtros: Record<string, unknown>, limite: number) {
+  const linhas: Record<string, any>[] = [];
+  for (let pagina = 1; linhas.length < limite; pagina++) {
+    const r = await dados.listar(tabela, { filtros, ordenar: 'id', ordem: 'asc', por_pagina: LOTE_CONTEXTO, pagina });
+    linhas.push(...r.dados);
+    if (pagina >= r.paginas) break;
+  }
+  return linhas.slice(0, limite);
+}
+
+/**
+ * Até 10 compradores com perfil de busca (não anonimizados) que combinam com o imóvel. Procura nos primeiros
+ * `LIMITE_PERFIS_CONTEXTO` contatos com perfil, em ordem de cadastro, e para ao achar 10: em conta enorme a lista
+ * pode ser um subconjunto dos que combinam.
+ */
+async function compradoresQueCombinam(dados: HelperDados, imovel: Record<string, any>) {
+  const achados: { id: number; nome: string; temperatura: string | null; motivos: string[] }[] = [];
+  let lidos = 0;
+  for (let pagina = 1; achados.length < 10 && lidos < LIMITE_PERFIS_CONTEXTO; pagina++) {
+    const r = await dados.listar('contatos', {
+      filtros: { 'perfil_busca[nulo]': 'false', 'anonimizado_em[nulo]': 'true' },
+      ordenar: 'id',
+      ordem: 'asc',
+      por_pagina: LOTE_CONTEXTO,
+      pagina,
+    });
+    lidos += r.dados.length;
+    for (const c of r.dados) {
+      if (achados.length >= 10) break;
+      if (!normalizarPapeis(c.papeis).includes('comprador')) continue;
+      const motivos = combina(c.perfil_busca, imovel);
+      if (motivos) achados.push({ id: c.id, nome: c.nome, temperatura: c.temperatura ?? null, motivos });
+    }
+    if (pagina >= r.paginas) break;
+  }
+  return achados;
+}
+
+/**
+ * Coluna da direita da ficha (P06): a qualidade com o que falta, os números dos últimos 30 dias do
+ * imóvel e os clientes da conta cujo perfil de busca combina com ele (`combina`, comum/imoveis.ts).
+ * Tudo pelo `req.dados`: o imóvel de outra conta é "não encontrado", e os clientes são os da conta.
+ */
+imoveisRotas.get(
+  '/imoveis/:id/contexto',
+  assincrono(async (req, res) => {
+    const iid = id(req.params.id);
+    const dados = req.dados!;
+    const imovel = iid ? await dados.buscar('imoveis', iid) : null;
+    if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
+    const desde = new Date(Date.now() - 30 * 86400e3).toISOString();
+    const [extras, creci, visitas, envios, negocios, perfis] = await Promise.all([
+      complementos(req, [imovel]),
+      temCreci(req),
+      dados.listar('visitas', { filtros: { imovel_id: iid, 'criado_em[gte]': desde }, por_pagina: 1 }),
+      lerAte(dados, 'envios', { imovel_id: iid, 'enviado_em[gte]': desde }, LIMITE_ENVIOS_CONTEXTO),
+      dados.listar('negocios', { filtros: { imovel_id: iid }, por_pagina: 1 }),
+      compradoresQueCombinam(dados, imovel),
+    ]);
+    const { qualidade } = resumo(imovel, extras.get(iid!)!, hoje(req));
+    const combinam = perfis;
+    res.json({
+      qualidade,
+      sem_creci: !creci,
+      numeros: {
+        visitas: visitas.total,
+        enviados: new Set(envios.map((e) => e.contato_id)).size,
+        cliques: envios.reduce((s, e) => s + (Number(e.cliques) || 0), 0),
+        negocios: negocios.total,
+      },
+      combinam,
     });
   }),
 );

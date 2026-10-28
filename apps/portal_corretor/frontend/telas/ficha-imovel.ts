@@ -3,7 +3,8 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { secaoDaFalta } from '../../comum/imoveis';
-import { acoesComMais, avisoCreci, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
+import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
+import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -31,10 +32,23 @@ const SITUACAO_AUTORIZACAO: Record<string, { rotulo: string; cor: string }> = {
   revogada: { rotulo: 'Revogada', cor: 'padrao' },
 };
 const hojeIso = () => new Date().toLocaleDateString('sv-SE');
+/** Par rótulo/valor da grade de dados: só primitivos `urbi-*`. */
+const par = (rotulo: string, valor: unknown) => html`<urbi-stack>
+  <urbi-prosa papel="fraco">${rotulo}</urbi-prosa>
+  ${typeof valor === 'string' ? html`<urbi-prosa>${valor}</urbi-prosa>` : valor}
+</urbi-stack>`;
 const mais = (dias: number) => new Date(Date.now() + dias * 86400e3).toLocaleDateString('sv-SE');
 
-// Ficha do imóvel: o que falta no anúncio, dados, fotos (cadastro rápido), descrição com IA,
-// autorização de venda, visitas e negócios. Publicar pede autorização vigente.
+/** A ficha avisa que o imóvel mudou ou saiu (dados, fotos, situação, publicação, autorização): o contexto da direita e a lista da esquerda releem. */
+export const EVENTO_IMOVEL_MUDOU = 'pc:imovel-mudou';
+/** O contexto da direita pede à ficha que abra o que resolve uma pendência de "o que falta". */
+export const EVENTO_RESOLVER_FALTA = 'pc:resolver-falta';
+
+// Ficha do imóvel, no centro da moldura de Imóveis (P06): cabeçalho com Editar e Criar conteúdo,
+// galeria (capa e miniaturas), dados, quem vê o imóvel, fotos e arquivos, descrição com IA,
+// autorização de venda, visitas e negócios. A qualidade e "o que falta" ficam na coluna da direita
+// (`pc-contexto-imovel`), que pede por evento a seção que resolve cada pendência. Publicar pede
+// autorização vigente.
 @customElement('pc-tela-ficha-imovel')
 export class PcTelaFichaImovel extends LitElement {
   @property({ type: Number }) imovelId = 0;
@@ -47,18 +61,31 @@ export class PcTelaFichaImovel extends LitElement {
   @state() private contatos: Linha[] = [];
   @state() private empreendimentos: Linha[] = [];
 
+  private aoResolver = (e: Event) => {
+    const d = (e as CustomEvent).detail;
+    if (d?.id === this.imovelId && this.ficha) this.resolver(String(d.falta));
+  };
+
   connectedCallback() {
     super.connectedCallback();
-    void this.carregar();
+    void this.carregar(true);
     void chamarApi('/imoveis/ia').then((r) => (this.ia = r), () => undefined);
+    window.addEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
   }
 
-  private async carregar() {
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
+  }
+
+  /** `primeira`: a carga de entrada; as seguintes vêm de uma mudança e avisam o contexto da direita. */
+  private async carregar(primeira = false) {
     this.falha = null;
     try {
       const [ficha, envios] = await Promise.all([chamarApi(`/imoveis/${this.imovelId}`), chamarApi(`/envios?imovel_id=${this.imovelId}`).catch(() => ({ dados: [] }))]);
       this.ficha = ficha;
       this.envios = envios.dados;
+      if (!primeira) window.dispatchEvent(new CustomEvent(EVENTO_IMOVEL_MUDOU, { detail: { id: this.imovelId } }));
     } catch (e) {
       this.falha = (e as Error).message;
     }
@@ -296,6 +323,9 @@ export class PcTelaFichaImovel extends LitElement {
     if (!ok) return;
     try {
       await enviar('PATCH', `/imoveis/${this.imovelId}/remover`, {});
+      window.dispatchEvent(new CustomEvent(EVENTO_IMOVEL_MUDOU, { detail: { id: this.imovelId, removido: true } }));
+      // Tira o `?item=` do endereço: o centro não fica com a ficha do que saiu.
+      filtrosNaUrl(filtrosDaUrl(), {}, ['item']);
       urbiVerso.navegarSub('/imoveis');
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -424,26 +454,10 @@ export class PcTelaFichaImovel extends LitElement {
     }
   }
 
-  private oQueFalta(qualidade: Ficha['qualidade'], semCreci: boolean) {
-    if (!qualidade.faltas.length && !semCreci) return '';
-    return html`<urbi-card titulo="O que falta no anúncio" icone="fa-solid fa-list-check">
-      <span slot="acoes"><urbi-badge cor=${corQualidade(qualidade.nota)} title="Qualidade do anúncio">${qualidade.nota}</urbi-badge></span>
-      ${qualidade.faltas.length
-        ? html`<urbi-lista separador clicavel .itens=${qualidade.faltas}
-            .render_item=${(f: string) => html`<urbi-linha justificar="entre">
-              <urbi-prosa>${f}</urbi-prosa>
-              <urbi-icone classe="fa-solid fa-chevron-right"></urbi-icone>
-            </urbi-linha>`}
-            @urbi:lista-click=${(e: CustomEvent) => this.resolver(e.detail.item as string)}></urbi-lista>`
-        : ''}
-      ${semCreci ? avisoCreci() : ''}
-    </urbi-card>`;
-  }
-
   // ---------- Tela ----------
 
-  // Ficha (D-84, spec 11.1): "o que falta" no topo; uma ação principal (publicar ou tirar da página)
-  // e o resto em "Mais"; os cartões mostram um resumo e guardam a lista no `detalhe`, recolhido.
+  // Ficha (P06): Editar e Criar conteúdo no alto, o resto em "Mais"; publicar ou tirar da página fica
+  // em "Quem vê este imóvel". Os cartões mostram um resumo e guardam a lista no `detalhe`, recolhido.
   // Sem foto, fotos e arquivos ficam abertos: é por onde o cadastro continua.
   // Os cartões com `keyed` são recriados quando muda se há `detalhe` ou `acoes`: o urbi-card lê essa presença
   // só na renderização (SDK, urbi-card), então sem a chave a seta e a cabeça ficariam como estavam antes.
@@ -470,34 +484,52 @@ export class PcTelaFichaImovel extends LitElement {
     const principal: Acao = im.publicado_pagina
       ? { rotulo: 'Tirar da página', icone: 'fa-solid fa-eye-slash', aoEscolher: () => void this.publicar(false) }
       : { rotulo: 'Publicar na página', icone: 'fa-solid fa-globe', aoEscolher: () => void this.publicar(true) };
+    const fotosComUrl = midias.filter((m) => m.tipo === 'foto' && m.url);
     const tabelaMidias = midias.length ? html`<urbi-tabela responsivo="multiline" .colunas=${this.colunasMidias()} .linhas=${midias}></urbi-tabela>` : '';
     return html`<urbi-stack>
       ${banner}
       <urbi-linha justificar="entre" quebrar>
-        <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/imoveis')}>Imóveis</urbi-botao>
-        ${acoesComMais(principal, [
-          { rotulo: 'Editar dados', icone: 'fa-solid fa-pen', aoEscolher: () => void this.editar() },
-          { rotulo: 'Situação', icone: 'fa-solid fa-flag', aoEscolher: () => void this.situacao() },
-          { rotulo: 'Remover', icone: 'fa-solid fa-trash', perigo: true, aoEscolher: () => void this.remover() },
-        ])}
-      </urbi-linha>
-      ${this.oQueFalta(qualidade, !!this.ficha.sem_creci)}
-      <urbi-card titulo=${`${im.codigo} · ${im.titulo ?? ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo}`} icone="fa-solid fa-house">
-        ${this.acao('Editar dados', 'fa-solid fa-pen', () => this.editar())}
-        <urbi-linha quebrar>
-          <urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>
-          ${this.ficha.publicavel
-            ? html`<urbi-badge cor="sucesso">Na página</urbi-badge>`
-            : im.publicado_pagina
-              ? html`<urbi-badge cor="alerta">Marcado para a página, mas sem autorização vigente ou fora de ativo</urbi-badge>`
-              : ''}
-          <urbi-badge cor=${corQualidade(qualidade.nota)}>Qualidade ${qualidade.nota}</urbi-badge>
+        <urbi-prosa papel="titulo">${im.codigo} · ${im.titulo ?? ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo}</urbi-prosa>
+        <urbi-linha>
+          <urbi-botao variante="secundario" icone="fa-solid fa-pen" @click=${() => this.editar()}>Editar</urbi-botao>
+          ${acoesComMais({ rotulo: 'Criar conteúdo', icone: 'fa-solid fa-wand-magic-sparkles', sub: '/estudio?criar=post' }, [
+            { rotulo: 'Situação', icone: 'fa-solid fa-flag', aoEscolher: () => void this.situacao() },
+            { rotulo: 'Remover', icone: 'fa-solid fa-trash', perigo: true, aoEscolher: () => void this.remover() },
+          ])}
         </urbi-linha>
-        <urbi-prosa>${ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo} · ${im.preco_c ? reais(im.preco_c) : 'preço sob consulta'}${im.condominio_c ? ` · condomínio ${reais(im.condominio_c)}` : ''}</urbi-prosa>
-        <urbi-prosa papel="secundario">${[im.bairro, im.cidade, im.uf].filter(Boolean).join(', ')}${comodos.length ? ` · ${comodos.join(' · ')}` : ''}</urbi-prosa>
-        ${im.proprietario_nome ? html`<urbi-prosa papel="secundario">Proprietário: ${im.proprietario_nome}</urbi-prosa>` : ''}
-        ${im.empreendimento_nome ? html`<urbi-prosa papel="secundario">Empreendimento: ${im.empreendimento_nome}</urbi-prosa>` : ''}
-        ${im.caracteristicas ? html`<urbi-prosa papel="dica">${im.caracteristicas}</urbi-prosa>` : ''}
+      </urbi-linha>
+      ${fotosComUrl.length
+        ? html`<urbi-stack>
+            <urbi-avatar nome=${im.codigo} foto=${fotosComUrl[0].url} tamanho="240"></urbi-avatar>
+            ${fotosComUrl.length > 1
+              ? html`<urbi-linha quebrar>${fotosComUrl.slice(1, 9).map((m) => html`<urbi-avatar nome=${m.legenda ?? im.codigo} foto=${m.url} tamanho="56"></urbi-avatar>`)}</urbi-linha>`
+              : ''}
+          </urbi-stack>`
+        : ''}
+      <urbi-card titulo="Dados" icone="fa-solid fa-house">
+        ${this.acao('Editar dados', 'fa-solid fa-pen', () => this.editar())}
+        <urbi-grid min="170px" gap="12px">
+          ${par('Situação', html`<urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>`)}
+          ${par('Qualidade', html`<urbi-badge cor=${corQualidade(qualidade.nota)}>${qualidade.nota} de 100</urbi-badge>`)}
+          ${par('Tipo', ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo)}
+          ${par('Preço', im.preco_c ? reais(im.preco_c) : 'Sob consulta')}
+          ${im.condominio_c ? par('Condomínio', reais(im.condominio_c)) : ''}
+          ${par('Local', [im.bairro, im.cidade, im.uf].filter(Boolean).join(', ') || 'Não informado')}
+          ${comodos.length ? par('Cômodos', comodos.join(' · ')) : ''}
+          ${im.proprietario_nome ? par('Proprietário', im.proprietario_nome) : ''}
+          ${im.empreendimento_nome ? par('Empreendimento', im.empreendimento_nome) : ''}
+          ${im.caracteristicas ? par('Características', im.caracteristicas) : ''}
+        </urbi-grid>
+      </urbi-card>
+      <urbi-card titulo="Quem vê este imóvel" icone="fa-solid fa-eye">
+        <urbi-stack>
+          <urbi-prosa papel="secundario">${this.ficha.publicavel
+            ? 'Está na sua página pública e nas seleções que você enviar.'
+            : im.publicado_pagina
+              ? 'Marcado para a página, mas só aparece com autorização vigente e situação ativa ou reservada.'
+              : 'Só você vê. Ele aparece para clientes nas seleções que você enviar e, publicado, na sua página.'}</urbi-prosa>
+          <urbi-linha>${acoesComMais(principal, [])}</urbi-linha>
+        </urbi-stack>
       </urbi-card>
       ${keyed(`fotos|${fotos > 0}|${!!this.ia.fotos}`, html`<urbi-card id="fotos" titulo="Fotos e arquivos" icone="fa-solid fa-images">
         ${this.ia.fotos && fotos
@@ -522,7 +554,7 @@ export class PcTelaFichaImovel extends LitElement {
               <div slot="detalhe"><urbi-prosa pre>${im.descricao}</urbi-prosa></div>`
           : html`<urbi-prosa papel="dica">Sem descrição.</urbi-prosa>`}
         ${this.ia.conteudo
-          ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.escrevendo} @click=${() => this.escreverComIa()}>Escrever com IA</urbi-botao></urbi-linha>`
+          ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.escrevendo} @click=${() => this.escreverComIa()}>Melhorar com IA</urbi-botao></urbi-linha>`
           : ''}
       </urbi-card>`)}
       ${keyed(`autorizacao|${autorizacoes.length > 0}`, html`<urbi-card titulo="Autorização de venda" icone="fa-solid fa-file-signature">

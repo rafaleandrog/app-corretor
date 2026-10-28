@@ -357,3 +357,49 @@ export function podeGerarDescricao(im: Record<string, unknown>): string | null {
   if (im.area_util_m2 == null && im.area_total_m2 == null) return 'Informe a área antes de pedir a descrição.';
   return null;
 }
+
+// ---------- Clientes que combinam (P06, direita) ----------
+
+/**
+ * Casamento simples entre o perfil de busca do contato (`contatos.perfil_busca`, spec §6: tipos,
+ * regiões, faixa de preço em centavos, área mínima, quartos, vagas) e o imóvel. Cada critério que o
+ * perfil tem precisa bater; critério ausente não conta. Perfil sem nenhum critério não combina com
+ * nada. Devolve os motivos (o que bateu) para a tela, ou `null`.
+ */
+export function combina(perfil: unknown, im: Record<string, any>): string[] | null {
+  if (!perfil || typeof perfil !== 'object' || Array.isArray(perfil)) return null;
+  const p = perfil as Record<string, unknown>;
+  const lista = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim().toLowerCase()).filter(Boolean) : typeof v === 'string' && v.trim() ? [v.trim().toLowerCase()] : []);
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : typeof v === 'string' && v.trim() && Number.isFinite(Number(v)) ? Number(v) : null);
+  const motivos: string[] = [];
+  const tipos = lista(p.tipos);
+  if (tipos.length) {
+    if (!tipos.includes(String(im.tipo ?? '').toLowerCase())) return null;
+    motivos.push('tipo');
+  }
+  const regioes = lista(p.regioes);
+  if (regioes.length) {
+    const lugar = [im.bairro, im.cidade].filter(Boolean).map((x) => String(x).toLowerCase());
+    if (!regioes.some((r) => lugar.some((l) => l === r || l.includes(r)))) return null;
+    motivos.push('região');
+  }
+  const preco = num(im.preco_c);
+  const min = num(p.preco_min_c);
+  const max = num(p.preco_max_c);
+  if (min !== null || max !== null) {
+    if (preco === null || (min !== null && preco < min) || (max !== null && preco > max)) return null;
+    motivos.push('preço');
+  }
+  for (const [chave, campo, rotulo] of [
+    ['quartos', 'quartos', 'quartos'],
+    ['vagas', 'vagas', 'vagas'],
+    ['area_min_m2', 'area_util_m2', 'área'],
+  ] as const) {
+    const pede = num(p[chave]);
+    if (pede === null) continue;
+    const tem = num(im[campo] ?? (campo === 'area_util_m2' ? im.area_total_m2 : null));
+    if (tem === null || tem < pede) return null;
+    motivos.push(rotulo);
+  }
+  return motivos.length ? motivos : null;
+}
