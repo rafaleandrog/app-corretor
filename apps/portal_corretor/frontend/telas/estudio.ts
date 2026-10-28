@@ -459,7 +459,7 @@ export class PcTelaEstudio extends LitElement {
         ${semArte && !travada ? html`<urbi-prosa papel="dica">1. Copie a descrição${abrir ? ` e abra o ${ferramenta.rotulo}` : ''}. 2. Cole a descrição e anexe as fotos e o logo. 3. Baixe a arte pronta (JPG ou PNG) e envie aqui.</urbi-prosa>` : ''}
         ${!semArte && aprovavel(p) ? html`<urbi-prosa papel="dica">Próximo passo: confira a arte e aprove.</urbi-prosa>` : ''}
         ${p.estado === 'aprovada' ? html`<urbi-prosa papel="dica">Próximo passo: publique agora, agende ou baixe para publicar você.</urbi-prosa>` : ''}
-        ${!travada && !this.marca?.creci ? avisoCreci() : ''}
+        ${!travada && this.marca && !this.marca.creci ? avisoCreci() : ''}
         <urbi-linha quebrar>
           ${this.acoes(p)}
           ${semArte && !travada && abrir ? html`<urbi-botao variante="secundario" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(abrir, '_blank', 'noopener')}>Abrir o ${ferramenta.rotulo}</urbi-botao>` : ''}
