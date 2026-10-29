@@ -151,7 +151,7 @@ export class PcAjustesNegociador extends LitElement {
                 <urbi-prosa papel="secao">${s.rotulo}</urbi-prosa>
                 ${ativo
                   ? html`<urbi-badge cor="sucesso">em uso</urbi-badge>`
-                  : html`<urbi-botao pequeno variante="texto" ?desabilitado=${this.salvando} @click=${() => void this.gravar({ estilo: e }, `Estilo ${s.rotulo.toLowerCase()}.`)}>Usar</urbi-botao>`}
+                  : html`<urbi-botao pequeno variante="texto" ariaLabel=${`Usar o estilo ${s.rotulo}`} ?desabilitado=${this.salvando} @click=${() => void this.gravar({ estilo: e }, `Estilo ${s.rotulo.toLowerCase()}.`)}>Usar</urbi-botao>`}
               </urbi-linha>
               <urbi-prosa papel="secundario">${s.exemplo}</urbi-prosa>
             </urbi-stack>`;

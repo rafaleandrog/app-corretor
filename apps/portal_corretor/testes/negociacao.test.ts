@@ -314,7 +314,7 @@ test('isolamento A × B: lista, detalhe, mandato e propostas de outra conta resp
   // Papel: sem `corretor`, nenhuma rota de negociação abre.
   const semPapel: Ator = { usuario: 7, conta: 100, papeis: [] };
   await comServidor(rotas, semPapel, banco, {}, async (chamar) => {
-    for (const [m, c] of [['GET', '/negociacoes'], ['GET', `/negociacoes/${nid}/mandato`], ['GET', '/negociador/config'], ['GET', '/negociador/objecoes']]) {
+    for (const [m, c] of [['GET', '/negociacoes'], ['GET', `/negociacoes/${nid}/mandato`], ['GET', '/negociador/config'], ['GET', '/negociador/objecoes'], ['GET', '/negociador/numeros']]) {
       assert.equal((await chamar(m, c)).status, 403, `${m} ${c}`);
     }
   });

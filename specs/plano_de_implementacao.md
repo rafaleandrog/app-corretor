@@ -100,7 +100,8 @@ Toda sessão que termina registra aqui o que deixou pendente (regra do `CLAUDE.m
 |---|---|---|
 | Falsos positivos do detector de sigilo (#124) | Telefone com espaço, CEP "70.000-000", "W3 Sul", "28/10 15h" sem "às" e número entre parênteses depois do preço ainda retêm a mensagem (vai ao corretor; nada vaza). Liberá-los abriu vazamento três vezes no #126, que voltou o detector ao da `main`: só liberar com contexto estreito e revisão adversarial | sessão do D2c (#126) |
 | Corrida entre salvar o mandato e apagar o documento anexado | O `PUT /negociacoes/:id/mandato` confere a mídia fora da transação e o `PATCH .../midias/:midia/remover` confere e apaga sem trava: numa corrida, o mandato vigente pode apontar para um documento apagado (não expõe dado). Observação 20 da revisão do #123 | sessão do D3 |
-| Próximos itens do arco já desbloqueados | **D4** (D2 e B8 mergeados), **D7** (D3 mergeado), **B5 parte 2** (P07/M3), **B6**, **B7**, **B10**. O **D6** espera o B7; o **E2** é o último | — |
+| Gatilhos e números do Negociador que o D4 deixou de fora | Os gatilhos "etapa Proposta", "pedido de desconto" e "reação de preço" estão escondidos em Ajustes › Negociador porque o backend só lê `oferta_registrada` (`backend/publico.ts`); voltam quando houver quem os leia, com o Mensageiro. "Acordos" e "desconto médio" (spec, P17) ainda não aparecem nos números do mês | sessão do D4 (#130) |
+| Próximos itens do arco já desbloqueados | **D7** (D3 mergeado), **B5 parte 2** (P07/M3), **B6**, **B7**, **B10**. O **D6** espera o B7; o **E2** é o último | — |
 
 **Fora deste arco (decisão 7 da coordenação, em #87):** as dívidas abertas #32, #38, #39, #40, #62, #68, #69, #73 e #80; P02 Conversas e P11 Mensageiro de verdade (#8 e #9, presos a P-31/P-32); a decisão do proprietário pelo portal (fase 3). **Pedidos ao shell novos:** itens 10 a 13 (gaveta, barra de progresso, seletor segmentado, faixa ZOPA).
 

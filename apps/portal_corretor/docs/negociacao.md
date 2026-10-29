@@ -10,7 +10,7 @@ A partir da versão 0.1.13 o app guarda as **negociações**: a etapa em que o c
 Na versão 0.1.16 chega o **Negociador IA**: ele lê a conversa, sugere o próximo movimento e
 confere cada sugestão contra o mandato antes de qualquer coisa sair. Na versão 0.1.23 chegam as
 telas: **Clientes › Negociações**, o formulário do **mandato** e a aba **Negociação** na ficha do
-cliente (ver [As telas da negociação](#as-telas-da-negociação)). Na versão 0.1.26 chega a seção
+cliente (ver [As telas da negociação](#as-telas-da-negociação)). Na versão 0.1.27 chega a seção
 **Ajustes › Negociador** (ver [Ajustes do Negociador](#ajustes-do-negociador)).
 
 ## As telas da negociação
@@ -368,8 +368,8 @@ seguinte. No centro, seis blocos:
   gravado nem enviado. Sem IA na instância, o cartão diz "IA indisponível agora" e o resto da seção
   funciona normalmente.
 - **Números do mês:** **Rodadas** conta as sugestões que o Negociador criou desde o dia 1º;
-  **Aprovadas sem edição**, a parte das sugestões criadas no mês e já decididas que você aprovou
-  sem editar; e o custo por rodada ("Incluído no plano").
+  **Aprovadas sem edição**, a parte das sugestões criadas no mês e aprovadas ou editadas (as
+  ainda abertas e as recusadas não entram na conta) que você aprovou sem editar; e o custo por rodada ("Incluído no plano").
 
 ## Respostas a objeções
 
