@@ -19,7 +19,7 @@ página ou abrir o link guardado reabre o mesmo cliente. O endereço antigo de u
 coluna por vez, com abas (Clientes · Ficha · Portal); sem cliente escolhido, abre na lista.
 
 No alto da lista: **Importar** (planilha), **Novo** (cadastro rápido) e **Exportar** (a planilha dos
-contatos), e as duas visões:
+contatos), e as três visões:
 
 - **Lista** (a que abre): os contatos da conta, 50 por página, em ordem alfabética, cada um com a
   temperatura, a origem e o próximo passo (ou o telefone).
@@ -28,8 +28,11 @@ contatos), e as duas visões:
   endereços antigos `/funil` e `/clientes?visao=quadro` abrem esta visão. **Abrir ficha**, na
   coluna da direita, leva à Lista com a ficha do cliente.
 
-A visão escolhida fica no endereço (`/clientes?visao=funil`). Uma terceira visão, **Negociações**,
-chega com o Negociador.
+- **Negociações**: as negociações com os clientes, a faixa da negociação, a escada de propostas e
+  o mandato — ver [Negociação e mandato](negociacao.md#as-telas). No alto, no lugar de Importar e
+  Novo, fica **Nova proposta**.
+
+A visão escolhida fica no endereço (`/clientes?visao=funil`, `/clientes?visao=negociacoes`).
 
 Na **Lista**:
 
@@ -103,7 +106,9 @@ Embaixo, quatro abas. A aba aberta fica no endereço (`?secao=`) e volta ao reca
   - **Seleções:** as seleções de imóveis enviadas, com as reações; o **+** monta uma seleção nova
     (ver [Seleções e Portal do Cliente](selecoes-e-portal.md)).
 
-  A aba **Negociação** chega com o Negociador.
+- **Negociação:** as negociações do cliente, com o estado, a rodada, a última oferta e quem conduz,
+  e **Abrir**, que leva a Clientes › Negociações; o **+** registra uma **Nova proposta** do cliente
+  (ver [Negociação e mandato](negociacao.md#na-ficha-do-cliente-e-no-criar)).
 
 **À direita, o contexto:**
 

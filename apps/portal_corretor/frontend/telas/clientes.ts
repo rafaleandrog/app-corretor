@@ -26,6 +26,7 @@ import { estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import { chaveDoQuadro, contatoDoFunil } from './clientes-quadro.js';
 import './ficha-contato.js';
+import { novaProposta } from './negociacoes.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -41,12 +42,13 @@ interface Contato {
   proximo_passo_em: string | null;
 }
 
-// Clientes em duas visões (D-83, spec 11.1 P03/P04): Lista e Funil (o quadro por etapa). A visão fica em
-// `?visao=` (Lista é a ausência dela; o Funil é `?visao=funil`) e `/funil` é apelido que abre o Funil,
-// assim como o `?visao=quadro` de antes. A visão Negociações entra aqui com o item D3 do arco (#102).
+// Clientes em três visões (D-83, spec 11.1 P03/P04/P15): Lista, Funil (o quadro por etapa) e Negociações.
+// A visão fica em `?visao=` (Lista é a ausência dela; o Funil é `?visao=funil`; Negociações,
+// `?visao=negociacoes`) e `/funil` é apelido que abre o Funil, assim como o `?visao=quadro` de antes.
 const VISOES = [
   { id: 'lista', rotulo: 'Lista' },
   { id: 'funil', rotulo: 'Funil' },
+  { id: 'negociacoes', rotulo: 'Negociações' },
 ];
 const OPCOES_VISAO: OpcoesAba = { chave: 'visao', apelidos: { '/funil': 'funil' }, rota: '/clientes' };
 
@@ -55,8 +57,7 @@ export const visaoAtual = () => (filtrosDaUrl().get('visao') === 'quadro' ? 'fun
 
 /**
  * Cliente selecionado na Lista (`?item=<id>`, spec 11.0.2); só ids numéricos abrem a ficha, e só quando a
- * visão do endereço é a Lista (`contatoDoItem`): `?visao=negociacoes&item=<negociacao>` não abre ficha.
- * Enquanto a visão Negociações não existe (D3), esse endereço mostra a Lista sem ficha aberta.
+ * visão do endereço é a Lista (`contatoDoItem`): `?visao=negociacoes&item=<negociacao>` abre a negociação.
  */
 export const clienteDaUrl = (): number | null => contatoDoItem(window.location.search);
 
@@ -86,7 +87,8 @@ export function renderClientes(atualizar: () => void) {
     // O `item` só segue para a Lista se já era contato nela (`buscaDaVisao`): o de negociação ou do Funil sai.
     const mantemItem = new URLSearchParams(buscaDaVisao(window.location.search, visao, v)).has('item');
     // O `?sugerir=1` é da chegada ao cliente aberto: nunca segue para outra visão (nem a outro cliente).
-    filtrosNaUrl(filtrosDaUrl(), {}, ['sugerir']);
+    // O `filtro` é da lista de Negociações: não segue para as outras visões.
+    filtrosNaUrl(filtrosDaUrl(), {}, v === 'negociacoes' ? ['sugerir'] : ['sugerir', 'filtro']);
     abaNaUrl(v === 'lista' ? '' : v, OPCOES_VISAO);
     if (!mantemItem) itemNaUrl(null);
     atualizar();
@@ -99,6 +101,7 @@ export function renderClientes(atualizar: () => void) {
     itemNaUrl(contato);
     atualizar();
   };
+  if (visao === 'negociacoes') return renderNegociacoes(atualizar, trocarVisao);
   if (visao === 'funil') {
     // P03: os filtros do Funil à esquerda, o quadro no centro (recriado quando os filtros mudam) e o
     // cliente do cartão escolhido à direita.
@@ -130,6 +133,57 @@ export function renderClientes(atualizar: () => void) {
     : html`<urbi-prosa papel="dica">Com um cliente aberto, aqui ficam o perfil de busca, o portal do cliente e a privacidade.</urbi-prosa>`;
   return moldura(
     { menu: '/clientes', lista, centro, contexto, rotulos: { lista: 'Clientes', centro: 'Ficha', contexto: 'Portal' }, painel: id ? 'centro' : 'esquerda' },
+    atualizar,
+  );
+}
+
+/** Negociação escolhida em Negociações (`?item=<negociacao>`): só ids numéricos. */
+const negociacaoDaUrl = (): number | null => {
+  const item = filtrosDaUrl().get('item') ?? '';
+  return /^\d+$/.test(item) ? Number(item) : null;
+};
+
+/** A lista de negociações é recriada depois de uma ação no centro (estado, rodada, oferta mudaram). */
+let versaoDaLista = 0;
+
+/**
+ * Clientes › Negociações (P15; M8 no celular, pela própria moldura): a lista à esquerda, a negociação
+ * escolhida no centro e o mandato, a leitura do comprador e o próximo movimento à direita.
+ */
+function renderNegociacoes(atualizar: () => void, trocarVisao: (v: string) => void) {
+  const id = negociacaoDaUrl();
+  const escolher = (nid: number) => {
+    itemNaUrl(nid);
+    atualizar();
+  };
+  const recarregarLista = () => {
+    versaoDaLista++;
+    atualizar();
+  };
+  const nova = () =>
+    void novaProposta().then((nid) => {
+      if (!nid) return;
+      versaoDaLista++;
+      escolher(nid);
+    });
+  // "Nova proposta" do menu Criar chega como `?criar=proposta` (consumido uma vez).
+  if (pedidoDeCriar('proposta')) nova();
+  const lista = keyed(
+    versaoDaLista,
+    html`<pc-negociacoes-lista .topo=${topoClientes('negociacoes', trocarVisao, nova)} .selecionado=${id} .aoEscolher=${escolher}></pc-negociacoes-lista>`,
+  );
+  const centro = id
+    ? keyed(id, html`<pc-negociacao-foco .negociacaoId=${id} .aoMudarLista=${recarregarLista}></pc-negociacao-foco>`)
+    : estadoTela('vazio', {
+        icone: 'fa-solid fa-scale-balanced',
+        mensagem: 'Escolha uma negociação',
+        submensagem: 'Aqui ficam a faixa da negociação, a escada de propostas e a sugestão do Negociador.',
+      });
+  const contexto = id
+    ? keyed(id, html`<pc-negociacao-contexto .negociacaoId=${id} .aoMudarLista=${recarregarLista}></pc-negociacao-contexto>`)
+    : html`<urbi-prosa papel="dica">Com uma negociação aberta, aqui ficam o mandato, a leitura do comprador e o próximo movimento.</urbi-prosa>`;
+  return moldura(
+    { menu: '/clientes', lista, centro, contexto, rotulos: { lista: 'Negociações', centro: 'Negociação', contexto: 'Mandato' }, painel: id ? 'centro' : 'esquerda' },
     atualizar,
   );
 }
@@ -176,8 +230,18 @@ async function exportarContatos() {
   }
 }
 
-/** Topo da coluna esquerda de Clientes (P03 e P04): título, Importar, Novo, Exportar e as visões. */
+/**
+ * Topo da coluna esquerda de Clientes (P03, P04 e P15): título, Importar, Novo, Exportar e as visões. Em
+ * Negociações, a ação do topo é Nova proposta (a oferta de um cliente; abre a negociação, se preciso).
+ */
 function topoClientes(visao: string, aoTrocarVisao: (v: string) => void, aoNovo: () => void) {
+  if (visao === 'negociacoes') {
+    return html`<urbi-linha justificar="entre" quebrar>
+        <urbi-prosa papel="titulo">Clientes</urbi-prosa>
+        <urbi-botao pequeno icone="fa-solid fa-file-signature" @click=${aoNovo}>Nova proposta</urbi-botao>
+      </urbi-linha>
+      <urbi-chips-atalho .opcoes=${VISOES} ativo=${visao} @urbi:chip-atalho:click=${(e: CustomEvent) => aoTrocarVisao(e.detail.id)}></urbi-chips-atalho>`;
+  }
   return html`<urbi-linha justificar="entre" quebrar>
       <urbi-prosa papel="titulo">Clientes</urbi-prosa>
       <urbi-linha>

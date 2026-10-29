@@ -40,8 +40,8 @@ test('Clientes entra na moldura do Padrão B e o app troca o endereço antigo ao
   assert.match(indice, /fichaCanonica\(sub, window\.location\.search\)/);
   const tela = raiz('frontend/telas/clientes.ts');
   assert.match(tela, /moldura\(\s*\{ menu: '\/clientes', lista, centro, contexto/);
-  // A ficha nas abas da P04; a Negociação entra com o D3.
-  assert.match(raiz('frontend/telas/ficha-contato.ts'), /\{ id: 'resumo', label: 'Resumo' \},\s*\{ id: 'linha', label: 'Linha do tempo' \},\s*\{ id: 'enviados', label: 'Enviados' \},\s*\{ id: 'negocios', label: 'Negócios' \},/);
+  // A ficha nas abas da P04, com a Negociação do D3 depois de Negócios.
+  assert.match(raiz('frontend/telas/ficha-contato.ts'), /\{ id: 'resumo', label: 'Resumo' \},\s*\{ id: 'linha', label: 'Linha do tempo' \},\s*\{ id: 'enviados', label: 'Enviados' \},\s*\{ id: 'negocios', label: 'Negócios' \},\s*\{ id: 'negociacao', label: 'Negociação' \},/);
 });
 
 test('perfil de busca em chips curtos, tolerante ao que não reconhece', () => {
@@ -110,4 +110,10 @@ test('trocar de visão: o ?item= de outra visão nunca vira contato na Lista (ta
   assert.equal(buscaDaVisao('?q=ana&papel=comprador&visao=negociacoes&item=55', 'lista', 'lista'), 'q=ana&papel=comprador');
   assert.equal(buscaDaVisao('?q=ana&papel=comprador&item=7', 'lista', 'lista'), 'q=ana&papel=comprador&item=7');
   assert.equal(buscaDaVisao('?q=ana&visao=quadro&item=7', 'quadro', 'lista'), 'q=ana');
+  // Negociações (D3): o item é uma negociação; não atravessa para nenhuma outra visão, nem o contato vira negociação.
+  assert.equal(buscaDaVisao('?item=7', 'lista', 'negociacoes'), 'visao=negociacoes');
+  assert.equal(buscaDaVisao('?visao=quadro&item=7', 'quadro', 'negociacoes'), 'visao=negociacoes');
+  assert.equal(buscaDaVisao('?visao=negociacoes&item=55&filtro=voce', 'negociacoes', 'quadro'), 'visao=quadro');
+  assert.equal(buscaDaVisao('?visao=negociacoes&item=55&filtro=voce', 'negociacoes', 'lista'), '');
+  assert.equal(buscaDaVisao('?visao=negociacoes&item=55&filtro=voce', 'negociacoes', 'negociacoes'), 'visao=negociacoes&item=55&filtro=voce', 'clicar na mesma visão não desfaz a seleção');
 });

@@ -77,7 +77,7 @@ export function contatoDoItem(busca = ''): number | null {
 }
 
 /**
- * Query depois de trocar a visão de Clientes (`para`: `lista` ou `quadro`), a partir da `busca` atual e da
+ * Query depois de trocar a visão de Clientes (`para`: `lista`, `quadro`/`funil` ou `negociacoes`), a partir da `busca` atual e da
  * visão `atual` que a tela mostra (já com o apelido `/funil`). Os demais parâmetros ficam. Ir à Lista só
  * mantém o `item` que já era contato na Lista (`contatoDoItem` e `atual === 'lista'`): um `item` que veio com
  * outra visão (`negociacoes`, `quadro`, desconhecida) ou que passou pelo Funil é de outra coisa e sai.
@@ -85,6 +85,10 @@ export function contatoDoItem(busca = ''): number | null {
  */
 export function buscaDaVisao(busca: string, atual: string, para: string): string {
   const q = new URLSearchParams(busca);
+  // O `item` de Negociações é uma negociação, não um contato: não atravessa para as outras visões (nem
+  // o contato delas vira negociação), e o `filtro` da lista de negociações fica só nela.
+  if (atual !== para && (atual === 'negociacoes' || para === 'negociacoes')) q.delete('item');
+  if (para !== 'negociacoes') q.delete('filtro');
   if (para === 'lista') {
     if (!(atual === 'lista' && contatoDoItem(busca) !== null)) q.delete('item');
     q.delete('visao');

@@ -8,13 +8,13 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.21; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.22; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
 | Corretor | **Hoje** (antes, Início) | No desenho novo, em três colunas: **Precisa de você** e **Primeiros passos** (x de 5, sem o CRECI); a **fila do dia** em cartões, um botão por item; e, à direita, a agenda de hoje (com **Ver agenda**, os próximos 14 dias), **Sua semana** e a **Dica do Assistente** — ver [Funil, temperatura e fila do dia](funil.md) e [Clientes, negócios e agenda](clientes-e-agenda.md) |
 | Corretor | **Números** (antes, Desempenho) | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Números, envios e dados de demonstração](desempenho.md) |
-| Corretor | **Clientes** | No desenho novo, em três colunas: a lista (visões **Lista** e **Funil**, busca, filtros prontos Novos · Sem contato · Quentes · Retorno vencido e o papel), a **ficha** do cliente escolhido (cabeçalho com Conversa e Resumir; abas Resumo · Linha do tempo · Enviados · Negócios) e, à direita, perfil de busca, portal do cliente e privacidade; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
+| Corretor | **Clientes** | No desenho novo, em três colunas: a lista (visões **Lista**, **Funil** e **Negociações**, busca, filtros prontos Novos · Sem contato · Quentes · Retorno vencido e o papel), a **ficha** do cliente escolhido (cabeçalho com Conversa e Resumir; abas Resumo · Linha do tempo · Enviados · Negócios · Negociação) e, à direita, perfil de busca, portal do cliente e privacidade; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
 | Corretor | **Imóveis** | No desenho novo: à esquerda, as abas **Carteira** (lista com miniatura, busca e chips Ativos · Rascunhos · Vendidos) e **Empreendimentos**; no centro, a ficha (galeria, dados, quem vê, fotos, descrição com IA, autorização e visitas); à direita, a qualidade com o que falta, os números de 30 dias e os clientes que combinam — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA e descrição pronta para gerar a arte no Canva IA (ou em outra ferramenta), envio da arte na peça, aprovação e publicação — ver [Estúdio de conteúdo](estudio.md) |
 | Corretor | **Página** (antes, Minha página) | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
@@ -23,7 +23,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | O portal "Meu atendimento" com o próximo passo e as abas Conversa, Imóveis, Agenda, Propostas (quando há negociação: vê as rodadas, aceita a condição do vendedor, que não fecha o acordo, ou faz nova oferta) e Arquivos: reage aos imóveis (gostei, não gostei, quero visitar, comentar), vê as visitas, pede para remarcar, manda mensagem ao corretor e marca como feitas as pendências que o corretor pediu (botão **Feito**); link revogado mostra "Link expirado" |
 | Corretor | **Assistente** (botão, abre à direita da tela) | Tira dúvidas pelo manual, ajuda a decidir quem atender e cria lembretes ou agenda peças com a sua confirmação — ver [Assistente do Corretor](assistente.md) |
 | Corretor | **Ajustes** | Uma tela com cinco abas: Conta, Marca, Conexões (Instagram), Funil e abordagens, Atendimento — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
-| Corretor | **Negociação** (sem tela ainda) | Os dados da negociação de um negócio: o mandato do vendedor (com alvo, recuo e BATNA sigilosos), as propostas por rodada, o Negociador IA (sugere o próximo movimento e confere cada um contra o mandato; nunca aceita o acordo), os ajustes e as respostas a objeções; as telas chegam nas versões seguintes — ver [Negociação e mandato](negociacao.md) |
+| Corretor | **Negociação** (Clientes › Negociações) | A negociação de um negócio: a lista com os filtros, a faixa da negociação (recuo e alvo mascarados até **mostrar**), a escada de propostas, o cartão do Negociador IA (Enviar, Fazer agora, Editar, Descartar; nunca aceita o acordo), o mandato do vendedor numa janela de quatro blocos, a aba Negociação da ficha e a Nova proposta; os ajustes do Negociador chegam numa versão seguinte — ver [Negociação e mandato](negociacao.md) |
 | Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
 | Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Números e Hoje com o Assistente aberto; `/conta` abre Ajustes › Conta |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
@@ -55,7 +55,7 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 | Novo imóvel | Abre Imóveis já com o cadastro do imóvel |
 | Novo post | Abre o Estúdio já com o pedido de peça |
 | Nova visita | Pede o cliente, o imóvel, o dia e a hora ali mesmo; com a ficha de um cliente aberta, ele já vem escolhido. Depois abre a ficha do cliente |
-| Nova proposta | Abre a ficha do cliente aberto, ou a lista de Clientes para você escolher. A proposta ainda se registra pela ficha, como um negócio |
+| Nova proposta | Abre Clientes › Negociações com o registro da proposta: cliente (o da ficha aberta já vem escolhido), imóvel e valor. A oferta entra na negociação desse cliente e imóvel, que nasce se ainda não existir |
 
 **Assistente:** abre na coluna da direita da tela em que você está, sem sair dela. Em **Hoje**, **Imóveis** e **Números**, já no
 desenho novo, **Fechar** devolve o contexto no lugar do Assistente, e a lista e o centro ficam como estavam.

@@ -18,6 +18,7 @@ import {
   validarMandato,
   type Direcao,
 } from '../comum/negociacao';
+import { zopa } from '../comum/negociador';
 import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './acesso';
 import { tentarPortal } from './portal';
 import { contaDoRequest } from './vitrine';
@@ -114,17 +115,26 @@ negociacaoRotas.get(
       const v = id(req.query[chave]);
       if (v) filtros[chave] = v;
     }
+    // Quem conduz (P15: o filtro "Negociador" é `conduzida_por=ia`).
+    if (req.query.conduzida_por === 'ia' || req.query.conduzida_por === 'corretor') filtros.conduzida_por = req.query.conduzida_por;
     const por_pagina = Math.min(100, id(req.query.por_pagina) ?? 50);
     const pagina = id(req.query.pagina) ?? 1;
     const r = await dados.listar('negociacoes', { filtros, ordenar: 'atualizado_em', ordem: 'desc', pagina, por_pagina });
     const ids = r.dados.map((n) => n.id);
     const mandatos = r.dados.map((n) => n.mandato_id).filter(Boolean);
-    const [ofertas, vigentes] = await Promise.all([
+    const contatos = [...new Set(r.dados.map((n) => n.contato_id).filter(Boolean))];
+    const imoveis = [...new Set(r.dados.map((n) => n.imovel_id).filter(Boolean))];
+    const [ofertas, vigentes, pessoas, casas] = await Promise.all([
       ids.length
         ? dados.varrerTudo('propostas', { filtros: { negociacao_id: ids.join(','), direcao: 'comprador' }, ordenar: 'id', ordem: 'desc', maximo: 5000 })
         : [],
       mandatos.length ? dados.varrerTudo('mandatos_negociacao', { filtros: { id: mandatos.join(',') }, maximo: 100 }) : [],
+      contatos.length ? dados.varrerTudo('contatos', { filtros: { id: contatos.join(',') }, maximo: 100 }) : [],
+      imoveis.length ? dados.varrerTudo('imoveis', { filtros: { id: imoveis.join(',') }, maximo: 100 }) : [],
     ]);
+    // A lista do P15 mostra o cliente e o imóvel (código e título), nada além.
+    const nome = new Map(pessoas.map((c) => [Number(c.id), c.nome as string]));
+    const imovel = new Map(casas.map((i) => [Number(i.id), i]));
     const ultima = new Map<number, Linha>();
     for (const p of ofertas) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
     // Da lista só sai o preço pedido do mandato (não é sigiloso): a tela mostra "última oferta × pedido".
@@ -134,6 +144,9 @@ negociacaoRotas.get(
       ultima_oferta_c: ultima.get(Number(n.id))?.valor_c ?? null,
       ultima_oferta_em: ultima.get(Number(n.id))?.criado_em ?? null,
       preco_pedido_c: n.mandato_id ? (pedido.get(Number(n.mandato_id)) ?? null) : null,
+      contato_nome: nome.get(Number(n.contato_id)) ?? null,
+      imovel_codigo: imovel.get(Number(n.imovel_id))?.codigo ?? null,
+      imovel_titulo: imovel.get(Number(n.imovel_id))?.titulo ?? null,
     }));
     res.json(semSigilo({ ...r, dados: linhas }));
   }),
@@ -197,13 +210,35 @@ negociacaoRotas.get(
     const nid = id(req.params.id);
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
     if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
-    const [mandato, propostas, objecoes] = await Promise.all([
+    const [mandato, propostas, objecoes, pendentes, contato, imovel] = await Promise.all([
       mandatoVigente(dados, negociacao),
       dados.varrerTudo('propostas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
       dados.varrerTudo('objecoes_detectadas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
+      dados.listar('negociador_execucoes', { filtros: { negociacao_id: nid, decisao: 'pendente' }, ordenar: 'id', ordem: 'desc', por_pagina: 1 }),
+      negociacao.contato_id ? dados.buscar('contatos', Number(negociacao.contato_id)) : null,
+      negociacao.imovel_id ? dados.buscar('imoveis', Number(negociacao.imovel_id)) : null,
     ]);
+    // A sugestão do Negociador que espera o corretor (P15, M8): a mais recente pendente, com a resposta
+    // já guardada sem sigilo (D2) e as 7 verificações; o texto do cliente que a originou, se houver.
+    const e = pendentes.dados[0];
+    const sugestao = e
+      ? { execucao_id: e.id, resposta: e.saida ?? null, verificacoes: e.validacoes?.verificacoes ?? [], bloqueado_por: e.bloqueado_por ?? null, mensagem_cliente: e.mensagem_cliente ?? null, criado_em: e.criado_em ?? null }
+      : null;
+    // Da faixa ZOPA (D-102) sai só se ela existe: as pontas (o recuo) ficam na rota do mandato.
+    const faixa = zopa(mandato ? { recuo_c: Number(mandato.recuo_c) } : null, negociacao.teto_estimado_comprador_c ? Number(negociacao.teto_estimado_comprador_c) : null);
     // O mandato aparece aqui só no resumo, sem recuo, alvo nem BATNA (o completo é a rota /mandato).
-    res.json(semSigilo({ ...negociacao, mandato, propostas, objecoes }));
+    res.json(
+      semSigilo({
+        ...negociacao,
+        mandato,
+        propostas,
+        objecoes,
+        sugestao,
+        zopa: { existe: faixa.existe },
+        contato: contato ? { id: contato.id, nome: contato.nome } : null,
+        imovel: imovel ? { id: imovel.id, codigo: imovel.codigo ?? null, titulo: imovel.titulo ?? null, bairro: imovel.bairro ?? null, preco_c: imovel.preco_c ?? null } : null,
+      }),
+    );
   }),
 );
 

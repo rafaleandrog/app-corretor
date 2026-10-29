@@ -8,9 +8,9 @@ descricao: As negociações de um negócio, o mandato do vendedor (o que é sigi
 A partir da versão 0.1.13 o app guarda as **negociações**: a etapa em que o corretor (ou o
 **Negociador**, o assistente de negociação do app) troca propostas com o comprador até um acordo.
 Na versão 0.1.16 chega o **Negociador IA**: ele lê a conversa, sugere o próximo movimento e
-confere cada sugestão contra o mandato antes de qualquer coisa sair. As telas (Clientes ›
-Negociações, o formulário do mandato e Ajustes › Negociador) chegam nas versões seguintes. Até lá,
-nenhum item novo aparece no menu, e **Criar › Nova proposta** só abre a ficha do cliente.
+confere cada sugestão contra o mandato antes de qualquer coisa sair. Na versão 0.1.22 chegam as
+telas: **Clientes › Negociações**, o **mandato** e a aba **Negociação** da ficha do cliente (ver
+[As telas](#as-telas), abaixo). Ajustes › Negociador chega numa versão seguinte.
 
 ## Negociação
 
@@ -75,6 +75,81 @@ Ficam fora de:
 - tudo o que o cliente vê: portal, seleções, página pública e vitrine.
 
 Outro corretor nunca vê nada da negociação de outra conta: a resposta é "não encontrado".
+
+## As telas
+
+### Clientes › Negociações
+
+Caminho: **Clientes → Negociações** (a terceira visão, ao lado de Lista e Funil). O endereço é
+`/clientes?visao=negociacoes`, e cada negociação abre em `?item=<número da negociação>`, o mesmo
+endereço dos avisos de negociação e do **Abrir** de "Precisa de você", em Hoje.
+
+**À esquerda**, a lista das negociações, com os filtros **Todas** (as em andamento) · **Aguardando
+você** · **Negociador** (as que o Negociador IA conduz) · **Cliente** · **Proprietário** ·
+**Encerradas**. Cada linha mostra o cliente, o estado, o imóvel, a última oferta e a diferença para
+o preço pedido (ex.: "R$ 1,32 mi · −9%"), quem conduz e há quanto tempo mudou. No topo,
+**Nova proposta** (ver abaixo).
+
+**No centro**, a negociação escolhida:
+1. O cabeçalho com o cliente e o imóvel, **Assumir** (você passa a conduzir) ou **Devolver ao
+   Negociador**, e os chips da rodada ("Rodada 3 de 4"), de quem conduz ("Negociador IA · pergunta
+   antes"), da validade do mandato e do estado.
+2. A **faixa da negociação**: última oferta, ponto de recuo, teto estimado do comprador, alvo e preço
+   pedido, e a frase da **ZOPA estimada** (a faixa entre o seu recuo e o teto do comprador, em que
+   um acordo é possível). O recuo e o alvo aparecem como **••••** até você clicar em **mostrar**.
+3. A **última oferta** do cliente, com o que ele disse e a objeção percebida.
+4. O cartão **Negociador sugere · rodada n**, quando há uma sugestão esperando você: o valor, a
+   concessão e a contrapartida, a mensagem e a linha das garantias ("✓ acima do recuo · ✓ passo
+   menor…"). Botões **Enviar** (pelo portal), **Fazer agora** (abre o WhatsApp do seu celular com o
+   texto pronto), **Editar** e **Descartar**. Editar passa pelas mesmas 7 garantias: um valor abaixo
+   do recuo, por exemplo, não sai, e a tela diz qual regra barrou, sem mostrar o recuo.
+5. A **escada de propostas**: rodada, quem, valor, condições, concessão, contrapartida, canal e quando.
+6. **Registrar oferta do cliente** (a que ele fez fora do portal) e, no **Mais**, registrar a
+   resposta do proprietário e encerrar como ganha ou perdida. **Aceitar oferta** é um botão separado,
+   com confirmação: o acordo vai ao proprietário e a negociação fica aguardando a decisão dele.
+
+**À direita**:
+- o **Mandato** em resumo: pedido, alvo, recuo e BATNA do vendedor (os três como **••••** até
+  **mostrar**), as concessões com as contrapartidas, o passo, as rodadas, a validade e a autonomia,
+  com **Editar mandato** (ou **Definir mandato**, se ainda não houver);
+- a **Leitura do comprador**: objeções, interesses, o teto estimado e a fonte;
+- o **Próximo movimento (IA)**: **Usar sugestão** (envia a sugestão pelo portal) ou **Pedir
+  sugestão** (você cola o que o cliente disse, e o Negociador prepara o próximo movimento dentro do
+  mandato), e **Passar ao proprietário** (o mesmo aceite, com confirmação). Sem mandato, o pedido de
+  sugestão fica desligado; com a IA fora do ar, a tela diz "IA indisponível agora" e a negociação
+  segue com você.
+
+O **mostrar** lê o mandato completo na hora e só para você; ao sair da negociação, os valores voltam
+a ficar mascarados.
+
+**No celular**, a mesma tela abre direto na negociação: rodada, faixa, última oferta e o cartão do
+Negociador com Enviar, Editar e Assumir. As colunas da lista e do mandato ficam nas abas da tela.
+
+### O mandato
+
+Caminho: **Clientes → Negociações → a negociação → Editar mandato** (à direita). Abre numa janela
+sobre a tela, com quatro blocos:
+1. **Valores:** preço pedido (o do anúncio, no mandato novo), alvo, ponto de recuo e a BATNA do
+   vendedor, com o aviso de que são sigilosos. A conferência "✓ recuo ≤ alvo ≤ pedido" acontece
+   enquanto você digita; o app também recusa ao salvar.
+2. **Concessões e contrapartidas:** uma linha por concessão (o que, até quanto e o que pedir em
+   troca), **Adicionar concessão**, o passo máximo por rodada (em %) e o máximo de rodadas.
+3. **Prazo e validade:** até quando o mandato vale.
+4. **Quem negocia e autonomia:** Negociador IA ou você; **Só sugere**, **Pergunta antes** ou **Faz
+   sozinho**; e a **autorização do proprietário**, por **Anexar documento** (o arquivo vai para os
+   arquivos do imóvel como documento, nunca público) ou **Registrar por mensagem** (a data em que
+   ele autorizou). "Faz sozinho" só salva com a autorização.
+
+**Salvar mandato** cria uma versão nova; **Cancelar** fecha sem gravar.
+
+### Na ficha do cliente e no Criar
+
+- **Clientes → o cliente → aba Negociação:** cada negociação do cliente, com o estado, a rodada, a
+  última oferta e quem conduz, e **Abrir**, que leva a Clientes › Negociações.
+- **Nova proposta** (no Criar, no topo de Negociações, no **+** da aba Negociação e no Registrar
+  proposta do Funil): escolha o cliente, o imóvel e o valor oferecido. A oferta entra na negociação
+  em andamento desse cliente e imóvel; se não houver, o app abre a negociação (e, se preciso, um
+  negócio de compra para o cliente) e leva você até ela.
 
 ## Propostas
 
@@ -214,7 +289,7 @@ padrão nunca é apagada nem reescrita.
 
 ## Para o administrador da instância
 
-- **Eventos** (todos da conta do corretor; o clique leva à tela Clientes, mas nesta versão ela só tem as visões Lista e Funil, então o link ainda não abre a negociação): negociação iniciada,
+- **Eventos** (todos da conta do corretor; o clique abre a negociação em Clientes › Negociações): negociação iniciada,
   oferta do comprador recebida, proposta registrada, mandato alterado, negociação encerrada,
   "o Negociador precisa de você" (passagem ao corretor), objeção detectada, contraproposta
   esperando aprovação, contraproposta enviada, acordo aguardando o proprietário, negociação

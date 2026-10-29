@@ -195,9 +195,7 @@ function esquerda(d: DadosHoje, atualizar: () => void) {
                     <urbi-prosa>${x.p.contato_nome}${x.p.codigo ? ` · ${x.p.codigo}` : ''}</urbi-prosa>
                     <urbi-prosa papel="secundario">${x.p.motivo}</urbi-prosa>
                   </urbi-stack>
-                  ${x.p.contato_id
-                    ? html`<urbi-botao pequeno icone="fa-solid fa-handshake" href=${urbiVerso.href(`/clientes/${x.p.contato_id}`)}>Abrir</urbi-botao>`
-                    : nothing}
+                  <urbi-botao pequeno icone="fa-solid fa-handshake" href=${`${urbiVerso.href('/clientes')}?visao=negociacoes&item=${x.p.negociacao_id}`}>Abrir</urbi-botao>
                 </urbi-linha>`
               : html`<urbi-linha justificar="entre">
                   <urbi-stack>
