@@ -134,10 +134,20 @@ export class AppPortalCorretor extends LitElement {
       history.replaceState(history.state, '', `${urbiVerso.href('/clientes')}${ficha}`);
       sub = '/clientes';
     }
+    // Negociador humano (D7): área do corretor (incluindo `/assistente`) leva às Negociações, dentro da
+    // moldura dele, em vez de um aviso sem trilho.
+    if (soNegociador()) {
+      const { chave } = resolverEndereco(sub);
+      const t = chave ? TELAS[chave] : undefined;
+      if (sub === '/assistente' || (t && ![t.papel, ...(t.tambem ?? [])].includes('negociador'))) {
+        history.replaceState(history.state, '', urbiVerso.href('/negociacoes'));
+        sub = '/negociacoes';
+      }
+    }
     this.sub = sub;
     this.avisarTela(sub);
     lembrarTela(sub);
-    if (sub === '/assistente') abrirAssistente();
+    if (sub === '/assistente' && !soNegociador()) abrirAssistente();
   }
 
   disconnectedCallback() {

@@ -102,7 +102,7 @@ export class PcAjustesNegociador extends LitElement {
     const ROTULO: Record<string, string> = { emitido: 'pendente', resgatado: 'aceito', expirado: 'expirado', invalidado: 'invalidado', revogado: 'revogado' };
     return html`<urbi-linha justificar="entre" quebrar>
         <urbi-prosa>Negociador humano</urbi-prosa>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-user-plus" @click=${() => void this.convidar()}>Convidar negociador</urbi-botao>
+        ${eq?.indisponivel ? nothing : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-user-plus" @click=${() => void this.convidar()}>Convidar negociador</urbi-botao>`}
       </urbi-linha>
       ${!eq
         ? html`<urbi-loading></urbi-loading>`

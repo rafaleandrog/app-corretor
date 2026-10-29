@@ -57,7 +57,9 @@ export function itensDoTrilho(menu: string): UrbiAtalhoTrilho[] {
 function aoAtalho(e: CustomEvent, atualizar: () => void) {
   const id = String(e.detail?.id ?? '');
   estado.menuNoCelular = false;
-  if (id === 'assistente') alternarAssistente();
+  if (id === 'assistente') {
+    if (!soNegociador()) alternarAssistente();
+  }
   else if (id) urbiVerso.navegarSub(id);
   atualizar();
 }
@@ -78,7 +80,7 @@ function direitaAssistente(slotTopo: 'direita-topo' | 'direita') {
 }
 
 function colunas(op: OpcoesMoldura): TemplateResult {
-  const aberto = assistenteAberto();
+  const aberto = assistenteAberto() && !soNegociador();
   const r = op.rotulos ?? {};
   if (op.lista === undefined) {
     return html`<urbi-2x1 slot="detalhe">
@@ -119,6 +121,6 @@ export function moldura(op: OpcoesMoldura, atualizar: () => void): TemplateResul
  * com ela, foco à esquerda e Assistente à direita. Fechado, a tela segue como sempre foi.
  */
 export function comAssistente(tela: unknown): unknown {
-  if (!assistenteAberto()) return tela;
+  if (!assistenteAberto() || soNegociador()) return tela;
   return html`<urbi-2x1>${coluna('esquerda', tela)}${direitaAssistente('direita-topo')}</urbi-2x1>`;
 }

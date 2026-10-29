@@ -19,7 +19,7 @@ type Linha = Record<string, any>;
 // mascarado ("•••• mostrar"); a lista e o detalhe nunca o trazem (`semSigilo` no backend).
 //
 // Negociador humano (D7, spec 11.6): a mesma tela, só com as negociações atribuídas a ele, o mandato em
-// leitura SEM recuo, alvo e BATNA (a rota do mandato já os tira para ele) e sem as ações do corretor:
+// leitura, completo e com o recuo mascarado como para o corretor (spec 11.6), e sem as ações do corretor:
 // aceitar o acordo, editar o mandato, abrir negociação e atribuir. Ele pede sugestão, aprova, edita,
 // descarta, registra a oferta do cliente, assume e devolve ao Negociador IA; o backend barra o resto.
 
@@ -417,9 +417,7 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
         ? html`<urbi-prosa papel="secundario"><urbi-badge cor="sucesso">ZOPA estimada</urbi-badge> entre o seu ponto de recuo e ~${reais(d.teto_estimado_comprador_c)} (o teto estimado do comprador).</urbi-prosa>`
         : zopa === 'nao'
           ? html`<urbi-prosa papel="secundario"><urbi-badge cor="erro">Sem ZOPA</urbi-badge> o teto estimado do comprador está abaixo do seu ponto de recuo.</urbi-prosa>`
-          : soNegociador()
-            ? html`<urbi-prosa papel="fraco">O ponto de recuo e o alvo são só do corretor: o app confere cada envio contra eles e bloqueia o que passar do limite.</urbi-prosa>`
-            : html`<urbi-prosa papel="fraco">A ZOPA aparece com o mandato e o teto estimado do comprador.</urbi-prosa>`}
+          : html`<urbi-prosa papel="fraco">A ZOPA aparece com o mandato e o teto estimado do comprador.</urbi-prosa>`}
     </urbi-card>`;
   }
 
@@ -523,24 +521,14 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       : html`<strong>••••</strong> <urbi-botao pequeno variante="texto" @click=${() => (this.mostrar = { ...this.mostrar, [chave]: true })}>mostrar</urbi-botao>`;
   }
 
-  /** O mandato em leitura, para o negociador humano: sem recuo, alvo e BATNA (não chegam a ele) e sem editar. */
-  private cartaoMandatoLeitura(m: Linha | null) {
-    if (!m) {
+  private cartaoMandato(m: Linha | null) {
+    // Negociador humano (spec 11.6): o mesmo cartão, em leitura (sem definir nem editar o mandato).
+    const leitura = soNegociador();
+    if (!m && leitura) {
       return html`<urbi-card titulo="Mandato" icone="fa-solid fa-file-shield">
         <urbi-prosa papel="dica">O corretor ainda não definiu o mandato desta negociação. Sem ele, nenhuma contraproposta sai: fale com o corretor.</urbi-prosa>
       </urbi-card>`;
     }
-    const concessoes = (m.concessoes ?? []) as Linha[];
-    return html`<urbi-card titulo="Mandato" icone="fa-solid fa-file-shield">
-      <urbi-prosa>Pedido ${reais(m.preco_pedido_c)}</urbi-prosa>
-      <urbi-prosa papel="secundario">${concessoes.length ? `Concessões: ${concessoes.map((c) => `${c.item} ↔ ${c.contrapartida}`).join('; ')}` : 'Sem concessões além do preço.'}</urbi-prosa>
-      <urbi-prosa papel="fraco">Até ${m.rodadas_max} rodadas · passo de até ${Math.round(Number(m.passo_max_pct) * 100)}% · válido até ${data(`${m.validade}T12:00:00`)}</urbi-prosa>
-      <urbi-prosa papel="fraco">O alvo, o ponto de recuo e a BATNA do vendedor são só do corretor. O app confere cada envio contra eles: o que passar do limite não sai.</urbi-prosa>
-    </urbi-card>`;
-  }
-
-  private cartaoMandato(m: Linha | null) {
-    if (soNegociador()) return this.cartaoMandatoLeitura(m);
     if (!m) {
       return html`<urbi-card titulo="Mandato" icone="fa-solid fa-file-shield">
         <urbi-prosa papel="dica">Sem mandato, o Negociador não age: ele só passa a negociação a você. Defina até onde ele pode ir.</urbi-prosa>
@@ -556,7 +544,7 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       <urbi-prosa papel="secundario">${concessoes.length ? `Concessões: ${concessoes.map((c) => `${c.item} ↔ ${c.contrapartida}`).join('; ')}` : 'Sem concessões além do preço.'}</urbi-prosa>
       <urbi-prosa papel="fraco">Até ${m.rodadas_max} rodadas · passo de até ${Math.round(Number(m.passo_max_pct) * 100)}% · ${AUTONOMIA[m.autonomia] ?? m.autonomia} · válido até ${data(`${m.validade}T12:00:00`)}</urbi-prosa>
       <urbi-prosa papel="fraco">Recuo e BATNA são sigilosos: o cliente nunca os vê.</urbi-prosa>
-      <urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" @click=${() => (this.editando = true)}>Editar mandato</urbi-botao>
+      ${leitura ? nothing : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" @click=${() => (this.editando = true)}>Editar mandato</urbi-botao>`}
     </urbi-card>`;
   }
 

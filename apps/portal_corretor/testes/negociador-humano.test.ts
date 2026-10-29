@@ -8,8 +8,9 @@ import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
 
 // Negociador humano (D7, issue #106): manifesto, convite sem CRECI com os erros do SDK traduzidos e 503
 // sem `req.shell`, atribuição pelo corretor só na própria conta, e a matriz do papel `negociador`: só as
-// negociações atribuídas, nunca recuo, alvo nem BATNA em resposta nenhuma de `/negociacoes*`, nunca o
-// aceite final, e as outras áreas fechadas.
+// negociações atribuídas, o mandato completo em leitura (decisão do dono, spec 11.6 e 14) e nenhum
+// recuo, alvo nem BATNA nas outras respostas de `/negociacoes*` nem nos eventos, a resposta do vendedor
+// pelas validações de 10.9.7, nunca o aceite final, e as outras áreas fechadas.
 
 const EM_ANDAMENTO = (schema.tabelas.negociacoes.unicos as unknown[]).find((u) => !Array.isArray(u)) as Exclude<Unico, string>;
 const UNICOS: Record<string, Unico[]> = { negociacoes: [EM_ANDAMENTO, 'codigo'], mandatos_negociacao: ['negociacao_id+versao'], playbook_objecoes: ['categoria+origem'], config_negociador: ['chave'] };
@@ -283,7 +284,7 @@ test('atribuição: o corretor atribui e retira; B não atribui negociação de 
   });
 });
 
-test('matriz do negociador: só as atribuídas, sem sigilo em /negociacoes*, sem aceite, outras áreas fechadas', async () => {
+test('matriz do negociador: só as atribuídas, mandato completo, sem sigilo no resto de /negociacoes*, sem aceite, outras áreas fechadas', async () => {
   const banco = new BancoFalso(UNICOS);
   const shell = shellFalso();
   const ev = eventosFalsos();
@@ -339,14 +340,18 @@ test('matriz do negociador: só as atribuídas, sem sigilo em /negociacoes*, sem
     assert.deepEqual(lista.corpo.dados.map((n: { id: number }) => n.id), [minha]);
     semSigiloNaResposta(lista.corpo, 'lista');
 
-    // A atribuída: detalhe, mandato (em leitura, sem o sigilo), propostas.
+    // A atribuída: detalhe e propostas sem o sigilo; o mandato completo, em leitura (spec 14).
     const det = await chamar('GET', `/negociacoes/${minha}`);
     assert.equal(det.status, 200);
     semSigiloNaResposta(det.corpo, 'detalhe');
     const mandato = await chamar('GET', `/negociacoes/${minha}/mandato`);
     assert.equal(mandato.status, 200);
-    assert.equal(mandato.corpo.vigente.preco_pedido_c, PEDIDO, 'o mandato chega em leitura');
-    semSigiloNaResposta(mandato.corpo, 'mandato');
+    assert.deepEqual(
+      [mandato.corpo.vigente.preco_pedido_c, mandato.corpo.vigente.alvo_c, mandato.corpo.vigente.recuo_c, mandato.corpo.vigente.batna_vendedor],
+      [PEDIDO, ALVO, RECUO, BATNA],
+      'o mandato chega completo',
+    );
+    assert.equal(mandato.corpo.versoes[0].recuo_c, RECUO);
     semSigiloNaResposta((await chamar('GET', `/negociacoes/${minha}/propostas`)).corpo, 'propostas');
 
     // O que é só do corretor: 403 SO_O_CORRETOR, nada gravado.
@@ -365,7 +370,7 @@ test('matriz do negociador: só as atribuídas, sem sigilo em /negociacoes*, sem
     assert.equal(leitura.status, 200);
     semSigiloNaResposta(leitura.corpo, 'patch');
 
-    // Registra a oferta do cliente e a resposta do vendedor, com o rótulo do negociador.
+    // Registra a oferta do cliente.
     const oferta = await chamar('POST', `/negociacoes/${minha}/propostas`, { direcao: 'comprador', valor_c: 137_500_000 });
     assert.equal(oferta.status, 201);
     semSigiloNaResposta(oferta.corpo, 'oferta');
@@ -395,6 +400,10 @@ test('matriz do negociador: só as atribuídas, sem sigilo em /negociacoes*, sem
     assert.deepEqual([devolveu.status, devolveu.corpo.conduzida_por], [200, 'ia']);
     semSigiloNaResposta(devolveu.corpo, 'devolver');
   });
+
+  // Nenhum evento leva recuo, alvo nem BATNA.
+  assert.ok(ev.publicados.length > 0);
+  semSigiloNaResposta(ev.publicados, 'eventos');
 
   // Nada mudou no que é do corretor.
   const n = banco.linhas('negociacoes').find((l) => l.id === minha)!;
@@ -443,4 +452,116 @@ test('registro do vendedor pelo negociador leva o rótulo negociador_humano; edi
   });
   const vendedor = banco.linhas('propostas').filter((p) => p.direcao === 'vendedor');
   assert.deepEqual(vendedor.map((p) => [p.autor_tipo, p.autor_usuario_id, p.valor_c]), [['negociador_humano', 5, 148_500_000]]);
+});
+
+test('resposta do vendedor registrada pelo negociador: as garantias de 10.9.7 barram; eventos sem sigilo', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const a1 = await base(banco, 100, 1);
+  const a2 = await base(banco, 100, 2);
+  let minha = 0;
+  let outra = 0;
+  await comServidor(rotas, corretor(1, 100, { eventos: ev }), banco, shell, async (chamar) => {
+    minha = await negociacaoPronta(chamar, a1);
+    outra = await negociacaoPronta(chamar, a2);
+    for (const nid of [minha, outra]) assert.equal((await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 137_000_000 })).status, 201);
+    await chamar('POST', '/negociador/atribuicoes', { negociacao_id: minha, usuario_id: 5 });
+  });
+  const vendedor = () => banco.linhas('propostas').filter((p) => p.direcao === 'vendedor');
+  const inicio = ev.publicados.length;
+  await comServidor(rotas, negociador(5, 100, { eventos: ev }), banco, shell, async (chamar) => {
+    // Mandato completo da atribuída; o da não atribuída é 404.
+    const m = await chamar('GET', `/negociacoes/${minha}/mandato`);
+    assert.deepEqual([m.status, m.corpo.vigente.recuo_c, m.corpo.vigente.alvo_c, m.corpo.vigente.batna_vendedor], [200, RECUO, ALVO, BATNA]);
+    assert.deepEqual([(await chamar('GET', `/negociacoes/${outra}/mandato`)).status], [404]);
+
+    // Abaixo do recuo (até R$ 1,00): 422 MOVIMENTO_BLOQUEADO, nada gravado.
+    for (const valor_c of [RECUO - 1, 100]) {
+      const r = await chamar('POST', `/negociacoes/${minha}/propostas`, { direcao: 'vendedor', valor_c });
+      assert.deepEqual([r.status, r.corpo.codigo], [422, 'MOVIMENTO_BLOQUEADO'], String(valor_c));
+      assert.ok(r.corpo.bloqueado_por.includes('ABAIXO_DO_RECUO'), JSON.stringify(r.corpo));
+      assert.ok(Array.isArray(r.corpo.detalhes) && r.corpo.detalhes.length > 0);
+    }
+    // Concessão fora do mandato também barra.
+    const fora = await chamar('POST', `/negociacoes/${minha}/propostas`, { direcao: 'vendedor', valor_c: 148_000_000, concessao: 'piscina nova', contrapartida: 'x' });
+    assert.deepEqual([fora.status, fora.corpo.codigo], [422, 'MOVIMENTO_BLOQUEADO']);
+    assert.ok(fora.corpo.bloqueado_por.includes('CONCESSAO_FORA_DO_MANDATO'));
+    assert.equal(vendedor().length, 0, 'nada gravado');
+    assert.equal(ev.publicados.length, inicio, 'nenhum evento do bloqueio');
+
+    // Dentro do mandato: passa, com o rótulo do negociador.
+    const ok = await chamar('POST', `/negociacoes/${minha}/propostas`, { direcao: 'vendedor', valor_c: 148_000_000 });
+    assert.equal(ok.status, 201, JSON.stringify(ok.corpo));
+    semSigiloNaResposta(ok.corpo, 'registro');
+  });
+  assert.deepEqual(vendedor().map((p) => [p.autor_tipo, p.autor_usuario_id, p.valor_c]), [['negociador_humano', 5, 148_000_000]]);
+  assert.ok(ev.publicados.length > inicio);
+  semSigiloNaResposta(ev.publicados, 'eventos');
+
+  // O corretor registra o que o dono decidiu, sem a trava de 10.9.7 (comportamento de antes).
+  await comServidor(rotas, corretor(1, 100, { eventos: ev }), banco, shell, async (chamar) => {
+    const r = await chamar('POST', `/negociacoes/${outra}/propostas`, { direcao: 'vendedor', valor_c: RECUO - 1 });
+    assert.equal(r.status, 201, JSON.stringify(r.corpo));
+  });
+});
+
+test('negociador da conta B contra a negociação da conta A: 404 em tudo', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const a = await base(banco, 100);
+  let nid = 0;
+  await comServidor(rotas, corretor(1, 100, { eventos: ev }), banco, shell, async (chamar) => {
+    nid = await negociacaoPronta(chamar, a);
+    await chamar('POST', '/negociador/atribuicoes', { negociacao_id: nid, usuario_id: 5 });
+  });
+  await comServidor(rotas, negociador(6, 200, { eventos: ev }), banco, shell, async (chamar) => {
+    for (const [metodo, caminho, corpo] of [
+      ['GET', `/negociacoes/${nid}`],
+      ['GET', `/negociacoes/${nid}/mandato`],
+      ['GET', `/negociacoes/${nid}/propostas`],
+      ['POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 148_000_000 }],
+      ['POST', `/negociacoes/${nid}/assumir`, {}],
+      ['POST', `/negociacoes/${nid}/devolver`, {}],
+    ] as [string, string, unknown?][]) {
+      const r = await chamar(metodo, caminho, corpo);
+      assert.deepEqual([r.status, r.corpo.codigo], [404, 'NAO_ENCONTRADO'], `${metodo} ${caminho}`);
+      semSigiloNaResposta(r.corpo, `${metodo} ${caminho}`);
+    }
+    assert.deepEqual((await chamar('GET', '/negociacoes')).corpo.dados, []);
+  });
+  assert.equal(banco.linhas('propostas').length, 0);
+});
+
+test('assumir e devolver: o negociador não toma de volta o que o corretor assumiu', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const a = await base(banco, 100);
+  let nid = 0;
+  const conduz = () => banco.linhas('negociacoes').find((l) => l.id === nid)!.conduzida_por;
+  await comServidor(rotas, corretor(1, 100, { eventos: ev }), banco, shell, async (chamar) => {
+    nid = await negociacaoPronta(chamar, a);
+    await chamar('POST', '/negociador/atribuicoes', { negociacao_id: nid, usuario_id: 5 });
+    assert.equal(conduz(), 'humano');
+    assert.deepEqual([(await chamar('POST', `/negociacoes/${nid}/assumir`, {})).corpo.conduzida_por], ['corretor']);
+  });
+  await comServidor(rotas, negociador(5, 100, { eventos: ev }), banco, shell, async (chamar) => {
+    for (const rota of ['assumir', 'devolver']) {
+      const r = await chamar('POST', `/negociacoes/${nid}/${rota}`, {});
+      assert.deepEqual([r.status, r.corpo.codigo], [403, 'SO_O_CORRETOR'], rota);
+      assert.equal(conduz(), 'corretor', rota);
+    }
+  });
+  await comServidor(rotas, corretor(1, 100, { eventos: ev }), banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/devolver`, {})).corpo.conduzida_por, 'ia');
+  });
+  await comServidor(rotas, negociador(5, 100, { eventos: ev }), banco, shell, async (chamar) => {
+    const assumiu = await chamar('POST', `/negociacoes/${nid}/assumir`, {});
+    assert.deepEqual([assumiu.status, assumiu.corpo.conduzida_por], [200, 'humano']);
+    const devolveu = await chamar('POST', `/negociacoes/${nid}/devolver`, {});
+    assert.deepEqual([devolveu.status, devolveu.corpo.conduzida_por], [200, 'ia']);
+  });
+  semSigiloNaResposta(ev.publicados, 'eventos');
 });

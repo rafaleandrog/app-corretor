@@ -30,7 +30,8 @@ export const ehCorretor = (req: Request) => req.contexto?.nivelApp === 'admin' |
 
 /**
  * Negociador humano (D7, spec 11.6): tem o papel `negociador` e não vale pelo corretor. Vê só as
- * negociações atribuídas a ele, sem o sigilo do mandato, e nunca aceita o acordo final.
+ * negociações atribuídas a ele, lê o mandato completo delas (spec 14, "Mandato: ler"), não o muda e
+ * nunca aceita o acordo final.
  */
 export const soNegociador = (req: Request) => !ehCorretor(req) && !!req.contexto?.rolesApp?.includes('negociador');
 
