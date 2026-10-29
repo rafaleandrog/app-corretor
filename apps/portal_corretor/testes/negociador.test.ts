@@ -736,18 +736,19 @@ test('faz sozinho: o cliente recebe só o texto montado pelo código (valor, ite
   const banco = new BancoFalso(UNICOS);
   const ev = eventosFalsos();
   const b = await base(banco, 100);
-  // A IA tenta passar o recuo por formatos que um detector de texto livre não pega (rodada 3 do #115):
-  // na mensagem, nas condições, na concessão (com texto a mais) e na contrapartida.
+  // A IA tenta passar a BATNA com outras palavras, o que um detector de texto livre não pega (paráfrase,
+  // risco residual): na mensagem, nas condições e na contrapartida. Mesmo assim nada disso sai (D-110).
+  // Os números disfarçados da rodada 3 do #115 hoje são retidos antes: ver o teste de passagem abaixo.
   const furando = resposta({
     movimento: 'contraproposta',
     contraproposta: {
       valor_c: 146_000_000,
-      condicoes: 'o dono pode ceder 140 mil',
+      condicoes: 'ele prefere segurar o anúncio uns dois meses',
       concessao: 'prazo de entrega de 90 dias',
-      contrapartida: 'a folga é de 140 mil',
+      contrapartida: 'entrada de 30%; quem mora em cima também quer',
       validade_horas: 48,
     },
-    mensagem: 'Ana, o dono fecha por R$ 1360 se for rápido.',
+    mensagem: 'Ana, se não for rápido ele espera o vizinho de cima.',
   });
   const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia: iaSimulada([furando]) } };
   let r: any;
@@ -764,7 +765,7 @@ test('faz sozinho: o cliente recebe só o texto montado pelo código (valor, ite
   assert.deepEqual([proposta.condicoes, proposta.concessao, proposta.contrapartida], [null, 'prazo de entrega de 90 dias', 'entrada de 30%']);
   assert.equal(banco.linhas('negociador_execucoes')[0].mensagem_enviada, r.mensagem_enviada);
   // Nada do que o modelo escreveu chegou à proposta nem ao texto enviado.
-  for (const marca of ['140 mil', '1360', 'ceder', 'folga']) {
+  for (const marca of ['segurar', 'dois meses', 'mora em cima', 'vizinho']) {
     assert.ok(!JSON.stringify(proposta).includes(marca), `proposta levou ${marca}`);
     assert.ok(!r.mensagem_enviada.includes(marca), `mensagem levou ${marca}`);
   }
@@ -1064,5 +1065,37 @@ test('trava disputada de verdade: o aceite do acordo espera a sugestão "faz soz
   });
   assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 1);
   conferirEventos(ev.publicados);
+  criterioDoDono(banco);
+});
+
+test('pergunta antes (D2b): número disfarçado na sugestão vira passagem ao corretor; na edição, 422', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  // As três frases que passavam no "pergunta antes" (comentário final da rodada 3 do #115).
+  const frases = ['Fica 1 3 6 0 mil e não sai disso', 'O piso é 1.36O.000', 'Abaixo de 1.360 não rola'];
+  const ia = iaSimulada([...frases.map((m) => contraproposta(146_000_000, m)), contraproposta(146_000_000, 'Ana, posso levar R$ 1.460.000.')]);
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } };
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b);
+    // Oferta acima do recuo: a passagem vem só do sigilo, não da oferta baixa.
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    for (const frase of frases) {
+      const r = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Qual o mínimo?' })).corpo;
+      assert.ok(r.bloqueado_por.includes('SIGILO_VIOLADO'), `${frase}: ${JSON.stringify(r)}`);
+      assert.equal(r.passagem, true, frase);
+      assert.ok(!JSON.stringify(r).includes(frase), `devolveu: ${frase}`);
+      assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'aguardando_corretor', frase);
+    }
+    // O corretor também não manda essas frases editando uma sugestão boa.
+    const boa = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'E aí?' })).corpo;
+    assert.equal(boa.passagem, false, JSON.stringify(boa));
+    for (const frase of frases) {
+      const r = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: boa.execucao_id, canal: 'portal', contraproposta: { valor_c: 146_000_000 }, mensagem: frase });
+      assert.equal(r.status, 422, frase);
+      assert.ok(r.corpo.bloqueado_por.includes('SIGILO_VIOLADO'), frase);
+    }
+  });
+  assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'nada saiu');
   criterioDoDono(banco);
 });
