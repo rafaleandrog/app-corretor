@@ -460,6 +460,14 @@ test('decisão: aprovar grava a contraproposta; editar revalida (nem o corretor 
     await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
     const s1 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4 mi.' })).corpo;
     assert.equal(s1.passagem, false, JSON.stringify(s1));
+    // O detalhe (P15) traz a sugestão que espera o corretor e a última fala do cliente, sem o sigilo.
+    const detalhe = (await chamar('GET', `/negociacoes/${nid}`)).corpo;
+    assert.equal(detalhe.sugestao.execucao_id, s1.execucao_id);
+    assert.equal(detalhe.sugestao.resposta.contraproposta.valor_c, 146_000_000);
+    assert.equal(detalhe.ultima_fala.texto, 'Faço 1,4 mi.');
+    assert.ok(detalhe.sugestao.validacoes.length > 0);
+    for (const v of [String(RECUO), String(ALVO)]) assert.ok(!JSON.stringify(detalhe).includes(v), `o detalhe não traz ${v}`);
+    assert.ok(!/recuo_c|alvo_c|batna_vendedor/.test(JSON.stringify(detalhe)), 'nem os nomes dos campos sigilosos');
     assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id })).status, 422, 'sem canal');
     assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id, canal: 'whatsapp' })).status, 422);
     const aprov = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id, canal: 'wa_me' });
@@ -467,6 +475,7 @@ test('decisão: aprovar grava a contraproposta; editar revalida (nem o corretor 
     assert.deepEqual([aprov.corpo.proposta.valor_c, aprov.corpo.proposta.autor_tipo, aprov.corpo.proposta.canal, aprov.corpo.proposta.estado], [146_000_000, 'negociador_ia', 'wa_me', 'enviada']);
     assert.match(aprov.corpo.link, /^https:\/\/wa\.me\/5561988887777\?text=/);
     assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id, canal: 'portal' })).status, 409, 'já decidida');
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao, null, 'decidida, a sugestão sai do detalhe');
 
     // Editar para baixo do recuo: 422 com a explicação, nada gravado.
     await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 141_000_000 });
@@ -845,7 +854,7 @@ test('faz sozinho em corrida: duas sugestões ao mesmo tempo mandam no máximo u
   criterioDoDono(banco, [MOTOR, NOVO_MOTOR]);
 });
 
-test('decisão em corrida: encerrada antes da trava não reabre; duas aprovações seguidas sem oferta entre elas não furam o passo', async () => {
+test('decisão em corrida: encerrada antes da trava não reabre; a sugestão superada (outra mais nova, ou proposta do vendedor no meio) não sai', async () => {
   const banco = new BancoFalso(UNICOS);
   const ev = eventosFalsos();
   const b = await base(banco, 100);
@@ -863,17 +872,21 @@ test('decisão em corrida: encerrada antes da trava não reabre; duas aprovaçõ
     const e2 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
     assert.equal(e1.passagem, false, JSON.stringify(e1));
     assert.equal(e2.passagem, false, 'sozinha, a segunda cabe no passo (R$ 49 mil de R$ 56 mil)');
-    // A primeira é aprovada entre a leitura e a trava da segunda: a segunda recalcula o passo com ela.
+    // A primeira já tem uma execução mais nova: aprovar ou editar é recusado, e ela segue pendente.
+    const a1 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: e1.execucao_id, canal: 'portal' });
+    assert.deepEqual([a1.status, a1.corpo.codigo], [409, 'SUGESTAO_SUPERADA']);
+    assert.equal(banco.linhas('negociador_execucoes').find((e) => e.id === e1.execucao_id)!.decisao, 'pendente');
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'descartar', execucao_id: e1.execucao_id })).corpo.decisao, 'descartada');
+    // Uma proposta do vendedor é gravada entre a leitura e a trava da aprovação da segunda: a trava a vê.
     antesDaProximaTransacao(banco, async () => {
-      const a1 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: e1.execucao_id, canal: 'portal' });
-      assert.equal(a1.status, 200, JSON.stringify(a1.corpo));
+      const v = await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 149_000_000 });
+      assert.equal(v.status, 201, JSON.stringify(v.corpo));
     });
     const a2 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: e2.execucao_id, canal: 'portal' });
-    assert.deepEqual([a2.status, a2.corpo.codigo], [422, 'MOVIMENTO_BLOQUEADO']);
-    assert.ok(a2.corpo.bloqueado_por.includes('PASSO_ACIMA_DO_LIMITE'), JSON.stringify(a2.corpo));
+    assert.deepEqual([a2.status, a2.corpo.codigo], [409, 'SUGESTAO_SUPERADA'], JSON.stringify(a2.corpo));
     // De novo, em sequência: a mesma recusa.
-    const a2b = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: e2.execucao_id, canal: 'portal' });
-    assert.deepEqual([a2b.status, a2b.corpo.codigo], [422, 'MOVIMENTO_BLOQUEADO']);
+    const a2b = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: e2.execucao_id, canal: 'portal', contraproposta: { valor_c: 148_000_000 } });
+    assert.deepEqual([a2b.status, a2b.corpo.codigo], [409, 'SUGESTAO_SUPERADA']);
     // A recusa não deixa rastro de decisão, e a sugestão segue decidível: o descarte dela passa.
     const ex2 = banco.linhas('negociador_execucoes').find((e) => e.id === e2.execucao_id)!;
     assert.deepEqual([ex2.decisao, ex2.decidida_em ?? null, ex2.proposta_id ?? null, ex2.aprovada_sem_edicao ?? null], ['pendente', null, null, null]);
@@ -891,9 +904,112 @@ test('decisão em corrida: encerrada antes da trava não reabre; duas aprovaçõ
     assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'perdida', 'não reabre');
     assert.equal(banco.linhas('negociador_execucoes').find((e) => e.id === e3.execucao_id)!.decisao, 'pendente');
   });
-  assert.deepEqual(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').map((p) => p.valor_c), [149_000_000]);
-  assert.equal(ev.publicados.filter((e) => e.tipo === 'contraproposta_enviada').length, 1);
+  // Só a proposta registrada pelo corretor: nenhuma das sugestões superadas saiu.
+  assert.deepEqual(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').map((p) => [p.valor_c, p.autor_tipo]), [[149_000_000, 'corretor']]);
+  assert.equal(ev.publicados.filter((e) => e.tipo === 'contraproposta_enviada').length, 0);
   conferirEventos(ev.publicados);
+  criterioDoDono(banco);
+});
+
+test('sugestão superada: o detalhe só mostra a pendente mais recente, sem proposta do vendedor depois dela; aprovar a antiga dá 409', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  const ia = iaSimulada([
+    contraproposta(146_000_000, 'Ana, posso levar R$ 1.460.000.'),
+    contraproposta(147_000_000, 'Ana, posso levar R$ 1.470.000.'),
+  ]);
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } }, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    // Sugestão A pendente; o corretor registra à mão uma contraproposta do vendedor depois dela.
+    const a = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao?.execucao_id, a.execucao_id);
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 148_000_000 })).status, 201);
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao, null, 'superada pela proposta do vendedor, A sai do detalhe');
+    const ra = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: a.execucao_id, canal: 'portal' });
+    assert.deepEqual([ra.status, ra.corpo.codigo, ra.corpo.mensagem], [409, 'SUGESTAO_SUPERADA', 'Há uma sugestão ou proposta mais nova: peça outra sugestão.']);
+    // Nova oferta e nova sugestão B: o detalhe mostra B, e A continua recusada.
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 141_000_000 });
+    const bb = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,41.' })).corpo;
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao?.execucao_id, bb.execucao_id);
+    const ra2 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: a.execucao_id, canal: 'portal', contraproposta: { valor_c: 147_500_000 } });
+    assert.deepEqual([ra2.status, ra2.corpo.codigo], [409, 'SUGESTAO_SUPERADA']);
+    // Descartar a superada continua valendo; B, a mais recente, sai.
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'descartar', execucao_id: a.execucao_id })).corpo.decisao, 'descartada');
+    const rb = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: bb.execucao_id, canal: 'portal' });
+    assert.equal(rb.status, 200, JSON.stringify(rb.corpo));
+  });
+  assert.deepEqual(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').map((p) => p.valor_c), [148_000_000, 147_000_000]);
+  conferirEventos(ev.publicados);
+  criterioDoDono(banco);
+});
+
+test('sugestão superada pela oferta que chega enquanto a IA pensa: o marco é o que a IA viu, não o lido sob a trava', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  let nid = 0;
+  // A oferta do comprador entra entre a leitura do contexto (o que vai ao modelo) e a trava.
+  const ia = iaSimulada([
+    async () => {
+      await banco.dados(100).criar('propostas', { negociacao_id: nid, rodada: 2, direcao: 'comprador', autor_tipo: 'cliente', valor_c: 142_000_000, canal: 'registro', estado: 'registrada' });
+      return contraproposta(146_000_000, 'Ana, posso levar R$ 1.460.000.');
+    },
+  ]);
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } }, banco, {}, async (chamar) => {
+    nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    const a = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+    assert.ok(a.execucao_id, JSON.stringify(a));
+    // A sugestão não viu a oferta de 1,42 mi: não aparece no detalhe e não sai.
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao, null);
+    const r = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: a.execucao_id, canal: 'portal' });
+    assert.deepEqual([r.status, r.corpo.codigo], [409, 'SUGESTAO_SUPERADA'], JSON.stringify(r.corpo));
+  });
+  assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'nenhuma contraproposta saiu');
+});
+
+test('sugestão superada por proposta do comprador: o motor sugeriu sem vê-la; o detalhe a esconde e aprovar dá 409', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  const ia = iaSimulada([contraproposta(146_000_000, 'Ana, posso levar R$ 1.460.000.')]);
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } }, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    const a = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao?.execucao_id, a.execucao_id);
+    // O comprador sobe a oferta depois da sugestão A: A respondia a uma oferta que já não é a última.
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 142_000_000 })).status, 201);
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao, null, 'superada pela proposta do comprador, A sai do detalhe');
+    const ra = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: a.execucao_id, canal: 'portal' });
+    assert.deepEqual([ra.status, ra.corpo.codigo], [409, 'SUGESTAO_SUPERADA']);
+    assert.equal(banco.linhas('negociador_execucoes').find((e) => e.id === a.execucao_id)!.decisao, 'pendente');
+  });
+  assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'nada saiu');
+  conferirEventos(ev.publicados);
+  criterioDoDono(banco);
+});
+
+test('decisão: editar a sugestão mais recente com passo acima do máximo dá 422 MOVIMENTO_BLOQUEADO com PASSO_ACIMA_DO_LIMITE', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  const ia = iaSimulada([contraproposta(146_000_000, 'Ana, posso levar R$ 1.460.000.')]);
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } }, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    const s = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao?.execucao_id, s.execucao_id, 'é a mais recente');
+    // Pedido 1.500.000, recuo 1.360.000, passo 40%: na rodada 1, até R$ 56 mil; R$ 60 mil passa do passo (acima do recuo).
+    const r = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: s.execucao_id, canal: 'portal', contraproposta: { valor_c: 144_000_000 }, mensagem: 'Ana, consigo R$ 1.440.000.' });
+    assert.equal(r.status, 422, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.codigo, 'MOVIMENTO_BLOQUEADO');
+    assert.ok(Array.isArray(r.corpo.bloqueado_por) && r.corpo.bloqueado_por.includes('PASSO_ACIMA_DO_LIMITE'), JSON.stringify(r.corpo));
+    assert.equal(banco.linhas('negociador_execucoes').find((e) => e.id === s.execucao_id)!.decisao, 'pendente', 'a recusa não reserva a sugestão');
+  });
+  assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0);
   criterioDoDono(banco);
 });
 

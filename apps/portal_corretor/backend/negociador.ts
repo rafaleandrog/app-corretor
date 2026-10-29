@@ -37,7 +37,9 @@ import {
   objecoesDaConta,
   portalDa,
   publicar,
+  sugestaoSuperada,
   texto,
+  ultimaPropostaId,
 } from './negociacao';
 import { contaDoRequest } from './vitrine';
 
@@ -172,6 +174,8 @@ async function carregar(dados: HelperDados, negociacao: Linha, conta: number, us
     imovel,
     contato,
     creci: (perfil?.creci as string | null | undefined) ?? null,
+    // As propostas que foram ao modelo: o marco de "superada" é o que a IA viu, não o lido sob a trava.
+    propostas_ate: ultimaPropostaId(propostas),
   };
 }
 
@@ -224,7 +228,7 @@ async function estadoTravado(trx: Parameters<typeof gravarPropostaTravada>[0], v
     mandatoVigente(trx, viva),
     trx.varrerTudo('propostas', { filtros: { negociacao_id: Number(viva.id) }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
   ]);
-  return { mandato: paraMotor(mandato), propostas: propostas.map(paraResumo), impressao: impressaoDe(viva, propostas) };
+  return { mandato: paraMotor(mandato), propostas: propostas.map(paraResumo), impressao: impressaoDe(viva, propostas), linhas: propostas };
 }
 
 /**
@@ -426,7 +430,8 @@ export async function executarMotor(meio: MeioMotor, nid: number, entrada: { men
     const execucao = await trx.criar('negociador_execucoes', {
       negociacao_id: nid,
       mensagem_cliente,
-      entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0) },
+      // `propostas_ate`: a última proposta (de qualquer lado) que a IA viu (lida antes da chamada; marco de "superada").
+      entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0), propostas_ate: ctx.propostas_ate },
       saida: guardada,
       // O que foi retido por sigilo deixa rastro: só o nome do campo, nunca o conteúdo.
       validacoes: { verificacoes: validacao.verificacoes, passagem: motivos, retidos: guardavel?.vazados ?? [] },
@@ -621,7 +626,7 @@ negociadorRotas.post(
     const dia = hoje(req);
     // Desfecho tipado como união discriminada: só a recusa `bloqueado` carrega a validação.
     type Desfecho =
-      | { recusa: RecusaMotor | 'decidida' }
+      | { recusa: RecusaMotor | 'decidida' | 'superada' }
       | { recusa: 'bloqueado'; validacao: ReturnType<typeof validarMovimento> }
       | { proposta: Linha | null };
     const resultado = await dados.transaction(async (trx): Promise<Desfecho> => {
@@ -633,6 +638,10 @@ negociadorRotas.post(
       const recusa = recusaDe(viva);
       if (recusa) return { recusa };
       const agora = await estadoTravado(trx, viva);
+      // Sob a trava: sugestão com execução mais nova ou qualquer proposta depois dela não sai (o
+      // detalhe já não a mostra). Descartar, mais acima, continua valendo.
+      const maisNova = (await trx.listar('negociador_execucoes', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'desc', por_pagina: 1 })).dados[0];
+      if (sugestaoSuperada(execucao, Number(maisNova?.id ?? 0), agora.linhas)) return { recusa: 'superada' as const };
       // Revalida no código: a edição do corretor também não passa do recuo nem revela o sigilo (10.9.7).
       const validacao = validarMovimento(movimento, agora.mandato, agora.propostas, { hoje: dia, canal, automatico: false });
       if (!validacao.ok) return { recusa: 'bloqueado' as const, validacao };
@@ -669,6 +678,7 @@ negociadorRotas.post(
     });
     if ('recusa' in resultado) {
       if (resultado.recusa === 'decidida') return erro(res, 409, 'SUGESTAO_JA_DECIDIDA', 'Esta sugestão já foi decidida.');
+      if (resultado.recusa === 'superada') return erro(res, 409, 'SUGESTAO_SUPERADA', 'Há uma sugestão ou proposta mais nova: peça outra sugestão.');
       if (resultado.recusa !== 'bloqueado') return responderRecusa(res, resultado.recusa);
       const { validacao } = resultado;
       return res.status(422).json({

@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import './selecoes-cliente.js';
+import { abrirNegociacao, novaProposta } from './negociacoes.js';
 import { abrirAssistenteSobre, lembrarContato } from './assistente.js';
 import { OBJETIVOS_MENSAGEM } from '../../comum/mensagens';
 import { tarefaDaAbordagem } from '../../comum/funil';
@@ -34,15 +35,13 @@ interface Sugestao {
 const CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 const STATUS_ATIVIDADE: Record<string, string> = { pendente: 'Pendente', feita: 'Feita', cancelada: 'Cancelada', nao_compareceu: 'Não compareceu' };
 
-/**
- * Abas da ficha no centro (P04). A aba Negociação entra aqui, depois de Negócios, com o item D3 do
- * arco (#102); até lá ela não aparece (princípio 15.9: nada sem uso na tela).
- */
+/** Abas da ficha no centro (P04); a Negociação (D3) mostra as negociações do cliente e leva à P15. */
 export const ABAS_FICHA = [
   { id: 'resumo', label: 'Resumo' },
   { id: 'linha', label: 'Linha do tempo' },
   { id: 'enviados', label: 'Enviados' },
   { id: 'negocios', label: 'Negócios' },
+  { id: 'negociacao', label: 'Negociação' },
 ] as const;
 type AbaFicha = (typeof ABAS_FICHA)[number]['id'];
 /** A aba fica em `?secao=` (a `?aba=` é de outras telas), e sobrevive a recarregar. */
@@ -731,32 +730,16 @@ export class FichaContato {
       case 'negocios':
         return html`${this.cartaoNegocios()}${this.cartaoAgenda()}
           <pc-selecoes-cliente parte="selecoes" .contatoId=${c.id} .nome=${c.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>`;
+      case 'negociacao':
+        return html`<pc-negociacoes-do-cliente .contatoId=${c.id} .nome=${c.nome}></pc-negociacoes-do-cliente>`;
     }
   }
 
-  /**
-   * Registrar proposta (P03): por enquanto vira uma atividade feita na agenda do cliente, ligada ao
-   * negócio aberto. Com as telas da negociação (D3), o botão passa a abrir o registro de proposta.
-   */
+  /** Registrar proposta (P03): o fluxo de Nova proposta com o cliente já escolhido, e abre a negociação (P15). */
   private async registrarProposta() {
-    const negocio = this.s.ficha!.negocios.find((n) => n.etapa_tipo === 'aberta') ?? null;
-    const v = await urbiVerso.formulario({
-      titulo: 'Registrar proposta',
-      mensagem: 'Anote a proposta que o cliente fez. Ela entra na agenda do cliente como atividade feita.',
-      campos: [
-        { nome: 'valor', tipo: 'texto', rotulo: 'Valor oferecido (R$)', placeholder: '1.320.000', obrigatorio: true },
-        { nome: 'condicoes', tipo: 'texto_longo', rotulo: 'Condições (opcional)' },
-      ],
-      rotuloConfirmar: 'Registrar',
-    });
-    if (!v) return;
-    await this.tentar('Não foi possível registrar a proposta', async () => {
-      await enviar('POST', '/atividades', {
-        tipo: 'tarefa', status: 'feita', quando: new Date().toISOString(), contato_id: this.contatoId, negocio_id: negocio?.id ?? null,
-        titulo: `Proposta do cliente: R$ ${String(v.valor).replace(/^\s*R\$\s*/i, '').trim()}`, resultado: v.condicoes ? String(v.condicoes) : null,
-      });
-      urbiVerso.notificar('Proposta registrada na agenda do cliente.', 'sucesso');
-    });
+    const c = this.s.ficha!.contato;
+    const n = await novaProposta({ id: c.id, nome: c.nome });
+    if (n) abrirNegociacao(n);
   }
 
   /**

@@ -8,9 +8,105 @@ descricao: As negociações de um negócio, o mandato do vendedor (o que é sigi
 A partir da versão 0.1.13 o app guarda as **negociações**: a etapa em que o corretor (ou o
 **Negociador**, o assistente de negociação do app) troca propostas com o comprador até um acordo.
 Na versão 0.1.16 chega o **Negociador IA**: ele lê a conversa, sugere o próximo movimento e
-confere cada sugestão contra o mandato antes de qualquer coisa sair. As telas (Clientes ›
-Negociações, o formulário do mandato e Ajustes › Negociador) chegam nas versões seguintes. Até lá,
-nenhum item novo aparece no menu, e **Criar › Nova proposta** só abre a ficha do cliente.
+confere cada sugestão contra o mandato antes de qualquer coisa sair. Na versão 0.1.23 chegam as
+telas: **Clientes › Negociações**, o formulário do **mandato** e a aba **Negociação** na ficha do
+cliente (ver [As telas da negociação](#as-telas-da-negociação)). Ajustes › Negociador chega numa
+versão seguinte.
+
+## As telas da negociação
+
+### Clientes › Negociações
+
+Caminho: **Clientes** → botão **Negociações** (ao lado de Funil e Lista) → escolha a negociação na
+lista. O endereço é `/clientes?visao=negociacoes&item=<número da negociação>`, o mesmo das
+notificações de proposta. No celular aparece uma coluna por vez; com uma negociação escolhida, abre
+no centro.
+
+**Esquerda: a lista.** Filtros: Em andamento (o que abre), Aguardando você, Negociador (as que o
+Negociador conduz), Cliente, Proprietário e Encerradas. Cada linha mostra o cliente, o imóvel, a
+última oferta do comprador e a diferença para o preço pedido ("R$ 1.320.000 · −9%"), o estado e
+quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo).
+
+**Centro: a negociação.**
+
+- **Cabeçalho:** o cliente e o imóvel, o estado, a rodada ("Rodada 2 de 4"), quem conduz e a
+  autonomia ("Negociador IA · pergunta antes") e até quando vale o mandato. **Assumir** passa a
+  negociação para você; **Devolver ao Negociador** a devolve (só com o Negociador ligado nos ajustes).
+- **Faixa da negociação:** as marcas em ordem de valor — oferta do comprador, ponto de recuo
+  (sempre mascarado, "•••• (sigiloso)"), teto estimado do comprador, alvo e preço pedido — e a
+  **ZOPA estimada** (a zona de possível acordo, entre o seu ponto de recuo e o teto estimado do
+  comprador). Sem ZOPA, a faixa avisa. A faixa é montada com os componentes da plataforma, como
+  marcas em linha; a régua desenhada espera um componente novo (pedido à plataforma).
+- **Negociador sugere** (logo abaixo da faixa): a sugestão que espera você, com o valor, o texto e a
+  linha de conferências ("ok: não ofereceu abaixo do ponto de recuo · ok: …"; a que barrou aparece
+  como "falhou: …"). Só aparece a sugestão mais recente, e só enquanto nenhuma proposta (do comprador,
+  do vendedor ou do proprietário) foi gravada depois dela; a superada some, e aprová-la ou editá-la é recusado ("Há uma sugestão ou
+  proposta mais nova: peça outra sugestão."), mas descartá-la ainda pode. **Enviar** manda pelo Portal do Cliente;
+  **Fazer agora** abre o WhatsApp do celular com a mensagem pronta; **Editar** muda o valor, as
+  condições ou o texto (o app confere de novo e, se a edição passar do recuo ou revelar o sigilo,
+  não envia e diz o motivo); **Descartar** descarta. Sugestão bloqueada pelas regras só sai
+  editada. Sem sugestão, **Pedir sugestão** chama o Negociador (com a IA fora do ar, o botão
+  desliga e você segue à mão).
+- **Escada de propostas:** cada proposta numa linha — rodada, quem, valor, condições, concessão,
+  contrapartida, canal e quando. **Registrar oferta do cliente**, no pé do cartão, acrescenta uma oferta.
+- **Última fala do cliente:** o que você colou ao pedir a sugestão.
+
+**Direita: o mandato e o próximo movimento.**
+
+- **Mandato:** pedido e alvo; o **recuo** e a **BATNA do vendedor** aparecem como "••••" até você
+  tocar em **mostrar** (e voltam com **esconder**). Concessões, rodadas, passo, autonomia e
+  validade. **Editar mandato** abre o formulário.
+- **Leitura do comprador:** as objeções detectadas, os interesses, o teto estimado com a fonte e a
+  alternativa do comprador.
+- **Próximo movimento:** a contraproposta sugerida, com **Usar sugestão** (envia pelo portal), e
+  **Passar ao proprietário**: o aceite da última oferta do comprador, que pede confirmação e é
+  sempre seu (o Negociador nunca fecha o acordo). Depois disso, nada sai para o cliente até a
+  decisão do proprietário.
+
+### O formulário do mandato
+
+Abre por **Editar mandato** (ou **Definir mandato**, quando ainda não há). Quatro blocos:
+
+1. **Valores:** preço pedido (na primeira vez, vem do anúncio), alvo, ponto de recuo e a BATNA do
+   vendedor, com o aviso de que são sigilosos. Com mandato já salvo, o ponto de recuo abre mascarado
+   ("••••") e só vira campo editável quando você toca em **mostrar**; no primeiro mandato o campo já
+   vem aberto.
+2. **Concessões e contrapartidas:** cada linha é "o que se concede, até onde, e o que se pede em
+   troca"; mais o passo máximo por rodada (40% é o padrão) e o número máximo de rodadas.
+3. **Prazo:** até quando o mandato vale.
+4. **Quem negocia e autonomia:** **Quem negocia** é o Negociador IA ou você (corretor); a troca vale
+   na hora, sem salvar (é o mesmo Assumir e Devolver do cabeçalho; devolver ao Negociador pede o
+   Negociador ligado nos ajustes, senão a tela avisa e você segue negociando). Uma pessoa da sua
+   equipe como negociador só existe em contas com vários usuários. Autonomia: só sugere ou pergunta
+   antes; **faz sozinho dentro da faixa** só aparece com a autorização do proprietário registrada:
+   **Anexar documento** (escolhe um dos documentos já anexados ao imóvel, com a data; o cartão mostra
+   "Autorizado por documento <nome> em <data>") ou **Registrar por mensagem** (com a data). Sem
+   documento no imóvel, o botão explica que o documento entra pela ficha do imóvel (Imóveis › ficha ›
+   Fotos e arquivos, como documento). Ao salvar, o app confere que o documento é deste imóvel. Enquanto o mandato vigente de uma
+   negociação em andamento usa o documento, ele não pode ser apagado, virar foto nem ficar público
+   na ficha do imóvel.
+
+O formulário confere enquanto você digita, com as mesmas regras da gravação (recuo ≤ alvo ≤
+pedido, concessão com contrapartida, faz sozinho com a autorização), e **Salvar mandato** só liga
+sem erro. Cada gravação é uma versão nova.
+
+### Nova proposta e a aba Negociação
+
+**Criar › Nova proposta** (e **Registrar proposta**, no cliente escolhido do Funil) pede o cliente,
+o imóvel e o valor oferecido. A oferta cai sempre numa negociação **do imóvel escolhido** (um negócio
+tem uma negociação em andamento por vez):
+
+1. se o cliente já negocia esse imóvel, a oferta entra nessa negociação;
+2. senão, um negócio de compra em andamento do cliente sobre esse imóvel (ou sem imóvel) e sem
+   negociação em andamento recebe a negociação nova;
+3. senão (por exemplo, o negócio dele já negocia outro imóvel), o app abre um negócio novo do cliente
+   para esse imóvel e avisa. A oferta nunca é gravada na negociação de outro imóvel.
+
+Depois abre a negociação.
+
+Na ficha do cliente, a aba **Negociação** lista as negociações dele, com a última oferta e o
+estado; tocar numa delas abre Clientes › Negociações. **Nova proposta**, no pé do cartão, abre o
+mesmo registro com o cliente já escolhido.
 
 ## Negociação
 
@@ -44,7 +140,7 @@ O **mandato** é o combinado do corretor com o proprietário para aquela negocia
 | Rodadas | Número máximo de rodadas (padrão 4) |
 | Validade | Até quando o mandato vale |
 | Autonomia | **Só sugere**, **Pergunta antes** (padrão) ou **Faz sozinho dentro da faixa** |
-| Autorização do proprietário | Anexo ou mensagem, com a data. **Obrigatória** para "Faz sozinho" |
+| Autorização do proprietário | Anexo (um documento já anexado ao imóvel da negociação) ou mensagem, com a data. **Obrigatória** para "Faz sozinho" |
 
 **Regras de gravação:**
 - **Ponto de recuo ≤ alvo ≤ preço pedido.** Recuo acima do alvo é recusado com
@@ -186,7 +282,10 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
 **O que acontece com a sugestão, por autonomia:**
 - **Só sugere** e **Pergunta antes:** a sugestão espera você. Você **aprova** (escolhendo portal ou
   Fazer agora), **edita** ou **descarta**. Aprovar ou editar confere as 7 garantias de novo: nem a
-  sua edição passa do recuo ou revela o sigilo (o app recusa e diz por quê).
+  sua edição passa do recuo ou revela o sigilo (o app recusa e diz por quê). Só a sugestão mais
+  recente se aprova: se depois dela houve outra sugestão ou qualquer proposta nova (do comprador,
+  do vendedor ou do proprietário, que o Negociador não viu ao sugerir), ela some da tela e aprovar ou
+  editar é recusado com `SUGESTAO_SUPERADA` (peça outra sugestão); descartar continua valendo.
 - **Faz sozinho:** com o Negociador conduzindo e a autorização do proprietário no mandato, a
   contraproposta que passa nas garantias é registrada sozinha como enviada pelo portal e a
   negociação passa a "aguardando o cliente". Nesse envio automático **o texto da IA não sai**: o

@@ -6,6 +6,8 @@ import { rotas } from '../backend/rotas';
 import { semearObjecoes } from '../backend/semente';
 import {
   CAMPOS_SIGILOSOS,
+  corpoDoFormularioMandato,
+  errosDoFormularioMandato,
   PLAYBOOK_OBJECOES_PADRAO,
   passoMaximo_c,
   proximoCodigoNegociacao,
@@ -219,6 +221,60 @@ test('mandato inválido devolve 422 com o código e o motivo; nada é gravado', 
   });
   assert.equal(banco.linhas('mandatos_negociacao').length, 1);
   assert.deepEqual(ev.publicados.filter((e) => e.tipo === 'mandato_alterado').length, 1, 'só o mandato válido publica');
+});
+
+test('autorização por anexo: só um documento anexado ao imóvel da negociação, da mesma conta', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  const d = banco.dados(100);
+  const outroImovel = await d.criar('imoveis', { codigo: 'IM-0002', titulo: 'Casa Lago Sul', preco_c: 95_000_000 });
+  const doc = await d.criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'a.pdf', tipo: 'documento', legenda: 'Autorização assinada' });
+  const foto = await d.criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'f.jpg', tipo: 'foto' });
+  const docOutro = await d.criar('imovel_midias', { imovel_id: outroImovel.id, arquivo: 'b.pdf', tipo: 'documento' });
+  const docB = await banco.dados(200).criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'c.pdf', tipo: 'documento' });
+  const anexo = (arquivo_id: number) => ({ ...MANDATO, autonomia: 'faz_sozinho', autorizacao_proprietario: { tipo: 'anexo', arquivo_id, data: '2026-10-27' } });
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    for (const [rotulo, mid] of [['mídia de outro imóvel', docOutro.id], ['mídia inexistente', 999_999], ['foto, não documento', foto.id], ['documento de outra conta', docB.id]] as const) {
+      const r = await chamar('PUT', `/negociacoes/${nid}/mandato`, anexo(mid));
+      assert.deepEqual([r.status, r.corpo.codigo], [422, 'DADOS_INVALIDOS'], rotulo);
+      assert.match(r.corpo.mensagem, /documento anexado a este imóvel/);
+    }
+    const ok = await chamar('PUT', `/negociacoes/${nid}/mandato`, anexo(doc.id));
+    assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+    assert.deepEqual(ok.corpo.autorizacao_proprietario, { tipo: 'anexo', arquivo_id: doc.id, data: '2026-10-27' });
+  });
+  assert.equal(banco.linhas('mandatos_negociacao').length, 1, 'só o anexo válido grava');
+});
+
+test('anexo do mandato vigente: não é apagado, não vira foto nem fica público; trocado o anexo ou encerrada a negociação, sai', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  const d = banco.dados(100);
+  const doc = await d.criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'a.pdf', tipo: 'documento', legenda: 'Autorização' });
+  const doc2 = await d.criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'b.pdf', tipo: 'documento', legenda: 'Autorização nova' });
+  const anexo = (arquivo_id: number) => ({ ...MANDATO, autonomia: 'faz_sozinho', autorizacao_proprietario: { tipo: 'anexo', arquivo_id, data: '2026-10-27' } });
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    assert.equal((await chamar('PUT', `/negociacoes/${nid}/mandato`, anexo(doc.id))).status, 200);
+    const remover = await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc.id}/remover`);
+    assert.deepEqual([remover.status, remover.corpo.codigo], [409, 'DOCUMENTO_EM_USO'], JSON.stringify(remover.corpo));
+    for (const corpo of [{ tipo: 'foto' }, { publica: true }]) {
+      const r = await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc.id}`, corpo);
+      assert.deepEqual([r.status, r.corpo.codigo], [409, 'DOCUMENTO_EM_USO'], JSON.stringify(corpo));
+    }
+    assert.equal(banco.linhas('imovel_midias').find((m) => m.id === doc.id)?.tipo, 'documento', 'segue documento');
+    // Trocado o anexo (versão nova do mandato), o anterior sai; o novo passa a estar em uso.
+    assert.equal((await chamar('PUT', `/negociacoes/${nid}/mandato`, anexo(doc2.id))).status, 200);
+    assert.equal((await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc.id}/remover`)).status, 200);
+    assert.equal((await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc2.id}/remover`)).corpo.codigo, 'DOCUMENTO_EM_USO');
+    // Encerrada a negociação, o anexo dela sai.
+    assert.equal((await chamar('PATCH', `/negociacoes/${nid}`, { estado: 'perdida', motivo_perda: 'desistiu' })).status, 200);
+    assert.equal((await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc2.id}/remover`)).status, 200);
+  });
+  assert.equal(banco.linhas('imovel_midias').length, 0);
 });
 
 test('isolamento A × B: lista, detalhe, mandato e propostas de outra conta respondem 404', async () => {
@@ -573,4 +629,24 @@ test('lista: cada negociação mostra a própria última oferta, mesmo quando a 
     assert.equal(de(n1).ultima_oferta_c, 80_000_000, 'a de n1, não a mais recente da conta');
     assert.equal(de(n2).ultima_oferta_c, 70_000_000);
   });
+});
+
+test('formulário do mandato (P16): recusa recuo acima do alvo e alvo acima do pedido; faz sozinho pede a autorização', () => {
+  const f = {
+    pedido: '1.450.000', alvo: '1.400.000', recuo: '1.360.000', batna: '', concessoes: [{ item: 'prazo de 60 dias', limite: 'até 60 dias', contrapartida: 'entrada de 30%' }],
+    passo_pct: '40', rodadas: '4', validade: '2099-12-31', autonomia: 'pergunta_antes', autorizacao: null,
+  };
+  // Valores digitados em reais viram centavos, e o passo em % vira fração.
+  assert.deepEqual(
+    (({ preco_pedido_c, alvo_c, recuo_c, passo_max_pct }) => ({ preco_pedido_c, alvo_c, recuo_c, passo_max_pct }))(corpoDoFormularioMandato(f) as any),
+    { preco_pedido_c: 145_000_000, alvo_c: 140_000_000, recuo_c: 136_000_000, passo_max_pct: 0.4 },
+  );
+  assert.deepEqual(errosDoFormularioMandato(f), []);
+  assert.deepEqual(errosDoFormularioMandato({ ...f, recuo: '1.410.000' }), ['O ponto de recuo não pode ficar acima do alvo.']);
+  assert.deepEqual(errosDoFormularioMandato({ ...f, alvo: '1.500.000' }), ['O alvo não pode ficar acima do preço pedido.']);
+  assert.ok(errosDoFormularioMandato({ ...f, recuo: '' }).some((e) => /ponto de recuo/.test(e)), 'sem recuo, o erro diz qual falta');
+  assert.equal(errosDoFormularioMandato({ ...f, autonomia: 'faz_sozinho' }).length, 1, 'faz sozinho sem autorização');
+  assert.deepEqual(errosDoFormularioMandato({ ...f, autonomia: 'faz_sozinho', autorizacao: { tipo: 'mensagem', arquivo_id: null, data: '2026-10-20' } }), []);
+  // Linhas de concessão em branco (o "Adicionar" sem preencher) não contam.
+  assert.equal((corpoDoFormularioMandato({ ...f, concessoes: [...f.concessoes, { item: '', limite: '', contrapartida: '' }] }) as any).concessoes.length, 1);
 });

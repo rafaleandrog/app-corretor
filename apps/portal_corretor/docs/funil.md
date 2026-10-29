@@ -45,8 +45,8 @@ de **abordagem atrasada**.
 - A temperatura com o motivo ("Por que quente: tem visita marcada") e a etapa.
 - A **próxima abordagem**, com **Mensagem sugerida**, **Fazer agora** e **Virar tarefa** (ver
   [Próxima abordagem](#próxima-abordagem)).
-- **Registrar proposta**: anota o valor e as condições que o cliente ofereceu, como atividade
-  feita na agenda dele (com as telas de negociação, o botão passa a abrir o registro de proposta).
+- **Registrar proposta**: registra a oferta do cliente (imóvel e valor) e abre a negociação em
+  Clientes › Negociações — ver [Negociação e mandato](negociacao.md#nova-proposta-e-a-aba-negociação).
 - **Resumir** (quando a IA está liberada), **Tarefa** (agendar), **Conversa** (abre o WhatsApp do
   cliente) e **Abrir ficha**.
 - **Enviados**: o que foi mandado ao cliente, quando ele abriu o link e quantos cliques deu.
@@ -118,8 +118,8 @@ vez, em abas: **Hoje · Fila · Agenda**).
 
 - O dia por extenso e o estado do Mensageiro (por enquanto, "ainda não disponível": ele chega com o WhatsApp).
 - **Precisa de você**: as negociações que esperam a sua decisão e os clientes quentes sem resposta,
-  cada um com o botão **Abrir** (a ficha do cliente). O **Assumir** de uma negociação chega com o
-  Negociador (D2/D3); a tela de negociação ainda não existe. A lista mostra até 20 negociações e até 50 clientes quentes.
+  cada um com o botão **Abrir** (a ficha do cliente). Na aba **Negociação** da ficha, a negociação
+  abre em Clientes › Negociações, onde ficam **Assumir** e **Devolver ao Negociador**. A lista mostra até 20 negociações e até 50 clientes quentes.
 - **Primeiros passos · x de 5**, com as bolinhas de progresso e um **Fazer** em cada passo pendente:
   dar nome à conta, informar o seu telefone, conectar o Instagram, cadastrar o primeiro imóvel e
   publicar a Página. Some quando os 5 estão feitos. Quando o WhatsApp e o Mensageiro existirem, os
