@@ -10,8 +10,8 @@ A partir da versão 0.1.13 o app guarda as **negociações**: a etapa em que o c
 Na versão 0.1.16 chega o **Negociador IA**: ele lê a conversa, sugere o próximo movimento e
 confere cada sugestão contra o mandato antes de qualquer coisa sair. Na versão 0.1.23 chegam as
 telas: **Clientes › Negociações**, o formulário do **mandato** e a aba **Negociação** na ficha do
-cliente (ver [As telas da negociação](#as-telas-da-negociação)). Ajustes › Negociador chega numa
-versão seguinte.
+cliente (ver [As telas da negociação](#as-telas-da-negociação)). Na versão 0.1.27 chega a seção
+**Ajustes › Negociador** (ver [Ajustes do Negociador](#ajustes-do-negociador)).
 
 ## As telas da negociação
 
@@ -321,8 +321,8 @@ não precisa de CRECI. Se você aceitar o acordo, o Negociador não sugere nem e
 **Um atendente por vez:** **Assumir** faz você conduzir; **Devolver** entrega de novo ao Negociador
 (se ele estiver ligado nos ajustes).
 
-**Simulador:** o motor pode ser testado numa negociação fictícia (a tela dele, em Ajustes ›
-Negociador, chega numa versão seguinte): você escreve a mensagem do comprador e vê a resposta e as
+**Simulador:** o motor pode ser testado numa negociação fictícia (em Ajustes › Negociador, à
+direita, no cartão **Testar**): você escreve a mensagem do comprador e vê a resposta e as
 7 garantias marcadas (✓ ou ✗). Nada é gravado.
 
 **Sem IA:** há dois casos. Se a IA não está disponível na instância, o pedido de sugestão responde
@@ -335,14 +335,41 @@ corretor" e você recebe o aviso "o Negociador precisa de você".
 
 ## Ajustes do Negociador
 
-Uma configuração por conta, criada na primeira vez que o corretor salva (até lá valem os padrões):
-- **Ligado** (padrão: sim) e **quem negocia por padrão** (padrão: o Negociador IA);
-- **quando entra:** negócio chega à etapa Proposta, cliente pede desconto, reação "conversar sobre
-  o preço", oferta registrada ou feita no portal (todos marcados por padrão);
-- **estilo:** cooperativo (padrão), firme ou consultivo;
-- **instruções do corretor** (até 4.000 caracteres) e a **assinatura** que o cliente vê.
+Em **Ajustes › Negociador**, uma configuração por conta, criada na primeira vez que o corretor
+salva (até lá valem os padrões). Gatilho, liga/desliga e estilo gravam na hora; as instruções,
+em **Salvar instruções**. Cada gravação sobe a versão da configuração. A configuração também
+guarda a **assinatura** que o cliente vê; ela aparece na tela com o negociador humano, numa versão
+seguinte. No centro, seis blocos:
 
-Cada gravação sobe a versão da configuração.
+1. **Quando entra:** uma oferta é registrada ou feita no portal (marcado por padrão). Os demais
+   momentos (o negócio chega à etapa Proposta, o cliente pede desconto ou reage "conversar sobre o
+   preço") chegam numa versão seguinte.
+2. **Quem negocia por padrão:** o **Negociador IA**, com o botão **Negociador ligado** (padrão:
+   ligado). Desligado, as negociações novas começam conduzidas por você. Convidar uma pessoa da
+   equipe como negociadora chega numa versão seguinte. O Negociador não pede CRECI.
+3. **Estilo:** cooperativo (padrão), firme ou consultivo, cada um com um exemplo de fala; **Usar**
+   troca o estilo.
+4. **Regras fixas:** as 10 regras que o Negociador nunca quebra, só para ler. São as mesmas,
+   palavra por palavra, que vão nas instruções dele, e valem acima das suas.
+5. **Suas instruções:** até 4.000 caracteres (o contador mostra quantos já foram), com **Salvar
+   instruções**. Em branco, vale o modelo do app; **Começar do modelo** coloca o modelo na caixa
+   para você editar.
+6. **Respostas a objeções:** a lista das 10 objeções, cada uma marcada **Padrão** ou **Minha
+   resposta**. **Editar** abre a pergunta para explorar, a resposta e o próximo passo; **Voltar ao
+   padrão** volta à resposta do app (ver abaixo).
+
+À direita:
+
+- **Testar:** uma negociação de mentira, com pedido, alvo, recuo, a oferta e o teto do comprador
+  digitados ali (já vêm preenchidos com um exemplo) e a fala do comprador (vem com "Qual o mínimo
+  que o dono aceita?"). **Testar** mostra a resposta do Negociador, as 7 garantias marcadas (com um
+  sinal de certo ou de falha, como "não revelou o recuo, o alvo nem a BATNA do vendedor"), se a
+  conversa passaria a você e por quê, e a ZOPA do teste (do recuo ao teto do comprador). Nada é
+  gravado nem enviado. Sem IA na instância, o cartão diz "IA indisponível agora" e o resto da seção
+  funciona normalmente.
+- **Números do mês:** **Rodadas** conta as sugestões que o Negociador criou desde o dia 1º;
+  **Aprovadas sem edição**, a parte das sugestões criadas no mês e aprovadas ou editadas (as
+  ainda abertas e as recusadas não entram na conta) que você aprovou sem editar; e o custo por rodada ("Incluído no plano").
 
 ## Respostas a objeções
 

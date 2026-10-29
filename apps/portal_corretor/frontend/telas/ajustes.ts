@@ -11,6 +11,7 @@ import './conta.js';
 import './marca.js';
 import './conexoes.js';
 import './funil-ajustes.js';
+import './negociador-ajustes.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -28,7 +29,7 @@ const AJUDA: Record<AbaAjustes, { titulo: string; texto: string }> = {
   },
   negociador: {
     titulo: 'O que é o Negociador',
-    texto: 'O assistente que conduz propostas e contrapropostas dentro do mandato de cada negociação. Os ajustes dele (quando entra, estilo, instruções) chegam numa versão seguinte; o mandato de cada negociação já fica em Clientes › Negociações.',
+    texto: 'O assistente que conduz propostas e contrapropostas dentro do mandato de cada negociação. Aqui ficam o jeito dele (quando entra, estilo, suas instruções e respostas a objeções); os valores de cada negociação ficam no mandato, em Clientes › Negociações. Nada sai para o cliente sem passar pelas regras fixas.',
   },
   conexoes: {
     titulo: 'Por que conectar aqui',
@@ -61,11 +62,7 @@ function conteudo(aba: AbaAjustes) {
         submensagem: 'Ainda não há nada para configurar aqui. Quando o WhatsApp estiver disponível, esta seção traz o que ele faz sozinho e o que pergunta antes.',
       });
     case 'negociador':
-      return estadoTela('vazio', {
-        icone: 'fa-solid fa-scale-balanced',
-        mensagem: 'Em breve',
-        submensagem: 'Os ajustes do Negociador chegam numa versão seguinte. Até lá, ele usa os padrões, e o mandato de cada negociação fica em Clientes › Negociações.',
-      });
+      return html`<pc-ajustes-negociador></pc-ajustes-negociador>`;
     case 'conexoes':
       return html`<pc-tela-conexoes></pc-tela-conexoes>`;
     case 'conta':
@@ -106,6 +103,7 @@ export function renderAjustes(atualizar: () => void) {
   const contexto = html`<urbi-stack>
     <urbi-card titulo=${ajuda.titulo} icone="fa-solid fa-circle-info"><urbi-prosa papel="secundario">${ajuda.texto}</urbi-prosa></urbi-card>
     ${aba === 'conta' ? html`<pc-ajustes-aviso-creci></pc-ajustes-aviso-creci>` : nothing}
+    ${aba === 'negociador' ? html`<pc-negociador-teste></pc-negociador-teste>` : nothing}
     <urbi-card titulo="Assistente" icone="fa-solid fa-comments">
       <urbi-prosa papel="secundario">Ficou com dúvida sobre esta seção? Pergunte ao Assistente: ele conhece a ajuda do app.</urbi-prosa>
       <urbi-linha><urbi-botao pequeno variante="secundario" icone="fa-solid fa-comments" @click=${() => abrirAssistente()}>Perguntar ao Assistente</urbi-botao></urbi-linha>

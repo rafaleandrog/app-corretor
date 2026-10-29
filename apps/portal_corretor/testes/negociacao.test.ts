@@ -15,6 +15,7 @@ import {
   semSigilo,
   validarMandato,
 } from '../comum/negociacao';
+import { inicioDoMes } from '../comum/negociador-ajustes';
 import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
 
 // Negociação (D1, issue #100): isolamento A × B em toda rota nova, sigilo do mandato (recuo, alvo e
@@ -313,7 +314,7 @@ test('isolamento A × B: lista, detalhe, mandato e propostas de outra conta resp
   // Papel: sem `corretor`, nenhuma rota de negociação abre.
   const semPapel: Ator = { usuario: 7, conta: 100, papeis: [] };
   await comServidor(rotas, semPapel, banco, {}, async (chamar) => {
-    for (const [m, c] of [['GET', '/negociacoes'], ['GET', `/negociacoes/${nid}/mandato`], ['GET', '/negociador/config'], ['GET', '/negociador/objecoes']]) {
+    for (const [m, c] of [['GET', '/negociacoes'], ['GET', `/negociacoes/${nid}/mandato`], ['GET', '/negociador/config'], ['GET', '/negociador/objecoes'], ['GET', '/negociador/numeros']]) {
       assert.equal((await chamar(m, c)).status, 403, `${m} ${c}`);
     }
   });
@@ -649,4 +650,28 @@ test('formulário do mandato (P16): recusa recuo acima do alvo e alvo acima do p
   assert.deepEqual(errosDoFormularioMandato({ ...f, autonomia: 'faz_sozinho', autorizacao: { tipo: 'mensagem', arquivo_id: null, data: '2026-10-20' } }), []);
   // Linhas de concessão em branco (o "Adicionar" sem preencher) não contam.
   assert.equal((corpoDoFormularioMandato({ ...f, concessoes: [...f.concessoes, { item: '', limite: '', contrapartida: '' }] }) as any).concessoes.length, 1);
+});
+
+test('números do mês (P17): rodadas e aprovadas sem edição desde o dia 1º no fuso, só da própria conta', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const desde = inicioDoMes('America/Sao_Paulo');
+  // 1º do mês à 0h em Brasília é 3h UTC: uma execução às 2h UTC ainda é do mês anterior.
+  const antes = new Date(`${desde}T02:00:00Z`).toISOString();
+  const dentro = new Date(`${desde}T04:00:00Z`).toISOString();
+  const execucao = (conta: number, criado_em: string, decisao: string, aprovada_sem_edicao: boolean | null) =>
+    banco.dados(conta).criar('negociador_execucoes', { negociacao_id: 1, decisao, aprovada_sem_edicao, criado_em });
+  await execucao(100, antes, 'aprovada', true);
+  await execucao(100, dentro, 'aprovada', true);
+  await execucao(100, dentro, 'editada', false);
+  await execucao(100, dentro, 'pendente', null);
+  await execucao(200, dentro, 'aprovada', true);
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const r = await chamar('GET', '/negociador/numeros');
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.corpo, { desde, rodadas: 3, decididas: 2, aprovadas_sem_edicao: 1 });
+  });
+  await comServidor(rotas, ator(2, 200, ev), banco, {}, async (chamar) => {
+    assert.deepEqual((await chamar('GET', '/negociador/numeros')).corpo, { desde, rodadas: 1, decididas: 1, aprovadas_sem_edicao: 1 }, 'B só vê as dela');
+  });
 });
