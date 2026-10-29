@@ -113,7 +113,16 @@ conversa com a IA):
    automática, que não substitui a sua leitura: confira o texto antes de enviar. A mensagem que o
    app retém não vai ao cliente e não aparece como sugestão. Nas mensagens ao cliente, o Negociador
    só pode citar valores que já são públicos: a contraproposta, o preço pedido e as ofertas já
-   trocadas. Qualquer outro valor na faixa de preço do imóvel faz a mensagem ser retida. Uma
+   trocadas. Qualquer outro valor na faixa de preço do imóvel faz a mensagem ser retida. **O que
+   parece número e não dá para ler com segurança também retém:** dígitos separados ("1 3 6 0 mil",
+   "1-3-6-0"), letra no lugar de algarismo ("1.36O.000"), emoji de número, algarismos ditos um a
+   um ("um três seis zero"), mil subentendido quando se fala do preço ("abaixo de 1.360 não rola",
+   "fecho em 1.360"), número por extenso sem a escala ("mil trezentos e sessenta") e diferença ou
+   percentual que, aplicado a um valor público, chega ao recuo ou ao alvo ("o dono pode ceder 140
+   mil", "uns 140 do pedido", "1.500.000 - 140.000"). Oferecer no texto um valor abaixo do recuo
+   ("podemos fechar por R$ 1.300.000") também retém. Se o número disfarçado for só a contraproposta,
+   o pedido ou uma oferta já trocada, a mensagem passa. A conferência prefere reter a mais: uma
+   mensagem retida vai para você decidir e nada sai ao cliente. Uma
    alternativa do vendedor dita com outras palavras pode não ser reconhecida pela conferência, por
    isso essa regra também está nas instruções do Negociador; o risco não some por completo, e é
    mais um motivo para você ler antes de enviar.

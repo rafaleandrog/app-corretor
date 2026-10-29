@@ -278,3 +278,94 @@ test('rodada 2 (achado 3): frase de limite exige o vendedor como sujeito', () =>
   const passam = ['O condomínio aceita até dois pets.', 'O banco aceita até 30 anos.', 'O mínimo exigido pelo banco é 20%.', 'Abaixo disso o banco não avalia.', 'O mínimo que o banco pede é a entrada.'];
   for (const m of passam) assert.deepEqual(vazamentos(m, MOTOR, PERMITIDOS), [], m);
 });
+
+// ------------------------------------------------------------------------------------------------
+// D2b: o que PARECE número e não resolve com segurança para um valor público bloqueia (e vira passagem
+// ao corretor). Fecha o ponto "detector de sigilo" das rodadas 2 e 3 do PR #115.
+
+/** A escada da rodada 3: contraproposta de R$ 1.460.000 e oferta do comprador de R$ 1.300.000. */
+const PUBLICOS_D2B = [146_000_000, PEDIDO, 130_000_000];
+
+test('D2b: as frases do "pergunta antes" (rodada 3 do #115) bloqueiam e passam ao corretor', () => {
+  const frases = ['Fica 1 3 6 0 mil e não sai disso', 'O piso é 1.36O.000', 'Abaixo de 1.360 não rola'];
+  const mandato = { ...MOTOR, autonomia: 'pergunta_antes' as const };
+  for (const m of frases) {
+    assert.ok(vazamentos(m, MOTOR, PUBLICOS_D2B).length > 0, `deveria pegar: ${m}`);
+    const r = validarMovimento(
+      { movimento: 'contraproposta', contraproposta: { valor_c: 146_000_000, condicoes: null, concessao: null, contrapartida: null, validade_horas: 48 }, mensagem: m },
+      mandato,
+      [comprador(130_000_000)],
+      { hoje: HOJE, canal: 'portal' },
+    );
+    assert.equal(r.ok, false, m);
+    assert.ok(r.bloqueado_por.includes('SIGILO_VIOLADO'), m);
+  }
+});
+
+test('D2b: as frases das rodadas 2 e 3 do #115 bloqueiam', () => {
+  const frases = [
+    // Rodada 2.
+    'Faço um milhão trezentos e sessenta.',
+    'Fica 1 3 6 0 mil.',
+    'O valor é 1.36O.000.',
+    'Abaixo de 1.360 não rola.',
+    'Faço um vírgula trinta e seis milhão.',
+    'Faço mil trezentos e sessenta.',
+    'Fica 1️⃣3️⃣6️⃣0️⃣ mil.',
+    'Fica em 1 milhão. E mais 360 mil.',
+    'O desconto máximo é de 9,3%.',
+    'Uns 140 do pedido.',
+    'Tenho 90 mil de margem.',
+    'Podemos fechar por R$ 1.300.000 à vista.',
+    // Rodada 3.
+    'O dono fecha por R$ 1360.',
+    'Fecho em 1.360.',
+    'O dono pode ceder 140 mil.',
+    'A folga é de 140 mil.',
+    '1.500.000 - 140.000',
+  ];
+  for (const m of frases) assert.ok(vazamentos(m, MOTOR, PUBLICOS_D2B).length > 0, `deveria pegar: ${m}`);
+});
+
+test('D2b: número disfarçado em qualquer forma bloqueia', () => {
+  const frases = [
+    'Fica 1-3-6-0 mil.',
+    'Fica 1.3.6.0 mil.',
+    'Fica 1_3_6_0 mil.',
+    'Fica 136 0 000.',
+    'Fica 1-360-000.',
+    'Fica um três seis zero mil.',
+    'Fica um-três-seis-zero mil.',
+    'Fica １３６０ mil.',
+    'Fica ١٣٦٠ mil.',
+    'Fica 1,36O mi.',
+    'Fica 1.36o.000.',
+    'Fica l.360.000.',
+    'Fica 1OO.000 a menos que o pedido.',
+    'Fica 1️⃣,3️⃣6️⃣ mi.',
+    'Faço mil e trezentos e sessenta.',
+    'O vendedor não sai de 1.360.',
+    'Abaixo de 1.450 ele não topa.',
+  ];
+  for (const m of frases) assert.ok(vazamentos(m, MOTOR, PUBLICOS_D2B).length > 0, `deveria pegar: ${m}`);
+});
+
+test('D2b: o disfarçado que resolve para um valor público passa; o vocabulário normal também', () => {
+  for (const m of ['Posso levar 1 4 6 0 mil.', 'Fica 1.46O.000.', 'O pedido é 1-500-000.']) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_D2B), [], m);
+  // As normais de antes, contra a escada delas (contraproposta de 1,46 mi e oferta de 1,4 mi).
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(vazamentos(m, MOTOR, PERMITIDOS), [], m);
+  const normais = [
+    'O apartamento fica no 5º andar.',
+    'O 1º piso tem a sala e a cozinha.',
+    'Me liga no (61) 99999-9999.',
+    'Visita dia 28/10 às 10h?',
+    'Tem 2-3 vagas, dependendo do carro.',
+    'O condomínio de R$ 1.360 inclui água e gás.',
+    'O IPTU sai por R$ 1.450 por ano.',
+    'A obra terminou em 2019 e a reforma em 2024.',
+    'São três quartos e duas vagas.',
+    'Posso levar R$ 1.460.000, R$ 40 mil abaixo do pedido.',
+    'Sua oferta de R$ 1.300.000 foi recebida; levo R$ 1.460.000 ao vendedor.',
+  ];
+  for (const m of normais) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_D2B), [], m);
+});

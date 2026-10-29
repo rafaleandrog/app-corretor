@@ -364,6 +364,68 @@ function mEhMilhao(base: string, tokens: Token[], i: number): boolean {
   return /[.,]\d{1,2}$/.test(ant.t) || /\brs\s*$/.test(antes);
 }
 
+/** Algarismo de um dígito Unicode que o NFKC não converte (árabe-índico, devanágari…): 0 a 9, ou -1. */
+function algarismoUnicode(ch: string): number {
+  const cp = ch.codePointAt(0) ?? 0;
+  let d = 0;
+  // Os blocos de dígitos têm 10 posições seguidas, do zero ao nove.
+  while (d < 9 && /\p{Nd}/u.test(String.fromCodePoint(cp - d - 1))) d++;
+  return d;
+}
+
+const DIGITO_POR_EXTENSO: Record<string, string> = {
+  zero: '0', um: '1', uma: '1', dois: '2', duas: '2', tres: '3', quatro: '4', cinco: '5', seis: '6', sete: '7', oito: '8', nove: '9',
+};
+
+/**
+ * O texto com os números disfarçados escritos como números, e se havia disfarce que uma mensagem normal
+ * nunca usa (`forte`). Desfaz: emoji de número ("1️⃣", "🔟"), dígitos de outros alfabetos e de largura
+ * cheia, letra O ou l no lugar de 0 ou 1 entre dígitos ("1.36O.000", "l.360.000"), dígitos soltos com
+ * espaço, hífen, ponto ou outro separador ("1 3 6 0", "1-3-6-0", "1.3.6.0", "136 0 000") e algarismos
+ * ditos um a um ("um três seis zero").
+ */
+export function desofuscar(texto: string): { texto: string; forte: boolean } {
+  let forte = false;
+  let t = texto
+    .replace(/\u{1F51F}/gu, () => ((forte = true), ' 10 '))
+    .replace(/([0-9])️?⃣/g, (_m, d: string) => ((forte = true), d));
+  // Dígito de outro alfabeto ou de largura cheia ("１３６０") é disfarce; "m²" e "5º" não são.
+  if (/(?![0-9])\p{Nd}/u.test(t)) forte = true;
+  t = t.normalize('NFKC').replace(/\p{Nd}/gu, (ch) => {
+    if (/[0-9]/.test(ch)) return ch;
+    forte = true;
+    return String(algarismoUnicode(ch));
+  });
+  // Letra no lugar do dígito: só colada a um dígito e seguida de dígito, separador com dígito ou escala
+  // ("1,36O mi"); "5o andar" e "1o piso" (ordinal) ficam como estão. Repete para "1OO.000".
+  for (let i = 0; i < 6; i++) {
+    const antes = t;
+    t = t
+      .replace(/(?<=\d)[oO](?=[\doO]|[.,]\d|\s*(?:mil|mi|milh|k|m)\b)/g, () => ((forte = true), '0'))
+      .replace(/(?:(?<=\d)|(?<![a-zA-Z]))[lI](?=\d|[.,]\d)/g, () => ((forte = true), '1'));
+    if (t === antes) break;
+  }
+  // Dígitos soltos com ponto ("1.3.6.0"): três ou mais grupos de um dígito.
+  t = t.replace(/(?<![\d.,])\d(?:\.\d){2,}(?![\d]|[.,]\d)/g, (m) => ((forte = true), m.replace(/\./g, '')));
+  // Grupos de dígitos separados por espaço, hífen, sublinhado, asterisco ou ponto médio. Milhar com
+  // espaço ("1 360 000") não é disfarce: `prepararTexto` já o lê.
+  t = t.replace(/(?<![\d.,])\d+(?:[ \-_*·]\d+)+(?![\d]|[.,]\d)/g, (m) => {
+    const grupos = m.split(/[ \-_*·]/);
+    const milhar = /^\d{1,3}( \d{3})+$/.test(m);
+    if (milhar) return m;
+    // "3-4 quartos" e "10 11" juntam também: o erro aqui é só reter a mais, nunca deixar sair.
+    if (grupos.some((g) => g.length === 1) && grupos.length >= 3) forte = true;
+    return grupos.join('');
+  });
+  // Algarismos por extenso um a um ("um três seis zero mil"): três ou mais seguidos.
+  const palavra = String.raw`(?:zero|uma?|dois|duas|tres|quatro|cinco|seis|sete|oito|nove)`;
+  t = semAcento(t).replace(new RegExp(String.raw`\b${palavra}(?:[\s\-]+${palavra}){2,}\b`, 'g'), (m) => {
+    forte = true;
+    return m.split(/[\s\-]+/).map((w) => DIGITO_POR_EXTENSO[w]).join('');
+  });
+  return { texto: t, forte };
+}
+
 /** Os valores do texto já preparado, com a posição de cada um (para ler o que vem antes e depois). */
 function lerValores(base: string): ValorNoTexto[] {
   const tokens: Token[] = [...base.matchAll(/\d[\d.,]*\d|\d|[a-z]+/g)].map((m) => ({ t: m[0], ini: m.index ?? 0, fim: (m.index ?? 0) + m[0].length }));
@@ -532,6 +594,14 @@ const COMPARACAO = /^\s*(reais\s+)?(a menos|abaixo|menos|menor|mais barato)\s+(q
 const DO_PRECO = /^\s*(do|sobre o|em cima do)\s+(valor|preco|pedido|anunciado|anuncio)\b/;
 /** Parte do preço que não é o preço ("entrada de 30% do valor", "financiar 80% do valor"). */
 const PARTE_DO_PRECO = /\b(entrada|sinal|parcela\w*|financ\w*|fgts|comissao|corretagem|itbi|escritura|registro)\b/;
+/** Antes de um valor, o que mostra que ele é o preço do imóvel ("fecho em", "abaixo de", "fica", "por"). */
+const CONTEXTO_DE_PRECO = /\b(fech\w*|fic[ao]|faco|faz|sai|saio|chego|cheg\w*|vend\w*|ced\w*|aceit\w*|top\w*|ofert\w*|propost\w*|valor|preco|pedido|piso|minimo|limite|teto|recuo|alvo|abaixo|acima|menos|mais|por|levo|lev\w*|baix\w*|reduz\w*|rola|consigo|posso)\s+(rs\s+)?(\S+\s+){0,2}$/;
+/** Antes de um valor, o Negociador oferecendo ("fechamos por", "faço", "levo", "fica em", "podemos"). */
+const CONTEXTO_DE_OFERTA = /\b(fech\w*|faco|fazemos|fica|fico|ficamos|levo|podemos|posso|chego|chegamos|sai|saimos|vendo|vendemos|aceito|aceitamos|topo|topamos)\s+(rs\s+)?(\S+\s+){0,2}(rs\s+)?$/;
+/** Perto de um valor, o que mostra que ele é uma diferença de preço ("ceder 140", "folga de 140", "140 do pedido"). */
+const CONTEXTO_DE_DIFERENCA = /\b(ced\w*|folga|margem|desconto|abat\w*|baix\w*|reduz\w*|menos|abaixo|acima|diferenca|tir[ao]\w*|cort\w*|flexib\w*|espaco|sobra|do pedido|do valor|do preco|do anunciado)\b/;
+/** Antes de um valor, o que mostra que ele não é o preço do imóvel (condomínio, IPTU, m², parcela…). */
+const NAO_E_O_PRECO = /\b(condominio|iptu|aluguel|alugue\w*|parcela\w*|entrada|sinal|taxa\w*|itbi|escritura|registro|comissao|corretagem|reforma|metro\w*|m2|mensa\w*|mes|ano|anual|luz|agua|gas|internet|salario|renda|fgts|financ\w*)\b/;
 /** Unidade que não é dinheiro depois do número: "pelo menos 2 vagas", "baixar 2 andares". */
 const UNIDADE_NAO_MONETARIA = /^\s*(m|metros|km|quartos?|suites?|vagas?|banheiros?|andar(es)?|pavimentos?|anos?|mes(es)?|dias?|horas?|h|minutos?|semanas?|vezes|x|unidades?|pets?|parcelas?|rodadas?)\b/;
 /** Depois de um decimal curto, o que mostra que ele está sozinho ("Faço 1,36.", "1,36 e entrega em 90 dias"). */
@@ -564,6 +634,14 @@ const ABREVIACOES = [1_000_000, 1000];
  *   que o anunciado", "reduzindo 140 mil", "descontando 9%", "baixando 140") ou percentual "do pedido"/
  *   "do anunciado"/"do valor" que, aplicado ao pedido, dá valor na faixa fora dos permitidos (com a folga
  *   do arredondamento do percentual: "3%" cobre de 2,5% a 3,5%);
+ * - o que parece número e não resolve com segurança para um valor público (D2b): o texto é lido de novo
+ *   com o disfarce desfeito (`desofuscar`), e disfarce forte (emoji, letra no lugar de algarismo,
+ *   dígitos soltos, algarismos ditos um a um) retém por si, salvo se o número dele é público; mil
+ *   subentendido em contexto de preço ("abaixo de 1.360 não rola") e número por extenso sem escala
+ *   ("mil trezentos e sessenta") são lidos também em milhares;
+ * - diferença ou percentual sobre qualquer valor público que leva ao recuo ou ao alvo, com ou sem
+ *   palavra de redução ("o dono pode ceder 140 mil", "1.500.000 - 140.000", "uns 140 do pedido");
+ * - oferta no texto abaixo do recuo ("podemos fechar por R$ 1.300.000"), mesmo que o valor seja público;
  * - palavra de limite com o vendedor como sujeito ("o mínimo que ele aceita", "o piso dele", "o dono
  *   aceita até", "abaixo disso ele não vende");
  * - a BATNA: 3 palavras significativas seguidas dela; se ela tem só 2, as duas juntas ("outro
@@ -599,6 +677,30 @@ export function vazamentos(
     for (const s of perto) achados.push(como(s.nome));
     if (!perto.length && naFaixa(c)) achados.push(como('valor na faixa de preço fora dos valores públicos'));
   };
+  // Bases das contas: o pedido e os valores públicos. Alvos: recuo e alvo, só quando a distância é de
+  // negociação (2% da base ou mais); diferença de centavos entre dois valores vizinhos não diz nada.
+  const bases = [...new Set(permitidos)];
+  const explicadoPorPublico = (d: number, folga: number) => bases.some((b) => permitido(b - d, folga) || permitido(b + d, folga));
+  const diferencaRevela = (d: number, como: (nome: string) => string) => {
+    if (d <= 0 || explicadoPorPublico(d, 0) || permitido(d)) return;
+    for (const s of sigilosos.slice(0, 2)) {
+      if (!(s.c > 0)) continue;
+      // A distância de cada base até o sigiloso, com a folga de ±1% do sigiloso (a mesma do valor direto):
+      // "140 mil" do pedido de 1,5 mi é o recuo de 1,36 mi.
+      const alvos = bases.map((b) => Math.abs(b - s.c)).filter((dist, i) => dist >= bases[i] * 0.02);
+      if (alvos.some((dist) => Math.abs(d - dist) <= Math.max(dist * 0.05, s.c * 0.01))) achados.push(como(s.nome));
+    }
+  };
+  const percentualRevela = (pctV: number, casas: number, como: (nome: string) => string) => {
+    const contas = bases.flatMap((b) => {
+      const folga = (b * 0.5 * 10 ** -casas) / 100;
+      return [Math.round(b * (1 - pctV / 100)), Math.round((b * pctV) / 100)].map((v) => ({ v, folga }));
+    });
+    // O percentual que leva de um valor público a outro ("2,67% sobre o pedido" = a contraproposta) é público.
+    if (contas.some((k) => permitido(k.v, k.folga))) return;
+    for (const k of contas) for (const s of sigilosos.slice(0, 2)) if (s.c > 0 && Math.abs(k.v - s.c) <= s.c * 0.01 + k.folga) achados.push(como(s.nome));
+  };
+  const analisar = (base: string) => {
   for (const x of lerValores(base)) {
     const c = Math.round(x.v * 100);
     const lido = base.slice(x.ini, x.fim);
@@ -609,6 +711,40 @@ export function vazamentos(
     // Decimal curto sozinho: "Faço 1,36." é 1,36 milhão.
     if (!pct && /^\d{1,3}[.,]\d{1,2}$/.test(lido) && DECIMAL_SOZINHO.test(depois)) {
       for (const m of ABREVIACOES) conferir(Math.round(x.v * m * 100), 0, (nome) => `cita o ${nome} abreviado`);
+    }
+    const antesValor = base.slice(Math.max(0, x.ini - 40), x.ini);
+    // Oferta na mensagem abaixo do recuo ("Podemos fechar por R$ 1.300.000"), mesmo sendo o valor da
+    // oferta do comprador: o Negociador nunca oferece abaixo do recuo, nem no texto.
+    if (!pct && c > 0 && c < mandato.recuo_c && naFaixa(c) && CONTEXTO_DE_OFERTA.test(antesValor)) achados.push('oferece na mensagem valor abaixo do recuo');
+    const semEscala = !/[a-z]/.test(lido) || !/\b(mil|k|milh\w*|mi|mm|kk|m)\b/.test(lido);
+    const unidadeDepois = UNIDADE_NAO_MONETARIA.test(resto);
+    // Milhar implícito: "Fecho em 1.360", "Abaixo de 1.360 não rola", "fecha por R$ 1360" (mil reais
+    // ditos sem o "mil"). Só em contexto de preço do imóvel: "condomínio de R$ 1.200" não é.
+    if (!pct && !unidadeDepois && semEscala && x.v >= 100 && x.v < 10_000 && !/^(19|20)\d\d$/.test(lido) && CONTEXTO_DE_PRECO.test(antesValor) && !NAO_E_O_PRECO.test(antesValor)) {
+      conferir(Math.round(x.v * 1000 * 100), 0, (nome) => `cita o ${nome} sem o "mil"`);
+    }
+    // Número por extenso sem a escala certa ("mil trezentos e sessenta" = 1.360 mil): por extenso,
+    // de cem para cima, lido também em milhares, em qualquer contexto.
+    if (!pct && !unidadeDepois && /[a-z]/.test(lido) && x.v >= 100 && x.v < 10_000) {
+      conferir(Math.round(x.v * 1000 * 100), 0, (nome) => `cita o ${nome} por extenso`);
+    }
+    // Diferença ou percentual sobre qualquer valor público (o pedido, a contraproposta, as ofertas) que
+    // leva ao recuo ou ao alvo, com ou sem palavra de redução: "o dono pode ceder 140 mil", "a folga é de
+    // 140 mil", "1.500.000 - 140.000", "uns 140 do pedido", "90 mil de margem". Não vale quando a mesma
+    // conta leva a um valor público (é só a distância entre dois preços conhecidos).
+    if (!unidadeDepois && !(pct && (PARTE_DO_PRECO.test(antesValor) || /^\s*de entrada\b/.test(resto)))) {
+      // O número pequeno só vale em milhares ("uns 140 do pedido") quando a frase fala de preço ou de
+      // diferença: "às 10h42" ou um horário guardado não é "42 mil".
+      // Só quando a frase fala de preço ou de diferença: um número solto ("52.060" num horário guardado)
+      // não é diferença de nada.
+      const fala = CONTEXTO_DE_PRECO.test(antesValor) || CONTEXTO_DE_DIFERENCA.test(`${antesValor} ${resto.slice(0, 30)}`) || /\s[-−]\s*$/.test(antesValor);
+      const emMilhares = x.v < 1000 && semEscala;
+      const candidatos = pct || !fala ? [] : [c, ...(emMilhares ? [Math.round(x.v * 1000 * 100)] : [])];
+      for (const d of candidatos) diferencaRevela(d, (nome) => `dá pista do ${nome} pela diferença de um valor público`);
+      if (pct && x.v < 100) {
+        const casas = (lido.match(/[.,](\d+)$/)?.[1] ?? '').length;
+        percentualRevela(x.v, casas, (nome) => `dá pista do ${nome} por percentual de um valor público`);
+      }
     }
     // Pista derivada: o valor é um percentual ou uma diferença sobre o preço pedido.
     if (pedido <= 0) continue;
@@ -631,6 +767,19 @@ export function vazamentos(
       conferir(Math.round((pedido * x.v) / 100), folgaPct, pista);
       conferir(Math.round(pedido * (1 - x.v / 100)), folgaPct, pista);
     }
+  }
+  };
+  // O texto com os números disfarçados desfeitos ("1 3 6 0 mil", "1.36O.000", "1️⃣3️⃣6️⃣0️⃣"). Com disfarce
+  // forte, a leitura do texto cru é lixo ("1", "4", "6", "0 mil") e só vale a desfeita.
+  const limpo = desofuscar(texto);
+  const baseLimpa = prepararTexto(limpo.texto);
+  if (!limpo.forte) analisar(base);
+  if (baseLimpa !== base || limpo.forte) analisar(baseLimpa);
+  // Disfarce que mensagem normal não usa (emoji de número, letra no lugar de dígito, dígitos soltos,
+  // algarismos ditos um a um): retido, salvo se todo número dele resolve para um valor público.
+  if (limpo.forte) {
+    const publico = (v: number) => [1, 1000, 1_000_000].some((m) => permitido(Math.round(v * m * 100)));
+    if (lerValores(baseLimpa).some((x) => !publico(x.v))) achados.push('escreve número de forma disfarçada');
   }
   if (PALAVRAS_DE_LIMITE.test(norm)) achados.push('fala em mínimo, piso ou limite do vendedor');
   const palavrasBatna = semAcento(mandato.batna_vendedor ?? '')
