@@ -1,5 +1,6 @@
 // Inteligência do Funil por regras (bloco 4, spec 10.4): temperatura com motivo, próxima abordagem
 // pelo playbook e a fila do dia. Puro: as rotas juntam os sinais e gravam.
+import { chegou, type NegocioNum } from './numeros';
 
 export const TEMPERATURAS = ['frio', 'morno', 'quente'] as const;
 export type Temperatura = (typeof TEMPERATURAS)[number];
@@ -185,4 +186,36 @@ export function tarefaDaAbordagem(
   const vence = iso(a.vence_em);
   const quando = vence && vence > agora.toISOString() ? vence : new Date(agora.getTime() + Math.max(1, a.prazo_horas) * 3600e3).toISOString();
   return { tipo: TIPO_DO_CANAL[a.canal_sugerido] ?? 'tarefa', titulo: a.abordagem.slice(0, 200), quando, contato_id: contatoId, negocio_id: a.negocio_id };
+}
+
+export interface PassagemEtapa {
+  de_etapa_id: number;
+  para_etapa_id: number;
+  /** Negócios que chegaram à etapa de origem (ou além). */
+  chegaram: number;
+  /** Desses, quantos chegaram à etapa seguinte (ou além). */
+  passaram: number;
+  /** `passaram / chegaram`, com 3 casas; `null` sem negócio na origem ou com etapa sem marco. */
+  taxa: number | null;
+}
+
+/**
+ * Taxa de passagem entre etapas abertas vizinhas do quadro (P03): dos negócios que chegaram a uma
+ * etapa, quantos chegaram à seguinte. "Chegou" é o de Números (`chegou`): o marco mais avançado
+ * alcançado, então quem recuou ou foi perdido depois conta até onde foi, e o ganho passou por todas.
+ * Etapa criada pelo corretor, sem marco, não tem taxa.
+ */
+export function taxasDePassagem(
+  etapas: { id: number; nome: string; tipo: string; marco?: string | null }[],
+  negocios: NegocioNum[],
+): PassagemEtapa[] {
+  const abertas = etapas.filter((e) => e.tipo === 'aberta');
+  const marco = (e: { nome: string; marco?: string | null }) => e.marco ?? MARCO_PADRAO[e.nome] ?? null;
+  return abertas.slice(1).map((para, i) => {
+    const de = abertas[i];
+    const [ma, mb] = [marco(de), marco(para)];
+    const chegaram = ma ? negocios.filter((n) => chegou(n, ma)).length : 0;
+    const passaram = ma && mb ? negocios.filter((n) => chegou(n, ma) && chegou(n, mb)).length : 0;
+    return { de_etapa_id: de.id, para_etapa_id: para.id, chegaram, passaram, taxa: ma && mb && chegaram ? Math.round((passaram / chegaram) * 1000) / 1000 : null };
+  });
 }

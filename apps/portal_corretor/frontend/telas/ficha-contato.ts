@@ -734,6 +734,70 @@ export class FichaContato {
     }
   }
 
+  /**
+   * Registrar proposta (P03): por enquanto vira uma atividade feita na agenda do cliente, ligada ao
+   * negócio aberto. Com as telas da negociação (D3), o botão passa a abrir o registro de proposta.
+   */
+  private async registrarProposta() {
+    const negocio = this.s.ficha!.negocios.find((n) => n.etapa_tipo === 'aberta') ?? null;
+    const v = await urbiVerso.formulario({
+      titulo: 'Registrar proposta',
+      mensagem: 'Anote a proposta que o cliente fez. Ela entra na agenda do cliente como atividade feita.',
+      campos: [
+        { nome: 'valor', tipo: 'texto', rotulo: 'Valor oferecido (R$)', placeholder: '1.320.000', obrigatorio: true },
+        { nome: 'condicoes', tipo: 'texto_longo', rotulo: 'Condições (opcional)' },
+      ],
+      rotuloConfirmar: 'Registrar',
+    });
+    if (!v) return;
+    await this.tentar('Não foi possível registrar a proposta', async () => {
+      await enviar('POST', '/atividades', {
+        tipo: 'tarefa', status: 'feita', quando: new Date().toISOString(), contato_id: this.contatoId, negocio_id: negocio?.id ?? null,
+        titulo: `Proposta do cliente: R$ ${String(v.valor).replace(/^\s*R\$\s*/i, '').trim()}`, resultado: v.condicoes ? String(v.condicoes) : null,
+      });
+      urbiVerso.notificar('Proposta registrada na agenda do cliente.', 'sucesso');
+    });
+  }
+
+  /**
+   * Direita do Funil (P03): o cliente do cartão escolhido. Temperatura com o motivo, a próxima
+   * abordagem (com Mensagem sugerida e Fazer agora), os atalhos e o que foi enviado, com o clique.
+   */
+  renderFunil() {
+    const { ficha, falha } = this.s;
+    if (!ficha) return falha ? estadoDaFalha(falha, () => void this.carregar()) : estadoTela('carregando');
+    const c = ficha.contato;
+    const abertos = ficha.negocios.filter((n) => n.etapa_tipo === 'aberta');
+    const temTelefone = !!linkWhatsapp(c.telefone, '-');
+    return html`<urbi-stack>
+      <urbi-prosa papel="titulo">${c.nome}</urbi-prosa>
+      <urbi-linha quebrar>
+        ${chip('temperatura', c.temperatura)}
+        ${abertos.map((n) => chip('etapa', n.etapa_nome ? { nome: n.etapa_nome, tipo: n.etapa_tipo } : null))}
+      </urbi-linha>
+      ${c.temperatura && c.temperatura_motivo
+        ? html`<urbi-prosa papel="secundario">Por que ${rotuloChip('temperatura', c.temperatura).rotulo.toLowerCase()}: ${c.temperatura_motivo}.</urbi-prosa>`
+        : ''}
+      ${this.cartaoProximoPasso()}
+      <urbi-linha quebrar>
+        <urbi-botao pequeno icone="fa-solid fa-hand-holding-dollar" @click=${() => void this.registrarProposta()}>Registrar proposta</urbi-botao>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.s.resumindo} ?desabilitado=${!this.s.ia.resumo}
+          title=${this.s.iaSondada && !this.s.ia.resumo ? DICA_IA_INDISPONIVEL : nothing} @click=${() => this.resumir()}>Resumir</urbi-botao>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" @click=${() => void this.novaAtividade()}>Tarefa</urbi-botao>
+        <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${!temTelefone}
+          title=${temTelefone ? nothing : 'Cadastre o telefone para conversar pelo WhatsApp'} @click=${() => this.abrirWhatsapp()}>Conversa</urbi-botao>
+        <urbi-botao pequeno variante="texto" icone="fa-solid fa-address-card" href=${urbiVerso.href(`/clientes?item=${c.id}`)}>Abrir ficha</urbi-botao>
+      </urbi-linha>
+      ${this.s.resumo ? html`<urbi-prosa papel="dica">${this.s.resumo}</urbi-prosa>` : ''}
+      <urbi-card titulo="Enviados" icone="fa-solid fa-paper-plane">
+        ${this.s.envios.length
+          ? html`<urbi-lista separador .itens=${this.s.envios} .render_item=${(e: Linha) => html`<urbi-prosa>${e.imovel_codigo ? `${e.imovel_codigo}${e.imovel_titulo ? ` · ${e.imovel_titulo}` : ''}` : (e.descricao ?? e.tipo)}</urbi-prosa>
+                <urbi-prosa papel="fraco">${dataHora(e.enviado_em)} · ${e.primeiro_clique_em ? `aberto em ${dataHora(e.primeiro_clique_em)} · ${e.cliques} clique(s)` : 'ainda não aberto'}</urbi-prosa>`}></urbi-lista>`
+          : html`<urbi-prosa papel="dica">Nada enviado ainda. Os envios registrados na ficha aparecem aqui, com a abertura e os cliques.</urbi-prosa>`}
+      </urbi-card>
+    </urbi-stack>`;
+  }
+
   /** Direita: perfil de busca, portal do cliente (por token) e privacidade. */
   renderContexto() {
     const ficha = this.s.ficha;
@@ -800,6 +864,19 @@ export class PcFichaContatoFoco extends ColunaDaFicha {
 
   render() {
     return this.ficha?.renderCentro() ?? nothing;
+  }
+}
+
+/** Direita do Funil (P03): sem o centro da ficha na tela, é ela quem abre (e relê) a ficha. */
+@customElement('pc-ficha-contato-funil')
+export class PcFichaContatoFunil extends ColunaDaFicha {
+  connectedCallback() {
+    super.connectedCallback();
+    this.ficha!.entrar();
+  }
+
+  render() {
+    return this.ficha?.renderFunil() ?? nothing;
   }
 }
 

@@ -23,11 +23,12 @@ contatos), e as duas visões:
 
 - **Lista** (a que abre): os contatos da conta, 50 por página, em ordem alfabética, cada um com a
   temperatura, a origem e o próximo passo (ou o telefone).
-- **Funil**: o quadro por etapa, com arrastar para mudar de etapa, no meio da tela (a coluna da
-  direita recolhe) — ver [Funil, temperatura e fila do dia](funil.md). O endereço antigo `/funil`
-  abre esta visão. Escolher um cliente na lista com o Funil aberto volta à Lista com a ficha dele.
+- **Funil**: os filtros à esquerda, o quadro por etapa no meio (arrastar muda a etapa) e, à
+  direita, o cliente do cartão escolhido — ver [Funil, temperatura e fila do dia](funil.md). Os
+  endereços antigos `/funil` e `/clientes?visao=quadro` abrem esta visão. **Abrir ficha**, na
+  coluna da direita, leva à Lista com a ficha do cliente.
 
-A visão escolhida fica no endereço (`/clientes?visao=quadro`). Uma terceira visão, **Negociações**,
+A visão escolhida fica no endereço (`/clientes?visao=funil`). Uma terceira visão, **Negociações**,
 chega com o Negociador.
 
 Na **Lista**:
@@ -115,9 +116,11 @@ Embaixo, quatro abas. A aba aberta fica no endereço (`?secao=`) e volta ao reca
   listas, mas não é apagado). Contato com negócio em andamento não pode ser removido: encerre o
   negócio antes.
 
-Vindo do **Fazer agora** de Hoje ou de um cartão com **Abordagem atrasada** no Funil, a ficha
-abre já com a **Mensagem sugerida** carregada (o endereço traz `?sugerir=1`), e o **Fazer agora**
-dela abre o WhatsApp. Sem abordagem, ou abrindo a ficha por outro caminho, nada é gerado sozinho.
+Vindo do **Fazer agora** de Hoje, a ficha abre já com a **Mensagem sugerida** carregada (o
+endereço traz `?sugerir=1`), e o **Fazer agora** dela abre o WhatsApp. No Funil, tocar num cartão
+com **Abordagem atrasada** abre o cliente na coluna da direita, sem sair do Funil, também com a
+**Mensagem sugerida** pronta. Sem abordagem, ou abrindo o cliente por outro caminho, nada é gerado
+sozinho.
 
 Um cliente de outra conta, aberto por um link ou pelo endereço, mostra "Não encontrado".
 
@@ -173,25 +176,40 @@ O lembrete para o cliente, pelo WhatsApp, chega com o Mensageiro.
 
 ## Importar planilha
 
-**Clientes › Importar** recebe um arquivo CSV com cabeçalho (no Excel: Salvar como › CSV).
+**Clientes › Importar** recebe um arquivo CSV com cabeçalho (no Excel: Salvar como › CSV). A tela
+tem três colunas: à esquerda, de onde vêm os contatos; no meio, o arquivo, as colunas e a prévia; à
+direita, as regras.
+
+- **Fontes (esquerda).** Hoje, só a planilha (CSV). Contatos do celular (vCard) e a ligação direta
+  com outro CRM aparecem como "em breve". A planilha exportada de outro CRM já entra pela planilha.
+
+No meio:
 
 1. **De onde vem a planilha?** O corretor escolhe o modelo: **planilha simples** (colunas `Nome`,
    `Telefone` e `E-mail`, sem diferença de acento ou maiúscula) ou **outra**. O modelo só
    pré-preenche as colunas; o que ele não encontra fica com a sugestão de "outra". Modelos de
    outros CRMs (Kenlo, Jetimob, Imobzi) ainda não existem: cada um entra depois de conferido com
    uma exportação real do sistema. Até lá, use **outra**.
-2. O app lê o arquivo no navegador (UTF-8 ou o formato do Excel antigo) e aceita `;` ou `,`.
+2. O app lê o arquivo no navegador (UTF-8 ou o formato do Excel antigo) e aceita `;` ou `,`. Mostra
+   o nome do arquivo e quantas linhas ele tem.
 3. Sugere qual coluna é nome, telefone, e-mail, papel e observações (pelo modelo ou, em
    **outra**, pelo nome do cabeçalho); o corretor confere e muda.
-4. Mostra as 10 primeiras linhas como ficariam.
-5. O corretor escolhe o que fazer quando o contato já existe (mesmo telefone; se o telefone não
-   achar ninguém, mesmo e-mail): **pular**, **completar só os campos vazios** ou **sobrescrever com
-   a planilha**. Coluna não mapeada não apaga nem troca nada: sem a coluna de papel, o contato
-   existente fica com os papéis que tinha (o novo entra como comprador).
-6. O relatório mostra quantos foram criados, unidos a contatos existentes, pulados e rejeitados,
-   com a linha da planilha (contando o cabeçalho como linha 1) e o motivo de cada rejeição. Uma
-   linha que esbarra no telefone de outro contato (por exemplo, cadastrado ao mesmo tempo) é
-   rejeitada, e as demais seguem.
+4. **Prévia**: as 10 primeiras linhas como ficariam e, para cada uma, **o que acontece**: novo
+   contato, já existe (e o que a regra de repetidos faz com ele) ou ignorada, com o motivo. A prévia
+   usa a mesma validação e a mesma busca de repetidos da importação, sem gravar nada; uma linha
+   repetida dentro da própria planilha aparece como "já existe".
+5. **Importar N contatos** e o relatório: quantos foram criados, unidos a contatos existentes,
+   pulados e rejeitados, com a linha da planilha (contando o cabeçalho como linha 1) e o motivo de
+   cada rejeição. Uma linha que esbarra no telefone de outro contato (por exemplo, cadastrado ao
+   mesmo tempo) é rejeitada, e as demais seguem.
+
+À direita:
+
+- **Se o contato já existir** (mesmo telefone; se o telefone não achar ninguém, mesmo e-mail):
+  **Pular** (fica como está), **Completar** (preenche só os campos vazios) ou **Substituir** (a
+  planilha substitui os dados). Coluna não mapeada não apaga nem troca nada: sem a coluna de papel,
+  o contato existente fica com os papéis que tinha (o novo entra como comprador).
+- **Consentimento**: contatos importados entram sem consentimento registrado (ver abaixo).
 
 Limite de 2.000 linhas por vez, e cada importação envia no máximo 100 kB (limite da plataforma):
 com nome, telefone, e-mail e observação, isso dá algumas centenas de linhas. Quando o envio passa

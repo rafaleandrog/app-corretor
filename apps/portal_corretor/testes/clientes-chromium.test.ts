@@ -55,7 +55,15 @@ window.urbiVerso = {
     if (caminho === '/funil/etapas') return { etapas: [] };
     if (caminho === '/envios') return { dados: [] };
     if (caminho === '/selecoes') return { dados: [] };
-    if (caminho === '/funil/quadro') return { etapas: [], negocios: [] };
+    // Quadro fictício: um cartão com abordagem atrasada (Ana) e um em dia (Bruno).
+    if (caminho === '/funil/quadro') return {
+      etapas: [{ id: 1, nome: 'Novo', tipo: 'aberta' }],
+      negocios: [
+        { id: 1, etapa_id: 1, contato_id: 7, contato_nome: 'Ana Ribeiro', titulo: 'Compra', temperatura: 'quente', abordagem_vencida: true },
+        { id: 2, etapa_id: 1, contato_id: 8, contato_nome: 'Bruno Lima', titulo: 'Compra', temperatura: null, abordagem_vencida: false },
+      ],
+      passagem: [], funis: { compra: 2, venda_captacao: 0 }, temperaturas: { quente: 1, morno: 0, frio: 0 },
+    };
     const m = caminho.match(/^\\/contatos\\/(\\d+)(\\/.*)?$/);
     const c = m && CONTATOS.find((x) => x.id === Number(m[1]));
     // Contato de outra conta: a rota responde 404 (o RLS não devolve a linha).
@@ -301,17 +309,47 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     assert.equal((r as any).vazio, 'Não encontrado');
     assert.doesNotMatch((r as any).texto, /Ana|Bruno/);
 
-    // Funil: o quadro no centro, a direita recolhida; escolher um cliente volta à Lista com a ficha.
+    // Funil (P03): os filtros à esquerda (com as contagens do quadro) e o quadro no centro. O nome antigo
+    // da visão (`?visao=quadro`) abre o Funil.
     await pagina.goto(`${ORIGEM}/portal_corretor/clientes?visao=quadro`);
     await esperar();
     r = await pagina.evaluate(() => {
-      const colunas = document.querySelector('urbi-3-colunas')!;
-      return { quadro: !!colunas.querySelector('urbi-hospedeiro[slot="centro"] pc-clientes-quadro'), recolhida: colunas.hasAttribute('colapsada-direita') } as any;
-    });
-    assert.deepEqual(r, { quadro: true, recolhida: true });
-    await pagina.evaluate(() => {
       const w = window as any;
-      w.achar(document, 'urbi-lista').dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: { id: 8 } }, bubbles: true, composed: true }));
+      const colunas = document.querySelector('urbi-3-colunas')!;
+      return {
+        quadro: !!colunas.querySelector('urbi-hospedeiro[slot="centro"] pc-clientes-quadro'),
+        filtros: (w.achar(colunas.querySelector('urbi-hospedeiro[slot="esquerda"] pc-clientes-funil-filtros'), 'urbi-chips-atalho')?.opcoes ?? []).map((o: any) => o.rotulo),
+      } as any;
+    });
+    assert.deepEqual(r, { quadro: true, filtros: ['Compra (2)', 'Venda e captação (0)'] });
+    // Os chips de temperatura trazem a contagem do quadro; o href de cada cartão leva ao Funil com o
+    // cliente escolhido, e o cartão atrasado leva `sugerir=1` (a mensagem sugerida abre pronta à direita).
+    r = await pagina.evaluate(() => {
+      const filtros = document.querySelector('pc-clientes-funil-filtros')!;
+      const chips = [...filtros.shadowRoot!.querySelectorAll('urbi-chips-atalho')] as any[];
+      const kanban = (window as any).achar(document.querySelector('pc-clientes-quadro'), 'urbi-kanban') as any;
+      return {
+        temperaturas: chips[2].opcoes.map((o: any) => o.rotulo),
+        hrefs: kanban.itens.map((n: any) => kanban.href_item(n)),
+      } as any;
+    });
+    assert.deepEqual((r as any).temperaturas, ['Todas', 'Quentes (1)', 'Mornos (0)', 'Frios (0)']);
+    assert.deepEqual((r as any).hrefs, [
+      '/portal_corretor/clientes?visao=funil&item=7&sugerir=1',
+      '/portal_corretor/clientes?visao=funil&item=8',
+    ]);
+    // Cartão escolhido (`?item=` no Funil): o cliente abre à direita, sem sair do Funil.
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', location.pathname + '?visao=funil&item=8');
+      (window as any).desenhar();
+    });
+    await esperar();
+    r = await pagina.evaluate(() => (window as any).profundo(document.querySelector('urbi-hospedeiro[slot="direita"] pc-ficha-contato-funil')));
+    assert.match(r as any, /Bruno Lima/);
+    // "Abrir ficha" leva à Lista com o cliente escolhido.
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', location.pathname + '?item=8');
+      (window as any).desenhar();
     });
     await esperar();
     f = await ficha();
@@ -350,6 +388,67 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     await chegar('?item=7');
     assert.equal(await sugestoes(), 2, '(d) voltar sem sugerir não sugere');
     assert.equal(await aba(), 'resumo', '(d) aba padrão');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Funil: tocar de novo no cartão atrasado do cliente aberto sugere para ele, e o sugerir não sobra para outra visão nem outro cliente', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    const esperar = () => pagina.waitForTimeout(50);
+    const sugestoes = (id: number) =>
+      pagina.evaluate((c: number) => (window as any).chamadas.filter((r: string) => r.startsWith(`/contatos/${c}/mensagem-sugerida`)).length, id);
+    const busca = () => pagina.evaluate(() => location.search);
+    // O cartão atrasado da Ana (`sugerir=1`): a mensagem é sugerida para ela e o parâmetro sai.
+    await pagina.goto(`${ORIGEM}/portal_corretor/clientes?visao=funil&item=7&sugerir=1`);
+    await esperar();
+    assert.equal(await sugestoes(7), 1, 'chegada pelo cartão atrasado sugere uma vez');
+    assert.equal(await busca(), '?visao=funil&item=7');
+    // Tocar de novo no mesmo cartão com a Ana já aberta: a coluna é refeita e o sugerir é consumido por ELA.
+    // Premissa: o cartão navega por `href_item` (conferido acima); aqui a navegação é simulada por
+    // replaceState + desenhar(). O teste prova a chave da coluna da direita, não a navegação do shell.
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', location.pathname + '?visao=funil&item=7&sugerir=1');
+      (window as any).desenhar();
+    });
+    await esperar();
+    assert.equal(await sugestoes(7), 2, 'o mesmo cartão de novo sugere de novo para a Ana');
+    assert.equal(await busca(), '?visao=funil&item=7', 'e o sugerir sai do endereço');
+    // Redesenhar sem sugerir não refaz a coluna nem sugere.
+    await pagina.evaluate(() => (window as any).desenhar());
+    await esperar();
+    assert.equal(await sugestoes(7), 2);
+    // Mesmo com um sugerir ainda no endereço, trocar para a Lista o tira: escolher um cliente lá não pede a IA.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      history.replaceState(null, '', location.pathname + '?visao=funil&item=7&sugerir=1');
+      w.achar(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-chips-atalho').dispatchEvent(
+        new CustomEvent('urbi:chip-atalho:click', { detail: { id: 'lista' }, bubbles: true, composed: true }),
+      );
+    });
+    await esperar();
+    assert.doesNotMatch(await busca(), /sugerir/, 'trocar de visão tira o sugerir');
+    for (const id of [8, 7]) {
+      await pagina.evaluate((c: number) => {
+        const w = window as any;
+        w.achar(document, 'urbi-lista').dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: { id: c } }, bubbles: true, composed: true }));
+      }, id);
+      await esperar();
+    }
+    assert.equal(await sugestoes(8), 0, 'o cliente escolhido depois não pede a IA');
+    assert.equal(await sugestoes(7), 2, 'nem a Ana, aberta de novo pela Lista');
+    // `escolher` também tira um sugerir que tenha sobrado no endereço.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      history.replaceState(null, '', location.pathname + '?item=8&sugerir=1');
+      w.achar(document, 'urbi-lista').dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: { id: 7 } }, bubbles: true, composed: true }));
+    });
+    await esperar();
+    assert.equal(await busca(), '?item=7');
+    assert.equal(await sugestoes(7), 2, 'escolher a Ana com sugerir sobrando não pede a IA');
   } finally {
     await navegador.close();
   }
