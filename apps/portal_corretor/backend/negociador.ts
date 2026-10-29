@@ -602,9 +602,11 @@ negociadorRotas.post(
         mensagem: b.mensagem !== undefined ? texto(b.mensagem, 1000) : null,
       };
     }
-    const editada = b.acao === 'editar';
-    const escreveu = editada && b.mensagem !== undefined;
-    const edContraproposta = editada && b.contraproposta !== undefined && b.contraproposta !== null;
+    // Mensagem vazia ou só espaços equivale a "não escreveu" (`texto` dá null): sai a montada pelo código.
+    const escreveu = b.acao === 'editar' && movimento.mensagem !== null;
+    const edContraproposta = b.acao === 'editar' && b.contraproposta !== undefined && b.contraproposta !== null;
+    // Editar sem mudar nada (sem texto e sem contraproposta) é aprovar: o registro é o de aprovação.
+    const editada = escreveu || edContraproposta;
     // D-111: ao cliente só sai texto que o código monta (valor, item e contrapartida do mandato,
     // validade) ou que o corretor escreveu ao editar. A mensagem e as condições do modelo são rascunho.
     movimento = {

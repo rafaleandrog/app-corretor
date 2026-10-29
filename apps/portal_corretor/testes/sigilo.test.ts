@@ -540,3 +540,26 @@ test('#124: telefone com espaço, 0800, CEP e número entre parênteses depois d
   // O disfarce continua retido.
   for (const m of ['Fica 1 3 6 0 mil.', 'O piso é 1.36O.000.', 'Fica 1-360-000.']) assert.ok(vazamentos(m, MOTOR, publicos).length > 0, m);
 });
+
+test('#124: endereço com letra e número e data com horário sem "às" passam; o disfarce continua retido', () => {
+  passa([
+    'Moro na W3 Sul 704.',
+    'Moro na L2 Sul.',
+    'Fica na SQS 308, bloco C, apto 104.',
+    'Moro na SQN 210, bloco C.',
+    'Fica na QI 5, lote 3.',
+    'É o Apto 2B.',
+    'Moro na Torre B2.',
+    'Visita dia 28/10 15h?',
+    'Visita dia 28/10/2026 15:30?',
+    'Visita dia 3, 10h?',
+  ]);
+  for (const m of ['Fica 1 3 6 0 mil.', 'O piso é 1.36O.000.', 'Fica l.360.000.', 'Fica 1-360-000.', '1/3/6/0 mil', 'Fica em 1:360:000.', 'Fica 13six0.', 'Fica l360.']) {
+    assert.ok(achadosDe(m).length > 0, `deveria reter: ${m}`);
+  }
+  // Letra colada a algarismos que monta o recuo: retida pelo detector de valor ou pela leitura padrão.
+  assert.ok(achadosDe('Fica 1360k.').includes('cita o recuo'));
+  assert.ok(achadosDe('Fica 13six0.').includes(DISFARCE));
+  // A data com horário não abre brecha para juntar números separados por quebra de linha.
+  assert.ok(achadosDe('Fica 1\n360 mil.').includes(DISFARCE));
+});

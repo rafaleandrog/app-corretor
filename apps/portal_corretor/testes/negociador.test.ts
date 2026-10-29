@@ -663,9 +663,10 @@ test('isolamento A × B nas rotas do Negociador: outra conta responde 404 e não
   const banco = new BancoFalso(UNICOS);
   const ev = eventosFalsos();
   const b = await base(banco, 100);
-  await base(banco, 200);
+  const bB = await base(banco, 200);
   const sugestao = resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 146_000_000, condicoes: null, concessao: null, contrapartida: null, validade_horas: 48 }, mensagem: 'Posso levar R$ 1.460.000.' });
   let nid = 0;
+  let nidB = 0;
   let eid = 0;
   let oferta = 0;
   await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia: iaSimulada([sugestao]) } }, banco, {}, async (chamar) => {
@@ -673,10 +674,19 @@ test('isolamento A × B nas rotas do Negociador: outra conta responde 404 e não
     oferta = (await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 })).corpo.id;
     eid = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo.execucao_id;
   });
+  // B tem a própria negociação, para tentar usar nela a sugestão de A.
+  await comServidor(rotas, { usuario: 2, conta: 200, papeis: ['corretor'], extras: { eventos: ev } }, banco, {}, async (chamar) => {
+    nidB = await negociacaoPronta(chamar, bB);
+  });
   const antes = JSON.stringify([...banco.tabelas]);
   await comServidor(rotas, { usuario: 2, conta: 200, papeis: ['corretor'], extras: { eventos: ev, ia: iaSimulada([sugestao]) } }, banco, {}, async (chamar) => {
     assert.equal((await chamar('POST', `/negociacoes/${nid}/sugestao`, {})).status, 404);
     assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: eid, canal: 'portal' })).status, 404);
+    // Editar também: a mensagem e a contraproposta de B não valem sobre a negociação de A.
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: eid, canal: 'portal', mensagem: 'Ana, posso levar R$ 1.460.000.', contraproposta: { valor_c: 146_000_000 } })).status, 404);
+    // Na negociação de B, com a execução de A: a execução não é dela, nem para aprovar nem para editar.
+    assert.equal((await chamar('POST', `/negociacoes/${nidB}/decisao`, { acao: 'aprovar', execucao_id: eid, canal: 'portal' })).status, 404);
+    assert.equal((await chamar('POST', `/negociacoes/${nidB}/decisao`, { acao: 'editar', execucao_id: eid, canal: 'portal', mensagem: 'Ana, posso levar R$ 1.460.000.', contraproposta: { valor_c: 146_000_000 } })).status, 404);
     assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aceitar_acordo', proposta_id: oferta })).status, 404);
     assert.equal((await chamar('POST', `/negociacoes/${nid}/assumir`)).status, 404);
     assert.equal((await chamar('POST', `/negociacoes/${nid}/devolver`)).status, 404);
@@ -1112,6 +1122,7 @@ test('D-111 (pergunta antes): ao aprovar, ao cliente sai só o texto montado pel
     resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 146_000_000, condicoes: furos[1], concessao: 'prazo de entrega de 90 dias', contrapartida: 'a folga é pequena', validade_horas: 48 }, mensagem: furos[0] }),
     resposta({ objecao: { categoria: 'mais_barato', trecho: 'vi mais barato' }, mensagem: 'Entendo, Ana. Qual imóvel você viu?' }),
     resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 145_500_000, condicoes: null, concessao: null, contrapartida: null, validade_horas: 24 }, mensagem: furos[0] }),
+    resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 145_200_000, condicoes: furos[1], concessao: null, contrapartida: null, validade_horas: 24 }, mensagem: furos[0] }),
   ]);
   const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } };
   await comServidor(rotas, A, banco, {}, async (chamar) => {
@@ -1143,7 +1154,81 @@ test('D-111 (pergunta antes): ao aprovar, ao cliente sai só o texto montado pel
     const e3 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: s3.execucao_id, canal: 'wa_me', contraproposta: { valor_c: 145_500_000, validade_horas: 24 } });
     assert.equal(e3.status, 200, JSON.stringify(e3.corpo));
     assert.equal(e3.corpo.texto, 'Olá, Ana. O vendedor propõe R$ 1.455.000. A proposta vale por 24 horas.');
+    assert.equal(e3.corpo.proposta.condicoes, null, 'as condições do modelo não entram na proposta editada só no valor');
+
+    // Aprovar pelo portal: a proposta e o texto montado são os mesmos; não há link de WhatsApp.
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 142_000_000 });
+    const s4 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,42.' })).corpo;
+    assert.equal(s4.passagem, false, JSON.stringify(s4));
+    const a4 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s4.execucao_id, canal: 'portal' });
+    assert.equal(a4.status, 200, JSON.stringify(a4.corpo));
+    assert.equal(a4.corpo.texto, 'Olá, Ana. O vendedor propõe R$ 1.452.000. A proposta vale por 24 horas.');
+    assert.equal(a4.corpo.link, null);
+    assert.equal(a4.corpo.proposta.canal, 'portal');
+    assert.equal(a4.corpo.proposta.condicoes, null);
+    assert.ok(!JSON.stringify(a4.corpo).includes(furos[0]), 'o texto do modelo não saiu');
   });
   assert.ok(!banco.linhas('propostas').some((p) => furos.some((f) => JSON.stringify(p).includes(f))), 'nenhuma proposta levou texto do modelo');
+  criterioDoDono(banco);
+});
+
+test('D-111 (edição que vaza): o texto do corretor que revela o recuo é recusado e a sugestão segue pendente', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  const ia = iaSimulada([resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 146_000_000, condicoes: 'Sem mais condições.', concessao: null, contrapartida: null, validade_horas: 48 }, mensagem: 'Ana, posso levar R$ 1.460.000.' })]);
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } }, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    const s = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Qual o mínimo?' })).corpo;
+    assert.equal(s.passagem, false, JSON.stringify(s));
+    for (const mensagem of ['Fica 1 3 6 0 mil e não sai disso', 'Abaixo de 1.360 não rola']) {
+      const e = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: s.execucao_id, canal: 'portal', mensagem });
+      assert.equal(e.status, 422, mensagem);
+      assert.equal(e.corpo.codigo, 'MOVIMENTO_BLOQUEADO', mensagem);
+      assert.ok(e.corpo.bloqueado_por.includes('SIGILO_VIOLADO'), `${mensagem}: ${JSON.stringify(e.corpo)}`);
+      assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'a edição recusada não gravou proposta');
+      assert.equal(banco.linhas('negociador_execucoes').find((x) => x.id === s.execucao_id)!.decisao, 'pendente', 'a sugestão segue pendente');
+    }
+    // Sem a frase que vaza, a mesma sugestão ainda se decide.
+    const ok = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s.execucao_id, canal: 'portal' });
+    assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+  });
+  criterioDoDono(banco);
+});
+
+test('D-111 (mensagem vazia e edição sem mudança): vazia é "não escreveu"; sem mudança é aprovação', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  const cp = (valor_c: number) => resposta({ movimento: 'contraproposta', contraproposta: { valor_c, condicoes: 'condição do modelo', concessao: null, contrapartida: null, validade_horas: 24 }, mensagem: 'rascunho do modelo' });
+  const ia = iaSimulada([cp(146_000_000), cp(145_500_000)]);
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } }, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+
+    // Só espaços e sem contraproposta: o corretor não escreveu nem mudou nada. Registra como aprovação.
+    const s1 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+    assert.equal(s1.passagem, false, JSON.stringify(s1));
+    const e1 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: s1.execucao_id, canal: 'portal', mensagem: '   ' });
+    assert.equal(e1.status, 200, JSON.stringify(e1.corpo));
+    assert.equal(e1.corpo.texto, 'Olá, Ana. O vendedor propõe R$ 1.460.000. A proposta vale por 24 horas.');
+    assert.equal(e1.corpo.decisao, 'aprovada');
+    const x1 = banco.linhas('negociador_execucoes').find((x) => x.id === s1.execucao_id)!;
+    assert.deepEqual([x1.decisao, x1.aprovada_sem_edicao, x1.mensagem_enviada], ['aprovada', true, e1.corpo.texto]);
+    assert.equal(e1.corpo.proposta.autor_tipo, 'negociador_ia');
+    assert.equal(e1.corpo.proposta.condicoes, null);
+
+    // Mensagem vazia com o valor mudado: é edição, mas o texto que sai é o montado.
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 141_000_000 });
+    const s2 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'E aí?' })).corpo;
+    assert.equal(s2.passagem, false, JSON.stringify(s2));
+    const e2 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: s2.execucao_id, canal: 'portal', mensagem: '', contraproposta: { valor_c: 145_500_000, validade_horas: 24 } });
+    assert.equal(e2.status, 200, JSON.stringify(e2.corpo));
+    assert.equal(e2.corpo.texto, 'Olá, Ana. O vendedor propõe R$ 1.455.000. A proposta vale por 24 horas.');
+    const x2 = banco.linhas('negociador_execucoes').find((x) => x.id === s2.execucao_id)!;
+    assert.deepEqual([x2.decisao, x2.aprovada_sem_edicao, x2.mensagem_enviada], ['editada', false, e2.corpo.texto]);
+    assert.equal(e2.corpo.proposta.autor_tipo, 'corretor');
+  });
   criterioDoDono(banco);
 });

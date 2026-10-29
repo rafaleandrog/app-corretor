@@ -714,6 +714,10 @@ const LEITURAS_PADRAO = [
   String.raw`\d{4}-\d{2}-\d{2}(?:t\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:z|[+-]\d{2}:?\d{2})?)?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?`,
   // Ordinal ("5º", "1ª", "1o piso") e quantidade com unidade ("2-3 vagas", "10x", "5km", "30min").
   String.raw`\d{1,3}[ºªoa°]`,
+  // Endereço com letra e número ("W3", "L2", "QI5", "B2", "104A", "2B"): até duas letras e um ou dois
+  // algarismos, ou até três algarismos e uma letra. L, I e O (que fazem de 1 e 0) só com um algarismo; "13six0"
+  // e "l360" têm mais que isso e continuam sem leitura.
+  String.raw`(?:[a-hj-km-np-z]{1,2}\d{1,2}|[loi]\d|\d{1,3}[a-hj-km-np-z])`,
   String.raw`${DIG_X}\s*[-–]\s*${DIG_X}(?=\s*${UNIDADE_X}\b)`,
   String.raw`${DIG_X}(?:x|km|cm|kg|min|d|s)`,
   // Preço em centenas de milhar ("treze sessenta"): lido e conferido por `lerPrecoFalado`.
@@ -796,8 +800,10 @@ function trechosSemLeitura(base: string): { ini: number; fim: number }[] {
       if (/\b(?:ponto|virgula)\b/.test(entre)) ruim = true;
       else if (/^\s+$/.test(entre)) {
         // Só espaço ou quebra de linha: ruim quando tirá-la junta os dois lados num número ("1\n360").
-        const a = base.slice(grupo[k].ini, grupo[k].fim).match(/[\d.,]+$/)?.[0];
-        const b = base.slice(grupo[k + 1].ini, grupo[k + 1].fim).match(/^[\d.,]+/)?.[0];
+        // Só quando o lado esquerdo é um número puro e o direito começa em número que segue como valor: não
+        // junta o fim de uma data ("28/10"), de um horário ("15h", "15:30") nem de "B2" com o que vem depois.
+        const a = base.slice(grupo[k].ini, grupo[k].fim).match(/^[\d.,]+$/)?.[0];
+        const b = base.slice(grupo[k + 1].ini, grupo[k + 1].fim).match(/^[\d.,]+(?=$|\s|k|m)/)?.[0];
         ruim = !!a && !!b && DIGITOS_INTEIROS.test(a + b);
       } else ruim = !SEPARACAO_NORMAL.test(entre);
     }

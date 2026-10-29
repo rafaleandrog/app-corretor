@@ -191,7 +191,10 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
     a concessão e a contrapartida como estão no seu mandato e a validade;
   - uma resposta **só em texto** (objeção, pergunta) não se aprova: **edite** e envie com as suas
     palavras, ou descarte;
-  - **editar** envia o texto que você escreveu. Se você mudar só o valor, sai a mensagem montada.
+  - **editar** envia o texto que você escreveu. Se você mudar só o valor, ou deixar a mensagem em
+    branco, sai a mensagem montada. Editar sem mudar nada vale como aprovar.
+  - se você edita e informa a concessão sem a contrapartida, a mensagem montada **não cita** a
+    concessão, mas a proposta guarda a concessão que você informou.
 
   Aprovar ou editar confere as 7 garantias de novo: nem a sua edição passa do recuo ou revela o
   sigilo (o app recusa e diz por quê).
