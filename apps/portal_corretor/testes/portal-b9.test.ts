@@ -82,7 +82,7 @@ test('regras puras do portal: abas com contagem, [Ver], aba do endereço, chip d
   assert.equal(proximaVisita([{ quando: '2026-10-29T10:00:00Z' }, { quando: '2026-10-28T11:30:00Z' }], t0), '2026-10-28T11:30:00Z', 'visita há 30 min ainda conta, como na aba Agenda');
   assert.equal(proximaVisita([{ quando: '2026-10-28T10:30:00Z' }], t0), null);
   assert.equal(destinoDoProximoPasso({ ...portal, agenda: [] }, agora), 'imoveis');
-  assert.deepEqual(['#imoveis', '#agenda', '#arquivos', '#propostas', ''].map(abaDoEndereco), ['imoveis', 'agenda', 'arquivos', 'conversa', 'conversa']);
+  assert.deepEqual(['#imoveis', '#agenda', '#arquivos', '#propostas', '#outra', ''].map(abaDoEndereco), ['imoveis', 'agenda', 'arquivos', 'propostas', 'conversa', 'conversa']);
   assert.match(chipDeVisita('IM-1', portal.agenda, agora, 'America/Sao_Paulo')!, /^Visita sáb/);
   assert.equal(chipDeVisita('IM-2', portal.agenda, agora), null, 'visita que já passou não vira chip');
   assert.deepEqual([reacaoDada('gostei'), reacaoDada('nao_gostei'), reacaoDada(null)], ['Gostei', 'Não gostei', 'Sem reação']);

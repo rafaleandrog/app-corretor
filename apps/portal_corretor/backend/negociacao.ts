@@ -19,6 +19,8 @@ import {
   type Direcao,
 } from '../comum/negociacao';
 import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './acesso';
+import { tentarPortal } from './portal';
+import { contaDoRequest } from './vitrine';
 
 // Negociação (bloco D1 da fase 1.6; spec 6.16, 7.1, 10.9.2, 10.9.3, 13 e Apêndice D). Só os dados e
 // as rotas do corretor: o motor do Negociador (sugestão, validações de 10.9.7, envio pelo portal ou
@@ -55,9 +57,20 @@ export async function publicar(req: Request, tipo: string, payload: Record<strin
   }
 }
 
-/** Configuração do Negociador da conta, sem gravar (a linha nasce no primeiro PUT). */
-export async function configDaConta(dados: HelperDados) {
-  const linha = await primeiro(dados, 'config_negociador', { chave: 'conta' });
+/**
+ * O Portal do Cliente acompanha a negociação (D5, M5b): proposta, estado ou negociação nova mudam o que
+ * o cliente vê. Sem derrubar a rota: a vitrine se refaz na próxima mudança, se falhar aqui.
+ */
+export async function portalDa(req: Request, negociacao: Linha | null | undefined) {
+  if (negociacao?.contato_id) await tentarPortal(req.dados!, contaDoRequest(req), Number(negociacao.contato_id));
+}
+
+/**
+ * Configuração do Negociador da conta, sem gravar (a linha nasce no primeiro PUT). `conta` é
+ * obrigatória fora de rota (listener, SISTEMA): ali a leitura enxerga todas as contas.
+ */
+export async function configDaConta(dados: HelperDados, conta?: number) {
+  const linha = await primeiro(dados, 'config_negociador', { chave: 'conta', ...(conta ? { conta_id: conta } : {}) });
   if (!linha) return { ...CONFIG_NEGOCIADOR_PADRAO, gatilhos: { ...CONFIG_NEGOCIADOR_PADRAO.gatilhos }, padrao: true };
   return {
     ligado: !!linha.ligado,
@@ -163,6 +176,7 @@ negociacaoRotas.post(
           rodadas: 0,
         });
         await publicar(req, 'negociacao_iniciada', { negociacao_id: negociacao.id, negocio_id: negocioId });
+        await portalDa(req, negociacao);
         return res.status(201).json(semSigilo(negociacao));
       } catch (e) {
         if (!violouUnico(e)) throw e;
@@ -244,6 +258,7 @@ negociacaoRotas.patch(
     const salva = await dados.atualizarSe('negociacoes', nid!, mudancas, condicoes);
     if (!salva) return erro(res, 409, 'NEGOCIACAO_ALTERADA', 'A negociação mudou enquanto você editava. Abra de novo.');
     if (fim) await publicar(req, 'negociacao_encerrada', { negociacao_id: nid! });
+    await portalDa(req, salva);
     res.json(semSigilo(salva));
   }),
 );
@@ -395,6 +410,7 @@ negociacaoRotas.post(
     }
     const { proposta } = resultado;
     await publicar(req, direcao === 'comprador' ? 'proposta_recebida' : 'proposta_registrada', { negociacao_id: nid!, proposta_id: proposta.id });
+    await portalDa(req, negociacao);
     res.status(201).json(semSigilo(proposta));
   }),
 );
@@ -455,9 +471,12 @@ negociacaoRotas.put(
   }),
 );
 
-/** O playbook da conta por categoria: o padrão (Apêndice D) e a resposta do corretor, quando houver. */
-export async function objecoesDaConta(dados: HelperDados) {
-  const linhas = await dados.varrerTudo('playbook_objecoes', { maximo: 100 });
+/**
+ * O playbook da conta por categoria: o padrão (Apêndice D) e a resposta do corretor, quando houver.
+ * `conta` é obrigatória fora de rota (listener, SISTEMA): ali a leitura enxerga todas as contas.
+ */
+export async function objecoesDaConta(dados: HelperDados, conta?: number) {
+  const linhas = await dados.varrerTudo('playbook_objecoes', { ...(conta ? { filtros: { conta_id: conta } } : {}), maximo: 100 });
   return PLAYBOOK_OBJECOES_PADRAO.map((p) => {
     // Conta criada depois do último boot ainda não tem a semente: o padrão vem da constante.
     const padrao = linhas.find((l) => l.categoria === p.categoria && l.origem === 'padrao') ?? p;
