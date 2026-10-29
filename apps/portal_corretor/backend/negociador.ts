@@ -580,6 +580,12 @@ negociadorRotas.post(
       return erro(res, 422, 'CANAL_INDISPONIVEL', 'Escolha o canal: portal ou wa_me (Fazer agora). O WhatsApp do app ainda não existe.');
     }
     const canal = b.canal as string;
+    // Fazer agora sem WhatsApp do cliente: recusa antes de qualquer escrita (nada gravado, a sugestão
+    // continua pendente). O teste é o mesmo do link (`linkWhatsapp`), para não aprovar e devolver link nulo.
+    const contato = negociacao.contato_id ? await dados.buscar('contatos', Number(negociacao.contato_id)) : null;
+    if (canal === 'wa_me' && !linkWhatsapp(contato?.telefone, '')) {
+      return erro(res, 422, 'SEM_WHATSAPP', 'O cliente não tem um telefone de WhatsApp válido no cadastro. Envie pelo portal ou corrija o telefone do contato.');
+    }
     const sugerida = sanearResposta(execucao.saida ?? {});
     let movimento: RespostaNegociador = sugerida;
     if (b.acao === 'editar') {
@@ -687,7 +693,6 @@ negociadorRotas.post(
     const textoPronto =
       movimento.mensagem ??
       (cp?.valor_c ? `Proposta: R$ ${(cp.valor_c / 100).toLocaleString('pt-BR')}${cp.condicoes ? `, ${cp.condicoes}` : ''}.` : '');
-    const contato = await dados.buscar('contatos', Number(negociacao.contato_id));
     res.json(
       semSigilo({
         ok: true,

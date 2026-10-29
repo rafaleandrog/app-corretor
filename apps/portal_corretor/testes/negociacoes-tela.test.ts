@@ -19,6 +19,7 @@ import {
   reaisDoCampo,
   rotuloRodada,
   textoDoBloqueio,
+  travaDaSugestao,
 } from '../comum/negociacao-tela';
 import { validarMandato } from '../comum/negociacao';
 import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
@@ -149,6 +150,28 @@ test('cartão de sugestão: a linha de validações; o 422 do bloqueio vira text
   const texto = textoDoBloqueio({ message: 'Esta contraproposta não pode sair como está.', codigo: 'MOVIMENTO_BLOQUEADO', detalhes: ['ABAIXO_DO_RECUO: valor abaixo do ponto de recuo', 'XYZ: outra coisa'] });
   assert.equal(texto, 'Esta contraproposta não pode sair como está.\n✗ valor abaixo do ponto de recuo\n✗ XYZ: outra coisa');
   assert.match(textoDoBloqueio({ detalhes: ['PASSO_ACIMA_DO_LIMITE'] }), /✗ concedeu dentro do passo máximo/);
+});
+
+test('bloqueio da validade: MANDATO_AUSENTE e AUTORIZACAO_PROPRIETARIO_AUSENTE viram a frase da garantia, nunca o código', () => {
+  const sem = textoDoBloqueio({ message: 'Não sai.', detalhes: ['MANDATO_AUSENTE'] });
+  assert.equal(sem, 'Não sai.\n✗ agiu com o mandato vigente (e com a autorização do proprietário, quando faz sozinho)');
+  const aut = textoDoBloqueio({ detalhes: ['AUTORIZACAO_PROPRIETARIO_AUSENTE: faz sozinho sem a autorização do proprietário registrada'] });
+  assert.match(aut, /✗ faz sozinho sem a autorização do proprietário registrada/);
+  for (const t of [sem, aut]) assert.doesNotMatch(t, /MANDATO_AUSENTE|AUTORIZACAO_PROPRIETARIO_AUSENTE/);
+});
+
+test('sugestão que não sai como está: reprovada, bloqueada, sem movimento ou anterior à última oferta do cliente', () => {
+  const ok = { verificacoes: [{ ok: true }], bloqueado_por: null, resposta: { movimento: 'contraproposta', mensagem: 'x' }, criado_em: '2026-10-28T12:00:00Z' };
+  const propostas = [{ direcao: 'comprador', criado_em: '2026-10-27T12:00:00Z' }, { direcao: 'vendedor', criado_em: '2026-10-29T12:00:00Z' }];
+  assert.equal(travaDaSugestao(ok, propostas), null);
+  assert.equal(travaDaSugestao(null, propostas), null);
+  assert.equal(travaDaSugestao({ ...ok, verificacoes: [{ ok: true }, { ok: false }] }, propostas), 'reprovada');
+  assert.equal(travaDaSugestao({ ...ok, bloqueado_por: ['ABAIXO_DO_RECUO'] }, propostas), 'reprovada');
+  assert.equal(travaDaSugestao({ ...ok, bloqueado_por: [] }, propostas), null);
+  assert.equal(travaDaSugestao({ ...ok, resposta: { movimento: 'pergunta', mensagem: '  ' } }, propostas), 'sem_movimento');
+  assert.equal(travaDaSugestao({ ...ok, resposta: { movimento: 'pergunta', mensagem: 'Qual o prazo?' } }, propostas), null);
+  assert.equal(travaDaSugestao(ok, [...propostas, { direcao: 'comprador', criado_em: '2026-10-28T13:00:00Z' }]), 'anterior');
+  assert.equal(travaDaSugestao({ ...ok, criado_em: null }, [{ direcao: 'comprador', criado_em: '2026-10-29T13:00:00Z' }]), null, 'sem data, não trava por ser anterior');
 });
 
 test('Nova proposta: a negociação do mesmo imóvel, senão um negócio livre, senão um negócio novo', () => {

@@ -11,7 +11,8 @@ declare const urbiVerso: UrbiVersoAPI;
 // Mandato de negociação (P16, spec 11.1; issue #102): até onde o Negociador pode ir. Abre em
 // `urbi-modal`, no lugar da gaveta do mockup (lacuna do SDK 100, pedido ao shell 10; exceção
 // registrada no A1). O seletor "Só sugere · Pergunta antes · Faz sozinho" é `urbi-select` até haver
-// o seletor de três posições (lacuna 11.9, pedido 12). Os valores sigilosos (recuo, alvo, BATNA)
+// o seletor de três posições (lacuna 11.9, pedido 12); como o `urbi-select` não tem opção desabilitada,
+// "Faz sozinho" só aparece com a autorização do proprietário registrada. Os valores sigilosos (recuo, alvo, BATNA)
 // chegam só da rota do mandato, ficam neste formulário e nunca vão ao console.
 
 const hojeLocal = () => new Date().toLocaleDateString('sv-SE');
@@ -168,10 +169,10 @@ export class PcMandato extends LitElement {
         <urbi-grid min="200px">
           <urbi-select label="Quem negocia" valor=${this.quem} .opcoes=${[{ valor: 'ia', rotulo: 'Negociador IA' }, { valor: 'corretor', rotulo: 'Você' }]}
             @urbi:select-change=${(e: CustomEvent) => ((this.quem = String(e.detail.valor)), (this.erro = null))}></urbi-select>
-          <urbi-select label="Autonomia do Negociador" valor=${f.autonomia} .opcoes=${OPCOES_AUTONOMIA.map((o) => (o.valor === 'faz_sozinho' && !autorizacao ? { ...o, rotulo: `${o.rotulo} (precisa da autorização)` } : o))}
+          <urbi-select label="Autonomia do Negociador" valor=${f.autonomia} .opcoes=${OPCOES_AUTONOMIA.filter((o) => o.valor !== 'faz_sozinho' || autorizacao || f.autonomia === 'faz_sozinho')}
             @urbi:select-change=${(e: CustomEvent) => this.mudar({ autonomia: String(e.detail.valor) })}></urbi-select>
         </urbi-grid>
-        <urbi-prosa papel="dica">Só sugere: você decide tudo. Pergunta antes: ele prepara e você aprova. Faz sozinho: responde pelo portal dentro do mandato, com a autorização do proprietário.</urbi-prosa>
+        <urbi-prosa papel="dica">Só sugere: você decide tudo. Pergunta antes: ele prepara e você aprova. Faz sozinho: responde pelo portal dentro do mandato, com a autorização do proprietário${autorizacao ? '' : ' (registre-a abaixo para a opção aparecer)'}.</urbi-prosa>
         <urbi-prosa papel="secao">Autorização do proprietário</urbi-prosa>
         ${autorizacao
           ? html`<urbi-linha justificar="entre" quebrar>

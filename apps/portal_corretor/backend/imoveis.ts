@@ -426,6 +426,26 @@ async function midiaDoImovel(req: Request, imovelId: number) {
   return m && m.imovel_id === imovelId ? m : null;
 }
 
+/**
+ * A mídia é o documento da autorização do proprietário de algum mandato de negociação do imóvel
+ * (`mandatos_negociacao.autorizacao_proprietario.arquivo_id` guarda o id da linha de `imovel_midias`).
+ * Conservador: vale qualquer versão do mandato, não só a vigente — a versão antiga continua no
+ * histórico apoiada naquele documento. Coluna `json` não se filtra por campo: varre as negociações do
+ * imóvel e os mandatos delas, e confere em memória.
+ */
+async function citadaPorMandato(dados: HelperDados, imovelId: number, midiaId: number) {
+  const negociacoes = await dados.varrerTudo('negociacoes', { filtros: { imovel_id: imovelId }, maximo: 1000 });
+  if (!negociacoes.length) return false;
+  const mandatos = await dados.varrerTudo('mandatos_negociacao', {
+    filtros: { negociacao_id: negociacoes.map((n) => n.id).join(',') },
+    maximo: 10000,
+  });
+  return mandatos.some((m) => {
+    const a = m.autorizacao_proprietario as { tipo?: string; arquivo_id?: unknown } | null;
+    return a?.tipo === 'anexo' && Number(a.arquivo_id) === Number(midiaId);
+  });
+}
+
 imoveisRotas.post(
   '/imoveis/:id/midias',
   assincrono(async (req, res) => {
@@ -510,7 +530,9 @@ imoveisRotas.patch(
     // O documento de uma autorização nunca vira foto nem fica público, por nenhum caminho.
     if ((mudar.tipo !== undefined && mudar.tipo !== 'documento') || mudar.publica === true) {
       const usa = await primeiro(req.dados!, 'autorizacoes_venda', { documento_midia_id: midia.id });
-      if (usa) return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização: fica sempre interno.');
+      if (usa || (await citadaPorMandato(req.dados!, imovel!.id, midia.id))) {
+        return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização: fica sempre interno.');
+      }
     }
     if ((mudar.tipo ?? midia.tipo) === 'documento' && (mudar.publica ?? midia.publica)) mudar.publica = false;
     const salva = Object.keys(mudar).length ? await req.dados!.atualizar('imovel_midias', midia.id, mudar) : midia;
@@ -528,6 +550,9 @@ imoveisRotas.patch(
     const dados = req.dados!;
     const usa = await primeiro(dados, 'autorizacoes_venda', { documento_midia_id: midia.id, situacao: 'assinada' });
     if (usa) return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização assinada. Revogue ou troque o documento antes.');
+    if (await citadaPorMandato(dados, imovel!.id, midia.id)) {
+      return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é a autorização do proprietário num mandato de negociação: fica guardado com o histórico do mandato.');
+    }
     // Apagar de verdade leva o arquivo para a fila de exclusão (arquivos.md).
     await dados.deletar('imovel_midias', midia.id);
     await tentarSincronizar(req, imovel!.id);

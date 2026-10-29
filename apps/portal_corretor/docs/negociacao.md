@@ -74,6 +74,9 @@ Ficam fora de:
 - a exportação de contatos e a ficha do cliente;
 - tudo o que o cliente vê: portal, seleções, página pública e vitrine.
 
+A tela da negociação também diz se existe **ZOPA**: se o teto estimado do comprador fica acima do
+seu recuo. É uma conclusão tirada do recuo, sem mostrar o valor, e só aparece para você, nunca ao cliente.
+
 Outro corretor nunca vê nada da negociação de outra conta: a resposta é "não encontrado".
 
 ## As telas
@@ -96,21 +99,29 @@ o preço pedido (ex.: "R$ 1,32 mi · −9%"), quem conduz e há quanto tempo mud
    antes"), da validade do mandato e do estado.
 2. A **faixa da negociação**: última oferta, ponto de recuo, teto estimado do comprador, alvo e preço
    pedido, e a frase da **ZOPA estimada** (a faixa entre o seu recuo e o teto do comprador, em que
-   um acordo é possível). O recuo e o alvo aparecem como **••••** até você clicar em **mostrar**.
-3. A **última oferta** do cliente, com o que ele disse e a objeção percebida.
-4. O cartão **Negociador sugere · rodada n**, quando há uma sugestão esperando você: o valor, a
+   um acordo é possível). O recuo e o alvo aparecem como **••••** até você clicar no **olho**, ao lado
+   do título do cartão (clicar de novo oculta).
+3. A **escada de propostas**: rodada, quem, valor, condições, concessão, contrapartida, canal e quando.
+4. A **última oferta** do cliente, com o que ele disse e a objeção percebida.
+5. O cartão **Negociador sugere · rodada n**, quando há uma sugestão esperando você: o valor, a
    concessão e a contrapartida, a mensagem e a linha das garantias ("✓ acima do recuo · ✓ passo
    menor…"). Botões **Enviar** (pelo portal), **Fazer agora** (abre o WhatsApp do seu celular com o
    texto pronto), **Editar** e **Descartar**. Editar passa pelas mesmas 7 garantias: um valor abaixo
-   do recuo, por exemplo, não sai, e a tela diz qual regra barrou, sem mostrar o recuo.
-5. A **escada de propostas**: rodada, quem, valor, condições, concessão, contrapartida, canal e quando.
-6. **Registrar oferta do cliente** (a que ele fez fora do portal) e, no **Mais**, registrar a
+   do recuo, por exemplo, não sai, e a tela diz qual regra barrou, sem mostrar o recuo. Quando a
+   sugestão é só uma mensagem, o Editar aceita só o texto, sem valor.
+   **Enviar**, **Fazer agora** (e o **Usar sugestão**, à direita) ficam desligados quando a sugestão
+   não passou nas garantias, quando não traz o que enviar ou quando foi feita antes da última oferta
+   do cliente. A tela diz o motivo e, no último caso, oferece **Pedir sugestão**.
+   Se o cliente não tem um WhatsApp válido no cadastro, o **Fazer agora** é recusado e nada é gravado:
+   envie pelo portal ou corrija o telefone. Se o navegador barrar a aba do WhatsApp, a tela mostra o
+   texto pronto e o link para você copiar.
+6. As ações: **Registrar oferta do cliente** (a que ele fez fora do portal) e, no **Mais**, registrar a
    resposta do proprietário e encerrar como ganha ou perdida. **Aceitar oferta** é um botão separado,
    com confirmação: o acordo vai ao proprietário e a negociação fica aguardando a decisão dele.
 
 **À direita**:
 - o **Mandato** em resumo: pedido, alvo, recuo e BATNA do vendedor (os três como **••••** até
-  **mostrar**), as concessões com as contrapartidas, o passo, as rodadas, a validade e a autonomia,
+  o **olho**), as concessões com as contrapartidas, o passo, as rodadas, a validade e a autonomia,
   com **Editar mandato** (ou **Definir mandato**, se ainda não houver);
 - a **Leitura do comprador**: objeções, interesses, o teto estimado e a fonte;
 - o **Próximo movimento (IA)**: **Usar sugestão** (envia a sugestão pelo portal) ou **Pedir
@@ -119,7 +130,7 @@ o preço pedido (ex.: "R$ 1,32 mi · −9%"), quem conduz e há quanto tempo mud
   sugestão fica desligado; com a IA fora do ar, a tela diz "IA indisponível agora" e a negociação
   segue com você.
 
-O **mostrar** lê o mandato completo na hora e só para você; ao sair da negociação, os valores voltam
+O **olho** lê o mandato completo na hora e só para você; ao sair da negociação, os valores voltam
 a ficar mascarados.
 
 **No celular**, a mesma tela abre direto na negociação: rodada, faixa, última oferta e o cartão do
@@ -138,7 +149,10 @@ sobre a tela, com quatro blocos:
 4. **Quem negocia e autonomia:** Negociador IA ou você; **Só sugere**, **Pergunta antes** ou **Faz
    sozinho**; e a **autorização do proprietário**, por **Anexar documento** (o arquivo vai para os
    arquivos do imóvel como documento, nunca público) ou **Registrar por mensagem** (a data em que
-   ele autorizou). "Faz sozinho" só salva com a autorização.
+   ele autorizou). A opção "Faz sozinho" só aparece na lista depois de registrada a autorização, e só
+   salva com ela. O documento anexado precisa ser do imóvel da negociação. Quem é citado por um mandato
+   fica sempre interno: não vira foto, não vai ao anúncio e não pode ser apagado ("fica guardado com o
+   histórico do mandato").
 
 **Salvar mandato** cria uma versão nova; **Cancelar** fecha sem gravar.
 

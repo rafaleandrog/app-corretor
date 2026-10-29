@@ -199,7 +199,13 @@ export function linhaDeValidacoes(verificacoes: { garantia?: string; ok: boolean
     .join(' · ');
 }
 
-const GARANTIA_DO_CODIGO = new Map(Object.entries(GARANTIAS).map(([g, c]) => [c as string, g as Garantia]));
+// Os códigos que a garantia de validade usa além de MANDATO_VENCIDO (`comum/negociador.ts`): sem mandato
+// e "faz sozinho" sem a autorização do proprietário. Na tela viram a frase da garantia, nunca o código.
+const GARANTIA_DO_CODIGO = new Map<string, Garantia>([
+  ...Object.entries(GARANTIAS).map(([g, c]) => [c as string, g as Garantia] as const),
+  ['MANDATO_AUSENTE', 'validade'],
+  ['AUTORIZACAO_PROPRIETARIO_AUSENTE', 'validade'],
+]);
 
 /**
  * O texto do 422 `MOVIMENTO_BLOQUEADO` (Enviar ou Editar uma sugestão): a mensagem do backend e, por
@@ -214,6 +220,37 @@ export function textoDoBloqueio(e: { message?: string; codigo?: string; detalhes
     return g ? `✗ ${detalhe || DESCRICAO_GARANTIA[g]}` : `✗ ${d}`;
   });
   return [e.message ?? 'Esta contraproposta não pode sair como está.', ...linhas].join('\n');
+}
+
+/** Por que a sugestão pendente não pode sair como está (Enviar, Fazer agora, Usar sugestão). */
+export type TravaDaSugestao = 'reprovada' | 'sem_movimento' | 'anterior';
+
+export const TEXTO_TRAVA_SUGESTAO: Record<TravaDaSugestao, string> = {
+  reprovada: 'Alguma regra do mandato reprovou esta sugestão: ela não sai como está. Edite ou descarte.',
+  sem_movimento: 'Esta sugestão não traz contraproposta nem mensagem para enviar. Edite ou descarte.',
+  anterior: 'Esta sugestão é anterior à última oferta do cliente. Peça outra ao Negociador.',
+};
+
+/**
+ * Se a sugestão pendente pode sair como está (P15, cartão e Próximo movimento). Trava quando alguma
+ * verificação reprovou ou há `bloqueado_por`, quando o movimento não é contraproposta nem tem mensagem,
+ * e quando ela foi feita antes da última oferta do cliente (a oferta nova pede outra sugestão). Editar e
+ * Descartar continuam: o backend revalida o que o corretor editar.
+ */
+export function travaDaSugestao(
+  sug: { verificacoes?: { ok: boolean }[] | null; bloqueado_por?: unknown; resposta?: { movimento?: string; mensagem?: string | null } | null; criado_em?: string | null } | null | undefined,
+  propostas: { direcao?: string; criado_em?: string | null }[] | null | undefined,
+): TravaDaSugestao | null {
+  if (!sug) return null;
+  const ultima = [...(propostas ?? [])].reverse().find((p) => p.direcao === 'comprador');
+  const feita = sug.criado_em ? Date.parse(sug.criado_em) : NaN;
+  const oferta = ultima?.criado_em ? Date.parse(ultima.criado_em) : NaN;
+  if (Number.isFinite(feita) && Number.isFinite(oferta) && feita < oferta) return 'anterior';
+  const bloqueio = Array.isArray(sug.bloqueado_por) ? sug.bloqueado_por.length > 0 : !!sug.bloqueado_por;
+  if (bloqueio || (sug.verificacoes ?? []).some((v) => !v.ok)) return 'reprovada';
+  const r = sug.resposta ?? {};
+  if (r.movimento !== 'contraproposta' && !String(r.mensagem ?? '').trim()) return 'sem_movimento';
+  return null;
 }
 
 /**

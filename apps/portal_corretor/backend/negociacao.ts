@@ -122,8 +122,11 @@ negociacaoRotas.get(
     const r = await dados.listar('negociacoes', { filtros, ordenar: 'atualizado_em', ordem: 'desc', pagina, por_pagina });
     const ids = r.dados.map((n) => n.id);
     const mandatos = r.dados.map((n) => n.mandato_id).filter(Boolean);
-    const contatos = [...new Set(r.dados.map((n) => n.contato_id).filter(Boolean))];
-    const imoveis = [...new Set(r.dados.map((n) => n.imovel_id).filter(Boolean))];
+    // Cliente e imóvel (código e título) vêm do JOIN de `campos_incluir` (schema.json: contato_nome,
+    // imovel_codigo, imovel_titulo). Só a linha que chegou sem eles (leitura sem JOIN) é completada aqui.
+    const semJoin = r.dados.filter((n) => n.contato_nome === undefined || n.imovel_codigo === undefined || n.imovel_titulo === undefined);
+    const contatos = [...new Set(semJoin.map((n) => n.contato_id).filter(Boolean))];
+    const imoveis = [...new Set(semJoin.map((n) => n.imovel_id).filter(Boolean))];
     const [ofertas, vigentes, pessoas, casas] = await Promise.all([
       ids.length
         ? dados.varrerTudo('propostas', { filtros: { negociacao_id: ids.join(','), direcao: 'comprador' }, ordenar: 'id', ordem: 'desc', maximo: 5000 })
@@ -144,9 +147,9 @@ negociacaoRotas.get(
       ultima_oferta_c: ultima.get(Number(n.id))?.valor_c ?? null,
       ultima_oferta_em: ultima.get(Number(n.id))?.criado_em ?? null,
       preco_pedido_c: n.mandato_id ? (pedido.get(Number(n.mandato_id)) ?? null) : null,
-      contato_nome: nome.get(Number(n.contato_id)) ?? null,
-      imovel_codigo: imovel.get(Number(n.imovel_id))?.codigo ?? null,
-      imovel_titulo: imovel.get(Number(n.imovel_id))?.titulo ?? null,
+      contato_nome: n.contato_nome ?? nome.get(Number(n.contato_id)) ?? null,
+      imovel_codigo: n.imovel_codigo ?? imovel.get(Number(n.imovel_id))?.codigo ?? null,
+      imovel_titulo: n.imovel_titulo ?? imovel.get(Number(n.imovel_id))?.titulo ?? null,
     }));
     res.json(semSigilo({ ...r, dados: linhas }));
   }),
@@ -235,8 +238,17 @@ negociacaoRotas.get(
         objecoes,
         sugestao,
         zopa: { existe: faixa.existe },
-        contato: contato ? { id: contato.id, nome: contato.nome } : null,
-        imovel: imovel ? { id: imovel.id, codigo: imovel.codigo ?? null, titulo: imovel.titulo ?? null, bairro: imovel.bairro ?? null, preco_c: imovel.preco_c ?? null } : null,
+        // Removido (o `buscar` não o vê): fica o que o JOIN da própria negociação trouxe.
+        contato: contato
+          ? { id: contato.id, nome: contato.nome }
+          : negociacao.contato_id
+            ? { id: negociacao.contato_id, nome: negociacao.contato_nome ?? null }
+            : null,
+        imovel: imovel
+          ? { id: imovel.id, codigo: imovel.codigo ?? null, titulo: imovel.titulo ?? null, bairro: imovel.bairro ?? null, preco_c: imovel.preco_c ?? null }
+          : negociacao.imovel_id
+            ? { id: negociacao.imovel_id, codigo: negociacao.imovel_codigo ?? null, titulo: negociacao.imovel_titulo ?? null, bairro: null, preco_c: null }
+            : null,
       }),
     );
   }),
@@ -322,6 +334,19 @@ negociacaoRotas.put(
     if (encerrada(negociacao)) return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
     const v = validarMandato((req.body ?? {}) as Record<string, unknown>);
     if (!v.ok) return res.status(v.status).json({ erro: true, codigo: v.codigo, motivo: v.motivo, mensagem: v.mensagem, ...(v.detalhes ? { detalhes: v.detalhes } : {}) });
+    // Autorização por anexo: `arquivo_id` (nome do contrato do D1) é o id da LINHA de `imovel_midias`,
+    // não do arquivo do storage. Tem de ser um documento do mesmo imóvel da negociação; `buscar` só
+    // enxerga a conta ativa, então mídia de outra conta é "inexistente". Assim citado, o documento fica
+    // interno e não se remove enquanto um mandato o cita (trava DOCUMENTO_EM_USO em backend/imoveis.ts).
+    const aut = v.dados.autorizacao_proprietario;
+    if (aut?.tipo === 'anexo') {
+      const midia = aut.arquivo_id ? await dados.buscar('imovel_midias', aut.arquivo_id) : null;
+      if (!midia || Number(midia.imovel_id) !== Number(negociacao.imovel_id) || midia.tipo !== 'documento') {
+        return erro(res, 422, 'DADOS_INVALIDOS', 'A autorização do proprietário precisa ser um documento anexado ao imóvel desta negociação.', [
+          'autorizacao_proprietario.arquivo_id: use um arquivo do tipo documento do imóvel da negociação.',
+        ]);
+      }
+    }
     // Cada alteração é uma versão nova; as anteriores ficam (histórico). A vigente é a da negociação.
     let mandato: Linha;
     try {

@@ -79,7 +79,7 @@ a aba Empreendimentos, e `/imoveis/<número>` abre a mesma tela com o imóvel es
 
 Cada arquivo tem tipo (foto, vídeo, planta, tour, documento), legenda e a marca "pode aparecer no
 anúncio". **Documento nunca aparece no anúncio**, mesmo marcado; o documento de uma autorização
-não pode virar foto nem ficar público, e o de uma autorização assinada não pode ser apagado. Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
+não pode virar foto nem ficar público, e o de uma autorização assinada não pode ser apagado. O documento citado como autorização do proprietário num mandato de negociação também fica travado: sempre interno e sem poder ser apagado. Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
 ver, editar e apagar (apagar é de vez, para liberar o espaço). As fotos são mostradas por um link temporário, que vale uma
 hora.
 

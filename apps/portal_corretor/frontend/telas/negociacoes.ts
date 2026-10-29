@@ -18,7 +18,9 @@ import {
   ROTULO_DIRECAO,
   ROTULO_ESTADO_NEGOCIACAO,
   rotuloRodada,
+  TEXTO_TRAVA_SUGESTAO,
   textoDoBloqueio,
+  travaDaSugestao,
 } from '../../comum/negociacao-tela';
 import { acoesComMais, chamarApi, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
@@ -295,14 +297,36 @@ export class NegociacaoAberta {
     });
   }
 
+  /** A sugestão pendente pode sair como está? (`null` = pode; senão, o motivo da trava.) */
+  trava() {
+    return travaDaSugestao(this.s.n?.sugestao, this.s.n?.propostas);
+  }
+
+  /**
+   * Fazer agora (D-107), depois de gravada a rodada: abre o wa.me no celular do corretor. Sem link (cliente
+   * sem telefone) ou com o pop-up barrado, mostra o texto pronto e o link para ele copiar: nunca diz "o
+   * WhatsApp que abriu" sem ter aberto. `noopener` não vai em `window.open` (com ele, a volta é sempre
+   * `null`); a aba aberta perde o `opener` logo depois.
+   */
+  private async entregarFazerAgora(r: Linha | null) {
+    const aba = r?.link ? window.open(String(r.link), '_blank') : null;
+    if (aba) {
+      aba.opener = null;
+      urbiVerso.notificar('Rodada gravada. Envie pelo WhatsApp que abriu.', 'sucesso');
+      return;
+    }
+    const partes = [r?.texto ? String(r.texto) : '', r?.link ? `Link do WhatsApp do cliente:\n${r.link}` : 'O WhatsApp do cliente não abriu: envie o texto pelo seu celular.'];
+    await urbiVerso.alertar({ titulo: 'Rodada gravada: copie e envie', mensagem: partes.filter(Boolean).join('\n\n'), tipo: 'info' });
+  }
+
   /** Enviar (portal) ou Fazer agora (wa.me no celular do corretor, D-107): a sugestão como está. */
   async enviarSugestao(canal: 'portal' | 'wa_me') {
     const sug = this.s.n?.sugestao;
-    if (!sug) return;
+    if (!sug || this.trava()) return;
     await this.agir('enviar', 'Esta contraproposta não saiu', async () => {
       const r = await enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'aprovar', execucao_id: sug.execucao_id, canal });
-      if (canal === 'wa_me' && r?.link) window.open(r.link, '_blank', 'noopener');
-      urbiVerso.notificar(canal === 'portal' ? 'Enviada pelo portal do cliente.' : 'Rodada gravada. Envie pelo WhatsApp que abriu.', 'sucesso');
+      if (canal === 'wa_me') await this.entregarFazerAgora(r);
+      else urbiVerso.notificar('Enviada pelo portal do cliente.', 'sucesso');
     });
   }
 
@@ -310,12 +334,14 @@ export class NegociacaoAberta {
   async editarSugestao() {
     const sug = this.s.n?.sugestao;
     if (!sug) return;
+    // Sugestão sem contraproposta (só mensagem): o valor é opcional; vazio, sai só a mensagem.
+    const temContraproposta = sug.resposta?.movimento === 'contraproposta';
     const cp = sug.resposta?.contraproposta ?? {};
     const v = await urbiVerso.formulario({
       titulo: 'Editar a contraproposta',
       mensagem: 'O valor passa pelas mesmas regras do mandato: nunca abaixo do recuo, dentro do passo e das rodadas.',
       campos: [
-        { nome: 'valor', tipo: 'texto', rotulo: 'Valor (R$)', valor: reaisDoCampo(cp.valor_c), obrigatorio: true },
+        { nome: 'valor', tipo: 'texto', rotulo: temContraproposta ? 'Valor (R$)' : 'Valor (R$, opcional)', valor: reaisDoCampo(cp.valor_c), obrigatorio: temContraproposta },
         { nome: 'condicoes', tipo: 'texto_longo', rotulo: 'Condições', valor: cp.condicoes ?? '' },
         { nome: 'concessao', tipo: 'texto', rotulo: 'Concessão (do mandato)', valor: cp.concessao ?? '' },
         { nome: 'contrapartida', tipo: 'texto', rotulo: 'Contrapartida', valor: cp.contrapartida ?? '' },
@@ -325,8 +351,9 @@ export class NegociacaoAberta {
       rotuloConfirmar: 'Enviar',
     });
     if (!v) return;
-    const valor_c = centavosDeReais(v.valor);
-    if (!valor_c) {
+    const semValor = !temContraproposta && !String(v.valor ?? '').trim();
+    const valor_c = semValor ? null : centavosDeReais(v.valor);
+    if (!semValor && !valor_c) {
       await urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Escreva o valor em reais, por exemplo 1.380.000.', tipo: 'erro' });
       return;
     }
@@ -335,11 +362,13 @@ export class NegociacaoAberta {
         acao: 'editar',
         execucao_id: sug.execucao_id,
         canal: v.canal,
-        contraproposta: { valor_c, condicoes: v.condicoes || null, concessao: v.concessao || null, contrapartida: v.contrapartida || null, validade_horas: cp.validade_horas ?? 48 },
+        ...(valor_c
+          ? { contraproposta: { valor_c, condicoes: v.condicoes || null, concessao: v.concessao || null, contrapartida: v.contrapartida || null, validade_horas: cp.validade_horas ?? 48 } }
+          : {}),
         mensagem: v.mensagem || null,
       });
-      if (v.canal === 'wa_me' && r?.link) window.open(r.link, '_blank', 'noopener');
-      urbiVerso.notificar('Contraproposta enviada.', 'sucesso');
+      if (v.canal === 'wa_me') await this.entregarFazerAgora(r);
+      else urbiVerso.notificar(valor_c ? 'Contraproposta enviada.' : 'Mensagem enviada.', 'sucesso');
     });
   }
 
@@ -415,7 +444,9 @@ export class NegociacaoAberta {
   }
 
   private botaoMostrar() {
-    return html`<urbi-botao pequeno variante="texto" ?carregando=${this.s.revelando} @click=${() => void this.mostrarSigilo()}>${this.s.sigilo ? 'ocultar' : 'mostrar'}</urbi-botao>`;
+    const rotulo = this.s.sigilo ? 'Ocultar recuo, alvo e BATNA' : 'Mostrar recuo, alvo e BATNA';
+    return html`<urbi-botao pequeno variante="fantasma" icone=${this.s.sigilo ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'} ariaLabel=${rotulo} title=${rotulo}
+      ?carregando=${this.s.revelando} @click=${() => void this.mostrarSigilo()}></urbi-botao>`;
   }
 
   // --- Centro (P15 e M8) ----------------------------------------------------------------------------
@@ -452,9 +483,9 @@ export class NegociacaoAberta {
         ${estado ? html`<urbi-badge cor=${estado.cor}>${estado.rotulo}</urbi-badge>` : nothing}
       </urbi-linha>
       ${this.faixa()}
+      ${this.escada()}
       ${this.ultimaFala()}
       ${this.cartaoSugestao()}
-      ${this.escada()}
       ${encerradaN ? nothing : this.acoesDoCentro()}
     </urbi-stack>`;
   }
@@ -510,6 +541,8 @@ export class NegociacaoAberta {
     const validacoes = linhaDeValidacoes(sug.verificacoes);
     const tudoOk = (sug.verificacoes ?? []).every((v: Linha) => v.ok);
     const acordo = n.estado === 'aguardando_proprietario';
+    const trava = this.trava();
+    const ocupado = !!this.s.ocupado;
     return html`<urbi-card titulo=${`Negociador sugere · rodada ${Math.max(1, Number(n.rodadas) || 1)}`} icone="fa-solid fa-wand-magic-sparkles">
       ${cp?.valor_c
         ? html`<urbi-prosa papel="secao">${reais(cp.valor_c)}${cp.concessao ? ` · concede ${cp.concessao}` : ''}${cp.contrapartida ? ` ↔ ${cp.contrapartida}` : ''}</urbi-prosa>`
@@ -519,9 +552,13 @@ export class NegociacaoAberta {
       ${acordo
         ? html`<urbi-prosa papel="dica">O acordo está com o proprietário: esta sugestão não sai mais. Descarte para limpar.</urbi-prosa>
             <urbi-linha><urbi-botao pequeno variante="texto" @click=${() => void this.descartarSugestao()}>Descartar</urbi-botao></urbi-linha>`
-        : html`<urbi-linha quebrar>
-            <urbi-botao pequeno icone="fa-solid fa-paper-plane" ?carregando=${this.s.ocupado === 'enviar'} @click=${() => void this.enviarSugestao('portal')}>Enviar</urbi-botao>
-            <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" @click=${() => void this.enviarSugestao('wa_me')}>Fazer agora</urbi-botao>
+        : html`${trava ? html`<urbi-prosa papel="alerta">${TEXTO_TRAVA_SUGESTAO[trava]}</urbi-prosa>` : nothing}
+          <urbi-linha quebrar>
+            ${trava === 'anterior'
+              ? html`<urbi-botao pequeno icone="fa-solid fa-wand-magic-sparkles" ?desabilitado=${this.s.ia === false} ?carregando=${this.s.ocupado === 'sugestao'} @click=${() => void this.pedirSugestao()}>Pedir sugestão</urbi-botao>`
+              : nothing}
+            <urbi-botao pequeno icone="fa-solid fa-paper-plane" ?desabilitado=${!!trava} ?carregando=${this.s.ocupado === 'enviar'} @click=${() => void this.enviarSugestao('portal')}>Enviar</urbi-botao>
+            <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${!!trava || ocupado} @click=${() => void this.enviarSugestao('wa_me')}>Fazer agora</urbi-botao>
             <urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" ?carregando=${this.s.ocupado === 'editar'} @click=${() => void this.editarSugestao()}>Editar</urbi-botao>
             <urbi-botao pequeno variante="texto" @click=${() => void this.descartarSugestao()}>Descartar</urbi-botao>
           </urbi-linha>`}
@@ -641,17 +678,20 @@ export class NegociacaoAberta {
     const cp = sug?.resposta?.movimento === 'contraproposta' ? sug.resposta.contraproposta : null;
     const oferta = this.ofertaAceitavel();
     const semIa = this.s.ia === false;
+    const trava = this.trava();
+    const pedir = html`<urbi-botao pequeno icone="fa-solid fa-wand-magic-sparkles" ?desabilitado=${semIa || !n.mandato || n.estado === 'aguardando_proprietario'} ?carregando=${this.s.ocupado === 'sugestao'}
+      @click=${() => void this.pedirSugestao()}>Pedir sugestão</urbi-botao>`;
     return html`<urbi-card titulo="Próximo movimento (IA)" icone="fa-solid fa-lightbulb">
       ${cp?.valor_c
         ? html`<urbi-prosa>${reais(cp.valor_c)}${cp.concessao ? ` + ${cp.concessao}` : ''}${cp.contrapartida ? ` ↔ ${cp.contrapartida}` : ''}</urbi-prosa>`
         : sug
           ? html`<urbi-prosa papel="secundario">${sug.resposta?.resumo_rodada ?? 'O Negociador preparou uma resposta sem contraproposta.'}</urbi-prosa>`
           : html`<urbi-prosa papel="dica">${semIa ? `${DICA_IA_INDISPONIVEL}: a negociação segue com você.` : n.mandato ? 'Peça ao Negociador o próximo movimento dentro do mandato.' : 'Defina o mandato para o Negociador sugerir.'}</urbi-prosa>`}
+      ${sug && trava && n.estado !== 'aguardando_proprietario' ? html`<urbi-prosa papel="alerta">${TEXTO_TRAVA_SUGESTAO[trava]}</urbi-prosa>` : nothing}
       <urbi-linha quebrar>
-        ${sug && n.estado !== 'aguardando_proprietario'
-          ? html`<urbi-botao pequeno icone="fa-solid fa-check" @click=${() => void this.enviarSugestao('portal')}>Usar sugestão</urbi-botao>`
-          : html`<urbi-botao pequeno icone="fa-solid fa-wand-magic-sparkles" ?desabilitado=${semIa || !n.mandato || n.estado === 'aguardando_proprietario'} ?carregando=${this.s.ocupado === 'sugestao'}
-              @click=${() => void this.pedirSugestao()}>Pedir sugestão</urbi-botao>`}
+        ${sug && n.estado !== 'aguardando_proprietario' && trava !== 'anterior'
+          ? html`<urbi-botao pequeno icone="fa-solid fa-check" ?desabilitado=${!!trava} @click=${() => void this.enviarSugestao('portal')}>Usar sugestão</urbi-botao>`
+          : pedir}
         ${oferta ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-house-user" @click=${() => void this.aceitar(oferta)}>Passar ao proprietário</urbi-botao>` : nothing}
       </urbi-linha>
     </urbi-card>`;
