@@ -15,11 +15,15 @@ export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
   '/estudio': { nome: 'Estúdio', doc: 'estudio' },
   // Ajustes é uma tela só (D-81); `/ajustes/<aba>` abre a aba, para o Assistente apontar a certa.
   '/ajustes': { nome: 'Ajustes', doc: 'conta-e-ajustes' },
-  '/ajustes/conta': { nome: 'Ajustes › Conta', doc: 'conta-e-ajustes' },
-  '/ajustes/marca': { nome: 'Ajustes › Marca', doc: 'estudio' },
+  '/ajustes/mensageiro': { nome: 'Ajustes › Mensageiro', doc: 'conta-e-ajustes' },
+  '/ajustes/negociador': { nome: 'Ajustes › Negociador', doc: 'negociacao' },
   '/ajustes/conexoes': { nome: 'Ajustes › Conexões', doc: 'conexoes' },
+  '/ajustes/conta': { nome: 'Ajustes › Conta e marca', doc: 'conta-e-ajustes' },
+  // A Marca virou parte de Conta e marca (P13); o endereço antigo segue valendo.
+  '/ajustes/marca': { nome: 'Ajustes › Conta e marca', doc: 'estudio' },
   '/ajustes/funil': { nome: 'Ajustes › Funil e abordagens', doc: 'funil' },
-  '/ajustes/atendimento': { nome: 'Ajustes › Atendimento', doc: 'conta-e-ajustes' },
+  '/ajustes/atendimento': { nome: 'Ajustes › Horário de atendimento', doc: 'conta-e-ajustes' },
+  '/ajustes/privacidade': { nome: 'Ajustes › Privacidade', doc: 'conta-e-ajustes' },
   // `/funil` é apelido que abre Clientes na visão Funil (D-83).
   '/funil': { nome: 'Clientes › Funil', doc: 'funil' },
   // `/agenda` é apelido que abre Hoje na aba Agenda (D-82).
@@ -31,7 +35,7 @@ export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
 /** Apelidos que não são aba de outra tela: o endereço antigo responde pela tela nova. */
 const APELIDOS: Record<string, string> = { '/conta': '/ajustes/conta', '/desempenho': '/numeros', '/assistente': '/' };
 
-/** Tela base de um endereço (`/clientes/12` → `/clientes`; o apelido `/conta` → Ajustes › Conta). */
+/** Tela base de um endereço (`/clientes/12` → `/clientes`; o apelido `/conta` → Ajustes › Conta e marca). */
 export function telaBase(sub: string): string {
   if (TELAS_APP[sub]) return sub;
   if (APELIDOS[sub]) return APELIDOS[sub];

@@ -18,11 +18,11 @@ Na ficha do cliente, na aba **Negócios**, o cartão **Seleções** tem o botão
 3. **Criar e enviar** copia a mensagem com o link, pronta para colar no WhatsApp.
 
 O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>`. Vale pelo prazo de
-"validade da seleção enviada" de Ajustes › Atendimento (14 dias, se você não mudar).
+"validade da seleção enviada" de Ajustes › Horário de atendimento (14 dias, se você não mudar).
 
 No topo, o cliente vê o seu nome, o CRECI (só se cadastrado), o botão de WhatsApp e a sua
 foto (sem foto, as suas iniciais), na cor principal da
-sua marca ([Ajustes › Marca](conta-e-ajustes.md#a-marca)). Mudar a cor ou a foto na marca muda as
+sua marca ([Ajustes › Conta e marca](conta-e-ajustes.md#a-marca)). Mudar a cor ou a foto na marca muda as
 seleções válidas e os portais já enviados, sem mandar link novo.
 
 Logo abaixo do topo, em destaque, a data até quando a seleção vale.

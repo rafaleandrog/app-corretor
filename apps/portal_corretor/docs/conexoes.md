@@ -5,8 +5,13 @@ descricao: Como o corretor conecta o Instagram para publicar e agendar pelo Est�
 
 # Conexões (Instagram)
 
-Em **Ajustes**, aba **Conexões**, o corretor conecta a conta profissional do Instagram. O login é feito
+Em **Ajustes**, seção **Conexões**, o corretor conecta a conta profissional do Instagram. O login é feito
 no próprio Instagram e não exige página do Facebook.
+
+Na mesma seção ficam dois cartões sem nada para configurar ainda: **WhatsApp** ("ainda não
+disponível": a conexão chega numa próxima versão, e até lá o Fazer agora abre o WhatsApp do seu
+celular) e **Agenda** ("fase 6": a sincronização com uma agenda externa). À direita, uma frase de
+por que conectar e o lembrete de que você pode desconectar quando quiser.
 
 ## Para o corretor
 
@@ -32,7 +37,7 @@ de publicar.
    Instagram com login do Instagram". Ele pode ficar em **modo de desenvolvimento**. Nesse modo, só
    contas adicionadas como testadoras conectam, o que basta para o MVP.
 2. **URI de redirecionamento:** cadastre `https://<instância>/portal_corretor/ajustes/conexoes`.
-   Ajustes virou uma tela só com abas, mas esse endereço continua valendo: ele abre Ajustes na aba
+   Ajustes virou uma tela com seções, mas esse endereço continua valendo: ele abre Ajustes na seção
    Conexões e conclui a conexão. Não precisa mudar nada na Meta.
    Enquanto a conexão não está configurada, a tela de Conexões de um corretor mostra esse endereço
    exato, com o botão **Copiar endereço**.
