@@ -1,4 +1,5 @@
 import '@urbiverso/sdk/express';
+import type { HelperDados } from '@urbiverso/sdk';
 import { Router, type Request, type Response } from 'express';
 import { respostaSegura } from '../comum/assistente';
 import { semSigilo, validarMandato, type Concessao, type Direcao } from '../comum/negociacao';
@@ -34,9 +35,11 @@ import {
   id,
   mandatoVigente,
   objecoesDaConta,
+  portalDa,
   publicar,
   texto,
 } from './negociacao';
+import { contaDoRequest } from './vitrine';
 
 // Motor do Negociador IA (bloco D2; spec 10.9.4 a 10.9.9). Uma chamada `req.ia.consultar` com o
 // schema de 10.9.8 no slot `negociador` (base `poder`); o app valida a resposta com as 7 garantias de
@@ -67,10 +70,10 @@ const impressaoDe = (n: Linha, propostas: Linha[]) =>
   [n.mandato_id ?? 0, n.estado, n.conduzida_por, propostas.map((p) => `${p.id}:${p.estado}`).join(',')].join('|');
 
 /** `estadoSlot` sem custo; falha da sonda conta como indisponível, salvo slot fora do manifesto (bug). */
-async function slotDisponivel(req: Request): Promise<boolean> {
-  if (!req.ia) return false;
+async function slotDisponivel(ia: Request['ia'] | null | undefined): Promise<boolean> {
+  if (!ia) return false;
   try {
-    return !!(await req.ia.estadoSlot(SLOT)).efetivo;
+    return !!(await ia.estadoSlot(SLOT)).efetivo;
   } catch (e) {
     if ((e as { codigo?: string })?.codigo === 'SLOT_INVALIDO') throw e;
     return false;
@@ -140,20 +143,23 @@ function mensagensDe(execucoes: Linha[]): MensagemNegociacao[] {
   return msgs.slice(-MAX_MENSAGENS_CONTEXTO);
 }
 
-/** O que o motor precisa ler da negociação: mandato, propostas, mensagens, objeções, playbook e quem é. */
-async function carregar(req: Request, negociacao: Linha) {
-  const dados = req.dados!;
+/**
+ * O que o motor precisa ler da negociação: mandato, propostas, mensagens, objeções, playbook e quem é.
+ * A conta vai explícita em toda leitura que não é por id da própria negociação: no listener (SISTEMA)
+ * a leitura enxerga todas as contas (contas.md), e a config e o playbook são "a linha da conta".
+ */
+async function carregar(dados: HelperDados, negociacao: Linha, conta: number, usuarioId: number | null) {
   const nid = Number(negociacao.id);
   const [mandato, propostas, execucoes, objecoes, playbook, config, imovel, contato, perfil] = await Promise.all([
     mandatoVigente(dados, negociacao),
     dados.varrerTudo('propostas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
     dados.listar('negociador_execucoes', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'desc', por_pagina: MAX_MENSAGENS_CONTEXTO }),
     dados.varrerTudo('objecoes_detectadas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
-    objecoesDaConta(dados),
-    configDaConta(dados),
+    objecoesDaConta(dados, conta),
+    configDaConta(dados, conta),
     dados.buscar('imoveis', Number(negociacao.imovel_id)),
     dados.buscar('contatos', Number(negociacao.contato_id)),
-    req.contexto?.usuario.id ? primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto.usuario.id }) : null,
+    usuarioId ? primeiro(dados, 'perfis_corretor', { usuario_id: usuarioId, conta_id: conta }) : null,
   ]);
   return {
     mandato: paraMotor(mandato),
@@ -252,9 +258,222 @@ const descreverPassagem = (motivos: MotivoPassagem[]) => motivos.map((m) => ({ m
 negociadorRotas.get(
   '/negociador/ia',
   assincrono(async (req, res) => {
-    res.json({ disponivel: await slotDisponivel(req) });
+    res.json({ disponivel: await slotDisponivel(req.ia) });
   }),
 );
+
+/**
+ * Por onde o motor lê, grava, consulta a IA e avisa: a rota (`req`) ou o listener do portal (`ctx`,
+ * SISTEMA, com a escrita endereçada por `comConta`). A leitura inicial passa por `emLeitura` (na rota,
+ * sem transação, como sempre foi); o que decide e grava, por `emTransacao`, com a negociação travada.
+ */
+export interface MeioMotor {
+  conta: number;
+  emLeitura<T>(fn: (dados: HelperDados) => Promise<T>): Promise<T>;
+  emTransacao<T>(fn: (trx: HelperDados) => Promise<T>): Promise<T>;
+  ia: NonNullable<Request['ia']> | null | undefined;
+  /** Hoje no fuso da conta, `AAAA-MM-DD`. */
+  hoje: string;
+  /** Quem assina no prompt (o corretor da rota, ou o responsável pela negociação no listener). */
+  usuario: { id: number | null; nome: string };
+  publicar(tipo: string, payload: Record<string, number | null>): Promise<void>;
+}
+
+export type ResultadoMotor =
+  | { recusa: RecusaMotor }
+  | { ia_indisponivel: true }
+  | { falha_ia: unknown }
+  | {
+      execucao: Linha;
+      ia: boolean;
+      guardada: RespostaNegociador | null;
+      validacao: ReturnType<typeof validarMovimento>;
+      motivos: MotivoPassagem[];
+      passagem: boolean;
+      proposta: Linha | null;
+      mensagem_enviada: string | null;
+      zopa: ReturnType<typeof zopa>;
+    };
+
+/**
+ * O próximo movimento do Negociador dentro do mandato (10.9.4 a 10.9.7): consulta a IA fora de
+ * transação, confere tudo de novo com a negociação travada e só então grava a sugestão, envia (faz
+ * sozinho, no portal) ou passa ao corretor. A conta da negociação é conferida em toda leitura.
+ */
+export async function executarMotor(meio: MeioMotor, nid: number, entrada: { mensagem_cliente: string | null; canal: string }): Promise<ResultadoMotor> {
+  const { mensagem_cliente, canal } = entrada;
+  const dia = meio.hoje;
+  const lido = await meio.emLeitura(async (dados) => {
+    const negociacao = await dados.buscar('negociacoes', nid);
+    if (!negociacao || Number(negociacao.conta_id) !== meio.conta) return null;
+    return { negociacao, ctx: await carregar(dados, negociacao, meio.conta, meio.usuario.id) };
+  });
+  if (!lido) return { recusa: 'nao_encontrada' };
+  const { negociacao, ctx } = lido;
+  const recusaAntes = recusaDe(negociacao);
+  if (recusaAntes) return { recusa: recusaAntes };
+
+  // Sem mandato vigente o Negociador não age (10.9.5): passa ao corretor sem gastar chamada de IA.
+  // A chamada de IA fica FORA da transação (não segura a trava da negociação esperando o modelo).
+  let resposta: RespostaNegociador | null = null;
+  let uso: { tokens_entrada?: number; tokens_saida?: number; duracao_ms?: number } = {};
+  if (ctx.mandato && ctx.mandato.validade >= dia) {
+    if (!(await slotDisponivel(meio.ia))) return { ia_indisponivel: true };
+    const contexto = montarContexto({
+      negociacao,
+      imovel: ctx.imovel,
+      comprador: ctx.contato ? { primeiro_nome: String(ctx.contato.nome ?? '').split(/\s+/)[0] } : null,
+      mandato: ctx.mandato,
+      propostas: ctx.propostas,
+      mensagens: [...ctx.mensagens, ...(mensagem_cliente ? [{ quem: 'cliente' as const, texto: mensagem_cliente }] : [])],
+      objecoes: ctx.objecoes,
+      playbook: ctx.playbook,
+    });
+    const instrucoes_sistema = promptSistema(ctx.config, {
+      nome_corretor: meio.usuario.nome,
+      creci: ctx.creci,
+      imovel_titulo: ctx.imovel?.titulo ?? ctx.imovel?.codigo ?? '',
+    });
+    try {
+      const r = await meio.ia!.consultar({ contexto, schema: SCHEMA_RESPOSTA, slot: SLOT, instrucoes_sistema });
+      resposta = sanearResposta(r.dados);
+      uso = { tokens_entrada: r.tokens_entrada, tokens_saida: r.tokens_saida, duracao_ms: r.duracao_ms };
+    } catch (e) {
+      if (!falhaDeIa(e)) throw e;
+      return { falha_ia: e };
+    }
+    if (resposta.mensagem) resposta.mensagem = respostaSegura(resposta.mensagem);
+  }
+  const movimento = resposta ?? { movimento: 'passar_ao_corretor', contraproposta: null, mensagem: null, passar_ao_corretor: true };
+
+  // Tudo o que decide se algo sai (as 7 garantias, a passagem, o "faz sozinho") é conferido de novo
+  // com a negociação TRAVADA, contra o mandato, as propostas e quem conduz lidos sob a trava
+  // (banco-de-dados.md, Trava de linha). Duas sugestões ao mesmo tempo se enfileiram aqui; o
+  // /assumir, o PUT do mandato e o registro de proposta gravam na mesma linha e esperam (ou são esperados).
+  const resultado = await meio.emTransacao(async (trx) => {
+    const viva = await trx.buscar('negociacoes', nid, { travar: true });
+    // Encerrada ou com o acordo aceito no meio (o corretor aceitou enquanto a IA pensava): nada se
+    // grava, e o `aguardando_proprietario` não é rebaixado.
+    if (!viva) return { recusa: 'nao_encontrada' as const };
+    const recusa = recusaDe(viva);
+    if (recusa) return { recusa };
+    const agora = await estadoTravado(trx, viva);
+    const automatico = agora.mandato?.autonomia === 'faz_sozinho' && viva.conduzida_por === 'ia';
+    const validacao = validarMovimento(movimento, agora.mandato, agora.propostas, { hoje: dia, canal, automatico });
+    const teto_c = resposta?.teto_estimado_comprador_c ?? viva.teto_estimado_comprador_c;
+    const motivos = exigePassagem({ resposta: movimento, mensagem_cliente, mandato: agora.mandato, propostas: agora.propostas, teto_estimado_c: teto_c, hoje: dia });
+    const passagem = validacao.bloqueado_por.length > 0 || validacao.passa_ao_corretor || motivos.length > 0;
+    // O mundo mudou enquanto a IA pensava (outro mandato, outro estado, outra proposta ou o estado de
+    // uma proposta): nada sai sozinho; a sugestão fica pendente para o corretor, que revalida ao aprovar.
+    const mudou = agora.impressao !== ctx.impressao;
+    const cp = resposta?.movimento === 'contraproposta' ? resposta.contraproposta : null;
+    // O que sai sozinho é só o que o código monta com campos estruturados (decisão do dono): o valor,
+    // a concessão e a contrapartida como estão no mandato e a validade. O texto do modelo, não.
+    const item = cp?.concessao && agora.mandato ? itemDoMandato(cp.concessao, agora.mandato.concessoes) : null;
+    const textoAutomatico = cp?.valor_c
+      ? mensagemDoEnvioAutomatico({ valor_c: cp.valor_c, item, validade_horas: cp.validade_horas, primeiro_nome: String(ctx.contato?.nome ?? '').split(/\s+/)[0] })
+      : null;
+    // Segunda trava: se o próprio texto montado citasse algo sigiloso (o corretor escreveu o recuo no
+    // item do mandato), ele não sai sozinho.
+    const textoLimpo = !!textoAutomatico && !!agora.mandato && vazamentos(textoAutomatico, agora.mandato, permitidosDe(agora.mandato, agora.propostas, cp?.valor_c)).length === 0;
+    const enviaSozinho = !passagem && !mudou && automatico && canal === 'portal' && !!cp?.valor_c && textoLimpo;
+    // Sigilo do que se grava e se devolve: contra o mandato lido antes (o que a IA viu) e o de agora.
+    const mandatos = [ctx.mandato, agora.mandato].filter((m): m is MandatoMotor => !!m);
+    const permitidos = agora.mandato ? permitidosDe(agora.mandato, agora.propostas, cp?.valor_c) : [];
+    const guardavel = resposta ? respostaGuardavel(resposta, mandatos, permitidos) : null;
+    const guardada = guardavel?.guardada ?? null;
+
+    // A objeção detectada é só inclusão (O5).
+    let objecao: Linha | null = null;
+    if (guardada?.objecao?.categoria && ctx.contato) {
+      objecao = await trx.criar('objecoes_detectadas', {
+        negociacao_id: nid,
+        contato_id: Number(viva.contato_id),
+        categoria: guardada.objecao.categoria,
+        trecho: semRetido(guardada.objecao.trecho) ?? (mensagem_cliente ? mensagem_cliente.slice(0, 500) : null),
+        detectada_por: 'ia',
+        tratada: guardada.movimento === 'responder_objecao' && !passagem,
+        em: new Date(),
+      });
+    }
+    if (guardada?.teto_estimado_comprador_c) {
+      await trx.atualizar('negociacoes', nid, { teto_estimado_comprador_c: guardada.teto_estimado_comprador_c, fonte_estimativa: guardada.fonte_estimativa });
+    }
+    if (passagem) await gravarEstado(trx, viva, 'aguardando_corretor');
+
+    // Faz sozinho, dentro do mandato e no portal: a contraproposta sai sem o corretor (10.9.3).
+    let proposta: Linha | null = null;
+    if (enviaSozinho) {
+      const r = await gravarPropostaTravada(trx, nid, {
+        direcao: 'vendedor',
+        autor_tipo: 'negociador_ia',
+        autor_usuario_id: null,
+        valor_c: cp!.valor_c!,
+        // Sem texto do modelo na proposta que o cliente vê: as condições ficam de fora, e a concessão e
+        // a contrapartida são as do mandato.
+        condicoes: null,
+        concessao: item?.item ?? null,
+        contrapartida: item?.contrapartida ?? null,
+        validade_ate: cp!.validade_horas ? new Date(Date.now() + cp!.validade_horas * 3600e3) : null,
+        canal: 'portal',
+        estado: 'enviada',
+      });
+      // A trava já é nossa: recusa aqui é bug, e lançar desfaz tudo.
+      if ('recusa' in r) throw new Error(`negociação ${nid} recusou a proposta sob a própria trava`);
+      proposta = r.proposta;
+      await gravarEstado(trx, viva, 'aguardando_cliente');
+    }
+    const execucao = await trx.criar('negociador_execucoes', {
+      negociacao_id: nid,
+      mensagem_cliente,
+      entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0) },
+      saida: guardada,
+      // O que foi retido por sigilo deixa rastro: só o nome do campo, nunca o conteúdo.
+      validacoes: { verificacoes: validacao.verificacoes, passagem: motivos, retidos: guardavel?.vazados ?? [] },
+      bloqueado_por: validacao.bloqueado_por.length ? validacao.bloqueado_por.join(',').slice(0, 300) : null,
+      tokens_entrada: uso.tokens_entrada ?? null,
+      tokens_saida: uso.tokens_saida ?? null,
+      duracao_ms: uso.duracao_ms ?? null,
+      decisao: passagem ? 'passagem' : proposta ? 'automatica' : 'pendente',
+      ...(proposta ? { proposta_id: proposta.id, mensagem_enviada: textoAutomatico, decidida_em: new Date() } : {}),
+    });
+    const pendenteComContraproposta = !passagem && !proposta && guardada?.movimento === 'contraproposta' && !!guardada.contraproposta?.valor_c;
+    return { execucao, objecao, proposta, mensagem_enviada: proposta ? textoAutomatico : null, validacao, motivos, passagem, guardada, pendenteComContraproposta, zopa: zopa(agora.mandato, teto_c) };
+  });
+  if ('recusa' in resultado && resultado.recusa) return { recusa: resultado.recusa };
+  const r = resultado as Exclude<typeof resultado, { recusa: unknown }>;
+
+  if (r.objecao) await meio.publicar('objecao_detectada', { negociacao_id: nid, objecao_id: r.objecao.id });
+  if (r.passagem) await meio.publicar('negociacao_limite_atingido', { negociacao_id: nid });
+  else if (r.proposta) await meio.publicar('contraproposta_enviada', { negociacao_id: nid, proposta_id: r.proposta.id });
+  // "Espera a sua aprovação": só quando há uma contraproposta pendente (manifesto, contraproposta_sugerida).
+  else if (r.pendenteComContraproposta) await meio.publicar('contraproposta_sugerida', { negociacao_id: nid, execucao_id: r.execucao.id });
+  return {
+    execucao: r.execucao,
+    ia: !!resposta,
+    guardada: r.guardada,
+    validacao: r.validacao,
+    motivos: r.motivos,
+    passagem: r.passagem,
+    proposta: r.proposta,
+    mensagem_enviada: r.mensagem_enviada,
+    zopa: r.zopa,
+  };
+}
+
+/** O meio da rota: o `req` do corretor, com a conta ativa. */
+function meioDaRota(req: Request): MeioMotor {
+  const dados = req.dados!;
+  return {
+    conta: contaDoRequest(req),
+    emLeitura: (fn) => fn(dados),
+    emTransacao: (fn) => dados.transaction(fn),
+    ia: req.ia,
+    hoje: hoje(req),
+    usuario: { id: req.contexto?.usuario.id ?? null, nome: req.contexto?.usuario.nome ?? '' },
+    publicar: (tipo, payload) => publicar(req, tipo, payload),
+  };
+}
 
 // Pedir sugestão (P15, M8): o próximo movimento do Negociador dentro do mandato.
 negociadorRotas.post(
@@ -272,160 +491,26 @@ negociadorRotas.post(
     if (b.canal !== undefined && !(CANAIS_ENVIO as readonly unknown[]).includes(b.canal)) {
       return erro(res, 422, 'CANAL_INDISPONIVEL', 'Canal: use portal ou wa_me (Fazer agora). O WhatsApp do app ainda não existe.');
     }
-    const mensagem_cliente = texto(b.mensagem_cliente, 1000);
-    const ctx = await carregar(req, negociacao);
-    const dia = hoje(req);
-    const canal = (b.canal as string | undefined) ?? 'portal';
-
-    // Sem mandato vigente o Negociador não age (10.9.5): passa ao corretor sem gastar chamada de IA.
-    // A chamada de IA fica FORA da transação (não segura a trava da negociação esperando o modelo).
-    let resposta: RespostaNegociador | null = null;
-    let uso: { tokens_entrada?: number; tokens_saida?: number; duracao_ms?: number } = {};
-    if (ctx.mandato && ctx.mandato.validade >= dia) {
-      if (!(await slotDisponivel(req))) return erro(res, 503, 'IA_INDISPONIVEL', MENSAGEM_IA_INDISPONIVEL);
-      const contexto = montarContexto({
-        negociacao,
-        imovel: ctx.imovel,
-        comprador: ctx.contato ? { primeiro_nome: String(ctx.contato.nome ?? '').split(/\s+/)[0] } : null,
-        mandato: ctx.mandato,
-        propostas: ctx.propostas,
-        mensagens: [...ctx.mensagens, ...(mensagem_cliente ? [{ quem: 'cliente' as const, texto: mensagem_cliente }] : [])],
-        objecoes: ctx.objecoes,
-        playbook: ctx.playbook,
-      });
-      const instrucoes_sistema = promptSistema(ctx.config, {
-        nome_corretor: req.contexto?.usuario.nome ?? '',
-        creci: ctx.creci,
-        imovel_titulo: ctx.imovel?.titulo ?? ctx.imovel?.codigo ?? '',
-      });
-      try {
-        const r = await req.ia!.consultar({ contexto, schema: SCHEMA_RESPOSTA, slot: SLOT, instrucoes_sistema });
-        resposta = sanearResposta(r.dados);
-        uso = { tokens_entrada: r.tokens_entrada, tokens_saida: r.tokens_saida, duracao_ms: r.duracao_ms };
-      } catch (e) {
-        if (!falhaDeIa(e)) throw e;
-        return respostaFalhaDeIa(res, e, '; a negociação segue com você');
-      }
-      if (resposta.mensagem) resposta.mensagem = respostaSegura(resposta.mensagem);
-    }
-    const movimento = resposta ?? { movimento: 'passar_ao_corretor', contraproposta: null, mensagem: null, passar_ao_corretor: true };
-
-    // Tudo o que decide se algo sai (as 7 garantias, a passagem, o "faz sozinho") é conferido de novo
-    // com a negociação TRAVADA, contra o mandato, as propostas e quem conduz lidos sob a trava
-    // (banco-de-dados.md, Trava de linha). Duas sugestões ao mesmo tempo se enfileiram aqui; o
-    // /assumir, o PUT do mandato e o registro de proposta gravam na mesma linha e esperam (ou são esperados).
-    const resultado = await dados.transaction(async (trx) => {
-      const viva = await trx.buscar('negociacoes', nid!, { travar: true });
-      // Encerrada ou com o acordo aceito no meio (o corretor aceitou enquanto a IA pensava): nada se
-      // grava, e o `aguardando_proprietario` não é rebaixado.
-      if (!viva) return { recusa: 'nao_encontrada' as const };
-      const recusa = recusaDe(viva);
-      if (recusa) return { recusa };
-      const agora = await estadoTravado(trx, viva);
-      const automatico = agora.mandato?.autonomia === 'faz_sozinho' && viva.conduzida_por === 'ia';
-      const validacao = validarMovimento(movimento, agora.mandato, agora.propostas, { hoje: dia, canal, automatico });
-      const teto_c = resposta?.teto_estimado_comprador_c ?? viva.teto_estimado_comprador_c;
-      const motivos = exigePassagem({ resposta: movimento, mensagem_cliente, mandato: agora.mandato, propostas: agora.propostas, teto_estimado_c: teto_c, hoje: dia });
-      const passagem = validacao.bloqueado_por.length > 0 || validacao.passa_ao_corretor || motivos.length > 0;
-      // O mundo mudou enquanto a IA pensava (outro mandato, outro estado, outra proposta ou o estado de
-      // uma proposta): nada sai sozinho; a sugestão fica pendente para o corretor, que revalida ao aprovar.
-      const mudou = agora.impressao !== ctx.impressao;
-      const cp = resposta?.movimento === 'contraproposta' ? resposta.contraproposta : null;
-      // O que sai sozinho é só o que o código monta com campos estruturados (decisão do dono): o valor,
-      // a concessão e a contrapartida como estão no mandato e a validade. O texto do modelo, não.
-      const item = cp?.concessao && agora.mandato ? itemDoMandato(cp.concessao, agora.mandato.concessoes) : null;
-      const textoAutomatico = cp?.valor_c
-        ? mensagemDoEnvioAutomatico({ valor_c: cp.valor_c, item, validade_horas: cp.validade_horas, primeiro_nome: String(ctx.contato?.nome ?? '').split(/\s+/)[0] })
-        : null;
-      // Segunda trava: se o próprio texto montado citasse algo sigiloso (o corretor escreveu o recuo no
-      // item do mandato), ele não sai sozinho.
-      const textoLimpo = !!textoAutomatico && !!agora.mandato && vazamentos(textoAutomatico, agora.mandato, permitidosDe(agora.mandato, agora.propostas, cp?.valor_c)).length === 0;
-      const enviaSozinho = !passagem && !mudou && automatico && canal === 'portal' && !!cp?.valor_c && textoLimpo;
-      // Sigilo do que se grava e se devolve: contra o mandato lido antes (o que a IA viu) e o de agora.
-      const mandatos = [ctx.mandato, agora.mandato].filter((m): m is MandatoMotor => !!m);
-      const permitidos = agora.mandato ? permitidosDe(agora.mandato, agora.propostas, cp?.valor_c) : [];
-      const guardavel = resposta ? respostaGuardavel(resposta, mandatos, permitidos) : null;
-      const guardada = guardavel?.guardada ?? null;
-
-      // A objeção detectada é só inclusão (O5).
-      let objecao: Linha | null = null;
-      if (guardada?.objecao?.categoria && ctx.contato) {
-        objecao = await trx.criar('objecoes_detectadas', {
-          negociacao_id: nid,
-          contato_id: Number(viva.contato_id),
-          categoria: guardada.objecao.categoria,
-          trecho: guardada.objecao.trecho ?? (mensagem_cliente ? mensagem_cliente.slice(0, 500) : null),
-          detectada_por: 'ia',
-          tratada: guardada.movimento === 'responder_objecao' && !passagem,
-          em: new Date(),
-        });
-      }
-      if (guardada?.teto_estimado_comprador_c) {
-        await trx.atualizar('negociacoes', nid!, { teto_estimado_comprador_c: guardada.teto_estimado_comprador_c, fonte_estimativa: guardada.fonte_estimativa });
-      }
-      if (passagem) await gravarEstado(trx, viva, 'aguardando_corretor');
-
-      // Faz sozinho, dentro do mandato e no portal: a contraproposta sai sem o corretor (10.9.3).
-      let proposta: Linha | null = null;
-      if (enviaSozinho) {
-        const r = await gravarPropostaTravada(trx, nid!, {
-          direcao: 'vendedor',
-          autor_tipo: 'negociador_ia',
-          autor_usuario_id: null,
-          valor_c: cp!.valor_c!,
-          // Sem texto do modelo na proposta que o cliente vê: as condições ficam de fora, e a concessão e
-          // a contrapartida são as do mandato.
-          condicoes: null,
-          concessao: item?.item ?? null,
-          contrapartida: item?.contrapartida ?? null,
-          validade_ate: cp!.validade_horas ? new Date(Date.now() + cp!.validade_horas * 3600e3) : null,
-          canal: 'portal',
-          estado: 'enviada',
-        });
-        // A trava já é nossa: recusa aqui é bug, e lançar desfaz tudo.
-        if ('recusa' in r) throw new Error(`negociação ${nid} recusou a proposta sob a própria trava`);
-        proposta = r.proposta;
-        await gravarEstado(trx, viva, 'aguardando_cliente');
-      }
-      const execucao = await trx.criar('negociador_execucoes', {
-        negociacao_id: nid,
-        mensagem_cliente,
-        entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0) },
-        saida: guardada,
-        // O que foi retido por sigilo deixa rastro: só o nome do campo, nunca o conteúdo.
-        validacoes: { verificacoes: validacao.verificacoes, passagem: motivos, retidos: guardavel?.vazados ?? [] },
-        bloqueado_por: validacao.bloqueado_por.length ? validacao.bloqueado_por.join(',').slice(0, 300) : null,
-        tokens_entrada: uso.tokens_entrada ?? null,
-        tokens_saida: uso.tokens_saida ?? null,
-        duracao_ms: uso.duracao_ms ?? null,
-        decisao: passagem ? 'passagem' : proposta ? 'automatica' : 'pendente',
-        ...(proposta ? { proposta_id: proposta.id, mensagem_enviada: textoAutomatico, decidida_em: new Date() } : {}),
-      });
-      const pendenteComContraproposta = !passagem && !proposta && guardada?.movimento === 'contraproposta' && !!guardada.contraproposta?.valor_c;
-      return { execucao, objecao, proposta, mensagem_enviada: proposta ? textoAutomatico : null, validacao, motivos, passagem, guardada, pendenteComContraproposta, zopa: zopa(agora.mandato, teto_c) };
-    });
-    if ('recusa' in resultado && resultado.recusa) return responderRecusa(res, resultado.recusa);
-
-    if (resultado.objecao) await publicar(req, 'objecao_detectada', { negociacao_id: nid!, objecao_id: resultado.objecao.id });
-    if (resultado.passagem) await publicar(req, 'negociacao_limite_atingido', { negociacao_id: nid! });
-    else if (resultado.proposta) await publicar(req, 'contraproposta_enviada', { negociacao_id: nid!, proposta_id: resultado.proposta.id });
-    // "Espera a sua aprovação": só quando há uma contraproposta pendente (manifesto, contraproposta_sugerida).
-    else if (resultado.pendenteComContraproposta) await publicar(req, 'contraproposta_sugerida', { negociacao_id: nid!, execucao_id: resultado.execucao.id });
+    const r = await executarMotor(meioDaRota(req), nid!, { mensagem_cliente: texto(b.mensagem_cliente, 1000), canal: (b.canal as string | undefined) ?? 'portal' });
+    if ('recusa' in r) return responderRecusa(res, r.recusa);
+    if ('ia_indisponivel' in r) return erro(res, 503, 'IA_INDISPONIVEL', MENSAGEM_IA_INDISPONIVEL);
+    if ('falha_ia' in r) return respostaFalhaDeIa(res, r.falha_ia, '; a negociação segue com você');
+    if (r.proposta || r.passagem) await portalDa(req, negociacao);
 
     res.json(
       semSigilo({
-        execucao_id: resultado.execucao.id,
-        ia: !!resposta,
-        resposta: resultado.guardada,
-        validacoes: resultado.validacao.verificacoes,
-        bloqueado_por: resultado.validacao.bloqueado_por,
-        passagem: resultado.passagem,
-        motivos_passagem: descreverPassagem(resultado.motivos),
+        execucao_id: r.execucao.id,
+        ia: r.ia,
+        resposta: r.guardada,
+        validacoes: r.validacao.verificacoes,
+        bloqueado_por: r.validacao.bloqueado_por,
+        passagem: r.passagem,
+        motivos_passagem: descreverPassagem(r.motivos),
         // Só se existe: as pontas da faixa (o recuo) ficam na rota do mandato.
-        zopa: { existe: resultado.zopa.existe },
-        enviada: resultado.proposta,
+        zopa: { existe: r.zopa.existe },
+        enviada: r.proposta,
         // O texto que o cliente recebe no envio automático: montado pelo código, sem texto do modelo.
-        mensagem_enviada: resultado.mensagem_enviada,
+        mensagem_enviada: r.mensagem_enviada,
       }),
     );
   }),
@@ -474,6 +559,7 @@ negociadorRotas.post(
       if (feito === 'indisponivel') return erro(res, 409, 'PROPOSTA_INDISPONIVEL', 'Esta proposta já foi aceita, recusada, substituída ou expirou.');
       if (feito === 'vencida') return erro(res, 409, 'PROPOSTA_VENCIDA', 'A validade desta proposta já passou: peça ao comprador que a renove.');
       await publicar(req, 'negociacao_acordo_proposto', { negociacao_id: nid!, proposta_id: pid! });
+      await portalDa(req, negociacao);
       return res.json({ ok: true, estado: 'aguardando_proprietario', proposta_id: pid });
     }
 
@@ -594,6 +680,7 @@ negociadorRotas.post(
       });
     }
     if (resultado.proposta) await publicar(req, 'contraproposta_enviada', { negociacao_id: nid!, proposta_id: resultado.proposta.id });
+    await portalDa(req, negociacao);
 
     // Fazer agora: o texto pronto e o wa.me do cliente; o envio é do celular do corretor (D-107).
     const cp = movimento.contraproposta;
@@ -662,7 +749,7 @@ negociadorRotas.post(
     propostas.forEach((p, i) => (p.rodada = Math.max(1, propostas.slice(0, i + 1).filter((x) => x.direcao === 'comprador').length)));
     const mensagem_cliente = texto(b.mensagem_cliente, 1000);
     if (!mensagem_cliente) return erro(res, 422, 'DADOS_INVALIDOS', 'Escreva a mensagem do comprador para testar.');
-    if (!(await slotDisponivel(req))) return erro(res, 503, 'IA_INDISPONIVEL', MENSAGEM_IA_INDISPONIVEL);
+    if (!(await slotDisponivel(req.ia))) return erro(res, 503, 'IA_INDISPONIVEL', MENSAGEM_IA_INDISPONIVEL);
     const config = await configDaConta(dados);
     let resposta: RespostaNegociador;
     try {

@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.19",
+  "versao": "0.1.20",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -210,7 +210,7 @@
     },
     "acao_cliente": {
       "modo": "recorrente",
-      "descricao": "Mensagem, pedido de remarcar visita ou pendência marcada como feita pelo cliente no portal (um endereço por cliente)",
+      "descricao": "Mensagem, pedido de remarcar visita, pendência marcada como feita, oferta nova ou aceite de condição pelo cliente no portal (um endereço por cliente)",
       "campos": {
         "tipo": {
           "tipo": "string",
@@ -232,6 +232,22 @@
           "tipo": "number",
           "obrigatorio": false,
           "exemplo": 7
+        },
+        "negociacao": {
+          "tipo": "number",
+          "obrigatorio": false,
+          "exemplo": 12
+        },
+        "proposta": {
+          "tipo": "number",
+          "obrigatorio": false,
+          "exemplo": 30
+        },
+        "valor_c": {
+          "tipo": "number",
+          "obrigatorio": false,
+          "descartar": true,
+          "exemplo": 138000000
         }
       }
     }
@@ -277,13 +293,16 @@
       "segregado_por_conta": true
     },
     "acao_cliente_recebida": {
-      "descricao": "O cliente mandou uma mensagem, pediu para remarcar uma visita ou marcou uma pendência como feita pelo portal.",
+      "descricao": "O cliente mandou uma mensagem, pediu para remarcar uma visita, marcou uma pendência como feita, fez uma oferta ou aceitou uma condição pelo portal.",
       "campos": [
         "contato_id",
         "tipo",
         "texto",
         "visita",
-        "tarefa"
+        "tarefa",
+        "negociacao",
+        "proposta",
+        "valor_c"
       ],
       "conteudo": "Um cliente escreveu pelo portal",
       "api": "selecoes",
@@ -330,6 +349,17 @@
         "proposta_id"
       ],
       "conteudo": "Nova oferta do comprador",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "proposta_aceite_cliente": {
+      "descricao": "O cliente aceitou pelo portal a condição do vendedor: vira oferta dele e passa ao corretor (o acordo só fecha com o corretor e o proprietário).",
+      "campos": [
+        "negociacao_id",
+        "proposta_id"
+      ],
+      "conteudo": "O cliente aceitou a condição pelo portal",
       "api": "negociacoes/{negociacao_id}",
       "rota": "clientes?visao=negociacoes&item={negociacao_id}",
       "segregado_por_conta": true
