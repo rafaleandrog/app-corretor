@@ -60,26 +60,26 @@ Plano aprovado pelo dono em 27/10. Fonte: spec 1.2 — 2.8, 5.1, 6.16, 7.1, 10.9
 
 | Item | O que é | Issue | Depende de | Status |
 |---|---|---|---|---|
-| A1 | **Spec 1.2:** fundir o insumo de 27/10 na `main`, D-93/D-94, renumeração, guia e mockups, pedidos ao shell 10–13, plano | #88 | — | [x] PR aberto (só texto); aguarda revisão |
-| C1 | **CRECI opcional (D-93):** sem bloqueio nem `CRECI_AUSENTE`, aviso discreto com atalho para o perfil, sem estado de verificação | #89 | A1 | [x] PR aberto (0.1.11); aguarda revisão |
-| B1 | **Moldura do Padrão B:** `urbi-3-colunas` + `urbi-trilho-atalhos` (+ `urbi-inbox`), Criar no cabeçalho e Assistente no trilho, menu com os nomes do Padrão B e apelidos (D-103), estados de 11.0.4 | #90 | A1 | [x] PR aberto (moldura em Números; 0.1.12); aguarda revisão |
-| B2 | **Hoje** (P01, M1) na moldura | #91 | B1, C1 | [x] PR aberto (0.1.15) |
-| B3 | **Clientes — Lista e ficha** (P04): ficha D-92 no centro e na direita (D-106) | #92 | B1, C1 | [x] PR aberto (0.1.18) |
-| B4 | **Clientes — Funil e Importar** (P03, P14) | #93 | B3 | [x] PR aberto (0.1.21); aguarda revisão |
-| B5 | **Imóveis** (P06, P07, M3): carteira em lista com miniatura (D-106) | #94 | B1, C1 | [~] parte 1 (P06) em PR (0.1.19); falta P07/M3 |
+| A1 | **Spec 1.2:** fundir o insumo de 27/10 na `main`, D-93/D-94, renumeração, guia e mockups, pedidos ao shell 10–13, plano | #88 | — | [x] implementado (só texto, PR #109) |
+| C1 | **CRECI opcional (D-93):** sem bloqueio nem `CRECI_AUSENTE`, aviso discreto com atalho para o perfil, sem estado de verificação | #89 | A1 | [x] implementado (0.1.11, PR #110) |
+| B1 | **Moldura do Padrão B:** `urbi-3-colunas` + `urbi-trilho-atalhos` (+ `urbi-inbox`), Criar no cabeçalho e Assistente no trilho, menu com os nomes do Padrão B e apelidos (D-103), estados de 11.0.4 | #90 | A1 | [x] implementado (0.1.12, PR #113) |
+| B2 | **Hoje** (P01, M1) na moldura | #91 | B1, C1 | [x] implementado (0.1.15, PR #114) |
+| B3 | **Clientes — Lista e ficha** (P04): ficha D-92 no centro e na direita (D-106) | #92 | B1, C1 | [x] implementado (0.1.18, PR #117) |
+| B4 | **Clientes — Funil e Importar** (P03, P14) | #93 | B3 | [x] implementado (0.1.21, PR #121) |
+| B5 | **Imóveis** (P06, P07, M3): carteira em lista com miniatura (D-106) | #94 | B1, C1 | [~] parte 1 (P06) implementada (0.1.19, PR #116); falta a parte 2 (P07/M3, novo imóvel em 4 passos) |
 | B6 | **Estúdio** (P08) na moldura, D-89 a D-91 (D-105) | #95 | B1, C1 | [ ] |
 | B7 | **Página e Números** (P09, P10) | #96 | B1, C1 | [ ] |
 | B8 | **Ajustes** (P12, P13 e menu de Ajustes) | #97 | B1, C1 | [ ] |
-| B9 | **Portal do Cliente e página pública** (M4, M5, M6) por token (D-104) | #98 | A1 (roteiro de #87: páginas públicas têm CSS próprio) | [x] PR aberto; aguarda revisão |
+| B9 | **Portal do Cliente e página pública** (M4, M5, M6) por token (D-104) | #98 | A1 (roteiro de #87: páginas públicas têm CSS próprio) | [x] implementado (0.1.14, PR #111) |
 | B10 | **Busca global e atalhos** (11.7) | #99 | B1 | [ ] |
-| D1 | **Dados da negociação** (6.16): tabelas, eventos, semente idempotente do Apêndice D | #100 | A1 | [x] PR aberto (0.1.13); aguarda revisão |
+| D1 | **Dados da negociação** (6.16): tabelas, eventos, semente idempotente do Apêndice D | #100 | A1 | [x] implementado (0.1.13, PR #112) |
 | D2 | **Motor do Negociador** (10.9): slot `negociador`, validações de 10.9.7, sugestão, rotas de 7.1 | #101 | D1 | [x] implementado (0.1.16, PR #115) |
 | D3 | **Telas P15, P16 e M8** (faixa ZOPA como exceção nomeada) | #102 | D2, B3 | [ ] |
 | D4 | **Ajustes › Negociador** (P17) | #103 | D2, B8 | [ ] |
-| D5 | **Propostas no portal** (M5b) por `wh` com token | #104 | D2, B9 | [x] PR aberto (0.1.20); revisão em Sucesso |
+| D5 | **Propostas no portal** (M5b) por `wh` com token | #104 | D2, B9 | [x] implementado (0.1.20, PR #119) |
 | D6 | **Relatório Negociação** (P10, KPIs de 11.2) | #105 | D3, B7 | [ ] |
 | D7 | **Negociador humano** (role `negociador`, 11.6; política multi-usuário, D-108; convite sem CRECI, D-94) | #106 | D3 | [ ] |
-| E1 | **Semente de demonstração** com negociações | #107 | D1 | [x] PR aberto (0.1.17); aguarda revisão |
+| E1 | **Semente de demonstração** com negociações | #107 | D1 | [x] implementado (0.1.17, PR #118) |
 | E2 | **Fechamento do arco:** critérios 8 e 9 de 15.1 (R.8), docs da app, versão | #108 | todos | [ ] |
 
 ```
@@ -143,6 +143,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 | 28/10/2026 | Fase 1.6 · B2 | Hoje (P01, M1) na moldura: esquerda com o dia e o estado do Mensageiro, **Precisa de você** (negociações `aguardando_corretor` e quentes sem resposta, com **Abrir**) e **Primeiros passos** x de 5 com `urbi-bolinhas` (nome da conta, telefone, Instagram, primeiro imóvel, Página publicada; sem CRECI, que fica no aviso de D-93); centro com a fila do dia em cartões de ação na ordem de `filaDoDia` (um principal e no máximo um no "Mais", `comum/hoje.ts`) e "Mais N para depois"; direita com a agenda de hoje ("Ver agenda" abre os 14 dias), Sua semana (4 números) e a Dica do Assistente; estados vazio e IA indisponível pelo helper do B1. `GET /inicio` ganha `passagens` (por `semSigilo`), `agenda_hoje`, `primeiros_passos` e `sem_creci`; `testes/hoje.test.ts`; versão 0.1.15 | PR de #91 | Revisão do PR; o **Assumir** da passagem espera o D2/D3 |
 | 28/10/2026 | Fase 1.6 · D5 | Propostas no Portal do Cliente (M5b): aba Propostas (só com negociação) com as rodadas em linha do tempo, [Aceitar condição] com confirmação e [Nova oferta]; vitrine por lista **permitida** de campos (`comum/portal-cliente.ts`: proposta do vendedor só se enviada, a do proprietário nunca, a do comprador só valor e rodada; nunca mandato, teto, fonte ou condução); `acao_cliente` com `proposta_nova`/`proposta_aceite` (só ids e o valor); o listener grava sob a trava com `comConta`, o aceite vira oferta + passagem (`aguardando_corretor`, nunca `ganha`), a oferta roda o motor do D2 se o Negociador conduz (gatilho `oferta_registrada`), senão passa ao corretor; motor extraído para `executarMotor` (rota e listener, leituras com a conta explícita); portal acompanha as rotas de negociação; evento novo `proposta_aceite_cliente`; versão 0.1.20 (a main estava em 0.1.19) | (este PR) | Revisão do PR; depois D3/D6 conforme o grafo |
 | 28/10/2026 | Fase 1.6 · B5 (parte 1) | Imóveis (P06) na moldura: esquerda com "Imóveis" e [Novo], abas Carteira (n) · Empreendimentos (n), busca, chips Todos · Ativos · Rascunhos · Vendidos e lista com miniatura (`urbi-avatar`, D-65; a grade de cartões saiu da carteira); centro com a ficha (Editar, Criar conteúdo, galeria, Dados, Quem vê este imóvel, Melhorar com IA); direita com Qualidade do anúncio (nota em `urbi-badge` + `urbi-bolinhas`, lacuna da barra em 11.9), Últimos 30 dias e Clientes que combinam (`combina()` em `comum/imoveis.ts`, rota `GET /imoveis/:id/contexto`); Empreendimentos na mesma moldura; `/imoveis/:id` e `/empreendimentos/:id` abrem a moldura com o item; opção `ativo` na moldura para o celular abrir na lista; `testes/imoveis-padrao-b.test.ts`; versão 0.1.19 | PR de #94 (parte 1) | Revisão; depois a parte 2 (P07/M3, novo imóvel em 4 passos) |
+| 29/10/2026 | Fase 1.6 · plano | Status do arco #87 conferido com a `main`: A1, C1, B1, B2, B3, B4, B9, D1, D2, D5 e E1 implementados (com a versão e o PR de cada um); B5 com a parte 1 na `main` e a parte 2 (P07/M3) por fazer. Só texto | (este PR) | B5 parte 2, B6, B7, B8, B10 e D3 podem começar |
 | 26/10/2026 | Pós-1.5 · Portal (roteiro de visitas) | Portal do Cliente no modelo "tour" da referência: visitas por dia, dia com várias vira roteiro numerado com "Ver o roteiro no mapa"; "Como chegar" por visita (endereço só se publicado; só bairro vira "Ver o bairro no mapa"; região, sem mapa); próxima visita com "hoje / amanhã / em N dias". Só frontend público, `comum/roteiro.ts` com testes | — | Revisão do PR |
 | 26/10/2026 | Pós-1.5 · Ficha (objetivos da mensagem) | Mensagem sugerida com objetivos de um toque (referência Follow Up Boss): Pelo playbook, Apresentação, Retorno, Ainda procurando? e Manter contato; `GET /contatos/:id/mensagem-sugerida?objetivo=` cumpre o objetivo com a IA (slot `funil`, mesmo contexto mascarado) ou devolve o modelo do objetivo, inclusive sem negócio aberto; `comum/mensagens.ts` | — | Portal: roteiro de visitas e "Como chegar" |
 | 26/10/2026 | Pós-1.5 · Desempenho (visual Lais) | Conversão no visual da referência Lais, mantendo os quatro números no topo: cartão Conversão com as etapas em contagem (fatia dos leads, comparação) e gráfico de colunas contra o período anterior, taxas no detalhe, clientes únicos; Leads por canal (pizza) e Situação por canal (colunas empilhadas, tabela no detalhe); Leads ao longo do período (linha); motivos de perda em colunas; Início com "Em atendimento" na faixa da semana. `/numeros` ganha `etapas`, `clientes_unicos`, `por_origem[].abertos/perdidos` e `serie_leads` (aditivo). Só primitivos `urbi-kpi`/`urbi-grafico-*` | #83 | Revisão do PR |
