@@ -98,6 +98,22 @@ async function negociacaoAberta(dados: HelperDados, negocioId: number): Promise<
   return r.dados.find((n) => !encerrada(n)) ?? null;
 }
 
+/** Maior id de proposta já gravada, de qualquer lado (0 sem nenhuma): o marco que a execução guarda em `entrada.propostas_ate`. */
+export const ultimaPropostaId = (propostas: Linha[]) =>
+  propostas.reduce((m, p) => (Number(p.id) > m ? Number(p.id) : m), 0);
+
+/**
+ * Sugestão superada: há execução mais nova na negociação, ou QUALQUER proposta (comprador, vendedor ou
+ * proprietário) gravada depois dela — o motor sugeriu sem vê-la. `maisNovaId` é o id da execução mais
+ * recente da negociação. Execução antiga, sem `propostas_ate`, cai na data de criação.
+ */
+export function sugestaoSuperada(execucao: Linha, maisNovaId: number, propostas: Linha[]): boolean {
+  if (maisNovaId > Number(execucao.id)) return true;
+  const marco = execucao.entrada?.propostas_ate;
+  const desde = new Date(execucao.criado_em).getTime();
+  return propostas.some((p) => (typeof marco === 'number' ? Number(p.id) > marco : new Date(p.criado_em).getTime() > desde));
+}
+
 /** `decimal` chega como texto do banco: a fração volta como número. */
 function normalizarMandato(m: Linha): Linha {
   return { ...m, passo_max_pct: Number(m.passo_max_pct) };
@@ -197,13 +213,23 @@ negociacaoRotas.get(
     const nid = id(req.params.id);
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
     if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
-    const [mandato, propostas, objecoes] = await Promise.all([
+    const [mandato, propostas, objecoes, execucoes] = await Promise.all([
       mandatoVigente(dados, negociacao),
       dados.varrerTudo('propostas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
       dados.varrerTudo('objecoes_detectadas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
+      dados.listar('negociador_execucoes', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'desc', por_pagina: 20 }),
     ]);
+    // Para a tela (P15): a última fala do cliente registrada e a sugestão do Negociador que espera o
+    // corretor. A saída gravada já é a guardável (o que vazaria o sigilo foi retido no motor, D2).
+    // Só a execução MAIS RECENTE, pendente e sem proposta (de qualquer lado) depois dela: a superada não aparece.
+    const fala = execucoes.dados.find((e) => e.mensagem_cliente);
+    const ultima = execucoes.dados[0];
+    const pendente = ultima?.decisao === 'pendente' && !sugestaoSuperada(ultima, Number(ultima.id), propostas) ? ultima : null;
+    const sugestao = pendente
+      ? { execucao_id: pendente.id, resposta: pendente.saida ?? null, validacoes: pendente.validacoes?.verificacoes ?? [], bloqueado_por: pendente.bloqueado_por ?? null, criado_em: pendente.criado_em }
+      : null;
     // O mandato aparece aqui só no resumo, sem recuo, alvo nem BATNA (o completo é a rota /mandato).
-    res.json(semSigilo({ ...negociacao, mandato, propostas, objecoes }));
+    res.json(semSigilo({ ...negociacao, mandato, propostas, objecoes, ultima_fala: fala ? { texto: fala.mensagem_cliente, em: fala.criado_em } : null, sugestao }));
   }),
 );
 
@@ -287,6 +313,15 @@ negociacaoRotas.put(
     if (encerrada(negociacao)) return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
     const v = validarMandato((req.body ?? {}) as Record<string, unknown>);
     if (!v.ok) return res.status(v.status).json({ erro: true, codigo: v.codigo, motivo: v.motivo, mensagem: v.mensagem, ...(v.detalhes ? { detalhes: v.detalhes } : {}) });
+    // Autorização por anexo: o documento é uma mídia tipo documento do MESMO imóvel da negociação (não há
+    // armazenamento próprio; o documento entra pela ficha do imóvel). `buscar` só enxerga a conta ativa.
+    const aut = v.dados.autorizacao_proprietario as { tipo: string; arquivo_id: number | null } | null;
+    if (aut?.tipo === 'anexo') {
+      const midia = await dados.buscar('imovel_midias', Number(aut.arquivo_id));
+      if (!midia || midia.tipo !== 'documento' || Number(midia.imovel_id) !== Number(negociacao.imovel_id)) {
+        return erro(res, 422, 'DADOS_INVALIDOS', 'O documento da autorização tem de ser um documento anexado a este imóvel (ficha do imóvel › Fotos e arquivos).');
+      }
+    }
     // Cada alteração é uma versão nova; as anteriores ficam (histórico). A vigente é a da negociação.
     let mandato: Linha;
     try {

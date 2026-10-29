@@ -25,6 +25,7 @@ import {
   type Autorizacao,
 } from '../comum/imoveis';
 import { normalizarPapeis } from '../comum/crm';
+import { ENCERRADOS } from '../comum/negociacao';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { contaDoRequest, tentarSincronizar } from './vitrine';
 
@@ -493,6 +494,21 @@ imoveisRotas.post(
   }),
 );
 
+/**
+ * O documento é a autorização do proprietário (anexo) no mandato VIGENTE de uma negociação em andamento
+ * deste imóvel? Enquanto for, não sai, não vira foto nem fica público. Só por `req.dados` (conta ativa).
+ */
+async function anexoDeMandatoVigente(dados: HelperDados, imovelId: number, midiaId: number): Promise<boolean> {
+  const negociacoes = await dados.varrerTudo('negociacoes', { filtros: { imovel_id: imovelId }, maximo: 500 });
+  for (const n of negociacoes) {
+    if ((ENCERRADOS as readonly string[]).includes(n.estado) || !n.mandato_id) continue;
+    const m = await dados.buscar('mandatos_negociacao', Number(n.mandato_id));
+    const aut = m && Number(m.negociacao_id) === Number(n.id) ? (m.autorizacao_proprietario as { tipo?: string; arquivo_id?: number | null } | null) : null;
+    if (aut?.tipo === 'anexo' && Number(aut.arquivo_id) === Number(midiaId)) return true;
+  }
+  return false;
+}
+
 imoveisRotas.patch(
   '/imoveis/:id/midias/:midia',
   assincrono(async (req, res) => {
@@ -511,6 +527,9 @@ imoveisRotas.patch(
     if ((mudar.tipo !== undefined && mudar.tipo !== 'documento') || mudar.publica === true) {
       const usa = await primeiro(req.dados!, 'autorizacoes_venda', { documento_midia_id: midia.id });
       if (usa) return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização: fica sempre interno.');
+      if (await anexoDeMandatoVigente(req.dados!, imovel!.id, midia.id)) {
+        return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é a autorização do proprietário no mandato de uma negociação em andamento: fica sempre interno.');
+      }
     }
     if ((mudar.tipo ?? midia.tipo) === 'documento' && (mudar.publica ?? midia.publica)) mudar.publica = false;
     const salva = Object.keys(mudar).length ? await req.dados!.atualizar('imovel_midias', midia.id, mudar) : midia;
@@ -528,6 +547,9 @@ imoveisRotas.patch(
     const dados = req.dados!;
     const usa = await primeiro(dados, 'autorizacoes_venda', { documento_midia_id: midia.id, situacao: 'assinada' });
     if (usa) return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização assinada. Revogue ou troque o documento antes.');
+    if (await anexoDeMandatoVigente(dados, imovel!.id, midia.id)) {
+      return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é a autorização do proprietário no mandato de uma negociação em andamento. Troque o anexo no mandato ou encerre a negociação antes.');
+    }
     // Apagar de verdade leva o arquivo para a fila de exclusão (arquivos.md).
     await dados.deletar('imovel_midias', midia.id);
     await tentarSincronizar(req, imovel!.id);

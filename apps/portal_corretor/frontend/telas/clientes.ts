@@ -25,6 +25,7 @@ import { buscaDaVisao, contatoDoItem } from '../enderecos.js';
 import { estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import { chaveDoQuadro, contatoDoFunil } from './clientes-quadro.js';
+import { novaProposta } from './negociacoes.js';
 import './ficha-contato.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -41,22 +42,22 @@ interface Contato {
   proximo_passo_em: string | null;
 }
 
-// Clientes em duas visões (D-83, spec 11.1 P03/P04): Lista e Funil (o quadro por etapa). A visão fica em
-// `?visao=` (Lista é a ausência dela; o Funil é `?visao=funil`) e `/funil` é apelido que abre o Funil,
-// assim como o `?visao=quadro` de antes. A visão Negociações entra aqui com o item D3 do arco (#102).
+// Clientes em três visões (D-83, D-96, spec 11.1 P03/P04/P15): Lista, Funil (o quadro por etapa) e
+// Negociações. A visão fica em `?visao=` (Lista é a ausência dela; o Funil é `?visao=funil`) e `/funil` é
+// apelido que abre o Funil, assim como o `?visao=quadro` de antes.
 const VISOES = [
-  { id: 'lista', rotulo: 'Lista' },
   { id: 'funil', rotulo: 'Funil' },
+  { id: 'lista', rotulo: 'Lista' },
+  { id: 'negociacoes', rotulo: 'Negociações' },
 ];
 const OPCOES_VISAO: OpcoesAba = { chave: 'visao', apelidos: { '/funil': 'funil' }, rota: '/clientes' };
 
-/** A visão do endereço que está na barra agora (`quadro`, o nome antigo do Funil, abre o Funil). */
-export const visaoAtual = () => (filtrosDaUrl().get('visao') === 'quadro' ? 'funil' : abaDaUrl(VISOES.map((v) => v.id), OPCOES_VISAO));
+/** A visão do endereço que está na barra agora: sem ela, a Lista (`quadro`, o nome antigo do Funil, abre o Funil). */
+export const visaoAtual = () => (filtrosDaUrl().get('visao') === 'quadro' ? 'funil' : abaDaUrl(['lista', 'funil', 'negociacoes'], OPCOES_VISAO));
 
 /**
  * Cliente selecionado na Lista (`?item=<id>`, spec 11.0.2); só ids numéricos abrem a ficha, e só quando a
- * visão do endereço é a Lista (`contatoDoItem`): `?visao=negociacoes&item=<negociacao>` não abre ficha.
- * Enquanto a visão Negociações não existe (D3), esse endereço mostra a Lista sem ficha aberta.
+ * visão do endereço é a Lista (`contatoDoItem`): `?visao=negociacoes&item=<negociacao>` abre a negociação.
  */
 export const clienteDaUrl = (): number | null => contatoDoItem(window.location.search);
 
@@ -99,6 +100,30 @@ export function renderClientes(atualizar: () => void) {
     itemNaUrl(contato);
     atualizar();
   };
+  if (visao === 'negociacoes') {
+    // P15 (M8 no celular): a lista à esquerda, a negociação escolhida (`?item=<negociacao>`) no centro e o
+    // mandato à direita.
+    const item = Number(filtrosDaUrl().get('item')) || null;
+    const escolherNegociacao = (n: number) => {
+      itemNaUrl(n);
+      atualizar();
+    };
+    const esquerda = html`<urbi-stack>
+      ${topoClientes(visao, trocarVisao, () => void novoContato().then((r) => r?.id && escolher(r.id)))}
+      <urbi-botao pequeno icone="fa-solid fa-file-signature" @click=${() => void novaProposta().then((n) => n && escolherNegociacao(n))}>Nova proposta</urbi-botao>
+      <pc-negociacoes-lista .selecionado=${item} .aoEscolher=${escolherNegociacao}></pc-negociacoes-lista>
+    </urbi-stack>`;
+    const centro = item
+      ? keyed(item, html`<pc-negociacao-foco .negociacaoId=${item}></pc-negociacao-foco>`)
+      : estadoTela('vazio', { icone: 'fa-solid fa-handshake', mensagem: 'Escolha uma negociação', submensagem: 'A faixa, a escada de propostas e a sugestão do Negociador abrem aqui.' });
+    const contexto = item
+      ? keyed(item, html`<pc-negociacao-contexto .negociacaoId=${item}></pc-negociacao-contexto>`)
+      : html`<urbi-prosa papel="dica">Com uma negociação aberta, aqui ficam o mandato, a leitura do comprador e o próximo movimento.</urbi-prosa>`;
+    return moldura(
+      { menu: '/clientes', lista: esquerda, centro, contexto, rotulos: { lista: 'Negociações', centro: 'Negociação', contexto: 'Mandato' }, painel: item ? 'centro' : 'esquerda' },
+      atualizar,
+    );
+  }
   if (visao === 'funil') {
     // P03: os filtros do Funil à esquerda, o quadro no centro (recriado quando os filtros mudam) e o
     // cliente do cartão escolhido à direita.

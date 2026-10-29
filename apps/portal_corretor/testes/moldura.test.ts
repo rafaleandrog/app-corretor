@@ -269,9 +269,9 @@ test('Criar: cada opção leva à criação certa, com o cliente em foco quando 
   assert.equal(destinoDeCriar('imovel', '/'), '/imoveis?criar=imovel');
   assert.equal(destinoDeCriar('post', '/'), '/estudio?criar=post');
   assert.equal(destinoDeCriar('visita', '/'), null, 'abre o formulário ali mesmo');
-  assert.equal(destinoDeCriar('proposta', '/clientes/7'), '/clientes?item=7', 'por enquanto, a ficha do cliente');
-  assert.equal(destinoDeCriar('proposta', '/clientes', '?item=9&secao=negocios'), '/clientes?item=9', 'o cliente aberto na Lista (P04)');
-  assert.equal(destinoDeCriar('proposta', '/imoveis'), '/clientes');
+  // Nova proposta abre o formulário aqui mesmo (cliente em foco já escolhido) e depois a negociação (P15).
+  assert.equal(destinoDeCriar('proposta', '/clientes/7'), null);
+  assert.equal(destinoDeCriar('proposta', '/imoveis'), null);
   // A tela de destino consome o pedido uma vez: recarregar não abre de novo.
   const { url } = navegador('/portal_corretor/clientes?criar=cliente&visao=quadro');
   assert.equal(pedidoDeCriar('imovel'), false);
