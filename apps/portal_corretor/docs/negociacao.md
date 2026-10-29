@@ -44,9 +44,12 @@ quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo
   proposta mais nova: peça outra sugestão."), mas descartá-la ainda pode. **Enviar** manda pelo Portal do Cliente;
   **Fazer agora** abre o WhatsApp do celular com a mensagem pronta (se o cliente não tem um
   telefone de WhatsApp válido no cadastro, o app recusa e não grava nada; se o navegador barrar a
-  aba, a tela mostra o texto e o link para você copiar); **Editar** muda o valor, as
-  condições ou o texto (o app confere de novo e, se a edição passar do recuo ou revelar o sigilo,
-  não envia e diz o motivo); **Descartar** descarta. Sugestão bloqueada pelas regras só sai
+  aba, a tela mostra o texto e o link para você copiar); **Editar** muda o valor ou o texto (o
+  valor vem preenchido e a mensagem em branco, com o rascunho do Negociador ao lado só para
+  consulta; em branco, sai a mensagem montada pelo app. O app confere de novo e, se a edição passar
+  do recuo ou revelar o sigilo, não envia e diz o motivo); **Descartar** descarta. Numa sugestão só
+  em texto, no lugar de Enviar e Fazer agora fica **Revisar e enviar**: o rascunho vem no campo e
+  você o ajusta e envia como seu. Sugestão bloqueada pelas regras só sai
   editada. Sem sugestão, **Pedir sugestão** chama o Negociador (com a IA fora do ar, o botão
   desliga e você segue à mão).
 - **Escada de propostas:** cada proposta numa linha — rodada, quem, valor, condições, concessão,
@@ -282,20 +285,33 @@ uma pessoa, quando o mandato venceu ou não existe e quando **não há ZOPA** (o
 comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
 
 **O que acontece com a sugestão, por autonomia:**
-- **Só sugere** e **Pergunta antes:** a sugestão espera você. Você **aprova** (escolhendo portal ou
-  Fazer agora), **edita** ou **descarta**. Aprovar ou editar confere as 7 garantias de novo: nem a
-  sua edição passa do recuo ou revela o sigilo (o app recusa e diz por quê). Só a sugestão mais
-  recente se aprova: se depois dela houve outra sugestão ou qualquer proposta nova (do comprador,
-  do vendedor ou do proprietário, que o Negociador não viu ao sugerir), ela some da tela e aprovar ou
-  editar é recusado com `SUGESTAO_SUPERADA` (peça outra sugestão); descartar continua valendo.
+- **Só sugere** e **Pergunta antes:** a sugestão espera você. O texto que a IA escreveu é um
+  **rascunho para você**: ele nunca sai como está. Você **aprova** (escolhendo portal ou Fazer
+  agora), **edita** ou **descarta**:
+  - **aprovar** uma contraproposta envia a mensagem que o app monta, como no "faz sozinho": o valor,
+    a concessão e a contrapartida como estão no seu mandato e a validade;
+  - uma resposta **só em texto** (objeção, pergunta) não se aprova: **edite** e envie com as suas
+    palavras, ou descarte (na tela, é o **Revisar e enviar**);
+  - **editar** envia o texto que você escreveu. Se você mudar só o valor, ou deixar a mensagem em
+    branco, sai a mensagem montada. Editar sem escrever mensagem e sem mexer na contraproposta vale
+    como aprovar (fica registrado como aprovação); qualquer texto que você escreva, mesmo igual ao
+    rascunho, conta como edição.
+  - se você edita e informa a concessão sem a contrapartida, a mensagem montada **não cita** a
+    concessão, mas a proposta guarda a concessão que você informou.
+
+  Aprovar ou editar confere as 7 garantias de novo: nem a sua edição passa do recuo ou revela o
+  sigilo (o app recusa e diz por quê).
+  Só a sugestão mais recente se aprova: se depois dela houve outra sugestão ou qualquer proposta
+  nova (do comprador, do vendedor ou do proprietário, que o Negociador não viu ao sugerir), ela some
+  da tela e aprovar ou editar é recusado com `SUGESTAO_SUPERADA` (peça outra sugestão); descartar
+  continua valendo.
 - **Faz sozinho:** com o Negociador conduzindo e a autorização do proprietário no mandato, a
   contraproposta que passa nas garantias é registrada sozinha como enviada pelo portal e a
   negociação passa a "aguardando o cliente". Nesse envio automático **o texto da IA não sai**: o
   app monta uma mensagem curta só com o valor, a concessão e a contrapartida como estão no seu
   mandato e a validade (por exemplo: "Olá, Ana. O vendedor propõe R$ 1.460.000, com prazo de
-  entrega de 90 dias, pedindo em troca entrada de 30%. A proposta vale por 48 horas."). A conversa
-  livre da IA só chega ao cliente depois que você lê e aprova. O cliente vê a proposta na aba
-  Propostas do portal.
+  entrega de 90 dias, pedindo em troca entrada de 30%. A proposta vale por 48 horas."). O cliente
+  vê a proposta na aba Propostas do portal.
 
 **O Negociador nunca aceita o acordo.** Aceitar a proposta do comprador é uma ação separada, feita
 só por quem tem o papel de corretor (o administrador do app também pode, pois vale por todos os
