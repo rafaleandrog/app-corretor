@@ -563,3 +563,44 @@ test('#124: endereço com letra e número e data com horário sem "às" passam; 
   // A data com horário não abre brecha para juntar números separados por quebra de linha.
   assert.ok(achadosDe('Fica 1\n360 mil.').includes(DISFARCE));
 });
+
+test('#126 r2: endereço com letra só depois de palavra de endereço; horário ou data não abrem a junção', () => {
+  // Achado 1: a leitura de endereço não vira prefixo de milhão.
+  // Achado 2: o fim de um horário ou de uma data não se solta do número que vem depois.
+  for (const m of [
+    'Fica 1B 360 mil',
+    'Aceito 1B 300 mil, fechado',
+    'Fica 13B 60 mil',
+    'Fica 1J 360 mil',
+    'Fica 13A 60B mil',
+    'Fica B1 B3 B6 B0',
+    'Fica Q1 Q36 Q0 mil',
+    'Apto 1B 360 mil',
+    'Torre B2 360 mil',
+    'Fica 1:36 0 mil',
+    'Fica 1:36\n0 mil',
+    'Fica 1/45 0 mil',
+    'O dono aceita 1:36 0 mil',
+    'Aceito 1:30 0 mil',
+    'Fica 1:36 mil',
+    'Fica 13/60 mil',
+  ]) assert.ok(achadosDe(m).includes(DISFARCE), `deveria reter: ${JSON.stringify(m)} (veio ${JSON.stringify(achadosDe(m))})`);
+  passa([
+    'Moro na W3 Sul 704.',
+    'L2 Norte',
+    'SQS 308 Bloco C apto 104',
+    'SQN 210',
+    'QI 5',
+    'Apto 2B',
+    'Torre B2',
+    'Torre B2, 704',
+    'Visita dia 28/10 15h?',
+    '28/10/2026 15:30',
+    'dia 3, 10h',
+    'Meu número: 61 99999 9999.',
+    'Meu WhatsApp é (61) 9 9876-5432.',
+    'O CEP é 70.000-000.',
+    'Posso levar R$ 1.460.000 (2 vagas).',
+  ]);
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
+});

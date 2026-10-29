@@ -192,7 +192,9 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
   - uma resposta **só em texto** (objeção, pergunta) não se aprova: **edite** e envie com as suas
     palavras, ou descarte;
   - **editar** envia o texto que você escreveu. Se você mudar só o valor, ou deixar a mensagem em
-    branco, sai a mensagem montada. Editar sem mudar nada vale como aprovar.
+    branco, sai a mensagem montada. Editar sem escrever mensagem e sem mexer na contraproposta vale
+    como aprovar (fica registrado como aprovação); qualquer texto que você escreva, mesmo igual ao
+    rascunho, conta como edição.
   - se você edita e informa a concessão sem a contrapartida, a mensagem montada **não cita** a
     concessão, mas a proposta guarda a concessão que você informou.
 

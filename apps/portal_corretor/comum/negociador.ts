@@ -714,10 +714,6 @@ const LEITURAS_PADRAO = [
   String.raw`\d{4}-\d{2}-\d{2}(?:t\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:z|[+-]\d{2}:?\d{2})?)?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?`,
   // Ordinal ("5º", "1ª", "1o piso") e quantidade com unidade ("2-3 vagas", "10x", "5km", "30min").
   String.raw`\d{1,3}[ºªoa°]`,
-  // Endereço com letra e número ("W3", "L2", "QI5", "B2", "104A", "2B"): até duas letras e um ou dois
-  // algarismos, ou até três algarismos e uma letra. L, I e O (que fazem de 1 e 0) só com um algarismo; "13six0"
-  // e "l360" têm mais que isso e continuam sem leitura.
-  String.raw`(?:[a-hj-km-np-z]{1,2}\d{1,2}|[loi]\d|\d{1,3}[a-hj-km-np-z])`,
   String.raw`${DIG_X}\s*[-–]\s*${DIG_X}(?=\s*${UNIDADE_X}\b)`,
   String.raw`${DIG_X}(?:x|km|cm|kg|min|d|s)`,
   // Preço em centenas de milhar ("treze sessenta"): lido e conferido por `lerPrecoFalado`.
@@ -729,6 +725,21 @@ const LEITURAS_PADRAO = [
   // CEP: "70.000-000", "70000-000".
   String.raw`\d{2}\.?\d{3}-\d{3}`,
 ].map((r) => new RegExp(`(?:${r})${FIM_X}`, 'uy'));
+/**
+ * Endereço com letra e número ("W3", "L2", "B2", "104A", "2B"): até duas letras e um ou dois algarismos, ou
+ * até três algarismos e uma letra. L, I e O (que fazem de 1 e 0) só com um algarismo; "13six0" e "l360" têm
+ * mais que isso e continuam sem leitura. Nunca seguido, só por espaço, de número ou de escala ("1B 360 mil",
+ * "B2 704"); e só vale depois de uma palavra de endereço (`PALAVRA_DE_ENDERECO`) ou, para W e L, antes de
+ * "Sul" ou "Norte" (`EIXO_DE_BRASILIA`).
+ */
+const ENDERECO = new RegExp(
+  String.raw`(?:[a-hj-km-np-z]{1,2}\d{1,2}|[loi]\d|\d{1,3}[a-hj-km-np-z])(?!\s+(?:\p{N}|${NUM_X}\b|${ESCALA_X}\b|mi\b|mm\b|kk\b|k\b|m\b))${FIM_X}`,
+  'uy',
+);
+const PALAVRA_DE_ENDERECO = /\b(?:quadra|qd|bloco|bl|apartamento|apto|apt|ap|torre|casa|lote|lt|conjunto|conj|cj|qi|ql|qs|qn|qe|sqs|sqn|sqsw|sqnw|shis|shin|sala|loja|unidade)\.?\s+$/;
+const EIXO_DE_BRASILIA = /^[wl]\d{1,2}\s+(?:sul|norte)\b/;
+/** Horário ou data no começo de uma leitura ("15h", "15:30", "28/10", "2026-10-28"). */
+const HORARIO_OU_DATA = /^(?:\d{1,2}(?::\d{2}|h|hs)|\d{1,2}\/\d{1,2}|\d{4}-\d{2}-\d{2})/;
 /** Horário por extenso depois de "às": "às doze trinta", "às 10 e meia". */
 const HORARIO_POR_EXTENSO = new RegExp(String.raw`(?:${ATE99_X}|\d{1,2}h?)(?:\s+e\s+meia|\s+(?:e\s+)?${ATE99_X})?${FIM_X}`, 'uy');
 /** Palavra de número (a "meia" de seis só conta junto de outro número). */
@@ -740,6 +751,7 @@ const SEPARACAO_NORMAL = /^(?:\s*[,;.!?)("'“”]+\s*|\s+)(?:(?:e|ou|[-−–+=
 const UNIDADE_DEPOIS = new RegExp(String.raw`^\s*${UNIDADE_X}\b`);
 const ALGARISMO = new RegExp(String.raw`^(?:\d|${UNI_X}|zero)$`);
 const DIGITOS_INTEIROS = new RegExp(`^${DIG_X}$`);
+const SO_ESCALA = new RegExp(`^${ESCALA_X}$`);
 /** O maior trecho lido de uma vez: leitura mais longa que isso não é número de conversa. */
 const LEITURA_MAX = 160;
 
@@ -777,6 +789,7 @@ function trechosSemLeitura(base: string): { ini: number; fim: number }[] {
       while (k > 0 && ini - k < 2 && /[(+]/.test(base[k - 1])) k--;
       if (k < ini) ler(LEITURAS_PADRAO[LEITURAS_PADRAO.length - 1], k);
       if (/\bas\s$/.test(base.slice(Math.max(0, ini - 4), ini))) ler(HORARIO_POR_EXTENSO, ini);
+      if (PALAVRA_DE_ENDERECO.test(base.slice(Math.max(0, ini - 14), ini)) || EIXO_DE_BRASILIA.test(base.slice(ini, ini + 12))) ler(ENDERECO, ini);
     }
     if (melhor >= fim) {
       unidades.push({ ini, fim: melhor, ruim: false, algarismo: ALGARISMO.test(base.slice(ini, melhor)), meia: false });
@@ -799,12 +812,14 @@ function trechosSemLeitura(base: string): { ini: number; fim: number }[] {
       const entre = base.slice(grupo[k].fim, grupo[k + 1].ini);
       if (/\b(?:ponto|virgula)\b/.test(entre)) ruim = true;
       else if (/^\s+$/.test(entre)) {
-        // Só espaço ou quebra de linha: ruim quando tirá-la junta os dois lados num número ("1\n360").
-        // Só quando o lado esquerdo é um número puro e o direito começa em número que segue como valor: não
-        // junta o fim de uma data ("28/10"), de um horário ("15h", "15:30") nem de "B2" com o que vem depois.
-        const a = base.slice(grupo[k].ini, grupo[k].fim).match(/^[\d.,]+$/)?.[0];
-        const b = base.slice(grupo[k + 1].ini, grupo[k + 1].fim).match(/^[\d.,]+(?=$|\s|k|m)/)?.[0];
-        ruim = !!a && !!b && DIGITOS_INTEIROS.test(a + b);
+        // Só espaço ou quebra de linha: ruim quando tirá-la junta os dois lados num número ("1\n360",
+        // "1:36 0 mil", "1/45 0 mil"), ou quando o lado esquerdo acaba em algarismo e o direito é só escala
+        // ("1:36 mil"). O lado direito que é horário ou data ("28/10 15h", "28/10/2026 15:30") não junta.
+        const ladoB = base.slice(grupo[k + 1].ini, grupo[k + 1].fim);
+        if (HORARIO_OU_DATA.test(ladoB)) continue;
+        const a = base.slice(grupo[k].ini, grupo[k].fim).match(/[\d.,]+$/)?.[0];
+        const b = ladoB.match(/^[\d.,]+(?=$|\s|k|m)/)?.[0];
+        ruim = (!!a && !!b && DIGITOS_INTEIROS.test(a + b)) || (!!a && SO_ESCALA.test(ladoB));
       } else ruim = !SEPARACAO_NORMAL.test(entre);
     }
     if (ruim) saida.push({ ini: grupo[0].ini, fim: grupo[grupo.length - 1].fim });
