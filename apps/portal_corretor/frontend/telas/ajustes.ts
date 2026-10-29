@@ -125,12 +125,23 @@ export class PcAjustesAvisoCreci extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    window.addEventListener('pc-conta-salva', this.reler);
+    this.reler();
+  }
+
+  disconnectedCallback() {
+    window.removeEventListener('pc-conta-salva', this.reler);
+    super.disconnectedCallback();
+  }
+
+  // Relê a conta ao aparecer e depois de salvar no centro (`pc-conta-salva`).
+  private reler = () => {
     void chamarApi('/conta').then(
       (c) => (this.semCreci = !c?.meu_perfil?.creci && !c?.perfil?.creci_juridico),
       // Sem a conta, nada a avisar: o centro mostra a falha.
       () => (this.semCreci = false),
     );
-  }
+  };
 
   render() {
     return this.semCreci ? avisoCreci() : nothing;

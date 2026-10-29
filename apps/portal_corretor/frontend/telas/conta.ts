@@ -55,6 +55,7 @@ export class PcTelaConta extends LitElement {
       // Salvo com aviso (CRECI fora do formato usual, D-93): avisa sem desfazer nada.
       const avisos: string[] = Array.isArray(r?.avisos) ? r.avisos : [];
       urbiVerso.notificar(avisos.length ? `Salvo. ${avisos.join(' ')}` : 'Salvo.', avisos.length ? 'info' : 'sucesso');
+      window.dispatchEvent(new CustomEvent('pc-conta-salva'));
       await this.carregar();
     } catch (e) {
       const falha = e as Error & { detalhes?: string[] };

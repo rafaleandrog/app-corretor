@@ -40,7 +40,7 @@ export function instanteDaUrl(v: unknown): string | null {
 
 /**
  * Parâmetros de `GET /contatos` para um filtro pronto. `quentes` vira a temperatura; `sem_contato`
- * usa o N de Ajustes › Atendimento (`dias_cliente_parado`).
+ * usa o N de Ajustes › Horário de atendimento (`dias_cliente_parado`).
  */
 export function parametrosDoPronto(pronto: string | null, diasParado: number, agora = Date.now()): Record<string, string> {
   switch (pronto) {
