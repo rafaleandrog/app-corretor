@@ -24,7 +24,7 @@ function publicarResumo(r: typeof resumo) {
   ouvintes.forEach((f) => f());
 }
 
-// O N de "Sem contato" é o de Ajustes › Atendimento, da conta ativa (sem resposta, o padrão).
+// O N de "Sem contato" é o de Ajustes › Horário de atendimento, da conta ativa (sem resposta, o padrão).
 const lerDiasParado = (): Promise<number> =>
   chamarApi('/conta').then(
     (c) => c?.configuracoes?.dias_cliente_parado ?? CONFIGURACOES_PADRAO.dias_cliente_parado,

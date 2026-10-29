@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { ABAS_AJUSTES, abaDoEndereco } from '../comum/ajustes';
 import { TELAS_APP, telaBase } from '../comum/assistente';
-import { MENU } from '../frontend/enderecos';
+import { MENU, resolverEndereco } from '../frontend/enderecos';
 
 const manifesto = JSON.parse(readFileSync(resolve(process.cwd(), 'manifesto.json'), 'utf8'));
 
@@ -29,23 +29,33 @@ test('menu do corretor com os nomes do Padrão B (D-103), sem o Assistente; Equi
   assert.deepEqual(nav[7].itens?.map((i) => i.rota), ['/corretores']);
 });
 
-test('Ajustes: cinco abas na ordem, `?aba=` em /ajustes e Conta quando não há aba', () => {
-  assert.deepEqual(ABAS_AJUSTES.map((a) => a.id), ['conta', 'marca', 'conexoes', 'funil', 'atendimento']);
+test('Ajustes (B8): sete seções na ordem de 11.1, `?aba=` em /ajustes e Conta e marca quando não há seção', () => {
+  assert.deepEqual(ABAS_AJUSTES.map((a) => a.id), ['mensageiro', 'negociador', 'conexoes', 'conta', 'funil', 'atendimento', 'privacidade']);
+  assert.deepEqual(ABAS_AJUSTES.map((a) => a.label), ['Mensageiro', 'Negociador', 'Conexões', 'Conta e marca', 'Funil e abordagens', 'Horário de atendimento', 'Privacidade']);
+  assert.ok(!ABAS_AJUSTES.some((a) => /plano|cr[eé]dito/i.test(a.label)), 'Plano e créditos não entra (D-87)');
   assert.equal(abaDoEndereco('/ajustes'), 'conta');
   assert.equal(abaDoEndereco('/ajustes', '?aba=conexoes'), 'conexoes');
-  assert.equal(abaDoEndereco('/ajustes', '?aba=marca&x=1'), 'marca');
+  assert.equal(abaDoEndereco('/ajustes', '?aba=privacidade'), 'privacidade');
+  // A Marca virou parte de Conta e marca: o `?aba=marca` de antes abre a seção nova.
+  assert.equal(abaDoEndereco('/ajustes', '?aba=marca&x=1'), 'conta');
   assert.equal(abaDoEndereco('/ajustes', '?aba=inexistente'), 'conta');
   assert.equal(abaDoEndereco('/clientes', '?aba=marca'), null);
 });
 
-test('endereços antigos abrem Ajustes na aba certa; o retorno do Instagram segue em Conexões', () => {
+test('endereços antigos abrem Ajustes na seção certa; o retorno do Instagram segue em Conexões', () => {
   assert.equal(abaDoEndereco('/conta'), 'conta');
+  assert.equal(abaDoEndereco('/ajustes/marca'), 'conta', 'o atalho "Sua marca" do Estúdio');
   assert.equal(abaDoEndereco('/ajustes/funil'), 'funil');
   assert.equal(abaDoEndereco('/ajustes/atendimento'), 'atendimento');
+  assert.equal(abaDoEndereco('/ajustes/mensageiro'), 'mensageiro');
+  assert.equal(abaDoEndereco('/ajustes/negociador'), 'negociador');
   // A Meta devolve em /ajustes/conexoes?code=&state= (URI cadastrada no app da Meta).
   assert.equal(abaDoEndereco('/ajustes/conexoes', '?code=abc&state=def'), 'conexoes');
   assert.equal(abaDoEndereco('/ajustes/conexoes', '?error=access_denied'), 'conexoes');
   assert.equal(abaDoEndereco('/ajustes/outra'), null);
+  // Cada endereço de seção resolve para a tela Ajustes.
+  for (const a of ABAS_AJUSTES) assert.equal(resolverEndereco(`/ajustes/${a.id}`).chave, 'ajustes', a.id);
+  assert.equal(resolverEndereco('/ajustes/marca').chave, 'ajustes');
 });
 
 test('Assistente conhece Ajustes e as abas; cada `/ajustes/<aba>` é uma aba de verdade', () => {

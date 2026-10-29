@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { avisoCreci, chamarApi } from '../apoio.js';
+import { chamarApi } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -23,8 +23,8 @@ const TIPOS = [
 ];
 const nada = 'não informado';
 
-// Ajustes › Conta (seus dados e a conta) e Ajustes › Atendimento: o mesmo `GET /conta`, cada aba
-// mostra a sua parte.
+// Ajustes › Conta e marca (seus dados e a conta; a marca é `pc-tela-marca`) e Ajustes › Horário de
+// atendimento: o mesmo `GET /conta`, cada seção mostra a sua parte. O aviso do CRECI (C1) fica na direita.
 @customElement('pc-tela-conta')
 export class PcTelaConta extends LitElement {
   @property() parte: 'conta' | 'atendimento' = 'conta';
@@ -118,7 +118,6 @@ export class PcTelaConta extends LitElement {
         ${this.botaoEditar('Editar seus dados', () => this.editarMeuPerfil())}
         <urbi-prosa>${urbiVerso.usuario()?.nome ?? ''}</urbi-prosa>
         <urbi-prosa papel="secundario">CRECI: ${eu.creci ?? nada} · Telefone: ${eu.telefone ?? nada}</urbi-prosa>
-        ${eu.creci || perfil?.creci_juridico ? '' : avisoCreci()}
       </urbi-card>
       <urbi-card titulo="Conta" icone="fa-solid fa-building">
         ${this.botaoEditar('Editar a conta', () => this.editarPerfil())}

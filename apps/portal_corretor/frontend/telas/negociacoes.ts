@@ -495,7 +495,7 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
   private cartaoLeitura(d: Linha) {
     const objecoes = [...new Set(((d.objecoes ?? []) as Linha[]).map((o) => o.categoria))];
     const interesses = (d.sugestao?.resposta?.interesses_identificados ?? []) as string[];
-    return html`<urbi-card titulo="Leitura do comprador" icone="fa-solid fa-user-magnifying-glass">
+    return html`<urbi-card titulo="Leitura do comprador" icone="fa-solid fa-binoculars">
       ${objecoes.length || interesses.length
         ? html`<urbi-linha quebrar>
             ${objecoes.map((c) => html`<urbi-badge cor="alerta">Objeção: ${(OBJECAO[c] ?? c).toLowerCase()}</urbi-badge>`)}

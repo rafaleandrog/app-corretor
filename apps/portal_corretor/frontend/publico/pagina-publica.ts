@@ -16,7 +16,7 @@ interface PaginaPublica {
   creci: string | null;
   telefone: string | null;
   cor: string;
-  /** Foto do corretor (Ajustes › Marca), já como URL assinada; página publicada antes do B9 não tem. */
+  /** Foto do corretor (Ajustes › Conta e marca), já como URL assinada; página publicada antes do B9 não tem. */
   foto_url?: string | null;
   blocos: Bloco[];
   url_formulario: string | null;

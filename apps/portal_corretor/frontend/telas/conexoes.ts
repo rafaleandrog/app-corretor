@@ -13,7 +13,8 @@ interface Conexoes {
 
 const CHAVE_ESTADO = 'pc-instagram-state';
 
-// Ajustes › Conexões (bloco 8b, spec 9.2): conectar o Instagram pelo login do próprio Instagram.
+// Ajustes › Conexões (P12; bloco 8b, spec 9.2): o Instagram com o estado real, conectado pelo login do
+// próprio Instagram; o WhatsApp "ainda não disponível" e a Agenda "fase 6", sem nada para configurar.
 // A volta da Meta chega nesta tela com `?code=&state=`; o `state` gerado aqui confere a origem.
 @customElement('pc-tela-conexoes')
 export class PcTelaConexoes extends LitElement {
@@ -133,7 +134,12 @@ export class PcTelaConexoes extends LitElement {
                 <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-copy" @click=${() => this.copiarRetorno()}>Copiar endereço</urbi-botao>`}
       </urbi-card>
       <urbi-card titulo="WhatsApp" icone="fa-brands fa-whatsapp">
-        <urbi-prosa papel="secundario">Chega numa próxima versão (depende de ajustes da plataforma).</urbi-prosa>
+        <urbi-linha quebrar><urbi-badge>ainda não disponível</urbi-badge></urbi-linha>
+        <urbi-prosa papel="secundario">A conexão com o WhatsApp chega numa próxima versão (depende de ajustes da plataforma). Até lá, o Fazer agora abre o WhatsApp do seu celular com a mensagem pronta.</urbi-prosa>
+      </urbi-card>
+      <urbi-card titulo="Agenda" icone="fa-solid fa-calendar-days">
+        <urbi-linha quebrar><urbi-badge>fase 6</urbi-badge></urbi-linha>
+        <urbi-prosa papel="secundario">A sincronização com uma agenda externa está prevista para a fase 6. Por enquanto, as visitas ficam na agenda do app, em Hoje.</urbi-prosa>
       </urbi-card>
     </urbi-stack>`;
   }

@@ -239,7 +239,7 @@ export class PcTelaClientes extends LitElement {
   @state() private total = 0;
   @state() private carregando = true;
   @state() private falha: string | null = null;
-  /** O N de "Sem contato" é o de Ajustes › Atendimento; sem resposta, o padrão. */
+  /** O N de "Sem contato" é o de Ajustes › Horário de atendimento; sem resposta, o padrão. */
   @state() private diasParado = CONFIGURACOES_PADRAO.dias_cliente_parado;
   private filtros = filtrosDaUrl();
   private geracao = 0;
@@ -326,7 +326,7 @@ export class PcTelaClientes extends LitElement {
       case 'novos':
         return `Cadastrados nos últimos ${DIAS_NOVOS} dias.`;
       case 'sem_contato':
-        return `Sem contato há mais de ${this.diasParado} dias (o prazo se ajusta em Ajustes › Atendimento).`;
+        return `Sem contato há mais de ${this.diasParado} dias (o prazo se ajusta em Ajustes › Horário de atendimento).`;
       case 'quentes':
         return 'Contatos quentes.';
       case 'retorno_vencido':

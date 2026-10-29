@@ -125,7 +125,7 @@ vez, em abas: **Hoje · Fila · Agenda**).
   publicar a Página. Some quando os 5 estão feitos. Quando o WhatsApp e o Mensageiro existirem, os
   passos deles entram aqui.
 - O CRECI **não** é um passo: sem ele, aparece só o aviso discreto *"Adicione seu CRECI ao perfil para
-  que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta** (o CRECI jurídico da conta também vale).
+  que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta e marca** (o CRECI jurídico da conta também vale).
 - Nas contas de teste ainda sem contatos, o convite para **Gerar dados de demonstração**.
 
 **No centro**, a **fila do dia** em cartões, na ordem do mais urgente, com cada cliente uma vez só

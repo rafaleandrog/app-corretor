@@ -12,8 +12,8 @@ ou no computador:
 
 - **Nome e endereço:** o nome que aparece e o endereço (`joao-corretor`, por exemplo). O endereço
   é único na plataforma inteira. Se outra pessoa já usa o endereço, o app avisa.
-- **Cor:** a página usa a cor principal da sua marca, em [Ajustes › Marca](conta-e-ajustes.md#a-marca).
-  Mudar a marca muda a página no ar na hora; se não acompanhar, Ajustes › Marca avisa e tem o botão
+- **Cor:** a página usa a cor principal da sua marca, em [Ajustes › Conta e marca](conta-e-ajustes.md#a-marca).
+  Mudar a marca muda a página no ar na hora; se não acompanhar, Ajustes › Conta e marca avisa e tem o botão
   **Atualizar o que está no ar**. Quem tinha escolhido uma cor para a página antes passou a tê-la
   como cor da marca (menos o "Oceano", que é o azul padrão).
 - **Blocos**, na ordem escolhida, cada um podendo aparecer ou ficar oculto:
@@ -38,8 +38,8 @@ ou no computador:
   contar.
 
 O nome, o CRECI e o telefone de WhatsApp da página vêm do perfil de quem salva ou publica a página
-(Ajustes › Conta). Mudou o CRECI ou o telefone? Use **Atualizar agora**. A foto da capa é a foto da
-sua marca ([Ajustes › Marca](conta-e-ajustes.md#a-marca)) e acompanha a marca como a cor. Página
+(Ajustes › Conta e marca). Mudou o CRECI ou o telefone? Use **Atualizar agora**. A foto da capa é a foto da
+sua marca ([Ajustes › Conta e marca](conta-e-ajustes.md#a-marca)) e acompanha a marca como a cor. Página
 publicada antes de a capa ter foto mostra as iniciais até o próximo **Atualizar agora**.
 
 O CRECI é opcional (D-93): sem ele, a capa mostra só "Corretor de imóveis", e nada deixa de
@@ -47,7 +47,7 @@ funcionar. Os cartões dos imóveis (na página inteira) também ganham o botão
 
 O CRECI é opcional: a página publica sem ele, e a apresentação só mostra o CRECI se ele existir.
 Sem o seu CRECI nesta conta e sem o CRECI jurídico dela, o editor mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
-anúncios"*, com o atalho **Ajustes › Conta**.
+anúncios"*, com o atalho **Ajustes › Conta e marca**.
 
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**
 copia o endereço completo.

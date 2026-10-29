@@ -43,6 +43,9 @@ export const ENDERECOS: Record<string, ChaveTela> = {
   '/ajustes/conexoes': 'ajustes',
   '/ajustes/funil': 'ajustes',
   '/ajustes/atendimento': 'ajustes',
+  '/ajustes/mensageiro': 'ajustes',
+  '/ajustes/negociador': 'ajustes',
+  '/ajustes/privacidade': 'ajustes',
   '/corretores': 'corretores',
 };
 

@@ -239,8 +239,8 @@ export class PcTelaEstudio extends LitElement {
     const v = await urbiVerso.formulario({
       titulo: 'Usar outra ferramenta',
       mensagem: refs.length
-        ? 'A descrição muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Marca).'
-        : 'A descrição muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Marca.',
+        ? 'A descrição muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Conta e marca).'
+        : 'A descrição muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Conta e marca.',
       campos: [
         { nome: 'ferramenta', tipo: 'selecao', rotulo: 'Ferramenta', valor: this.instrucoes[p.id]?.ferramenta ?? 'canva', opcoes: FERRAMENTAS.map((f) => ({ valor: f, rotulo: FERRAMENTA[f].rotulo })) },
         ...refs.map((r, i): CampoFormulario => ({ nome: `r_${r.id}`, tipo: 'booleano', rotulo: `Referência ${i + 1}`, valor: true })),

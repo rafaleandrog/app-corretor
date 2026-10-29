@@ -41,7 +41,7 @@ Na **Lista**:
   | Filtro | Quem aparece |
   |---|---|
   | Novos | Cadastrados nos últimos 7 dias |
-  | Sem contato | Sem contato registrado há mais de N dias, o N de **Ajustes › Atendimento** ("Cliente parado depois de"); para quem veio de planilha, conta a partir da importação |
+  | Sem contato | Sem contato registrado há mais de N dias, o N de **Ajustes › Horário de atendimento** ("Cliente parado depois de"); para quem veio de planilha, conta a partir da importação |
   | Quentes | Temperatura quente (escolher uma temperatura no filtro tira este, e vice-versa) |
   | Retorno vencido | O próximo passo combinado já passou da data |
 
