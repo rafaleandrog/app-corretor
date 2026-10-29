@@ -172,7 +172,7 @@ export class PcMandato extends LitElement {
           <urbi-select label="Autonomia do Negociador" valor=${f.autonomia} .opcoes=${OPCOES_AUTONOMIA.filter((o) => o.valor !== 'faz_sozinho' || autorizacao || f.autonomia === 'faz_sozinho')}
             @urbi:select-change=${(e: CustomEvent) => this.mudar({ autonomia: String(e.detail.valor) })}></urbi-select>
         </urbi-grid>
-        <urbi-prosa papel="dica">Só sugere: você decide tudo. Pergunta antes: ele prepara e você aprova. Faz sozinho: responde pelo portal dentro do mandato, com a autorização do proprietário${autorizacao ? '' : ' (registre-a abaixo para a opção aparecer)'}.</urbi-prosa>
+        <urbi-prosa papel="dica">Só sugere: você decide tudo. Pergunta antes: ele prepara e você aprova. Faz sozinho: responde pelo portal dentro do mandato, com a autorização do proprietário${autorizacao ? '' : ' (“Faz sozinho” exige a autorização registrada abaixo)'}.</urbi-prosa>
         <urbi-prosa papel="secao">Autorização do proprietário</urbi-prosa>
         ${autorizacao
           ? html`<urbi-linha justificar="entre" quebrar>

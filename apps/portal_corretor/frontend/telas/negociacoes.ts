@@ -323,7 +323,7 @@ export class NegociacaoAberta {
   async enviarSugestao(canal: 'portal' | 'wa_me') {
     const sug = this.s.n?.sugestao;
     if (!sug || this.trava()) return;
-    await this.agir('enviar', 'Esta contraproposta não saiu', async () => {
+    await this.agir(canal === 'wa_me' ? 'fazer_agora' : 'enviar', 'Esta contraproposta não saiu', async () => {
       const r = await enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'aprovar', execucao_id: sug.execucao_id, canal });
       if (canal === 'wa_me') await this.entregarFazerAgora(r);
       else urbiVerso.notificar('Enviada pelo portal do cliente.', 'sucesso');
@@ -555,10 +555,10 @@ export class NegociacaoAberta {
         : html`${trava ? html`<urbi-prosa papel="alerta">${TEXTO_TRAVA_SUGESTAO[trava]}</urbi-prosa>` : nothing}
           <urbi-linha quebrar>
             ${trava === 'anterior'
-              ? html`<urbi-botao pequeno icone="fa-solid fa-wand-magic-sparkles" ?desabilitado=${this.s.ia === false} ?carregando=${this.s.ocupado === 'sugestao'} @click=${() => void this.pedirSugestao()}>Pedir sugestão</urbi-botao>`
+              ? html`<urbi-botao pequeno icone="fa-solid fa-wand-magic-sparkles" ?desabilitado=${this.s.ia === false || !n.mandato} ?carregando=${this.s.ocupado === 'sugestao'} @click=${() => void this.pedirSugestao()}>Pedir sugestão</urbi-botao>`
               : nothing}
             <urbi-botao pequeno icone="fa-solid fa-paper-plane" ?desabilitado=${!!trava} ?carregando=${this.s.ocupado === 'enviar'} @click=${() => void this.enviarSugestao('portal')}>Enviar</urbi-botao>
-            <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${!!trava || ocupado} @click=${() => void this.enviarSugestao('wa_me')}>Fazer agora</urbi-botao>
+            <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${!!trava || ocupado} ?carregando=${this.s.ocupado === 'fazer_agora'} @click=${() => void this.enviarSugestao('wa_me')}>Fazer agora</urbi-botao>
             <urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" ?carregando=${this.s.ocupado === 'editar'} @click=${() => void this.editarSugestao()}>Editar</urbi-botao>
             <urbi-botao pequeno variante="texto" @click=${() => void this.descartarSugestao()}>Descartar</urbi-botao>
           </urbi-linha>`}

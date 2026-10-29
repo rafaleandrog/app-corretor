@@ -109,9 +109,11 @@ o preço pedido (ex.: "R$ 1,32 mi · −9%"), quem conduz e há quanto tempo mud
    texto pronto), **Editar** e **Descartar**. Editar passa pelas mesmas 7 garantias: um valor abaixo
    do recuo, por exemplo, não sai, e a tela diz qual regra barrou, sem mostrar o recuo. Quando a
    sugestão é só uma mensagem, o Editar aceita só o texto, sem valor.
-   **Enviar**, **Fazer agora** (e o **Usar sugestão**, à direita) ficam desligados quando a sugestão
-   não passou nas garantias, quando não traz o que enviar ou quando foi feita antes da última oferta
-   do cliente. A tela diz o motivo e, no último caso, oferece **Pedir sugestão**.
+   **Enviar** e **Fazer agora** ficam desligados quando a sugestão não passou nas garantias, quando
+   não traz o que enviar ou quando foi feita antes da última oferta do cliente. A tela diz o motivo;
+   no último caso, o **Pedir sugestão** aparece no cartão da sugestão (desligado sem mandato) e, no
+   cartão **Próximo movimento**, o **Usar sugestão** é trocado por **Pedir sugestão**. O
+   **Usar sugestão** também fica desligado nas outras travas.
    Se o cliente não tem um WhatsApp válido no cadastro, o **Fazer agora** é recusado e nada é gravado:
    envie pelo portal ou corrija o telefone. Se o navegador barrar a aba do WhatsApp, a tela mostra o
    texto pronto e o link para você copiar.
@@ -150,7 +152,7 @@ sobre a tela, com quatro blocos:
    sozinho**; e a **autorização do proprietário**, por **Anexar documento** (o arquivo vai para os
    arquivos do imóvel como documento, nunca público) ou **Registrar por mensagem** (a data em que
    ele autorizou). A opção "Faz sozinho" só aparece na lista depois de registrada a autorização, e só
-   salva com ela. O documento anexado precisa ser do imóvel da negociação. Quem é citado por um mandato
+   salva com ela. O documento anexado precisa ser do imóvel da negociação. O documento citado por um mandato
    fica sempre interno: não vira foto, não vai ao anúncio e não pode ser apagado ("fica guardado com o
    histórico do mandato").
 
