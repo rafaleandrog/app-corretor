@@ -593,7 +593,7 @@ test('#126 r2: endereço com letra só depois de palavra de endereço; horário 
     'QI 5',
     'Apto 2B',
     'Torre B2',
-    'Torre B2, 704',
+    'Torre B2, apto 704',
     'Visita dia 28/10 15h?',
     '28/10/2026 15:30',
     'dia 3, 10h',
@@ -601,6 +601,42 @@ test('#126 r2: endereço com letra só depois de palavra de endereço; horário 
     'Meu WhatsApp é (61) 9 9876-5432.',
     'O CEP é 70.000-000.',
     'Posso levar R$ 1.460.000 (2 vagas).',
+  ]);
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
+});
+
+test('#126 r3: endereço ou horário seguido de número ou escala, por qualquer separação da junção, retém', () => {
+  for (const m of [
+    'Torre 1B e 300 mil, fechado',
+    'Apto 1B e 450 mil',
+    'Bloco 1B e 450 mil',
+    'Apto 1B + 360 mil',
+    'Apto 1B; 360 mil',
+    'Bloco 1B (360 mil)',
+    'Bloco B1, 360 mil',
+    'Torre B1, 360 mil',
+    'W1 Sul 360 mil',
+    'Fica W1 Sul e 360 mil',
+    'Fica 1 13h 60 mil',
+  ]) assert.ok(achadosDe(m).includes(DISFARCE), `deveria reter: ${JSON.stringify(m)} (veio ${JSON.stringify(achadosDe(m))})`);
+  // Sem palavra entre o endereço e o número, retém: falha do lado seguro.
+  assert.ok(achadosDe('Torre B2, 704').includes(DISFARCE));
+  passa([
+    'Moro na W3 Sul 704.',
+    'L2 Norte',
+    'SQS 308 Bloco C apto 104',
+    'SQN 210',
+    'QI 5',
+    'Apto 2B',
+    'Torre B2',
+    'Torre B2, apto 704',
+    'Visita dia 28/10 15h?',
+    '28/10/2026 15:30',
+    'dia 3, 10h',
+    '61 99999 9999',
+    '(61) 9 9876-5432',
+    'CEP 70.000-000.',
+    'R$ 1.460.000 (2 vagas)',
   ]);
   for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
 });

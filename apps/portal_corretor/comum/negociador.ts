@@ -706,11 +706,21 @@ const GRUPO_X = String.raw`(?:(?:${NUM_X}\s+)?${ESCALA_X}|${DIG_X}\s?(?:mi|mm|kk
 const UNIDADE_X = String.raw`(?:quartos?|suites?|vagas?|banheiros?|andar(?:es)?|pavimentos?|dias?|horas?|meses|anos?|semanas?|minutos?|vezes|metros|pets?|parcelas?|rodadas?)`;
 /** Fim de uma leitura: nem letra, nem algarismo, nem separador seguido de algarismo ("1.3" de "1.3.6"). */
 const FIM_X = String.raw`(?![\p{L}\p{N}\p{M}]|[.,:\/\-]\p{N})`;
+/**
+ * Entre duas leituras, a separação normal: pontuação e espaço, "e"/"ou", conta com espaços. É o critério da
+ * junção de trechos (`SEPARACAO_NORMAL`) e o das travas de endereço e de horário (`NAO_SEGUE_NUMERO_X`).
+ */
+const SEPARACAO_X = String.raw`(?:\s*[,;.!?)("'“”]+\s*|\s+)(?:(?:e|ou|[-−–+=])\s+)?`;
+/** Começo de número ou de escala. */
+const NUMERO_OU_ESCALA_X = String.raw`(?:\p{N}|${NUM_X}\b|${ESCALA_X}\b|mi\b|mm\b|kk\b|k\b|m\b)`;
+/** Trava: a leitura não vale se, por qualquer separação que a junção aceita, vem número ou escala. */
+const NAO_SEGUE_NUMERO_X = String.raw`(?!${SEPARACAO_X}${NUMERO_OU_ESCALA_X})`;
 const LEITURAS_PADRAO = [
   // Valor: dígitos ou por extenso, com escala e partes ("1 milhão e 360 mil", "mil e quinhentos").
   String.raw`(?:${GRUPO_X}(?:\s+(?:e\s+)?${GRUPO_X})*(?:\s+e\s+mei[ao]|\s+(?:e\s+)?${NUM_X})?|${ATE999_X}\s+virgula\s+${ATE999_X}|${NUM_X})`,
   // Horário e data: "10h", "10h30", "10:30", "28/10", "28/10/2026", "2026-10-29T13:43:35.953Z".
-  String.raw`\d{1,2}(?::\d{2}(?::\d{2})?|h(?:\d{2}(?:min)?)?|hs)`,
+  // O "h" sozinho não vale seguido de número ou escala ("1 13h 60 mil"): a junção ligaria os dois.
+  String.raw`\d{1,2}(?::\d{2}(?::\d{2})?|h(?:\d{2}(?:min)?|${NAO_SEGUE_NUMERO_X})|hs)`,
   String.raw`\d{4}-\d{2}-\d{2}(?:t\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:z|[+-]\d{2}:?\d{2})?)?|\d{1,2}\/\d{1,2}(?:\/\d{2,4})?`,
   // Ordinal ("5º", "1ª", "1o piso") e quantidade com unidade ("2-3 vagas", "10x", "5km", "30min").
   String.raw`\d{1,3}[ºªoa°]`,
@@ -728,12 +738,13 @@ const LEITURAS_PADRAO = [
 /**
  * Endereço com letra e número ("W3", "L2", "B2", "104A", "2B"): até duas letras e um ou dois algarismos, ou
  * até três algarismos e uma letra. L, I e O (que fazem de 1 e 0) só com um algarismo; "13six0" e "l360" têm
- * mais que isso e continuam sem leitura. Nunca seguido, só por espaço, de número ou de escala ("1B 360 mil",
- * "B2 704"); e só vale depois de uma palavra de endereço (`PALAVRA_DE_ENDERECO`) ou, para W e L, antes de
- * "Sul" ou "Norte" (`EIXO_DE_BRASILIA`).
+ * mais que isso e continuam sem leitura. Nunca seguido, por qualquer separação que a junção aceita
+ * (`SEPARACAO_X`), de número ou de escala ("1B 360 mil", "1B e 450 mil", "B1, 360 mil", "B2, 704"); o eixo
+ * ("W1 Sul") nunca seguido de valor com escala ("W1 Sul 360 mil"). Só vale depois de uma palavra de
+ * endereço (`PALAVRA_DE_ENDERECO`) ou, para W e L, antes de "Sul" ou "Norte" (`EIXO_DE_BRASILIA`).
  */
 const ENDERECO = new RegExp(
-  String.raw`(?:[a-hj-km-np-z]{1,2}\d{1,2}|[loi]\d|\d{1,3}[a-hj-km-np-z])(?!\s+(?:\p{N}|${NUM_X}\b|${ESCALA_X}\b|mi\b|mm\b|kk\b|k\b|m\b))${FIM_X}`,
+  String.raw`(?:[a-hj-km-np-z]{1,2}\d{1,2}|[loi]\d|\d{1,3}[a-hj-km-np-z])${NAO_SEGUE_NUMERO_X}(?!\s+(?:sul|norte)\b${SEPARACAO_X}(?:${NUM_X}\s*)?(?:${ESCALA_X}|mi|mm|kk|k|m)\b)${FIM_X}`,
   'uy',
 );
 const PALAVRA_DE_ENDERECO = /\b(?:quadra|qd|bloco|bl|apartamento|apto|apt|ap|torre|casa|lote|lt|conjunto|conj|cj|qi|ql|qs|qn|qe|sqs|sqn|sqsw|sqnw|shis|shin|sala|loja|unidade)\.?\s+$/;
@@ -746,8 +757,8 @@ const HORARIO_POR_EXTENSO = new RegExp(String.raw`(?:${ATE99_X}|\d{1,2}h?)(?:\s+
 const PALAVRA_DE_NUMERO = new RegExp(String.raw`^(?:${UNI_X}|${DEZ1_X}|${DEZ_X}|${CEM_X}|zero|${ESCALA_X})$`);
 /** Entre dois trechos de número, só sinais e conectores: o mesmo número, ou números colados. */
 const MESMO_GRUPO = /^(?:[^\p{L}\p{N}]|\b(?:e|ou|ponto|virgula)\b)*$/u;
-/** Entre duas leituras, a separação normal: pontuação e espaço, "e"/"ou", conta com espaços. */
-const SEPARACAO_NORMAL = /^(?:\s*[,;.!?)("'“”]+\s*|\s+)(?:(?:e|ou|[-−–+=])\s+)?$/u;
+/** Entre duas leituras, a separação normal (`SEPARACAO_X`). */
+const SEPARACAO_NORMAL = new RegExp(`^${SEPARACAO_X}$`, 'u');
 const UNIDADE_DEPOIS = new RegExp(String.raw`^\s*${UNIDADE_X}\b`);
 const ALGARISMO = new RegExp(String.raw`^(?:\d|${UNI_X}|zero)$`);
 const DIGITOS_INTEIROS = new RegExp(`^${DIG_X}$`);
