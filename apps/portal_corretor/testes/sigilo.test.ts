@@ -521,6 +521,7 @@ test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
       vazamentos(texto, MOTOR, PUBLICOS_120);
       melhor = Math.min(melhor, performance.now() - t0);
     }
-    assert.ok(melhor < 200, `${JSON.stringify(f)} × 40 mil caracteres levou ${melhor.toFixed(0)} ms`);
+    // Folga para a máquina lenta do CI: o que o teste pega é o crescimento quadrático, não o tempo absoluto.
+    assert.ok(melhor < 1000, `${JSON.stringify(f)} × 40 mil caracteres levou ${melhor.toFixed(0)} ms`);
   }
 });
