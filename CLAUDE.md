@@ -44,6 +44,7 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 3. Ao terminar: testes passando, `apps/portal_corretor/docs/` atualizado com o que passou a existir, status do bloco atualizado no plano e uma linha no registro de sessões.
 4. PR com `Closes #<issue>` quando houver issue. Se a skill `revisar-pr-apps` estiver disponível nesta sessão, rode-a no PR antes de pedir o merge. **Merge só com autorização expressa do dono na conversa.**
 5. Termine a sessão dizendo o que ficou pronto, o que ficou pendente e qual é o próximo bloco.
+6. **Antes de encerrar, registre as pendências no repositório**, não só na conversa: na seção "Pendências para as próximas sessões" da fase atual em `specs/plano_de_implementacao.md` (PRs abertos que dependem de outra sessão, conflito de `versao` com a `main`, observação de revisão que ficou aberta, próximos itens desbloqueados) e uma linha no registro de sessões. Quem resolve uma pendência tira a linha dela no mesmo PR. Confira também que não sobrou nada sem commit nem sem push.
 
 ## Armadilhas já encontradas
 
