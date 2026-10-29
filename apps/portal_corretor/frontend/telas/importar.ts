@@ -57,6 +57,8 @@ const estado = {
 };
 const ouvintes = new Set<() => void>();
 let geracaoPrevia = 0;
+// Cada entrada na tela é uma visita nova: resposta que chega depois dela (prévia ou importação) é da anterior.
+let visita = 0;
 
 function mudar(m: Partial<typeof estado>) {
   Object.assign(estado, m);
@@ -64,6 +66,8 @@ function mudar(m: Partial<typeof estado>) {
 }
 
 export function aoAbrirImportar() {
+  visita++;
+  geracaoPrevia++; // a prévia em andamento não vale mais
   mudar({ arquivo: null, cabecalho: [], linhas: [], mapa: {}, origem: 'outra', modo: 'pular', enviando: false, relatorio: null, previa: null });
 }
 
@@ -152,9 +156,11 @@ export class PcImportarFontes extends ColunaImportar {
 export class PcTelaImportar extends ColunaImportar {
   private async escolher(e: CustomEvent) {
     const f = e.detail.arquivo as File | null;
+    const v = visita;
     mudar({ relatorio: null });
     if (!f) return mudar({ arquivo: null, previa: null });
     const bytes = new Uint8Array(await f.arrayBuffer());
+    if (v !== visita) return;
     // UTF-8 primeiro; se houver caractere inválido, o arquivo veio do Excel antigo em Latin-1.
     let texto = new TextDecoder('utf-8').decode(bytes);
     if (texto.includes('�')) texto = new TextDecoder('windows-1252').decode(bytes);
@@ -198,13 +204,16 @@ export class PcTelaImportar extends ColunaImportar {
       await urbiVerso.alertar({ titulo: 'Planilha grande demais', mensagem: `Importe no máximo ${LIMITE} linhas por vez. Divida o arquivo.`, tipo: 'alerta' });
       return;
     }
+    const v = visita;
     mudar({ enviando: true });
     try {
-      mudar({ relatorio: await enviar('POST', '/contatos/importar', this.corpo()) });
+      const relatorio = await enviar('POST', '/contatos/importar', this.corpo());
+      if (v === visita) mudar({ relatorio });
     } catch (e) {
-      await urbiVerso.alertar({ titulo: 'A importação falhou', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      if (v === visita) await urbiVerso.alertar({ titulo: 'A importação falhou', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
-      mudar({ enviando: false });
+      // A visita nova já começou com `enviando: false`; só a desta visita desliga o próprio botão.
+      if (v === visita) mudar({ enviando: false });
     }
   }
 

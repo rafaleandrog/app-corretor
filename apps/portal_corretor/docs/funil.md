@@ -36,7 +36,8 @@ de **abordagem atrasada**.
   30 dias), sem os filtros. Uma etapa que você criou em Ajustes › Funil não tem taxa.
 - **Arraste** o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
   motivo, nada é gravado e o cartão volta.
-- **Toque** no cartão para ver o cliente na coluna da direita, sem sair do Funil.
+- **Toque** no cartão para ver o cliente na coluna da direita, sem sair do Funil. No cartão com
+  **abordagem atrasada**, o cliente abre já com a **Mensagem sugerida** pronta.
 - Ganhos e perdidos ficam no quadro por 30 dias; os em andamento ficam sempre.
 
 **Direita: o cliente do cartão escolhido.**

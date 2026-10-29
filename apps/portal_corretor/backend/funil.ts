@@ -49,15 +49,20 @@ funilRotas.get(
     const etapas = await etapasPorId(dados);
     const daqui = [...etapas.values()].filter((e) => e.pipeline === pipeline && e.ativa).sort((a, b) => a.ordem - b.ordem);
     // Os dois funis: as contagens da coluna da esquerda (P03) contam os negócios abertos de cada um.
-    const todos = await dados.varrerTudo('negocios', { maximo: 5000 });
+    // Contagem pelo `total` do listar (uma linha lida), sem varrer: não cria teto novo para a rota.
     const aberto = (n: Linha) => etapas.get(n.etapa_id)?.tipo === 'aberta';
-    const funis = {
-      compra: todos.filter((n) => n.pipeline === 'compra' && aberto(n)).length,
-      venda_captacao: todos.filter((n) => n.pipeline === 'venda_captacao' && aberto(n)).length,
+    const idsAbertas = [...etapas.values()].filter((e) => e.tipo === 'aberta').map((e) => e.id);
+    const abertosDo = async (p: string) => {
+      if (!idsAbertas.length) return 0; // filtro vazio seria descartado e contaria tudo
+      return (await dados.listar('negocios', { filtros: { pipeline: p, etapa_id: idsAbertas.join(',') }, por_pagina: 1 })).total;
     };
+    const [compra, venda_captacao] = await Promise.all([abertosDo('compra'), abertosDo('venda_captacao')]);
+    const funis = { compra, venda_captacao };
+    // Só o funil escolhido é varrido, com o teto de 5000 por funil.
+    const doFunil = await dados.varrerTudo('negocios', { filtros: { pipeline }, maximo: 5000 });
     // Ganhos e perdidos saem do quadro depois de 30 dias; abertos ficam sempre.
     const corte = new Date(Date.now() - 30 * DIA).toISOString();
-    const visiveis = todos.filter((n) => {
+    const visiveis = doFunil.filter((n) => {
       const e = etapas.get(n.etapa_id);
       if (!e || n.pipeline !== pipeline) return false;
       return e.tipo === 'aberta' || (iso(n.etapa_desde) ?? '') >= corte;

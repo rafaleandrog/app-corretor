@@ -116,9 +116,11 @@ Embaixo, quatro abas. A aba aberta fica no endereço (`?secao=`) e volta ao reca
   listas, mas não é apagado). Contato com negócio em andamento não pode ser removido: encerre o
   negócio antes.
 
-Vindo do **Fazer agora** de Hoje ou de um cartão com **Abordagem atrasada** no Funil, a ficha
-abre já com a **Mensagem sugerida** carregada (o endereço traz `?sugerir=1`), e o **Fazer agora**
-dela abre o WhatsApp. Sem abordagem, ou abrindo a ficha por outro caminho, nada é gerado sozinho.
+Vindo do **Fazer agora** de Hoje, a ficha abre já com a **Mensagem sugerida** carregada (o
+endereço traz `?sugerir=1`), e o **Fazer agora** dela abre o WhatsApp. No Funil, tocar num cartão
+com **Abordagem atrasada** abre o cliente na coluna da direita, sem sair do Funil, também com a
+**Mensagem sugerida** pronta. Sem abordagem, ou abrindo o cliente por outro caminho, nada é gerado
+sozinho.
 
 Um cliente de outra conta, aberto por um link ou pelo endereço, mostra "Não encontrado".
 

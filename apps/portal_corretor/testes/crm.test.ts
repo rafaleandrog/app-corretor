@@ -138,6 +138,11 @@ test('atividade ligada ao contato; concluir atualiza o último contato', async (
     await chamar('PATCH', `/atividades/${a.corpo.id}`, { status: 'feita' });
     assert.ok(banco.linhas('contatos')[0].ultimo_contato_em > '2026-01-01');
     assert.equal((await chamar('GET', '/contatos?parado_dias=30')).corpo.total, 0);
+    // Já feita no cadastro: a linha do tempo diz "Registrado"; a pendente, "Agendado".
+    await chamar('POST', '/atividades', { tipo: 'ligacao', titulo: 'Ligação de retorno', quando: '2026-10-20T13:00:00Z', contato_id: c.id, status: 'feita' });
+    const resumos = banco.linhas('linha_do_tempo').filter((l) => l.tipo === 'atividade.criada').map((l) => l.resumo);
+    assert.ok(resumos.includes('Registrado: Ligação de retorno'), resumos.join(' | '));
+    assert.ok(resumos.includes('Agendado: Visita apto'), resumos.join(' | '));
   });
 });
 
@@ -159,6 +164,13 @@ test('importação, prévia (P14): diz o que acontece em cada linha e não grava
     assert.deepEqual(await acoes('sobrescrever'), [[2, 'substituida'], [3, 'nova'], [4, 'substituida'], [5, 'ignorada']]);
     assert.equal(banco.linhas('contatos').length, antes, 'a prévia não grava contato');
     assert.equal(banco.linhas('origens').filter((o) => o.canal === 'importacao').length, 0, 'nem a origem da importação');
+    // A prévia é amostra: acima de 50 linhas, recusa com a mensagem do limite.
+    const muitas = Array.from({ length: 51 }, (_, i) => ({ nome: `P${i}`, telefone: `619000${String(i).padStart(5, '0')}` }));
+    const r = await chamar('POST', '/contatos/importar', { linhas: muitas, modo: 'pular', simular: true });
+    assert.equal(r.status, 422);
+    assert.equal(r.corpo.codigo, 'DADOS_INVALIDOS');
+    assert.match(r.corpo.mensagem, /no máximo 50 linhas/);
+    assert.equal((await chamar('POST', '/contatos/importar', { linhas: muitas.slice(0, 50), modo: 'pular', simular: true })).status, 200);
   });
   // Outra conta: o telefone de A não é "já existe" para B.
   await comServidor(rotas, B, banco, {}, async (chamar) => {

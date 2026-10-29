@@ -120,6 +120,12 @@ export class PcClientesQuadro extends LitElement {
     void this.carregar();
   }
 
+  // Quadro substituído (outra chave de filtros) não publica: resposta tardia dele não vale mais.
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.geracao++;
+  }
+
   private async carregar() {
     const geracao = ++this.geracao;
     this.falha = null;
@@ -131,11 +137,11 @@ export class PcClientesQuadro extends LitElement {
       const pronto = f.get('pronto');
       if (ehPronto(pronto)) for (const [k, v] of Object.entries(parametrosDoPronto(pronto, await lerDiasParado()))) q.set(k, v);
       const r = await chamarApi(`/funil/quadro?${q}`);
-      if (geracao !== this.geracao) return;
+      if (geracao !== this.geracao || !this.isConnected) return;
       this.quadro = r;
       publicarResumo({ funis: r.funis, temperaturas: r.temperaturas });
     } catch (e) {
-      if (geracao === this.geracao) this.falha = (e as Error).message;
+      if (geracao === this.geracao && this.isConnected) this.falha = (e as Error).message;
     }
   }
 
@@ -172,11 +178,16 @@ export class PcClientesQuadro extends LitElement {
     </urbi-stack>`;
   }
 
-  /** Endereço do cartão: o Funil com os mesmos filtros e o cliente escolhido. */
+  /**
+   * Endereço do cartão: o Funil com os mesmos filtros e o cliente escolhido. Com abordagem atrasada,
+   * `?sugerir=1`: o cliente abre à direita já com a mensagem sugerida (a `FichaContato` lê e tira).
+   */
   private hrefDo(n: Linha) {
     const q = filtrosDaUrl();
     q.set('visao', 'funil');
     q.set('item', String(n.contato_id));
+    q.delete('sugerir');
+    if (n.abordagem_vencida) q.set('sugerir', '1');
     return urbiVerso.href(`/clientes?${q}`);
   }
 

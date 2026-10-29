@@ -55,7 +55,15 @@ window.urbiVerso = {
     if (caminho === '/funil/etapas') return { etapas: [] };
     if (caminho === '/envios') return { dados: [] };
     if (caminho === '/selecoes') return { dados: [] };
-    if (caminho === '/funil/quadro') return { etapas: [], negocios: [], passagem: [], funis: { compra: 2, venda_captacao: 0 }, temperaturas: { quente: 1, morno: 0, frio: 0 } };
+    // Quadro fictício: um cartão com abordagem atrasada (Ana) e um em dia (Bruno).
+    if (caminho === '/funil/quadro') return {
+      etapas: [{ id: 1, nome: 'Novo', tipo: 'aberta' }],
+      negocios: [
+        { id: 1, etapa_id: 1, contato_id: 7, contato_nome: 'Ana Ribeiro', titulo: 'Compra', temperatura: 'quente', abordagem_vencida: true },
+        { id: 2, etapa_id: 1, contato_id: 8, contato_nome: 'Bruno Lima', titulo: 'Compra', temperatura: null, abordagem_vencida: false },
+      ],
+      passagem: [], funis: { compra: 2, venda_captacao: 0 }, temperaturas: { quente: 1, morno: 0, frio: 0 },
+    };
     const m = caminho.match(/^\\/contatos\\/(\\d+)(\\/.*)?$/);
     const c = m && CONTATOS.find((x) => x.id === Number(m[1]));
     // Contato de outra conta: a rota responde 404 (o RLS não devolve a linha).
@@ -314,6 +322,22 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
       } as any;
     });
     assert.deepEqual(r, { quadro: true, filtros: ['Compra (2)', 'Captação (0)'] });
+    // Os chips de temperatura trazem a contagem do quadro; o href de cada cartão leva ao Funil com o
+    // cliente escolhido, e o cartão atrasado leva `sugerir=1` (a mensagem sugerida abre pronta à direita).
+    r = await pagina.evaluate(() => {
+      const filtros = document.querySelector('pc-clientes-funil-filtros')!;
+      const chips = [...filtros.shadowRoot!.querySelectorAll('urbi-chips-atalho')] as any[];
+      const kanban = (window as any).achar(document.querySelector('pc-clientes-quadro'), 'urbi-kanban') as any;
+      return {
+        temperaturas: chips[2].opcoes.map((o: any) => o.rotulo),
+        hrefs: kanban.itens.map((n: any) => kanban.href_item(n)),
+      } as any;
+    });
+    assert.deepEqual((r as any).temperaturas, ['Todas', 'Quentes (1)', 'Mornos (0)', 'Frios (0)']);
+    assert.deepEqual((r as any).hrefs, [
+      '/portal_corretor/clientes?visao=funil&item=7&sugerir=1',
+      '/portal_corretor/clientes?visao=funil&item=8',
+    ]);
     // Cartão escolhido (`?item=` no Funil): o cliente abre à direita, sem sair do Funil.
     await pagina.evaluate(() => {
       history.replaceState(null, '', location.pathname + '?visao=funil&item=8');
