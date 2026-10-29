@@ -118,8 +118,8 @@ vez, em abas: **Hoje · Fila · Agenda**).
 
 - O dia por extenso e o estado do Mensageiro (por enquanto, "ainda não disponível": ele chega com o WhatsApp).
 - **Precisa de você**: as negociações que esperam a sua decisão e os clientes quentes sem resposta,
-  cada um com o botão **Abrir** (a ficha do cliente). O **Assumir** de uma negociação chega com o
-  Negociador (D2/D3); a tela de negociação ainda não existe. A lista mostra até 20 negociações e até 50 clientes quentes.
+  cada um com o botão **Abrir** (a ficha do cliente). Na aba **Negociação** da ficha, a negociação
+  abre em Clientes › Negociações, onde ficam **Assumir** e **Devolver ao Negociador**. A lista mostra até 20 negociações e até 50 clientes quentes.
 - **Primeiros passos · x de 5**, com as bolinhas de progresso e um **Fazer** em cada passo pendente:
   dar nome à conta, informar o seu telefone, conectar o Instagram, cadastrar o primeiro imóvel e
   publicar a Página. Some quando os 5 estão feitos. Quando o WhatsApp e o Mensageiro existirem, os

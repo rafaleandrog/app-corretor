@@ -326,7 +326,7 @@ export class PcNegociacoesLista extends LitElement {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// Centro: cabeçalho, faixa, escada, última fala e a sugestão do Negociador (P15; no celular, M8).
+// Centro: cabeçalho, faixa, a sugestão do Negociador (ou Pedir sugestão), escada e última fala (P15; no celular, M8).
 
 /**
  * Faixa da negociação (D-102). Lacuna nomeada em 11.9 (pedido ao shell 13): até o primitivo existir,
@@ -380,13 +380,15 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
       quando: dataHora(p.criado_em),
     }));
     return html`<urbi-card titulo="Escada de propostas" icone="fa-solid fa-stairs">
-      <urbi-botao slot="acao" pequeno variante="texto" icone="fa-solid fa-plus" @click=${() => void this.n!.registrarOferta()}>Registrar oferta do cliente</urbi-botao>
       ${linhas.length
         ? html`<urbi-tabela responsivo="multiline" .linhas=${linhas} .colunas=${[
             { id: 'rodada', label: 'Rodada' }, { id: 'quem', label: 'Quem' }, { id: 'valor', label: 'Valor' }, { id: 'condicoes', label: 'Condições' },
             { id: 'concessao', label: 'Concessão' }, { id: 'contrapartida', label: 'Contrapartida' }, { id: 'canal', label: 'Canal' }, { id: 'quando', label: 'Quando' },
           ]}></urbi-tabela>`
         : html`<urbi-prosa papel="dica">Nenhuma proposta ainda. Registre a oferta do cliente para começar.</urbi-prosa>`}
+      <urbi-linha>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-plus" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.registrarOferta()}>Registrar oferta do cliente</urbi-botao>
+      </urbi-linha>
     </urbi-card>`;
   }
 
@@ -408,7 +410,7 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
         ? html`<urbi-prosa><strong>${reais(cp.valor_c)}</strong>${cp.condicoes ? ` · ${cp.condicoes}` : ''}${cp.concessao ? ` · ${cp.concessao} ↔ ${cp.contrapartida ?? ''}` : ''}</urbi-prosa>`
         : ''}
       ${r.mensagem ? html`<urbi-prosa pre>${r.mensagem}</urbi-prosa>` : ''}
-      <urbi-prosa papel="fraco">${(s.validacoes ?? []).map((v: Linha) => `${v.ok ? '✓' : '✗'} ${v.descricao}`).join(' · ')}</urbi-prosa>
+      <urbi-prosa papel="fraco">${(s.validacoes ?? []).map((v: Linha) => `${v.ok ? 'ok' : 'falhou'}: ${v.descricao}`).join(' · ')}</urbi-prosa>
       ${bloqueada ? html`<urbi-banner variante="alerta">Bloqueada pelas regras do mandato: edite antes de enviar, ou descarte.</urbi-banner>` : ''}
       <urbi-linha quebrar>
         <urbi-botao pequeno icone="fa-solid fa-paper-plane" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('portal')}>Enviar</urbi-botao>
@@ -442,9 +444,9 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
           : html`<urbi-badge cor="alerta">Sem mandato</urbi-badge>`}
       </urbi-linha>
       ${this.faixa(d, m)}
+      ${encerrada ? '' : this.sugestao(d)}
       ${this.escada(d)}
       ${d.ultima_fala ? html`<urbi-card titulo="Última fala do cliente" icone="fa-solid fa-comment"><urbi-prosa pre>${d.ultima_fala.texto}</urbi-prosa><urbi-prosa papel="fraco">${dataHora(d.ultima_fala.em)}</urbi-prosa></urbi-card>` : ''}
-      ${encerrada ? '' : this.sugestao(d)}
     </urbi-stack>`;
   }
 }
@@ -524,7 +526,7 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       ${this.cartaoLeitura(d)}
       ${this.cartaoProximo(d)}
       ${this.editando
-        ? html`<pc-mandato-modal .negociacaoId=${d.id} .imovelId=${d.imovel_id} .atual=${m}
+        ? html`<pc-mandato-modal .negociacaoId=${d.id} .imovelId=${d.imovel_id} .atual=${m} .conduzidaPor=${d.conduzida_por}
             .aoFechar=${(salvou: boolean) => {
               this.editando = false;
               if (salvou) void this.n!.carregar();
@@ -535,8 +537,8 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
 }
 
 // ---------------------------------------------------------------------------------------------------
-// Criar › Nova proposta: cliente, imóvel e a oferta. Usa o negócio aberto do cliente (ou abre um), cria a
-// negociação se ainda não houver e registra a oferta; depois abre a negociação (P15).
+// Criar › Nova proposta: cliente, imóvel e a oferta, que cai sempre numa negociação DO IMÓVEL escolhido.
+// Depois abre a negociação (P15).
 
 const buscar = (rota: string, rotulo: (l: Linha) => string) => async (termo: string, signal: AbortSignal) => {
   const r = await chamarApi(`${rota}?busca=${encodeURIComponent(termo)}`, { signal });
@@ -564,23 +566,35 @@ export async function novaProposta(foco?: { id: number; nome: string } | null): 
   const contato = Number(v.contato_id);
   const imovel = Number(v.imovel_id);
   try {
-    // O negócio aberto de compra do cliente; sem ele, abre um para este imóvel.
-    const negocios = (await chamarApi(`/contatos/${contato}`))?.negocios ?? [];
-    const aberto = negocios.find((n: Linha) => n.etapa_tipo === 'aberta' && n.pipeline === 'compra');
-    const negocio = aberto ?? (await enviar('POST', '/negocios', { contato_id: contato, imovel_id: imovel }));
-    // A negociação em andamento do negócio, ou uma nova (a rota recusa a segunda: 409 NEGOCIACAO_EXISTENTE).
-    const existentes = (await chamarApi(`/negociacoes?negocio_id=${negocio.id}&estado=${FILTROS[0].estados}`))?.dados ?? [];
-    const negociacao = existentes[0] ?? (await enviar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel }));
-    await enviar('POST', `/negociacoes/${negociacao.id}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null });
+    // Conduta (uma negociação em andamento por negócio, 6.16): 1) o cliente já negocia ESTE imóvel →
+    // a oferta entra nela; 2) senão, um negócio aberto de compra do cliente sobre este imóvel (ou sem
+    // imóvel) e sem negociação em andamento recebe a negociação nova; 3) senão, abre um negócio próprio
+    // para o imóvel. Negócio que já negocia OUTRO imóvel nunca recebe a oferta (não grava no imóvel errado).
+    const emAndamento: Linha[] = (await chamarApi(`/negociacoes?contato_id=${contato}&estado=${FILTROS[0].estados}&por_pagina=100`))?.dados ?? [];
+    let negociacao = emAndamento.find((n) => Number(n.imovel_id) === imovel) ?? null;
+    if (!negociacao) {
+      const ocupados = new Set(emAndamento.map((n) => Number(n.negocio_id)));
+      const negocios: Linha[] = (await chamarApi(`/contatos/${contato}`))?.negocios ?? [];
+      const livre = (n: Linha) => n.etapa_tipo === 'aberta' && n.pipeline === 'compra' && !ocupados.has(Number(n.id));
+      const aberto = negocios.find((n) => livre(n) && Number(n.imovel_id) === imovel) ?? negocios.find((n) => livre(n) && !n.imovel_id);
+      const negocio = aberto ?? (await enviar('POST', '/negocios', { contato_id: contato, imovel_id: imovel }));
+      negociacao = await enviar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel });
+      if (!aberto) urbiVerso.notificar('Aberto um negócio novo do cliente para este imóvel.', 'info');
+    }
+    await enviar('POST', `/negociacoes/${negociacao!.id}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null });
     urbiVerso.notificar('Proposta registrada.', 'sucesso');
-    return Number(negociacao.id);
+    return Number(negociacao!.id);
   } catch (e) {
     await urbiVerso.alertar({ titulo: 'Não foi possível registrar a proposta', mensagem: mensagemDeErro(e), tipo: 'erro' });
     return null;
   }
 }
 
-/** Abre a negociação em Clientes › Negociações (P15), pela navegação da SPA, como o Criar faz. */
+/**
+ * Abre a negociação em Clientes › Negociações (P15), pela navegação da SPA, como o Criar faz. Com query,
+ * o caminho é o de overview.md (pushState + PopStateEvent, o mesmo que o navegarSub faz por dentro):
+ * o navegarSub só documenta o path.
+ */
 export function abrirNegociacao(id: number) {
   history.pushState(history.state, '', `${urbiVerso.href('/clientes')}?visao=negociacoes&item=${id}`);
   window.dispatchEvent(new PopStateEvent('popstate'));
@@ -606,8 +620,6 @@ export class PcNegociacoesDoCliente extends LitElement {
     if (this.falha) return estadoTela('erro', { mensagem: 'Não foi possível ler as negociações.' });
     if (!this.linhas) return estadoTela('carregando');
     return html`<urbi-card titulo="Negociação" icone="fa-solid fa-handshake">
-      <urbi-botao slot="acao" pequeno variante="texto" icone="fa-solid fa-plus"
-        @click=${() => void novaProposta({ id: this.contatoId, nome: this.nome }).then((n) => n && abrirNegociacao(n))}>Nova proposta</urbi-botao>
       ${this.linhas.length
         ? html`<urbi-lista clicavel separador .itens=${this.linhas}
             .render_item=${(n: Linha) => {
@@ -619,6 +631,10 @@ export class PcNegociacoesDoCliente extends LitElement {
             }}
             @urbi:lista-click=${(e: CustomEvent) => abrirNegociacao((e.detail.item as Linha).id)}></urbi-lista>`
         : html`<urbi-prosa papel="dica">Nenhuma negociação com ${this.nome || 'este cliente'}. Quando ele fizer uma oferta, registre em Nova proposta.</urbi-prosa>`}
+      <urbi-linha>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-plus"
+          @click=${() => void novaProposta({ id: this.contatoId, nome: this.nome }).then((n) => n && abrirNegociacao(n))}>Nova proposta</urbi-botao>
+      </urbi-linha>
     </urbi-card>`;
   }
 }

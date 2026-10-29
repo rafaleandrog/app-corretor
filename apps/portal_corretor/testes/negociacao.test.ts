@@ -223,6 +223,31 @@ test('mandato inválido devolve 422 com o código e o motivo; nada é gravado', 
   assert.deepEqual(ev.publicados.filter((e) => e.tipo === 'mandato_alterado').length, 1, 'só o mandato válido publica');
 });
 
+test('autorização por anexo: só um documento anexado ao imóvel da negociação, da mesma conta', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  const d = banco.dados(100);
+  const outroImovel = await d.criar('imoveis', { codigo: 'IM-0002', titulo: 'Casa Lago Sul', preco_c: 95_000_000 });
+  const doc = await d.criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'a.pdf', tipo: 'documento', legenda: 'Autorização assinada' });
+  const foto = await d.criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'f.jpg', tipo: 'foto' });
+  const docOutro = await d.criar('imovel_midias', { imovel_id: outroImovel.id, arquivo: 'b.pdf', tipo: 'documento' });
+  const docB = await banco.dados(200).criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'c.pdf', tipo: 'documento' });
+  const anexo = (arquivo_id: number) => ({ ...MANDATO, autonomia: 'faz_sozinho', autorizacao_proprietario: { tipo: 'anexo', arquivo_id, data: '2026-10-27' } });
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    for (const [rotulo, mid] of [['mídia de outro imóvel', docOutro.id], ['mídia inexistente', 999_999], ['foto, não documento', foto.id], ['documento de outra conta', docB.id]] as const) {
+      const r = await chamar('PUT', `/negociacoes/${nid}/mandato`, anexo(mid));
+      assert.deepEqual([r.status, r.corpo.codigo], [422, 'DADOS_INVALIDOS'], rotulo);
+      assert.match(r.corpo.mensagem, /documento anexado a este imóvel/);
+    }
+    const ok = await chamar('PUT', `/negociacoes/${nid}/mandato`, anexo(doc.id));
+    assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+    assert.deepEqual(ok.corpo.autorizacao_proprietario, { tipo: 'anexo', arquivo_id: doc.id, data: '2026-10-27' });
+  });
+  assert.equal(banco.linhas('mandatos_negociacao').length, 1, 'só o anexo válido grava');
+});
+
 test('isolamento A × B: lista, detalhe, mandato e propostas de outra conta respondem 404', async () => {
   const banco = new BancoFalso(UNICOS);
   const ev = eventosFalsos();

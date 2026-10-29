@@ -137,6 +137,9 @@ test('Negociações no Chromium: lista, faixa, sigilo mascarado, sugestão edita
           return w.profundo(div);
         })(),
         centro: w.profundo(document.querySelector('pc-negociacao-foco')),
+        // Botões de ação no corpo do card (o urbi-card não tem slot "acao").
+        semSlotAcao: w.todos(document, 'urbi-botao').every((b: any) => b.getAttribute('slot') !== 'acao'),
+        registrar: !!w.botao(document.querySelector('pc-negociacao-foco'), 'Registrar oferta do cliente'),
         direita: w.profundo(document.querySelector('pc-negociacao-contexto')),
         chamadas: w.chamadas.slice(),
       };
@@ -152,7 +155,10 @@ test('Negociações no Chromium: lista, faixa, sigilo mascarado, sugestão edita
     assert.match(r.centro, /ZOPA estimada/);
     assert.match(r.centro, /Consigo 1,32\?/);
     assert.match(r.centro, /Negociador sugere · rodada 3/);
-    assert.match(r.centro, /✓ não ofereceu abaixo do ponto de recuo/);
+    assert.match(r.centro, /ok: não ofereceu abaixo do ponto de recuo/);
+    // A sugestão vem logo depois da faixa, antes da escada (P15, M8).
+    assert.match(r.centro, /Faixa da negociação.*Negociador sugere.*Escada de propostas/);
+    assert.ok(r.semSlotAcao && r.registrar, 'Registrar oferta do cliente aparece no corpo do cartão');
     assert.match(r.centro, /Rodada 2 de 4/);
     // Direita: o recuo e a BATNA mascarados até o corretor pedir.
     assert.doesNotMatch(`${r.centro} ${r.direita}`, /1\.360\.000/, 'o recuo não aparece em lugar nenhum antes do "mostrar"');
@@ -195,8 +201,12 @@ test('Negociações no Chromium: lista, faixa, sigilo mascarado, sugestão edita
     r = await pagina.evaluate(() => {
       const w = window as any;
       const modal = w.todos(document, 'pc-mandato-modal')[0];
-      return { texto: w.profundo(modal), salvar: w.botao(modal, 'Salvar mandato')?.hasAttribute('desabilitado') };
+      const recuo = w.todos(modal, 'urbi-input').find((i: any) => i.getAttribute('label') === 'Ponto de recuo (R$)');
+      return { texto: w.profundo(modal), salvar: w.botao(modal, 'Salvar mandato')?.hasAttribute('desabilitado'), recuoTipo: recuo.getAttribute('tipo'), anexar: !!w.botao(modal, 'Anexar documento') };
     });
+    assert.match(r.texto, /Quem negocia e autonomia/);
+    assert.equal(r.recuoTipo, null, 'o recuo num urbi-input comum, com a dica de sigilo');
+    assert.ok(r.anexar);
     assert.match(r.texto, /O ponto de recuo não pode ficar acima do alvo\./);
     assert.equal(r.salvar, true);
   } finally {
