@@ -189,10 +189,31 @@ test('Negociações no Chromium: lista, faixa, sigilo mascarado, sugestão edita
       w.botao(document.querySelector('pc-negociacao-contexto'), 'Editar mandato').click();
     });
     await esperar();
+    // Com mandato, o recuo abre mascarado: nem no texto nem num campo, até o corretor tocar em "mostrar".
+    r = await pagina.evaluate(() => {
+      const w = window as any;
+      const modal = w.todos(document, 'pc-mandato-modal')[0];
+      return {
+        texto: w.profundo(modal),
+        campo: !!w.todos(modal, 'urbi-input').find((i: any) => i.getAttribute('label') === 'Ponto de recuo (R$)'),
+        valores: w.todos(modal, 'input').map((i: any) => i.value).join(' | '),
+        mostrar: !!w.botao(modal, 'mostrar'),
+      };
+    });
+    assert.doesNotMatch(r.texto, /1\.360\.000/, 'o recuo não aparece no modal antes do "mostrar"');
+    assert.doesNotMatch(r.valores, /1\.360\.000/);
+    assert.match(r.texto, /Ponto de recuo \(R\$\) ••••/);
+    assert.deepEqual([r.campo, r.mostrar], [false, true]);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.botao(w.todos(document, 'pc-mandato-modal')[0], 'mostrar').click();
+    });
+    await esperar();
     r = await pagina.evaluate(() => {
       const w = window as any;
       const modal = w.todos(document, 'pc-mandato-modal')[0];
       const recuo = w.todos(modal, 'urbi-input').find((i: any) => i.getAttribute('label') === 'Ponto de recuo (R$)');
+      if (!recuo) return false;
       recuo.dispatchEvent(new CustomEvent('urbi:input-change', { detail: { valor: '1.410.000' }, bubbles: true, composed: true }));
       return !!modal;
     });

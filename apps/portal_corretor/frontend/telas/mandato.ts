@@ -44,6 +44,8 @@ export class PcMandatoModal extends LitElement {
   @state() private salvando = false;
   @state() private conduz = 'ia';
   @state() private trocando = false;
+  /** O recuo fica mascarado ("••••") até o corretor tocar em "mostrar"; mandato sem recuo já abre o campo. */
+  @state() private recuoAberto = false;
   /** Documentos do imóvel (mídias tipo documento): a autorização por anexo escolhe um deles. */
   @state() private documentos: Linha[] | null = null;
   // Trocou quem negocia: fechar sem salvar ainda relê a negociação.
@@ -53,6 +55,7 @@ export class PcMandatoModal extends LitElement {
     super.connectedCallback();
     this.conduz = this.conduzidaPor;
     this.f = formularioDe(this.atual, null);
+    this.recuoAberto = !this.f.recuo;
     void chamarApi(`/imoveis/${this.imovelId}`).then(
       (r) => {
         this.documentos = ((r?.midias ?? []) as Linha[]).filter((m) => m.tipo === 'documento');
@@ -173,7 +176,9 @@ export class PcMandatoModal extends LitElement {
           <urbi-linha quebrar>
             <urbi-input label="Preço pedido (R$)" valor=${f.pedido} @urbi:input-change=${(e: CustomEvent) => this.mudar({ pedido: e.detail.valor })}></urbi-input>
             <urbi-input label="Alvo (R$)" valor=${f.alvo} @urbi:input-change=${(e: CustomEvent) => this.mudar({ alvo: e.detail.valor })}></urbi-input>
-            <urbi-input label="Ponto de recuo (R$)" valor=${f.recuo} @urbi:input-change=${(e: CustomEvent) => this.mudar({ recuo: e.detail.valor })}></urbi-input>
+            ${this.recuoAberto
+              ? html`<urbi-input label="Ponto de recuo (R$)" valor=${f.recuo} @urbi:input-change=${(e: CustomEvent) => this.mudar({ recuo: e.detail.valor })}></urbi-input>`
+              : html`<urbi-prosa>Ponto de recuo (R$) <strong>••••</strong> <urbi-botao pequeno variante="texto" @click=${() => (this.recuoAberto = true)}>mostrar</urbi-botao></urbi-prosa>`}
           </urbi-linha>
           <urbi-banner variante="alerta">O ponto de recuo e a BATNA são sigilosos: o cliente nunca os vê, e o Negociador nunca os revela.</urbi-banner>
           <urbi-textarea label="BATNA do vendedor (o que ele faz se não houver acordo)" rows="2" valor=${f.batna}
@@ -209,7 +214,7 @@ export class PcMandatoModal extends LitElement {
             : html`<urbi-select label="Quem negocia" valor=${this.conduz} ?desabilitado=${this.trocando}
                 .opcoes=${[{ valor: 'ia', rotulo: 'Negociador IA' }, { valor: 'corretor', rotulo: 'Você (corretor)' }]}
                 @urbi:select-change=${(e: CustomEvent) => void this.trocarQuemNegocia(e.detail.valor)}></urbi-select>`}
-          <urbi-prosa papel="fraco">Uma pessoa da sua equipe como negociador só existe em contas com vários usuários. Trocar aqui vale na hora, sem salvar.</urbi-prosa>
+          <urbi-prosa papel="fraco">Trocar aqui vale na hora, sem salvar.</urbi-prosa>
           <urbi-select label="O Negociador" valor=${f.autonomia} .opcoes=${autonomias}
             @urbi:select-change=${(e: CustomEvent) => this.mudar({ autonomia: e.detail.valor })}></urbi-select>
           ${f.autorizacao

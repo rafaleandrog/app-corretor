@@ -39,7 +39,7 @@ import {
   publicar,
   sugestaoSuperada,
   texto,
-  ultimoVendedorId,
+  ultimaPropostaId,
 } from './negociacao';
 import { contaDoRequest } from './vitrine';
 
@@ -428,8 +428,8 @@ export async function executarMotor(meio: MeioMotor, nid: number, entrada: { men
     const execucao = await trx.criar('negociador_execucoes', {
       negociacao_id: nid,
       mensagem_cliente,
-      // `vendedor_ate`: a última proposta do vendedor que esta sugestão já viu (marco de "superada").
-      entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0), vendedor_ate: ultimoVendedorId(agora.linhas) },
+      // `propostas_ate`: a última proposta (de qualquer lado) que esta sugestão já viu (marco de "superada").
+      entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0), propostas_ate: ultimaPropostaId(agora.linhas) },
       saida: guardada,
       // O que foi retido por sigilo deixa rastro: só o nome do campo, nunca o conteúdo.
       validacoes: { verificacoes: validacao.verificacoes, passagem: motivos, retidos: guardavel?.vazados ?? [] },
@@ -636,7 +636,7 @@ negociadorRotas.post(
       const recusa = recusaDe(viva);
       if (recusa) return { recusa };
       const agora = await estadoTravado(trx, viva);
-      // Sob a trava: sugestão com execução mais nova ou proposta do vendedor depois dela não sai (o
+      // Sob a trava: sugestão com execução mais nova ou qualquer proposta depois dela não sai (o
       // detalhe já não a mostra). Descartar, mais acima, continua valendo.
       const maisNova = (await trx.listar('negociador_execucoes', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'desc', por_pagina: 1 })).dados[0];
       if (sugestaoSuperada(execucao, Number(maisNova?.id ?? 0), agora.linhas)) return { recusa: 'superada' as const };

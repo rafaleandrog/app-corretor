@@ -39,8 +39,8 @@ quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo
   marcas em linha; a régua desenhada espera um componente novo (pedido à plataforma).
 - **Negociador sugere** (logo abaixo da faixa): a sugestão que espera você, com o valor, o texto e a
   linha de conferências ("ok: não ofereceu abaixo do ponto de recuo · ok: …"; a que barrou aparece
-  como "falhou: …"). Só aparece a sugestão mais recente, e só enquanto nenhuma proposta do vendedor
-  foi gravada depois dela; a superada some, e aprová-la ou editá-la é recusado ("Há uma sugestão ou
+  como "falhou: …"). Só aparece a sugestão mais recente, e só enquanto nenhuma proposta (do comprador,
+  do vendedor ou do proprietário) foi gravada depois dela; a superada some, e aprová-la ou editá-la é recusado ("Há uma sugestão ou
   proposta mais nova: peça outra sugestão."), mas descartá-la ainda pode. **Enviar** manda pelo Portal do Cliente;
   **Fazer agora** abre o WhatsApp do celular com a mensagem pronta; **Editar** muda o valor, as
   condições ou o texto (o app confere de novo e, se a edição passar do recuo ou revelar o sigilo,
@@ -68,7 +68,9 @@ quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo
 Abre por **Editar mandato** (ou **Definir mandato**, quando ainda não há). Quatro blocos:
 
 1. **Valores:** preço pedido (na primeira vez, vem do anúncio), alvo, ponto de recuo e a BATNA do
-   vendedor, com o aviso de que são sigilosos.
+   vendedor, com o aviso de que são sigilosos. Com mandato já salvo, o ponto de recuo abre mascarado
+   ("••••") e só vira campo editável quando você toca em **mostrar**; no primeiro mandato o campo já
+   vem aberto.
 2. **Concessões e contrapartidas:** cada linha é "o que se concede, até onde, e o que se pede em
    troca"; mais o passo máximo por rodada (40% é o padrão) e o número máximo de rodadas.
 3. **Prazo:** até quando o mandato vale.
@@ -80,7 +82,9 @@ Abre por **Editar mandato** (ou **Definir mandato**, quando ainda não há). Qua
    **Anexar documento** (escolhe um dos documentos já anexados ao imóvel, com a data; o cartão mostra
    "Autorizado por documento <nome> em <data>") ou **Registrar por mensagem** (com a data). Sem
    documento no imóvel, o botão explica que o documento entra pela ficha do imóvel (Imóveis › ficha ›
-   Fotos e arquivos, como documento). Ao salvar, o app confere que o documento é deste imóvel.
+   Fotos e arquivos, como documento). Ao salvar, o app confere que o documento é deste imóvel. Enquanto o mandato vigente de uma
+   negociação em andamento usa o documento, ele não pode ser apagado, virar foto nem ficar público
+   na ficha do imóvel.
 
 O formulário confere enquanto você digita, com as mesmas regras da gravação (recuo ≤ alvo ≤
 pedido, concessão com contrapartida, faz sozinho com a autorização), e **Salvar mandato** só liga
@@ -254,7 +258,8 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
 - **Só sugere** e **Pergunta antes:** a sugestão espera você. Você **aprova** (escolhendo portal ou
   Fazer agora), **edita** ou **descarta**. Aprovar ou editar confere as 7 garantias de novo: nem a
   sua edição passa do recuo ou revela o sigilo (o app recusa e diz por quê). Só a sugestão mais
-  recente se aprova: se depois dela houve outra sugestão ou uma proposta do vendedor, aprovar ou
+  recente se aprova: se depois dela houve outra sugestão ou qualquer proposta nova (do comprador,
+  do vendedor ou do proprietário, que o Negociador não viu ao sugerir), ela some da tela e aprovar ou
   editar é recusado com `SUGESTAO_SUPERADA` (peça outra sugestão); descartar continua valendo.
 - **Faz sozinho:** com o Negociador conduzindo e a autorização do proprietário no mandato, a
   contraproposta que passa nas garantias é registrada sozinha como enviada pelo portal e a

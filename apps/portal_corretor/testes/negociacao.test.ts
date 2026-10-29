@@ -248,6 +248,35 @@ test('autorização por anexo: só um documento anexado ao imóvel da negociaç�
   assert.equal(banco.linhas('mandatos_negociacao').length, 1, 'só o anexo válido grava');
 });
 
+test('anexo do mandato vigente: não é apagado, não vira foto nem fica público; trocado o anexo ou encerrada a negociação, sai', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  const d = banco.dados(100);
+  const doc = await d.criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'a.pdf', tipo: 'documento', legenda: 'Autorização' });
+  const doc2 = await d.criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'b.pdf', tipo: 'documento', legenda: 'Autorização nova' });
+  const anexo = (arquivo_id: number) => ({ ...MANDATO, autonomia: 'faz_sozinho', autorizacao_proprietario: { tipo: 'anexo', arquivo_id, data: '2026-10-27' } });
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    assert.equal((await chamar('PUT', `/negociacoes/${nid}/mandato`, anexo(doc.id))).status, 200);
+    const remover = await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc.id}/remover`);
+    assert.deepEqual([remover.status, remover.corpo.codigo], [409, 'DOCUMENTO_EM_USO'], JSON.stringify(remover.corpo));
+    for (const corpo of [{ tipo: 'foto' }, { publica: true }]) {
+      const r = await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc.id}`, corpo);
+      assert.deepEqual([r.status, r.corpo.codigo], [409, 'DOCUMENTO_EM_USO'], JSON.stringify(corpo));
+    }
+    assert.equal(banco.linhas('imovel_midias').find((m) => m.id === doc.id)?.tipo, 'documento', 'segue documento');
+    // Trocado o anexo (versão nova do mandato), o anterior sai; o novo passa a estar em uso.
+    assert.equal((await chamar('PUT', `/negociacoes/${nid}/mandato`, anexo(doc2.id))).status, 200);
+    assert.equal((await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc.id}/remover`)).status, 200);
+    assert.equal((await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc2.id}/remover`)).corpo.codigo, 'DOCUMENTO_EM_USO');
+    // Encerrada a negociação, o anexo dela sai.
+    assert.equal((await chamar('PATCH', `/negociacoes/${nid}`, { estado: 'perdida', motivo_perda: 'desistiu' })).status, 200);
+    assert.equal((await chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc2.id}/remover`)).status, 200);
+  });
+  assert.equal(banco.linhas('imovel_midias').length, 0);
+});
+
 test('isolamento A × B: lista, detalhe, mandato e propostas de outra conta respondem 404', async () => {
   const banco = new BancoFalso(UNICOS);
   const ev = eventosFalsos();
