@@ -174,6 +174,8 @@ async function carregar(dados: HelperDados, negociacao: Linha, conta: number, us
     imovel,
     contato,
     creci: (perfil?.creci as string | null | undefined) ?? null,
+    // As propostas que foram ao modelo: o marco de "superada" é o que a IA viu, não o lido sob a trava.
+    propostas_ate: ultimaPropostaId(propostas),
   };
 }
 
@@ -428,8 +430,8 @@ export async function executarMotor(meio: MeioMotor, nid: number, entrada: { men
     const execucao = await trx.criar('negociador_execucoes', {
       negociacao_id: nid,
       mensagem_cliente,
-      // `propostas_ate`: a última proposta (de qualquer lado) que esta sugestão já viu (marco de "superada").
-      entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0), propostas_ate: ultimaPropostaId(agora.linhas) },
+      // `propostas_ate`: a última proposta (de qualquer lado) que a IA viu (lida antes da chamada; marco de "superada").
+      entrada: { canal, automatico, mudou, mandato_versao: agora.mandato ? (viva.mandato_id ?? null) : null, rodadas: Number(viva.rodadas ?? 0), propostas_ate: ctx.propostas_ate },
       saida: guardada,
       // O que foi retido por sigilo deixa rastro: só o nome do campo, nunca o conteúdo.
       validacoes: { verificacoes: validacao.verificacoes, passagem: motivos, retidos: guardavel?.vazados ?? [] },

@@ -944,6 +944,31 @@ test('sugestão superada: o detalhe só mostra a pendente mais recente, sem prop
   criterioDoDono(banco);
 });
 
+test('sugestão superada pela oferta que chega enquanto a IA pensa: o marco é o que a IA viu, não o lido sob a trava', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  let nid = 0;
+  // A oferta do comprador entra entre a leitura do contexto (o que vai ao modelo) e a trava.
+  const ia = iaSimulada([
+    async () => {
+      await banco.dados(100).criar('propostas', { negociacao_id: nid, rodada: 2, direcao: 'comprador', autor_tipo: 'cliente', valor_c: 142_000_000, canal: 'registro', estado: 'registrada' });
+      return contraproposta(146_000_000, 'Ana, posso levar R$ 1.460.000.');
+    },
+  ]);
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } }, banco, {}, async (chamar) => {
+    nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    const a = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+    assert.ok(a.execucao_id, JSON.stringify(a));
+    // A sugestão não viu a oferta de 1,42 mi: não aparece no detalhe e não sai.
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao, null);
+    const r = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: a.execucao_id, canal: 'portal' });
+    assert.deepEqual([r.status, r.corpo.codigo], [409, 'SUGESTAO_SUPERADA'], JSON.stringify(r.corpo));
+  });
+  assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'nenhuma contraproposta saiu');
+});
+
 test('sugestão superada por proposta do comprador: o motor sugeriu sem vê-la; o detalhe a esconde e aprovar dá 409', async () => {
   const banco = new BancoFalso(UNICOS);
   const ev = eventosFalsos();
