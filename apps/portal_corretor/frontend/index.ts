@@ -7,8 +7,6 @@ import './telas/corretores.js';
 import { renderClientes } from './telas/clientes.js';
 import './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
-import './telas/ficha-imovel.js';
-import './telas/ficha-empreendimento.js';
 import { renderNumeros } from './telas/desempenho.js';
 import './telas/pagina.js';
 import './telas/estudio.js';
@@ -43,12 +41,14 @@ const TELAS: Record<ChaveTela, Tela> = {
   importar: { titulo: 'Importar contatos', papel: 'corretor', render: () => html`<pc-tela-importar></pc-tela-importar>` },
   // `/clientes/:id` é apelido: `chegar` troca o endereço por `/clientes?item=:id` antes de desenhar.
   cliente: { titulo: 'Clientes', papel: 'corretor', moldura: true, render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
-  imoveis: { titulo: 'Imóveis', papel: 'corretor', render: (_p, app) => renderImoveis(() => app?.requestUpdate()) },
-  imovel: { titulo: 'Imóvel', papel: 'corretor', render: (id) => html`<pc-tela-ficha-imovel .imovelId=${Number(id)}></pc-tela-ficha-imovel>` },
+  imoveis: { titulo: 'Imóveis', papel: 'corretor', moldura: true, render: (_p, app) => renderImoveis(() => app?.requestUpdate()) },
+  // A ficha abre na moldura de Imóveis, com o item já escolhido (P06).
+  imovel: { titulo: 'Imóveis', papel: 'corretor', moldura: true, render: (id, app) => renderImoveis(() => app?.requestUpdate(), { imovel: Number(id) || undefined }) },
   empreendimento: {
-    titulo: 'Empreendimento',
+    titulo: 'Imóveis',
     papel: 'corretor',
-    render: (id) => html`<pc-tela-ficha-empreendimento .empreendimentoId=${Number(id)}></pc-tela-ficha-empreendimento>`,
+    moldura: true,
+    render: (id, app) => renderImoveis(() => app?.requestUpdate(), { empreendimento: Number(id) || undefined }),
   },
   estudio: { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
   pagina: { titulo: 'Página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },

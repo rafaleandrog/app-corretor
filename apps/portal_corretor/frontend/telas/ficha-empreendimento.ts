@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { chamarApi, enviar, formularioEnviar, mensagemDeErro, reais, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
+import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 import { FASE, faixa, TIPO_EMPREENDIMENTO } from './empreendimentos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -9,6 +10,10 @@ declare const urbiVerso: UrbiVersoAPI;
 type Linha = Record<string, any>;
 
 const TIPO_MATERIAL: Record<string, string> = { planta: 'Planta', tabela: 'Tabela de preços', memorial: 'Memorial descritivo', book: 'Book', outro: 'Outro' };
+
+/** A ficha avisa que o empreendimento mudou ou saiu: a lista da esquerda relê. */
+export const EVENTO_EMPREENDIMENTO_MUDOU = 'pc:empreendimento-mudou';
+const avisarLista = (id: number) => window.dispatchEvent(new CustomEvent(EVENTO_EMPREENDIMENTO_MUDOU, { detail: { id } }));
 
 // Ficha do empreendimento: dados, materiais (planta, tabela, memorial) e as unidades da carteira
 // ligadas a ele. Materiais "para o cliente" poderão ir pelo atendimento automático.
@@ -52,7 +57,11 @@ export class PcTelaFichaEmpreendimento extends LitElement {
       ],
       'PATCH',
       `/empreendimentos/${this.empreendimentoId}`,
-    ).then((r) => (r ? this.carregar() : undefined));
+    ).then(async (r) => {
+      if (!r) return;
+      await this.carregar();
+      avisarLista(this.empreendimentoId);
+    });
   }
 
   private async enviarMaterial(ev: CustomEvent) {
@@ -96,6 +105,9 @@ export class PcTelaFichaEmpreendimento extends LitElement {
     if (!ok) return;
     try {
       await enviar('PATCH', `/empreendimentos/${this.empreendimentoId}/remover`, {});
+      avisarLista(this.empreendimentoId);
+      // Tira o `?item=` do endereço: o centro não fica com a ficha do que saiu.
+      filtrosNaUrl(filtrosDaUrl(), {}, ['item']);
       urbiVerso.navegarSub('/empreendimentos');
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -114,8 +126,7 @@ export class PcTelaFichaEmpreendimento extends LitElement {
     const { empreendimento: e, materiais, imoveis } = this.ficha;
     return html`<urbi-stack>
       ${banner}
-      <urbi-linha justificar="entre" quebrar>
-        <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/empreendimentos')}>Empreendimentos</urbi-botao>
+      <urbi-linha justificar="fim">
         <urbi-botao variante="perigo" pequeno icone="fa-solid fa-trash" @click=${() => this.remover()}>Remover</urbi-botao>
       </urbi-linha>
       <urbi-card titulo=${e.nome} icone="fa-solid fa-city">
