@@ -196,6 +196,28 @@ crmRotas.post(
     if (!linhas.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Nenhuma linha para importar.');
     if (linhas.length > LIMITE_IMPORTACAO) return erro(res, 422, 'DADOS_INVALIDOS', `Importe no máximo ${LIMITE_IMPORTACAO} linhas por vez.`);
     const dados = req.dados!;
+    // Prévia (P14): o que aconteceria em cada linha, sem gravar nada. A mesma validação e a mesma
+    // busca de repetidos da importação; um repetido dentro da própria planilha conta como "já existe".
+    if (req.body?.simular === true) {
+      const vistos = new Set<string>();
+      const previa = [];
+      for (const [i, bruta] of linhas.entries()) {
+        const linha = i + 2;
+        const v = validarContato(bruta ?? {});
+        if (!v.ok) {
+          previa.push({ linha, acao: 'ignorada', motivo: v.erros.join(' ') });
+          continue;
+        }
+        const chaves = [v.dados.telefone && `t:${v.dados.telefone}`, v.dados.email && `e:${v.dados.email}`].filter(Boolean) as string[];
+        const existe =
+          chaves.some((k) => vistos.has(k)) ||
+          !!(v.dados.telefone && (await primeiro(dados, 'contatos', { telefone: v.dados.telefone }))) ||
+          !!(v.dados.email && (await primeiro(dados, 'contatos', { email: v.dados.email })));
+        chaves.forEach((k) => vistos.add(k));
+        previa.push({ linha, acao: !existe ? 'nova' : modo === 'pular' ? 'pulada' : modo === 'sobrescrever' ? 'substituida' : 'completada', motivo: null });
+      }
+      return res.json({ previa });
+    }
     const arquivo = typeof req.body?.arquivo === 'string' ? req.body.arquivo : null;
     const origem_id = await origem(dados, 'importacao', arquivo);
     const relatorio = { criados: 0, unidos: 0, pulados: 0, rejeitados: [] as { linha: number; motivo: string }[] };
@@ -534,7 +556,7 @@ crmRotas.post(
     });
     await programarLembreteVisita(req, atividade);
     if (atividade.contato_id) {
-      await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `Agendado: ${atividade.titulo}` });
+      await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `${atividade.status === 'feita' ? 'Registrado' : 'Agendado'}: ${atividade.titulo}` });
       if (atividade.tipo === 'visita') {
         await reclassificar(dados, atividade.contato_id);
         // A agenda do portal do cliente mostra as visitas marcadas (bloco 5b).

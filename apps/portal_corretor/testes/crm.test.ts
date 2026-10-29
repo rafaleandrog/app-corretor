@@ -141,6 +141,32 @@ test('atividade ligada ao contato; concluir atualiza o último contato', async (
   });
 });
 
+test('importação, prévia (P14): diz o que acontece em cada linha e não grava nada', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    await chamar('POST', '/contatos', { nome: 'Eva', telefone: '61966665555' });
+    const linhas = [
+      { nome: 'Eva Planilha', telefone: '61 96666-5555' },
+      { nome: 'Fábio', telefone: '61955554444' },
+      { nome: 'Fábio de novo', telefone: '61955554444' },
+      { nome: '', telefone: '' },
+    ];
+    const antes = banco.linhas('contatos').length;
+    const acoes = async (modo: string) =>
+      (await chamar('POST', '/contatos/importar', { linhas, modo, simular: true })).corpo.previa.map((p: any) => [p.linha, p.acao]);
+    assert.deepEqual(await acoes('pular'), [[2, 'pulada'], [3, 'nova'], [4, 'pulada'], [5, 'ignorada']]);
+    assert.deepEqual(await acoes('atualizar_vazios'), [[2, 'completada'], [3, 'nova'], [4, 'completada'], [5, 'ignorada']]);
+    assert.deepEqual(await acoes('sobrescrever'), [[2, 'substituida'], [3, 'nova'], [4, 'substituida'], [5, 'ignorada']]);
+    assert.equal(banco.linhas('contatos').length, antes, 'a prévia não grava contato');
+    assert.equal(banco.linhas('origens').filter((o) => o.canal === 'importacao').length, 0, 'nem a origem da importação');
+  });
+  // Outra conta: o telefone de A não é "já existe" para B.
+  await comServidor(rotas, B, banco, {}, async (chamar) => {
+    const r = await chamar('POST', '/contatos/importar', { linhas: [{ nome: 'Eva', telefone: '61966665555' }], modo: 'pular', simular: true });
+    assert.deepEqual(r.corpo.previa.map((p: any) => p.acao), ['nova']);
+  });
+});
+
 test('importação: cria, pula ou completa duplicatas e relata rejeitadas', async () => {
   const banco = new BancoFalso(UNICOS);
   await comServidor(rotas, A, banco, {}, async (chamar) => {

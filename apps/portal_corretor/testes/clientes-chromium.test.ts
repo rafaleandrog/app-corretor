@@ -55,7 +55,7 @@ window.urbiVerso = {
     if (caminho === '/funil/etapas') return { etapas: [] };
     if (caminho === '/envios') return { dados: [] };
     if (caminho === '/selecoes') return { dados: [] };
-    if (caminho === '/funil/quadro') return { etapas: [], negocios: [] };
+    if (caminho === '/funil/quadro') return { etapas: [], negocios: [], passagem: [], funis: { compra: 2, venda_captacao: 0 }, temperaturas: { quente: 1, morno: 0, frio: 0 } };
     const m = caminho.match(/^\\/contatos\\/(\\d+)(\\/.*)?$/);
     const c = m && CONTATOS.find((x) => x.id === Number(m[1]));
     // Contato de outra conta: a rota responde 404 (o RLS não devolve a linha).
@@ -301,17 +301,31 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     assert.equal((r as any).vazio, 'Não encontrado');
     assert.doesNotMatch((r as any).texto, /Ana|Bruno/);
 
-    // Funil: o quadro no centro, a direita recolhida; escolher um cliente volta à Lista com a ficha.
+    // Funil (P03): os filtros à esquerda (com as contagens do quadro) e o quadro no centro. O nome antigo
+    // da visão (`?visao=quadro`) abre o Funil.
     await pagina.goto(`${ORIGEM}/portal_corretor/clientes?visao=quadro`);
     await esperar();
     r = await pagina.evaluate(() => {
-      const colunas = document.querySelector('urbi-3-colunas')!;
-      return { quadro: !!colunas.querySelector('urbi-hospedeiro[slot="centro"] pc-clientes-quadro'), recolhida: colunas.hasAttribute('colapsada-direita') } as any;
-    });
-    assert.deepEqual(r, { quadro: true, recolhida: true });
-    await pagina.evaluate(() => {
       const w = window as any;
-      w.achar(document, 'urbi-lista').dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: { id: 8 } }, bubbles: true, composed: true }));
+      const colunas = document.querySelector('urbi-3-colunas')!;
+      return {
+        quadro: !!colunas.querySelector('urbi-hospedeiro[slot="centro"] pc-clientes-quadro'),
+        filtros: (w.achar(colunas.querySelector('urbi-hospedeiro[slot="esquerda"] pc-clientes-funil-filtros'), 'urbi-chips-atalho')?.opcoes ?? []).map((o: any) => o.rotulo),
+      } as any;
+    });
+    assert.deepEqual(r, { quadro: true, filtros: ['Compra (2)', 'Captação (0)'] });
+    // Cartão escolhido (`?item=` no Funil): o cliente abre à direita, sem sair do Funil.
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', location.pathname + '?visao=funil&item=8');
+      (window as any).desenhar();
+    });
+    await esperar();
+    r = await pagina.evaluate(() => (window as any).profundo(document.querySelector('urbi-hospedeiro[slot="direita"] pc-ficha-contato-funil')));
+    assert.match(r as any, /Bruno Lima/);
+    // "Abrir ficha" leva à Lista com o cliente escolhido.
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', location.pathname + '?item=8');
+      (window as any).desenhar();
     });
     await esperar();
     f = await ficha();

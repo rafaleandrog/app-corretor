@@ -1,7 +1,7 @@
 import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
-import { CANAIS_ABORDAGEM, iso, ordenarFila, TEMPERATURAS, type TipoFila } from '../comum/funil';
+import { CANAIS_ABORDAGEM, iso, ordenarFila, taxasDePassagem, TEMPERATURAS, type TipoFila } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { etapasDaConta, registrar } from './crm';
 import { limiteParado } from '../comum/crm';
@@ -9,6 +9,7 @@ import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from '.
 import { numerosDaSemana } from './numeros';
 import { contaDoRequest, paginaDaConta } from './vitrine';
 import { primeirosPassos } from '../comum/hoje';
+import type { NegocioNum } from '../comum/numeros';
 import { semSigilo } from '../comum/negociacao';
 
 // Funil (bloco 4): quadro por etapa, playbook de abordagens, fila do dia do Início e a rotina que
@@ -47,12 +48,18 @@ funilRotas.get(
     await etapasDaConta(dados); // semeia na primeira vez
     const etapas = await etapasPorId(dados);
     const daqui = [...etapas.values()].filter((e) => e.pipeline === pipeline && e.ativa).sort((a, b) => a.ordem - b.ordem);
-    const negocios = await dados.varrerTudo('negocios', { filtros: { pipeline }, maximo: 5000 });
+    // Os dois funis: as contagens da coluna da esquerda (P03) contam os negócios abertos de cada um.
+    const todos = await dados.varrerTudo('negocios', { maximo: 5000 });
+    const aberto = (n: Linha) => etapas.get(n.etapa_id)?.tipo === 'aberta';
+    const funis = {
+      compra: todos.filter((n) => n.pipeline === 'compra' && aberto(n)).length,
+      venda_captacao: todos.filter((n) => n.pipeline === 'venda_captacao' && aberto(n)).length,
+    };
     // Ganhos e perdidos saem do quadro depois de 30 dias; abertos ficam sempre.
     const corte = new Date(Date.now() - 30 * DIA).toISOString();
-    const visiveis = negocios.filter((n) => {
+    const visiveis = todos.filter((n) => {
       const e = etapas.get(n.etapa_id);
-      if (!e) return false;
+      if (!e || n.pipeline !== pipeline) return false;
       return e.tipo === 'aberta' || (iso(n.etapa_desde) ?? '') >= corte;
     });
     const contatos = visiveis.length
@@ -60,9 +67,24 @@ funilRotas.get(
       : [];
     const porContato = new Map(contatos.map((c) => [c.id, c]));
     const playbook = await playbookDaConta(dados, etapas);
+    // Contagem por temperatura: clientes (uma vez cada) com negócio aberto neste funil, antes dos filtros.
+    const temperaturas = { quente: 0, morno: 0, frio: 0 };
+    for (const cid of new Set(visiveis.filter(aberto).map((n) => n.contato_id))) {
+      const t = porContato.get(cid)?.temperatura as keyof typeof temperaturas | undefined;
+      if (t && t in temperaturas) temperaturas[t]++;
+    }
+    // Taxa de passagem entre etapas vizinhas, sobre os negócios do quadro (sem os filtros).
+    const passagem = taxasDePassagem(daqui as { id: number; nome: string; tipo: string; marco?: string | null }[], visiveis.map((n) => ({ ...n, pipeline }) as unknown as NegocioNum));
+    // Filtros: temperatura, "parado há" e os dos filtros prontos (os mesmos parâmetros de GET /contatos).
     const temperatura = typeof req.query.temperatura === 'string' && (TEMPERATURAS as readonly string[]).includes(req.query.temperatura) ? req.query.temperatura : null;
     const parado = limiteParado(req.query.parado_dias);
+    const desde = iso(req.query['criado_em[gte]']);
+    const retorno = iso(req.query['proximo_passo_em[lt]']);
     const cartoes = visiveis
+      .filter((n) => {
+        const c = porContato.get(n.contato_id) ?? {};
+        return (!desde || (iso(c.criado_em) ?? '') >= desde) && (!retorno || (!!iso(c.proximo_passo_em) && iso(c.proximo_passo_em)! < retorno));
+      })
       .map((n) => {
         const c = porContato.get(n.contato_id) ?? {};
         const abordagem = etapas.get(n.etapa_id)?.tipo === 'aberta' ? proximaAbordagem(c, [n], etapas, playbook) : null;
@@ -82,7 +104,7 @@ funilRotas.get(
         };
       })
       .filter((k) => (!temperatura || k.temperatura === temperatura) && (!parado || (iso(k.ultimo_contato_em) ?? '') < parado));
-    res.json({ pipeline, etapas: daqui, negocios: cartoes });
+    res.json({ pipeline, etapas: daqui, negocios: cartoes, funis, temperaturas, passagem });
   }),
 );
 

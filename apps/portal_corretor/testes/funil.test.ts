@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas, rotinas } from '../backend/rotas';
-import { classificar, deveTrocar, ordenarFila, venceEm } from '../comum/funil';
+import { classificar, deveTrocar, ordenarFila, taxasDePassagem, venceEm } from '../comum/funil';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const UNICOS = { contatos: ['telefone'], etapas_funil: ['pipeline+nome'], playbook_funil: ['etapa_id+temperatura'], visitas: ['atividade_id'] };
@@ -132,6 +132,79 @@ test('quadro por etapa com temperatura e alerta; filtros de temperatura e parado
     assert.equal((await chamar('GET', '/funil/quadro?temperatura=quente')).corpo.negocios.length, 0);
     assert.equal((await chamar('GET', '/funil/quadro?parado_dias=7')).corpo.negocios.length, 0);
     assert.equal((await chamar('GET', '/funil/quadro?pipeline=venda_captacao')).corpo.etapas.length, 7);
+  });
+});
+
+test('taxa de passagem entre etapas: confere com a conta à mão sobre um conjunto fixo (P03)', () => {
+  const etapas = [
+    { id: 1, nome: 'Novo', tipo: 'aberta' },
+    { id: 2, nome: 'Em atendimento', tipo: 'aberta' },
+    { id: 3, nome: 'Qualificado', tipo: 'aberta' },
+    { id: 5, nome: 'Visitou', tipo: 'aberta' },
+    { id: 8, nome: 'Ganho', tipo: 'ganha' },
+    { id: 9, nome: 'Perdido', tipo: 'perdida' },
+  ];
+  const n = (marco_max: string, extra: Record<string, unknown> = {}) => ({
+    pipeline: 'compra', criado_em: '2026-10-01', ganho_em: null, perdido_em: null, motivo_perda: null, valor_estimado_c: null, comissao_pct: null, marco_max, ...extra,
+  });
+  // 7 negócios: um parado em Novo, um em atendimento, um qualificado, dois que visitaram, um ganho
+  // (passou por todas) e um perdido depois do atendimento (conta até onde chegou).
+  const negocios = [n('novo'), n('atendimento'), n('qualificado'), n('visitou'), n('visitou'), n('proposta', { ganho_em: '2026-10-20' }), n('atendimento', { perdido_em: '2026-10-21' })];
+  assert.deepEqual(taxasDePassagem(etapas, negocios), [
+    // Novo → Em atendimento: 6 dos 7 (todos menos o parado em Novo) = 85,7%.
+    { de_etapa_id: 1, para_etapa_id: 2, chegaram: 7, passaram: 6, taxa: 0.857 },
+    // Em atendimento → Qualificado: 4 dos 6 (o qualificado, os dois que visitaram e o ganho) = 66,7%.
+    { de_etapa_id: 2, para_etapa_id: 3, chegaram: 6, passaram: 4, taxa: 0.667 },
+    // Qualificado → Visitou: 3 dos 4 (os dois que visitaram e o ganho) = 75%.
+    { de_etapa_id: 3, para_etapa_id: 5, chegaram: 4, passaram: 3, taxa: 0.75 },
+  ]);
+  // Etapa criada pelo corretor (sem marco) não tem taxa; sem negócio, também não.
+  const comNova = [etapas[0], { id: 4, nome: 'Minha etapa', tipo: 'aberta', marco: null }, etapas[1]];
+  assert.deepEqual(taxasDePassagem(comNova, negocios).map((p) => p.taxa), [null, null]);
+  assert.deepEqual(taxasDePassagem(etapas, []).map((p) => p.taxa), [null, null, null]);
+});
+
+test('quadro: contagens dos funis e das temperaturas, taxas, filtros prontos e Perdido sem motivo não grava', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const etapas = (await chamar('GET', '/funil/quadro?pipeline=compra')).corpo.etapas;
+    const etapa = (nome: string) => etapas.find((e: any) => e.nome === nome).id;
+    const novo = async (nome: string, telefone: string) => {
+      const c = (await chamar('POST', '/contatos', { nome, telefone })).corpo;
+      return { c, n: (await chamar('POST', '/negocios', { contato_id: c.id, titulo: `Compra ${nome}` })).corpo };
+    };
+    const ana = await novo('Ana', '61911110001');
+    const bia = await novo('Bia', '61911110002');
+    await novo('Caio', '61911110003');
+    await chamar('POST', '/negocios', { contato_id: ana.c.id, titulo: 'Captação Ana', pipeline: 'venda_captacao' });
+    // Bia vai a Em atendimento; Ana vai a Proposta (fica quente pela regra).
+    assert.equal((await chamar('PATCH', `/negocios/${bia.n.id}`, { etapa_id: etapa('Em atendimento') })).status, 200);
+    assert.equal((await chamar('PATCH', `/negocios/${ana.n.id}`, { etapa_id: etapa('Proposta') })).status, 200);
+    // Perdido sem motivo: recusado, e nada muda.
+    const semMotivo = await chamar('PATCH', `/negocios/${bia.n.id}`, { etapa_id: etapa('Perdido') });
+    assert.equal(semMotivo.status, 422);
+    assert.equal(semMotivo.corpo.codigo ?? semMotivo.corpo.erro?.codigo, 'MOTIVO_OBRIGATORIO');
+    assert.equal(banco.linhas('negocios').find((x) => x.id === bia.n.id)!.etapa_id, etapa('Em atendimento'));
+    const q = (await chamar('GET', '/funil/quadro?pipeline=compra')).corpo;
+    assert.deepEqual(q.funis, { compra: 3, venda_captacao: 1 });
+    assert.deepEqual(q.temperaturas, { quente: 1, morno: 2, frio: 0 });
+    // Novo → Em atendimento: 2 dos 3 (Bia e Ana, que pulou etapas e chegou à Proposta).
+    const primeira = q.passagem.find((p: any) => p.de_etapa_id === etapa('Novo'));
+    assert.deepEqual([primeira.chegaram, primeira.passaram, primeira.taxa], [3, 2, 0.667]);
+    // A contagem por temperatura é antes dos filtros; o quadro filtrado mostra só a quente.
+    const quentes = (await chamar('GET', '/funil/quadro?temperatura=quente')).corpo;
+    assert.deepEqual(quentes.negocios.map((x: any) => x.contato_nome), ['Ana']);
+    assert.deepEqual(quentes.temperaturas, { quente: 1, morno: 2, frio: 0 });
+    // Filtros prontos: os mesmos parâmetros da Lista (Novos e Retorno vencido).
+    const futuro = encodeURIComponent(depois(1));
+    assert.equal((await chamar('GET', `/funil/quadro?criado_em[gte]=${futuro}`)).corpo.negocios.length, 0);
+    banco.linhas('contatos').find((x) => x.nome === 'Caio')!.proximo_passo_em = antes(1);
+    assert.deepEqual((await chamar('GET', `/funil/quadro?proximo_passo_em[lt]=${encodeURIComponent(new Date().toISOString())}`)).corpo.negocios.map((x: any) => x.contato_nome), ['Caio']);
+  });
+  // Isolamento: a outra conta vê o próprio quadro, vazio.
+  await comServidor(rotas, B, banco, {}, async (chamar) => {
+    const q = (await chamar('GET', '/funil/quadro?pipeline=compra')).corpo;
+    assert.deepEqual([q.negocios.length, q.funis, q.temperaturas], [0, { compra: 0, venda_captacao: 0 }, { quente: 0, morno: 0, frio: 0 }]);
   });
 });
 

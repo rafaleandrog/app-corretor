@@ -24,7 +24,7 @@ import {
 import { buscaDaVisao, contatoDoItem } from '../enderecos.js';
 import { estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
-import './clientes-quadro.js';
+import { chaveDoQuadro, contatoDoFunil } from './clientes-quadro.js';
 import './ficha-contato.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -42,16 +42,16 @@ interface Contato {
 }
 
 // Clientes em duas visões (D-83, spec 11.1 P03/P04): Lista e Funil (o quadro por etapa). A visão fica em
-// `?visao=` (Lista é a ausência dela) e `/funil` é apelido que abre o Funil. A visão Negociações entra
-// aqui com o item D3 do arco (#102).
+// `?visao=` (Lista é a ausência dela; o Funil é `?visao=funil`) e `/funil` é apelido que abre o Funil,
+// assim como o `?visao=quadro` de antes. A visão Negociações entra aqui com o item D3 do arco (#102).
 const VISOES = [
   { id: 'lista', rotulo: 'Lista' },
-  { id: 'quadro', rotulo: 'Funil' },
+  { id: 'funil', rotulo: 'Funil' },
 ];
-const OPCOES_VISAO: OpcoesAba = { chave: 'visao', apelidos: { '/funil': 'quadro' }, rota: '/clientes' };
+const OPCOES_VISAO: OpcoesAba = { chave: 'visao', apelidos: { '/funil': 'funil' }, rota: '/clientes' };
 
-/** A visão do endereço que está na barra agora. */
-export const visaoAtual = () => abaDaUrl(VISOES.map((v) => v.id), OPCOES_VISAO);
+/** A visão do endereço que está na barra agora (`quadro`, o nome antigo do Funil, abre o Funil). */
+export const visaoAtual = () => (filtrosDaUrl().get('visao') === 'quadro' ? 'funil' : abaDaUrl(VISOES.map((v) => v.id), OPCOES_VISAO));
 
 /**
  * Cliente selecionado na Lista (`?item=<id>`, spec 11.0.2); só ids numéricos abrem a ficha, e só quando a
@@ -62,9 +62,10 @@ export const clienteDaUrl = (): number | null => contatoDoItem(window.location.s
 
 /**
  * Clientes na moldura do Padrão B (P04, D-106): a lista à esquerda, a ficha do cliente selecionado no
- * centro (cabeçalho e abas) e, à direita, perfil de busca, portal e privacidade. Na visão Funil, o
- * quadro ocupa o centro e a direita recolhe. `atualizar` redesenha o app: escolher um cliente só troca o
- * `?item=` e redesenha, sem navegar (a lista fica onde estava).
+ * centro (cabeçalho e abas) e, à direita, perfil de busca, portal e privacidade. Na visão Funil (P03),
+ * os filtros ficam à esquerda, o quadro no centro e o cliente do cartão escolhido à direita.
+ * `atualizar` redesenha o app: escolher um cliente só troca o `?item=` e redesenha, sem navegar (a
+ * lista fica onde estava).
  */
 export function renderClientes(atualizar: () => void) {
   const visao = visaoAtual();
@@ -83,10 +84,24 @@ export function renderClientes(atualizar: () => void) {
     itemNaUrl(contato);
     atualizar();
   };
-  const lista = html`<pc-tela-clientes .visao=${visao} .selecionado=${id} .aoEscolher=${escolher} .aoTrocarVisao=${trocarVisao}></pc-tela-clientes>`;
-  if (visao === 'quadro') {
-    return moldura({ menu: '/clientes', lista, centro: html`<pc-clientes-quadro></pc-clientes-quadro>`, rotulos: { lista: 'Clientes', centro: 'Funil' } }, atualizar);
+  if (visao === 'funil') {
+    // P03: os filtros do Funil à esquerda, o quadro no centro (recriado quando os filtros mudam) e o
+    // cliente do cartão escolhido à direita.
+    const item = contatoDoFunil();
+    const esquerda = html`<urbi-stack>
+      ${topoClientes(visao, trocarVisao, () => void novoContato().then((r) => r?.id && escolher(r.id)))}
+      <pc-clientes-funil-filtros .aoMudar=${atualizar}></pc-clientes-funil-filtros>
+    </urbi-stack>`;
+    const centro = keyed(chaveDoQuadro(), html`<pc-clientes-quadro></pc-clientes-quadro>`);
+    const contexto = item
+      ? keyed(item, html`<pc-ficha-contato-funil .contatoId=${item}></pc-ficha-contato-funil>`)
+      : html`<urbi-prosa papel="dica">Clique num cartão para ver o cliente aqui: por que está quente ou frio, a próxima abordagem e o que ele abriu.</urbi-prosa>`;
+    return moldura(
+      { menu: '/clientes', lista: esquerda, centro, contexto, rotulos: { lista: 'Filtros', centro: 'Funil', contexto: 'Cliente' }, painel: item ? 'direita' : 'centro' },
+      atualizar,
+    );
   }
+  const lista = html`<pc-tela-clientes .visao=${visao} .selecionado=${id} .aoEscolher=${escolher} .aoTrocarVisao=${trocarVisao}></pc-tela-clientes>`;
   // Trocar de cliente recria as duas colunas da ficha (`keyed`): nada do anterior fica na tela.
   const centro = id
     ? keyed(id, html`<pc-ficha-contato-foco .contatoId=${id}></pc-ficha-contato-foco>`)
@@ -102,6 +117,61 @@ export function renderClientes(atualizar: () => void) {
     { menu: '/clientes', lista, centro, contexto, rotulos: { lista: 'Clientes', centro: 'Ficha', contexto: 'Portal' }, painel: id ? 'centro' : 'esquerda' },
     atualizar,
   );
+}
+
+/** Novo contato (o mesmo formulário na Lista e no Funil); devolve o criado ou nada. */
+async function novoContato() {
+  return formularioEnviar(
+    'Novo contato',
+    [
+      { nome: 'nome', tipo: 'texto', rotulo: 'Nome', obrigatorio: true },
+      { nome: 'telefone', tipo: 'texto', rotulo: 'Telefone (WhatsApp)', placeholder: '(61) 99999-9999' },
+      { nome: 'email', tipo: 'texto', rotulo: 'E-mail' },
+      { nome: 'papeis', tipo: 'selecao', rotulo: 'Papel', opcoes: opcoesPapelNaTela(), valor: 'comprador' },
+      {
+        nome: 'origem_canal',
+        tipo: 'selecao',
+        rotulo: 'Como chegou',
+        valor: 'indicacao',
+        opcoes: [
+          { valor: 'indicacao', rotulo: 'Indicação' }, { valor: 'whatsapp', rotulo: 'WhatsApp' },
+          { valor: 'instagram', rotulo: 'Instagram' }, { valor: 'portal', rotulo: 'Portal imobiliário' },
+          { valor: 'placa', rotulo: 'Placa' }, { valor: 'evento', rotulo: 'Evento' }, { valor: 'outro', rotulo: 'Outro' },
+        ],
+      },
+      { nome: 'origem_campanha', tipo: 'texto', rotulo: 'Campanha ou detalhe (opcional)' },
+    ],
+    'POST',
+    '/contatos',
+  );
+}
+
+async function exportarContatos() {
+  try {
+    const r = await chamarFetch('/contatos/exportar');
+    if (!r.ok) throw new Error('A exportação falhou.');
+    const url = URL.createObjectURL(await r.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'contatos.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
+  }
+}
+
+/** Topo da coluna esquerda de Clientes (P03 e P04): título, Importar, Novo, Exportar e as visões. */
+function topoClientes(visao: string, aoTrocarVisao: (v: string) => void, aoNovo: () => void) {
+  return html`<urbi-linha justificar="entre" quebrar>
+      <urbi-prosa papel="titulo">Clientes</urbi-prosa>
+      <urbi-linha>
+        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-file-import" href=${urbiVerso.href('/clientes/importar')}>Importar</urbi-botao>
+        <urbi-botao pequeno icone="fa-solid fa-user-plus" @click=${aoNovo}>Novo</urbi-botao>
+        <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-file-export" ariaLabel="Exportar contatos" title="Exportar contatos" @click=${() => exportarContatos()}></urbi-botao>
+      </urbi-linha>
+    </urbi-linha>
+    <urbi-chips-atalho .opcoes=${VISOES} ativo=${visao} @urbi:chip-atalho:click=${(e: CustomEvent) => aoTrocarVisao(e.detail.id)}></urbi-chips-atalho>`;
 }
 
 const ROTULO_PRONTO: Record<FiltroPronto, string> = {
@@ -188,47 +258,10 @@ export class PcTelaClientes extends LitElement {
   }
 
   private async novo() {
-    const r = await formularioEnviar(
-      'Novo contato',
-      [
-        { nome: 'nome', tipo: 'texto', rotulo: 'Nome', obrigatorio: true },
-        { nome: 'telefone', tipo: 'texto', rotulo: 'Telefone (WhatsApp)', placeholder: '(61) 99999-9999' },
-        { nome: 'email', tipo: 'texto', rotulo: 'E-mail' },
-        { nome: 'papeis', tipo: 'selecao', rotulo: 'Papel', opcoes: opcoesPapelNaTela(), valor: 'comprador' },
-        {
-          nome: 'origem_canal',
-          tipo: 'selecao',
-          rotulo: 'Como chegou',
-          valor: 'indicacao',
-          opcoes: [
-            { valor: 'indicacao', rotulo: 'Indicação' }, { valor: 'whatsapp', rotulo: 'WhatsApp' },
-            { valor: 'instagram', rotulo: 'Instagram' }, { valor: 'portal', rotulo: 'Portal imobiliário' },
-            { valor: 'placa', rotulo: 'Placa' }, { valor: 'evento', rotulo: 'Evento' }, { valor: 'outro', rotulo: 'Outro' },
-          ],
-        },
-        { nome: 'origem_campanha', tipo: 'texto', rotulo: 'Campanha ou detalhe (opcional)' },
-      ],
-      'POST',
-      '/contatos',
-    );
+    const r = await novoContato();
     if (!r?.id) return;
     await this.carregar();
     this.aoEscolher(r.id);
-  }
-
-  private async exportar() {
-    try {
-      const r = await chamarFetch('/contatos/exportar');
-      if (!r.ok) throw new Error('A exportação falhou.');
-      const url = URL.createObjectURL(await r.blob());
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'contatos.csv';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
-    }
   }
 
   /** Uma linha da lista: nome e temperatura; embaixo, o próximo passo ou o contato e a origem. */
@@ -268,15 +301,7 @@ export class PcTelaClientes extends LitElement {
     const pronto = this.filtros.get('pronto');
     const ativo = ehPronto(pronto) ? pronto : null;
     return html`<urbi-stack>
-      <urbi-linha justificar="entre" quebrar>
-        <urbi-prosa papel="titulo">Clientes</urbi-prosa>
-        <urbi-linha>
-          <urbi-botao pequeno variante="secundario" icone="fa-solid fa-file-import" href=${urbiVerso.href('/clientes/importar')}>Importar</urbi-botao>
-          <urbi-botao pequeno icone="fa-solid fa-user-plus" @click=${() => this.novo()}>Novo</urbi-botao>
-          <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-file-export" ariaLabel="Exportar contatos" title="Exportar contatos" @click=${() => this.exportar()}></urbi-botao>
-        </urbi-linha>
-      </urbi-linha>
-      <urbi-chips-atalho .opcoes=${VISOES} ativo=${this.visao} @urbi:chip-atalho:click=${(e: CustomEvent) => this.aoTrocarVisao(e.detail.id)}></urbi-chips-atalho>
+      ${topoClientes(this.visao, this.aoTrocarVisao, () => void this.novo())}
       <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Nome, telefone ou e-mail"
         valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
       <urbi-chips-atalho
