@@ -69,11 +69,11 @@ Plano aprovado pelo dono em 27/10. Fonte: spec 1.2 — 2.8, 5.1, 6.16, 7.1, 10.9
 | B5 | **Imóveis** (P06, P07, M3): carteira em lista com miniatura (D-106) | #94 | B1, C1 | [~] parte 1 (P06) implementada (0.1.19, PR #116); falta a parte 2 (P07/M3, novo imóvel em 4 passos) |
 | B6 | **Estúdio** (P08) na moldura, D-89 a D-91 (D-105) | #95 | B1, C1 | [ ] |
 | B7 | **Página e Números** (P09, P10) | #96 | B1, C1 | [ ] |
-| B8 | **Ajustes** (P12, P13 e menu de Ajustes) | #97 | B1, C1 | [ ] |
+| B8 | **Ajustes** (P12, P13 e menu de Ajustes) | #97 | B1, C1 | [x] implementado (0.1.25, PR #128) |
 | B9 | **Portal do Cliente e página pública** (M4, M5, M6) por token (D-104) | #98 | A1 (roteiro de #87: páginas públicas têm CSS próprio) | [x] implementado (0.1.14, PR #111) |
 | B10 | **Busca global e atalhos** (11.7) | #99 | B1 | [ ] |
 | D1 | **Dados da negociação** (6.16): tabelas, eventos, semente idempotente do Apêndice D | #100 | A1 | [x] implementado (0.1.13, PR #112) |
-| D2 | **Motor do Negociador** (10.9): slot `negociador`, validações de 10.9.7, sugestão, rotas de 7.1 | #101 | D1 | [x] implementado (0.1.16, PR #115); D2b, detector de sigilo que retém o que parece número (0.1.22, PR #120); D2c, texto do modelo só como rascunho no "pergunta antes" (D-111, 0.1.25, #124) |
+| D2 | **Motor do Negociador** (10.9): slot `negociador`, validações de 10.9.7, sugestão, rotas de 7.1 | #101 | D1 | [x] implementado (0.1.16, PR #115); D2b, detector de sigilo que retém o que parece número (0.1.22, PR #120); D2c, texto do modelo só como rascunho no "pergunta antes" (D-111, 0.1.26, #124) |
 | D3 | **Telas P15, P16 e M8** (faixa ZOPA como exceção nomeada) | #102 | D2, B4 | [x] implementado (0.1.23, PR #123); Fazer agora sem WhatsApp (0.1.24) |
 | D4 | **Ajustes › Negociador** (P17) | #103 | D2, B8 | [ ] |
 | D5 | **Propostas no portal** (M5b) por `wh` com token | #104 | D2, B9 | [x] implementado (0.1.20, PR #119) |
@@ -91,6 +91,16 @@ A1 ──┬─ C1 ─┬─ B2 ║ B3 ║ B5 ║ B6 ║ B7 ║ B8 ║ B9   (dep
                  └─ D7 (depois de D3)
 E1 depois de D1 · B10 depois de B1 · E2 por último
 ```
+
+### Pendências para as próximas sessões (atualizado em 29/10/2026)
+
+Toda sessão que termina registra aqui o que deixou pendente (regra do `CLAUDE.md`), e quem resolve tira a linha.
+
+| Pendência | O que fazer | Origem |
+|---|---|---|
+| Falsos positivos do detector de sigilo (#124) | Telefone com espaço, CEP "70.000-000", "W3 Sul", "28/10 15h" sem "às" e número entre parênteses depois do preço ainda retêm a mensagem (vai ao corretor; nada vaza). Liberá-los abriu vazamento três vezes no #126, que voltou o detector ao da `main`: só liberar com contexto estreito e revisão adversarial | sessão do D2c (#126) |
+| Corrida entre salvar o mandato e apagar o documento anexado | O `PUT /negociacoes/:id/mandato` confere a mídia fora da transação e o `PATCH .../midias/:midia/remover` confere e apaga sem trava: numa corrida, o mandato vigente pode apontar para um documento apagado (não expõe dado). Observação 20 da revisão do #123 | sessão do D3 |
+| Próximos itens do arco já desbloqueados | **D4** (D2 e B8 mergeados), **D7** (D3 mergeado), **B5 parte 2** (P07/M3), **B6**, **B7**, **B10**. O **D6** espera o B7; o **E2** é o último | — |
 
 **Fora deste arco (decisão 7 da coordenação, em #87):** as dívidas abertas #32, #38, #39, #40, #62, #68, #69, #73 e #80; P02 Conversas e P11 Mensageiro de verdade (#8 e #9, presos a P-31/P-32); a decisão do proprietário pelo portal (fase 3). **Pedidos ao shell novos:** itens 10 a 13 (gaveta, barra de progresso, seletor segmentado, faixa ZOPA).
 
@@ -130,7 +140,9 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
-| 29/10/2026 | Fase 1.6 · D2c | Texto montado pelo código no "pergunta antes" (0.1.25, D-111): na `/decisao`, aprovar uma contraproposta envia a mensagem de `mensagemDoEnvioAutomatico` e grava concessão e contrapartida do mandato, sem as condições do modelo; resposta só em texto dá 422 `ESCREVA_A_MENSAGEM` (o corretor edita ou descarta); editar envia o texto do corretor. Mensagem vazia ou só espaços sai montada; editar sem texto e sem contraproposta vale como aprovação. os falsos positivos do detector de sigilo ficaram como estão, porque liberá-los abria vazamento; só o limite do teste de desempenho subiu para 1000 ms | PR de #124 | Revisão do PR; falsos positivos do detector ficam registrados na issue #124; depois D3 |
+| 29/10/2026 | Fase 1.6 · D2c | Texto montado pelo código no "pergunta antes" (0.1.26, D-111): na `/decisao`, aprovar uma contraproposta envia a mensagem de `mensagemDoEnvioAutomatico` e grava concessão e contrapartida do mandato, sem as condições do modelo; resposta só em texto dá 422 `ESCREVA_A_MENSAGEM` (o corretor edita ou descarta); editar envia o texto do corretor. Mensagem vazia ou só espaços sai montada; editar sem texto e sem contraproposta vale como aprovação. os falsos positivos do detector de sigilo ficaram como estão, porque liberá-los abria vazamento; só o limite do teste de desempenho subiu para 1000 ms | PR de #124 | Revisão do PR; falsos positivos do detector ficam registrados na issue #124; depois D3 |
+| 29/10/2026 | Fase 1.6 · encerramento | Sessão que fez D1 (#112), D2 (#115), E1 (#118), B4 (#121) e D3 (#123): tudo mergeado e issues fechadas. Pendências registradas em "Pendências para as próximas sessões" (Fase 1.6); regra de registrar pendências ao encerrar entrou no `CLAUDE.md` | (este PR) | D4 ou D7 |
+| 29/10/2026 | Fase 1.6 · B8 | Ajustes na moldura do Padrão B (P11–P13): as abas viram o menu da esquerda com as sete seções de 11.1 (Mensageiro bloqueado até o WhatsApp; Negociador "em breve", reservado ao D4; Conexões com Instagram real, WhatsApp "ainda não disponível" e Agenda "fase 6"; Conta e marca juntas, CRECI sem selo; Funil e abordagens; Horário de atendimento; Privacidade com consentimento e exportação); centro com a seção e direita com a ajuda curta, o Assistente e o aviso do CRECI (C1) em Conta e marca. `?aba=` mantido; `/conta`, `/ajustes/<seção>` e o antigo `?aba=marca`/`/ajustes/marca` como apelidos; `/ajustes/conexoes` segue o retorno do Instagram. Plano e créditos fora (D-87). `testes/ajustes-chromium.test.ts`; versão 0.1.25 | (este PR) | D4 (Ajustes › Negociador) |
 | 29/10/2026 | Fase 1.6 · D3 (extras) | Do PR #125, fechado por duplicar o #123: `POST /negociacoes/:id/decisao` com `canal: wa_me` e cliente sem telefone de WhatsApp válido responde `422 SEM_WHATSAPP` antes de gravar (a sugestão continua pendente); com a aba barrada pelo navegador, o alerta traz o texto pronto e o link; testes do aceite só com confirmação e do Fazer agora no Chromium; versão 0.1.24 | #127 | D4 (espera B8), D6 (espera B7), D7 |
 | 29/10/2026 | Fase 1.6 · D3 | Telas da negociação (0.1.23): Clientes › Negociações (P15; M8 pela moldura no celular) com a lista e os filtros de 11.1, a faixa (marcas em ordem de valor e a ZOPA, com o recuo mascarado; régua desenhada espera o pedido ao shell 13), a escada, a última fala, o cartão "Negociador sugere" (Enviar, Fazer agora, Editar com revalidação, Descartar), Assumir/Devolver; à direita o mandato (recuo e BATNA "•••• mostrar", só da rota própria), a leitura do comprador e Passar ao proprietário (aceite com confirmação). Mandato (P16) em `urbi-modal` com 4 blocos e a mesma `validarMandato` ao digitar. Aba Negociação na ficha, Criar › Nova proposta e Registrar proposta do Funil. `GET /negociacoes/:id` traz a sugestão pendente e a última fala | PR de #102 | Revisão do PR; depois D4 (espera B8) |
 | 29/10/2026 | Fase 1.6 · D2b | Detector de sigilo (0.1.22): `desofuscar()` em `comum/negociador.ts` desfaz número disfarçado (dígitos separados, letra no lugar de algarismo, emoji, outros alfabetos, algarismos por extenso um a um) e `vazamentos()` retém o disfarce que não resolve para um valor público; mil subentendido em contexto de preço, número por extenso sem escala, diferença e percentual sobre qualquer valor público que levam ao recuo ou ao alvo, e oferta no texto abaixo do recuo. Fecha o furo do "pergunta antes" deixado pela rodada 3 do #115; testes em `sigilo.test.ts` e uma rota em `negociador.test.ts` | #120 (Refs #101) | Item para levar a D-110 ao "pergunta antes" (opção C do dono) |

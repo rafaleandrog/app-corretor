@@ -15,7 +15,7 @@ interface Visao {
   sem_creci?: boolean;
 }
 
-// Minha Página: montar por blocos, escolher o endereço, publicar. A cor é a da marca (Ajustes › Marca). Depois de publicada, a página
+// Minha Página: montar por blocos, escolher o endereço, publicar. A cor é a da marca (Ajustes › Conta e marca). Depois de publicada, a página
 // pública abre numa aba para conferir (exceção de UI declarada na spec 11.5); antes, não há prévia.
 // Uma gravação por vez: cliques seguidos em subir/descer não se sobrepõem.
 @customElement('pc-tela-pagina')
@@ -229,7 +229,7 @@ export class PcTelaPagina extends LitElement {
         <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-pen" ariaLabel="Editar nome e endereço" title="Editar" @click=${() => this.aparencia()}></urbi-botao></span>
         <urbi-prosa>${p.nome_exibicao}</urbi-prosa>
         <urbi-prosa papel="secundario">Endereço: ${p.endereco}</urbi-prosa>
-        <urbi-prosa papel="dica">A cor da página é a da sua marca, em Ajustes › Marca.</urbi-prosa>
+        <urbi-prosa papel="dica">A cor da página é a da sua marca, em Ajustes › Conta e marca.</urbi-prosa>
         ${this.visao.sem_creci ? avisoCreci() : ''}
       </urbi-card>
       <urbi-card titulo="Blocos da página" icone="fa-solid fa-table-cells-large">

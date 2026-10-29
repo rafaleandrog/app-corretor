@@ -25,7 +25,7 @@ const ESTILOS = [
   { valor: 'minimalista', rotulo: 'Minimalista' },
 ];
 
-// Ajustes › Marca (D-81, D-85): logo, foto, cores, estilo e assinatura. A marca é única: o Estúdio a
+// Ajustes › Conta e marca (D-81, D-85): logo, foto, cores, estilo e assinatura. A marca é única: o Estúdio a
 // usa nas artes, e a cor principal e a foto valem na página pública, nas seleções e no portal.
 // Mesmas rotas de antes (`/estudio/marca`); só o lugar na tela mudou.
 @customElement('pc-tela-marca')

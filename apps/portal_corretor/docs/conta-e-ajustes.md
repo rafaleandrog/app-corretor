@@ -1,24 +1,34 @@
 ---
 titulo: Conta e ajustes
-descricao: A tela de Ajustes (Conta, Marca, Conexões, Funil e abordagens, Atendimento) — seus dados de corretor, os dados da conta e as regras de atendimento.
+descricao: A tela de Ajustes (Mensageiro, Negociador, Conexões, Conta e marca, Funil e abordagens, Horário de atendimento, Privacidade) — seus dados de corretor, a conta, a marca e as regras de atendimento.
 ---
 
 # Conta e ajustes
 
-**Ajustes** é uma tela só, no fim do menu, com cinco abas. Cada bloco tem o botão de lápis para
-editar.
+**Ajustes** é a última tela do menu. Ela segue o desenho novo das outras telas, em três colunas (no
+celular, uma por vez, em abas):
 
-| Aba | O que tem |
+- **à esquerda**, as seções;
+- **no centro**, o conteúdo da seção escolhida (cada bloco tem o botão de lápis para editar);
+- **à direita**, uma ajuda curta da seção e o botão **Perguntar ao Assistente**. Em Conta e marca,
+  aparece ali também o aviso do CRECI, quando ele falta.
+
+| Seção | O que tem |
 |---|---|
-| **Conta** | Seus dados (CRECI e telefone) e os dados da conta |
-| **Marca** | Logo, sua foto, cores, estilo e assinatura — a marca única do Estúdio, da página, das seleções e do portal (abaixo) |
-| **Conexões** | Instagram — ver [Conexões (Instagram)](conexoes.md) |
+| **Mensageiro** | Ainda nada para configurar: o Mensageiro chega com a conexão do WhatsApp |
+| **Negociador** | "Em breve": os ajustes do Negociador chegam numa versão seguinte (o mandato de cada negociação fica em [Clientes › Negociações](negociacao.md)) |
+| **Conexões** | O Instagram, o WhatsApp ("ainda não disponível") e a Agenda ("fase 6") — ver [Conexões (Instagram)](conexoes.md) |
+| **Conta e marca** | Seus dados (CRECI e telefone), os dados da conta e a marca (logo, sua foto, cores, estilo e assinatura) |
 | **Funil e abordagens** | Etapas de cada funil e a abordagem por etapa e temperatura — ver [Funil](funil.md) |
-| **Atendimento** | As regras de atendimento, abaixo |
+| **Horário de atendimento** | As regras de atendimento, abaixo |
+| **Privacidade** | O consentimento dos clientes (que fica na ficha de cada um) e **Exportar contatos** |
 
-A aba aberta fica no endereço (`/ajustes?aba=marca`, por exemplo): dá para guardar ou mandar o link
-direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/ajustes/conexoes` e
-`/ajustes/funil` abrem as abas deles.
+A seção aberta fica no endereço (`/ajustes?aba=conexoes`, por exemplo): dá para guardar ou mandar o
+link direto, e recarregar a tela volta à mesma seção. Os endereços antigos continuam abrindo:
+
+- `/conta` abre Conta e marca;
+- `/ajustes/marca` e `?aba=marca` também abrem Conta e marca, porque a Marca agora fica nessa seção;
+- `/ajustes/conexoes` e `/ajustes/funil` abrem as seções deles.
 
 ## Conta › Seus dados: CRECI e telefone
 
@@ -31,7 +41,7 @@ direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/
   sua página, nas seleções e no portal do cliente.
 - **Sem CRECI nada fica travado.** Onde ele faria falta (Hoje, a peça do Estúdio, o editor da
   página e "o que falta" na ficha do imóvel), aparece só o aviso discreto *"Adicione seu CRECI ao
-  perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta**. O CRECI jurídico da
+  perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta e marca**, e também na coluna da direita desta seção. O CRECI jurídico da
   conta também vale: com ele, o aviso some.
 - **Telefone (WhatsApp)** com DDD, por exemplo `(61) 99999-9999` (o zero antes do DDD pode ficar).
   Sem o `+` do país, o app entende que é um número do Brasil e exige DDD e 8 ou 9 dígitos.
@@ -46,7 +56,7 @@ direto. Os endereços antigos continuam abrindo: `/conta` abre a aba Conta, e `/
 
 ## A marca
 
-A aba **Marca** guarda a marca da conta, e ela é uma só para tudo o que o cliente vê:
+A seção **Conta e marca** guarda também a marca da conta, e ela é uma só para tudo o que o cliente vê:
 
 | Onde | O que da marca aparece |
 |---|---|
@@ -63,14 +73,14 @@ padrão, e o preenchimento não a refaz: ela só ganha a cor quando for refeita 
 
 **Salvar a marca, ou trocar a foto, já atualiza o que está no ar**: a página publicada, as seleções
 válidas e os portais dos clientes passam a usar a cor e a foto novas, sem publicar de novo. Se algo
-disso não acompanhar, a marca fica salva mesmo assim e a tela **Marca** mostra o alerta "A marca
+disso não acompanhar, a marca fica salva mesmo assim e a seção **Conta e marca** mostra o alerta "A marca
 foi salva, mas a sua página, as seleções ou o portal do cliente ainda mostram a marca anterior",
 com o botão **Atualizar o que está no ar**. Ele refaz a página (se estiver publicada), as seleções
 e os portais com a marca salva, e também funciona com a página fora do ar. O **Atualizar agora**
 da Minha página refaz só a página, não as seleções nem os portais. O logo vale só nas artes do
 Estúdio.
 
-## Atendimento
+## Horário de atendimento
 
 | Ajuste | Padrão | Para que serve |
 |---|---|---|
@@ -82,3 +92,12 @@ Enquanto você não salvar, valem os padrões.
 
 O prazo de primeiro atendimento (meta de 5 minutos para responder um contato novo) saiu da tela:
 volta junto com o WhatsApp, quando houver mensagem para medir. O valor gravado continua guardado.
+
+## Privacidade
+
+- **Consentimento:** cada cliente diz se aceita receber mensagens suas e do atendimento automático.
+  Você registra ou revoga isso na ficha dele, no cartão **Cadastro** (aba Resumo). A seção tem o
+  atalho **Abrir Clientes**.
+- **Exportar contatos:** baixa a planilha com os contatos da sua conta, a mesma do botão Exportar
+  de Clientes. Para tirar um contato da lista, use **Remover** na ficha dele: o histórico fica
+  guardado.

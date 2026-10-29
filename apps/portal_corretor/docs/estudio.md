@@ -13,7 +13,7 @@ conta do Instagram precisa estar conectada em [Conexões](conexoes.md).
 
 ## Sua marca
 
-A marca fica em **Ajustes › Marca** (o Estúdio tem o atalho **Sua marca**): a cor principal, a cor
+A marca fica em **Ajustes › Conta e marca** (o Estúdio tem o atalho **Sua marca**): a cor principal, a cor
 de apoio, o estilo (moderno, clássico ou minimalista), uma assinatura curta opcional (por exemplo
 "Seu corretor no Lago Sul"), o logo, a sua foto e as suas **referências** (abaixo). O Estúdio lê
 a marca de lá a cada peça. Com o CRECI cadastrado, a descrição pede o seu nome e o CRECI no rodapé
@@ -21,16 +21,16 @@ da arte, e a aprovação acrescenta o CRECI à legenda quando ele falta **e cabe
 caracteres. Se não couber, a legenda fica como está e a aprovação avisa "o CRECI não coube na
 legenda" (confira se ele está na arte): é um aviso, nunca uma pendência.
 
-**O CRECI é opcional e não trava nada.** Sem CRECI cadastrado (Ajustes › Conta), a descrição e a
+**O CRECI é opcional e não trava nada.** Sem CRECI cadastrado (Ajustes › Conta e marca), a descrição e a
 legenda saem sem ele, e a peça é aprovada, agendada e publicada normalmente. Cada peça ainda não
 publicada mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
-anúncios"*, com o atalho **Ajustes › Conta**; o topo do Estúdio não mostra aviso. A aprovação
+anúncios"*, com o atalho **Ajustes › Conta e marca**; o topo do Estúdio não mostra aviso. A aprovação
 devolve o mesmo lembrete.
 
 A marca é a mesma da sua página, das seleções e do portal do cliente: a cor principal e a foto
 aparecem lá também ([A marca](conta-e-ajustes.md#a-marca)).
 
-**Referências:** em Ajustes › Marca, no cartão **Referências**, você guarda até 6 imagens que admira
+**Referências:** em Ajustes › Conta e marca, no cartão **Referências**, você guarda até 6 imagens que admira
 (um post antigo seu, uma arte de que gostou). Só você as vê. Elas entram no fim da descrição, por
 link, como inspiração de estilo (todas, por padrão; **Mais › Usar outra ferramenta** deixa escolher
 quais). Para tirar uma, use a lixeira ao lado dela.

@@ -53,7 +53,7 @@ const TELAS: Record<ChaveTela, Tela> = {
   estudio: { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
   pagina: { titulo: 'Página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
   numeros: { titulo: 'Números', papel: 'corretor', moldura: true, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
-  ajustes: { titulo: 'Ajustes', papel: 'corretor', render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
+  ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
   corretores: { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
 
