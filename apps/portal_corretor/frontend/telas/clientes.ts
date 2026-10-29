@@ -19,6 +19,7 @@ import {
   opcoesPapelNaTela,
   pedidoDeCriar,
   ROTULO_PAPEL,
+  soNegociador,
   type OpcoesAba,
 } from '../apoio.js';
 import { buscaDaVisao, contatoDoItem } from '../enderecos.js';
@@ -101,28 +102,8 @@ export function renderClientes(atualizar: () => void) {
     atualizar();
   };
   if (visao === 'negociacoes') {
-    // P15 (M8 no celular): a lista à esquerda, a negociação escolhida (`?item=<negociacao>`) no centro e o
-    // mandato à direita.
-    const item = Number(filtrosDaUrl().get('item')) || null;
-    const escolherNegociacao = (n: number) => {
-      itemNaUrl(n);
-      atualizar();
-    };
-    const esquerda = html`<urbi-stack>
-      ${topoClientes(visao, trocarVisao, () => void novoContato().then((r) => r?.id && escolher(r.id)))}
-      <urbi-botao pequeno icone="fa-solid fa-file-signature" @click=${() => void novaProposta().then((n) => n && escolherNegociacao(n))}>Nova proposta</urbi-botao>
-      <pc-negociacoes-lista .selecionado=${item} .aoEscolher=${escolherNegociacao}></pc-negociacoes-lista>
-    </urbi-stack>`;
-    const centro = item
-      ? keyed(item, html`<pc-negociacao-foco .negociacaoId=${item}></pc-negociacao-foco>`)
-      : estadoTela('vazio', { icone: 'fa-solid fa-handshake', mensagem: 'Escolha uma negociação', submensagem: 'A faixa, a escada de propostas e a sugestão do Negociador abrem aqui.' });
-    const contexto = item
-      ? keyed(item, html`<pc-negociacao-contexto .negociacaoId=${item}></pc-negociacao-contexto>`)
-      : html`<urbi-prosa papel="dica">Com uma negociação aberta, aqui ficam o mandato, a leitura do comprador e o próximo movimento.</urbi-prosa>`;
-    return moldura(
-      { menu: '/clientes', lista: esquerda, centro, contexto, rotulos: { lista: 'Negociações', centro: 'Negociação', contexto: 'Mandato' }, painel: item ? 'centro' : 'esquerda' },
-      atualizar,
-    );
+    const topo = html`${topoClientes(visao, trocarVisao, () => void novoContato().then((r) => r?.id && escolher(r.id)))}`;
+    return molduraNegociacoes(atualizar, topo, '/clientes');
   }
   if (visao === 'funil') {
     // P03: os filtros do Funil à esquerda, o quadro no centro (recriado quando os filtros mudam) e o
@@ -157,6 +138,42 @@ export function renderClientes(atualizar: () => void) {
     { menu: '/clientes', lista, centro, contexto, rotulos: { lista: 'Clientes', centro: 'Ficha', contexto: 'Portal' }, painel: id ? 'centro' : 'esquerda' },
     atualizar,
   );
+}
+
+/**
+ * P15 (M8 no celular): a lista à esquerda, a negociação escolhida (`?item=<negociacao>`) no centro e o
+ * mandato à direita. Em Clientes › Negociações e no endereço `/negociacoes`, que é o menu do negociador
+ * humano (D7): para ele, sem "Nova proposta" (abrir negociação é do corretor) e só as atribuídas.
+ */
+function molduraNegociacoes(atualizar: () => void, topo: unknown, menu: string) {
+  const item = Number(filtrosDaUrl().get('item')) || null;
+  const escolherNegociacao = (n: number) => {
+    itemNaUrl(n);
+    atualizar();
+  };
+  const esquerda = html`<urbi-stack>
+    ${topo}
+    ${soNegociador()
+      ? nothing
+      : html`<urbi-botao pequeno icone="fa-solid fa-file-signature" @click=${() => void novaProposta().then((n) => n && escolherNegociacao(n))}>Nova proposta</urbi-botao>`}
+    <pc-negociacoes-lista .selecionado=${item} .aoEscolher=${escolherNegociacao}></pc-negociacoes-lista>
+  </urbi-stack>`;
+  const centro = item
+    ? keyed(item, html`<pc-negociacao-foco .negociacaoId=${item}></pc-negociacao-foco>`)
+    : estadoTela('vazio', { icone: 'fa-solid fa-handshake', mensagem: 'Escolha uma negociação', submensagem: 'A faixa, a escada de propostas e a sugestão do Negociador abrem aqui.' });
+  const contexto = item
+    ? keyed(item, html`<pc-negociacao-contexto .negociacaoId=${item}></pc-negociacao-contexto>`)
+    : html`<urbi-prosa papel="dica">Com uma negociação aberta, aqui ficam o mandato, a leitura do comprador e o próximo movimento.</urbi-prosa>`;
+  return moldura(
+    { menu, lista: esquerda, centro, contexto, rotulos: { lista: 'Negociações', centro: 'Negociação', contexto: 'Mandato' }, painel: item ? 'centro' : 'esquerda' },
+    atualizar,
+  );
+}
+
+/** O endereço `/negociacoes` (menu do negociador humano, D7): só a visão Negociações, sem o resto de Clientes. */
+export function renderNegociacoes(atualizar: () => void) {
+  const topo = html`<urbi-prosa papel="titulo">${soNegociador() ? 'Negociações atribuídas a você' : 'Negociações'}</urbi-prosa>`;
+  return molduraNegociacoes(atualizar, topo, soNegociador() ? '/negociacoes' : '/clientes');
 }
 
 /** Novo contato (o mesmo formulário na Lista e no Funil); devolve o criado ou nada. */

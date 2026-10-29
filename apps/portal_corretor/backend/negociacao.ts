@@ -16,21 +16,29 @@ import {
   rodadaDaProposta,
   semSigilo,
   validarMandato,
+  type Concessao,
   type Direcao,
 } from '../comum/negociacao';
+import { validarMovimento, type MandatoMotor, type PropostaResumo, type ResultadoValidacao } from '../comum/negociador';
 import { inicioDoMes } from '../comum/negociador-ajustes';
-import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './acesso';
+import { assincrono, ehCorretor, erro, guardarNegociacao, negociacoesAtribuidas, primeiro, salvarUnico, soNegociador } from './acesso';
 import { tentarPortal } from './portal';
 import { contaDoRequest } from './vitrine';
 
 // Negociação (bloco D1 da fase 1.6; spec 6.16, 7.1, 10.9.2, 10.9.3, 13 e Apêndice D). Só os dados e
 // as rotas do corretor: o motor do Negociador (sugestão, validações de 10.9.7, envio pelo portal ou
 // pelo Fazer agora) é o D2; o negociador humano, o D7. Sigilo (regra do dono): recuo, alvo e BATNA
-// do vendedor só saem para o corretor da conta nas duas rotas do mandato: GET /negociacoes/:id/mandato
-// e a resposta do PUT /negociacoes/:id/mandato (que devolve a versão que ele acabou de gravar). Toda
-// outra resposta e todo evento passam por `semSigilo()`.
+// do vendedor só saem para a equipe do corretor nas duas rotas do mandato: GET /negociacoes/:id/mandato
+// (corretor e negociador humano da negociação atribuída) e a resposta do PUT /negociacoes/:id/mandato
+// (só o corretor, que devolve a versão que ele acabou de gravar). Toda outra resposta e todo evento
+// passam por `semSigilo()`. O negociador humano (D7, papel `negociador`) passa só nas negociações
+// atribuídas a ele (`guardarNegociacao`), lê o mandato completo (spec 11.6 e 14, "Mandato: ler") e a
+// resposta do vendedor que ele registra passa pelas mesmas validações do Negociador IA (10.9.7).
 export const negociacaoRotas = Router();
-guardarCorretor(negociacaoRotas, ['/negociacoes', '/negociador']);
+guardarNegociacao(negociacaoRotas);
+
+/** O que é só do corretor (spec 14): o negociador humano recebe 403 `SO_O_CORRETOR`. */
+export const MENSAGEM_SO_O_CORRETOR = 'Só o corretor da conta faz isto: o negociador conduz a negociação dentro do mandato.';
 
 type Linha = Record<string, any>;
 
@@ -115,6 +123,36 @@ export function sugestaoSuperada(execucao: Linha, maisNovaId: number, propostas:
   return propostas.some((p) => (typeof marco === 'number' ? Number(p.id) > marco : new Date(p.criado_em).getTime() > desde));
 }
 
+/** O mandato no formato das validações de 10.9.7 (`comum/negociador.ts`). */
+export function paraMotor(m: Linha | null): MandatoMotor | null {
+  if (!m) return null;
+  return {
+    preco_pedido_c: Number(m.preco_pedido_c),
+    alvo_c: Number(m.alvo_c),
+    recuo_c: Number(m.recuo_c),
+    batna_vendedor: m.batna_vendedor ?? null,
+    concessoes: Array.isArray(m.concessoes) ? (m.concessoes as Concessao[]) : [],
+    passo_max_pct: Number(m.passo_max_pct),
+    rodadas_max: Number(m.rodadas_max),
+    // `data` pode chegar como texto `AAAA-MM-DD` ou como Date: compara sempre o texto.
+    validade: m.validade instanceof Date ? m.validade.toISOString().slice(0, 10) : String(m.validade).slice(0, 10),
+    autonomia: m.autonomia,
+    autorizacao_proprietario: m.autorizacao_proprietario ?? null,
+  };
+}
+
+/** A proposta no formato das validações de 10.9.7. */
+export const paraResumo = (p: Linha): PropostaResumo => ({
+  direcao: p.direcao as Direcao,
+  valor_c: Number(p.valor_c),
+  rodada: p.rodada ?? null,
+  condicoes: p.condicoes ?? null,
+  concessao: typeof p.concessao === 'string' ? p.concessao : null,
+  contrapartida: typeof p.contrapartida === 'string' ? p.contrapartida : null,
+  canal: p.canal ?? null,
+  estado: p.estado ?? null,
+});
+
 /** `decimal` chega como texto do banco: a fração volta como número. */
 function normalizarMandato(m: Linha): Linha {
   return { ...m, passo_max_pct: Number(m.passo_max_pct) };
@@ -133,6 +171,12 @@ negociacaoRotas.get(
     }
     const por_pagina = Math.min(100, id(req.query.por_pagina) ?? 50);
     const pagina = id(req.query.pagina) ?? 1;
+    // Negociador humano (D7): só as negociações atribuídas a ele, ativas.
+    if (soNegociador(req)) {
+      const minhas = await negociacoesAtribuidas(dados, req.contexto!.usuario.id);
+      if (!minhas.length) return res.json({ dados: [], total: 0, pagina, por_pagina, paginas: 0 });
+      filtros.id = minhas.join(',');
+    }
     const r = await dados.listar('negociacoes', { filtros, ordenar: 'atualizado_em', ordem: 'desc', pagina, por_pagina });
     const ids = r.dados.map((n) => n.id);
     const mandatos = r.dados.map((n) => n.mandato_id).filter(Boolean);
@@ -159,6 +203,7 @@ negociacaoRotas.get(
 negociacaoRotas.post(
   '/negociacoes',
   assincrono(async (req, res) => {
+    if (!ehCorretor(req)) return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
     const dados = req.dados!;
     const negocioId = id(req.body?.negocio_id);
     const imovelId = id(req.body?.imovel_id);
@@ -243,6 +288,11 @@ negociacaoRotas.patch(
     if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
     if (encerrada(atual)) return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
     const b = (req.body ?? {}) as Record<string, unknown>;
+    // O negociador humano só atualiza a leitura do comprador: encerrar (o valor final e o motivo) e
+    // trocar quem conduz são do corretor (spec 14; o aceite final e a decisão do proprietário, D-98).
+    if (soNegociador(req) && ['estado', 'conduzida_por', 'valor_final_c', 'motivo_perda'].some((c) => b[c] !== undefined)) {
+      return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
+    }
     const mudancas: Record<string, unknown> = {};
     const erros: string[] = [];
     if (b.estado !== undefined) {
@@ -290,8 +340,9 @@ negociacaoRotas.patch(
   }),
 );
 
-// Com a resposta do PUT abaixo, as únicas que devolvem recuo, alvo e BATNA do vendedor: só ao
-// corretor da conta (guardarCorretor).
+// Com a resposta do PUT abaixo, as únicas que devolvem recuo, alvo e BATNA do vendedor: à equipe do
+// corretor. O negociador humano (D7) lê o mandato completo, só da negociação atribuída a ele (a guarda
+// `guardarNegociacao` responde 404 nas outras), como o corretor (spec 11.6 e 14, "Mandato: ler").
 negociacaoRotas.get(
   '/negociacoes/:id/mandato',
   assincrono(async (req, res) => {
@@ -300,13 +351,16 @@ negociacaoRotas.get(
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
     if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
     const versoes = await dados.varrerTudo('mandatos_negociacao', { filtros: { negociacao_id: nid }, ordenar: 'versao', ordem: 'desc', maximo: 200 });
-    res.json({ vigente: await mandatoVigente(dados, negociacao), versoes: versoes.map(normalizarMandato) });
+    const corpo = { vigente: await mandatoVigente(dados, negociacao), versoes: versoes.map(normalizarMandato) };
+    res.json(corpo);
   }),
 );
 
 negociacaoRotas.put(
   '/negociacoes/:id/mandato',
   assincrono(async (req, res) => {
+    // Mudar o mandato é só do corretor (D-15, D-98).
+    if (!ehCorretor(req)) return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
     const dados = req.dados!;
     const nid = id(req.params.id);
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
@@ -383,11 +437,15 @@ export async function gravarPropostaTravada(
   trx: HelperDados,
   nid: number,
   nova: NovaProposta,
-): Promise<{ recusa: 404 | 409 } | { proposta: Linha; negociacao: Linha }> {
+  validar?: (trx: HelperDados, viva: Linha, anteriores: Linha[]) => Promise<ResultadoValidacao | null>,
+): Promise<{ recusa: 404 | 409 } | { recusa: 'bloqueado'; validacao: ResultadoValidacao } | { proposta: Linha; negociacao: Linha }> {
   const viva = await trx.buscar('negociacoes', nid, { travar: true });
   if (!viva) return { recusa: 404 };
   if (encerrada(viva)) return { recusa: 409 };
-  const anteriores = await trx.varrerTudo('propostas', { filtros: { negociacao_id: nid }, maximo: 500 });
+  const anteriores = await trx.varrerTudo('propostas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 });
+  // Validação opcional sob a mesma trava (mandato e propostas lidos aqui): reprovada, nada é gravado.
+  const validacao = validar ? await validar(trx, viva, anteriores) : null;
+  if (validacao && !validacao.ok) return { recusa: 'bloqueado', validacao };
   const rodada = rodadaDaProposta(anteriores.map((p) => p.direcao as Direcao), nova.direcao);
   const proposta = await trx.criar('propostas', { negociacao_id: nid, rodada, ...nova });
   // `rodadas` é materializado a cada proposta (6.16), lido da linha travada: nunca regride.
@@ -420,6 +478,9 @@ negociacaoRotas.post(
       if (b[campo] !== undefined && b[campo] !== null && typeof b[campo] !== 'string') erros.push(`${campo}: use texto.`);
     }
     if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a proposta.', erros);
+    // A decisão do proprietário é registrada só pelo corretor (spec 14).
+    const humano = soNegociador(req);
+    if (humano && b.direcao === 'proprietario') return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
     // No D1 só existe o registro feito pelo corretor. Enviar pelo portal ou pelo Fazer agora passa
     // pelas validações do mandato no código (10.9.7), que chegam com o motor do Negociador (D2).
     const canal = b.canal ?? 'registro';
@@ -427,21 +488,53 @@ negociacaoRotas.post(
       return erro(res, 422, 'CANAL_INDISPONIVEL', 'Por enquanto, só o registro de proposta está disponível; o envio pelo portal e pelo Fazer agora chega em seguida.');
     }
     const direcao = b.direcao as Direcao;
+    const concessao = texto(b.concessao, 200);
+    const contrapartida = texto(b.contrapartida, 200);
+    // A resposta do vendedor registrada pelo negociador humano passa pelas mesmas 7 garantias do
+    // Negociador IA (10.9.7): piso, passo, rodadas, concessões, sigilo e validade, com o mandato e as
+    // propostas lidos sob a trava. O registro é a resposta que ele deu fora do app, pelo próprio
+    // celular: o canal validado é o do Fazer agora (`wa_me`, D-107). O corretor registra o que o dono
+    // decidiu, sem essa trava; a decisão do proprietário é só dele (403 acima).
+    const validar =
+      humano && direcao === 'vendedor'
+        ? async (trx: HelperDados, viva: Linha, anteriores: Linha[]) =>
+            validarMovimento(
+              {
+                movimento: 'contraproposta',
+                contraproposta: { valor_c: b.valor_c as number, condicoes: texto(b.condicoes, 500), concessao, contrapartida, validade_horas: null },
+                mensagem: null,
+              },
+              paraMotor(await mandatoVigente(trx, viva)),
+              anteriores.map(paraResumo),
+              { hoje: new Date().toLocaleDateString('sv-SE', { timeZone: req.contexto?.fuso || 'America/Sao_Paulo' }), canal: 'wa_me', automatico: false },
+            )
+        : undefined;
     const resultado = await dados.transaction((trx) =>
       gravarPropostaTravada(trx, nid!, {
         direcao,
-        autor_tipo: AUTOR_DO_REGISTRO[direcao],
+        // A resposta do vendedor registrada pelo negociador humano leva o rótulo dele na escada (11.6).
+        autor_tipo: humano && direcao === 'vendedor' ? 'negociador_humano' : AUTOR_DO_REGISTRO[direcao],
         autor_usuario_id: req.contexto?.usuario.id ?? null,
         valor_c: b.valor_c as number,
         condicoes: texto(b.condicoes, 500),
-        concessao: texto(b.concessao, 200),
-        contrapartida: texto(b.contrapartida, 200),
+        concessao,
+        contrapartida,
         validade_ate,
         canal,
         estado: 'registrada',
-      }),
+      }, validar),
     );
     if ('recusa' in resultado) {
+      if (resultado.recusa === 'bloqueado') {
+        const { validacao } = resultado;
+        return res.status(422).json({
+          erro: true,
+          codigo: 'MOVIMENTO_BLOQUEADO',
+          mensagem: 'Esta contraproposta não pode ser registrada: está fora do mandato.',
+          bloqueado_por: validacao.bloqueado_por,
+          detalhes: validacao.verificacoes.filter((v) => !v.ok).map((v) => `${v.codigo}: ${v.detalhe}`),
+        });
+      }
       return resultado.recusa === 404 ? erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA) : erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
     }
     const { proposta } = resultado;

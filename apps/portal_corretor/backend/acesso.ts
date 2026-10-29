@@ -2,9 +2,9 @@ import '@urbiverso/sdk/express';
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
 
-// Papéis do manifesto. `corretor` é externo (bloco `roles_externos`), `operacao` é da equipe
-// (bloco `roles`). Permissão sempre por `rolesApp`, nunca por tipo de usuário (CLAUDE.md).
-export type Papel = 'corretor' | 'operacao';
+// Papéis do manifesto. `corretor` e `negociador` são externos (bloco `roles_externos`), `operacao` é
+// da equipe (bloco `roles`). Permissão sempre por `rolesApp`, nunca por tipo de usuário (CLAUDE.md).
+export type Papel = 'corretor' | 'operacao' | 'negociador';
 
 export function erro(res: Response, status: number, codigo: string, mensagem: string, detalhes?: string[]) {
   return res.status(status).json({ erro: true, codigo, mensagem, ...(detalhes ? { detalhes } : {}) });
@@ -24,6 +24,16 @@ export function exigirPapel(...papeis: Papel[]): RequestHandler {
     next();
   };
 }
+
+/** Vale pelo corretor da conta: o papel `corretor` ou o admin do app (que vale por todos os papéis). */
+export const ehCorretor = (req: Request) => req.contexto?.nivelApp === 'admin' || !!req.contexto?.rolesApp?.includes('corretor');
+
+/**
+ * Negociador humano (D7, spec 11.6): tem o papel `negociador` e não vale pelo corretor. Vê só as
+ * negociações atribuídas a ele, lê o mandato completo delas (spec 14, "Mandato: ler"), não o muda e
+ * nunca aceita o acordo final.
+ */
+export const soNegociador = (req: Request) => !ehCorretor(req) && !!req.contexto?.rolesApp?.includes('negociador');
 
 /**
  * Sem conta para trabalhar: `negar`, ou `escopado` com o conjunto vazio, que é o estado legítimo de
@@ -48,6 +58,55 @@ export const MENSAGEM_SEM_CONTA =
 export function guardarCorretor(router: { use: (caminho: string[], h: RequestHandler) => unknown }, prefixos: string[]) {
   router.use(prefixos, exigirPapel('corretor'));
   router.use(prefixos, (req, res, next) => (semConta(req) ? erro(res, 409, 'SEM_CONTA', MENSAGEM_SEM_CONTA) : next()));
+}
+
+/**
+ * Guardas da negociação (D7, spec 11.6 e 14), num router montado na raiz:
+ * - `/negociacoes*` e `/negociador/*`: papel `corretor` ou `negociador`, e conta resolvida;
+ * - `/negociador/*` é do corretor (ajustes, simulador, números, convites e atribuições), salvo a sonda
+ *   da IA (`/negociador/ia`), que a tela do negociador também usa;
+ * - `/negociacoes/:id*`: o negociador só passa na negociação atribuída a ele (atribuição ativa com o
+ *   `usuario_id` dele). Fora da atribuição, "não encontrado" (404), como a de outra conta.
+ * A lista (`GET /negociacoes`) filtra pelas atribuições na própria rota.
+ */
+export function guardarNegociacao(router: {
+  use: (caminho: string | string[], h: RequestHandler) => unknown;
+}) {
+  const prefixos = ['/negociacoes', '/negociador'];
+  router.use(prefixos, exigirPapel('corretor', 'negociador'));
+  router.use(prefixos, (req, res, next) => (semConta(req) ? erro(res, 409, 'SEM_CONTA', MENSAGEM_SEM_CONTA) : next()));
+  router.use('/negociador', (req, res, next) =>
+    req.path === '/ia' || ehCorretor(req) ? next() : erro(res, 403, 'SEM_PAPEL', 'Esta área é do corretor da conta.'),
+  );
+  router.use('/negociacoes/:id', (req, res, next) => {
+    if (!soNegociador(req)) return next();
+    const nid = Number(req.params.id);
+    const usuario = req.contexto?.usuario.id;
+    // Os dois routers da negociação montam esta guarda: a segunda passagem não relê.
+    const conferida = (req as Request & { negociacaoAtribuida?: number }).negociacaoAtribuida;
+    if (conferida !== undefined && conferida === nid) return next();
+    if (!Number.isInteger(nid) || nid <= 0 || !usuario) return erro(res, 404, 'NAO_ENCONTRADO', 'Negociação não encontrada.');
+    atribuicaoAtiva(req.dados!, nid, usuario).then(
+      (a) => {
+        if (!a) return erro(res, 404, 'NAO_ENCONTRADO', 'Negociação não encontrada.');
+        (req as Request & { negociacaoAtribuida?: number }).negociacaoAtribuida = nid;
+        next();
+      },
+      (e) => next(e),
+    );
+  });
+}
+
+/** A atribuição ativa da negociação a este usuário, ou `null`. Sob segregação, só a da conta. */
+export async function atribuicaoAtiva(dados: HelperDados, negociacaoId: number, usuarioId: number) {
+  const linhas = await dados.varrerTudo('atribuicoes_negociacao', { filtros: { negociacao_id: negociacaoId, usuario_id: usuarioId, ativa: true }, maximo: 10 });
+  return linhas[0] ?? null;
+}
+
+/** Ids das negociações atribuídas (ativas) ao usuário, na conta. */
+export async function negociacoesAtribuidas(dados: HelperDados, usuarioId: number): Promise<number[]> {
+  const linhas = await dados.varrerTudo('atribuicoes_negociacao', { filtros: { usuario_id: usuarioId, ativa: true }, maximo: 2000 });
+  return [...new Set(linhas.map((l) => Number(l.negociacao_id)))];
 }
 
 /** Express 4 não captura promessa rejeitada: todo handler assíncrono passa por aqui. */

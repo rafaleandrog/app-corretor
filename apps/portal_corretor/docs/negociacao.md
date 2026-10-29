@@ -11,7 +11,9 @@ Na versão 0.1.16 chega o **Negociador IA**: ele lê a conversa, sugere o próxi
 confere cada sugestão contra o mandato antes de qualquer coisa sair. Na versão 0.1.23 chegam as
 telas: **Clientes › Negociações**, o formulário do **mandato** e a aba **Negociação** na ficha do
 cliente (ver [As telas da negociação](#as-telas-da-negociação)). Na versão 0.1.27 chega a seção
-**Ajustes › Negociador** (ver [Ajustes do Negociador](#ajustes-do-negociador)).
+**Ajustes › Negociador** (ver [Ajustes do Negociador](#ajustes-do-negociador)). Na versão 0.1.28
+chega o **negociador humano**: uma pessoa que o corretor convida para conduzir negociações (ver
+[Negociador humano](#negociador-humano)).
 
 ## As telas da negociação
 
@@ -122,9 +124,10 @@ conta. Ela recebe um código `NG-0001`, `NG-0002`… e guarda o cliente do negó
 - **Estado:** ativa, aguardando o cliente, aguardando o corretor, aguardando o proprietário,
   pausada, **ganha** ou **perdida**. Encerrar como ganha pede o valor final; como perdida, o motivo
   (os mesmos motivos de perda do funil). Encerrada, a negociação não muda mais.
-- **Quem conduz:** o **Negociador IA** (o padrão) ou o **corretor**. Com o Negociador desligado nos
-  ajustes, a negociação nova começa conduzida pelo corretor. O negociador humano (uma pessoa
-  convidada pelo corretor) chega numa versão seguinte.
+- **Quem conduz:** o **Negociador IA** (o padrão), o **corretor** ou o **negociador humano** (uma
+  pessoa convidada pelo corretor, a quem ele atribui a negociação; ver
+  [Negociador humano](#negociador-humano)). Com o Negociador desligado nos ajustes, a negociação
+  nova começa conduzida pelo corretor.
 - **Leitura do comprador:** teto estimado, a fonte da estimativa e a alternativa provável do
   comprador. Essa alternativa é o que a sigla **BATNA** quer dizer: o que a pessoa faria se não
   fechasse este negócio (por exemplo, comprar outro imóvel parecido). Aqui é uma estimativa do
@@ -167,7 +170,7 @@ R$ 872.000). Como o intervalo encolhe, a concessão diminui a cada rodada.
 ### O que é sigiloso e quem vê
 
 **Alvo, ponto de recuo e BATNA do vendedor nunca são revelados pelo Negociador** (regra do dono do
-produto). No app, eles só aparecem para o **corretor da conta** e para o **administrador do app** (que precisa estar associado a uma conta), e só no mandato da negociação. A equipe da plataforma com só o papel de operação não passa nas telas e rotas de negociação (o guarda exige o papel `corretor` ou o nível de administrador do app); quem tem operação e também é administrador do app passa, desde que esteja associado a uma conta.
+produto). No app, eles só aparecem para o **corretor da conta** e para o **administrador do app** (que precisa estar associado a uma conta), e só no mandato da negociação. O **negociador humano**, que é da equipe do corretor, lê o mandato completo, com os três campos, mas só o das negociações atribuídas a ele e só em leitura. A equipe da plataforma com só o papel de operação não passa nas telas e rotas de negociação (o guarda exige o papel `corretor`, o papel `negociador` com a negociação atribuída, ou o nível de administrador do app); quem tem operação e também é administrador do app passa, desde que esteja associado a uma conta.
 Ficam fora de:
 - a lista e o detalhe da negociação (o mandato aparece ali só com o que não é sigiloso);
 - as propostas;
@@ -345,8 +348,10 @@ seguinte. No centro, seis blocos:
    momentos (o negócio chega à etapa Proposta, o cliente pede desconto ou reage "conversar sobre o
    preço") chegam numa versão seguinte.
 2. **Quem negocia por padrão:** o **Negociador IA**, com o botão **Negociador ligado** (padrão:
-   ligado). Desligado, as negociações novas começam conduzidas por você. Convidar uma pessoa da
-   equipe como negociadora chega numa versão seguinte. O Negociador não pede CRECI.
+   ligado). Desligado, as negociações novas começam conduzidas por você. Abaixo, o **negociador
+   humano**: **Convidar negociador** (só o e-mail, sem CRECI), os convites pendentes (com
+   **Revogar**) e quem já aceitou, marcado **pronto** ou **falta o papel** (ver
+   [Negociador humano](#negociador-humano)). O Negociador não pede CRECI.
 3. **Estilo:** cooperativo (padrão), firme ou consultivo, cada um com um exemplo de fala; **Usar**
    troca o estilo.
 4. **Regras fixas:** as 10 regras que o Negociador nunca quebra, só para ler. São as mesmas,
@@ -371,6 +376,85 @@ seguinte. No centro, seis blocos:
   **Aprovadas sem edição**, a parte das sugestões criadas no mês e aprovadas ou editadas (as
   ainda abertas e as recusadas não entram na conta) que você aprovou sem editar; e o custo por rodada ("Incluído no plano").
 
+## Negociador humano
+
+Uma pessoa que o corretor convida para conduzir negociações por ele: um sócio, um especialista ou
+alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A pessoa entra na
+**conta do corretor** com o papel `negociador` e não precisa de CRECI.
+
+### O que o negociador vê e faz
+
+- **Menu:** só **Hoje** (as negociações atribuídas a ele) e **Negociações**. Conversas entra quando
+  houver WhatsApp. Ele não vê clientes, imóveis, Estúdio, Página, Números nem Ajustes: essas telas
+  mostram "Esta área não está liberada para você", e a API responde `403 SEM_PAPEL`.
+- **Só as negociações atribuídas a ele.** As outras da conta não aparecem na lista e, pelo endereço,
+  respondem "não encontrado" (`404`), como a negociação de outra conta. Retirada a atribuição, ele
+  deixa de ver a negociação na hora.
+- **A tela da negociação** é a mesma do corretor, com o mandato **em leitura e completo**, inclusive
+  o alvo, o ponto de recuo e a BATNA do vendedor: ele os lê, mas não os muda. Como ele propõe
+  valores, esconder o recuo não adiantaria (a recusa de um valor abaixo dele já o revelaria). O
+  cliente, o portal, os eventos e a vitrine continuam sem nenhum dos três.
+- **Pode:** pedir sugestão ao Negociador IA; enviar, fazer agora, editar ou descartar a sugestão
+  (tudo o que ele registra ou envia passa pelas 7 garantias do código, as mesmas do Negociador IA:
+  nada abaixo do recuo, passo, rodadas, concessões, sigilo, validade e canal); registrar a oferta do cliente e a resposta do
+  vendedor (aparece como "Negociador" na escada de propostas); atualizar a leitura do comprador;
+  **Assumir** (passa a conduzir) e **Devolver ao Negociador** IA.
+- **Não pode** (a API responde `403 SO_O_CORRETOR`): aceitar o acordo final ("Passar ao
+  proprietário"), registrar a decisão do proprietário, criar ou editar o mandato, abrir negociação
+  nova, encerrar a negociação, trocar quem conduz pelo formulário da negociação, convidar pessoas e
+  atribuir negociações.
+
+### Como o corretor convida e atribui
+
+1. Em **Ajustes › Negociador › Quem negocia por padrão**, **Convidar negociador** pede só o e-mail.
+   A pessoa recebe o link por e-mail e entra na **sua** conta (o convite é sempre para a conta em que
+   você está). Os convites aparecem ali, com **Revogar** enquanto estão pendentes.
+2. Depois do aceite, o **administrador do app** atribui o papel `negociador` à pessoa em
+   **Configurações › Usuários**, seção Externos (o app não pode atribuir papel sozinho). Até lá,
+   ela aparece como **falta o papel** e não recebe negociações.
+3. Na negociação (Clientes › Negociações), o cartão **Quem negocia**, à direita, tem **Atribuir a um
+   negociador** (escolha a pessoa) e, com uma atribuída, **Trocar negociador** e **Retirar do
+   negociador**. Atribuir faz a pessoa conduzir a negociação; retirar a devolve a você. Uma pessoa
+   por negociação: atribuir a outra tira a anterior.
+
+Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
+
+| Código | O que quer dizer |
+|---|---|
+| `CONVITE_MULTI_USUARIO_BLOQUEADO` | A política "permite contas multi-usuário" está desligada na instância: o negociador humano não está disponível, e o Negociador IA segue funcionando |
+| `PROVISIONA_NAO_LIBERADA` | O administrador da instância ainda não liberou os convites deste app para contas existentes |
+| `PROVISIONA_NAO_DECLARADA` | A versão instalada do app não convida pessoas |
+| `CONVITE_CONTA_DIVERGENTE` | A pessoa já usa a plataforma por outra conta (um usuário externo pertence a uma conta só) |
+| `CONVITE_IDENTIDADE_INTERNA` | O e-mail é de alguém da equipe da plataforma |
+| `CONVITE_JA_PENDENTE` | Já há um convite pendente para o e-mail |
+| `PLANO_ASSENTOS_ESGOTADOS` | O plano da conta não tem mais lugares |
+| `CONVITE_INDISPONIVEL` (503) | Esta instância não oferece ao app o provisionamento de convites (não é falha passageira): fale com o administrador da instância |
+
+Se o e-mail do convite não sair, o convite fica valendo e a tela avisa (peça à pessoa para olhar o
+spam, ou revogue e convide de novo).
+
+**Limite da plataforma, leia antes de convidar:** como membro da conta, o negociador lê os eventos
+do app pelo barramento da plataforma, inclusive `lead_recebido`, que traz nome, telefone e e-mail de
+quem pediu contato, e os eventos de negociações que não são dele. As telas e rotas do app só
+mostram as atribuídas, mas o barramento não filtra por negociação. Convide só quem pode ver isso.
+
+### O que o dono da instância precisa ligar
+
+Sem isto, o convite é recusado com a mensagem do código correspondente:
+
+- **Admin › Instaláveis › Apps › Portal do Corretor:** o provisionamento de externos ligado (master
+  switch) e a capacidade **admitir em conta existente**. A capacidade "criar conta" é a que a
+  equipe da plataforma já usa para convidar corretores.
+- **Nível padrão do externo** (`permissao_padrao_externo`, em Admin › Instaláveis › Apps) em
+  **escrita** ou acima (o teto é escrita): sem ele o papel `negociador` não pode ser atribuído
+  (`permissoes.md`).
+- **Política "permite contas multi-usuário" ligada** na instância. Desligada, o segundo externo da
+  conta (o negociador, depois do corretor) é recusado, no convite e no aceite.
+- **Assentos:** se a conta tem plano com teto de assentos, o negociador ocupa um lugar.
+- **O e-mail de sistema** da instância ligado e com domínio (o convite vai por e-mail).
+- **O papel `negociador`** atribuído à pessoa em **Configurações › Usuários** (seção Externos) pelo
+  administrador do app, depois que ela aceitar o convite.
+
 ## Respostas a objeções
 
 O app traz respostas prontas para as 10 objeções mais comuns: preço, "vou pensar", "vi mais
@@ -383,6 +467,9 @@ padrão nunca é apagada nem reescrita.
 
 ## Para o administrador da instância
 
+- **Negociador humano:** para o corretor convidar, ligue o provisionamento do app com "admitir em
+  conta existente" e a política "permite contas multi-usuário"; depois do aceite, atribua o papel
+  `negociador` em Configurações › Usuários — ver [O que o dono da instância precisa ligar](#o-que-o-dono-da-instância-precisa-ligar).
 - **Eventos** (todos da conta do corretor; o clique leva à tela Clientes, mas nesta versão ela só tem as visões Lista e Funil, então o link ainda não abre a negociação): negociação iniciada,
   oferta do comprador recebida, proposta registrada, mandato alterado, negociação encerrada,
   "o Negociador precisa de você" (passagem ao corretor), objeção detectada, contraproposta

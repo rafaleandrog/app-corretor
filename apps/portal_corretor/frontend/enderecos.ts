@@ -14,6 +14,7 @@ export type ChaveTela =
   | 'pagina'
   | 'numeros'
   | 'ajustes'
+  | 'negociacoes'
   | 'corretores';
 
 export const ENDERECOS: Record<string, ChaveTela> = {
@@ -46,6 +47,8 @@ export const ENDERECOS: Record<string, ChaveTela> = {
   '/ajustes/mensageiro': 'ajustes',
   '/ajustes/negociador': 'ajustes',
   '/ajustes/privacidade': 'ajustes',
+  // Clientes › Negociações sem o resto de Clientes: o menu do negociador humano (D7, spec 11.6).
+  '/negociacoes': 'negociacoes',
   '/corretores': 'corretores',
 };
 
@@ -132,4 +135,14 @@ export const MENU: { titulo: string; rota: string; icone: string }[] = [
   { titulo: 'Página', rota: '/pagina', icone: 'fa-solid fa-globe' },
   { titulo: 'Números', rota: '/numeros', icone: 'fa-solid fa-chart-line' },
   { titulo: 'Ajustes', rota: '/ajustes', icone: 'fa-solid fa-sliders' },
+];
+
+/**
+ * Menu do negociador humano (papel `negociador`, D7, spec 5.1 e 11.6): só Hoje e as negociações
+ * atribuídas a ele. Conversas entra quando houver WhatsApp. O `nav` do manifesto não tem item por papel;
+ * o externo navega pelo trilho da moldura, que usa este menu.
+ */
+export const MENU_NEGOCIADOR: { titulo: string; rota: string; icone: string }[] = [
+  { titulo: 'Hoje', rota: '/', icone: 'fa-solid fa-house' },
+  { titulo: 'Negociações', rota: '/negociacoes', icone: 'fa-solid fa-handshake' },
 ];

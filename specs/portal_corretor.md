@@ -1677,7 +1677,7 @@ Movida para `specs/horizonte.md` (D-88).
 
 ### 11.6 O que o negociador humano vê (role `negociador`)
 
-Pessoa convidada pelo corretor para conduzir negociações (ex.: um sócio ou um especialista). **Convite sem CRECI (D-94)**; só existe com a política "permite contas multi-usuário" ligada na instância (D-108). **Vê apenas as negociações atribuídas a ela** (`atribuicoes_negociacao`): menu reduzido a **Hoje · Clientes › Negociações** (e Conversas dessas negociações, quando houver WhatsApp); P15 completo, inclusive o mandato em leitura; não vê carteira, Estúdio, Página, Números gerais nem Ajustes. O que ela envia sai pelo portal ou pelo "Fazer agora" do próprio celular, com o rótulo "Negociador" na linha do tempo do app (o cliente vê a assinatura configurada, ex.: "Rafael · equipe de negociação").
+Pessoa convidada pelo corretor para conduzir negociações (ex.: um sócio ou um especialista). **Convite sem CRECI (D-94)**; só existe com a política "permite contas multi-usuário" ligada na instância (D-108). **Vê apenas as negociações atribuídas a ela** (`atribuicoes_negociacao`): menu reduzido a **Hoje · Clientes › Negociações** (e Conversas dessas negociações, quando houver WhatsApp); P15 completo, inclusive o mandato em leitura **completo, com recuo, alvo e BATNA (D-112)**; não vê carteira, Estúdio, Página, Números gerais nem Ajustes. O que ela envia sai pelo portal ou pelo "Fazer agora" do próprio celular, com o rótulo "Negociador" na linha do tempo do app (o cliente vê a assinatura configurada, ex.: "Rafael · equipe de negociação").
 
 ### 11.7 Menu Criar e comandos globais
 
@@ -1806,7 +1806,7 @@ Nível de acesso por papel na forma de `permissoes.md` (P-01). `diretoria_incorp
 
 | Recurso | Corretor | Negociador humano (role `negociador`) | Negociador IA | Cliente (link com token) |
 |---|---|---|---|---|
-| Negociações | todas da conta | só as atribuídas | as ligadas a ele, dentro do mandato | só as dele, sem mandato |
+| Negociações (mandato em leitura, completo, D-112) | todas da conta | só as atribuídas | as ligadas a ele, dentro do mandato | só as dele, sem mandato |
 | Mandato | criar, editar | ler | ler (no contexto, campos sigilosos marcados) | **nunca** |
 | Propostas | todas | das atribuídas | registrar as que envia | as dele (M5b) |
 | Enviar contraproposta | sim (portal ou Fazer agora) | sim, dentro do mandato (portal ou Fazer agora) | conforme autonomia, dentro do mandato; "faz sozinho" só no portal (D-107) | — |
@@ -2102,6 +2102,7 @@ Direção do dono: melhorar funcionalidade e visual sem aumentar a complexidade;
 | D-109 | O **Assistente** sai do menu e abre na **coluna de contexto** da moldura, a partir do botão do trilho, mantendo lista e item; revê D-76 na forma (o resto de D-76 vale) (27/10, coordenação, vetável) | Tela própria no menu (D-76) | A coluna é do primitivo `urbi-3-colunas`, sem CSS estrutural, que era o motivo de D-76 |
 | D-110 | No **"faz sozinho"**, a mensagem ao cliente é **montada pelo código** só com campos estruturados: o valor da contraproposta (já conferido pelas 7 garantias), a concessão e a contrapartida como estão no mandato e a validade; a proposta gravada não leva texto do modelo. O texto livre da IA só sai depois que uma pessoa lê e aprova ("pergunta antes") (28/10, dono, depois da revisão do #115) | Enviar o texto do modelo conferido por um detector de sigilo | O detector sobre texto livre não fecha todos os jeitos de citar o recuo (três rodadas de revisão acharam formatos novos); sem texto livre no envio automático, não há o que vazar. O detector segue como trava no "pergunta antes" |
 | D-111 | Também no **"pergunta antes"** e no **"só sugere"**, o texto do modelo é **rascunho** para o corretor e nunca sai como está. Aprovar uma contraproposta envia a mensagem **montada pelo código** (a mesma da D-110: valor, concessão e contrapartida do mandato, validade), e a proposta não leva as condições do modelo. A resposta só em texto não se aprova: o corretor edita e envia com as suas palavras, ou descarta. Editar envia o texto do corretor, que passa pelas 7 garantias. (28/10, dono, opção C da revisão do #120, #124) | Manter o detector de sigilo como única trava do texto livre | O detector sobre texto livre não fecha todos os jeitos de citar o recuo (#115, #120); a escolha foi do dono (opção C, #124) |
+| D-112 | O **negociador humano** (role `negociador`) é da equipe do corretor e **lê o mandato completo** (recuo, alvo e BATNA) das negociações atribuídas a ele, em leitura: não o altera. As contrapropostas dele passam pelas mesmas validações do Negociador IA (10.9.7). Cliente, portal, eventos e vitrine continuam sem o sigilo (29/10, dono, opção A da revisão do #131) | Esconder o recuo do negociador humano, como pedia a issue #106 | Quem propõe valores e vê o sistema recusar abaixo do recuo descobre o recuo pela recusa (a revisão o tirou em cerca de 27 tentativas); esconder o recuo de quem negocia dentro dele não fecha |
 
 ## 17. Pendências
 

@@ -14,8 +14,8 @@ declare const urbiVerso: UrbiVersoAPI;
 // No centro, numa grade, 1 Quando entra · 2 Quem negocia · 3 Estilo · 4 Regras fixas (só exibidas,
 // da MESMA constante que monta o prompt do motor) · 5 Suas instruções · 6 Respostas a objeções. À
 // direita, 7 Testar (o simulador de `/negociador/teste`, que não grava nada) e os números do mês. Os
-// dados são os de `/negociador/config` e `/negociador/objecoes` (D1); o convite de um negociador
-// humano chega com o D7 e, até lá, não aparece.
+// dados são os de `/negociador/config` e `/negociador/objecoes` (D1). Em "Quem negocia", o convite do
+// negociador humano (D7): só o e-mail, sem CRECI (D-94), a lista de convites e quem já aceitou.
 
 type Linha = Record<string, any>;
 
@@ -34,6 +34,8 @@ export class PcAjustesNegociador extends LitElement {
   @state() private falha: unknown = null;
   @state() private instrucoes = '';
   @state() private salvando = false;
+  /** Convites de negociador da conta e quem aceitou (D7); `indisponivel` diz por que não carregou. */
+  @state() private equipe: { convites: Linha[]; negociadores: Linha[]; indisponivel: string | null } | null = null;
 
   connectedCallback() {
     super.connectedCallback();
@@ -50,6 +52,86 @@ export class PcAjustesNegociador extends LitElement {
     } catch (e) {
       this.falha = e;
     }
+    void this.carregarEquipe();
+  }
+
+  /** Convites e negociadores: falhar aqui não derruba a seção (a política multi-usuário pode estar desligada). */
+  private async carregarEquipe() {
+    try {
+      const [c, n] = await Promise.all([chamarApi('/negociador/convites'), chamarApi('/negociador/negociadores')]);
+      this.equipe = { convites: c?.convites ?? [], negociadores: n?.dados ?? [], indisponivel: null };
+    } catch (e) {
+      this.equipe = { convites: [], negociadores: [], indisponivel: mensagemDeErro(e) };
+    }
+  }
+
+  /** Convidar negociador: só o e-mail (D-94, sem CRECI). Os erros da plataforma chegam traduzidos pela rota. */
+  private async convidar() {
+    const v = await urbiVerso.formulario({
+      titulo: 'Convidar negociador',
+      mensagem: 'A pessoa recebe um convite por e-mail para entrar na sua conta e conduzir as negociações que você atribuir. Não precisa de CRECI. Depois do aceite, o administrador do app atribui o papel negociador a ela.',
+      campos: [{ nome: 'email', tipo: 'texto', rotulo: 'E-mail', obrigatorio: true, placeholder: 'nome@exemplo.com' }],
+      rotuloConfirmar: 'Convidar',
+    });
+    if (!v) return;
+    try {
+      const r = await enviar('POST', '/negociador/convites', { email: String(v.email ?? '') });
+      if (r?.aviso) await urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' });
+      else urbiVerso.notificar('Convite enviado.', 'sucesso');
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível convidar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    }
+    await this.carregarEquipe();
+  }
+
+  private async revogar(c: Linha) {
+    const ok = await urbiVerso.confirmar({ titulo: 'Revogar convite', mensagem: `O convite para ${c.email} deixa de valer.`, rotuloConfirmar: 'Revogar' });
+    if (!ok) return;
+    try {
+      await enviar('POST', `/negociador/convites/${c.id}/revogar`);
+      urbiVerso.notificar('Convite revogado.', 'sucesso');
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    }
+    await this.carregarEquipe();
+  }
+
+  /** Bloco do negociador humano dentro de "Quem negocia" (D7). */
+  private pessoas() {
+    const eq = this.equipe;
+    const ROTULO: Record<string, string> = { emitido: 'pendente', resgatado: 'aceito', expirado: 'expirado', invalidado: 'invalidado', revogado: 'revogado' };
+    return html`<urbi-linha justificar="entre" quebrar>
+        <urbi-prosa>Negociador humano</urbi-prosa>
+        ${eq?.indisponivel ? nothing : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-user-plus" @click=${() => void this.convidar()}>Convidar negociador</urbi-botao>`}
+      </urbi-linha>
+      ${!eq
+        ? html`<urbi-loading></urbi-loading>`
+        : eq.indisponivel
+          ? html`<urbi-prosa papel="fraco">${eq.indisponivel}</urbi-prosa>`
+          : html`${eq.negociadores.length
+                ? eq.negociadores.map(
+                    (n) => html`<urbi-linha justificar="entre" quebrar>
+                      <urbi-prosa>${n.email}</urbi-prosa>
+                      ${n.tem_papel ? html`<urbi-badge cor="sucesso">pronto</urbi-badge>` : html`<urbi-badge cor="alerta">falta o papel</urbi-badge>`}
+                    </urbi-linha>`,
+                  )
+                : nothing}
+              ${eq.convites
+                .filter((c) => c.status !== 'resgatado')
+                .map(
+                  (c) => html`<urbi-linha justificar="entre" quebrar>
+                    <urbi-prosa papel="secundario">${c.email}</urbi-prosa>
+                    <urbi-linha>
+                      <urbi-badge>${ROTULO[c.status] ?? c.status}</urbi-badge>
+                      ${c.status === 'emitido'
+                        ? html`<urbi-botao pequeno variante="texto" ariaLabel=${`Revogar o convite de ${c.email}`} @click=${() => void this.revogar(c)}>Revogar</urbi-botao>`
+                        : nothing}
+                    </urbi-linha>
+                  </urbi-linha>`,
+                )}
+              ${eq.negociadores.some((n) => !n.tem_papel)
+                ? html`<urbi-prosa papel="dica">Depois do aceite, peça ao administrador do app para atribuir o papel negociador em Configurações › Usuários. Aí você atribui negociações à pessoa, na própria negociação.</urbi-prosa>`
+                : nothing}`}`;
   }
 
   /**
@@ -140,7 +222,8 @@ export class PcAjustesNegociador extends LitElement {
           </urbi-linha>
           <urbi-prosa papel="dica">${c.ligado
             ? 'Toda negociação nova começa conduzida por ele; em cada uma, você assume quando quiser.'
-            : 'Desligado: as negociações novas começam conduzidas por você.'} Uma pessoa da sua equipe como negociadora chega numa versão seguinte.</urbi-prosa>
+            : 'Desligado: as negociações novas começam conduzidas por você.'}</urbi-prosa>
+          ${this.pessoas()}
         </urbi-card>
         <urbi-card expandir titulo="3 · Estilo" icone="fa-solid fa-comment-dots">
           ${ESTILOS.map((e) => {

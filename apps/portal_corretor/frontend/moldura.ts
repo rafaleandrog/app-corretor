@@ -1,6 +1,7 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import type { UrbiAtalhoTrilho, UrbiVersoAPI } from '@urbiverso/sdk';
-import { MENU } from './enderecos.js';
+import { MENU, MENU_NEGOCIADOR } from './enderecos.js';
+import { soNegociador } from './apoio.js';
 import { alternarAssistente, assistenteAberto, painelAssistente } from './telas/assistente.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -41,8 +42,12 @@ export interface OpcoesMoldura {
 /** No celular o inbox mostra um painel por vez: o trilho ("Menu") ou as colunas. */
 const estado = { menuNoCelular: false, ultimoMenu: null as string | null };
 
-/** Itens do trilho: o menu do corretor (D-103) e o Assistente (D-109). */
+/**
+ * Itens do trilho: o menu do corretor (D-103) e o Assistente (D-109). O negociador humano (D7) vê só
+ * Hoje e Negociações, sem o Assistente (que é da área do corretor).
+ */
 export function itensDoTrilho(menu: string): UrbiAtalhoTrilho[] {
+  if (soNegociador()) return MENU_NEGOCIADOR.map((m) => ({ id: m.rota, icone: m.icone, rotulo: m.titulo, ativo: m.rota === menu }));
   return [
     ...MENU.map((m) => ({ id: m.rota, icone: m.icone, rotulo: m.titulo, ativo: !assistenteAberto() && m.rota === menu })),
     { id: 'assistente', icone: 'fa-solid fa-comments', rotulo: 'Assistente', ativo: assistenteAberto() },
@@ -52,7 +57,9 @@ export function itensDoTrilho(menu: string): UrbiAtalhoTrilho[] {
 function aoAtalho(e: CustomEvent, atualizar: () => void) {
   const id = String(e.detail?.id ?? '');
   estado.menuNoCelular = false;
-  if (id === 'assistente') alternarAssistente();
+  if (id === 'assistente') {
+    if (!soNegociador()) alternarAssistente();
+  }
   else if (id) urbiVerso.navegarSub(id);
   atualizar();
 }
@@ -73,7 +80,7 @@ function direitaAssistente(slotTopo: 'direita-topo' | 'direita') {
 }
 
 function colunas(op: OpcoesMoldura): TemplateResult {
-  const aberto = assistenteAberto();
+  const aberto = assistenteAberto() && !soNegociador();
   const r = op.rotulos ?? {};
   if (op.lista === undefined) {
     return html`<urbi-2x1 slot="detalhe">
@@ -114,6 +121,6 @@ export function moldura(op: OpcoesMoldura, atualizar: () => void): TemplateResul
  * com ela, foco à esquerda e Assistente à direita. Fechado, a tela segue como sempre foi.
  */
 export function comAssistente(tela: unknown): unknown {
-  if (!assistenteAberto()) return tela;
+  if (!assistenteAberto() || soNegociador()) return tela;
   return html`<urbi-2x1>${coluna('esquerda', tela)}${direitaAssistente('direita-topo')}</urbi-2x1>`;
 }

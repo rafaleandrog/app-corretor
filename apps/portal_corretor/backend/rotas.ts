@@ -17,6 +17,7 @@ import { assistenteRotas } from './assistente';
 import { fichaRotas } from './ficha';
 import { negociacaoRotas } from './negociacao';
 import { negociadorRotas } from './negociador';
+import { negociadorHumanoRotas } from './negociador-humano';
 import { escopoDeConta } from './escopo';
 
 export { aoIniciar } from './semente';
@@ -58,3 +59,4 @@ rotas.use(assistenteRotas);
 rotas.use(fichaRotas);
 rotas.use(negociacaoRotas);
 rotas.use(negociadorRotas);
+rotas.use(negociadorHumanoRotas);

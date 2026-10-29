@@ -3,7 +3,8 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { PLAYBOOK_OBJECOES_PADRAO } from '../../comum/negociacao';
 import { reaisParaCentavos } from '../../comum/crm';
-import { chamarApi, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, reais } from '../apoio.js';
+import { chamarApi, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, reais, soNegociador } from '../apoio.js';
+import { moldura } from '../moldura.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import './mandato.js';
 
@@ -16,6 +17,11 @@ type Linha = Record<string, any>;
 // mandato, a leitura do comprador e o próximo movimento. O sigilo do mandato (recuo, alvo e BATNA do
 // vendedor) só vem da rota própria (`GET /negociacoes/:id/mandato`, só do corretor) e aparece
 // mascarado ("•••• mostrar"); a lista e o detalhe nunca o trazem (`semSigilo` no backend).
+//
+// Negociador humano (D7, spec 11.6): a mesma tela, só com as negociações atribuídas a ele, o mandato em
+// leitura, completo e com o recuo mascarado como para o corretor (spec 11.6), e sem as ações do corretor:
+// aceitar o acordo, editar o mandato, abrir negociação e atribuir. Ele pede sugestão, aprova, edita,
+// descarta, registra a oferta do cliente, assume e devolve ao Negociador IA; o backend barra o resto.
 
 export const ROTULO_ESTADO: Record<string, string> = {
   ativa: 'Em andamento',
@@ -28,6 +34,13 @@ export const ROTULO_ESTADO: Record<string, string> = {
 };
 const COR_ESTADO: Record<string, string> = { aguardando_corretor: 'alerta', ganha: 'sucesso', perdida: 'erro' };
 const QUEM_CONDUZ: Record<string, string> = { ia: 'Negociador IA', humano: 'Negociador', corretor: 'Você' };
+/** Quem conduz, como quem está na tela lê: para o negociador humano, "Você" é ele e o corretor é "Corretor". */
+const quemConduz = (d: Linha) =>
+  soNegociador()
+    ? ({ ia: 'Negociador IA', humano: 'Você', corretor: 'Corretor' } as Record<string, string>)[d.conduzida_por] ?? d.conduzida_por
+    : d.conduzida_por === 'humano' && d.negociador_nome
+      ? `Negociador (${d.negociador_nome})`
+      : (QUEM_CONDUZ[d.conduzida_por] ?? d.conduzida_por);
 const AUTONOMIA: Record<string, string> = { sugere: 'só sugere', pergunta_antes: 'pergunta antes', faz_sozinho: 'faz sozinho' };
 const CANAL: Record<string, string> = { registro: 'Registro', portal: 'Portal', wa_me: 'Fazer agora', whatsapp: 'WhatsApp' };
 const OBJECAO = Object.fromEntries(PLAYBOOK_OBJECOES_PADRAO.map((o) => [o.categoria, o.titulo]));
@@ -49,11 +62,13 @@ export function diferencaDoPedido(oferta_c: number | null | undefined, pedido_c:
   return `${pct > 0 ? '+' : pct < 0 ? '−' : ''}${Math.abs(pct)}%`;
 }
 
-/** Quem fez cada proposta da escada, como o corretor lê. */
+/** Quem fez cada proposta da escada, como quem está na tela lê (o corretor ou o negociador humano). */
 function quem(p: Linha): string {
   if (p.direcao === 'comprador') return 'Comprador';
   if (p.direcao === 'proprietario') return 'Proprietário';
-  return p.autor_tipo === 'negociador_ia' ? 'Negociador IA' : p.autor_tipo === 'negociador_humano' ? 'Negociador' : 'Você (vendedor)';
+  if (p.autor_tipo === 'negociador_ia') return 'Negociador IA';
+  if (soNegociador()) return p.autor_tipo === 'negociador_humano' ? `Negociador${p.autor_nome ? ` (${p.autor_nome})` : ''}` : 'Corretor';
+  return p.autor_tipo === 'negociador_humano' ? `Negociador${p.autor_nome ? ` (${p.autor_nome})` : ''}` : 'Você (vendedor)';
 }
 
 const centavosDigitados = (v: unknown): number | null => {
@@ -343,7 +358,7 @@ export class PcNegociacoesLista extends LitElement {
         <urbi-badge cor=${COR_ESTADO[n.estado] ?? ''}>${ROTULO_ESTADO[n.estado] ?? n.estado}</urbi-badge>
       </urbi-linha>
       <urbi-prosa papel="secundario">${n.imovel_titulo ?? n.imovel_codigo ?? ''}${n.ultima_oferta_c ? ` · última oferta ${reais(n.ultima_oferta_c)}${dif ? ` · ${dif}` : ''}` : ' · sem oferta'}</urbi-prosa>
-      <urbi-prosa papel="fraco">${QUEM_CONDUZ[n.conduzida_por] ?? n.conduzida_por}${n.ultima_oferta_em ? ` · última oferta em ${dataHora(n.ultima_oferta_em)}` : ''}</urbi-prosa>
+      <urbi-prosa papel="fraco">${quemConduz(n)}${n.ultima_oferta_em ? ` · última oferta em ${dataHora(n.ultima_oferta_em)}` : ''}</urbi-prosa>
     </urbi-stack>`;
   }
 
@@ -354,7 +369,7 @@ export class PcNegociacoesLista extends LitElement {
       ${this.falha
         ? estadoTela('erro', { aoTentar: () => void this.carregar() })
         : html`<urbi-lista clicavel separador .itens=${this.linhas} ?carregando=${this.carregando}
-            mensagem-vazio="Nenhuma negociação aqui. Comece por Criar › Nova proposta."
+            mensagem-vazio=${soNegociador() ? 'Nenhuma negociação atribuída a você aqui. O corretor atribui as negociações que você conduz.' : 'Nenhuma negociação aqui. Comece por Criar › Nova proposta.'}
             .itemAtivo=${(n: Linha) => n.id === this.selecionado}
             .indicador=${(n: Linha) => (n.id === this.selecionado ? 'var(--cor-primaria)' : '')}
             .render_item=${(n: Linha) => this.linha(n)}
@@ -471,14 +486,15 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
         <urbi-prosa papel="titulo">${d.contato_nome} · ${d.imovel_titulo ?? d.imovel_codigo ?? ''}</urbi-prosa>
         ${encerrada
           ? ''
-          : d.conduzida_por === 'corretor'
+          : // Quem está na tela conduz? O corretor, como `corretor`; o negociador humano, como `humano` (D7).
+            d.conduzida_por === (soNegociador() ? 'humano' : 'corretor')
             ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-robot" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.conduzir('devolver')}>Devolver ao Negociador</urbi-botao>`
             : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-hand" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.conduzir('assumir')}>Assumir</urbi-botao>`}
       </urbi-linha>
       <urbi-linha quebrar>
         <urbi-badge cor=${COR_ESTADO[d.estado] ?? ''}>${ROTULO_ESTADO[d.estado] ?? d.estado}</urbi-badge>
         <urbi-badge>Rodada ${d.rodadas ?? 0}${resumo?.rodadas_max ? ` de ${resumo.rodadas_max}` : ''}</urbi-badge>
-        <urbi-badge>${QUEM_CONDUZ[d.conduzida_por] ?? d.conduzida_por}${resumo?.autonomia && d.conduzida_por !== 'corretor' ? ` · ${AUTONOMIA[resumo.autonomia]}` : ''}</urbi-badge>
+        <urbi-badge>${quemConduz(d)}${resumo?.autonomia && d.conduzida_por === 'ia' ? ` · ${AUTONOMIA[resumo.autonomia]}` : ''}</urbi-badge>
         ${resumo?.validade
           ? html`<urbi-badge>Mandato válido até ${data(`${resumo.validade}T12:00:00`)}</urbi-badge>`
           : html`<urbi-badge cor="alerta">Sem mandato</urbi-badge>`}
@@ -506,6 +522,13 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
   }
 
   private cartaoMandato(m: Linha | null) {
+    // Negociador humano (spec 11.6): o mesmo cartão, em leitura (sem definir nem editar o mandato).
+    const leitura = soNegociador();
+    if (!m && leitura) {
+      return html`<urbi-card titulo="Mandato" icone="fa-solid fa-file-shield">
+        <urbi-prosa papel="dica">O corretor ainda não definiu o mandato desta negociação. Sem ele, nenhuma contraproposta sai: fale com o corretor.</urbi-prosa>
+      </urbi-card>`;
+    }
     if (!m) {
       return html`<urbi-card titulo="Mandato" icone="fa-solid fa-file-shield">
         <urbi-prosa papel="dica">Sem mandato, o Negociador não age: ele só passa a negociação a você. Defina até onde ele pode ir.</urbi-prosa>
@@ -521,8 +544,70 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       <urbi-prosa papel="secundario">${concessoes.length ? `Concessões: ${concessoes.map((c) => `${c.item} ↔ ${c.contrapartida}`).join('; ')}` : 'Sem concessões além do preço.'}</urbi-prosa>
       <urbi-prosa papel="fraco">Até ${m.rodadas_max} rodadas · passo de até ${Math.round(Number(m.passo_max_pct) * 100)}% · ${AUTONOMIA[m.autonomia] ?? m.autonomia} · válido até ${data(`${m.validade}T12:00:00`)}</urbi-prosa>
       <urbi-prosa papel="fraco">Recuo e BATNA são sigilosos: o cliente nunca os vê.</urbi-prosa>
-      <urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" @click=${() => (this.editando = true)}>Editar mandato</urbi-botao>
+      ${leitura ? nothing : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" @click=${() => (this.editando = true)}>Editar mandato</urbi-botao>`}
     </urbi-card>`;
+  }
+
+  /**
+   * Quem negocia (só o corretor, D7): atribuir a negociação a um negociador humano da conta, ou retirar.
+   * A lista vem de quem aceitou o convite (Ajustes › Negociador) e já tem o papel `negociador`.
+   */
+  private cartaoQuemNegocia(d: Linha) {
+    const encerrada = d.estado === 'ganha' || d.estado === 'perdida';
+    return html`<urbi-card titulo="Quem negocia" icone="fa-solid fa-user-gear">
+      <urbi-prosa>${quemConduz(d)}</urbi-prosa>
+      ${encerrada
+        ? ''
+        : html`<urbi-linha quebrar>
+            <urbi-botao pequeno variante="secundario" icone="fa-solid fa-user-plus" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.atribuir(d)}>${d.negociador_usuario_id ? 'Trocar negociador' : 'Atribuir a um negociador'}</urbi-botao>
+            ${d.negociador_usuario_id
+              ? html`<urbi-botao pequeno variante="texto" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.retirar(d)}>Retirar do negociador</urbi-botao>`
+              : ''}
+          </urbi-linha>`}
+    </urbi-card>`;
+  }
+
+  private async atribuir(d: Linha) {
+    let pessoas: Linha[];
+    try {
+      pessoas = (await chamarApi('/negociador/negociadores'))?.dados ?? [];
+    } catch (e) {
+      await urbiVerso.alertar({ titulo: 'Negociador humano indisponível', mensagem: mensagemDeErro(e), tipo: 'alerta' });
+      return;
+    }
+    const prontas = pessoas.filter((p) => p.tem_papel);
+    if (!prontas.length) {
+      const semPapel = pessoas.length - prontas.length;
+      await urbiVerso.alertar({
+        titulo: 'Nenhum negociador pronto',
+        mensagem: semPapel
+          ? 'Quem aceitou o seu convite ainda não tem o papel negociador. Peça ao administrador do app para atribuí-lo em Configurações › Usuários.'
+          : 'Convide uma pessoa em Ajustes › Negociador › Quem negocia. Depois do aceite, o administrador do app atribui o papel negociador a ela.',
+        tipo: 'info',
+      });
+      return;
+    }
+    const v = await urbiVerso.formulario({
+      titulo: 'Atribuir a um negociador',
+      mensagem: 'A pessoa passa a conduzir esta negociação, dentro do mandato. Ela não vê o recuo, o alvo nem a BATNA do vendedor e não aceita o acordo final.',
+      campos: [{ nome: 'usuario_id', tipo: 'selecao', rotulo: 'Negociador', obrigatorio: true, opcoes: prontas.map((p) => ({ valor: String(p.usuario_id), rotulo: p.email })) }],
+      rotuloConfirmar: 'Atribuir',
+    });
+    if (!v) return;
+    await this.n!.agir('Não foi possível atribuir', async () => {
+      await enviar('POST', '/negociador/atribuicoes', { negociacao_id: d.id, usuario_id: Number(v.usuario_id) });
+      urbiVerso.notificar('Negociação atribuída.', 'sucesso');
+    });
+  }
+
+  private async retirar(d: Linha) {
+    const ok = await urbiVerso.confirmar({ titulo: 'Retirar do negociador', mensagem: 'A negociação volta para você conduzir.', rotuloConfirmar: 'Retirar' });
+    if (!ok) return;
+    await this.n!.agir('Não foi possível retirar', async () => {
+      const ativas: Linha[] = (await chamarApi(`/negociador/atribuicoes?negociacao_id=${d.id}&ativa=true`))?.dados ?? [];
+      for (const a of ativas) await enviar('PATCH', `/negociador/atribuicoes/${a.id}`, { ativa: false });
+      urbiVerso.notificar('A negociação voltou para você.', 'sucesso');
+    });
   }
 
   private cartaoLeitura(d: Linha) {
@@ -545,7 +630,8 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
   private cartaoProximo(d: Linha) {
     const cp = d.sugestao?.resposta?.contraproposta;
     const oferta = this.n!.ultimaOferta();
-    const podePassar = !!oferta && !['aguardando_proprietario', 'ganha', 'perdida'].includes(d.estado);
+    // Aceitar o acordo é só do corretor (D-98): o negociador humano não vê o botão (e a rota o recusa).
+    const podePassar = !soNegociador() && !!oferta && !['aguardando_proprietario', 'ganha', 'perdida'].includes(d.estado);
     return html`<urbi-card titulo="Próximo movimento" icone="fa-solid fa-forward">
       ${cp?.valor_c
         ? html`<urbi-prosa>Contraproposta de ${reais(cp.valor_c)}${cp.condicoes ? `, ${cp.condicoes}` : ''}${cp.concessao ? `, com ${cp.concessao} pedindo ${cp.contrapartida ?? 'contrapartida'}` : ''}.</urbi-prosa>
@@ -554,7 +640,9 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       ${podePassar
         ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-handshake" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.passarAoProprietario()}>Passar ao proprietário</urbi-botao>
             <urbi-prosa papel="fraco">Aceitar a oferta de ${reais(oferta!.valor_c)} é sempre seu: o Negociador nunca fecha o acordo.</urbi-prosa>`
-        : ''}
+        : soNegociador() && oferta && !['aguardando_proprietario', 'ganha', 'perdida'].includes(d.estado)
+          ? html`<urbi-prosa papel="fraco">Aceitar o acordo é do corretor: quando o comprador topar, avise o corretor.</urbi-prosa>`
+          : ''}
     </urbi-card>`;
   }
 
@@ -563,6 +651,7 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
     if (!d) return this.n!.s.falha ? '' : estadoTela('carregando');
     return html`<urbi-stack>
       ${this.cartaoMandato(m)}
+      ${soNegociador() ? '' : this.cartaoQuemNegocia(d)}
       ${this.cartaoLeitura(d)}
       ${this.cartaoProximo(d)}
       ${this.editando
@@ -677,4 +766,21 @@ export class PcNegociacoesDoCliente extends LitElement {
       </urbi-linha>
     </urbi-card>`;
   }
+}
+
+/**
+ * Hoje do negociador humano (D7, spec 11.6): as negociações atribuídas a ele, com os mesmos filtros da
+ * lista. Escolher uma abre a negociação em Negociações (`/negociacoes?item=`).
+ */
+export function renderHojeNegociador(atualizar: () => void) {
+  const abrir = (id: number) => {
+    history.pushState(history.state, '', `${urbiVerso.href('/negociacoes')}?item=${id}`);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+  const centro = html`<urbi-stack>
+    <urbi-prosa papel="titulo">Suas negociações</urbi-prosa>
+    <urbi-prosa papel="secundario">As negociações que o corretor atribuiu a você. Você conduz dentro do mandato; aceitar o acordo é sempre do corretor.</urbi-prosa>
+    <pc-negociacoes-lista .aoEscolher=${abrir}></pc-negociacoes-lista>
+  </urbi-stack>`;
+  return moldura({ menu: '/', centro }, atualizar);
 }
