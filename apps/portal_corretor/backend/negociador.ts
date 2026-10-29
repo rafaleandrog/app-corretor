@@ -598,26 +598,33 @@ negociadorRotas.post(
               validade_horas: Number.isInteger(ed.validade_horas) && (ed.validade_horas as number) > 0 ? (ed.validade_horas as number) : null,
             }
           : sugerida.contraproposta,
-        mensagem: b.mensagem !== undefined ? texto(b.mensagem, 1000) : sugerida.mensagem,
+        // O texto do modelo é só rascunho (D-111): sem mensagem do corretor, sai a montada pelo código.
+        mensagem: b.mensagem !== undefined ? texto(b.mensagem, 1000) : null,
       };
     }
-    // Texto retido na sugestão (revelava sigilo) não sai: o campo vai vazio.
+    const editada = b.acao === 'editar';
+    const escreveu = editada && b.mensagem !== undefined;
+    const edContraproposta = editada && b.contraproposta !== undefined && b.contraproposta !== null;
+    // D-111: ao cliente só sai texto que o código monta (valor, item e contrapartida do mandato,
+    // validade) ou que o corretor escreveu ao editar. A mensagem e as condições do modelo são rascunho.
     movimento = {
       ...movimento,
-      mensagem: semRetido(movimento.mensagem),
+      mensagem: escreveu ? semRetido(movimento.mensagem) : null,
       contraproposta: movimento.contraproposta
         ? {
             ...movimento.contraproposta,
-            condicoes: semRetido(movimento.contraproposta.condicoes),
+            condicoes: edContraproposta ? semRetido(movimento.contraproposta.condicoes) : null,
             concessao: semRetido(movimento.contraproposta.concessao),
-            contrapartida: semRetido(movimento.contraproposta.contrapartida),
+            contrapartida: edContraproposta ? semRetido(movimento.contraproposta.contrapartida) : null,
           }
         : null,
     };
     const temContraproposta = movimento.movimento === 'contraproposta' && !!movimento.contraproposta?.valor_c;
-    if (!temContraproposta && !movimento.mensagem) return erro(res, 422, 'NADA_A_ENVIAR', 'A sugestão não tem contraproposta nem mensagem para enviar. Edite ou descarte.');
-
-    const editada = b.acao === 'editar';
+    // Resposta só em texto não tem o que montar: sai só o que o corretor escrever (editar).
+    if (!temContraproposta && !movimento.mensagem) {
+      return erro(res, 422, 'ESCREVA_A_MENSAGEM', 'Esta sugestão é só texto, e o texto do Negociador é um rascunho: edite e envie a mensagem com as suas palavras, ou descarte.');
+    }
+    const contato = await dados.buscar('contatos', Number(negociacao.contato_id));
     const dia = hoje(req);
     // Desfecho tipado como união discriminada: só a recusa `bloqueado` carrega a validação.
     type Desfecho =
@@ -633,7 +640,22 @@ negociadorRotas.post(
       const recusa = recusaDe(viva);
       if (recusa) return { recusa };
       const agora = await estadoTravado(trx, viva);
-      // Revalida no código: a edição do corretor também não passa do recuo nem revela o sigilo (10.9.7).
+      // O item do mandato (lido sob a trava) dá a concessão e a contrapartida que saem, como na D-110.
+      if (temContraproposta && !edContraproposta) {
+        const cp0 = movimento.contraproposta!;
+        const item = cp0.concessao && agora.mandato ? itemDoMandato(cp0.concessao, agora.mandato.concessoes) : null;
+        movimento = { ...movimento, contraproposta: { ...cp0, concessao: item?.item ?? cp0.concessao, contrapartida: item?.contrapartida ?? null } };
+      }
+      if (temContraproposta && !escreveu) {
+        const cp0 = movimento.contraproposta!;
+        const item = cp0.concessao && cp0.contrapartida ? { item: cp0.concessao, limite: '', contrapartida: cp0.contrapartida } : null;
+        movimento = {
+          ...movimento,
+          mensagem: mensagemDoEnvioAutomatico({ valor_c: cp0.valor_c!, item, validade_horas: cp0.validade_horas, primeiro_nome: String(contato?.nome ?? '').split(/\s+/)[0] }),
+        };
+      }
+      // Revalida no código o que de fato sai: a edição do corretor também não passa do recuo nem
+      // revela o sigilo, e o texto montado passa pela mesma trava (10.9.7).
       const validacao = validarMovimento(movimento, agora.mandato, agora.propostas, { hoje: dia, canal, automatico: false });
       if (!validacao.ok) return { recusa: 'bloqueado' as const, validacao };
       // Reserva a sugestão antes de gravar: dois cliques em "aprovar" não mandam duas propostas.
@@ -684,10 +706,7 @@ negociadorRotas.post(
 
     // Fazer agora: o texto pronto e o wa.me do cliente; o envio é do celular do corretor (D-107).
     const cp = movimento.contraproposta;
-    const textoPronto =
-      movimento.mensagem ??
-      (cp?.valor_c ? `Proposta: R$ ${(cp.valor_c / 100).toLocaleString('pt-BR')}${cp.condicoes ? `, ${cp.condicoes}` : ''}.` : '');
-    const contato = await dados.buscar('contatos', Number(negociacao.contato_id));
+    const textoPronto = movimento.mensagem ?? (cp?.valor_c ? mensagemDoEnvioAutomatico({ valor_c: cp.valor_c, item: null, validade_horas: cp.validade_horas }) : '');
     res.json(
       semSigilo({
         ok: true,

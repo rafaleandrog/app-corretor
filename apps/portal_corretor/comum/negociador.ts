@@ -718,8 +718,12 @@ const LEITURAS_PADRAO = [
   String.raw`${DIG_X}(?:x|km|cm|kg|min|d|s)`,
   // Preço em centenas de milhar ("treze sessenta"): lido e conferido por `lerPrecoFalado`.
   String.raw`${DEZ1_X}\s+${DEZ_X}(?:\s+e\s+${UNI_X})?`,
-  // Telefone: "(61) 99999-9999", "99999-9999".
+  // Telefone: "(61) 99999-9999", "99999-9999", "61 99999 9999", "(61) 9 9876-5432", "0800 123 4567".
   String.raw`(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?9?\d{4}-\d{4}`,
+  String.raw`(?:\+?55\s?)?\(?\d{2}\)?\s(?:9\s)?\d{4,5}[\s-]\d{4}`,
+  String.raw`0[38]00\s?\d{3}\s?\d{4}`,
+  // CEP: "70.000-000", "70000-000".
+  String.raw`\d{2}\.?\d{3}-\d{3}`,
 ].map((r) => new RegExp(`(?:${r})${FIM_X}`, 'uy'));
 /** Horário por extenso depois de "às": "às doze trinta", "às 10 e meia". */
 const HORARIO_POR_EXTENSO = new RegExp(String.raw`(?:${ATE99_X}|\d{1,2}h?)(?:\s+e\s+meia|\s+(?:e\s+)?${ATE99_X})?${FIM_X}`, 'uy');
@@ -728,7 +732,7 @@ const PALAVRA_DE_NUMERO = new RegExp(String.raw`^(?:${UNI_X}|${DEZ1_X}|${DEZ_X}|
 /** Entre dois trechos de número, só sinais e conectores: o mesmo número, ou números colados. */
 const MESMO_GRUPO = /^(?:[^\p{L}\p{N}]|\b(?:e|ou|ponto|virgula)\b)*$/u;
 /** Entre duas leituras, a separação normal: pontuação e espaço, "e"/"ou", conta com espaços. */
-const SEPARACAO_NORMAL = /^(?:\s*[,;.!?)("'“”]+)?\s+(?:(?:e|ou|[-−–+=])\s+)?$/u;
+const SEPARACAO_NORMAL = /^(?:\s*[,;.!?)("'“”]+\s*|\s+)(?:(?:e|ou|[-−–+=])\s+)?$/u;
 const UNIDADE_DEPOIS = new RegExp(String.raw`^\s*${UNIDADE_X}\b`);
 const ALGARISMO = new RegExp(String.raw`^(?:\d|${UNI_X}|zero)$`);
 const DIGITOS_INTEIROS = new RegExp(`^${DIG_X}$`);

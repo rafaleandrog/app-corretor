@@ -521,6 +521,22 @@ test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
       vazamentos(texto, MOTOR, PUBLICOS_120);
       melhor = Math.min(melhor, performance.now() - t0);
     }
-    assert.ok(melhor < 200, `${JSON.stringify(f)} × 40 mil caracteres levou ${melhor.toFixed(0)} ms`);
+    // Folga para o CI (máquina lenta, JIT frio): o que este teste pega é o crescimento quadrático.
+    assert.ok(melhor < 1000, `${JSON.stringify(f)} × 40 mil caracteres levou ${melhor.toFixed(0)} ms`);
   }
+});
+
+test('#124: telefone com espaço, 0800, CEP e número entre parênteses depois do preço não retêm', () => {
+  const publicos = [146_000_000, PEDIDO, 130_000_000, 140_000_000];
+  const normais = [
+    'Meu número: 61 99999 9999.',
+    'Meu WhatsApp é (61) 9 9876-5432.',
+    'Ligue 0800 123 4567.',
+    'O CEP é 70.000-000.',
+    'Posso levar R$ 1.460.000 (2 vagas).',
+    'Posso levar R$ 1.460.000 (30% de entrada).',
+  ];
+  for (const m of normais) assert.deepEqual(vazamentos(m, MOTOR, publicos), [], m);
+  // O disfarce continua retido.
+  for (const m of ['Fica 1 3 6 0 mil.', 'O piso é 1.36O.000.', 'Fica 1-360-000.']) assert.ok(vazamentos(m, MOTOR, publicos).length > 0, m);
 });

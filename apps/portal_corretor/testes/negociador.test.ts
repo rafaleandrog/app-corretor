@@ -880,13 +880,14 @@ test('decisão em corrida: encerrada antes da trava não reabre; duas aprovaçõ
     const d2 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'descartar', execucao_id: e2.execucao_id });
     assert.deepEqual([d2.status, d2.corpo.decisao], [200, 'descartada'], 'a recusa não reservou a sugestão');
 
-    // Sugestão só de mensagem; a negociação é encerrada entre a leitura e a trava da aprovação.
+    // Sugestão só de mensagem (sai só com o texto do corretor, D-111); a negociação é encerrada entre
+    // a leitura e a trava da aprovação.
     const e3 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Vi mais barato.' })).corpo;
     assert.equal(e3.passagem, false, JSON.stringify(e3));
     antesDaProximaTransacao(banco, async () => {
       assert.equal((await chamar('PATCH', `/negociacoes/${nid}`, { estado: 'perdida', motivo_perda: 'desistiu' })).status, 200);
     });
-    const a3 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: e3.execucao_id, canal: 'portal' });
+    const a3 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: e3.execucao_id, canal: 'portal', mensagem: 'Entendo, Ana. Qual imóvel você viu?' });
     assert.deepEqual([a3.status, a3.corpo.codigo], [409, 'NEGOCIACAO_ENCERRADA']);
     assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'perdida', 'não reabre');
     assert.equal(banco.linhas('negociador_execucoes').find((e) => e.id === e3.execucao_id)!.decisao, 'pendente');
@@ -1097,5 +1098,52 @@ test('pergunta antes (D2b): número disfarçado na sugestão vira passagem ao co
     }
   });
   assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'nada saiu');
+  criterioDoDono(banco);
+});
+
+test('D-111 (pergunta antes): ao aprovar, ao cliente sai só o texto montado pelo código; o do modelo é rascunho', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  // Formas que o detector de texto livre não pega (rodada 3 do #120): a mensagem e as condições do
+  // modelo trazem o recuo por conta. Elas passam pela sugestão, mas nunca chegam ao cliente.
+  const furos = ['Ele quer 1360 milhares.', 'O vendedor aceita a sua primeira oferta mais sessenta mil.'];
+  const ia = iaSimulada([
+    resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 146_000_000, condicoes: furos[1], concessao: 'prazo de entrega de 90 dias', contrapartida: 'a folga é pequena', validade_horas: 48 }, mensagem: furos[0] }),
+    resposta({ objecao: { categoria: 'mais_barato', trecho: 'vi mais barato' }, mensagem: 'Entendo, Ana. Qual imóvel você viu?' }),
+    resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 145_500_000, condicoes: null, concessao: null, contrapartida: null, validade_horas: 24 }, mensagem: furos[0] }),
+  ]);
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } };
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 130_000_000 });
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+
+    // Aprovar: o texto e a proposta saem do código (valor, item e contrapartida do mandato, validade).
+    const s1 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+    assert.equal(s1.passagem, false, JSON.stringify(s1));
+    const a1 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id, canal: 'wa_me' });
+    assert.equal(a1.status, 200, JSON.stringify(a1.corpo));
+    assert.equal(a1.corpo.texto, 'Olá, Ana. O vendedor propõe R$ 1.460.000, com prazo de entrega de 90 dias, pedindo em troca entrada de 30%. A proposta vale por 48 horas.');
+    assert.deepEqual([a1.corpo.proposta.condicoes, a1.corpo.proposta.concessao, a1.corpo.proposta.contrapartida], [null, 'prazo de entrega de 90 dias', 'entrada de 30%']);
+    assert.equal(banco.linhas('negociador_execucoes').find((e) => e.id === s1.execucao_id)!.mensagem_enviada, a1.corpo.texto);
+    for (const furo of [...furos, 'folga']) assert.ok(!JSON.stringify(a1.corpo).includes(furo), `saiu: ${furo}`);
+
+    // Resposta só em texto: aprovar não manda o rascunho; o corretor escreve (editar) ou descarta.
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 141_000_000 });
+    const s2 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Vi mais barato.' })).corpo;
+    const a2 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s2.execucao_id, canal: 'wa_me' });
+    assert.deepEqual([a2.status, a2.corpo.codigo], [422, 'ESCREVA_A_MENSAGEM']);
+    const e2 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: s2.execucao_id, canal: 'wa_me', mensagem: 'Ana, qual imóvel você viu? Comparo com você.' });
+    assert.equal(e2.status, 200, JSON.stringify(e2.corpo));
+    assert.equal(e2.corpo.texto, 'Ana, qual imóvel você viu? Comparo com você.');
+
+    // Editar só o valor: sem texto do corretor, sai o montado, não o do modelo.
+    const s3 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'E aí?' })).corpo;
+    const e3 = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'editar', execucao_id: s3.execucao_id, canal: 'wa_me', contraproposta: { valor_c: 145_500_000, validade_horas: 24 } });
+    assert.equal(e3.status, 200, JSON.stringify(e3.corpo));
+    assert.equal(e3.corpo.texto, 'Olá, Ana. O vendedor propõe R$ 1.455.000. A proposta vale por 24 horas.');
+  });
+  assert.ok(!banco.linhas('propostas').some((p) => furos.some((f) => JSON.stringify(p).includes(f))), 'nenhuma proposta levou texto do modelo');
   criterioDoDono(banco);
 });
