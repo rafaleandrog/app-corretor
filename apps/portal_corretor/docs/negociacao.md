@@ -44,9 +44,12 @@ quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo
   proposta mais nova: peça outra sugestão."), mas descartá-la ainda pode. **Enviar** manda pelo Portal do Cliente;
   **Fazer agora** abre o WhatsApp do celular com a mensagem pronta (se o cliente não tem um
   telefone de WhatsApp válido no cadastro, o app recusa e não grava nada; se o navegador barrar a
-  aba, a tela mostra o texto e o link para você copiar); **Editar** muda o valor, as
-  condições ou o texto (o app confere de novo e, se a edição passar do recuo ou revelar o sigilo,
-  não envia e diz o motivo); **Descartar** descarta. Sugestão bloqueada pelas regras só sai
+  aba, a tela mostra o texto e o link para você copiar); **Editar** muda o valor ou o texto (o
+  valor vem preenchido e a mensagem em branco, com o rascunho do Negociador ao lado só para
+  consulta; em branco, sai a mensagem montada pelo app. O app confere de novo e, se a edição passar
+  do recuo ou revelar o sigilo, não envia e diz o motivo); **Descartar** descarta. Numa sugestão só
+  em texto, no lugar de Enviar e Fazer agora fica **Revisar e enviar**: o rascunho vem no campo e
+  você o ajusta e envia como seu. Sugestão bloqueada pelas regras só sai
   editada. Sem sugestão, **Pedir sugestão** chama o Negociador (com a IA fora do ar, o botão
   desliga e você segue à mão).
 - **Escada de propostas:** cada proposta numa linha — rodada, quem, valor, condições, concessão,
@@ -288,7 +291,7 @@ comprador está abaixo do recuo). Sem mandato, ele nem chama a IA.
   - **aprovar** uma contraproposta envia a mensagem que o app monta, como no "faz sozinho": o valor,
     a concessão e a contrapartida como estão no seu mandato e a validade;
   - uma resposta **só em texto** (objeção, pergunta) não se aprova: **edite** e envie com as suas
-    palavras, ou descarte;
+    palavras, ou descarte (na tela, é o **Revisar e enviar**);
   - **editar** envia o texto que você escreveu. Se você mudar só o valor, ou deixar a mensagem em
     branco, sai a mensagem montada. Editar sem escrever mensagem e sem mexer na contraproposta vale
     como aprovar (fica registrado como aprovação); qualquer texto que você escreva, mesmo igual ao

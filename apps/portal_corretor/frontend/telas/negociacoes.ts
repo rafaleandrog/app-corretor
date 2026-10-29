@@ -112,7 +112,9 @@ class NegociacaoAberta {
       await fn();
       return true;
     } catch (e) {
-      await urbiVerso.alertar({ titulo, mensagem: mensagemDeErro(e), tipo: 'erro' });
+      // ESCREVA_A_MENSAGEM (D-111): o texto da rota diz o que fazer; vai como está.
+      const mensagem = (e as { codigo?: string })?.codigo === 'ESCREVA_A_MENSAGEM' ? (e as Error).message : mensagemDeErro(e);
+      await urbiVerso.alertar({ titulo, mensagem, tipo: 'erro' });
       return false;
     } finally {
       this.s.ocupado = false;
@@ -140,10 +142,17 @@ class NegociacaoAberta {
     });
   }
 
-  /** Enviar (portal) ou Fazer agora (WhatsApp do celular) a sugestão como está. */
+  /** A sugestão traz contraproposta? Só ela se aprova; a só em texto o corretor revisa e envia (D-111). */
+  temContraproposta(): boolean {
+    return !!this.s.detalhe?.sugestao?.resposta?.contraproposta?.valor_c;
+  }
+
+  /** Enviar (portal) ou Fazer agora (WhatsApp do celular) a contraproposta sugerida, com a mensagem montada. */
   async aprovar(canal: 'portal' | 'wa_me') {
     const sugestao = this.s.detalhe?.sugestao;
     if (!sugestao) return;
+    // Só texto não se aprova (a rota responde ESCREVA_A_MENSAGEM): vai para a revisão do texto.
+    if (!this.temContraproposta()) return this.editar();
     // A janela abre no próprio clique (senão o navegador a bloqueia) e recebe o link quando ele chega.
     const janela = canal === 'wa_me' ? window.open('', '_blank') : null;
     const ok = await this.agir('Não foi possível enviar', async () => {
@@ -166,28 +175,50 @@ class NegociacaoAberta {
     if (!ok) janela?.close();
   }
 
+  /**
+   * Editar (D-111). Só texto: o rascunho vem no campo, a mensagem é obrigatória e sai como do corretor.
+   * Contraproposta: o valor vem preenchido e só vai se mudar (sem as condições, a concessão e a
+   * contrapartida do modelo); a mensagem começa vazia e, em branco, sai a montada pelo app.
+   */
   async editar() {
     const sugestao = this.s.detalhe?.sugestao;
-    const cp = sugestao?.resposta?.contraproposta;
     if (!sugestao) return;
+    const rascunho = String(sugestao.resposta?.mensagem ?? '');
+    if (!this.temContraproposta()) {
+      const v = await urbiVerso.formulario({
+        titulo: 'Revisar e enviar',
+        mensagem: 'O texto do Negociador é só um rascunho: revise e envie com as suas palavras. O app confere de novo que nada revele o sigilo.',
+        campos: [{ nome: 'mensagem', tipo: 'texto_longo', rotulo: 'Mensagem ao cliente', valor: rascunho, obrigatorio: true }],
+        rotuloConfirmar: 'Enviar pelo portal',
+      });
+      const mensagem = v ? String(v.mensagem ?? '').trim() : '';
+      if (!mensagem) return;
+      await this.agir('A mensagem não foi enviada', async () => {
+        await enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'editar', execucao_id: sugestao.execucao_id, canal: 'portal', mensagem });
+        urbiVerso.notificar('Mensagem enviada pelo portal do cliente.', 'sucesso');
+      });
+      return;
+    }
+    const cp = sugestao.resposta.contraproposta;
     const v = await urbiVerso.formulario({
       titulo: 'Editar a sugestão',
-      mensagem: 'O app confere de novo as regras do mandato: abaixo do recuo, passo maior que o permitido ou texto que revele o sigilo não são enviados.',
+      mensagem: `O app confere de novo as regras do mandato: abaixo do recuo, passo maior que o permitido ou texto que revele o sigilo não são enviados.${rascunho ? `\n\nRascunho do Negociador (só referência): ${rascunho}` : ''}`,
       campos: [
-        { nome: 'valor', tipo: 'texto', rotulo: 'Valor da contraproposta (R$)', valor: cp?.valor_c ? (cp.valor_c / 100).toLocaleString('pt-BR') : '', obrigatorio: true },
-        { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições', valor: cp?.condicoes ?? '' },
-        { nome: 'mensagem', tipo: 'texto_longo', rotulo: 'Mensagem ao cliente', valor: sugestao.resposta?.mensagem ?? '' },
+        { nome: 'valor', tipo: 'texto', rotulo: 'Valor da contraproposta (R$)', valor: (cp.valor_c / 100).toLocaleString('pt-BR') },
+        { nome: 'mensagem', tipo: 'texto_longo', rotulo: 'Mensagem ao cliente (opcional)', valor: '', placeholder: 'Em branco, sai a mensagem montada pelo app.' },
       ],
       rotuloConfirmar: 'Enviar pelo portal',
     });
     if (!v) return;
-    const valor_c = centavosDigitados(v.valor);
+    const digitado = String(v.valor ?? '').trim();
+    const valor_c = digitado ? centavosDigitados(digitado) : cp.valor_c;
     if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.380.000.', tipo: 'alerta' });
+    const mensagem = String(v.mensagem ?? '').trim();
     await this.agir('A contraproposta não foi enviada', async () => {
       await enviar('POST', `/negociacoes/${this.id}/decisao`, {
         acao: 'editar', execucao_id: sugestao.execucao_id, canal: 'portal',
-        contraproposta: { ...(cp ?? {}), valor_c, condicoes: v.condicoes ? String(v.condicoes) : null },
-        mensagem: v.mensagem ? String(v.mensagem) : null,
+        ...(valor_c !== cp.valor_c ? { contraproposta: { valor_c, validade_horas: cp.validade_horas ?? null } } : {}),
+        ...(mensagem ? { mensagem } : {}),
       });
       urbiVerso.notificar('Contraproposta enviada pelo portal do cliente.', 'sucesso');
     });
@@ -416,13 +447,15 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
       ${cp?.valor_c
         ? html`<urbi-prosa><strong>${reais(cp.valor_c)}</strong>${cp.condicoes ? ` · ${cp.condicoes}` : ''}${cp.concessao ? ` · ${cp.concessao} ↔ ${cp.contrapartida ?? ''}` : ''}</urbi-prosa>`
         : ''}
-      ${r.mensagem ? html`<urbi-prosa pre>${r.mensagem}</urbi-prosa>` : ''}
+      ${r.mensagem ? html`<urbi-prosa papel="fraco">Rascunho do Negociador (não sai como está):</urbi-prosa><urbi-prosa pre>${r.mensagem}</urbi-prosa>` : ''}
       <urbi-prosa papel="fraco">${(s.validacoes ?? []).map((v: Linha) => `${v.ok ? 'ok' : 'falhou'}: ${v.descricao}`).join(' · ')}</urbi-prosa>
       ${bloqueada ? html`<urbi-banner variante="alerta">Bloqueada pelas regras do mandato: edite antes de enviar, ou descarte.</urbi-banner>` : ''}
       <urbi-linha quebrar>
-        <urbi-botao pequeno icone="fa-solid fa-paper-plane" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('portal')}>Enviar</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('wa_me')}>Fazer agora</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.editar()}>Editar</urbi-botao>
+        ${cp?.valor_c
+          ? html`<urbi-botao pequeno icone="fa-solid fa-paper-plane" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('portal')}>Enviar</urbi-botao>
+              <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('wa_me')}>Fazer agora</urbi-botao>
+              <urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.editar()}>Editar</urbi-botao>`
+          : html`<urbi-botao pequeno icone="fa-solid fa-pen" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.editar()}>Revisar e enviar</urbi-botao>`}
         <urbi-botao pequeno variante="texto" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.descartar()}>Descartar</urbi-botao>
       </urbi-linha>
     </urbi-card>`;

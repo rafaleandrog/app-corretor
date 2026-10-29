@@ -41,6 +41,7 @@ const DETALHE = {
   sugestao: { execucao_id: 9, resposta: { contraproposta: { valor_c: 138400000, condicoes: 'entrega em 60 dias' }, mensagem: 'Ana, consigo 1.384.000.', interesses_identificados: ['mudar em 60 dias'] },
     validacoes: [{ ok: true, descricao: 'não ofereceu abaixo do ponto de recuo' }], bloqueado_por: null },
 };
+window.DETALHE_BASE = DETALHE;
 window.chamadas = [];
 window.alertas = [];
 window.urbiVerso = {
@@ -52,7 +53,7 @@ window.urbiVerso = {
   notificar: () => {},
   alertar: async (a) => { window.alertas.push(a.titulo + ' | ' + a.mensagem); },
   confirmar: async () => window.confirmarResposta ?? true,
-  formulario: async () => window.respostaFormulario ?? null,
+  formulario: async (f) => { (window.formularios ??= []).push(f); return window.respostaFormulario ?? null; },
   api: async (rota, opcoes) => {
     const metodo = opcoes?.method ?? 'GET';
     window.chamadas.push(metodo + ' ' + rota);
@@ -60,7 +61,7 @@ window.urbiVerso = {
     if (caminho === '/conta') return { configuracoes: { dias_cliente_parado: 7 } };
     if (caminho === '/negociador/ia') return { disponivel: true };
     if (caminho === '/negociacoes') return { dados: [{ id: 1, contato_nome: 'Ana Ribeiro', imovel_titulo: 'Casa J. Botanico', estado: 'ativa', conduzida_por: 'ia', ultima_oferta_c: 132000000, preco_pedido_c: 145000000 }], total: 1 };
-    if (caminho === '/negociacoes/1') return DETALHE;
+    if (caminho === '/negociacoes/1') return window.detalhe ?? DETALHE;
     if (caminho === '/negociacoes/1/mandato') return { vigente: MANDATO, versoes: [MANDATO] };
     if (caminho === '/negociacoes/1/decisao') {
       (window.decisoes ??= []).push(JSON.parse(opcoes?.body ?? '{}'));
@@ -302,6 +303,81 @@ test('Negociações no Chromium: aceite só com confirmação; Fazer agora sem W
     assert.equal(r.length, 1);
     assert.match(r[0], /Ana, consigo 1\.384\.000\./);
     assert.match(r[0], /https:\/\/wa\.me\/5561999990001/);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Negociações no Chromium (D-111): Editar manda só o valor mudado, sem o rascunho; sugestão só em texto se revisa e sai por editar', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  const esperar = () => pagina.waitForTimeout(120);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/clientes?visao=negociacoes&item=1`);
+    await esperar();
+    const decisoes = () => pagina.evaluate(() => ((window as any).decisoes ?? []).slice());
+    const ultimoFormulario = () =>
+      pagina.evaluate(() => {
+        const f = (window as any).formularios.at(-1);
+        return { titulo: f.titulo, mensagem: f.mensagem, campos: f.campos.map((c: any) => ({ nome: c.nome, valor: c.valor ?? null, obrigatorio: !!c.obrigatorio })) };
+      });
+
+    // Contraproposta, só o valor mudado e a mensagem em branco: vai `contraproposta` só com valor e
+    // validade (nada do modelo) e nenhuma `mensagem` (sai a montada pelo app).
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.respostaFormulario = { valor: '1.390.000', mensagem: '' };
+      w.respostaDecisao = () => ({ ok: true, decisao: 'editada' });
+      // Na releitura depois do envio, a sugestão nova é só em texto (para a segunda parte).
+      w.detalhe = { ...w.DETALHE_BASE, sugestao: { execucao_id: 10, resposta: { contraproposta: null, mensagem: 'Ana, entendo a preocupação com o prazo.' }, validacoes: [], bloqueado_por: null } };
+      w.botao(document.querySelector('pc-negociacao-foco'), 'Editar').click();
+    });
+    await esperar();
+    let f: any = await ultimoFormulario();
+    assert.deepEqual(f.campos.map((c: any) => c.nome), ['valor', 'mensagem'], 'sem o campo de condições do modelo');
+    assert.equal(f.campos[1].valor, '', 'a mensagem começa vazia');
+    assert.match(f.mensagem, /Rascunho do Negociador \(só referência\): Ana, consigo 1\.384\.000\./);
+    let ds: any[] = await decisoes();
+    assert.equal(ds.length, 1);
+    assert.equal(ds[0].acao, 'editar');
+    assert.deepEqual(ds[0].contraproposta, { valor_c: 139000000, validade_horas: null });
+    assert.ok(!('mensagem' in ds[0]), 'mensagem em branco não vai: sai a montada');
+
+    // Só texto: não há Enviar nem Fazer agora; "Revisar e enviar" traz o rascunho, exige a mensagem e
+    // chama editar com ela, nunca aprovar.
+    let r: any = await pagina.evaluate(() => {
+      const w = window as any;
+      const foco = document.querySelector('pc-negociacao-foco');
+      return { enviar: !!w.botao(foco, 'Enviar'), agora: !!w.botao(foco, 'Fazer agora'), revisar: !!w.botao(foco, 'Revisar e enviar') };
+    });
+    assert.deepEqual(r, { enviar: false, agora: false, revisar: true });
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.decisoes = [];
+      w.respostaFormulario = { mensagem: '  Ana, entendo. Posso ver a entrega em 60 dias com o proprietário.  ' };
+      w.botao(document.querySelector('pc-negociacao-foco'), 'Revisar e enviar').click();
+    });
+    await esperar();
+    f = await ultimoFormulario();
+    assert.deepEqual(f.campos, [{ nome: 'mensagem', valor: 'Ana, entendo a preocupação com o prazo.', obrigatorio: true }]);
+    ds = await decisoes();
+    assert.deepEqual(ds, [{ acao: 'editar', execucao_id: 10, canal: 'portal', mensagem: 'Ana, entendo. Posso ver a entrega em 60 dias com o proprietário.' }]);
+    assert.ok(ds.every((d: any) => d.acao !== 'aprovar'));
+
+    // Se ainda assim vier 422 ESCREVA_A_MENSAGEM, o alerta traz o texto da rota.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.alertas = [];
+      w.respostaDecisao = () => {
+        throw Object.assign(new Error('Esta sugestão é só texto, e o texto do Negociador é um rascunho: edite e envie a mensagem com as suas palavras, ou descarte.'), { status: 422, codigo: 'ESCREVA_A_MENSAGEM' });
+      };
+      w.botao(document.querySelector('pc-negociacao-foco'), 'Revisar e enviar').click();
+    });
+    await esperar();
+    r = await pagina.evaluate(() => (window as any).alertas.slice());
+    assert.equal(r.length, 1);
+    assert.match(r[0], /edite e envie a mensagem com as suas palavras/);
   } finally {
     await navegador.close();
   }
