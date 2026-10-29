@@ -61,6 +61,17 @@ export const visaoAtual = () => (filtrosDaUrl().get('visao') === 'quadro' ? 'fun
 export const clienteDaUrl = (): number | null => contatoDoItem(window.location.search);
 
 /**
+ * Chave da coluna da direita do Funil: muda com o contato e a cada chegada com `?sugerir=1` (tocar de novo
+ * no cartão atrasado do cliente já aberto). A coluna é recriada, a ficha nova lê e tira o `sugerir` do
+ * endereço e sugere a mensagem para ESTE cliente; redesenhar sem `sugerir` mantém a chave e a visita.
+ */
+let direitaDoFunil = { item: 0, visita: 0 };
+const chaveDaDireita = (item: number) => {
+  if (item !== direitaDoFunil.item || filtrosDaUrl().get('sugerir') === '1') direitaDoFunil = { item, visita: direitaDoFunil.visita + 1 };
+  return direitaDoFunil.visita;
+};
+
+/**
  * Clientes na moldura do Padrão B (P04, D-106): a lista à esquerda, a ficha do cliente selecionado no
  * centro (cabeçalho e abas) e, à direita, perfil de busca, portal e privacidade. Na visão Funil (P03),
  * os filtros ficam à esquerda, o quadro no centro e o cliente do cartão escolhido à direita.
@@ -74,12 +85,16 @@ export function renderClientes(atualizar: () => void) {
     if (!VISOES.some((x) => x.id === v)) return;
     // O `item` só segue para a Lista se já era contato nela (`buscaDaVisao`): o de negociação ou do Funil sai.
     const mantemItem = new URLSearchParams(buscaDaVisao(window.location.search, visao, v)).has('item');
+    // O `?sugerir=1` é da chegada ao cliente aberto: nunca segue para outra visão (nem a outro cliente).
+    filtrosNaUrl(filtrosDaUrl(), {}, ['sugerir']);
     abaNaUrl(v === 'lista' ? '' : v, OPCOES_VISAO);
     if (!mantemItem) itemNaUrl(null);
     atualizar();
   };
   const escolher = (contato: number | null) => {
     // Escolher na visão Funil (ou criar um contato) leva à Lista, onde a ficha mora; uma `visao` desconhecida também sai.
+    // O `?sugerir=1` era do cliente anterior: a ficha do escolhido não pede a IA sozinha.
+    filtrosNaUrl(filtrosDaUrl(), {}, ['sugerir']);
     if (filtrosDaUrl().has('visao') || visao !== 'lista') abaNaUrl('', OPCOES_VISAO);
     itemNaUrl(contato);
     atualizar();
@@ -94,7 +109,7 @@ export function renderClientes(atualizar: () => void) {
     </urbi-stack>`;
     const centro = keyed(chaveDoQuadro(), html`<pc-clientes-quadro></pc-clientes-quadro>`);
     const contexto = item
-      ? keyed(item, html`<pc-ficha-contato-funil .contatoId=${item}></pc-ficha-contato-funil>`)
+      ? keyed(chaveDaDireita(item), html`<pc-ficha-contato-funil .contatoId=${item}></pc-ficha-contato-funil>`)
       : html`<urbi-prosa papel="dica">Clique num cartão para ver o cliente aqui: por que está quente ou frio, a próxima abordagem e o que ele abriu.</urbi-prosa>`;
     return moldura(
       { menu: '/clientes', lista: esquerda, centro, contexto, rotulos: { lista: 'Filtros', centro: 'Funil', contexto: 'Cliente' }, painel: item ? 'direita' : 'centro' },

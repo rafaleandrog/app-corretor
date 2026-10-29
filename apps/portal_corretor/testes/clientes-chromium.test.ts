@@ -392,3 +392,62 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     await navegador.close();
   }
 });
+
+test('Funil: tocar de novo no cartão atrasado do cliente aberto sugere para ele, e o sugerir não sobra para outra visão nem outro cliente', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    const esperar = () => pagina.waitForTimeout(50);
+    const sugestoes = (id: number) =>
+      pagina.evaluate((c: number) => (window as any).chamadas.filter((r: string) => r.startsWith(`/contatos/${c}/mensagem-sugerida`)).length, id);
+    const busca = () => pagina.evaluate(() => location.search);
+    // O cartão atrasado da Ana (`sugerir=1`): a mensagem é sugerida para ela e o parâmetro sai.
+    await pagina.goto(`${ORIGEM}/portal_corretor/clientes?visao=funil&item=7&sugerir=1`);
+    await esperar();
+    assert.equal(await sugestoes(7), 1, 'chegada pelo cartão atrasado sugere uma vez');
+    assert.equal(await busca(), '?visao=funil&item=7');
+    // Tocar de novo no mesmo cartão com a Ana já aberta: a coluna é refeita e o sugerir é consumido por ELA.
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', location.pathname + '?visao=funil&item=7&sugerir=1');
+      (window as any).desenhar();
+    });
+    await esperar();
+    assert.equal(await sugestoes(7), 2, 'o mesmo cartão de novo sugere de novo para a Ana');
+    assert.equal(await busca(), '?visao=funil&item=7', 'e o sugerir sai do endereço');
+    // Redesenhar sem sugerir não refaz a coluna nem sugere.
+    await pagina.evaluate(() => (window as any).desenhar());
+    await esperar();
+    assert.equal(await sugestoes(7), 2);
+    // Mesmo com um sugerir ainda no endereço, trocar para a Lista o tira: escolher um cliente lá não pede a IA.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      history.replaceState(null, '', location.pathname + '?visao=funil&item=7&sugerir=1');
+      w.achar(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-chips-atalho').dispatchEvent(
+        new CustomEvent('urbi:chip-atalho:click', { detail: { id: 'lista' }, bubbles: true, composed: true }),
+      );
+    });
+    await esperar();
+    assert.doesNotMatch(await busca(), /sugerir/, 'trocar de visão tira o sugerir');
+    for (const id of [8, 7]) {
+      await pagina.evaluate((c: number) => {
+        const w = window as any;
+        w.achar(document, 'urbi-lista').dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: { id: c } }, bubbles: true, composed: true }));
+      }, id);
+      await esperar();
+    }
+    assert.equal(await sugestoes(8), 0, 'o cliente escolhido depois não pede a IA');
+    assert.equal(await sugestoes(7), 2, 'nem a Ana, aberta de novo pela Lista');
+    // `escolher` também tira um sugerir que tenha sobrado no endereço.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      history.replaceState(null, '', location.pathname + '?item=8&sugerir=1');
+      w.achar(document, 'urbi-lista').dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: { id: 7 } }, bubbles: true, composed: true }));
+    });
+    await esperar();
+    assert.equal(await busca(), '?item=7');
+    assert.equal(await sugestoes(7), 2, 'escolher a Ana com sugerir sobrando não pede a IA');
+  } finally {
+    await navegador.close();
+  }
+});

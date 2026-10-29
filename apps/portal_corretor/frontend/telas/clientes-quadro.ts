@@ -180,7 +180,8 @@ export class PcClientesQuadro extends LitElement {
 
   /**
    * Endereço do cartão: o Funil com os mesmos filtros e o cliente escolhido. Com abordagem atrasada,
-   * `?sugerir=1`: o cliente abre à direita já com a mensagem sugerida (a `FichaContato` lê e tira).
+   * `?sugerir=1`: o cliente abre à direita já com a mensagem sugerida (a `FichaContato` lê e tira). Com o
+   * mesmo cliente já aberto, o `sugerir` muda a chave da coluna (`chaveDaDireita` em clientes.ts) e ela é refeita.
    */
   private hrefDo(n: Linha) {
     const q = filtrosDaUrl();
