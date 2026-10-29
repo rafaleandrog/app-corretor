@@ -51,8 +51,8 @@ window.urbiVerso = {
     if (caminho === '/negociador/numeros') return { desde: '2026-10-01', rodadas: 12, decididas: 8, aprovadas_sem_edicao: 6 };
     if (caminho === '/negociador/teste') return {
       resposta: { mensagem: 'Entendo. O vendedor propõe R$ 1.420.000.', contraproposta: { valor_c: 142000000 } },
-      validacoes: [{ ok: true, frase: '✓ não revelou o recuo, o alvo nem a BATNA do vendedor' }],
-      passagem: false, motivos_passagem: [], zopa: { existe: null },
+      validacoes: [{ ok: true, descricao: 'não revelou o recuo, o alvo nem a BATNA do vendedor', frase: '✓ não revelou o recuo, o alvo nem a BATNA do vendedor' }],
+      passagem: false, motivos_passagem: [], zopa: { existe: true, de_c: 136000000, ate_c: 140000000 },
     };
     if (caminho === '/conexoes') return { instagram: null, disponivel: true, retorno: 'https://app.exemplo/portal_corretor/ajustes/conexoes' };
     return {};
@@ -179,15 +179,21 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.match(r.direita, /7 · Testar/);
     assert.match(r.direita, /Números do mês/);
     const marcados = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-checkbox').map((c: any) => c.hasAttribute('marcado')));
-    assert.deepEqual(marcados, [true, true, false, true]);
-    // Marcar um gatilho grava só ele.
+    // Só o gatilho que o backend lê aparece (GATILHOS_EM_USO); desmarcá-lo grava só ele.
+    assert.deepEqual(marcados, [true]);
     await pagina.evaluate(() => {
       const w = window as any;
-      const c = w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-checkbox')[2];
-      c.dispatchEvent(new CustomEvent('urbi:checkbox-change', { detail: { marcado: true }, bubbles: true, composed: true }));
+      const c = w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-checkbox')[0];
+      c.dispatchEvent(new CustomEvent('urbi:checkbox-change', { detail: { marcado: false }, bubbles: true, composed: true }));
     });
     await esperar();
-    assert.ok((await pagina.evaluate(() => (window as any).chamadas)).includes('PUT /negociador/config {"gatilhos":{"reacao_preco":true}}'));
+    assert.ok((await pagina.evaluate(() => (window as any).chamadas)).includes('PUT /negociador/config {"gatilhos":{"oferta_registrada":false}}'));
+    // Os números do mês: 12 rodadas e 6 de 8 decididas sem edição.
+    const kpis = await pagina.evaluate(() =>
+      Object.fromEntries((window as any).todos(document.querySelector('urbi-hospedeiro[slot="direita"]'), 'urbi-kpi').map((k: any) => [k.getAttribute('rotulo'), k.valor])),
+    );
+    assert.equal(kpis['Rodadas'], 12);
+    assert.equal(kpis['Aprovadas sem edição'], '75%');
     await pagina.evaluate(() => {
       const w = window as any;
       const b = w.todos(document.querySelector('urbi-hospedeiro[slot="direita"]'), 'urbi-botao').find((x: any) => /Testar/.test(x.textContent));
@@ -198,10 +204,30 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.ok(teste, 'o teste foi chamado');
     const corpo = JSON.parse(teste.slice('POST /negociador/teste '.length));
     assert.deepEqual([corpo.mandato.preco_pedido_c, corpo.mandato.alvo_c, corpo.mandato.recuo_c, corpo.propostas[0].valor_c], [145000000, 140000000, 136000000, 132000000]);
+    assert.equal(corpo.teto_estimado_c, 140000000);
     assert.equal(corpo.mensagem_cliente, 'Qual o mínimo que o dono aceita?');
     r = await ler();
-    assert.match(r.direita, /✓ não revelou o recuo/);
+    assert.match(r.direita, /não revelou o recuo, o alvo nem a BATNA do vendedor/);
+    assert.doesNotMatch(r.direita, /✓/, 'a marca é ícone, não glifo');
     assert.match(r.direita, /Contraproposta: R\$\s?1\.420\.000/);
+    assert.match(r.direita, /ZOPA deste teste: de R\$\s?1\.360\.000,00 a R\$\s?1\.400\.000,00/);
+    // Instrução digitada e não salva sobrevive a trocar o estilo (a resposta do PUT não a apaga).
+    await pagina.evaluate(() => {
+      const w = window as any;
+      const centro = document.querySelector('urbi-hospedeiro[slot="centro"]');
+      w.todos(centro, 'urbi-textarea')[0].dispatchEvent(new CustomEvent('urbi:input-change', { detail: { valor: 'Minhas regras' }, bubbles: true, composed: true }));
+    });
+    await esperar();
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-botao').find((x: any) => x.textContent.trim() === 'Usar').click();
+    });
+    await esperar();
+    const instrucao = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-textarea')[0].getAttribute('valor'));
+    assert.equal(instrucao, 'Minhas regras');
+    // Só saíram os PUTs pedidos: o gatilho e o estilo.
+    const puts = (await pagina.evaluate(() => (window as any).chamadas)).filter((c: string) => c.startsWith('PUT'));
+    assert.deepEqual(puts, ['PUT /negociador/config {"gatilhos":{"oferta_registrada":false}}', 'PUT /negociador/config {"estilo":"firme"}']);
     // Sem IA: o cartão avisa e o centro segue igual.
     await pagina.evaluate(() => {
       const w = window as any;
@@ -214,7 +240,7 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     await esperar();
     r = await ler();
     assert.match(r.direita, /IA indisponível agora/);
-    assert.match(r.centro, /4 · Regras fixas/);
+    for (const bloco of ['1 · Quando entra', '2 · Quem negocia por padrão', '3 · Estilo', '4 · Regras fixas', '5 · Suas instruções', '6 · Respostas a objeções']) assert.match(r.centro, new RegExp(bloco), bloco);
 
     // O retorno do Instagram (/ajustes/conexoes) abre Conexões: Instagram real, WhatsApp e Agenda.
     await pagina.goto(`${ORIGEM}/portal_corretor/ajustes/conexoes`);

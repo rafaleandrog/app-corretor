@@ -530,7 +530,7 @@ negociacaoRotas.get(
   }),
 );
 
-/** Diferença, em ms, entre o UTC e o relógio do fuso num instante (positiva a oeste de Greenwich). */
+/** Diferença, em ms, do relógio do fuso para o UTC num instante (negativa a oeste de Greenwich, ex.: -3h em Brasília). */
 function deslocamento(fuso: string, iso: string): number {
   const d = new Date(iso);
   const local = new Date(d.toLocaleString('en-US', { timeZone: fuso }));

@@ -11,6 +11,13 @@ export const ROTULO_GATILHO: Record<(typeof GATILHOS)[number], string> = {
   oferta_registrada: 'Uma oferta é registrada ou feita no portal',
 };
 
+/**
+ * Os gatilhos que a tela mostra: só os que o backend lê hoje (`publico.ts`, oferta no portal). Os outros
+ * três entram quando houver quem os leia (etapa Proposta e pedido de desconto com o Mensageiro):
+ * nenhuma configuração sem uso na versão corrente aparece na tela (CLAUDE.md, spec 2.6).
+ */
+export const GATILHOS_EM_USO = ['oferta_registrada'] as const satisfies readonly (typeof GATILHOS)[number][];
+
 /** Os 3 estilos, cada um com uma frase de exemplo (P17, item 3). */
 export const ESTILO_NEGOCIADOR: Record<(typeof ESTILOS)[number], { rotulo: string; exemplo: string }> = {
   cooperativo: {

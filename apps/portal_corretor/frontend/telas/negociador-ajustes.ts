@@ -1,9 +1,9 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { ESTILOS, GATILHOS, LIMITE_INSTRUCOES } from '../../comum/negociacao';
+import { ESTILOS, LIMITE_INSTRUCOES } from '../../comum/negociacao';
 import { PROMPT_PARTE_2_PADRAO, REGRAS_FIXAS } from '../../comum/negociador';
-import { contadorInstrucoes, CUSTO_POR_RODADA, ESTILO_NEGOCIADOR, PERGUNTA_TESTE, ROTULO_GATILHO } from '../../comum/negociador-ajustes';
+import { contadorInstrucoes, CUSTO_POR_RODADA, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, PERGUNTA_TESTE, ROTULO_GATILHO } from '../../comum/negociador-ajustes';
 import { reaisParaCentavos } from '../../comum/crm';
 import { chamarApi, enviar, mensagemDeErro, reais } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
@@ -52,15 +52,27 @@ export class PcAjustesNegociador extends LitElement {
     }
   }
 
-  /** Grava uma mudança da config e redesenha com a resposta (que é a config inteira). */
-  private async gravar(mudanca: Partial<Config>, aviso = 'Salvo.') {
+  /**
+   * Grava uma mudança da config e redesenha com a resposta (que é a config inteira). As instruções só
+   * voltam do servidor quando foram elas a mudança: o que está digitado e não salvo sobrevive a um
+   * estilo, gatilho ou liga/desliga. Se falha, o controle (`alvo`) volta ao valor gravado.
+   */
+  private async gravar(mudanca: Partial<Config>, aviso = 'Salvo.', alvo?: { el: any; prop: 'marcado' | 'checked'; anterior: boolean }) {
     this.salvando = true;
     try {
       this.config = await enviar('PUT', '/negociador/config', mudanca);
-      this.instrucoes = this.config!.instrucoes_corretor ?? '';
+      if ('instrucoes_corretor' in mudanca) this.instrucoes = this.config!.instrucoes_corretor ?? '';
       urbiVerso.notificar(aviso, 'sucesso');
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      // O Lit só reaplica o que ele mesmo mudou: o clique mexeu no elemento por dentro, então o valor
+      // gravado volta direto nele, depois do render.
+      this.config = { ...this.config! };
+      await this.updateComplete;
+      if (alvo) {
+        alvo.el[alvo.prop] = alvo.anterior;
+        alvo.el.toggleAttribute(alvo.prop, alvo.anterior);
+      }
     } finally {
       this.salvando = false;
     }
@@ -107,25 +119,30 @@ export class PcAjustesNegociador extends LitElement {
     return html`<urbi-stack>
       <urbi-prosa papel="titulo">Negociador</urbi-prosa>
       <urbi-grid min="320px">
-        <urbi-card titulo="1 · Quando entra" icone="fa-solid fa-bolt">
+        <urbi-card expandir titulo="1 · Quando entra" icone="fa-solid fa-bolt">
           <urbi-prosa papel="dica">O Negociador começa a atuar quando:</urbi-prosa>
-          ${GATILHOS.map(
+          ${GATILHOS_EM_USO.map(
             (g) => html`<urbi-checkbox label=${ROTULO_GATILHO[g]} ?marcado=${c.gatilhos[g] !== false} ?desabilitado=${this.salvando}
-              @urbi:checkbox-change=${(e: CustomEvent) => void this.gravar({ gatilhos: { [g]: !!e.detail.marcado } })}></urbi-checkbox>`,
+              @urbi:checkbox-change=${(e: CustomEvent) =>
+                void this.gravar({ gatilhos: { [g]: !!e.detail.marcado } }, 'Salvo.', { el: e.target, prop: 'marcado', anterior: c.gatilhos[g] !== false })}></urbi-checkbox>`,
           )}
         </urbi-card>
-        <urbi-card titulo="2 · Quem negocia por padrão" icone="fa-solid fa-user-gear">
+        <urbi-card expandir titulo="2 · Quem negocia por padrão" icone="fa-solid fa-user-gear">
           <urbi-linha justificar="entre">
             <urbi-prosa>Negociador ligado</urbi-prosa>
             <urbi-toggle ?checked=${c.ligado} ?disabled=${this.salvando} ariaLabel="Negociador ligado"
-              @urbi-toggle:change=${(e: CustomEvent) => void this.gravar({ ligado: !!e.detail }, e.detail ? 'Negociador ligado.' : 'Negociador desligado.')}></urbi-toggle>
+              @urbi-toggle:change=${(e: CustomEvent) =>
+                void this.gravar({ ligado: !!e.detail }, e.detail ? 'Negociador ligado.' : 'Negociador desligado.', { el: e.target, prop: 'checked', anterior: c.ligado })}></urbi-toggle>
           </urbi-linha>
-          <urbi-prosa>Negociador IA <urbi-badge cor="info">padrão</urbi-badge></urbi-prosa>
+          <urbi-linha>
+            <urbi-prosa>Negociador IA</urbi-prosa>
+            <urbi-badge cor="info">padrão</urbi-badge>
+          </urbi-linha>
           <urbi-prosa papel="dica">${c.ligado
             ? 'Toda negociação nova começa conduzida por ele; em cada uma, você assume quando quiser.'
             : 'Desligado: as negociações novas começam conduzidas por você.'} Uma pessoa da sua equipe como negociadora chega numa versão seguinte.</urbi-prosa>
         </urbi-card>
-        <urbi-card titulo="3 · Estilo" icone="fa-solid fa-comment-dots">
+        <urbi-card expandir titulo="3 · Estilo" icone="fa-solid fa-comment-dots">
           ${ESTILOS.map((e) => {
             const s = ESTILO_NEGOCIADOR[e];
             const ativo = c.estilo === e;
@@ -140,12 +157,12 @@ export class PcAjustesNegociador extends LitElement {
             </urbi-stack>`;
           })}
         </urbi-card>
-        <urbi-card titulo="4 · Regras fixas" icone="fa-solid fa-shield-halved">
+        <urbi-card expandir titulo="4 · Regras fixas" icone="fa-solid fa-shield-halved">
           <urbi-prosa papel="dica">Valem sempre, acima das suas instruções. Não se editam.</urbi-prosa>
-          ${REGRAS_FIXAS.map((r) => html`<urbi-prosa>✓ ${r}</urbi-prosa>`)}
+          ${REGRAS_FIXAS.map((r) => html`<urbi-linha><urbi-icone classe="fa-solid fa-check"></urbi-icone><urbi-prosa>${r}</urbi-prosa></urbi-linha>`)}
         </urbi-card>
-        <urbi-card titulo="5 · Suas instruções" icone="fa-solid fa-pen-to-square">
-          <urbi-textarea label="Como o Negociador deve conduzir" rows="8" valor=${this.instrucoes} placeholder=${PROMPT_PARTE_2_PADRAO}
+        <urbi-card expandir titulo="5 · Suas instruções" icone="fa-solid fa-pen-to-square">
+          <urbi-textarea label="Como o Negociador deve conduzir" rows="8" valor=${this.instrucoes} placeholder="Em branco, vale o modelo do app."
             erro=${this.instrucoes.trim().length > LIMITE_INSTRUCOES ? `Até ${LIMITE_INSTRUCOES.toLocaleString('pt-BR')} caracteres.` : ''}
             @urbi:input-change=${(e: CustomEvent) => (this.instrucoes = String(e.detail.valor ?? ''))}></urbi-textarea>
           <urbi-linha justificar="entre" quebrar>
@@ -156,7 +173,7 @@ export class PcAjustesNegociador extends LitElement {
             </urbi-linha>
           </urbi-linha>
         </urbi-card>
-        <urbi-card titulo="6 · Respostas a objeções" icone="fa-solid fa-comments">
+        <urbi-card expandir titulo="6 · Respostas a objeções" icone="fa-solid fa-comments">
           <urbi-lista separador .itens=${this.objecoes} .render_item=${(o: Linha) => html`<urbi-linha justificar="entre" quebrar>
               <urbi-stack>
                 <urbi-linha quebrar>
@@ -166,8 +183,8 @@ export class PcAjustesNegociador extends LitElement {
                 <urbi-prosa papel="fraco">"${o.fala_cliente}"</urbi-prosa>
               </urbi-stack>
               <urbi-linha>
-                <urbi-botao pequeno variante="texto" @click=${() => void this.editarObjecao(o)}>Editar</urbi-botao>
-                ${o.minha ? html`<urbi-botao pequeno variante="texto" @click=${() => void this.objecao({ categoria: o.categoria, usar_padrao: true }, 'Voltou ao padrão.')}>Voltar ao padrão</urbi-botao>` : nothing}
+                <urbi-botao pequeno variante="texto" ariaLabel=${`Editar a resposta a ${o.titulo}`} @click=${() => void this.editarObjecao(o)}>Editar</urbi-botao>
+                ${o.minha ? html`<urbi-botao pequeno variante="texto" ariaLabel=${`Voltar ao padrão: ${o.titulo}`} @click=${() => void this.objecao({ categoria: o.categoria, usar_padrao: true }, 'Voltou ao padrão.')}>Voltar ao padrão</urbi-botao>` : nothing}
               </urbi-linha>
             </urbi-linha>`}></urbi-lista>
         </urbi-card>
@@ -178,12 +195,12 @@ export class PcAjustesNegociador extends LitElement {
 
 /**
  * 7 · Testar (P17, direita): o motor sobre uma negociação fictícia, sem gravar nada. Os valores são os
- * do teste, digitados aqui; a resposta volta com as 7 verificações ("✓ não revelou o recuo…").
+ * do teste, digitados aqui; a resposta volta com as 7 verificações ("não revelou o recuo…") e a ZOPA, do recuo ao teto do comprador.
  */
 @customElement('pc-negociador-teste')
 export class PcNegociadorTeste extends LitElement {
   @state() private ia: boolean | null = null;
-  @state() private valores = { pedido: '1.450.000', alvo: '1.400.000', recuo: '1.360.000', oferta: '1.320.000', mensagem: PERGUNTA_TESTE };
+  @state() private valores = { pedido: '1.450.000', alvo: '1.400.000', recuo: '1.360.000', oferta: '1.320.000', teto: '1.400.000', mensagem: PERGUNTA_TESTE };
   @state() private resultado: Linha | null = null;
   @state() private testando = false;
   @state() private numeros: Linha | null = null;
@@ -202,17 +219,20 @@ export class PcNegociadorTeste extends LitElement {
 
   private async testar() {
     const v = this.valores;
-    const [pedido, alvo, recuo, oferta] = [v.pedido, v.alvo, v.recuo, v.oferta].map((x) => reaisParaCentavos(x));
-    if (!pedido || !alvo || !recuo || !oferta) {
+    const [pedido, alvo, recuo, oferta, teto] = [v.pedido, v.alvo, v.recuo, v.oferta, v.teto].map((x) => reaisParaCentavos(x));
+    // O teto pode ficar em branco (desconhecido: sem ZOPA na resposta); escrito, tem que ser válido.
+    if (!pedido || !alvo || !recuo || !oferta || Number.isNaN(teto)) {
       await urbiVerso.alertar({ titulo: 'Valores inválidos', mensagem: 'Escreva os valores em reais, por exemplo 1.360.000.', tipo: 'alerta' });
       return;
     }
     this.testando = true;
+    this.resultado = null;
     try {
       this.resultado = await enviar('POST', '/negociador/teste', {
         mandato: { preco_pedido_c: pedido, alvo_c: alvo, recuo_c: recuo, autonomia: 'pergunta_antes' },
         propostas: [{ direcao: 'comprador', valor_c: oferta }],
         mensagem_cliente: v.mensagem,
+        teto_estimado_c: teto ?? null,
       });
     } catch (e) {
       await urbiVerso.alertar({ titulo: 'Não foi possível testar', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -233,7 +253,12 @@ export class PcNegociadorTeste extends LitElement {
     return html`<urbi-stack>
       ${r.resposta?.mensagem ? html`<urbi-prosa pre>${r.resposta.mensagem}</urbi-prosa>` : nothing}
       ${cp?.valor_c ? html`<urbi-prosa papel="secundario">Contraproposta: ${reais(cp.valor_c)}${cp.concessao ? ` · ${cp.concessao}` : ''}</urbi-prosa>` : nothing}
-      ${(r.validacoes ?? []).map((x: Linha) => html`<urbi-prosa papel=${x.ok ? 'sucesso' : 'alerta'}>${x.frase}</urbi-prosa>`)}
+      ${(r.validacoes ?? []).map(
+        (x: Linha) => html`<urbi-linha>
+          <urbi-icone classe=${x.ok ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}></urbi-icone>
+          <urbi-prosa papel=${x.ok ? 'sucesso' : 'alerta'}>${x.descricao}</urbi-prosa>
+        </urbi-linha>`,
+      )}
       ${r.passagem ? html`<urbi-prosa papel="alerta">Passaria a você${(r.motivos_passagem ?? []).length ? `: ${r.motivos_passagem.map((m: Linha) => m.descricao).join('; ')}` : '.'}</urbi-prosa>` : nothing}
       ${z?.existe === true ? html`<urbi-prosa papel="dica">ZOPA deste teste: de ${reais(z.de_c)} a ${reais(z.ate_c)}.</urbi-prosa>` : z?.existe === false ? html`<urbi-prosa papel="dica">Sem ZOPA neste teste: o teto do comprador fica abaixo do recuo.</urbi-prosa>` : nothing}
     </urbi-stack>`;
@@ -247,7 +272,7 @@ export class PcNegociadorTeste extends LitElement {
         ${this.ia === false
           ? estadoTela('ia_indisponivel', { mensagem: 'IA indisponível agora: o teste volta quando ela voltar. O resto dos ajustes funciona normalmente.' })
           : html`<urbi-grid min="140px">
-                ${this.campo('Pedido (R$)', 'pedido')}${this.campo('Alvo (R$)', 'alvo')}${this.campo('Recuo (R$)', 'recuo')}${this.campo('Oferta do comprador (R$)', 'oferta')}
+                ${this.campo('Pedido (R$)', 'pedido')}${this.campo('Alvo (R$)', 'alvo')}${this.campo('Recuo (R$)', 'recuo')}${this.campo('Oferta do comprador (R$)', 'oferta')}${this.campo('Teto do comprador (R$)', 'teto')}
               </urbi-grid>
               <urbi-textarea label="O comprador diz" rows="2" valor=${this.valores.mensagem} @urbi:input-change=${(e: CustomEvent) => (this.valores = { ...this.valores, mensagem: String(e.detail.valor ?? '') })}></urbi-textarea>
               <urbi-linha><urbi-botao pequeno icone="fa-solid fa-play" ?carregando=${this.testando} ?desabilitado=${this.ia === null} @click=${() => void this.testar()}>Testar</urbi-botao></urbi-linha>
