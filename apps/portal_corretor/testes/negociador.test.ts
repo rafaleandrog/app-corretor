@@ -1238,7 +1238,7 @@ test('Fazer agora sem WhatsApp do cliente: 422 SEM_WHATSAPP antes de gravar; com
     assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'nada gravado');
     assert.equal(banco.linhas('negociador_execucoes')[0].decisao, 'pendente', 'a sugestão continua esperando');
     assert.equal(banco.linhas('negociacoes')[0].estado, estadoAntes);
-    // Pelo portal não precisa de telefone; corrigido o telefone, o Fazer agora sai com o link.
+    // Corrigido o telefone do contato, o Fazer agora sai com o link do wa.me.
     await banco.dados(100).atualizar('contatos', b.contato.id, { telefone: '+5561988887777' });
     const ok = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s.execucao_id, canal: 'wa_me' });
     assert.equal(ok.status, 200, JSON.stringify(ok.corpo));

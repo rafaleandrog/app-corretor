@@ -147,7 +147,13 @@ class NegociacaoAberta {
     // A janela abre no próprio clique (senão o navegador a bloqueia) e recebe o link quando ele chega.
     const janela = canal === 'wa_me' ? window.open('', '_blank') : null;
     const ok = await this.agir('Não foi possível enviar', async () => {
-      const r = await enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'aprovar', execucao_id: sugestao.execucao_id, canal });
+      let r: any;
+      try {
+        r = await enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'aprovar', execucao_id: sugestao.execucao_id, canal });
+      } catch (e) {
+        janela?.close(); // fecha antes de o alerta de erro aparecer
+        throw e;
+      }
       if (canal === 'wa_me') {
         if (r?.link && janela) janela.location.href = r.link;
         else {
