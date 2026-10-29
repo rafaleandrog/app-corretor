@@ -147,12 +147,19 @@ class NegociacaoAberta {
     // A janela abre no próprio clique (senão o navegador a bloqueia) e recebe o link quando ele chega.
     const janela = canal === 'wa_me' ? window.open('', '_blank') : null;
     const ok = await this.agir('Não foi possível enviar', async () => {
-      const r = await enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'aprovar', execucao_id: sugestao.execucao_id, canal });
+      let r: any;
+      try {
+        r = await enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'aprovar', execucao_id: sugestao.execucao_id, canal });
+      } catch (e) {
+        janela?.close(); // fecha antes de o alerta de erro aparecer
+        throw e;
+      }
       if (canal === 'wa_me') {
         if (r?.link && janela) janela.location.href = r.link;
         else {
+          // Aba barrada pelo navegador: o texto e o link vão para o corretor copiar e abrir à mão.
           janela?.close();
-          await urbiVerso.alertar({ titulo: 'Mensagem pronta', mensagem: r?.texto ?? '', tipo: 'info' });
+          await urbiVerso.alertar({ titulo: 'Mensagem pronta', mensagem: [r?.texto ?? '', r?.link ? `Abra no WhatsApp: ${r.link}` : ''].filter(Boolean).join('\n\n'), tipo: 'info' });
         }
       } else urbiVerso.notificar('Contraproposta enviada pelo portal do cliente.', 'sucesso');
     });
