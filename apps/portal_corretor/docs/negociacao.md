@@ -137,7 +137,8 @@ conversa com a IA):
 2. **Passo:** a concessão de preço cabe no passo máximo da rodada e não é maior que a anterior.
 3. **Rodadas:** não passa do número de rodadas do mandato.
 4. **Concessões:** só itens do mandato, cada um com a contrapartida.
-5. **Sigilo:** a mensagem não pode citar o recuo, o alvo nem a BATNA do vendedor. O app procura
+5. **Sigilo:** nenhum texto que pode chegar ao cliente (a mensagem e, da contraproposta, as
+   condições, a concessão e a contrapartida) pode citar o recuo, o alvo nem a BATNA do vendedor. O app procura
    esses valores nos formatos usuais ("1.360.000", "1,36 mi", "1360 mil", por extenso, com pequena
    margem de diferença) e frases como "mínimo", "piso" ou "o dono aceita até". É uma checagem
    automática, que não substitui a sua leitura: confira o texto antes de enviar. A mensagem que o
@@ -149,8 +150,15 @@ conversa com a IA):
    um ("um três seis zero"), mil subentendido quando se fala do preço ("abaixo de 1.360 não rola",
    "fecho em 1.360"), número por extenso sem a escala ("mil trezentos e sessenta") e diferença ou
    percentual que, aplicado a um valor público, chega ao recuo ou ao alvo ("o dono pode ceder 140
-   mil", "uns 140 do pedido", "1.500.000 - 140.000"). Oferecer no texto um valor abaixo do recuo
-   ("podemos fechar por R$ 1.300.000") também retém. Se o número disfarçado for só a contraproposta,
+   mil", "uns 140 do pedido", "1.500.000 - 140.000"). Também retêm: o preço falado sem as escalas
+   ("1 e 360", "um e trezentos e sessenta", "treze sessenta"); a conta escrita entre dois valores,
+   conferida com a base que o texto cita ("R$ 1.460.000 − R$ 100.000", "sua oferta de R$ 1.400.000
+   menos 40 mil"), mesmo que outra base explique a diferença; e o percentual aplicado à base citada
+   ("3% abaixo dos R$ 1.400.000 que você ofereceu"; sem base citada, valem o pedido e a
+   contraproposta). Oferecer ou aceitar no texto um valor abaixo do recuo ("podemos fechar por
+   R$ 1.300.000", "fechamos pela sua oferta de R$ 1.300.000", "combinado: 1.300.000") também retém;
+   só relatar a oferta do comprador ("recebi sua proposta de R$ 1.300.000") passa. "2 mil" de
+   condomínio ou de taxa não é lido como preço. Se o número disfarçado for só a contraproposta,
    o pedido ou uma oferta já trocada, a mensagem passa. A conferência prefere reter a mais: uma
    mensagem retida vai para você decidir e nada sai ao cliente. Uma
    alternativa do vendedor dita com outras palavras pode não ser reconhecida pela conferência, por

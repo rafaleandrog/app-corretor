@@ -379,7 +379,7 @@ const DIGITO_POR_EXTENSO: Record<string, string> = {
 
 /**
  * O texto com os números disfarçados escritos como números, e se havia disfarce que uma mensagem normal
- * nunca usa (`forte`). Desfaz: emoji de número ("1️⃣", "🔟"), dígitos de outros alfabetos e de largura
+ * nunca usa (`forte`). Desfaz: emoji de número ("1" + U+FE0F U+20E3, "🔟"), dígitos de outros alfabetos e de largura
  * cheia, letra O ou l no lugar de 0 ou 1 entre dígitos ("1.36O.000", "l.360.000"), dígitos soltos com
  * espaço, hífen, ponto ou outro separador ("1 3 6 0", "1-3-6-0", "1.3.6.0", "136 0 000") e algarismos
  * ditos um a um ("um três seis zero").
@@ -388,7 +388,7 @@ export function desofuscar(texto: string): { texto: string; forte: boolean } {
   let forte = false;
   let t = texto
     .replace(/\u{1F51F}/gu, () => ((forte = true), ' 10 '))
-    .replace(/([0-9])️?⃣/g, (_m, d: string) => ((forte = true), d));
+    .replace(/([0-9])\uFE0F?\u20E3/g, (_m, d: string) => ((forte = true), d));
   // Dígito de outro alfabeto ou de largura cheia ("１３６０") é disfarce; "m²" e "5º" não são.
   if (/(?![0-9])\p{Nd}/u.test(t)) forte = true;
   t = t.normalize('NFKC').replace(/\p{Nd}/gu, (ch) => {
@@ -608,6 +608,56 @@ const UNIDADE_NAO_MONETARIA = /^\s*(m|metros|km|quartos?|suites?|vagas?|banheiro
 const DECIMAL_SOZINHO = /^\s*($|[^a-z0-9%]|(e|ou|com|sem|ja|mas|entao|reais|pra|para|a vista|fechado|fechamos)\b)/;
 /** Referência ao vendedor, para a BATNA de uma palavra só. */
 const VENDEDOR = /\b(vendedor|vendedora|dono|dona|proprietari[oa])\b/;
+/** Entre dois valores, a conta escrita: "1.460.000 − 100.000", "1.400.000 menos 40 mil", "1.300.000 + 60.000". */
+const OPERADOR = /^\s*(?:reais\s+)?(-|−|–|\+|menos|mais|tirando|tirar|tira|somando|somar|soma)\s*(?:rs\s*)?$/;
+/** Depois de um percentual, a base que o texto cita: "3% abaixo dos R$ 1.400.000", "2% sobre os 1,46 mi". */
+const BASE_DO_PERCENTUAL = /^\s*(?:(?:a\s+)?(?:menos|abaixo|acima|mais)\s+|de\s+desconto\s+|de\s+abatimento\s+)?(?:d[aeo]s?|sobre(?:\s+[oa]s?)?|em\s+cima\s+d[oa]s?)\s+(?:\S+\s+){0,2}?(?:rs\s+)?$/;
+/** Aceite ou oferta do lado do vendedor na frase ("fechamos", "combinado", "pode ser", "fica"), sem negação logo antes. */
+const ACEITE = /(?<!\bnao\s+(?:\S+\s+){0,2})\b(fech\w*|aceit\w*|combinad\w*|top[aoe]\w*|pode ser|fic(?:a|o|amos)|ok|negocio|feito|de acordo|lev\w*\s+(?:o|esse|este)\s+valor)\b/;
+/** Centenas por extenso, a parte de milhar de um preço falado ("um e trezentos e sessenta"). */
+const CENTENAS = String.raw`(?:cem|cento|duzent[oa]s|trezent[oa]s|quatrocent[oa]s|quinhent[oa]s|seiscent[oa]s|setecent[oa]s|oitocent[oa]s|novecent[oa]s)(?:\s+e\s+[a-z]+){0,2}`;
+/** "1 e 360", "um e trezentos e sessenta": milhões e milhares falados, sem as escalas. */
+const PRECO_FALADO = new RegExp(String.raw`(?<![\d.,])\b([1-9]|uma?|dois|duas|tres)\s+e\s+(\d{3}(?![\d]|[.,]\d)|${CENTENAS})`, 'g');
+/** "treze sessenta", "quatorze cinquenta e cinco": 1.360 e 1.455 mil, ditos em centenas de milhar. */
+const PRECO_EM_CENTENAS = /(?<!\bas\s+)\b(dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezessete|dezoito|dezenove)\s+(vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa)(?:\s+e\s+(um|dois|tres|quatro|cinco|seis|sete|oito|nove))?\b/g;
+
+/** Soma das palavras de número por extenso ("trezentos e sessenta" = 360), até a primeira que não é. */
+function somaPorExtenso(t: string): number {
+  let n = 0;
+  for (const w of t.split(/\s+/)) {
+    if (w === 'e') continue;
+    if (!(w in UNIDADES)) break;
+    n += UNIDADES[w];
+  }
+  return n;
+}
+
+/** Preços falados sem as escalas ("1 e 360", "treze sessenta"), com a posição no texto preparado. */
+function lerPrecoFalado(base: string): ValorNoTexto[] {
+  const saida: ValorNoTexto[] = [];
+  for (const m of base.matchAll(PRECO_FALADO)) {
+    const milhoes = /\d/.test(m[1]) ? Number(m[1]) : UNIDADES[m[1]];
+    const milhares = /^\d/.test(m[2]) ? Number(m[2]) : somaPorExtenso(m[2]);
+    const fim = (m.index ?? 0) + m[0].length;
+    // "1 e 120 m²" é área, não preço.
+    if (milhares >= 100 && !UNIDADE_NAO_MONETARIA.test(base.slice(fim))) saida.push({ v: milhoes * 1_000_000 + milhares * 1000, ini: m.index ?? 0, fim });
+  }
+  for (const m of base.matchAll(PRECO_EM_CENTENAS)) {
+    const n = UNIDADES[m[1]] * 100 + UNIDADES[m[2]] + (m[3] ? UNIDADES[m[3]] : 0);
+    saida.push({ v: n * 1000, ini: m.index ?? 0, fim: (m.index ?? 0) + m[0].length });
+  }
+  return saida;
+}
+
+/** A frase do texto em volta de um trecho: o ponto entre dígitos ("1.300.000") não fecha a frase. */
+function fraseEm(base: string, ini: number, fim: number): string {
+  const corta = (k: number) => /[!?;\n]/.test(base[k]) || (base[k] === '.' && !(/\d/.test(base[k - 1] ?? '') && /\d/.test(base[k + 1] ?? '')));
+  let a = ini;
+  while (a > 0 && !corta(a - 1)) a--;
+  let b = fim;
+  while (b < base.length && !corta(b)) b++;
+  return base.slice(a, b);
+}
 
 /**
  * Faixa de preço do imóvel, em centavos: de metade do recuo a 1,5 vez o maior entre pedido, alvo e recuo.
@@ -641,7 +691,12 @@ const ABREVIACOES = [1_000_000, 1000];
  *   ("mil trezentos e sessenta") são lidos também em milhares;
  * - diferença ou percentual sobre qualquer valor público que leva ao recuo ou ao alvo, com ou sem
  *   palavra de redução ("o dono pode ceder 140 mil", "1.500.000 - 140.000", "uns 140 do pedido");
- * - oferta no texto abaixo do recuo ("podemos fechar por R$ 1.300.000"), mesmo que o valor seja público;
+ * - preço falado sem as escalas ("1 e 360", "um e trezentos e sessenta", "treze sessenta");
+ * - conta escrita entre dois valores ("R$ 1.460.000 − R$ 100.000", "1.400.000 menos 40 mil"), conferida
+ *   com a base citada; e percentual com a base citada ("3% abaixo dos R$ 1.400.000"); sem base citada,
+ *   o percentual vale sobre o pedido e a contraproposta (`permitidos_c[0]`, por convenção);
+ * - oferta ou aceite no texto abaixo do recuo ("podemos fechar por R$ 1.300.000", "combinado:
+ *   1.300.000"), mesmo que o valor seja público; só relatar a oferta do comprador passa;
  * - palavra de limite com o vendedor como sujeito ("o mínimo que ele aceita", "o piso dele", "o dono
  *   aceita até", "abaixo disso ele não vende");
  * - a BATNA: 3 palavras significativas seguidas dela; se ela tem só 2, as duas juntas ("outro
@@ -691,17 +746,48 @@ export function vazamentos(
       if (alvos.some((dist) => Math.abs(d - dist) <= Math.max(dist * 0.05, s.c * 0.01))) achados.push(como(s.nome));
     }
   };
-  const percentualRevela = (pctV: number, casas: number, como: (nome: string) => string) => {
-    const contas = bases.flatMap((b) => {
+  // Base do percentual sem base citada: o pedido e a contraproposta (por convenção, `permitidos_c[0]`).
+  const basesDoPercentual = [...new Set([pedido, permitidos_c[0] ?? 0].filter((b) => b > 0))];
+  const percentualRevela = (pctV: number, casas: number, citada: number | null, como: (nome: string) => string) => {
+    // Com a base citada no texto ("3% abaixo dos R$ 1.400.000"), a conta é com ela e com nenhuma outra.
+    const contas = (citada ? [citada] : basesDoPercentual).flatMap((b) => {
       const folga = (b * 0.5 * 10 ** -casas) / 100;
       return [Math.round(b * (1 - pctV / 100)), Math.round((b * pctV) / 100)].map((v) => ({ v, folga }));
     });
-    // O percentual que leva de um valor público a outro ("2,67% sobre o pedido" = a contraproposta) é público.
-    if (contas.some((k) => permitido(k.v, k.folga))) return;
-    for (const k of contas) for (const s of sigilosos.slice(0, 2)) if (s.c > 0 && Math.abs(k.v - s.c) <= s.c * 0.01 + k.folga) achados.push(como(s.nome));
+    // Cada conta por si: a que dá um valor público ("2,67% sobre o pedido" = a contraproposta) não
+    // absolve a que dá o recuo.
+    for (const k of contas) {
+      if (permitido(k.v, k.folga)) continue;
+      for (const s of sigilosos.slice(0, 2)) if (s.c > 0 && Math.abs(k.v - s.c) <= s.c * 0.01 + k.folga) achados.push(como(s.nome));
+    }
+  };
+  /** Valor abaixo do recuo, na faixa, numa frase com aceite ou oferta do vendedor ("Combinado: 1.300.000."). */
+  const aceiteAbaixo = (c: number, frase: string) => {
+    if (c > 0 && c < mandato.recuo_c && naFaixa(c) && ACEITE.test(frase)) achados.push('aceita ou oferece na mensagem valor abaixo do recuo');
   };
   const analisar = (base: string) => {
-  for (const x of lerValores(base)) {
+  const valores = lerValores(base);
+  // Preço falado sem as escalas ("1 e 360", "um e trezentos e sessenta", "treze sessenta"): conferido
+  // como qualquer valor.
+  for (const x of lerPrecoFalado(base)) {
+    const c = Math.round(x.v * 100);
+    conferir(c, 0, (nome) => `cita o ${nome} falado`);
+    aceiteAbaixo(c, fraseEm(base, x.ini, x.fim));
+  }
+  // Conta escrita entre dois valores: confere o resultado com a base citada, sem a absolvição de
+  // "outra base explica" ("R$ 1.460.000 − R$ 100.000", "1.400.000 menos 40 mil", "1.500.000 menos 3%").
+  for (const [i, a] of valores.entries()) {
+    const b = valores[i + 1];
+    const op = b && base.slice(a.fim, b.ini).match(OPERADOR);
+    if (!op) continue;
+    const sinal = /^(-|−|–|menos|tir)/.test(op[1]) ? -1 : 1;
+    const ehPct = /^\s*(%|por cento\b)/.test(base.slice(b.fim));
+    const casas = (base.slice(b.ini, b.fim).match(/[.,](\d+)$/)?.[1] ?? '').length;
+    const conta = ehPct ? a.v * (1 + (sinal * b.v) / 100) : a.v + sinal * b.v;
+    const folga = ehPct ? (a.v * 100 * 0.5 * 10 ** -casas) / 100 : 0;
+    conferir(Math.round(conta * 100), folga, (nome) => `dá pista do ${nome} por conta com um valor público`);
+  }
+  for (const x of valores) {
     const c = Math.round(x.v * 100);
     const lido = base.slice(x.ini, x.fim);
     const depois = base.slice(x.fim, x.fim + 60);
@@ -715,7 +801,10 @@ export function vazamentos(
     const antesValor = base.slice(Math.max(0, x.ini - 40), x.ini);
     // Oferta na mensagem abaixo do recuo ("Podemos fechar por R$ 1.300.000"), mesmo sendo o valor da
     // oferta do comprador: o Negociador nunca oferece abaixo do recuo, nem no texto.
-    if (!pct && c > 0 && c < mandato.recuo_c && naFaixa(c) && CONTEXTO_DE_OFERTA.test(antesValor)) achados.push('oferece na mensagem valor abaixo do recuo');
+    if (!pct && c > 0 && c < mandato.recuo_c && naFaixa(c) && CONTEXTO_DE_OFERTA.test(antesValor)) achados.push('aceita ou oferece na mensagem valor abaixo do recuo');
+    // Só relatar a oferta do comprador passa ("Recebi sua proposta de R$ 1.300.000"); aceite ou oferta na
+    // mesma frase ("Fechamos pela sua oferta de R$ 1.300.000", "Combinado: 1.300.000") bloqueia.
+    if (!pct) aceiteAbaixo(c, fraseEm(base, x.ini, x.fim));
     const semEscala = !/[a-z]/.test(lido) || !/\b(mil|k|milh\w*|mi|mm|kk|m)\b/.test(lido);
     const unidadeDepois = UNIDADE_NAO_MONETARIA.test(resto);
     // Milhar implícito: "Fecho em 1.360", "Abaixo de 1.360 não rola", "fecha por R$ 1360" (mil reais
@@ -725,7 +814,9 @@ export function vazamentos(
     }
     // Número por extenso sem a escala certa ("mil trezentos e sessenta" = 1.360 mil): por extenso,
     // de cem para cima, lido também em milhares, em qualquer contexto.
-    if (!pct && !unidadeDepois && /[a-z]/.test(lido) && x.v >= 100 && x.v < 10_000) {
+    // Só pela palavra de número, nunca só pela escala: "2 mil" de condomínio não é 2 milhões.
+    const porExtenso = lido.split(/[^a-z]+/).some((w) => w in UNIDADES || MEIO.has(w) || w === 'virgula');
+    if (!pct && !unidadeDepois && porExtenso && x.v >= 100 && x.v < 10_000) {
       conferir(Math.round(x.v * 1000 * 100), 0, (nome) => `cita o ${nome} por extenso`);
     }
     // Diferença ou percentual sobre qualquer valor público (o pedido, a contraproposta, as ofertas) que
@@ -743,7 +834,11 @@ export function vazamentos(
       for (const d of candidatos) diferencaRevela(d, (nome) => `dá pista do ${nome} pela diferença de um valor público`);
       if (pct && x.v < 100) {
         const casas = (lido.match(/[.,](\d+)$/)?.[1] ?? '').length;
-        percentualRevela(x.v, casas, (nome) => `dá pista do ${nome} por percentual de um valor público`);
+        // A base citada logo depois do percentual ("3% abaixo dos R$ 1.400.000 que você ofereceu").
+        const fimPct = x.fim + (pct?.[0].length ?? 0);
+        const seguinte = valores.find((y) => y.ini >= fimPct && y.ini - fimPct <= 40 && y.v >= 1000);
+        const citada = seguinte && BASE_DO_PERCENTUAL.test(base.slice(fimPct, seguinte.ini)) ? Math.round(seguinte.v * 100) : null;
+        percentualRevela(x.v, casas, citada, (nome) => `dá pista do ${nome} por percentual de um valor público`);
       }
     }
     // Pista derivada: o valor é um percentual ou uma diferença sobre o preço pedido.
@@ -769,7 +864,7 @@ export function vazamentos(
     }
   }
   };
-  // O texto com os números disfarçados desfeitos ("1 3 6 0 mil", "1.36O.000", "1️⃣3️⃣6️⃣0️⃣"). Com disfarce
+  // O texto com os números disfarçados desfeitos ("1 3 6 0 mil", "1.36O.000", emoji de 1, 3, 6 e 0). Com disfarce
   // forte, a leitura do texto cru é lixo ("1", "4", "6", "0 mil") e só vale a desfeita.
   const limpo = desofuscar(texto);
   const baseLimpa = prepararTexto(limpo.texto);
