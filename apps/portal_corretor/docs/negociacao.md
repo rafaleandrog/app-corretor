@@ -42,7 +42,9 @@ quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo
   como "falhou: …"). Só aparece a sugestão mais recente, e só enquanto nenhuma proposta (do comprador,
   do vendedor ou do proprietário) foi gravada depois dela; a superada some, e aprová-la ou editá-la é recusado ("Há uma sugestão ou
   proposta mais nova: peça outra sugestão."), mas descartá-la ainda pode. **Enviar** manda pelo Portal do Cliente;
-  **Fazer agora** abre o WhatsApp do celular com a mensagem pronta; **Editar** muda o valor, as
+  **Fazer agora** abre o WhatsApp do celular com a mensagem pronta (se o cliente não tem um
+  telefone de WhatsApp válido no cadastro, o app recusa e não grava nada; se o navegador barrar a
+  aba, a tela mostra o texto e o link para você copiar); **Editar** muda o valor, as
   condições ou o texto (o app confere de novo e, se a edição passar do recuo ou revelar o sigilo,
   não envia e diz o motivo); **Descartar** descarta. Sugestão bloqueada pelas regras só sai
   editada. Sem sugestão, **Pedir sugestão** chama o Negociador (com a IA fora do ar, o botão

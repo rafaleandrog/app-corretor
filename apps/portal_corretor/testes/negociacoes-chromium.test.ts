@@ -51,7 +51,7 @@ window.urbiVerso = {
   contexto: () => ({ conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }], contaEscrita: 100 } }),
   notificar: () => {},
   alertar: async (a) => { window.alertas.push(a.titulo + ' | ' + a.mensagem); },
-  confirmar: async () => true,
+  confirmar: async () => window.confirmarResposta ?? true,
   formulario: async () => window.respostaFormulario ?? null,
   api: async (rota, opcoes) => {
     const metodo = opcoes?.method ?? 'GET';
@@ -63,6 +63,8 @@ window.urbiVerso = {
     if (caminho === '/negociacoes/1') return DETALHE;
     if (caminho === '/negociacoes/1/mandato') return { vigente: MANDATO, versoes: [MANDATO] };
     if (caminho === '/negociacoes/1/decisao') {
+      (window.decisoes ??= []).push(JSON.parse(opcoes?.body ?? '{}'));
+      if (window.respostaDecisao) return window.respostaDecisao(JSON.parse(opcoes?.body ?? '{}'));
       throw Object.assign(new Error('A contraproposta não respeita o mandato.'), { status: 422, codigo: 'MOVIMENTO_BLOQUEADO', detalhes: ['Abaixo do ponto de recuo: o app não envia.'] });
     }
     return {};
@@ -230,6 +232,76 @@ test('Negociações no Chromium: lista, faixa, sigilo mascarado, sugestão edita
     assert.ok(r.anexar);
     assert.match(r.texto, /O ponto de recuo não pode ficar acima do alvo\./);
     assert.equal(r.salvar, true);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Negociações no Chromium: aceite só com confirmação; Fazer agora sem WhatsApp ou com a aba barrada não engana o corretor', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  const esperar = () => pagina.waitForTimeout(120);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/clientes?visao=negociacoes&item=1`);
+    await esperar();
+    const decisoes = () => pagina.evaluate(() => ((window as any).decisoes ?? []).slice());
+
+    // Passar ao proprietário (o aceite final): sem confirmar, nada sai; confirmado, um aceitar_acordo.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.confirmarResposta = false;
+      w.botao(document.querySelector('pc-negociacao-contexto'), 'Passar ao proprietário').click();
+    });
+    await esperar();
+    assert.deepEqual(await decisoes(), [], 'cancelar a confirmação não envia nada');
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.confirmarResposta = true;
+      w.respostaDecisao = () => ({ ok: true, estado: 'aguardando_proprietario' });
+      w.botao(document.querySelector('pc-negociacao-contexto'), 'Passar ao proprietário').click();
+    });
+    await esperar();
+    const aceites = (await decisoes()).filter((d: any) => d.acao === 'aceitar_acordo');
+    assert.equal(aceites.length, 1);
+    assert.equal(typeof aceites[0].proposta_id, 'number');
+
+    // Fazer agora com o cliente sem WhatsApp: o backend recusa (422 SEM_WHATSAPP), a aba aberta no clique
+    // fecha e o alerta diz o motivo.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.decisoes = [];
+      w.alertas = [];
+      w.janelas = [];
+      window.open = (() => {
+        const j = { fechada: false, location: { href: '' }, close() { this.fechada = true; } };
+        w.janelas.push(j);
+        return j;
+      }) as any;
+      w.respostaDecisao = () => {
+        throw Object.assign(new Error('O cliente não tem um telefone de WhatsApp válido no cadastro. Envie pelo portal ou corrija o telefone do contato.'), { status: 422, codigo: 'SEM_WHATSAPP' });
+      };
+      w.botao(document.querySelector('pc-negociacao-foco'), 'Fazer agora').click();
+    });
+    await esperar();
+    let r: any = await pagina.evaluate(() => ({ alertas: (window as any).alertas.slice(), janelas: (window as any).janelas.map((j: any) => j.fechada) }));
+    assert.deepEqual(r.janelas, [true], 'a aba aberta no clique fecha');
+    assert.equal(r.alertas.length, 1);
+    assert.match(r.alertas[0], /WhatsApp válido/);
+
+    // Aba barrada pelo navegador (window.open devolve null): o alerta traz o texto pronto e o link.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.alertas = [];
+      window.open = (() => null) as any;
+      w.respostaDecisao = () => ({ ok: true, decisao: 'aprovada', canal: 'wa_me', texto: 'Ana, consigo 1.384.000.', link: 'https://wa.me/5561999990001?text=Ana' });
+      w.botao(document.querySelector('pc-negociacao-foco'), 'Fazer agora').click();
+    });
+    await esperar();
+    r = await pagina.evaluate(() => (window as any).alertas.slice());
+    assert.equal(r.length, 1);
+    assert.match(r[0], /Ana, consigo 1\.384\.000\./);
+    assert.match(r[0], /https:\/\/wa\.me\/5561999990001/);
   } finally {
     await navegador.close();
   }

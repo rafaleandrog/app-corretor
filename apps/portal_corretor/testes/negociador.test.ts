@@ -1215,3 +1215,33 @@ test('pergunta antes (D2b): número disfarçado na sugestão vira passagem ao co
   assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'nada saiu');
   criterioDoDono(banco);
 });
+
+test('Fazer agora sem WhatsApp do cliente: 422 SEM_WHATSAPP antes de gravar; com telefone, sai com o link', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const b = await base(banco, 100);
+  const sugestao = resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 146_000_000, condicoes: 'entrega em 90 dias', concessao: null, contrapartida: null, validade_horas: 48 }, mensagem: 'Ana, consigo R$ 1.460.000.' });
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: eventosFalsos(), ia: iaSimulada([sugestao]) } };
+  await banco.dados(100).atualizar('contatos', b.contato.id, { telefone: '123' });
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    const s = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4.' })).corpo;
+    const estadoAntes = banco.linhas('negociacoes')[0].estado;
+    for (const corpo of [
+      { acao: 'aprovar', execucao_id: s.execucao_id, canal: 'wa_me' },
+      { acao: 'editar', execucao_id: s.execucao_id, canal: 'wa_me', contraproposta: { valor_c: 146_000_000 }, mensagem: 'Ana, consigo R$ 1.460.000.' },
+    ]) {
+      const r = await chamar('POST', `/negociacoes/${nid}/decisao`, corpo);
+      assert.equal(r.status, 422, JSON.stringify(r.corpo));
+      assert.equal(r.corpo.codigo, 'SEM_WHATSAPP');
+    }
+    assert.equal(banco.linhas('propostas').filter((p) => p.direcao === 'vendedor').length, 0, 'nada gravado');
+    assert.equal(banco.linhas('negociador_execucoes')[0].decisao, 'pendente', 'a sugestão continua esperando');
+    assert.equal(banco.linhas('negociacoes')[0].estado, estadoAntes);
+    // Pelo portal não precisa de telefone; corrigido o telefone, o Fazer agora sai com o link.
+    await banco.dados(100).atualizar('contatos', b.contato.id, { telefone: '+5561988887777' });
+    const ok = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s.execucao_id, canal: 'wa_me' });
+    assert.equal(ok.status, 200, JSON.stringify(ok.corpo));
+    assert.match(ok.corpo.link, /^https:\/\/wa\.me\/5561988887777\?text=/);
+  });
+});
