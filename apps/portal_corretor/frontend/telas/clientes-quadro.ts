@@ -11,7 +11,7 @@ type Linha = Record<string, any>;
 
 const ROTULO_PRONTO: Record<FiltroPronto, string> = { novos: 'Novos', sem_contato: 'Sem contato', quentes: 'Quentes', retorno_vencido: 'Retorno vencido' };
 const ehPronto = (v: string | null): v is FiltroPronto => (FILTROS_PRONTOS as readonly string[]).includes(v ?? '');
-const NOME_FUNIL: Record<string, string> = { compra: 'Compra', venda_captacao: 'Captação' };
+const NOME_FUNIL: Record<string, string> = { compra: 'Compra', venda_captacao: 'Venda e captação' };
 /** A regra da temperatura em uma linha (spec 10.4; `classificar` em comum/funil.ts). */
 const DEFINICAO_TEMPERATURA = 'Quente: proposta, visita marcada ou gostou da visita. Morno: conversou nos últimos 7 dias. Frio: mais de 7 dias sem contato.';
 

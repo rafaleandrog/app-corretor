@@ -321,7 +321,7 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
         filtros: (w.achar(colunas.querySelector('urbi-hospedeiro[slot="esquerda"] pc-clientes-funil-filtros'), 'urbi-chips-atalho')?.opcoes ?? []).map((o: any) => o.rotulo),
       } as any;
     });
-    assert.deepEqual(r, { quadro: true, filtros: ['Compra (2)', 'Captação (0)'] });
+    assert.deepEqual(r, { quadro: true, filtros: ['Compra (2)', 'Venda e captação (0)'] });
     // Os chips de temperatura trazem a contagem do quadro; o href de cada cartão leva ao Funil com o
     // cliente escolhido, e o cartão atrasado leva `sugerir=1` (a mensagem sugerida abre pronta à direita).
     r = await pagina.evaluate(() => {
@@ -408,6 +408,8 @@ test('Funil: tocar de novo no cartão atrasado do cliente aberto sugere para ele
     assert.equal(await sugestoes(7), 1, 'chegada pelo cartão atrasado sugere uma vez');
     assert.equal(await busca(), '?visao=funil&item=7');
     // Tocar de novo no mesmo cartão com a Ana já aberta: a coluna é refeita e o sugerir é consumido por ELA.
+    // Premissa: o cartão navega por `href_item` (conferido acima); aqui a navegação é simulada por
+    // replaceState + desenhar(). O teste prova a chave da coluna da direita, não a navegação do shell.
     await pagina.evaluate(() => {
       history.replaceState(null, '', location.pathname + '?visao=funil&item=7&sugerir=1');
       (window as any).desenhar();

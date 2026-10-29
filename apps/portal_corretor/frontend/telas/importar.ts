@@ -139,8 +139,6 @@ export class PcImportarFontes extends ColunaImportar {
       </urbi-linha>
       <urbi-prosa papel="titulo">Importar</urbi-prosa>
       <urbi-lista separador .itens=${fontes}
-        .itemAtivo=${(f: { id: string }) => f.id === 'csv'}
-        .indicador=${(f: { id: string }) => (f.id === 'csv' ? 'var(--cor-primaria)' : '')}
         .render_item=${(f: (typeof fontes)[number]) => html`<urbi-linha justificar="entre" quebrar>
           <urbi-prosa><urbi-icone classe=${f.icone}></urbi-icone> ${f.rotulo}</urbi-prosa>
           ${f.breve ? html`<urbi-badge>Em breve</urbi-badge>` : ''}

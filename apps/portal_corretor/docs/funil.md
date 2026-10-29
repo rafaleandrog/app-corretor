@@ -13,7 +13,7 @@ da coluna da esquerda). O endereço é `/clientes?visao=funil`; os endereços an
 
 **Esquerda: o que mostrar.**
 
-- **Funis**: Compra e Captação, cada um com quantos negócios estão em andamento.
+- **Funis**: "Compra" e "Venda e captação", cada um com quantos negócios estão em andamento.
 - **Filtros prontos**: Novos, Sem contato, Quentes e Retorno vencido, os mesmos da Lista.
 - **Por temperatura**: Quentes, Mornos e Frios, cada um com quantos clientes têm negócio em
   andamento no funil. A contagem não muda com os filtros; tocar numa delas filtra o quadro. Embaixo,
