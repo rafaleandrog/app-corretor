@@ -18,6 +18,7 @@ import {
   validarMandato,
   type Direcao,
 } from '../comum/negociacao';
+import { inicioDoMes } from '../comum/negociador-ajustes';
 import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './acesso';
 import { tentarPortal } from './portal';
 import { contaDoRequest } from './vitrine';
@@ -505,6 +506,37 @@ negociacaoRotas.put(
     res.json(await configDaConta(dados));
   }),
 );
+
+/**
+ * Números do mês do Negociador (P17, direita): rodadas que ele preparou (execuções) e quantas das
+ * decididas pelo corretor saíram sem edição. Só contagens da conta, nada do conteúdo.
+ */
+negociacaoRotas.get(
+  '/negociador/numeros',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const fuso = req.contexto?.fuso || 'America/Sao_Paulo';
+    const desde = inicioDoMes(fuso);
+    // O começo do dia 1 no fuso da conta, como instante (o filtro é sobre `criado_em`, data e hora).
+    const inicio = new Date(new Date(`${desde}T00:00:00Z`).getTime() - deslocamento(fuso, `${desde}T12:00:00Z`)).toISOString();
+    const contar = async (filtros: Record<string, unknown>) =>
+      (await dados.listar('negociador_execucoes', { filtros: { 'criado_em[gte]': inicio, ...filtros }, por_pagina: 1 })).total;
+    const [rodadas, decididas, sem_edicao] = await Promise.all([
+      contar({}),
+      contar({ decisao: 'aprovada,editada' }),
+      contar({ decisao: 'aprovada,editada', aprovada_sem_edicao: true }),
+    ]);
+    res.json({ desde, rodadas, decididas, aprovadas_sem_edicao: sem_edicao });
+  }),
+);
+
+/** Diferença, em ms, entre o UTC e o relógio do fuso num instante (positiva a oeste de Greenwich). */
+function deslocamento(fuso: string, iso: string): number {
+  const d = new Date(iso);
+  const local = new Date(d.toLocaleString('en-US', { timeZone: fuso }));
+  const utc = new Date(d.toLocaleString('en-US', { timeZone: 'UTC' }));
+  return local.getTime() - utc.getTime();
+}
 
 /**
  * O playbook da conta por categoria: o padrão (Apêndice D) e a resposta do corretor, quando houver.

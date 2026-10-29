@@ -11,12 +11,12 @@ celular, uma por vez, em abas):
 - **à esquerda**, as seções;
 - **no centro**, o conteúdo da seção escolhida (cada bloco tem o botão de lápis para editar);
 - **à direita**, uma ajuda curta da seção e o botão **Perguntar ao Assistente**. Em Conta e marca,
-  aparece ali também o aviso do CRECI, quando ele falta.
+  aparece ali também o aviso do CRECI, quando ele falta; no Negociador, o simulador e os números do mês.
 
 | Seção | O que tem |
 |---|---|
 | **Mensageiro** | Ainda nada para configurar: o Mensageiro chega com a conexão do WhatsApp |
-| **Negociador** | "Em breve": os ajustes do Negociador chegam numa versão seguinte (o mandato de cada negociação fica em [Clientes › Negociações](negociacao.md)) |
+| **Negociador** | Quando entra, quem negocia, estilo, regras fixas, suas instruções e respostas a objeções; à direita, **Testar** e os números do mês — ver [Ajustes do Negociador](negociacao.md#ajustes-do-negociador) |
 | **Conexões** | O Instagram, o WhatsApp ("ainda não disponível") e a Agenda ("fase 6") — ver [Conexões (Instagram)](conexoes.md) |
 | **Conta e marca** | Seus dados (CRECI e telefone), os dados da conta e a marca (logo, sua foto, cores, estilo e assinatura) |
 | **Funil e abordagens** | Etapas de cada funil e a abordagem por etapa e temperatura — ver [Funil](funil.md) |

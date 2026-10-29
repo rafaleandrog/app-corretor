@@ -3,9 +3,8 @@
 
 /**
  * Seções na ordem da spec 11.1 (P11): Mensageiro · Negociador · Conexões · Conta e marca · Funil e
- * abordagens · Horário de atendimento · Privacidade. Plano e créditos não entra (D-87). Mensageiro e
- * Negociador ocupam o lugar sem configuração nenhuma: o Mensageiro chega com o WhatsApp, o Negociador
- * com o D4.
+ * abordagens · Horário de atendimento · Privacidade. Plano e créditos não entra (D-87). O Mensageiro
+ * ocupa o lugar sem configuração nenhuma: chega com o WhatsApp.
  */
 export const ABAS_AJUSTES = [
   { id: 'mensageiro', label: 'Mensageiro', icone: 'fa-solid fa-comments' },
