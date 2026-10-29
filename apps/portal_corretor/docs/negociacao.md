@@ -170,7 +170,7 @@ R$ 872.000). Como o intervalo encolhe, a concessão diminui a cada rodada.
 ### O que é sigiloso e quem vê
 
 **Alvo, ponto de recuo e BATNA do vendedor nunca são revelados pelo Negociador** (regra do dono do
-produto). No app, eles só aparecem para o **corretor da conta** e para o **administrador do app** (que precisa estar associado a uma conta), e só no mandato da negociação. O **negociador humano** lê o mandato sem esses três campos. A equipe da plataforma com só o papel de operação não passa nas telas e rotas de negociação (o guarda exige o papel `corretor` ou o nível de administrador do app); quem tem operação e também é administrador do app passa, desde que esteja associado a uma conta.
+produto). No app, eles só aparecem para o **corretor da conta** e para o **administrador do app** (que precisa estar associado a uma conta), e só no mandato da negociação. O **negociador humano**, que é da equipe do corretor, lê o mandato completo, com os três campos, mas só o das negociações atribuídas a ele e só em leitura. A equipe da plataforma com só o papel de operação não passa nas telas e rotas de negociação (o guarda exige o papel `corretor`, o papel `negociador` com a negociação atribuída, ou o nível de administrador do app); quem tem operação e também é administrador do app passa, desde que esteja associado a uma conta.
 Ficam fora de:
 - a lista e o detalhe da negociação (o mandato aparece ali só com o que não é sigiloso);
 - as propostas;
@@ -390,12 +390,13 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
 - **Só as negociações atribuídas a ele.** As outras da conta não aparecem na lista e, pelo endereço,
   respondem "não encontrado" (`404`), como a negociação de outra conta. Retirada a atribuição, ele
   deixa de ver a negociação na hora.
-- **A tela da negociação** é a mesma do corretor, com o mandato **em leitura e sem o alvo, o ponto
-  de recuo e a BATNA do vendedor**: esses três nunca chegam a ele, em nenhuma resposta. O app
-  confere cada envio contra eles e bloqueia o que passar do limite.
+- **A tela da negociação** é a mesma do corretor, com o mandato **em leitura e completo**, inclusive
+  o alvo, o ponto de recuo e a BATNA do vendedor: ele os lê, mas não os muda. Como ele propõe
+  valores, esconder o recuo não adiantaria (a recusa de um valor abaixo dele já o revelaria). O
+  cliente, o portal, os eventos e a vitrine continuam sem nenhum dos três.
 - **Pode:** pedir sugestão ao Negociador IA; enviar, fazer agora, editar ou descartar a sugestão
-  (com as mesmas garantias do código que valem para o corretor: nada abaixo do recuo, passo,
-  rodadas, concessões, sigilo, validade e canal); registrar a oferta do cliente e a resposta do
+  (tudo o que ele registra ou envia passa pelas 7 garantias do código, as mesmas do Negociador IA:
+  nada abaixo do recuo, passo, rodadas, concessões, sigilo, validade e canal); registrar a oferta do cliente e a resposta do
   vendedor (aparece como "Negociador" na escada de propostas); atualizar a leitura do comprador;
   **Assumir** (passa a conduzir) e **Devolver ao Negociador** IA.
 - **Não pode** (a API responde `403 SO_O_CORRETOR`): aceitar o acordo final ("Passar ao
@@ -427,10 +428,15 @@ Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
 | `CONVITE_IDENTIDADE_INTERNA` | O e-mail é de alguém da equipe da plataforma |
 | `CONVITE_JA_PENDENTE` | Já há um convite pendente para o e-mail |
 | `PLANO_ASSENTOS_ESGOTADOS` | O plano da conta não tem mais lugares |
-| `CONVITE_INDISPONIVEL` (503) | A plataforma não respondeu ao convite agora: tente mais tarde |
+| `CONVITE_INDISPONIVEL` (503) | Esta instância não oferece ao app o provisionamento de convites (não é falha passageira): fale com o administrador da instância |
 
 Se o e-mail do convite não sair, o convite fica valendo e a tela avisa (peça à pessoa para olhar o
 spam, ou revogue e convide de novo).
+
+**Limite da plataforma, leia antes de convidar:** como membro da conta, o negociador lê os eventos
+do app pelo barramento da plataforma, inclusive `lead_recebido`, que traz nome, telefone e e-mail de
+quem pediu contato, e os eventos de negociações que não são dele. As telas e rotas do app só
+mostram as atribuídas, mas o barramento não filtra por negociação. Convide só quem pode ver isso.
 
 ### O que o dono da instância precisa ligar
 
@@ -439,6 +445,9 @@ Sem isto, o convite é recusado com a mensagem do código correspondente:
 - **Admin › Instaláveis › Apps › Portal do Corretor:** o provisionamento de externos ligado (master
   switch) e a capacidade **admitir em conta existente**. A capacidade "criar conta" é a que a
   equipe da plataforma já usa para convidar corretores.
+- **Nível padrão do externo** (`permissao_padrao_externo`, em Admin › Instaláveis › Apps) em
+  **escrita** ou acima (o teto é escrita): sem ele o papel `negociador` não pode ser atribuído
+  (`permissoes.md`).
 - **Política "permite contas multi-usuário" ligada** na instância. Desligada, o segundo externo da
   conta (o negociador, depois do corretor) é recusado, no convite e no aceite.
 - **Assentos:** se a conta tem plano com teto de assentos, o negociador ocupa um lugar.
