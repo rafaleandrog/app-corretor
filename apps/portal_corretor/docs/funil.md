@@ -8,18 +8,48 @@ descricao: A visão Funil de Clientes, temperatura do contato com motivo, aborda
 ## Funil: Clientes › Funil
 
 O funil é a visão **Funil** de **Clientes** (o botão **Funil**, ao lado de **Lista**, no alto
-da coluna da esquerda). Ele mostra os negócios em quadro, uma coluna por etapa, com o nome do cliente, o título,
-o valor, a temperatura e o aviso de **abordagem atrasada**. O endereço antigo `/funil` continua
-abrindo a visão Funil.
+da coluna da esquerda). O endereço é `/clientes?visao=funil`; os endereços antigos `/funil` e
+`/clientes?visao=quadro` continuam abrindo a visão Funil. A tela tem três colunas:
 
-- Arraste o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
-  motivo, o cartão volta.
-- Toque no cartão para abrir a ficha do cliente. No cartão com **abordagem atrasada**, a ficha abre
-  já com a mensagem sugerida, pronta para o **Fazer agora** (ver
+**Esquerda: o que mostrar.**
+
+- **Funis**: "Compra" e "Venda e captação", cada um com quantos negócios estão em andamento.
+- **Filtros prontos**: Novos, Sem contato, Quentes e Retorno vencido, os mesmos da Lista.
+- **Por temperatura**: Quentes, Mornos e Frios, cada um com quantos clientes têm negócio em
+  andamento no funil. A contagem não muda com os filtros; tocar numa delas filtra o quadro. Embaixo,
+  a regra em uma linha: quente é quem tem proposta, visita marcada ou gostou da visita; morno,
+  quem conversou nos últimos 7 dias; frio, quem está há mais de 7 dias sem contato.
+- **Sem contato há** 3, 7, 15, 30 ou 90 dias.
+
+Não há listas salvas: os filtros prontos ocupam o lugar delas. Tudo o que você escolhe fica no
+endereço da página.
+
+**Centro: o quadro.** No alto, o funil e quantos negócios estão em andamento, e a **taxa de
+passagem** entre cada etapa e a seguinte (por exemplo, "Novo → Em atendimento 86%"). Abaixo, uma
+coluna por etapa, e em cada cartão o nome do cliente, o título, o valor, a temperatura e o aviso
+de **abordagem atrasada**.
+
+- **Como a taxa é contada:** dos negócios do quadro que chegaram a uma etapa, quantos chegaram à
+  seguinte. Ela usa a etapa mais avançada a que cada negócio chegou, como em
+  [Números](desempenho.md): quem voltou ou foi perdido conta até onde foi, e o ganho passou por
+  todas. A conta é sobre os negócios do quadro (os em andamento e os ganhos e perdidos dos últimos
+  30 dias), sem os filtros. Uma etapa que você criou em Ajustes › Funil não tem taxa.
+- **Arraste** o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
+  motivo, nada é gravado e o cartão volta.
+- **Toque** no cartão para ver o cliente na coluna da direita, sem sair do Funil. No cartão com
+  **abordagem atrasada**, o cliente abre já com a **Mensagem sugerida** pronta.
+- Ganhos e perdidos ficam no quadro por 30 dias; os em andamento ficam sempre.
+
+**Direita: o cliente do cartão escolhido.**
+
+- A temperatura com o motivo ("Por que quente: tem visita marcada") e a etapa.
+- A **próxima abordagem**, com **Mensagem sugerida**, **Fazer agora** e **Virar tarefa** (ver
   [Próxima abordagem](#próxima-abordagem)).
-- Filtros: funil (compra ou venda e captação), temperatura e "sem contato há" 3, 7, 15, 30 ou 90
-  dias (as mesmas opções da Lista). Ficam no endereço da página.
-- Ganhos e perdidos ficam na visão Funil por 30 dias; os em andamento ficam sempre.
+- **Registrar proposta**: anota o valor e as condições que o cliente ofereceu, como atividade
+  feita na agenda dele (com as telas de negociação, o botão passa a abrir o registro de proposta).
+- **Resumir** (quando a IA está liberada), **Tarefa** (agendar), **Conversa** (abre o WhatsApp do
+  cliente) e **Abrir ficha**.
+- **Enviados**: o que foi mandado ao cliente, quando ele abriu o link e quantos cliques deu.
 
 ## Temperatura do contato
 
