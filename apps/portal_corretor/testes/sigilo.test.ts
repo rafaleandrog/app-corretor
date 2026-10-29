@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MOVIMENTO_FORA_DA_LISTA, exigePassagem, sanearResposta, validarMovimento, valoresCitados, vazamentos, vazamentosNoRegistro, type MandatoMotor, type PropostaResumo } from '../comum/negociador';
+import { MOVIMENTO_FORA_DA_LISTA, desofuscar, exigePassagem, sanearResposta, validarMovimento, valoresCitados, vazamentos, vazamentosNoRegistro, type MandatoMotor, type PropostaResumo } from '../comum/negociador';
 
 // Sigilo do Negociador (10.9.7, garantia 5), revisão do PR #115: recuo, alvo e BATNA não saem em
 // nenhum formato nem por pista derivada do preço pedido, em nenhum texto que chega ao cliente ou fica
@@ -277,4 +277,250 @@ test('rodada 2 (achado 3): frase de limite exige o vendedor como sujeito', () =>
   for (const m of pegam) assert.ok(vazamentos(m, MOTOR, PERMITIDOS).includes('fala em mínimo, piso ou limite do vendedor'), `deveria pegar: ${m}`);
   const passam = ['O condomínio aceita até dois pets.', 'O banco aceita até 30 anos.', 'O mínimo exigido pelo banco é 20%.', 'Abaixo disso o banco não avalia.', 'O mínimo que o banco pede é a entrada.'];
   for (const m of passam) assert.deepEqual(vazamentos(m, MOTOR, PERMITIDOS), [], m);
+});
+
+// ------------------------------------------------------------------------------------------------
+// D2b: o que PARECE número e não resolve com segurança para um valor público bloqueia (e vira passagem
+// ao corretor). Fecha o ponto "detector de sigilo" das rodadas 2 e 3 do PR #115.
+
+/** A escada da rodada 3: contraproposta de R$ 1.460.000 e oferta do comprador de R$ 1.300.000. */
+const PUBLICOS_D2B = [146_000_000, PEDIDO, 130_000_000];
+
+test('D2b: as frases do "pergunta antes" (rodada 3 do #115) bloqueiam e passam ao corretor', () => {
+  const frases = ['Fica 1 3 6 0 mil e não sai disso', 'O piso é 1.36O.000', 'Abaixo de 1.360 não rola'];
+  const mandato = { ...MOTOR, autonomia: 'pergunta_antes' as const };
+  for (const m of frases) {
+    assert.ok(vazamentos(m, MOTOR, PUBLICOS_D2B).length > 0, `deveria pegar: ${m}`);
+    const r = validarMovimento(
+      { movimento: 'contraproposta', contraproposta: { valor_c: 146_000_000, condicoes: null, concessao: null, contrapartida: null, validade_horas: 48 }, mensagem: m },
+      mandato,
+      [comprador(130_000_000)],
+      { hoje: HOJE, canal: 'portal' },
+    );
+    assert.equal(r.ok, false, m);
+    assert.ok(r.bloqueado_por.includes('SIGILO_VIOLADO'), m);
+  }
+});
+
+test('D2b: as frases das rodadas 2 e 3 do #115 bloqueiam', () => {
+  const frases = [
+    // Rodada 2.
+    'Faço um milhão trezentos e sessenta.',
+    'Fica 1 3 6 0 mil.',
+    'O valor é 1.36O.000.',
+    'Abaixo de 1.360 não rola.',
+    'Faço um vírgula trinta e seis milhão.',
+    'Faço mil trezentos e sessenta.',
+    'Fica 1️⃣3️⃣6️⃣0️⃣ mil.',
+    'Fica em 1 milhão. E mais 360 mil.',
+    'O desconto máximo é de 9,3%.',
+    'Uns 140 do pedido.',
+    'Tenho 90 mil de margem.',
+    'Podemos fechar por R$ 1.300.000 à vista.',
+    // Rodada 3.
+    'O dono fecha por R$ 1360.',
+    'Fecho em 1.360.',
+    'O dono pode ceder 140 mil.',
+    'A folga é de 140 mil.',
+    '1.500.000 - 140.000',
+  ];
+  for (const m of frases) assert.ok(vazamentos(m, MOTOR, PUBLICOS_D2B).length > 0, `deveria pegar: ${m}`);
+});
+
+test('D2b: número disfarçado em qualquer forma bloqueia', () => {
+  const frases = [
+    'Fica 1-3-6-0 mil.',
+    'Fica 1.3.6.0 mil.',
+    'Fica 1_3_6_0 mil.',
+    'Fica 136 0 000.',
+    'Fica 1-360-000.',
+    'Fica um três seis zero mil.',
+    'Fica um-três-seis-zero mil.',
+    'Fica １３６０ mil.',
+    'Fica ١٣٦٠ mil.',
+    'Fica 1,36O mi.',
+    'Fica 1.36o.000.',
+    'Fica l.360.000.',
+    'Fica 1OO.000 a menos que o pedido.',
+    'Fica 1️⃣,3️⃣6️⃣ mi.',
+    'Faço mil e trezentos e sessenta.',
+    'O vendedor não sai de 1.360.',
+    'Abaixo de 1.450 ele não topa.',
+  ];
+  for (const m of frases) assert.ok(vazamentos(m, MOTOR, PUBLICOS_D2B).length > 0, `deveria pegar: ${m}`);
+});
+
+test('D2b: o disfarçado que resolve para um valor público passa; o vocabulário normal também', () => {
+  for (const m of ['Posso levar 1 4 6 0 mil.', 'Fica 1.46O.000.', 'O pedido é 1-500-000.']) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_D2B), [], m);
+  // As normais de antes, contra a escada delas (contraproposta de 1,46 mi e oferta de 1,4 mi).
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(vazamentos(m, MOTOR, PERMITIDOS), [], m);
+  const normais = [
+    'O apartamento fica no 5º andar.',
+    'O 1º piso tem a sala e a cozinha.',
+    'Me liga no (61) 99999-9999.',
+    'Visita dia 28/10 às 10h?',
+    'Tem 2-3 vagas, dependendo do carro.',
+    'O condomínio de R$ 1.360 inclui água e gás.',
+    'O IPTU sai por R$ 1.450 por ano.',
+    'A obra terminou em 2019 e a reforma em 2024.',
+    'São três quartos e duas vagas.',
+    'Posso levar R$ 1.460.000, R$ 40 mil abaixo do pedido.',
+    'Sua oferta de R$ 1.300.000 foi recebida; levo R$ 1.460.000 ao vendedor.',
+  ];
+  for (const m of normais) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_D2B), [], m);
+});
+
+// ------------------------------------------------------------------------------------------------
+// Rodada 1 da revisão do PR #120: preço falado, conta escrita, percentual com base citada, aceite
+// abaixo do recuo e "2 mil" que não é 2 milhões. A escada: contraproposta de R$ 1.460.000 e ofertas do
+// comprador de R$ 1.300.000 e R$ 1.400.000.
+
+const PUBLICOS_120 = [146_000_000, PEDIDO, 130_000_000, 140_000_000];
+const pega = (frases: string[]) => {
+  for (const m of frases) assert.ok(vazamentos(m, MOTOR, PUBLICOS_120).length > 0, `deveria pegar: ${m}`);
+};
+const passa = (frases: string[]) => {
+  for (const m of frases) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_120), [], m);
+};
+
+test('#120 achado 1: preço falado "1 e 360" e "treze sessenta" é lido em milhões e milhares', () => {
+  pega(['Fecha em 1 e 360, sem problema.', 'O vendedor fecha em 1 e 450.', 'Dá pra fazer um e trezentos e sessenta.', 'Treze sessenta mil e fechamos.', 'Fica em 1 e 360 mil.']);
+  passa(['São 3 quartos e 2 vagas.', 'O imóvel tem 1 vaga e 120 m².', 'Entrega entre 2 e 3 dias.', 'Posso levar 1 e 460.', 'Quatorze sessenta e fechamos.']);
+});
+
+test('#120 achado 2: conta escrita confere o resultado com a base citada', () => {
+  pega([
+    'R$ 1.460.000 − R$ 100.000 é onde a gente chega.',
+    'R$ 1.460.000 - R$ 100.000 é onde a gente chega.',
+    'R$ 1.300.000 + 60.000 e fechamos.',
+    'Sua oferta de R$ 1.400.000 menos 40 mil resolve.',
+    '1.500.000 - 140.000',
+    'R$ 1.400.000 menos 3% resolve.',
+  ]);
+  passa(['Posso levar R$ 1.460.000, R$ 40 mil abaixo do pedido.', '1.500.000 - 40.000', 'R$ 1.500.000 menos 2,67% dá a proposta.']);
+});
+
+test('#120 achado 3: percentual com a base citada usa essa base; sem base, pedido e contraproposta', () => {
+  pega(['Podemos ir até 3% abaixo dos R$ 1.400.000 que você ofereceu.', 'Dá 3% sobre os R$ 1.400.000 de desconto.']);
+  passa(['Dá 3% de desconto.', 'Um desconto de 2,67% sobre o pedido.', 'A entrada de 30% já ajuda.', 'A entrada de 30% do valor pode vir do FGTS.', 'Fica 2,67% abaixo dos R$ 1.500.000.']);
+});
+
+test('#120 achado 4: aceite ou oferta abaixo do recuo bloqueia; o relato da oferta passa', () => {
+  pega(['Fechamos pela sua oferta de R$ 1.300.000.', 'Combinado: 1.300.000.', 'Aceitamos a sua primeira proposta de 1,3 milhão.', 'Podemos fechar por R$ 1.300.000.', 'Pode ser 1,3 mi.']);
+  passa(['Recebi sua proposta de R$ 1.300.000.', 'Sua oferta de R$ 1.300.000 foi recebida; levo R$ 1.460.000 ao vendedor.']);
+  // Fora da contraproposta também: o sigilo varre a mensagem de qualquer movimento.
+  const v = validarMovimento({ movimento: 'responder_objecao', contraproposta: null, mensagem: 'Fechamos pela sua oferta de R$ 1.300.000.' }, MOTOR, [comprador(130_000_000)], { hoje: HOJE, canal: 'portal' });
+  assert.equal(v.ok, false);
+  assert.ok(v.bloqueado_por.includes('SIGILO_VIOLADO'));
+});
+
+test('#120 achado 5: "2 mil" não vira 2 milhões; por extenso continua lido em milhares', () => {
+  passa(['Condomínio de R$ 2 mil.', 'Taxa de 2 mil.', 'São 2 mil de condomínio e 400 de IPTU.']);
+  pega(['Faço mil trezentos e sessenta.', 'Faço um mil trezentos e sessenta.']);
+});
+
+test('#120 achado 6: desofuscar desfaz emoji de número e dígitos de outros alfabetos', () => {
+  assert.deepEqual(desofuscar('Fica 1\uFE0F\u20E33\uFE0F\u20E36\uFE0F\u20E30\uFE0F\u20E3 mil.'), { texto: 'fica 1360 mil.', forte: true });
+  assert.deepEqual(desofuscar('Fica 1\u20E3.'), { texto: 'fica 1.', forte: true });
+  assert.equal(desofuscar('Nota \u{1F51F}').forte, true);
+  assert.deepEqual(desofuscar('Fica \uFF11\uFF13\uFF16\uFF10 mil.'), { texto: 'fica 1360 mil.', forte: true });
+  assert.equal(desofuscar('O apartamento fica no 5º andar, 120 m².').forte, false);
+  assert.equal(desofuscar('Posso levar R$ 1.460.000.').forte, false);
+});
+
+test('#120: as normais continuam passando contra a escada nova', () => {
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_120), [], m);
+  for (const m of ['Criado em 2026-10-28T10:42:17.123Z.', 'Visita dia 28/10 às 10h?', 'Me liga no (61) 99999-9999.', 'Visita às doze trinta?']) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_120), [], m);
+});
+
+// ------------------------------------------------------------------------------------------------
+// Rodada 2 da revisão do PR #120: o detector deixava formatos escapar porque era uma lista de formas
+// reconhecidas. Agora o sentido é o inverso: o que parece número e não tem leitura padrão retém. Mesma
+// escada de PUBLICOS_120.
+
+const DISFARCE = 'escreve número de forma disfarçada';
+const ACEITE_ABAIXO = 'aceita ou oferece na mensagem valor abaixo do recuo';
+const achadosDe = (m: string) => vazamentos(m, MOTOR, PUBLICOS_120);
+const comAchado = (casos: [string, string][]) => {
+  for (const [m, achado] of casos) assert.ok(achadosDe(m).includes(achado), `${m} → ${achado} (veio ${JSON.stringify(achadosDe(m))})`);
+};
+
+test('#120 r2 I1: o que parece número e não tem leitura padrão retém', () => {
+  comAchado([
+    ['Dá pra fazer 1 ponto 36 milhão.', DISFARCE],
+    ['Fica em 1\n360 mil.', DISFARCE],
+    ['1/3/6/0 mil', DISFARCE],
+    ['1|3|6|0 mil', DISFARCE],
+    ['1•3•6•0 mil', DISFARCE],
+    ['Fica em 1:360:000.', DISFARCE],
+    ['Fecha em 1.3.6.0.000.', DISFARCE],
+    ['Fica em ❶❸❻⓪ mil.', DISFARCE],
+    ['Fica em ❶❸❻⓪ mil.', 'cita o recuo'],
+    ['um, três, seis, zero mil', DISFARCE],
+    ['Um três meia zero.', DISFARCE],
+    // A conta: o operando sem escala herda a escala do outro lado.
+    ['Ele faria 1.460 - 100 mil.', 'dá pista do recuo por conta com um valor público'],
+    ['Ele faria 1,46 - 0,1 mi.', 'dá pista do recuo por conta com um valor público'],
+  ]);
+  // Um número público em outro ponto do texto não absolve o trecho disfarçado.
+  comAchado([['O pedido é R$ 1.500.000, e fica 1/3/6/0 mil.', DISFARCE]]);
+  passa([
+    'Me liga no (61) 99999-9999.',
+    'Visita dia 28/10 às 10h?',
+    'Visita às 10h30.',
+    'O 1º piso tem a sala.',
+    'Fica no 5º andar.',
+    'São 120 m² de área útil.',
+    'São 3 quartos e 2 vagas.',
+    'Tem 2-3 vagas.',
+    'Tem 1, 2 ou 3 vagas, conforme a unidade.',
+    'Valor: R$ 1.460.000\n90 dias de entrega.',
+    'Criado em 2026-10-29T13:43:35.953Z.',
+    'Visita às 10 e meia?',
+    // O trecho disfarçado que resolve para valor público passa, ao lado de outros números normais.
+    'Posso levar 1 4 6 0 mil, com 3 quartos e 2 vagas.',
+  ]);
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
+  assert.deepEqual(desofuscar('Fica ❶❸❻⓪ mil.'), { texto: 'fica 1360 mil.', forte: true });
+});
+
+test('#120 r2 I2: aceite ou oferta olham as palavras em volta do valor, não a frase', () => {
+  comAchado(
+    ['1.300.000? Fechado.', 'R$ 1.300.000! Topamos.', 'Pode ser 1,3 sim.', '1,3 tá ótimo pra nós.', 'Negócio fechado em um vírgula três.', 'Sim para os 1.300.000 que você ofereceu.'].map((m) => [m, ACEITE_ABAIXO]),
+  );
+  passa([
+    'Recebi sua proposta de R$ 1.300.000. Vou conversar com o vendedor.',
+    'Sua oferta de R$ 1.300.000 foi recebida; levo R$ 1.460.000 ao vendedor.',
+    'Sua oferta de R$ 1.300.000 fica registrada.',
+    'Ok, Ana. Recebi sua proposta de R$ 1.300.000.',
+    'Recebi sua proposta de R$ 1.300.000. Fico no aguardo.',
+    'Topamos R$ 1.460.000 e não R$ 1.300.000.',
+  ]);
+});
+
+test('#120 r2 I3: percentual "acima de" uma base soma o percentual a ela', () => {
+  comAchado([
+    ['O ideal dele está 4,6% acima dos 1.300.000.', 'dá pista do recuo por percentual de um valor público'],
+    ['O ideal dele está 11,5% acima dos 1.300.000.', 'dá pista do alvo por percentual de um valor público'],
+  ]);
+  passa(['Dá 3% de desconto.', 'Um desconto de 2,67% sobre o pedido.']);
+});
+
+test('#120 r2 I4: diferença com a base dita por palavra usa essa base', () => {
+  comAchado([['Dá para chegar a 100 mil abaixo da nossa contraproposta.', 'dá pista do recuo pela diferença de um valor público']]);
+  passa(['Posso levar R$ 1.460.000, R$ 40 mil abaixo do pedido.']);
+});
+
+test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
+  const formas = ['1 ', '1360000 ', 'um mil ', '1% ', '1,3 sim ', 'a1 ', '1.'];
+  for (const f of formas) {
+    const texto = f.repeat(Math.ceil(40_000 / f.length)).slice(0, 40_000);
+    let melhor = Infinity;
+    for (let k = 0; k < 2; k++) {
+      const t0 = performance.now();
+      vazamentos(texto, MOTOR, PUBLICOS_120);
+      melhor = Math.min(melhor, performance.now() - t0);
+    }
+    assert.ok(melhor < 200, `${JSON.stringify(f)} × 40 mil caracteres levou ${melhor.toFixed(0)} ms`);
+  }
 });
