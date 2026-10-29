@@ -432,3 +432,95 @@ test('#120: as normais continuam passando contra a escada nova', () => {
   for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_120), [], m);
   for (const m of ['Criado em 2026-10-28T10:42:17.123Z.', 'Visita dia 28/10 às 10h?', 'Me liga no (61) 99999-9999.', 'Visita às doze trinta?']) assert.deepEqual(vazamentos(m, MOTOR, PUBLICOS_120), [], m);
 });
+
+// ------------------------------------------------------------------------------------------------
+// Rodada 2 da revisão do PR #120: o detector deixava formatos escapar porque era uma lista de formas
+// reconhecidas. Agora o sentido é o inverso: o que parece número e não tem leitura padrão retém. Mesma
+// escada de PUBLICOS_120.
+
+const DISFARCE = 'escreve número de forma disfarçada';
+const ACEITE_ABAIXO = 'aceita ou oferece na mensagem valor abaixo do recuo';
+const achadosDe = (m: string) => vazamentos(m, MOTOR, PUBLICOS_120);
+const comAchado = (casos: [string, string][]) => {
+  for (const [m, achado] of casos) assert.ok(achadosDe(m).includes(achado), `${m} → ${achado} (veio ${JSON.stringify(achadosDe(m))})`);
+};
+
+test('#120 r2 I1: o que parece número e não tem leitura padrão retém', () => {
+  comAchado([
+    ['Dá pra fazer 1 ponto 36 milhão.', DISFARCE],
+    ['Fica em 1\n360 mil.', DISFARCE],
+    ['1/3/6/0 mil', DISFARCE],
+    ['1|3|6|0 mil', DISFARCE],
+    ['1•3•6•0 mil', DISFARCE],
+    ['Fica em 1:360:000.', DISFARCE],
+    ['Fecha em 1.3.6.0.000.', DISFARCE],
+    ['Fica em ❶❸❻⓪ mil.', DISFARCE],
+    ['Fica em ❶❸❻⓪ mil.', 'cita o recuo'],
+    ['um, três, seis, zero mil', DISFARCE],
+    ['Um três meia zero.', DISFARCE],
+    // A conta: o operando sem escala herda a escala do outro lado.
+    ['Ele faria 1.460 - 100 mil.', 'dá pista do recuo por conta com um valor público'],
+    ['Ele faria 1,46 - 0,1 mi.', 'dá pista do recuo por conta com um valor público'],
+  ]);
+  // Um número público em outro ponto do texto não absolve o trecho disfarçado.
+  comAchado([['O pedido é R$ 1.500.000, e fica 1/3/6/0 mil.', DISFARCE]]);
+  passa([
+    'Me liga no (61) 99999-9999.',
+    'Visita dia 28/10 às 10h?',
+    'Visita às 10h30.',
+    'O 1º piso tem a sala.',
+    'Fica no 5º andar.',
+    'São 120 m² de área útil.',
+    'São 3 quartos e 2 vagas.',
+    'Tem 2-3 vagas.',
+    'Tem 1, 2 ou 3 vagas, conforme a unidade.',
+    'Valor: R$ 1.460.000\n90 dias de entrega.',
+    'Criado em 2026-10-29T13:43:35.953Z.',
+    'Visita às 10 e meia?',
+    // O trecho disfarçado que resolve para valor público passa, ao lado de outros números normais.
+    'Posso levar 1 4 6 0 mil, com 3 quartos e 2 vagas.',
+  ]);
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
+  assert.deepEqual(desofuscar('Fica ❶❸❻⓪ mil.'), { texto: 'fica 1360 mil.', forte: true });
+});
+
+test('#120 r2 I2: aceite ou oferta olham as palavras em volta do valor, não a frase', () => {
+  comAchado(
+    ['1.300.000? Fechado.', 'R$ 1.300.000! Topamos.', 'Pode ser 1,3 sim.', '1,3 tá ótimo pra nós.', 'Negócio fechado em um vírgula três.', 'Sim para os 1.300.000 que você ofereceu.'].map((m) => [m, ACEITE_ABAIXO]),
+  );
+  passa([
+    'Recebi sua proposta de R$ 1.300.000. Vou conversar com o vendedor.',
+    'Sua oferta de R$ 1.300.000 foi recebida; levo R$ 1.460.000 ao vendedor.',
+    'Sua oferta de R$ 1.300.000 fica registrada.',
+    'Ok, Ana. Recebi sua proposta de R$ 1.300.000.',
+    'Recebi sua proposta de R$ 1.300.000. Fico no aguardo.',
+    'Topamos R$ 1.460.000 e não R$ 1.300.000.',
+  ]);
+});
+
+test('#120 r2 I3: percentual "acima de" uma base soma o percentual a ela', () => {
+  comAchado([
+    ['O ideal dele está 4,6% acima dos 1.300.000.', 'dá pista do recuo por percentual de um valor público'],
+    ['O ideal dele está 11,5% acima dos 1.300.000.', 'dá pista do alvo por percentual de um valor público'],
+  ]);
+  passa(['Dá 3% de desconto.', 'Um desconto de 2,67% sobre o pedido.']);
+});
+
+test('#120 r2 I4: diferença com a base dita por palavra usa essa base', () => {
+  comAchado([['Dá para chegar a 100 mil abaixo da nossa contraproposta.', 'dá pista do recuo pela diferença de um valor público']]);
+  passa(['Posso levar R$ 1.460.000, R$ 40 mil abaixo do pedido.']);
+});
+
+test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
+  const formas = ['1 ', '1360000 ', 'um mil ', '1% ', '1,3 sim ', 'a1 ', '1.'];
+  for (const f of formas) {
+    const texto = f.repeat(Math.ceil(40_000 / f.length)).slice(0, 40_000);
+    let melhor = Infinity;
+    for (let k = 0; k < 2; k++) {
+      const t0 = performance.now();
+      vazamentos(texto, MOTOR, PUBLICOS_120);
+      melhor = Math.min(melhor, performance.now() - t0);
+    }
+    assert.ok(melhor < 200, `${JSON.stringify(f)} × 40 mil caracteres levou ${melhor.toFixed(0)} ms`);
+  }
+});
