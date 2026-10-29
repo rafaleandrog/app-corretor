@@ -1,6 +1,7 @@
 // Negociação (spec 6.16, 10.9): vocabulário, validação do mandato, sigilo e o playbook padrão de
 // objeções (Apêndice D). Sem dependência de backend: o motor do Negociador (D2) e as telas (D3, D4)
 // usam as mesmas regras.
+import { reaisParaCentavos } from './crm';
 
 export const ESTADOS_NEGOCIACAO = ['ativa', 'aguardando_cliente', 'aguardando_corretor', 'aguardando_proprietario', 'ganha', 'perdida', 'pausada'] as const;
 export type EstadoNegociacao = (typeof ESTADOS_NEGOCIACAO)[number];
@@ -311,3 +312,51 @@ export const PLAYBOOK_OBJECOES_PADRAO: ObjecaoPadrao[] = [
     proximo_passo: 'Passar ao corretor para detalhes jurídicos.',
   },
 ];
+
+/** O que o formulário do mandato (P16) guarda enquanto o corretor digita: dinheiro em reais, como digitado. */
+export interface FormularioMandato {
+  pedido: string;
+  alvo: string;
+  recuo: string;
+  batna: string;
+  concessoes: Concessao[];
+  /** Passo máximo em porcentagem (40 = 40% do intervalo restante). */
+  passo_pct: string;
+  rodadas: string;
+  validade: string;
+  autonomia: string;
+  autorizacao: AutorizacaoProprietario | null;
+}
+
+const centavosDe = (reais: string): number | null => {
+  const v = reaisParaCentavos(reais);
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null;
+};
+
+/**
+ * O corpo do `PUT /negociacoes/:id/mandato` a partir do formulário. A tela passa o resultado por
+ * `validarMandato` (a mesma função da rota) para dizer, enquanto se digita, o que está errado
+ * ("recuo ≤ alvo ≤ pedido"); a rota valida de novo ao salvar.
+ */
+export function corpoDoFormularioMandato(f: FormularioMandato): Record<string, unknown> {
+  const passo = Number(String(f.passo_pct).replace(',', '.'));
+  return {
+    preco_pedido_c: centavosDe(f.pedido),
+    alvo_c: centavosDe(f.alvo),
+    recuo_c: centavosDe(f.recuo),
+    batna_vendedor: f.batna.trim() || null,
+    concessoes: f.concessoes.filter((c) => c.item.trim() || c.contrapartida.trim() || c.limite.trim()),
+    passo_max_pct: Number.isFinite(passo) ? passo / 100 : NaN,
+    rodadas_max: Number(f.rodadas),
+    validade: f.validade,
+    autonomia: f.autonomia,
+    autorizacao_proprietario: f.autorizacao,
+  };
+}
+
+/** O que está errado no formulário do mandato, em frases para o corretor (a mesma validação da rota). */
+export function errosDoFormularioMandato(f: FormularioMandato): string[] {
+  const v = validarMandato(corpoDoFormularioMandato(f));
+  if (v.ok) return [];
+  return v.detalhes?.length ? v.detalhes.map((d) => d.replace(/^[a-z_[\]0-9.]+: /, '')) : [v.mensagem];
+}

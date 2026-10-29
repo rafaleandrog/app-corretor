@@ -6,6 +6,8 @@ import { rotas } from '../backend/rotas';
 import { semearObjecoes } from '../backend/semente';
 import {
   CAMPOS_SIGILOSOS,
+  corpoDoFormularioMandato,
+  errosDoFormularioMandato,
   PLAYBOOK_OBJECOES_PADRAO,
   passoMaximo_c,
   proximoCodigoNegociacao,
@@ -573,4 +575,24 @@ test('lista: cada negociação mostra a própria última oferta, mesmo quando a 
     assert.equal(de(n1).ultima_oferta_c, 80_000_000, 'a de n1, não a mais recente da conta');
     assert.equal(de(n2).ultima_oferta_c, 70_000_000);
   });
+});
+
+test('formulário do mandato (P16): recusa recuo acima do alvo e alvo acima do pedido; faz sozinho pede a autorização', () => {
+  const f = {
+    pedido: '1.450.000', alvo: '1.400.000', recuo: '1.360.000', batna: '', concessoes: [{ item: 'prazo de 60 dias', limite: 'até 60 dias', contrapartida: 'entrada de 30%' }],
+    passo_pct: '40', rodadas: '4', validade: '2099-12-31', autonomia: 'pergunta_antes', autorizacao: null,
+  };
+  // Valores digitados em reais viram centavos, e o passo em % vira fração.
+  assert.deepEqual(
+    (({ preco_pedido_c, alvo_c, recuo_c, passo_max_pct }) => ({ preco_pedido_c, alvo_c, recuo_c, passo_max_pct }))(corpoDoFormularioMandato(f) as any),
+    { preco_pedido_c: 145_000_000, alvo_c: 140_000_000, recuo_c: 136_000_000, passo_max_pct: 0.4 },
+  );
+  assert.deepEqual(errosDoFormularioMandato(f), []);
+  assert.deepEqual(errosDoFormularioMandato({ ...f, recuo: '1.410.000' }), ['O ponto de recuo não pode ficar acima do alvo.']);
+  assert.deepEqual(errosDoFormularioMandato({ ...f, alvo: '1.500.000' }), ['O alvo não pode ficar acima do preço pedido.']);
+  assert.ok(errosDoFormularioMandato({ ...f, recuo: '' }).some((e) => /ponto de recuo/.test(e)), 'sem recuo, o erro diz qual falta');
+  assert.equal(errosDoFormularioMandato({ ...f, autonomia: 'faz_sozinho' }).length, 1, 'faz sozinho sem autorização');
+  assert.deepEqual(errosDoFormularioMandato({ ...f, autonomia: 'faz_sozinho', autorizacao: { tipo: 'mensagem', arquivo_id: null, data: '2026-10-20' } }), []);
+  // Linhas de concessão em branco (o "Adicionar" sem preencher) não contam.
+  assert.equal((corpoDoFormularioMandato({ ...f, concessoes: [...f.concessoes, { item: '', limite: '', contrapartida: '' }] }) as any).concessoes.length, 1);
 });

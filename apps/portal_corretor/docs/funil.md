@@ -45,8 +45,8 @@ de **abordagem atrasada**.
 - A temperatura com o motivo ("Por que quente: tem visita marcada") e a etapa.
 - A **próxima abordagem**, com **Mensagem sugerida**, **Fazer agora** e **Virar tarefa** (ver
   [Próxima abordagem](#próxima-abordagem)).
-- **Registrar proposta**: anota o valor e as condições que o cliente ofereceu, como atividade
-  feita na agenda dele (com as telas de negociação, o botão passa a abrir o registro de proposta).
+- **Registrar proposta**: registra a oferta do cliente (imóvel e valor) e abre a negociação em
+  Clientes › Negociações — ver [Negociação e mandato](negociacao.md#nova-proposta-e-a-aba-negociação).
 - **Resumir** (quando a IA está liberada), **Tarefa** (agendar), **Conversa** (abre o WhatsApp do
   cliente) e **Abrir ficha**.
 - **Enviados**: o que foi mandado ao cliente, quando ele abriu o link e quantos cliques deu.

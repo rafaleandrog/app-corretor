@@ -231,7 +231,7 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     assert.deepEqual(r.itens, ['Ana Ribeiro', 'Bruno Lima']);
     assert.equal(r.centro, 'Escolha um cliente');
     assert.equal(r.painel, 'esquerda');
-    assert.deepEqual(r.visoes, ['Lista', 'Funil']);
+    assert.deepEqual(r.visoes, ['Funil', 'Lista', 'Negociações']);
     assert.equal(r.estilos, 0, 'nenhum <style> nem style= na tela');
 
     // Escolher Ana na lista: o `?item=` vai para a URL e a ficha abre nas duas colunas, sem navegar.
@@ -266,7 +266,7 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     assert.match(f.centro, /Conversa/);
     assert.match(f.centro, /Resumir/);
     assert.match(f.centro, /Próximo passo/, 'a aba Resumo abre com o próximo passo');
-    assert.deepEqual(f.abas, ['Resumo', 'Linha do tempo', 'Enviados', 'Negócios']);
+    assert.deepEqual(f.abas, ['Resumo', 'Linha do tempo', 'Enviados', 'Negócios', 'Negociação']);
     assert.match(f.direita, /Perfil de busca/);
     assert.match(f.direita, /Moradia/);
     assert.match(f.direita, /Sudoeste/);

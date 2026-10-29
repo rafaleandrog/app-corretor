@@ -460,6 +460,14 @@ test('decisão: aprovar grava a contraproposta; editar revalida (nem o corretor 
     await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
     const s1 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4 mi.' })).corpo;
     assert.equal(s1.passagem, false, JSON.stringify(s1));
+    // O detalhe (P15) traz a sugestão que espera o corretor e a última fala do cliente, sem o sigilo.
+    const detalhe = (await chamar('GET', `/negociacoes/${nid}`)).corpo;
+    assert.equal(detalhe.sugestao.execucao_id, s1.execucao_id);
+    assert.equal(detalhe.sugestao.resposta.contraproposta.valor_c, 146_000_000);
+    assert.equal(detalhe.ultima_fala.texto, 'Faço 1,4 mi.');
+    assert.ok(detalhe.sugestao.validacoes.length > 0);
+    for (const v of [String(RECUO), String(ALVO)]) assert.ok(!JSON.stringify(detalhe).includes(v), `o detalhe não traz ${v}`);
+    assert.ok(!/recuo_c|alvo_c|batna_vendedor/.test(JSON.stringify(detalhe)), 'nem os nomes dos campos sigilosos');
     assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id })).status, 422, 'sem canal');
     assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id, canal: 'whatsapp' })).status, 422);
     const aprov = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id, canal: 'wa_me' });
@@ -467,6 +475,7 @@ test('decisão: aprovar grava a contraproposta; editar revalida (nem o corretor 
     assert.deepEqual([aprov.corpo.proposta.valor_c, aprov.corpo.proposta.autor_tipo, aprov.corpo.proposta.canal, aprov.corpo.proposta.estado], [146_000_000, 'negociador_ia', 'wa_me', 'enviada']);
     assert.match(aprov.corpo.link, /^https:\/\/wa\.me\/5561988887777\?text=/);
     assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id, canal: 'portal' })).status, 409, 'já decidida');
+    assert.equal((await chamar('GET', `/negociacoes/${nid}`)).corpo.sugestao, null, 'decidida, a sugestão sai do detalhe');
 
     // Editar para baixo do recuo: 422 com a explicação, nada gravado.
     await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 141_000_000 });

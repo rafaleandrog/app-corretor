@@ -197,13 +197,21 @@ negociacaoRotas.get(
     const nid = id(req.params.id);
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
     if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
-    const [mandato, propostas, objecoes] = await Promise.all([
+    const [mandato, propostas, objecoes, execucoes] = await Promise.all([
       mandatoVigente(dados, negociacao),
       dados.varrerTudo('propostas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
       dados.varrerTudo('objecoes_detectadas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
+      dados.listar('negociador_execucoes', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'desc', por_pagina: 20 }),
     ]);
+    // Para a tela (P15): a última fala do cliente registrada e a sugestão do Negociador que espera o
+    // corretor. A saída gravada já é a guardável (o que vazaria o sigilo foi retido no motor, D2).
+    const fala = execucoes.dados.find((e) => e.mensagem_cliente);
+    const pendente = execucoes.dados.find((e) => e.decisao === 'pendente');
+    const sugestao = pendente
+      ? { execucao_id: pendente.id, resposta: pendente.saida ?? null, validacoes: pendente.validacoes?.verificacoes ?? [], bloqueado_por: pendente.bloqueado_por ?? null, criado_em: pendente.criado_em }
+      : null;
     // O mandato aparece aqui só no resumo, sem recuo, alvo nem BATNA (o completo é a rota /mandato).
-    res.json(semSigilo({ ...negociacao, mandato, propostas, objecoes }));
+    res.json(semSigilo({ ...negociacao, mandato, propostas, objecoes, ultima_fala: fala ? { texto: fala.mensagem_cliente, em: fala.criado_em } : null, sugestao }));
   }),
 );
 
