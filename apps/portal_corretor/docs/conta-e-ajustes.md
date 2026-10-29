@@ -16,7 +16,7 @@ celular, uma por vez, em abas):
 | Seção | O que tem |
 |---|---|
 | **Mensageiro** | Ainda nada para configurar: o Mensageiro chega com a conexão do WhatsApp |
-| **Negociador** | Quando entra, quem negocia, estilo, regras fixas, suas instruções e respostas a objeções; à direita, **Testar** e os números do mês — ver [Ajustes do Negociador](negociacao.md#ajustes-do-negociador) |
+| **Negociador** | Quando entra, quem negocia (com **Convidar negociador**, só o e-mail, e os convites), estilo, regras fixas, suas instruções e respostas a objeções; à direita, **Testar** e os números do mês — ver [Ajustes do Negociador](negociacao.md#ajustes-do-negociador) e [Negociador humano](negociacao.md#negociador-humano) |
 | **Conexões** | O Instagram, o WhatsApp ("ainda não disponível") e a Agenda ("fase 6") — ver [Conexões (Instagram)](conexoes.md) |
 | **Conta e marca** | Seus dados (CRECI e telefone), os dados da conta e a marca (logo, sua foto, cores, estilo e assinatura) |
 | **Funil e abordagens** | Etapas de cada funil e a abordagem por etapa e temperatura — ver [Funil](funil.md) |

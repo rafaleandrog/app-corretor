@@ -27,6 +27,17 @@ export function semConta(): boolean {
   return c.resolucao === 'negar' || (c.resolucao === 'escopado' && !c.contas.length && c.contaEscrita === undefined);
 }
 
+/**
+ * Negociador humano (D7): tem o papel `negociador` e não vale pelo corretor (nem papel `corretor`, nem
+ * admin do app). As telas mostram só as negociações atribuídas e escondem as ações do corretor; quem
+ * barra de verdade é o backend.
+ */
+export function soNegociador(): boolean {
+  const c = urbiVerso.contexto?.();
+  const papeis = (c?.roles ?? []) as string[];
+  return c?.nivel !== 'admin' && papeis.includes('negociador') && !papeis.includes('corretor');
+}
+
 /** Conta escolhida no seletor, se ainda for uma das do usuário; senão a primeira da lista. */
 export function contaAtiva(): number | null {
   const contas = contasDoUsuario();

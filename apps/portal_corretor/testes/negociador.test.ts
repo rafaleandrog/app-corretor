@@ -522,14 +522,14 @@ test('aceite do acordo: só o corretor; quem não é corretor recebe 403', async
     oferta = (await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 145_000_000 })).corpo.id;
   });
   banco.linhas('propostas').find((p) => p.id === recusada)!.estado = 'recusada';
-  // Negociador humano (role `negociador`, D7) e quem não tem papel: 403, nada muda.
-  for (const papeis of [['negociador'], []]) {
-    await comServidor(rotas, { usuario: 5, conta: 100, papeis, extras: { eventos: ev } }, banco, {}, async (chamar) => {
+  // Negociador humano (role `negociador`, D7) com a negociação atribuída: 403 SO_O_CORRETOR na própria
+  // rota. Quem não tem papel: 403 SEM_PAPEL na guarda. Nada muda.
+  await banco.dados(100).criar('atribuicoes_negociacao', { negociacao_id: nid, usuario_id: 5, ativa: true });
+  for (const [papeis, codigo] of [[['negociador'], 'SO_O_CORRETOR'], [[], 'SEM_PAPEL']] as const) {
+    await comServidor(rotas, { usuario: 5, conta: 100, papeis: [...papeis], extras: { eventos: ev } }, banco, {}, async (chamar) => {
       const r = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aceitar_acordo', proposta_id: oferta });
       assert.equal(r.status, 403, papeis.join() || 'sem papel');
-      // Hoje quem barra é a guarda das rotas do corretor (`guardarCorretor`); o SO_O_CORRETOR da rota é a
-      // segunda trava, para quando o D7 abrir as rotas ao papel `negociador`.
-      assert.equal(r.corpo.codigo, 'SEM_PAPEL', papeis.join() || 'sem papel');
+      assert.equal(r.corpo.codigo, codigo, papeis.join() || 'sem papel');
     });
   }
   assert.equal(banco.linhas('negociacoes')[0].estado, 'ativa');

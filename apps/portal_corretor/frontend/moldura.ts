@@ -1,6 +1,7 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import type { UrbiAtalhoTrilho, UrbiVersoAPI } from '@urbiverso/sdk';
-import { MENU } from './enderecos.js';
+import { MENU, MENU_NEGOCIADOR } from './enderecos.js';
+import { soNegociador } from './apoio.js';
 import { alternarAssistente, assistenteAberto, painelAssistente } from './telas/assistente.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -41,8 +42,12 @@ export interface OpcoesMoldura {
 /** No celular o inbox mostra um painel por vez: o trilho ("Menu") ou as colunas. */
 const estado = { menuNoCelular: false, ultimoMenu: null as string | null };
 
-/** Itens do trilho: o menu do corretor (D-103) e o Assistente (D-109). */
+/**
+ * Itens do trilho: o menu do corretor (D-103) e o Assistente (D-109). O negociador humano (D7) vê só
+ * Hoje e Negociações, sem o Assistente (que é da área do corretor).
+ */
 export function itensDoTrilho(menu: string): UrbiAtalhoTrilho[] {
+  if (soNegociador()) return MENU_NEGOCIADOR.map((m) => ({ id: m.rota, icone: m.icone, rotulo: m.titulo, ativo: m.rota === menu }));
   return [
     ...MENU.map((m) => ({ id: m.rota, icone: m.icone, rotulo: m.titulo, ativo: !assistenteAberto() && m.rota === menu })),
     { id: 'assistente', icone: 'fa-solid fa-comments', rotulo: 'Assistente', ativo: assistenteAberto() },

@@ -25,7 +25,7 @@ import {
   type RespostaNegociador,
 } from '../comum/negociador';
 import { linkWhatsapp } from '../comum/pagina';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, ehCorretor, erro, guardarNegociacao, primeiro, soNegociador } from './acesso';
 import {
   MENSAGEM_ENCERRADA,
   NAO_ENCONTRADA,
@@ -48,8 +48,10 @@ import { contaDoRequest } from './vitrine';
 // 10.9.7 (`comum/negociador.ts`) e só então mostra (pergunta antes), envia (faz sozinho, no portal) ou
 // passa ao corretor. As regras do dono valem aqui, no código: nada sai abaixo do recuo, nada que revele
 // recuo, alvo ou BATNA, e o aceite do acordo é só do corretor (D-98). Sem WhatsApp do app (D-107).
+// O negociador humano (D7) usa a sugestão, a decisão (aprovar, editar, descartar), assumir e devolver
+// nas negociações atribuídas a ele, com as mesmas validações; o aceite do acordo segue só do corretor.
 export const negociadorRotas = Router();
-guardarCorretor(negociadorRotas, ['/negociacoes', '/negociador']);
+guardarNegociacao(negociadorRotas);
 
 type Linha = Record<string, any>;
 
@@ -103,9 +105,6 @@ function respostaFalhaDeIa(res: Response, e: unknown, complemento: string) {
 }
 
 const hoje = (req: Request) => new Date().toLocaleDateString('sv-SE', { timeZone: req.contexto?.fuso || 'America/Sao_Paulo' });
-
-/** Quem pode aceitar o acordo final: só o papel `corretor` (ou o admin do app, que vale por todos). */
-const ehCorretor = (req: Request) => req.contexto?.nivelApp === 'admin' || !!req.contexto?.rolesApp?.includes('corretor');
 
 function paraMotor(m: Linha | null): MandatoMotor | null {
   if (!m) return null;
@@ -683,7 +682,7 @@ negociadorRotas.post(
         const cp = movimento.contraproposta!;
         const r = await gravarPropostaTravada(trx, nid!, {
           direcao: 'vendedor',
-          autor_tipo: editada ? 'corretor' : 'negociador_ia',
+          autor_tipo: editada ? (soNegociador(req) ? 'negociador_humano' : 'corretor') : 'negociador_ia',
           autor_usuario_id: req.contexto?.usuario.id ?? null,
           valor_c: cp.valor_c!,
           condicoes: cp.condicoes,
@@ -738,14 +737,16 @@ negociadorRotas.post(
   }),
 );
 
-// Um atendente por vez (10.9.4): o corretor assume ou devolve ao Negociador IA.
-for (const [rota, para, evento] of [
+// Um atendente por vez (10.9.4): o corretor assume ou devolve ao Negociador IA. O negociador humano
+// (D7) assume como `humano` e devolve ao Negociador IA, só na negociação atribuída a ele.
+for (const [rota, paraCorretor, evento] of [
   ['assumir', 'corretor', 'negociacao_assumida'],
   ['devolver', 'ia', 'negociacao_devolvida'],
 ] as const) {
   negociadorRotas.post(
     `/negociacoes/:id/${rota}`,
     assincrono(async (req, res) => {
+      const para = paraCorretor === 'corretor' && soNegociador(req) ? 'humano' : paraCorretor;
       const dados = req.dados!;
       const nid = id(req.params.id);
       const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;

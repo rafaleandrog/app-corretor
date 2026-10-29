@@ -19,7 +19,7 @@ import {
   type Direcao,
 } from '../comum/negociacao';
 import { inicioDoMes } from '../comum/negociador-ajustes';
-import { assincrono, erro, guardarCorretor, primeiro, salvarUnico } from './acesso';
+import { assincrono, ehCorretor, erro, guardarNegociacao, negociacoesAtribuidas, primeiro, salvarUnico, soNegociador } from './acesso';
 import { tentarPortal } from './portal';
 import { contaDoRequest } from './vitrine';
 
@@ -28,9 +28,13 @@ import { contaDoRequest } from './vitrine';
 // pelo Fazer agora) é o D2; o negociador humano, o D7. Sigilo (regra do dono): recuo, alvo e BATNA
 // do vendedor só saem para o corretor da conta nas duas rotas do mandato: GET /negociacoes/:id/mandato
 // e a resposta do PUT /negociacoes/:id/mandato (que devolve a versão que ele acabou de gravar). Toda
-// outra resposta e todo evento passam por `semSigilo()`.
+// outra resposta e todo evento passam por `semSigilo()`. O negociador humano (D7, papel `negociador`)
+// passa só nas negociações atribuídas a ele (`guardarNegociacao`) e lê o mandato SEM o sigilo.
 export const negociacaoRotas = Router();
-guardarCorretor(negociacaoRotas, ['/negociacoes', '/negociador']);
+guardarNegociacao(negociacaoRotas);
+
+/** O que é só do corretor (spec 14): o negociador humano recebe 403 `SO_O_CORRETOR`. */
+export const MENSAGEM_SO_O_CORRETOR = 'Só o corretor da conta faz isto: o negociador conduz a negociação dentro do mandato.';
 
 type Linha = Record<string, any>;
 
@@ -133,6 +137,12 @@ negociacaoRotas.get(
     }
     const por_pagina = Math.min(100, id(req.query.por_pagina) ?? 50);
     const pagina = id(req.query.pagina) ?? 1;
+    // Negociador humano (D7): só as negociações atribuídas a ele, ativas.
+    if (soNegociador(req)) {
+      const minhas = await negociacoesAtribuidas(dados, req.contexto!.usuario.id);
+      if (!minhas.length) return res.json({ dados: [], total: 0, pagina, por_pagina, paginas: 0 });
+      filtros.id = minhas.join(',');
+    }
     const r = await dados.listar('negociacoes', { filtros, ordenar: 'atualizado_em', ordem: 'desc', pagina, por_pagina });
     const ids = r.dados.map((n) => n.id);
     const mandatos = r.dados.map((n) => n.mandato_id).filter(Boolean);
@@ -159,6 +169,7 @@ negociacaoRotas.get(
 negociacaoRotas.post(
   '/negociacoes',
   assincrono(async (req, res) => {
+    if (!ehCorretor(req)) return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
     const dados = req.dados!;
     const negocioId = id(req.body?.negocio_id);
     const imovelId = id(req.body?.imovel_id);
@@ -243,6 +254,11 @@ negociacaoRotas.patch(
     if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
     if (encerrada(atual)) return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
     const b = (req.body ?? {}) as Record<string, unknown>;
+    // O negociador humano só atualiza a leitura do comprador: encerrar (o valor final e o motivo) e
+    // trocar quem conduz são do corretor (spec 14; o aceite final e a decisão do proprietário, D-98).
+    if (soNegociador(req) && ['estado', 'conduzida_por', 'valor_final_c', 'motivo_perda'].some((c) => b[c] !== undefined)) {
+      return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
+    }
     const mudancas: Record<string, unknown> = {};
     const erros: string[] = [];
     if (b.estado !== undefined) {
@@ -291,7 +307,7 @@ negociacaoRotas.patch(
 );
 
 // Com a resposta do PUT abaixo, as únicas que devolvem recuo, alvo e BATNA do vendedor: só ao
-// corretor da conta (guardarCorretor).
+// corretor da conta. O negociador humano (D7) lê o mandato da negociação atribuída sem o sigilo.
 negociacaoRotas.get(
   '/negociacoes/:id/mandato',
   assincrono(async (req, res) => {
@@ -300,13 +316,16 @@ negociacaoRotas.get(
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
     if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
     const versoes = await dados.varrerTudo('mandatos_negociacao', { filtros: { negociacao_id: nid }, ordenar: 'versao', ordem: 'desc', maximo: 200 });
-    res.json({ vigente: await mandatoVigente(dados, negociacao), versoes: versoes.map(normalizarMandato) });
+    const corpo = { vigente: await mandatoVigente(dados, negociacao), versoes: versoes.map(normalizarMandato) };
+    res.json(ehCorretor(req) ? corpo : semSigilo(corpo));
   }),
 );
 
 negociacaoRotas.put(
   '/negociacoes/:id/mandato',
   assincrono(async (req, res) => {
+    // Mudar o mandato é só do corretor (D-15, D-98).
+    if (!ehCorretor(req)) return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
     const dados = req.dados!;
     const nid = id(req.params.id);
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
@@ -420,6 +439,9 @@ negociacaoRotas.post(
       if (b[campo] !== undefined && b[campo] !== null && typeof b[campo] !== 'string') erros.push(`${campo}: use texto.`);
     }
     if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira a proposta.', erros);
+    // A decisão do proprietário é registrada só pelo corretor (spec 14).
+    const humano = soNegociador(req);
+    if (humano && b.direcao === 'proprietario') return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
     // No D1 só existe o registro feito pelo corretor. Enviar pelo portal ou pelo Fazer agora passa
     // pelas validações do mandato no código (10.9.7), que chegam com o motor do Negociador (D2).
     const canal = b.canal ?? 'registro';
@@ -430,7 +452,8 @@ negociacaoRotas.post(
     const resultado = await dados.transaction((trx) =>
       gravarPropostaTravada(trx, nid!, {
         direcao,
-        autor_tipo: AUTOR_DO_REGISTRO[direcao],
+        // A resposta do vendedor registrada pelo negociador humano leva o rótulo dele na escada (11.6).
+        autor_tipo: humano && direcao === 'vendedor' ? 'negociador_humano' : AUTOR_DO_REGISTRO[direcao],
         autor_usuario_id: req.contexto?.usuario.id ?? null,
         valor_c: b.valor_c as number,
         condicoes: texto(b.condicoes, 500),
