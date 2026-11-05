@@ -42,6 +42,7 @@ const REACOES = [
   { valor: 'gostei', rotulo: '♥ Gostei' },
   { valor: 'nao_gostei', rotulo: '✕ Não gostei' },
   { valor: 'quero_visitar', rotulo: 'Quero visitar' },
+  { valor: 'conversar_preco', rotulo: 'Conversar sobre o preço' },
 ];
 const diaHora = (q: string) => new Date(q).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
 const hora = (q: string) => new Date(q).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
@@ -253,6 +254,8 @@ async function enviarReacao(selecao: Linha, codigo: string, reacao: string, esta
     estado.avisos.set(codigo, { ok: false, texto: r.mensagem ?? 'Não foi possível enviar.' });
   } else if (reacao === 'quero_visitar') {
     estado.avisos.set(codigo, { ok: true, texto: 'Pedido de visita enviado. O corretor vai combinar o horário com você.' });
+  } else if (reacao === 'conversar_preco') {
+    estado.avisos.set(codigo, { ok: true, texto: 'Recebido. O corretor vai falar com você sobre o preço deste imóvel.' });
   }
   atualizar();
 }
@@ -680,7 +683,7 @@ export class PcPortalCliente extends LitElement {
     const texto = String(new FormData(form).get('texto') ?? '').trim();
     if (!texto) return;
     this.enviando = true;
-    const r = await postar(this.portal!.url_acoes, { tipo: 'mensagem', texto: `Sobre a negociação do imóvel ${nomeImovelNeg.slice(0, 80)}: ${texto}` });
+    const r = await postar(this.portal!.url_acoes, { tipo: 'mensagem', negociacao: n.ref, texto: `Sobre a negociação do imóvel ${nomeImovelNeg.slice(0, 80)}: ${texto}` });
     this.enviando = false;
     this.avisoEm = `negociacao-${n.ref}`;
     this.erroOferta = null;

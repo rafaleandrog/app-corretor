@@ -21,7 +21,9 @@ import {
 } from '../comum/negociacao';
 import { validarMovimento, type MandatoMotor, type PropostaResumo, type ResultadoValidacao } from '../comum/negociador';
 import { inicioDoMes } from '../comum/negociador-ajustes';
+import type { Conducao } from '../comum/negociador-gatilhos';
 import { assincrono, ehCorretor, erro, guardarNegociacao, negociacoesAtribuidas, primeiro, salvarUnico, soNegociador } from './acesso';
+import { avisarNegociador, conducaoNova, negociadoresDaConta, shellConfereNegociadores } from './negociador-padrao';
 import { tentarPortal } from './portal';
 import { contaDoRequest } from './vitrine';
 
@@ -94,6 +96,11 @@ export async function configDaConta(dados: HelperDados, conta?: number) {
   };
 }
 
+/** Quem conduz a negociação nova desta conta, numa rota (D-94; o negociador padrão conferido no shell). */
+export async function conducaoDaConta(req: Request, dados: HelperDados): Promise<Conducao> {
+  return conducaoNova(req.shell, contaDoRequest(req), await configDaConta(dados));
+}
+
 /** Mandato vigente (o da `negociacoes.mandato_id`), com os campos sigilosos. Uso interno. */
 export async function mandatoVigente(dados: HelperDados, negociacao: Linha): Promise<Linha | null> {
   if (!negociacao.mandato_id) return null;
@@ -102,8 +109,8 @@ export async function mandatoVigente(dados: HelperDados, negociacao: Linha): Pro
 }
 
 /** A negociação em andamento (não encerrada) do negócio, se houver. */
-async function negociacaoAberta(dados: HelperDados, negocioId: number): Promise<Linha | null> {
-  const r = await dados.listar('negociacoes', { filtros: { negocio_id: negocioId }, por_pagina: 100 });
+export async function negociacaoAberta(dados: HelperDados, negocioId: number, conta?: number): Promise<Linha | null> {
+  const r = await dados.listar('negociacoes', { filtros: { negocio_id: negocioId, ...(conta ? { conta_id: conta } : {}) }, por_pagina: 100 });
   return r.dados.find((n) => !encerrada(n)) ?? null;
 }
 
@@ -217,40 +224,79 @@ negociacaoRotas.post(
     // estado não é ganha nem perdida), que recusa a segunda criada ao mesmo tempo.
     const aberta = await negociacaoAberta(dados, negocioId);
     if (aberta) return erro(res, 409, 'NEGOCIACAO_EXISTENTE', `Este negócio já está em negociação (${aberta.codigo}).`);
-    // Quem conduz: o pedido, ou o Negociador IA (D-94) — o corretor, se o Negociador estiver desligado.
-    // `humano` chega com o negociador humano (D7, política multi-usuário).
-    const config = await configDaConta(dados);
+    // Quem conduz: o pedido (ia ou corretor), ou o padrão da conta (D-94: o Negociador IA; com o padrão
+    // `humano`, a pessoa escolhida em Ajustes › Negociador, já atribuída; desligado, o corretor).
     const pedida = req.body?.conduzida_por;
     if (pedida !== undefined && pedida !== 'ia' && pedida !== 'corretor') {
       return erro(res, 422, 'DADOS_INVALIDOS', 'Quem conduz: use ia ou corretor.');
     }
-    const conduzida_por = pedida ?? (config.ligado ? 'ia' : 'corretor');
-    for (let tentativa = 0; tentativa < 5; tentativa++) {
-      const codigos = (await dados.listar('negociacoes', { filtros: { 'codigo[busca]': 'NG-' }, ordenar: 'id', ordem: 'desc', por_pagina: 200 })).dados.map((n) => n.codigo);
-      try {
-        const negociacao = await dados.criar('negociacoes', {
-          codigo: proximoCodigoNegociacao(codigos),
-          negocio_id: negocioId,
-          imovel_id: imovelId,
-          contato_id: negocio.contato_id,
-          estado: 'ativa',
-          conduzida_por,
-          rodadas: 0,
-        });
-        await publicar(req, 'negociacao_iniciada', { negociacao_id: negociacao.id, negocio_id: negocioId });
-        await portalDa(req, negociacao);
-        return res.status(201).json(semSigilo(negociacao));
-      } catch (e) {
-        if (!violouUnico(e)) throw e;
-        // Dois únicos na tabela: o do `codigo` (tenta outro código) e o da negociação em andamento por
-        // negócio (outra tela criou agora). Relê para saber qual foi, sem depender do nome do índice.
-        const outra = await negociacaoAberta(dados, negocioId);
-        if (outra) return erro(res, 409, 'NEGOCIACAO_EXISTENTE', `Este negócio já está em negociação (${outra.codigo}).`);
-      }
-    }
-    return erro(res, 409, 'CODIGO_REPETIDO', 'Não foi possível gerar o código agora. Tente de novo.');
+    const conducao = pedida !== undefined ? { conduzida_por: pedida as 'ia' | 'corretor', negociador_usuario_id: null } : await conducaoDaConta(req, dados);
+    const r = await criarNegociacao(dados, { negocio, imovelId, conducao, atribuidaPor: req.contexto?.usuario.id ?? null, tentativas: 5 });
+    if ('existente' in r) return erro(res, 409, 'NEGOCIACAO_EXISTENTE', `Este negócio já está em negociação (${r.existente.codigo}).`);
+    if ('codigo_repetido' in r) return erro(res, 409, 'CODIGO_REPETIDO', 'Não foi possível gerar o código agora. Tente de novo.');
+    await depoisDeCriar(req, r.negociacao);
+    return res.status(201).json(semSigilo(r.negociacao));
   }),
 );
+
+/**
+ * O que segue a criação da negociação numa rota: o evento (só ids), o portal do cliente e, se ela nasceu
+ * atribuída a um negociador humano, o aviso direto a ele (`req.notificacoes`, nunca evento segregado).
+ */
+export async function depoisDeCriar(req: Request, negociacao: Linha) {
+  await publicar(req, 'negociacao_iniciada', { negociacao_id: Number(negociacao.id), negocio_id: Number(negociacao.negocio_id) });
+  await portalDa(req, negociacao);
+  if (negociacao.conduzida_por === 'humano' && negociacao.negociador_usuario_id) {
+    await avisarNegociador(req.notificacoes, Number(negociacao.negociador_usuario_id), negociacao);
+  }
+}
+
+export type ResultadoCriacao = { negociacao: Linha } | { existente: Linha } | { codigo_repetido: true };
+
+/**
+ * Cria a negociação de um negócio (6.16), com quem conduz já decidido. Uma em andamento por negócio:
+ * a encerrada não impede uma nova. A leitura antes só dá a mensagem; quem garante é o único parcial do
+ * schema.json, que recusa a segunda criada ao mesmo tempo. `conta` é obrigatória fora de rota (listener
+ * em SISTEMA, onde a leitura enxerga todas as contas). Com `tentativas: 1` (dentro da transação do
+ * listener) a violação de único sobe: quem chama repete o bloco inteiro, e na segunda vez a negociação
+ * já existe. Nascendo com um negociador humano, grava também a atribuição ativa dele.
+ */
+export async function criarNegociacao(
+  dados: HelperDados,
+  o: { negocio: Linha; imovelId: number; conducao: Conducao; atribuidaPor: number | null; conta?: number; tentativas: number },
+): Promise<ResultadoCriacao> {
+  const negocioId = Number(o.negocio.id);
+  const daConta = o.conta ? { conta_id: o.conta } : {};
+  const aberta = await negociacaoAberta(dados, negocioId, o.conta);
+  if (aberta) return { existente: aberta };
+  const humano = o.conducao.conduzida_por === 'humano' && !!o.conducao.negociador_usuario_id;
+  for (let tentativa = 0; tentativa < o.tentativas; tentativa++) {
+    const codigos = (await dados.listar('negociacoes', { filtros: { ...daConta, 'codigo[busca]': 'NG-' }, ordenar: 'id', ordem: 'desc', por_pagina: 200 })).dados.map((n) => n.codigo);
+    try {
+      const negociacao = await dados.criar('negociacoes', {
+        codigo: proximoCodigoNegociacao(codigos),
+        negocio_id: negocioId,
+        imovel_id: o.imovelId,
+        contato_id: o.negocio.contato_id,
+        estado: 'ativa',
+        conduzida_por: humano ? 'humano' : o.conducao.conduzida_por === 'humano' ? 'corretor' : o.conducao.conduzida_por,
+        rodadas: 0,
+        ...(humano ? { negociador_usuario_id: o.conducao.negociador_usuario_id } : {}),
+      });
+      if (humano) {
+        await dados.criar('atribuicoes_negociacao', { negociacao_id: negociacao.id, usuario_id: o.conducao.negociador_usuario_id, atribuida_por: o.atribuidaPor, ativa: true });
+      }
+      return { negociacao };
+    } catch (e) {
+      if (!violouUnico(e) || o.tentativas === 1) throw e;
+      // Dois únicos na tabela: o do `codigo` (tenta outro código) e o da negociação em andamento por
+      // negócio (outra tela criou agora). Relê para saber qual foi, sem depender do nome do índice.
+      const outra = await negociacaoAberta(dados, negocioId, o.conta);
+      if (outra) return { existente: outra };
+    }
+  }
+  return { codigo_repetido: true };
+}
 
 negociacaoRotas.get(
   '/negociacoes/:id',
@@ -574,10 +620,33 @@ negociacaoRotas.put(
       if (typeof b.ligado !== 'boolean') erros.push('ligado: use verdadeiro ou falso.');
       else valores.ligado = b.ligado;
     }
+    // Negociador padrão (F3): a pessoa precisa ter aceitado o convite DESTA conta e ter o papel
+    // `negociador` (a mesma lista de quem recebe negociações). `null` tira a pessoa e volta à IA.
+    let pessoaPadrao = atual.negociador_padrao_id as number | null;
+    if (b.negociador_padrao_id !== undefined) {
+      const uid = b.negociador_padrao_id === null ? null : id(b.negociador_padrao_id);
+      if (b.negociador_padrao_id !== null && !uid) erros.push('negociador_padrao_id: escolha um negociador da lista.');
+      else if (uid) {
+        if (!shellConfereNegociadores(req.shell)) {
+          return erro(res, 503, 'CONVITE_INDISPONIVEL', 'A lista de negociadores não está disponível nesta instância agora. Tente mais tarde.');
+        }
+        const pessoa = (await negociadoresDaConta(req.shell, contaDoRequest(req))).find((n) => n.usuario_id === uid);
+        if (!pessoa) return erro(res, 404, 'NEGOCIADOR_NAO_ENCONTRADO', 'Negociador não encontrado nesta conta. Convide a pessoa em Ajustes › Negociador.');
+        if (!pessoa.tem_papel) {
+          return erro(res, 409, 'NEGOCIADOR_SEM_PAPEL', 'Esta pessoa aceitou o convite, mas ainda não tem o papel negociador. Peça ao administrador do app para atribuí-lo em Configurações › Usuários.');
+        }
+        valores.negociador_padrao_id = uid;
+        pessoaPadrao = uid;
+      } else {
+        valores.negociador_padrao_id = null;
+        pessoaPadrao = null;
+        // Sem a pessoa, o padrão volta ao Negociador IA (D-94), salvo se o pedido trouxe outro.
+        if (b.conduz_padrao === undefined && atual.conduz_padrao === 'humano') valores.conduz_padrao = 'ia';
+      }
+    }
     if (b.conduz_padrao !== undefined) {
       if (b.conduz_padrao !== 'ia' && b.conduz_padrao !== 'humano') erros.push('conduz_padrao: use ia ou humano.');
-      // A pessoa que negocia é escolhida no convite do negociador humano (D7), que ainda não existe.
-      else if (b.conduz_padrao === 'humano' && !atual.negociador_padrao_id) erros.push('conduz_padrao: convide e escolha um negociador humano antes.');
+      else if (b.conduz_padrao === 'humano' && !pessoaPadrao) erros.push('conduz_padrao: escolha antes o negociador humano que recebe as negociações novas.');
       else valores.conduz_padrao = b.conduz_padrao;
     }
     if (b.estilo !== undefined) {

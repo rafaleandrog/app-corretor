@@ -27,6 +27,9 @@ test('contador das instruções e início do mês no fuso da conta', () => {
 });
 
 test('gatilhos na tela: todo gatilho mostrado tem quem o leia no backend (nenhuma configuração sem uso)', () => {
-  const fonte = readFileSync(new URL('../backend/publico.ts', import.meta.url), 'utf8');
-  for (const g of GATILHOS_EM_USO) assert.ok(fonte.includes(`gatilhos.${g}`), `gatilho ${g} sem leitor no backend`);
+  const fonte = ['publico.ts', 'negociador-entrada.ts'].map((f) => readFileSync(new URL(`../backend/${f}`, import.meta.url), 'utf8')).join('\n');
+  for (const g of GATILHOS_EM_USO) {
+    assert.ok(fonte.includes(`gatilhos.${g}`) || fonte.includes(`gatilho: '${g}'`) || fonte.includes(`gatilhoLigado(config, '${g}')`), `gatilho ${g} sem leitor no backend`);
+  }
+  assert.deepEqual([...GATILHOS_EM_USO].sort(), [...GATILHOS].sort(), 'os quatro gatilhos de 10.9.4 aparecem');
 });

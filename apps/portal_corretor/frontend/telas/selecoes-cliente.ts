@@ -6,8 +6,8 @@ import { chamarApi, data, enviar, mensagemDeErro } from '../apoio';
 declare const urbiVerso: UrbiVersoAPI;
 
 type Linha = Record<string, any>;
-const ROTULO_REACAO: Record<string, string> = { gostei: 'gostou', nao_gostei: 'não gostou', quero_visitar: 'quer visitar' };
-const COR_REACAO: Record<string, string> = { gostei: 'sucesso', nao_gostei: 'erro', quero_visitar: 'info' };
+const ROTULO_REACAO: Record<string, string> = { gostei: 'gostou', nao_gostei: 'não gostou', quero_visitar: 'quer visitar', conversar_preco: 'quer conversar sobre o preço' };
+const COR_REACAO: Record<string, string> = { gostei: 'sucesso', nao_gostei: 'erro', quero_visitar: 'info', conversar_preco: 'alerta' };
 const MAX_ITENS = 12;
 
 /** Link completo: sem URL pública configurada na instância, o backend devolve o caminho. */

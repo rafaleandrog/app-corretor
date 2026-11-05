@@ -179,11 +179,11 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.match(r.direita, /7 · Testar/);
     assert.match(r.direita, /Números do mês/);
     const marcados = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-checkbox').map((c: any) => c.hasAttribute('marcado')));
-    // Só o gatilho que o backend lê aparece (GATILHOS_EM_USO); desmarcá-lo grava só ele.
-    assert.deepEqual(marcados, [true]);
+    // Os quatro gatilhos de 10.9.4, todos com leitor no backend (F3); desmarcar um grava só ele.
+    assert.deepEqual(marcados, [true, true, false, true]);
     await pagina.evaluate(() => {
       const w = window as any;
-      const c = w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-checkbox')[0];
+      const c = w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-checkbox')[3];
       c.dispatchEvent(new CustomEvent('urbi:checkbox-change', { detail: { marcado: false }, bubbles: true, composed: true }));
     });
     await esperar();

@@ -6,17 +6,17 @@ import { ESTILOS, GATILHOS } from './negociacao';
 /** Os 4 gatilhos de 10.9.4, como o corretor os lê ("Quando entra"). */
 export const ROTULO_GATILHO: Record<(typeof GATILHOS)[number], string> = {
   etapa_proposta: 'O negócio chega à etapa Proposta',
-  pedido_desconto: 'O cliente pede desconto ou fala de preço',
+  pedido_desconto: 'O cliente pede desconto ou fala de preço numa mensagem do portal',
   reacao_preco: 'O cliente reage "conversar sobre o preço"',
   oferta_registrada: 'Uma oferta é registrada ou feita no portal',
 };
 
 /**
- * Os gatilhos que a tela mostra: só os que o backend lê hoje (`publico.ts`, oferta no portal). Os outros
- * três entram quando houver quem os leia (etapa Proposta e pedido de desconto com o Mensageiro):
- * nenhuma configuração sem uso na versão corrente aparece na tela (CLAUDE.md, spec 2.6).
+ * Os gatilhos que a tela mostra: os quatro de 10.9.4, todos com leitor no backend (F3, issue #135):
+ * oferta (`publico.ts`), etapa Proposta (rota do negócio), pedido de desconto (mensagem do portal com fala
+ * de preço) e "Conversar sobre o preço" (reação na seleção ou no portal), em `backend/negociador-entrada.ts`.
  */
-export const GATILHOS_EM_USO = ['oferta_registrada'] as const satisfies readonly (typeof GATILHOS)[number][];
+export const GATILHOS_EM_USO = ['etapa_proposta', 'pedido_desconto', 'reacao_preco', 'oferta_registrada'] as const satisfies readonly (typeof GATILHOS)[number][];
 
 /** Os 3 estilos, cada um com uma frase de exemplo (P17, item 3). */
 export const ESTILO_NEGOCIADOR: Record<(typeof ESTILOS)[number], { rotulo: string; exemplo: string }> = {

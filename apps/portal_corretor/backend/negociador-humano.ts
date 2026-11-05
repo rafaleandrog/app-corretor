@@ -6,6 +6,7 @@ import { semSigilo } from '../comum/negociacao';
 import { assincrono, erro, guardarCorretor } from './acesso';
 import { encerrada, id, NAO_ENCONTRADA } from './negociacao';
 import { contaDoRequest } from './vitrine';
+import { avisarNegociador, convitesDaConta, negociadoresDaConta } from './negociador-padrao';
 
 // Negociador humano (bloco D7; spec 11.6, 14, D-94, D-108). O corretor convida, para a PRÓPRIA conta,
 // uma pessoa que conduz negociações (o papel externo `corretor` é o `provisiona_externos.papel_externo`
@@ -61,28 +62,6 @@ function externosDe(req: Request) {
   return req.shell?.externos ?? null;
 }
 
-/** Convites desta conta para negociador (os de admitir em conta existente; o de criar a conta do corretor fica de fora). */
-async function convitesDaConta(req: Request, conta: number, status?: ConviteApp['status']) {
-  const r = await req.shell!.externos.listarConvites({ contaAlvo: conta, limite: 200, ...(status ? { status } : {}) });
-  return r.convites.filter((c) => c.intencao === 'admitir_existente');
-}
-
-/**
- * Quem pode receber negociações nesta conta: quem aceitou o convite da conta (o shell devolve a conta
- * no convite resgatado) e já tem o papel `negociador` no app. Sem o papel, aparece com o aviso.
- */
-async function negociadoresDaConta(req: Request, conta: number) {
-  const [resgatados, comPapel] = await Promise.all([convitesDaConta(req, conta, 'resgatado'), req.shell!.listarUsuariosPorRole('negociador')]);
-  const papel = new Set(comPapel.map(Number));
-  const vistos = new Map<number, { usuario_id: number; email: string; tem_papel: boolean }>();
-  for (const c of resgatados) {
-    const uid = Number(c.usuarioId);
-    if (!uid || (c.contaId ?? c.contaAlvo) !== conta || vistos.has(uid)) continue;
-    vistos.set(uid, { usuario_id: uid, email: c.credencial, tem_papel: papel.has(uid) });
-  }
-  return [...vistos.values()];
-}
-
 const paraTela = (c: ConviteApp) => ({ id: c.id, email: c.credencial, status: c.status, vigente_ate: c.vigenteAte, criado_em: c.criadoEm, usuario_id: c.usuarioId });
 
 // --- Convites ---------------------------------------------------------------------------------------
@@ -93,7 +72,7 @@ negociadorHumanoRotas.get(
     if (!externosDe(req)) return erro(res, 503, 'CONVITE_INDISPONIVEL', MENSAGEM_SEM_SHELL);
     const conta = contaDoRequest(req);
     try {
-      const convites = await convitesDaConta(req, conta);
+      const convites = await convitesDaConta(req.shell!, conta);
       res.json({ convites: convites.map(paraTela) });
     } catch (e) {
       return responderErroConvite(res, e);
@@ -132,7 +111,7 @@ negociadorHumanoRotas.post(
     const conta = contaDoRequest(req);
     try {
       // Só o convite desta conta: o de outra conta é "não encontrado", nunca revogado.
-      const daConta = await convitesDaConta(req, conta);
+      const daConta = await convitesDaConta(req.shell!, conta);
       if (!daConta.some((c) => c.id === conviteId)) return erro(res, 404, 'NAO_ENCONTRADO', 'Convite não encontrado.');
       await req.shell!.externos.revogarConvite({ conviteId });
       res.json({ id: conviteId, status: 'revogado' });
@@ -149,7 +128,7 @@ negociadorHumanoRotas.get(
   assincrono(async (req, res) => {
     if (!externosDe(req)) return erro(res, 503, 'CONVITE_INDISPONIVEL', MENSAGEM_SEM_SHELL);
     try {
-      res.json({ dados: await negociadoresDaConta(req, contaDoRequest(req)) });
+      res.json({ dados: await negociadoresDaConta(req.shell!, contaDoRequest(req)) });
     } catch (e) {
       return responderErroConvite(res, e);
     }
@@ -183,7 +162,7 @@ negociadorHumanoRotas.post(
     if (!externosDe(req)) return erro(res, 503, 'CONVITE_INDISPONIVEL', MENSAGEM_SEM_SHELL);
     let pessoa: { usuario_id: number; tem_papel: boolean } | undefined;
     try {
-      pessoa = (await negociadoresDaConta(req, contaDoRequest(req))).find((n) => n.usuario_id === uid);
+      pessoa = (await negociadoresDaConta(req.shell!, contaDoRequest(req))).find((n) => n.usuario_id === uid);
     } catch (e) {
       return responderErroConvite(res, e);
     }
@@ -202,11 +181,13 @@ negociadorHumanoRotas.post(
       for (const a of ativas) if (a !== mesma) await trx.atualizar('atribuicoes_negociacao', Number(a.id), { ativa: false });
       const atribuicao = mesma ?? (await trx.criar('atribuicoes_negociacao', { negociacao_id: nid, usuario_id: uid, atribuida_por: req.contexto?.usuario.id ?? null, ativa: true }));
       await trx.atualizar('negociacoes', nid, { negociador_usuario_id: uid, conduzida_por: 'humano' });
-      return { atribuicao, nova: !mesma };
+      return { atribuicao, nova: !mesma, codigo: viva.codigo };
     });
     if ('recusa' in resultado) {
       return resultado.recusa === 404 ? erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA) : erro(res, 409, 'NEGOCIACAO_ENCERRADA', 'Esta negociação já foi encerrada.');
     }
+    // Aviso direto à pessoa (F3): só quando a atribuição é nova (repetir a mesma não avisa de novo).
+    if (resultado.nova) await avisarNegociador(req.notificacoes, uid, { id: nid, codigo: resultado.codigo });
     res.status(resultado.nova ? 201 : 200).json(semSigilo(resultado.atribuicao));
   }),
 );

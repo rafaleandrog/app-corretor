@@ -10,7 +10,9 @@ import { publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 import { semSigilo } from '../comum/negociacao';
 import { negociacaoPublica, propostaAceitavel } from '../comum/portal-cliente';
 import { configDaConta, encerrada, gravarPropostaTravada, mandatoVigente } from './negociacao';
-import { executarMotor, type MeioMotor } from './negociador';
+import { executarMotor } from './negociador';
+import { depoisDeEntrarNoListener, entrarPeloCliente, meioDoListener, motorNaMensagem, rodarMotorNaMensagem, type Entrada } from './negociador-entrada';
+import { falaDePreco } from '../comum/negociador-gatilhos';
 import { aoPublicacaoProgramada } from './instagram';
 import { aoLembreteVisita } from './lembretes';
 
@@ -220,8 +222,8 @@ function origem(req: Request): string {
   return createHash('sha256').update(req.ip || 'desconhecido').digest('hex').slice(0, 16);
 }
 
-const REACOES = ['gostei', 'nao_gostei', 'quero_visitar'];
-const ROTULO_REACAO: Record<string, string> = { gostei: 'Gostou do', nao_gostei: 'Não gostou do', quero_visitar: 'Quer visitar o' };
+const REACOES = ['gostei', 'nao_gostei', 'quero_visitar', 'conversar_preco'];
+const ROTULO_REACAO: Record<string, string> = { gostei: 'Gostou do', nao_gostei: 'Não gostou do', quero_visitar: 'Quer visitar o', conversar_preco: 'Quer conversar sobre o preço do' };
 
 /** O que o cliente faz pelo portal (bloco 9 e D5, M5b). */
 const TIPOS_ACAO = ['mensagem', 'remarcar', 'tarefa_feita', 'proposta_nova', 'proposta_aceite'];
@@ -285,7 +287,9 @@ export const webhooks = {
     const mensagem = tipo === 'tarefa_feita' || ehProposta ? null : texto(corpo.texto, 1000) || null;
     const visita = tipo === 'remarcar' ? idDe(corpo.visita) : null;
     const tarefa = tipo === 'tarefa_feita' ? idDe(corpo.tarefa) : null;
-    const negociacao = ehProposta ? idDe(corpo.negociacao) : null;
+    // A mensagem enviada da seção de uma negociação leva o id dela (F3: o Negociador entra naquela);
+    // o listener confere que a negociação é deste cliente, nesta conta.
+    const negociacao = ehProposta || tipo === 'mensagem' ? idDe(corpo.negociacao) : null;
     const proposta = tipo === 'proposta_aceite' ? idDe(corpo.proposta) : null;
     const valor_c = tipo === 'proposta_nova' && Number.isSafeInteger(corpo.valor_c) && corpo.valor_c > 0 && corpo.valor_c <= VALOR_MAXIMO_C ? (corpo.valor_c as number) : null;
     if (
@@ -459,7 +463,9 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
   const conta = evento.conta_id;
   if (!conta || !ctx.dados?.comConta) return;
   const p = evento.payload;
+  let entrada: Entrada | null = null;
   await comContaRepetindo(ctx, conta, async (trx) => {
+    entrada = null;
     const selecao = (await trx.varrerTudo('selecoes', { filtros: { conta_id: conta, id: p.selecao_id }, maximo: 1 }))[0];
     if (!selecao || !selecaoValida(selecao)) return;
     const imovel = (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, codigo: p.imovel_codigo }, maximo: 1 }))[0];
@@ -473,11 +479,18 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
       await linhaDoTempo(trx, contato.id, 'selecao.reacao', `${ROTULO_REACAO[p.reacao]} ${imovel.codigo}${p.comentario ? `: ${p.comentario}` : ''} (seleção "${selecao.titulo}")`, { selecao_id: selecao.id, imovel_codigo: imovel.codigo, reacao: p.reacao });
     }
     if (p.reacao === 'quero_visitar') await tarefa(trx, conta, contato, `Marcar visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
+    // "Conversar sobre o preço" (F3, 10.9.4): a tarefa avisa o corretor e, com o gatilho `reacao_preco`
+    // ligado, o Negociador entra na negociação daquele imóvel (ou a abre, no negócio de compra dele).
+    if (p.reacao === 'conversar_preco') {
+      await tarefa(trx, conta, contato, `Conversar sobre o preço: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
+      entrada = await entrarPeloCliente(trx, ctx, conta, { gatilho: 'reacao_preco', contato, imovelId: Number(imovel.id) });
+    }
     await trx.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
     await reclassificar(trx, contato.id);
     await publicarSelecao(trx, conta, selecao);
     await sincronizarPortal(trx, conta, contato.id);
   });
+  await depoisDeEntrarNoListener(ctx, conta, entrada);
 }
 
 /**
@@ -578,21 +591,7 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
   if (!gravado.motor) return;
 
   // O motor do D2, depois do commit e fora de transação para a chamada de IA, com a escrita na conta.
-  // Quem assina no prompt: o nome da página do corretor, ou o da conta (sem usuário no listener).
-  const [pagina, perfilConta] = await Promise.all([
-    ctx.dados!.varrerTudo('paginas_corretor', { filtros: { conta_id: conta, chave: 'conta' }, maximo: 1 }),
-    ctx.dados!.varrerTudo('perfil_conta', { filtros: { conta_id: conta, chave: 'conta' }, maximo: 1 }),
-  ]);
-  const nome = String(pagina[0]?.nome_exibicao || perfilConta[0]?.nome || '');
-  const meio: MeioMotor = {
-    conta,
-    emLeitura: (fn) => ctx.dados!.comConta!(conta, fn),
-    emTransacao: (fn) => ctx.dados!.comConta!(conta, fn),
-    ia: ctx.ia,
-    hoje: new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' }),
-    usuario: { id: gravado.responsavel, nome },
-    publicar,
-  };
+  const meio = await meioDoListener(ctx, conta, gravado.responsavel);
   let enviada = false;
   let sugestao = false;
   try {
@@ -629,7 +628,11 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
   if (!conta || !ctx.dados?.comConta) return;
   const p = evento.payload;
   if (p.tipo === 'proposta_nova' || p.tipo === 'proposta_aceite') return aoPropostaDoPortal(conta, p, ctx);
+  let entrada: Entrada | null = null;
+  let motor: { nid: number; responsavel: number | null } | null = null;
   await comContaRepetindo(ctx, conta, async (trx) => {
+    entrada = null;
+    motor = null;
     const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: p.contato_id }, maximo: 1 }))[0];
     if (!contato) return;
     if (p.tipo === 'tarefa_feita') {
@@ -642,6 +645,14 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
     if (p.tipo === 'mensagem') {
       await linhaDoTempo(trx, contato.id, 'portal.mensagem', `Mensagem pelo portal: ${String(p.texto ?? '').slice(0, 250)}`, { texto: p.texto }, conta);
       await tarefa(trx, conta, contato, 'Responder a mensagem do portal');
+      // Pedido de desconto ou fala de preço (F3, 10.9.4, gatilho `pedido_desconto`): o Negociador entra na
+      // negociação (a da seção de onde a mensagem saiu, ou a única do cliente) e, conduzindo com mandato
+      // vigente, prepara a resposta pelo motor do D2. A tarefa acima continua: a mensagem é do corretor.
+      if (falaDePreco(String(p.texto ?? ''))) {
+        entrada = await entrarPeloCliente(trx, ctx, conta, { gatilho: 'pedido_desconto', contato, negociacaoId: idDe(p.negociacao) });
+        if (entrada?.nova) await sincronizarPortal(trx, conta, contato.id);
+        motor = entrada && (await motorNaMensagem(trx, conta, entrada.negociacao, String(p.texto))) ? { nid: Number(entrada.negociacao.id), responsavel: Number(contato.responsavel_id) || null } : null;
+      }
     } else {
       const visita = (await trx.varrerTudo('atividades', { filtros: { conta_id: conta, id: p.visita, contato_id: contato.id, tipo: 'visita' }, maximo: 1 }))[0];
       if (!visita) return; // visita que não é deste cliente
@@ -653,6 +664,12 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
     await trx.atualizar('contatos', contato.id, { ultimo_contato_em: new Date().toISOString() });
     await reclassificar(trx, contato.id);
   });
+  await depoisDeEntrarNoListener(ctx, conta, entrada);
+  const m = motor as { nid: number; responsavel: number | null } | null;
+  if (m) {
+    await rodarMotorNaMensagem(ctx, conta, m.nid, m.responsavel, String(p.texto));
+    await ctx.dados!.comConta!(conta, (trx) => sincronizarPortal(trx, conta, Number(p.contato_id)));
+  }
 }
 
 export const reagir = {
