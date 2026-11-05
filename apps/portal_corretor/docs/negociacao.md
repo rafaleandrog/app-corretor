@@ -274,7 +274,7 @@ conversa com a IA):
    retém, olhando as palavras em volta do valor e não a frase ("1.300.000? Fechado.", "pode ser 1,3
    sim", "negócio fechado em um vírgula três"); só relatar a oferta do comprador passa ("recebi sua
    proposta de R$ 1.300.000", "sua oferta de R$ 1.300.000 fica registrada"). "2 mil" de condomínio
-   ou de taxa não é lido como preço. **Formatos comuns que passam (desde a 0.1.34):** só os que não têm
+   ou de taxa não é lido como preço. **Formatos comuns que passam (desde a 0.1.35):** só os que não têm
    grupo de algarismos livre, onde um valor caberia: endereço de Brasília ("W3 Sul", "L2 Norte"); código
    de unidade com no máximo dois algarismos e uma letra, logo depois de "apto", "apartamento", "ap",
    "torre", "bloco", "bl", "unidade", "casa", "sala", "loja", "conjunto" ou "cj" ("Apto 2B", "Torre
@@ -318,7 +318,7 @@ conversa com a IA):
    1.460.000 (2 vagas)"). A data com a hora depois de "às" ou de vírgula ("visita dia 28/10 às 10h",
    "visita dia 28/10, 15h") passa, como antes: data e horário são lidos cada um como leitura padrão. A data com
    ano ("vistoria 28/10/2026"), também com o ano de dois algarismos ("visita dia 28/10/26"), passava
-   antes e retém desde a 0.1.34. Cada grupo de algarismos
+   antes e retém desde a 0.1.35. Cada grupo de algarismos
    deles é um lugar onde um valor cabe ("CEP 70.000-136", "visita dia 28/10/1360 15h", "me liga no 61
    3333 1251"), e conferir grupo a grupo não fechou o vazamento. Também retêm: código com outro
    número na mensagem ("Apto 2B, 3 quartos e 2 vagas", "Torre B2, 3º andar", "treze andares, apto
@@ -334,7 +334,7 @@ conversa com a IA):
    mais um motivo para você ler antes de enviar. **Critério de equivalência dos formatos comuns
    (decisão do dono, 05/11/2026):** liberar um formato comum só conta como piora do sigilo quando a
    mesma informação, escrita com algarismo comum no lugar do código ("bloco 6" no lugar de "bloco
-   C6", "apto 5" no lugar de "apto 5B"), é retida pela conferência de antes da 0.1.34. **A
+   C6", "apto 5" no lugar de "apto 5B"), é retida pela conferência de antes da 0.1.35. **A
    conferência aplica esse critério ela mesma:** antes de deixar um código passar, ela monta a
    mensagem-gêmea, a mesma mensagem com o código trocado por cada leitura dele em algarismos ("bloco
    C50" vira "bloco 50"; "bloco S5" vira "bloco 5" e "bloco 55"; "apto 5B" vira "apto 5", "apto 58" e
@@ -452,6 +452,8 @@ seguinte. No centro, seis blocos:
 - **Números do mês:** **Rodadas** conta as sugestões que o Negociador criou desde o dia 1º;
   **Aprovadas sem edição**, a parte das sugestões criadas no mês e aprovadas ou editadas (as
   ainda abertas e as recusadas não entram na conta) que você aprovou sem editar; e o custo por rodada ("Incluído no plano").
+  Para outros períodos, com taxa de acordo, desconto médio, rodadas, ZOPA e objeções, veja
+  **Números › Negociação** (lá a conta das aprovadas sem edição vai pela data em que você decidiu).
 
 ## Negociador humano
 
