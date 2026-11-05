@@ -250,7 +250,8 @@ test('negociador padrão: a negociação nova nasce atribuída e a pessoa recebe
     assert.equal(avisos.enviadas.length, 1);
     assert.equal(avisos.enviadas[0].usuario, 5);
     assert.equal(avisos.enviadas[0].mensagem, avisoDeAtribuicao(n.corpo.codigo));
-    assert.equal(avisos.enviadas[0].opts.rota, `/portal_corretor/negociacoes?item=${nid}`);
+    // Sub-rota relativa ao slug (barramento.md): o endereço `/negociacoes`, que o negociador abre.
+    assert.equal(avisos.enviadas[0].opts.rota, `negociacoes?item=${nid}`);
     const texto = JSON.stringify(avisos.enviadas);
     for (const proibido of ['Ana', 'Secreta', '7777', String(PEDIDO)]) assert.ok(!texto.includes(proibido), `aviso sem ${proibido}`);
     // Nenhum evento leva o negociador nem dado do cliente: só os ids da negociação e do negócio.
@@ -272,6 +273,39 @@ test('negociador padrão: a negociação nova nasce atribuída e a pessoa recebe
     assert.equal((await chamar('GET', `/negociacoes/${nid}`)).status, 404, 'B não vê a negociação de A');
   });
   assert.equal(avisos.enviadas.length, 1);
+});
+
+test('negociação com negociador humano: atribuição que falha não deixa a negociação gravada; a nova tentativa cria as duas', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const a = await base(banco, 100);
+  // A criação da atribuição falha uma vez (banco fora do ar no meio): o par é desfeito inteiro.
+  let falhar = true;
+  const original = banco.dados.bind(banco);
+  banco.dados = (conta: number | null, global = false) => {
+    const h = original(conta, global);
+    const criar = h.criar;
+    h.criar = async (tabela: string, d: Record<string, unknown>) => {
+      if (tabela === 'atribuicoes_negociacao' && falhar) {
+        falhar = false;
+        throw new Error('fora do ar');
+      }
+      return criar(tabela, d);
+    };
+    return h;
+  };
+  const avisos = notificacoesFalsas();
+  await comServidor(rotas, corretor(1, 100, { notificacoes: avisos }), banco, shellFalso(), async (chamar) => {
+    assert.equal((await chamar('PUT', '/negociador/config', { negociador_padrao_id: 5, conduz_padrao: 'humano' })).status, 200);
+    const n = await chamar('POST', '/negociacoes', { negocio_id: a.negocio.id, imovel_id: a.imovel.id });
+    assert.ok(n.status >= 500, `a rota responde erro (${n.status})`);
+    assert.equal(banco.linhas('negociacoes').length, 0, 'nenhuma negociação sem a atribuição');
+    assert.equal(banco.linhas('atribuicoes_negociacao').length, 0);
+    assert.equal(avisos.enviadas.length, 0);
+    const outra = await chamar('POST', '/negociacoes', { negocio_id: a.negocio.id, imovel_id: a.imovel.id });
+    assert.equal(outra.status, 201, JSON.stringify(outra.corpo));
+    assert.deepEqual(banco.linhas('negociacoes').map((x) => [x.id, x.negociador_usuario_id]), [[outra.corpo.id, 5]]);
+    assert.deepEqual(banco.linhas('atribuicoes_negociacao').map((x) => [x.negociacao_id, x.usuario_id, x.ativa]), [[outra.corpo.id, 5, true]]);
+  });
 });
 
 test('negociador padrão que perdeu o papel: a nova nasce com a IA, sem atribuição nem aviso', async () => {

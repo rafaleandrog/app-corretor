@@ -129,7 +129,8 @@ conta. Ela recebe um código `NG-0001`, `NG-0002`… e guarda o cliente do negó
   [Negociador humano](#negociador-humano)). A negociação nova começa com quem está em **Ajustes ›
   Negociador › Quem negocia por padrão**: o Negociador IA ou a pessoa escolhida ali, que já recebe a
   negociação atribuída e um aviso. Com o Negociador desligado nos ajustes, a negociação nova começa
-  conduzida pelo corretor. Quem abre a negociação à mão pode escolher você ou o Negociador IA.
+  conduzida pelo corretor. A negociação aberta à mão (**Nova proposta**) segue o mesmo padrão; depois
+  de aberta, **Assumir** passa a condução a você e **Devolver** a entrega de novo ao Negociador.
 - **Leitura do comprador:** teto estimado, a fonte da estimativa e a alternativa provável do
   comprador. Essa alternativa é o que a sigla **BATNA** quer dizer: o que a pessoa faria se não
   fechasse este negócio (por exemplo, comprar outro imóvel parecido). Aqui é uma estimativa do

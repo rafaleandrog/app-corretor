@@ -63,7 +63,9 @@ export async function avisarNegociador(notificacoes: Notificacoes | null | undef
   if (!notificacoes || typeof notificacoes.notificar !== 'function') return;
   try {
     const r = await notificacoes.notificar(usuarioId, avisoDeAtribuicao(negociacao.codigo as string | null), {
-      rota: `/portal_corretor/negociacoes?item=${Number(negociacao.id)}`,
+      // Sub-rota relativa ao slug (barramento.md): o shell monta `/portal_corretor/negociacoes?item=<id>`,
+      // o endereço do negociador humano (Clientes não abre para ele).
+      rota: `negociacoes?item=${Number(negociacao.id)}`,
       payload: { negociacao_id: Number(negociacao.id) },
     });
     if (r && r.ok === false) console.warn(`[portal_corretor] aviso ao negociador ${usuarioId} não entregue: ${r.erro ?? 'sem motivo'}`);

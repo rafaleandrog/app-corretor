@@ -259,7 +259,11 @@ export type ResultadoCriacao = { negociacao: Linha } | { existente: Linha } | { 
  * schema.json, que recusa a segunda criada ao mesmo tempo. `conta` é obrigatória fora de rota (listener
  * em SISTEMA, onde a leitura enxerga todas as contas). Com `tentativas: 1` (dentro da transação do
  * listener) a violação de único sobe: quem chama repete o bloco inteiro, e na segunda vez a negociação
- * já existe. Nascendo com um negociador humano, grava também a atribuição ativa dele.
+ * já existe. Nascendo com um negociador humano, grava também a atribuição ativa dele: as duas linhas
+ * existem juntas ou nenhuma. Na rota (`tentativas` > 1, `dados` solto) elas vão numa `transaction()`
+ * própria, e a violação de único desfaz o par antes da releitura, feita fora dela. No listener
+ * (`tentativas: 1`) `dados` já é a transação do `comConta`, que desfaz tudo se algo lança: lá não se
+ * abre outra (aninhar `transaction()` não é contrato do SDK).
  */
 export async function criarNegociacao(
   dados: HelperDados,
@@ -272,8 +276,8 @@ export async function criarNegociacao(
   const humano = o.conducao.conduzida_por === 'humano' && !!o.conducao.negociador_usuario_id;
   for (let tentativa = 0; tentativa < o.tentativas; tentativa++) {
     const codigos = (await dados.listar('negociacoes', { filtros: { ...daConta, 'codigo[busca]': 'NG-' }, ordenar: 'id', ordem: 'desc', por_pagina: 200 })).dados.map((n) => n.codigo);
-    try {
-      const negociacao = await dados.criar('negociacoes', {
+    const gravar = async (h: HelperDados) => {
+      const negociacao = await h.criar('negociacoes', {
         codigo: proximoCodigoNegociacao(codigos),
         negocio_id: negocioId,
         imovel_id: o.imovelId,
@@ -284,8 +288,12 @@ export async function criarNegociacao(
         ...(humano ? { negociador_usuario_id: o.conducao.negociador_usuario_id } : {}),
       });
       if (humano) {
-        await dados.criar('atribuicoes_negociacao', { negociacao_id: negociacao.id, usuario_id: o.conducao.negociador_usuario_id, atribuida_por: o.atribuidaPor, ativa: true });
+        await h.criar('atribuicoes_negociacao', { negociacao_id: negociacao.id, usuario_id: o.conducao.negociador_usuario_id, atribuida_por: o.atribuidaPor, ativa: true });
       }
+      return negociacao;
+    };
+    try {
+      const negociacao = humano && o.tentativas > 1 ? await dados.transaction(gravar) : await gravar(dados);
       return { negociacao };
     } catch (e) {
       if (!violouUnico(e) || o.tentativas === 1) throw e;
