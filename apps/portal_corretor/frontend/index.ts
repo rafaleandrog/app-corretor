@@ -19,7 +19,7 @@ import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './e
 import { comAssistente } from './moldura.js';
 import { botaoAssistente, menuCriar } from './criar.js';
 import { instalarAtalhos } from './atalhos.js';
-import { contaDeTrabalho, contasDoUsuario, escolherConta, semConta, soNegociador } from './apoio.js';
+import { contaDeTrabalho, contasDoUsuario, ehContextoDoApp, escolherConta, semConta, soNegociador } from './apoio.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
 import './publico/selecao.js';
@@ -100,6 +100,11 @@ export class AppPortalCorretor extends LitElement {
     this.mudarConta();
   };
 
+  // Só o contexto DESTE app (`detail.appId`): o de outra app, ou o de fora de app, não troca a conta daqui.
+  private aoEventoContexto = (e: Event) => {
+    if (ehContextoDoApp(e)) this.aoMudarContexto();
+  };
+
   // Quem atende várias contas escolhe em qual está; a tela é recriada para recarregar daquela conta.
   private aoEscolherConta = (e: CustomEvent) => {
     escolherConta(Number(e.detail.valor));
@@ -148,7 +153,7 @@ export class AppPortalCorretor extends LitElement {
       this.chegar(normalizar(sub));
     });
     this.aoMudarContexto();
-    window.addEventListener('urbi:contexto-app', this.aoMudarContexto);
+    window.addEventListener('urbi:contexto-app', this.aoEventoContexto);
     // Atalhos de teclado (11.0.6, B10): busca, Criar e Assistente só na área do corretor, com conta.
     this.desligarAtalhos = instalarAtalhos(() => this.papeis.includes('corretor') && !this.semConta && !soNegociador());
   }
@@ -181,7 +186,7 @@ export class AppPortalCorretor extends LitElement {
     super.disconnectedCallback();
     this.cancelarRota?.();
     this.desligarAtalhos?.();
-    window.removeEventListener('urbi:contexto-app', this.aoMudarContexto);
+    window.removeEventListener('urbi:contexto-app', this.aoEventoContexto);
   }
 
   private conteudo(tela: Tela | undefined, param?: string) {
@@ -211,7 +216,8 @@ export class AppPortalCorretor extends LitElement {
   /**
    * A chave da tela (`sub|conta|visita`): trocar de endereço, de conta (a de trabalho, inclusive a conta
    * única de escrita) ou navegar de novo recria a tela (`keyed`). O estado é da instância que nasceu com
-   * a chave; continuação assíncrona de uma instância antiga é descartada (cada tela confere a sua).
+   * a chave; a continuação assíncrona de uma instância antiga é descartada pelo guarda do envio
+   * (`chamarApi` rejeita com `ContaTrocada`, apoio.ts) e, antes de enviar, pelo gesto da conta.
    */
   private chaveDaTela = () => `${this.sub}|${this.conta}|${this.visita}`;
 

@@ -1,7 +1,7 @@
 import { html, nothing } from 'lit';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { ROTULO_BLOCO, type Bloco } from '../../comum/pagina';
-import { acoesComMais, avisoCreci, chamarApi, contaDeTrabalho, dataHora, enviar, gesto, itemDaUrl, itemNaUrl, mensagemDeErro, noGesto, type Gesto } from '../apoio';
+import { acoesComMais, avisoCreci, chamarApi, contaDeTrabalho, dataHora, ehContaTrocada, enviar, gesto, itemDaUrl, itemNaUrl, mensagemDeErro, noGesto, type Gesto } from '../apoio';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import type { PreviaPagina } from '../publico/pagina-publica.js';
@@ -76,6 +76,9 @@ async function carregar() {
     if (geracao !== estado.geracao) return;
     estado.visao = visao;
   } catch (e) {
+    // Conta trocada com a carga em voo (guarda do envio): nem aviso, nem falha, nem a prévia, que sairia
+    // já com o `X-Conta` da conta nova. A conta nova relê tudo na próxima entrada (`aoAbrirPagina`).
+    if (ehContaTrocada(e)) return;
     if (geracao === estado.geracao) {
       estado.falha = e;
       // Com a página já carregada, o editor segue com a última leitura; o aviso diz que ela pode estar velha.

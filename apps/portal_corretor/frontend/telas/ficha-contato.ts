@@ -9,7 +9,7 @@ import { tarefaDaAbordagem } from '../../comum/funil';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
-import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, seNaoContaTrocada, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { registrarEdicao, soltarEdicao } from '../atalhos.js';
 
@@ -121,16 +121,16 @@ export class FichaContato {
     void this.carregar();
     if (this.sondada) return;
     this.sondada = true;
+    // Conta trocada com a sonda em voo: o guarda do envio rejeita com `ContaTrocada`, e nada é marcado.
     void chamarApi(`/contatos/${this.contatoId}/ia`).then(
       (r) => {
-        if (!this.vida.vivo()) return;
         this.s.ia = { resumo: !!r.resumo, mensagem: !!r.mensagem };
         this.s.iaSondada = true;
       },
       // Sonda que falha (rede, 5xx) vale como "indisponível": a tela explica o Resumir desligado em vez de calar.
-      () => {
-        if (this.vida.vivo()) this.s.iaSondada = true;
-      },
+      seNaoContaTrocada(() => {
+        this.s.iaSondada = true;
+      }),
     );
   }
 

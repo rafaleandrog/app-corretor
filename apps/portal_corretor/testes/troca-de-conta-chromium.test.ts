@@ -132,7 +132,7 @@ window.trocarConta = (c) => {
     const sel = app.shadowRoot.querySelector('urbi-select[label="Conta"]');
     sel.dispatchEvent(new CustomEvent('urbi:select-change', { detail: { valor: String(c) } }));
   } else {
-    window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: window.urbiVerso.contexto() }));
+    window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: { ...window.urbiVerso.contexto(), appId: 'portal_corretor' } }));
   }
 };
 // Primeiro elemento do seletor em qualquer profundidade (atravessa shadow roots).
@@ -174,6 +174,8 @@ async function montar(pw: any) {
   const pagina = await navegador.newPage({ viewport: { width: 1440, height: 900 } });
   const erros: string[] = [];
   pagina.on('pageerror', (e: Error) => erros.push(e.message));
+  // Rejeição sem tratamento também chega como erro de console: nenhuma pode sobrar (nem a de ContaTrocada).
+  pagina.on('console', (m: any) => m.type() === 'error' && /Uncaught/.test(m.text()) && erros.push(m.text()));
   await pagina.route(`${ORIGEM}/**`, (r: any) => r.fulfill({ contentType: 'text/html', body: html }));
   return { navegador, pagina, erros };
 }
@@ -244,12 +246,14 @@ for (const modo of ['conta única trocada pelo shell', 'várias contas, troca pe
   });
 }
 
-test('troca de conta com as respostas da conta anterior em voo: chegam depois e são descartadas, em cada tela', async (t) => {
+for (const modo of ['conta única trocada pelo shell', 'várias contas, troca pelo seletor'] as const) {
+test(`troca de conta (${modo}) com as respostas da conta anterior em voo: chegam depois e são descartadas, em cada tela`, async (t) => {
   const pw = playwright();
   if (!pw) return t.skip('Playwright não instalado neste ambiente');
   for (const tela of TELAS) {
     const { navegador, pagina, erros } = await montar(pw);
     try {
+      if (modo.startsWith('várias')) await pagina.addInitScript(() => ((window as any).VARIAS = true));
       await pagina.addInitScript(() => ((window as any).SEGURAR = true));
       await pagina.goto(`${ORIGEM}/portal_corretor${tela.endereco}`);
       await esperar(pagina, 80);
@@ -261,12 +265,13 @@ test('troca de conta com as respostas da conta anterior em voo: chegam depois e 
       const depois = await tudo(pagina);
       assert.doesNotMatch(depois, /CONTA 100/, `${tela.nome}: a resposta tardia da conta A não aparece`);
       if (tela.mostra) assert.match(depois, /CONTA 200/, `${tela.nome}: a tela mostra a conta B`);
-      assert.deepEqual(erros, [], `${tela.nome}: nenhum erro na página`);
+      assert.deepEqual(erros, [], `${tela.nome}: nenhum erro na página (nem rejeição sem tratamento)`);
     } finally {
       await navegador.close();
     }
   }
 });
+}
 
 test('Assistente: a conversa é da conta; trocar de conta (com a pergunta em voo) recomeça vazia', async (t) => {
   const pw = playwright();

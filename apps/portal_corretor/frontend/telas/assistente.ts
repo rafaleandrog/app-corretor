@@ -1,6 +1,6 @@
 import { html, type TemplateResult } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, mensagemDeErro } from '../apoio';
+import { chamarApi, ehContaTrocada, enviar, mensagemDeErro, seNaoContaTrocada } from '../apoio';
 import { contatoDoEndereco } from '../enderecos';
 import { estadoTela } from '../estados';
 
@@ -62,8 +62,6 @@ const conversa = {
    * de uma conta só: mensagens, contato, ação proposta e sonda são da conta em que nasceram.
    */
   conta: undefined as number | null | undefined,
-  /** Sobe a cada troca de conta: resposta que chega depois dela é da conversa anterior e é descartada. */
-  geracao: 0,
   /** Redesenho do app (o `requestUpdate` do componente raiz), registrado por `aoMudarAssistente`. */
   atualizar: () => {},
 };
@@ -71,14 +69,13 @@ const conversa = {
 /**
  * O app avisa a conta de trabalho a cada mudança de contexto e a cada escolha no seletor. Conta diferente
  * da dona da conversa: a conversa recomeça vazia (sem contato, sem ação proposta, sem a sonda da conta
- * anterior) e o que estava em voo é descartado. O painel continua aberto, e a sonda de IA roda de novo.
+ * anterior). O que estava em voo é descartado pelo guarda do envio (`ContaTrocada`, apoio.ts). O painel continua aberto, e a sonda de IA roda de novo.
  */
 export function contaDoAssistente(conta: number | null) {
   if (conversa.conta === conta) return;
   const tinhaConta = conversa.conta !== undefined;
   conversa.conta = conta;
   if (!tinhaConta) return;
-  conversa.geracao++;
   sondaSeq++;
   conversa.mensagens = [];
   conversa.proposta = null;
@@ -119,7 +116,7 @@ function sondarIa() {
   const minha = ++sondaSeq;
   chamarApi('/assistente/ia').then(
     (r) => minha === sondaSeq && ((conversa.ia = !!r?.assistente), conversa.atualizar()),
-    () => minha === sondaSeq && ((conversa.ia = false), conversa.atualizar()),
+    seNaoContaTrocada(() => minha === sondaSeq && ((conversa.ia = false), conversa.atualizar())),
   );
 }
 
@@ -169,7 +166,7 @@ async function perguntar(pergunta: string) {
   conversa.pensando = true;
   conversa.proposta = null;
   conversa.irPara = null;
-  const geracao = conversa.geracao;
+  let trocada = false;
   try {
     const r = (await enviar('POST', '/assistente/perguntar', {
       pergunta: p,
@@ -177,8 +174,6 @@ async function perguntar(pergunta: string) {
       historico,
       ...(conversa.contato ? { contato_id: conversa.contato.id } : {}),
     })) as Resposta;
-    // A conta mudou com a pergunta em voo: a resposta é da conversa anterior.
-    if (geracao !== conversa.geracao) return;
     const fontes = r.artigos.length
       ? `\n\n**Na ajuda:** ${r.artigos.map((a) => (a.secao && a.secao !== a.titulo ? `${a.titulo} › ${a.secao}` : a.titulo)).join(' · ')} — [abrir a documentação](${linkDocs()})`
       : '';
@@ -186,9 +181,12 @@ async function perguntar(pergunta: string) {
     conversa.irPara = r.tela && r.tela.sub !== '/assistente' ? r.tela : null;
     anotar(ASSISTENTE, `${r.resposta}${fontes}`, r.resposta);
   } catch (e) {
-    if (geracao === conversa.geracao) anotar(ASSISTENTE, `Não consegui responder: ${mensagemDeErro(e)}`);
+    // A conta mudou com a pergunta em voo (guarda do envio): a resposta, ou o erro, é da conversa
+    // anterior, que já recomeçou vazia; nada é anotado nem destravado na nova.
+    trocada = ehContaTrocada(e);
+    if (!trocada) anotar(ASSISTENTE, `Não consegui responder: ${mensagemDeErro(e)}`);
   } finally {
-    if (geracao === conversa.geracao) conversa.pensando = false;
+    if (!trocada) conversa.pensando = false;
     conversa.atualizar();
   }
 }
@@ -198,14 +196,13 @@ async function confirmar() {
   if (!p) return;
   conversa.proposta = null;
   conversa.atualizar();
-  const geracao = conversa.geracao;
   try {
     await enviar('POST', p.rota, p.corpo);
-    if (geracao !== conversa.geracao) return;
     anotar(ASSISTENTE, `Feito: ${p.resumo}`);
     urbiVerso.notificar('Feito.', 'sucesso');
   } catch (e) {
-    if (geracao === conversa.geracao) anotar(ASSISTENTE, `Não deu para fazer: ${mensagemDeErro(e)}`);
+    // Conta trocada com a ação em voo: o "Feito" e o erro são da conversa anterior.
+    if (!ehContaTrocada(e)) anotar(ASSISTENTE, `Não deu para fazer: ${mensagemDeErro(e)}`);
   }
 }
 

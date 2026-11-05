@@ -27,6 +27,7 @@ import {
   chamarApi,
   contaDeTrabalho,
   dataHora,
+  ehContaTrocada,
   enviar,
   filtrosDaUrl,
   filtrosNaUrl,
@@ -126,7 +127,7 @@ export class InstanciaEncerrada extends Error {
 const CANCELADO = 'cancelado';
 const cancelado = () => new Error(CANCELADO);
 /** A regra do silêncio, num lugar só: instância encerrada ou operação cancelada não viram erro na tela. */
-const silencioso = (e: unknown) => e instanceof InstanciaEncerrada || (e instanceof Error && e.message === CANCELADO);
+const silencioso = (e: unknown) => e instanceof InstanciaEncerrada || ehContaTrocada(e) || (e instanceof Error && e.message === CANCELADO);
 
 // A conta em que o Estúdio trabalha é `contaDeTrabalho` (apoio.ts): a do seletor ou a conta única de escrita.
 
@@ -237,7 +238,9 @@ export class Estudio {
     try {
       r = await passo;
     } catch (e) {
-      if (!this.vivo) throw new InstanciaEncerrada();
+      // `ContaTrocada` (guarda do envio, apoio.ts) também encerra: o pedido era da conta anterior, mesmo
+      // que o redesenho com a chave nova ainda não tenha chegado a esta instância.
+      if (!this.vivo || ehContaTrocada(e)) throw new InstanciaEncerrada();
       throw e;
     }
     if (!this.vivo) throw new InstanciaEncerrada();

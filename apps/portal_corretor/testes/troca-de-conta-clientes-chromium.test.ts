@@ -105,7 +105,7 @@ window.trocarConta = (c) => {
     const sel = app.shadowRoot.querySelector('urbi-select[label="Conta"]');
     sel.dispatchEvent(new CustomEvent('urbi:select-change', { detail: { valor: String(c) } }));
   } else {
-    window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: window.urbiVerso.contexto() }));
+    window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: { ...window.urbiVerso.contexto(), appId: 'portal_corretor' } }));
   }
 };
 window.liberar = () => window.pendentes.splice(0).forEach((f) => f());

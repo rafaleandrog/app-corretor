@@ -69,7 +69,7 @@ export class PcTelaFichaImovel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar(true);
-    void chamarApi('/imoveis/ia').then((r) => void (this.vida.vivo() && (this.ia = r)), () => undefined);
+    void chamarApi('/imoveis/ia').then((r) => void (this.ia = r), () => undefined); // conta trocada em voo: `ContaTrocada`, nada muda
     window.addEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
     // E (11.0.6): o mesmo Editar do cabeçalho, com a ficha carregada.
     registrarEdicao(this, () => void (this.ficha && this.editar()));

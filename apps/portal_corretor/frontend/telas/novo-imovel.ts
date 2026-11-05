@@ -186,7 +186,7 @@ class NovoImovel extends EventTarget {
     const item = Number(q.get('item')) || null;
     const pedido = passoValido(q.get('passo'));
     void chamarApi('/imoveis/ia').then(
-      (r) => void (this.vida.vivo() && ((this.ia = r), this.mudou())),
+      (r) => void ((this.ia = r), this.mudou()), // conta trocada em voo: `ContaTrocada` (guarda do envio)
       () => undefined,
     );
     if (!item) {
@@ -226,7 +226,7 @@ class NovoImovel extends EventTarget {
       if (!this.sujo) this.form = doImovel(this.ficha!.imovel);
       if (this.leuFotosAgora) this.sugerirDasFotos();
       void chamarApi(`/imoveis/${this.id}/contexto`).then(
-        (c) => void (this.vida.vivo() && ((this.combinam = c.combinam?.length ?? 0), this.mudou())),
+        (c) => void ((this.combinam = c.combinam?.length ?? 0), this.mudou()), // idem
         () => undefined,
       );
     } catch (e) {

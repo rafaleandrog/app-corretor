@@ -5,7 +5,7 @@ import type { Gesto } from '../apoio.js';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { FILTROS_PRONTOS, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
-import { chamarApi, chip, contaDeTrabalho, enviar, filtrosDaUrl, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, chip, contaDeTrabalho, ehContaTrocada, enviar, filtrosDaUrl, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -34,7 +34,11 @@ function publicarResumo(conta: number | null, r: Resumo) {
 const lerDiasParado = (): Promise<number> =>
   chamarApi('/conta').then(
     (c) => c?.configuracoes?.dias_cliente_parado ?? CONFIGURACOES_PADRAO.dias_cliente_parado,
-    () => CONFIGURACOES_PADRAO.dias_cliente_parado,
+    // Sem resposta, o padrão; conta trocada com a leitura em voo segue como `ContaTrocada` (o gesto termina).
+    (e) => {
+      if (ehContaTrocada(e)) throw e;
+      return CONFIGURACOES_PADRAO.dias_cliente_parado;
+    },
   );
 
 /** Os filtros do Funil no endereço, numa chave estável: a tela recria o quadro quando ela muda. */

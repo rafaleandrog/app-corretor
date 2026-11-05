@@ -83,6 +83,10 @@ export function escolherConta(id: number) {
 // É o padrão do Estúdio (`esperar`/`vivo`, estudio.ts), sem a instância: a vida do gesto é a ÉPOCA da
 // conta, que avança a cada troca observada. Por época, e não só pelo id da conta, uma ida e volta A → B
 // → A no meio do gesto também o encerra.
+//
+// Quem descarta a RESPOSTA (ou o erro) de um pedido é o guarda único do envio (`chamarApi`, abaixo): ele
+// vale para toda tela, esteja ela aberta ou não. O gesto cobre o que vem ANTES de um envio e não passa por
+// ele: o diálogo aberto em A que só responde em B, a leitura de arquivo, a confirmação.
 
 let epocaDaConta = 0;
 let contaVista: number | null | undefined;
@@ -100,16 +104,47 @@ function observarConta(): number {
   return epocaDaConta;
 }
 
+/** O appId deste app: o `urbi:contexto-app` de outra app (ou de fora de app, `appId: null`) não é nosso. */
+export const APP_ID = 'portal_corretor';
+
+/** O evento `urbi:contexto-app` é do contexto deste app (`detail.appId`, autenticacao.md). */
+export function ehContextoDoApp(e: Event): boolean {
+  return (e as CustomEvent<{ appId?: string | null } | null>).detail?.appId === APP_ID;
+}
+
 // A troca da conta única pelo shell chega por este evento; a do seletor passa por `escolherConta`.
 // Assim a época avança mesmo sem nenhum gesto conferindo no meio da troca.
-if (typeof window !== 'undefined') window.addEventListener?.('urbi:contexto-app', () => void observarConta());
+if (typeof window !== 'undefined') {
+  window.addEventListener?.('urbi:contexto-app', (e) => {
+    if (ehContextoDoApp(e)) observarConta();
+  });
+  // Rede de segurança do guarda do envio: uma continuação que não tratou `ContaTrocada` (um `void
+  // promessa` sem `.catch`) não vira "erro não tratado" no console. As outras rejeições seguem como são.
+  window.addEventListener?.('unhandledrejection', (e) => {
+    if (ehContaTrocada(e.reason)) e.preventDefault();
+  });
+}
 
-/** A conta mudou no meio do gesto: a continuação para aqui, em silêncio. */
+/** A conta mudou no meio do gesto ou com o pedido em voo: a continuação para aqui, em silêncio. */
 export class ContaTrocada extends Error {
   constructor() {
     super('conta_trocada');
     this.name = 'ContaTrocada';
   }
+}
+
+/** O erro é a conta trocada (do guarda do envio ou de um gesto): não é falha para mostrar. */
+export function ehContaTrocada(e: unknown): e is ContaTrocada {
+  return e instanceof ContaTrocada;
+}
+
+/**
+ * O tratador comum dos erros de continuação: `ContaTrocada` some em silêncio (sem alerta, aviso, toast,
+ * estado de erro nem efeito colateral) e qualquer outro erro vai para `tratar`. Serve em `.catch(...)` e
+ * em `catch (e) { return seNaoContaTrocada(tratar)(e); }`.
+ */
+export function seNaoContaTrocada<R>(tratar: (e: unknown) => R): (e: unknown) => R | undefined {
+  return (e) => (ehContaTrocada(e) ? undefined : tratar(e));
 }
 
 export interface Gesto {
@@ -159,9 +194,29 @@ function comConta(opcoes: RequestInit = {}): RequestInit {
   return { ...opcoes, headers: { ...Object.fromEntries(new Headers(opcoes.headers).entries()), 'X-Conta': String(conta) } };
 }
 
-/** `urbiVerso.api` com a conta ativa declarada. Use em toda rota autenticada do app. */
-export const chamarApi = (rota: string, opcoes?: RequestInit) => urbiVerso.api(rota, comConta(opcoes));
-export const chamarFetch = (rota: string, opcoes?: RequestInit) => urbiVerso.fetch(rota, comConta(opcoes));
+/**
+ * O GUARDA ÚNICO DO ENVIO (issue #144). Todo pedido do app sai daqui e guarda a época da conta de trabalho
+ * do momento do envio. Na volta, com resposta ou com erro, se a conta mudou (o seletor, a conta única
+ * trocada pelo shell, ou uma ida e volta A → B → A), a promessa rejeita com `ContaTrocada`: nunca entrega
+ * o dado da conta antiga, nem o erro dela, a quem continua. Quem trata erro deixa `ContaTrocada` passar em
+ * silêncio (`ehContaTrocada`, `seNaoContaTrocada`, `Gesto.encerrado`).
+ */
+async function guardado<T>(pedido: () => Promise<T>): Promise<T> {
+  const epoca = observarConta();
+  let r: T;
+  try {
+    r = await pedido();
+  } catch (e) {
+    if (observarConta() !== epoca) throw new ContaTrocada();
+    throw e;
+  }
+  if (observarConta() !== epoca) throw new ContaTrocada();
+  return r;
+}
+
+/** `urbiVerso.api` com a conta ativa declarada e o guarda do envio. Use em toda rota autenticada do app. */
+export const chamarApi = (rota: string, opcoes?: RequestInit) => guardado(() => urbiVerso.api(rota, comConta(opcoes)));
+export const chamarFetch = (rota: string, opcoes?: RequestInit) => guardado(() => urbiVerso.fetch(rota, comConta(opcoes)));
 
 export async function enviar(metodo: 'POST' | 'PUT' | 'PATCH', rota: string, corpo?: unknown) {
   return chamarApi(rota, {
@@ -179,8 +234,8 @@ export function mensagemDeErro(e: unknown): string {
 }
 
 /**
- * Abre o formulário, envia e avisa. Devolve a resposta, ou `null` se cancelou, falhou ou a conta mudou
- * no meio (aí em silêncio).
+ * Abre o formulário, envia e avisa. Devolve a resposta, ou `null` se cancelou, falhou (com alerta) ou a
+ * conta mudou no meio (aí em silêncio). Nunca rejeita.
  */
 export async function formularioEnviar(
   titulo: string,
@@ -194,14 +249,16 @@ export async function formularioEnviar(
   const { gesto: doChamador, ...doFormulario } = opcoes;
   const g = doChamador ?? gesto();
   if (!g.vivo()) return null;
-  // O diálogo fica fora do tratamento de "não salvou": a falha dele segue para quem chamou, como antes.
-  // Só a conta trocada com o formulário aberto é engolida (em silêncio).
+  // O diálogo tem o próprio aviso: a falha dele não é "não foi possível salvar" (nada foi enviado), e não
+  // volta como rejeição para quem chamou (`void formularioEnviar(...).then(...)` ficaria com rejeição solta).
+  // A conta trocada com o formulário aberto termina em silêncio. Esta função nunca rejeita.
   let valores: Awaited<ReturnType<UrbiVersoAPI['formulario']>>;
   try {
     valores = await g.esperar(urbiVerso.formulario({ titulo, campos, ...doFormulario }));
   } catch (e) {
     if (g.encerrado(e)) return null;
-    throw e;
+    await urbiVerso.alertar({ titulo: 'Não foi possível abrir o formulário', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    return null;
   }
   if (!valores) return null;
   try {

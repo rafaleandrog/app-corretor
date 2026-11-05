@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { PLAYBOOK_OBJECOES_PADRAO } from '../../comum/negociacao';
 import { reaisParaCentavos } from '../../comum/crm';
-import { chamarApi, contaDeTrabalho, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, gesto, mensagemDeErro, reais, soNegociador, type Gesto } from '../apoio.js';
+import { chamarApi, contaDeTrabalho, data, dataHora, ehContaTrocada, enviar, seNaoContaTrocada, filtrosDaUrl, filtrosNaUrl, gesto, mensagemDeErro, reais, soNegociador, type Gesto } from '../apoio.js';
 import { moldura } from '../moldura.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import './mandato.js';
@@ -115,7 +115,7 @@ class NegociacaoAberta {
   async carregar() {
     const g = ++this.geracao;
     this.s.falha = null;
-    if (this.s.ia === null) void chamarApi('/negociador/ia').then((r) => (this.s.ia = !!r?.disponivel), () => (this.s.ia = false));
+    if (this.s.ia === null) void chamarApi('/negociador/ia').then((r) => (this.s.ia = !!r?.disponivel), seNaoContaTrocada(() => (this.s.ia = false)));
     try {
       const [detalhe, mandato] = await this.vida.esperar(Promise.all([chamarApi(`/negociacoes/${this.id}`), chamarApi(`/negociacoes/${this.id}/mandato`)]));
       if (g !== this.geracao || !this.emUso) return;
@@ -387,7 +387,7 @@ export class PcNegociacoesLista extends LitElement {
       // "Negociador": em andamento com o Negociador conduzindo (a rota filtra só o estado).
       this.linhas = f.id === 'negociador' ? r.dados.filter((n: Linha) => n.conduzida_por !== 'corretor') : r.dados;
     } catch (e) {
-      if (g === this.geracao) this.falha = (e as Error).message;
+      if (g === this.geracao && !ehContaTrocada(e)) this.falha = (e as Error).message;
     } finally {
       if (g === this.geracao) this.carregando = false;
     }
@@ -821,7 +821,7 @@ export class PcNegociacoesDoCliente extends LitElement {
     super.connectedCallback();
     chamarApi(`/negociacoes?contato_id=${this.contatoId}&por_pagina=50`).then(
       (r) => (this.linhas = r?.dados ?? []),
-      () => (this.falha = true),
+      seNaoContaTrocada(() => (this.falha = true)),
     );
   }
 

@@ -31,6 +31,8 @@ window.alertas = [];
 window.formularios = [];
 window.confirmacoes = [];
 window.SEGURAR = () => false;
+// FALHAR(metodo, caminho, conta, corpo): a resposta daquela requisição é um erro (com a marca da conta).
+window.FALHAR = () => false;
 window.CONTA = 100;
 const ctxConta = () => window.VARIAS
   ? { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] }
@@ -75,7 +77,11 @@ window.urbiVerso = {
   notificar: (m) => window.avisos.push(m),
   alertar: async (a) => { window.alertas.push(a.titulo); },
   // O diálogo guarda o que mostrou; responde o que o teste pôs em RESPOSTA_FORMULARIO.
-  formulario: async (a) => { window.formularios.push(JSON.stringify(a)); return window.RESPOSTA_FORMULARIO ?? null; },
+  formulario: async (a) => {
+    window.formularios.push(JSON.stringify(a));
+    if (window.FORMULARIO_QUEBRA) throw new Error('diálogo quebrou');
+    return window.RESPOSTA_FORMULARIO ?? null;
+  },
   // A confirmação fica aberta até o teste responder (window.confirmar(true)).
   confirmar: () => new Promise((r) => window.confirmacoes.push(r)),
   api: async (rota, opcoes) => {
@@ -83,13 +89,20 @@ window.urbiVerso = {
     const metodo = opcoes?.method ?? 'GET';
     const conta = Number(new Headers(opcoes?.headers).get('X-Conta')) || window.CONTA;
     window.chamadas.push(metodo + ' ' + rota + ' @' + conta + (opcoes?.body ? ' ' + opcoes.body : ''));
-    const responde = () => responder(metodo, caminho, conta);
-    if (window.SEGURAR(metodo, caminho, conta)) return new Promise((r, f) => window.pendentes.push(() => { try { r(responde()); } catch (e) { f(e); } }));
+    const corpo = opcoes?.body ? String(opcoes.body) : '';
+    const responde = () => {
+      if (window.FALHAR(metodo, caminho, conta, corpo)) throw new Error('Falha CONTA ' + conta);
+      return responder(metodo, caminho, conta);
+    };
+    if (window.SEGURAR(metodo, caminho, conta, corpo)) return new Promise((r, f) => window.pendentes.push(() => { try { r(responde()); } catch (e) { f(e); } }));
     return responde();
   },
   fetch: async () => new Response('{}'),
 };
 import './frontend/index';
+import { formularioEnviar } from './frontend/apoio';
+// O formulário comum das telas (Novo contato, atividade, playbook...), chamado como as telas o chamam.
+window.formularioEnviar = formularioEnviar;
 const app = document.createElement('app-portal-corretor');
 document.getElementById('raiz').append(app);
 window.app = app;
@@ -99,7 +112,7 @@ window.trocarConta = (c) => {
     const sel = app.shadowRoot.querySelector('urbi-select[label="Conta"]');
     sel.dispatchEvent(new CustomEvent('urbi:select-change', { detail: { valor: String(c) } }));
   } else {
-    window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: window.urbiVerso.contexto() }));
+    window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: { ...window.urbiVerso.contexto(), appId: 'portal_corretor' } }));
   }
 };
 window.liberar = () => window.pendentes.splice(0).forEach((f) => f());
@@ -133,6 +146,8 @@ async function montar(pw: any) {
   const pagina = await navegador.newPage({ viewport: { width: 1440, height: 900 } });
   const erros: string[] = [];
   pagina.on('pageerror', (e: Error) => erros.push(e.message));
+  // Rejeição sem tratamento também chega como erro de console: nenhuma pode sobrar (nem a de ContaTrocada).
+  pagina.on('console', (m: any) => m.type() === 'error' && /Uncaught/.test(m.text()) && erros.push(m.text()));
   await pagina.route(`${ORIGEM}/**`, (r: any) => r.fulfill({ contentType: 'text/html', body: html }));
   return { navegador, pagina, erros };
 }
@@ -409,4 +424,199 @@ for (const modo of MODOS) {
       assert.ok(r.url.startsWith('/portal_corretor/imoveis/novo'), `não foi à ficha (${r.url})`);
     });
   });
+}
+
+// ---------- Guarda único do envio: respostas e erros EM VOO na troca (issue #144, rodada 3) ----------
+//
+// O guarda de `chamarApi`/`enviar` (apoio.ts) rejeita com `ContaTrocada` a resposta ou o erro de um pedido
+// que saiu na conta A e volta com a conta já em B. Os casos abaixo são os do laudo: o alerta da importação
+// (com o usuário fora da tela de Importar), o aviso da carga da Página (idem), o `formularioEnviar` e o
+// salvar/refazer da Página. Cada um com o controle sem troca, para o teste não passar no vazio.
+
+/** Mesma tela, sem troca: a resposta (ou o erro) chega e é mostrada como sempre. */
+const semTroca = (p: any) => p.evaluate(() => ((window as any).marco = (window as any).chamadas.length));
+
+/** Escolhe a planilha (uma coluna `nome`) e manda importar, com o POST da importação (não a prévia) em voo e falhando. */
+async function importarEmVoo(p: any) {
+  await p.evaluate(async () => {
+    const w = window as any;
+    const tela = w.achar('pc-tela-importar');
+    await tela.escolher({ detail: { arquivo: new File(['nome,telefone\nAna,61999990000\n'], 'contatos.csv', { type: 'text/csv' }) } });
+    const daImportacao = (m: string, c: string, k: number, corpo: string) => m === 'POST' && c === '/contatos/importar' && k === 100 && !corpo.includes('"simular":true');
+    w.SEGURAR = daImportacao;
+    w.FALHAR = daImportacao;
+    void tela.importar();
+  });
+  await esperar(p, 50);
+  assert.equal(await p.evaluate(() => (window as any).pendentes.length), 1, 'a importação de A está em voo');
+  // O usuário sai da tela de Importar (a `visita` dela não avança mais) antes da troca.
+  await p.evaluate(() => (window as any).urbiVerso.navegarSub('/clientes'));
+  await esperar(p);
+}
+
+/** Volta à Página com a carga de A em voo e falhando, e sai dela antes da troca. */
+async function cargaDaPaginaEmVoo(p: any) {
+  await p.evaluate(() => (window as any).urbiVerso.navegarSub('/clientes'));
+  await esperar(p);
+  await p.evaluate(() => {
+    const w = window as any;
+    const daCarga = (m: string, c: string, k: number) => m === 'GET' && c === '/pagina' && k === 100;
+    w.SEGURAR = daCarga;
+    w.FALHAR = daCarga;
+    w.urbiVerso.navegarSub('/pagina');
+  });
+  await esperar(p, 50);
+  assert.equal(await p.evaluate(() => (window as any).pendentes.length), 1, 'a carga da Página de A está em voo');
+  await p.evaluate(() => (window as any).urbiVerso.navegarSub('/clientes'));
+  await esperar(p);
+}
+
+const AVISO_CARGA = 'Não foi possível atualizar a página. Mostrando a última leitura.';
+
+for (const modo of MODOS) {
+  test(`em voo (${modo}): a importação de A falha depois da troca, com o usuário fora de Importar; nenhum alerta em B`, async (t) => {
+    await cenario(t, modo, '/clientes/importar', '', async (p) => {
+      await importarEmVoo(p);
+      await trocar(p);
+      await esperar(p);
+      await p.evaluate(() => (window as any).liberar());
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.deepEqual(r.alertas, [], 'o alerta "A importação falhou" de A não abre em B');
+      assert.deepEqual(r.avisos, []);
+    });
+  });
+
+  test(`em voo (${modo}): sem troca, a importação que falha avisa como antes (controle)`, async (t) => {
+    await cenario(t, modo, '/clientes/importar', '', async (p) => {
+      await importarEmVoo(p);
+      await semTroca(p);
+      await p.evaluate(() => (window as any).liberar());
+      await esperar(p);
+      assert.deepEqual((await depoisDaTroca(p)).alertas, ['A importação falhou']);
+    });
+  });
+
+  test(`em voo (${modo}): a carga da Página de A falha depois da troca; sem aviso em B nem prévia pedida com a conta nova`, async (t) => {
+    await cenario(t, modo, '/pagina', '', async (p) => {
+      await cargaDaPaginaEmVoo(p);
+      await trocar(p);
+      await esperar(p);
+      await p.evaluate(() => (window as any).liberar());
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.deepEqual(r.avisos, [], 'o aviso da carga de A não aparece em B');
+      assert.deepEqual(r.alertas, []);
+      assert.deepEqual(r.chamadas.filter((c) => c.startsWith('GET /pagina')), [], 'nem a prévia sai em B pela continuação de A');
+    });
+  });
+
+  test(`em voo (${modo}): sem troca, a carga da Página que falha avisa como antes (controle)`, async (t) => {
+    await cenario(t, modo, '/pagina', '', async (p) => {
+      await cargaDaPaginaEmVoo(p);
+      await semTroca(p);
+      await p.evaluate(() => (window as any).liberar());
+      await esperar(p);
+      assert.deepEqual((await depoisDaTroca(p)).avisos, [AVISO_CARGA]);
+    });
+  });
+
+  for (const falha of [false, true]) {
+    test(`em voo (${modo}): formularioEnviar com o envio de A em voo (${falha ? 'falha' : 'sucesso'}); a conta muda; nem "Salvo." nem alerta, e devolve null`, async (t) => {
+      await cenario(t, modo, '/clientes', '', async (p) => {
+        await p.evaluate((falhar: boolean) => {
+          const w = window as any;
+          w.RESPOSTA_FORMULARIO = { nome: 'Ana' };
+          w.SEGURAR = (m: string, c: string, k: number) => m === 'POST' && c === '/contatos' && k === 100;
+          if (falhar) w.FALHAR = w.SEGURAR;
+          // Como as telas chamam: `void formularioEnviar(...).then(...)`, sem `.catch`.
+          void w.formularioEnviar('Novo contato', [], 'POST', '/contatos').then((r: unknown) => (w.resultado = r));
+        }, falha);
+        await esperar(p, 50);
+        assert.equal(await p.evaluate(() => (window as any).pendentes.length), 1, 'o POST de A está em voo');
+        await trocar(p);
+        await esperar(p);
+        await p.evaluate(() => (window as any).liberar());
+        await esperar(p);
+        const r = await depoisDaTroca(p);
+        assert.deepEqual(r.avisos, []);
+        assert.deepEqual(r.alertas, []);
+        assert.equal(await p.evaluate(() => (window as any).resultado), null);
+      });
+    });
+  }
+
+  test(`em voo (${modo}): sem troca, formularioEnviar avisa como antes; o diálogo que quebra vira alerta, sem rejeição solta (controle)`, async (t) => {
+    await cenario(t, modo, '/clientes', '', async (p) => {
+      await p.evaluate(async () => {
+        const w = window as any;
+        w.marco = w.chamadas.length;
+        w.RESPOSTA_FORMULARIO = { nome: 'Ana' };
+        w.FALHAR = (m: string, c: string) => m === 'POST' && c === '/contatos';
+        await w.formularioEnviar('Novo contato', [], 'POST', '/contatos');
+        w.FALHAR = () => false;
+        await w.formularioEnviar('Novo contato', [], 'POST', '/contatos');
+        w.FORMULARIO_QUEBRA = true;
+        void w.formularioEnviar('Novo contato', [], 'POST', '/contatos').then((r: unknown) => (w.resultado = r));
+      });
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.deepEqual(r.alertas, ['Não foi possível salvar', 'Não foi possível abrir o formulário']);
+      assert.deepEqual(r.avisos, ['Salvo.']);
+      assert.equal(await p.evaluate(() => (window as any).resultado), null);
+    });
+  });
+
+  for (const falha of [false, true]) {
+    test(`em voo (${modo}): salvar da Página (editar bloco) com o PUT de A em voo (${falha ? 'falha' : 'sucesso'}); a conta muda; nada avisado nem gravado em B`, async (t) => {
+      await cenario(t, modo, '/pagina?item=apresentacao', '', async (p) => {
+        await p.evaluate((falhar: boolean) => {
+          const w = window as any;
+          w.RESPOSTA_FORMULARIO = { titulo: 'Título novo', texto: 'Texto novo' };
+          w.SEGURAR = (m: string, c: string, k: number) => m === 'PUT' && c === '/pagina' && k === 100;
+          if (falhar) w.FALHAR = w.SEGURAR;
+          w.clicar('urbi-botao', 'Editar bloco');
+        }, falha);
+        await esperar(p, 50);
+        assert.equal(await p.evaluate(() => (window as any).pendentes.length), 1, 'o PUT /pagina de A está em voo');
+        await trocar(p);
+        await esperar(p);
+        await p.evaluate(() => (window as any).liberar());
+        await esperar(p);
+        const r = await depoisDaTroca(p);
+        assert.deepEqual(r.avisos, [], 'nem "Salvo." nem aviso de A em B');
+        assert.deepEqual(r.alertas, []);
+        assert.deepEqual(r.chamadas.filter((c) => !c.startsWith('GET ')), [], 'nenhuma escrita em B');
+        // A tela de B segue livre (a trava do salvar de A não ficou presa nela): editar em B salva em B.
+        await p.evaluate(() => (window as any).clicar('urbi-botao', 'Editar bloco'));
+        await esperar(p);
+        const b = await depoisDaTroca(p);
+        assert.ok(b.chamadas.some((c) => c.startsWith('PUT /pagina @200')), 'o salvar de B sai em B');
+        assert.deepEqual(b.avisos, ['Salvo.']);
+      });
+    });
+
+    test(`em voo (${modo}): refazer a Página com IA, com os textos de A em voo (${falha ? 'falha' : 'sucesso'}); a conta muda; nem confirmação, nem alerta, nem PUT em B`, async (t) => {
+      await cenario(t, modo, '/pagina', '', async (p) => {
+        await p.evaluate((falhar: boolean) => {
+          const w = window as any;
+          w.RESPOSTA_FORMULARIO = { observacoes: 'Atendo no Lago Sul.' };
+          w.SEGURAR = (m: string, c: string, k: number) => m === 'POST' && c === '/pagina/sugerir-textos' && k === 100;
+          if (falhar) w.FALHAR = w.SEGURAR;
+          w.clicar('urbi-botao', 'Refazer a página com IA');
+        }, falha);
+        await esperar(p, 50);
+        assert.equal(await p.evaluate(() => (window as any).pendentes.length), 1, 'o pedido de textos de A está em voo');
+        await trocar(p);
+        await esperar(p);
+        await p.evaluate(() => (window as any).liberar());
+        await esperar(p);
+        const r = await depoisDaTroca(p);
+        assert.equal(await p.evaluate(() => (window as any).confirmacoes.length), 0, '"Usar estes textos?" de A não abre em B');
+        assert.deepEqual(r.alertas, [], '"Não foi possível escrever agora" de A não abre em B');
+        assert.deepEqual(r.avisos, []);
+        assert.deepEqual(r.chamadas.filter((c) => !c.startsWith('GET ')), [], 'nenhuma escrita em B');
+      });
+    });
+  }
 }

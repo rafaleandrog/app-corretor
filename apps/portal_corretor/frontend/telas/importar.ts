@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { lerCsv, mapearPorModelo, MODELOS_IMPORTACAO } from '../../comum/csv.js';
-import { enviar, mensagemDeErro } from '../apoio.js';
+import { ehContaTrocada, enviar, mensagemDeErro } from '../apoio.js';
 import { moldura } from '../moldura.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -208,6 +208,9 @@ export class PcTelaImportar extends ColunaImportar {
       const relatorio = await enviar('POST', '/contatos/importar', this.corpo());
       if (v === visita) mudar({ relatorio });
     } catch (e) {
+      // Conta trocada com a importação em voo (guarda do envio): o erro, ou o relatório, é da conta
+      // anterior e não aparece na nova, esteja o usuário nesta tela ou em outra.
+      if (ehContaTrocada(e)) return;
       if (v === visita) await urbiVerso.alertar({ titulo: 'A importação falhou', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       // A visita nova já começou com `enviando: false`; só a desta visita desliga o próprio botão.

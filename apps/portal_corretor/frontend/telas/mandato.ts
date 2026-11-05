@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { corpoDoFormularioMandato, errosDoFormularioMandato as errosDoFormulario, type FormularioMandato } from '../../comum/negociacao';
-import { chamarApi, data, enviar, gesto, mensagemDeErro } from '../apoio.js';
+import { chamarApi, data, enviar, gesto, mensagemDeErro, seNaoContaTrocada } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -73,14 +73,14 @@ export class PcMandatoModal extends LitElement {
     this.f = formularioDe(this.atual, null);
     this.recuoAberto = !this.f.recuo;
     const vida = this.vida;
+    // Conta trocada com a leitura em voo: o guarda do envio rejeita com `ContaTrocada`, e nada é gravado.
     void chamarApi(`/imoveis/${this.imovelId}`).then(
       (r) => {
-        if (!vida.vivo()) return;
         this.documentos = ((r?.midias ?? []) as Linha[]).filter((m) => m.tipo === 'documento');
         // Sem mandato: o preço pedido vem do anúncio.
         if (!this.atual && this.f && !this.f.pedido) this.f = { ...this.f, pedido: reaisDe(r?.imovel?.preco_c) };
       },
-      () => void (vida.vivo() && (this.documentos = [])),
+      seNaoContaTrocada(() => void (this.documentos = [])),
     );
   }
 
