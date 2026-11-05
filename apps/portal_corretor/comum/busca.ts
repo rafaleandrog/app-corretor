@@ -8,6 +8,20 @@ export const BUSCA_MAX = 100;
 export const POR_TIPO = 5;
 
 /**
+ * O texto digitado sem o espaço das pontas e com no máximo BUSCA_MAX unidades (a mesma conta de
+ * `length` que a rota faz), sem deixar metade de um par substituto no fim: um emoji cortado ao meio
+ * faz o `encodeURIComponent` lançar. Quando o corte cai no meio do par, o emoji inteiro sai.
+ */
+export function cortarTermo(q: string): string {
+  const t = q.trim();
+  if (t.length <= BUSCA_MAX) return t;
+  let fim = BUSCA_MAX;
+  const ultimo = t.charCodeAt(fim - 1);
+  if (ultimo >= 0xd800 && ultimo <= 0xdbff) fim -= 1;
+  return t.slice(0, fim);
+}
+
+/**
  * O termo que vai ao banco, ou `null` quando ele ficaria curto demais (o chamador responde 422 BUSCA_CURTA).
  * `termo` é o que foi digitado, sem o espaço das pontas: vai para nome, e-mail, código, bairro e título
  * (o código do corretor pode ser "101-2"). `telefone` só vem quando o texto é só dígitos e sinais de

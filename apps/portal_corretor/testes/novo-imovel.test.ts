@@ -10,6 +10,7 @@ import {
   obrigatoriosVazios,
   PASSOS_NOVO_IMOVEL,
   passoParaRetomar,
+  passoSemRascunho,
   passoValido,
 } from '../comum/imoveis';
 import { PASSOS_INICIAIS } from '../comum/hoje';
@@ -38,6 +39,12 @@ test('passos: Fotos · Dados · Autorização · Onde aparece, nesta ordem; ?pas
   assert.equal(passoValido('dados'), 'dados');
   assert.equal(passoValido('creci'), null);
   assert.equal(passoValido(null), null);
+  // Sem rascunho, a URL não leva a Autorização nem a Onde aparece: abre em Dados (como o clique no passo).
+  assert.equal(passoSemRascunho(null), 'fotos');
+  assert.equal(passoSemRascunho('fotos'), 'fotos');
+  assert.equal(passoSemRascunho('dados'), 'dados');
+  assert.equal(passoSemRascunho('autorizacao'), 'dados');
+  assert.equal(passoSemRascunho('onde'), 'dados');
 });
 
 test('obrigatórios do passo Dados: só tipo e cidade, nenhum é CRECI (D-93)', () => {
@@ -130,8 +137,15 @@ test('isolamento: B não abre nem continua o rascunho de A pela URL do Novo imó
   await comServidor(rotas, A, banco, {}, async (chamar) => {
     a.imovel = (await chamar('POST', '/imoveis', { tipo: 'casa', cidade: 'Brasília' })).corpo.id;
     a.foto = (await chamar('POST', `/imoveis/${a.imovel}/midias`, { upload_id: 21, tipo: 'foto' })).corpo.id;
+    a.dono = (await chamar('POST', '/contatos', { nome: 'Proprietário de A', telefone: '61933332222', papeis: 'proprietario' })).corpo.id;
+    const meus = (await chamar('GET', '/contatos?papel=proprietario')).corpo.dados.map((c: any) => c.id);
+    assert.ok(meus.includes(a.dono), 'A acha o próprio proprietário');
   });
   await comServidor(rotas, B, banco, {}, async (chamar) => {
+    // A busca de proprietário do passo Autorização não traz ninguém de A.
+    const donos = (await chamar('GET', '/contatos?papel=proprietario')).corpo;
+    assert.ok(!donos.dados.some((c: any) => c.id === a.dono), 'B não vê o proprietário de A');
+    assert.equal(donos.total, 0);
     // `/imoveis/novo?item=<id de A>`: tudo o que a tela chama responde "não encontrado".
     assert.equal((await chamar('GET', `/imoveis/${a.imovel}`)).status, 404);
     assert.equal((await chamar('GET', `/imoveis/${a.imovel}/contexto`)).status, 404);

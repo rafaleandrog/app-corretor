@@ -267,12 +267,14 @@ export function oQueMelhorar(negocios: NegocioNum[], k: Kpis, de: string, ate: s
   const motivo = k.motivos_perda.find((m) => m.motivo !== 'sem_motivo')?.motivo ?? null;
   let clientes = 0;
   if (motivo) {
+    // N conta só negócio com cliente: é a mesma regra da lista que [Ver os N clientes] abre.
     const ids = new Set(
-      negocios.filter((n) => n.pipeline === 'compra' && n.motivo_perda === motivo && dentro(n.perdido_em, de, ate)).map((n, i) => n.contato_id ?? `sem-${i}`),
+      negocios.filter((n) => n.pipeline === 'compra' && n.motivo_perda === motivo && dentro(n.perdido_em, de, ate) && n.contato_id).map((n) => n.contato_id),
     );
     clientes = ids.size;
     const qtd = k.motivos_perda.find((m) => m.motivo === motivo)!.quantidade;
-    frases.push(`O motivo de perda mais comum foi "${rotuloMotivo(motivo)}" (${qtd} ${qtd === 1 ? 'negócio' : 'negócios'}): vale retomar esses clientes.`);
+    // "Informado": as perdas sem motivo ficam fora da escolha e podem ser mais numerosas.
+    frases.push(`O motivo de perda informado mais comum foi "${rotuloMotivo(motivo)}" (${qtd} ${qtd === 1 ? 'negócio' : 'negócios'}): vale retomar esses clientes.`);
   }
   if (!frases.length) frases.push('Ainda há poucos dados no período para apontar onde se perde mais.');
   return { texto: frases.join(' '), motivo, clientes };
