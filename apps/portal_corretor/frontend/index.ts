@@ -10,7 +10,7 @@ import { aoAbrirImportar, renderImportar } from './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
 import { renderNumeros } from './telas/desempenho.js';
 import './telas/pagina.js';
-import './telas/estudio.js';
+import { aoAbrirEstudio, renderEstudio } from './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assistente.js';
 import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
@@ -58,7 +58,7 @@ const TELAS: Record<ChaveTela, Tela> = {
     moldura: true,
     render: (id, app) => renderImoveis(() => app?.requestUpdate(), { empreendimento: Number(id) || undefined }),
   },
-  estudio: { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
+  estudio: { titulo: 'Estúdio', papel: 'corretor', moldura: true, aoAbrir: aoAbrirEstudio, render: (_p, app) => renderEstudio(() => app?.requestUpdate()) },
   pagina: { titulo: 'Página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
   numeros: { titulo: 'Números', papel: 'corretor', moldura: true, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
   ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },

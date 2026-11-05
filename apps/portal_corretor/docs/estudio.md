@@ -11,6 +11,29 @@ peça. Depois de aprovada, a peça é publicada de três jeitos:
 publicar agora, agendar no app ou baixar a arte e publicar por fora. Para os dois primeiros, a
 conta do Instagram precisa estar conectada em [Conexões](conexoes.md).
 
+## A tela
+
+O Estúdio abre em três colunas (no celular, três abas: **Pedidos**, **Pedido** e **Semana**):
+
+| Coluna | O que tem |
+|---|---|
+| **Esquerda** | O título **Estúdio** com o estado do Instagram ("◎ @sua.conta conectado", ou "Instagram não conectado"); o **Criar rápido** com quatro botões; **Seus pedidos**, em lista, com o pedido aberto marcado, e acima dela as etapas com a quantidade de peças |
+| **Centro** | O pedido aberto, como uma conversa: o seu texto e, logo abaixo, uma mensagem do Estúdio por peça (formato, título, legenda e hashtags, a arte quando já enviada e o cartão da peça, com o próximo passo e os botões). Embaixo, a **caixa do pedido** para pedir mais |
+| **Direita** | **Esta semana** (as peças agendadas para os próximos 7 dias e as publicadas nos últimos 7, cada uma com **Abrir**); a **Biblioteca** (o seu logo, a sua foto e as suas referências, para abrir e baixar, e o atalho **Sua marca**); e, só quando falta o CRECI, o aviso discreto de sempre |
+
+**Pedido** é o que você pediu de uma vez: um envio da caixa, um Criar rápido ou um pacote de
+lançamento. Cada um vira uma peça por formato, e a lista junta as peças do mesmo envio. O endereço
+guarda o que está aberto: `?pedido=` (o pedido) ou `?item=` (uma peça; a conversa rola até ela).
+Pedido que não existe ou não é da sua conta mostra "Não encontrado".
+
+**Quando algo não está disponível**, uma faixa aparece no topo do centro e o resto continua:
+- **Instagram não conectado** (ou desconectado): publicar e agendar pelo app voltam depois de
+  conectar (**Reconectar** leva a Ajustes › Conexões). Baixar a arte e publicar você funciona sem ele.
+- **IA indisponível agora**: os textos saem do modelo do app; a descrição da arte e o resto do
+  Estúdio funcionam.
+
+O Estúdio não mostra créditos: a tabela de créditos por ação entra junto com o Mensageiro.
+
 ## Sua marca
 
 A marca fica em **Ajustes › Conta e marca** (o Estúdio tem o atalho **Sua marca**): a cor principal, a cor
@@ -24,8 +47,8 @@ legenda" (confira se ele está na arte): é um aviso, nunca uma pendência.
 **O CRECI é opcional e não trava nada.** Sem CRECI cadastrado (Ajustes › Conta e marca), a descrição e a
 legenda saem sem ele, e a peça é aprovada, agendada e publicada normalmente. Cada peça ainda não
 publicada mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
-anúncios"*, com o atalho **Ajustes › Conta e marca**; o topo do Estúdio não mostra aviso. A aprovação
-devolve o mesmo lembrete.
+anúncios"*, com o atalho **Ajustes › Conta e marca**, na coluna da direita; o topo do Estúdio não
+mostra aviso. A aprovação devolve o mesmo lembrete.
 
 A marca é a mesma da sua página, das seleções e do portal do cliente: a cor principal e a foto
 aparecem lá também ([A marca](conta-e-ajustes.md#a-marca)).
@@ -37,12 +60,15 @@ quais). Para tirar uma, use a lixeira ao lado dela.
 
 ## Criar
 
-No cartão **Criar**:
+Três jeitos de pedir; o pedido novo abre no centro, com a descrição de cada peça já à vista:
 
 | O quê | O que faz |
 |---|---|
-| **Caixa do pedido** | Escreva o que quer, ou use o **microfone** da caixa para falar (a fala vira texto pela IA da plataforma; o microfone só aparece quando o administrador liberou a transcrição). Ao enviar, abre o **Novo pedido**: confira o texto, escolha o imóvel (ou nenhum, para uma peça institucional), o objetivo e os formatos. Sai uma peça por formato, com os textos e a descrição já à vista. Cancelar devolve o texto à caixa |
-| **Pacote de lançamento** | Post, carrossel e story de um imóvel, de uma vez |
+| **Caixa do pedido** (embaixo do centro) | Escreva o que quer, ou use o **microfone** da caixa para falar (a fala vira texto pela IA da plataforma; o microfone só aparece quando o administrador liberou a transcrição). Ao enviar, abre o **Novo pedido**: confira o texto, escolha o imóvel (ou nenhum, para uma peça institucional), o objetivo e os formatos. Sai uma peça por formato. Cancelar devolve o texto à caixa. O **Novo post** do botão Criar abre o mesmo formulário |
+| **Criar rápido › Lançamento** | O pacote de lançamento: post, carrossel e story de um imóvel, de uma vez |
+| **Criar rápido › Baixou o preço, Vendido, Visita aberta** | Escolha o imóvel (e, se quiser, um pedido): sai post e story (Baixou o preço), um post (Vendido) ou um story (Visita aberta), com o objetivo já escolhido |
+
+O Criar rápido é para imóvel ativo ou reservado.
 
 **Formatos:**
 
@@ -70,8 +96,7 @@ com o plano de Canva que você tiver. O app não se conecta ao Canva (D-74, D-86
 
 Enquanto a peça não tem arte, ela mostra **falta a arte** e os três passos, na própria peça:
 
-1. **Copiar descrição** (o botão principal) e **Abrir o Canva** ("O que vamos criar hoje?") numa
-   aba. **Ver descrição e fotos** mostra o texto inteiro na peça. A descrição é curta e sempre na
+1. **Copiar descrição** e **Abrir no Canva** ("O que vamos criar hoje?") numa aba. **Ver descrição e fotos** mostra o texto inteiro na peça. A descrição é curta e sempre na
    mesma ordem, para o Canva não precisar adivinhar. As **instruções vão em inglês**, que as
    ferramentas de IA seguem com mais precisão; o **texto que aparece na arte vai em português**,
    entre aspas, com o pedido de não traduzir nem acrescentar nada:
@@ -104,22 +129,24 @@ Mudou os textos? A descrição muda junto: copie de novo e refaça a arte. Com a
 **Mais › Ver a descrição** mostra a descrição e as fotos de novo, e **Mais › Trocar a arte** envia
 outra (com confirmação). As peças antigas, com arte do gerador do app que saiu, continuam valendo.
 
-## As peças, por etapa
+## Os pedidos, por etapa
 
-Acima da lista, chips separam as peças pela etapa em que estão, com a quantidade de cada uma:
-**Todas**, **Falta a arte**, **Para aprovar**, **Prontas para publicar** (inclui as que deram erro
-ao publicar), **Agendadas** e **Publicadas**. Etapa vazia não aparece. Uma peça nova volta a lista
-para **Todas**.
+Acima de **Seus pedidos**, chips contam as peças pela etapa em que estão: **Todas**, **Falta a
+arte**, **Para aprovar**, **Prontas para publicar** (inclui as que deram erro ao publicar),
+**Agendadas** e **Publicadas**. Escolher uma etapa deixa na lista só os pedidos com ao menos uma
+peça nela (a etapa fica no endereço, em `?etapa=`). Etapa vazia não aparece. Um pedido novo volta a
+lista para **Todas**. Cada pedido mostra quantas peças tem e em que pé estão ("3 peças · 1 sem arte
+· 1 agendada").
 
 ## Os botões da peça
 
-Cada peça mostra a prévia, o formato, o objetivo, o imóvel, quem fez a arte, a situação e o
-**próximo passo** (por exemplo "Próximo passo: confira a arte e aprove"). Ela tem
-**um botão principal**, que depende da situação, e o resto no **Mais**:
+Cada peça, na conversa, mostra o formato, o título, a legenda, a arte (quando enviada), a
+situação, quem fez a arte e o **próximo passo** (por exemplo "Próximo passo: confira a arte e
+aprove"). Ela tem **um botão principal**, que depende da situação, e o resto no **Mais**:
 
 | Situação | Botão principal |
 |---|---|
-| falta a arte | **Copiar descrição** (com **Abrir o Canva**, **Ver descrição e fotos** e o envio da arte logo abaixo) |
+| falta a arte | **Enviar a arte do Canva** (a área de arrastar), com **Copiar descrição**, **Abrir no Canva** e **Ver descrição e fotos** ao lado |
 | rascunho (ou de volta a rascunho) | **Aprovar** |
 | aprovada | **Publicar** (escolha: agora, agendar ou baixar) |
 | agendada | **Cancelar agendamento** |
@@ -152,7 +179,7 @@ Peça agendada, publicando ou publicada não muda: Textos, descrição, arte e R
 - no máximo 30 hashtags.
 
 Mudar os textos ou a arte de uma peça aprovada a devolve para rascunho: o que muda precisa de
-nova aprovação. A biblioteca mostra as 200 peças mais recentes.
+nova aprovação. O Estúdio mostra as 200 peças mais recentes.
 
 ## Publicar
 
