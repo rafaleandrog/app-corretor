@@ -256,7 +256,7 @@ conversa com a IA):
    parece número e não tem leitura padrão também retém.** Parece número: algarismo de qualquer tipo
    (inclusive "❶", "①" e emoji de número), letra colada a algarismo ("1.36O.000") e número por
    extenso. Leitura padrão: valor com milhar e decimal usuais ou por extenso ("1.460.000", "1,46 mi",
-   "um milhão e quatrocentos e sessenta mil"), horário, data, ordinal ("5º andar"), quantidade
+   "um milhão e quatrocentos e sessenta mil"), horário, data sem ano ("28/10"), ordinal ("5º andar"), quantidade
    ("2-3 vagas") e telefone. Por isso retêm dígitos separados ("1 3 6 0 mil", "1/3/6/0", "1:360:000",
    "1 ponto 36 milhão", o número partido por uma quebra de linha) e algarismos ditos um a um ("um,
    três, seis, zero mil"). Se, desfeito o disfarce, cada número daquele trecho for a contraproposta, o
@@ -278,20 +278,30 @@ conversa com a IA):
    grupo de algarismos livre, onde um valor caberia: endereço de Brasília ("W3 Sul", "L2 Norte"); código
    de unidade com no máximo dois algarismos e uma letra, logo depois de "apto", "apartamento", "ap",
    "torre", "bloco", "bl", "unidade", "casa", "sala", "loja", "conjunto" ou "cj" ("Apto 2B", "Torre
-   B2"); e data sem ano e sem hora ("visita dia 28/10"), que já passava. Endereço e código passam
+   B2"); e data sem ano e sem hora ("visita dia 28/10"), que já passava. Na leitura do código, "l" e
+   "i" contam como 1 e "o" como 0, como no resto da conferência: "L3 Norte" é 13, "Torre l3" é 13, e o
+   código de unidade cuja letra vira algarismo ("Apto 3l", "Torre O3") não é mais código e retém.
+   Endereço e código passam
    quando valem três condições. (1) O formato é o **único número da mensagem**: nenhum outro
    algarismo, número ou ordinal por extenso, em português, inglês ou espanhol ("treze", "quinto",
-   "sexta", "thirteen", "trece"), "um", "uma" ou "num", nem outro formato, em lugar nenhum dela. (2)
+   "sexta", "thirteen", "trece", "trescientos"), "um", "uma" ou "num", "par" ou "dupla", algarismo
+   romano ("Torre XIII"; palavras como "vi" e "mil" também contam), nem outro formato, em lugar
+   nenhum dela. (2)
    Os algarismos dele não dão o recuo, o alvo ou valor da alternativa do vendedor em nenhuma escala
-   (nem com o "1" de "1 milhão" subentendido), nem valor abaixo do recuo ("Apto 9B" pode ser 900 mil;
-   "Torre 35B", 1,35 mi); e, com palavra de diferença, margem ou limite na mensagem ("folga",
-   "margem", "gordura", "chão", "até", "por", "%"…; "por favor" não conta), também não dão o recuo ou
+   (nem com o milhão subentendido: "Torre 36B" pode ser 1,36 mi, e "Torre 4B", 1,4 mi ou 2,4 mi;
+   "Torre 05B", 1,05 mi), nem valor abaixo do recuo ("Apto 9B" pode ser 900 mil; "Torre 35B", 1,35
+   mi; "Torre 3B", 1,3 mi). Por isso, num imóvel de 1,5 mi com recuo de 1,36 mi, "W3 Sul", "L2
+   Norte", "Apto 2B" e "Torre 3B" retêm; num imóvel em que esses valores não dizem nada, passam. E,
+   com palavra de diferença, margem, percentual ou limite na mensagem ("folga", "margem", "gordura",
+   "chão", "até", "por", "%", "percentual", "porcentagem", "off", "taxa"…; "por favor" não conta),
+   também não dão o recuo ou
    o alvo como diferença do pedido ("a folga é o apto 14B" = 140 mil) ou como percentual dele
    ("gordura: Torre 3B" = 3%). (3) A mensagem não fala de preço, oferta ou aceite ("valor", "R$",
-   "fecho", "aceita", "desce", "vendedor"…; "fica na" de lugar não conta). **Continuam retidos, por
-   decisão:** telefone ("me liga no (61) 99999 1234", "ligue 0800 345 6789"), CEP ("CEP
-   70.000-000"), data com ano ("vistoria 28/10/2026") e data com hora ("visita dia 28/10 15h"), e o
-   número entre parênteses depois do preço ("R$ 1.460.000 (2 vagas)"). Cada grupo de algarismos
+   "fecho", "aceita", "desce", "vendedor", "anunciado", "contraproposta", "combinado", "pode ser",
+   "bate"…; "fica na" de lugar não conta). **Retidos, por decisão:** telefone ("me liga no (61) 99999
+   1234", "ligue 0800 345 6789"), CEP ("CEP 70.000-000") e data com hora ("visita dia 28/10 15h"),
+   que já retinham, e o número entre parênteses depois do preço ("R$ 1.460.000 (2 vagas)"). A data com
+   ano ("vistoria 28/10/2026") passava antes e retém desde a 0.1.34. Cada grupo de algarismos
    deles é um lugar onde um valor cabe ("CEP 70.000-136", "visita dia 28/10/1360 15h", "me liga no 61
    3333 1251"), e conferir grupo a grupo não fechou o vazamento. Também retêm: código com outro
    número na mensagem ("Apto 2B, 3 quartos e 2 vagas", "Torre B2, 3º andar", "treze andares, apto

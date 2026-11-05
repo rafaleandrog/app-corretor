@@ -174,8 +174,46 @@ const R3_142 = [
   'R$ 1.460.000 (100 mil dias)',
 ];
 
+/** Rodada 1 do ciclo 2 do #142: letra lida como algarismo, vocabulário de conta e de aceite, número que não é algarismo. */
+const C2R1_142 = [
+  // B1: "l", "i" e "o" lidos como algarismo no código.
+  'Torre l3',
+  'Bloco I3',
+  'Apto l2',
+  'Torre l6',
+  'Torre O3',
+  'Apto 3l',
+  'Torre 4l',
+  'L3 Norte',
+  'Fica na L3 Norte',
+  // B2: percentual, anunciado, contraproposta, taxa, aceite.
+  'Percentual: apto 3B',
+  'Percentual: apto 4B',
+  'Porcentagem do anunciado: torre 3B',
+  'Do anunciado: apto 5B',
+  'Porcentagem sobre a contraproposta: torre 6B',
+  'Torre 6B \uFF05 da contraproposta',
+  'Torre 3B off',
+  'Torre 4B percent',
+  'Contraproposta: torre 6B',
+  'Contraoferta: apto 3B',
+  'Sobre o anuncio: bloco 4C',
+  'Taxa: apto 6B',
+  'Combinado: apto 6B',
+  'Pode ser no apto 3B',
+  'Bate no apto 3B',
+  // B4: romano, centena em espanhol, "par".
+  'Torre XIII, apto 6B',
+  'I Torre 3B VI',
+  'I · Apto 3B · VI',
+  'Torre 5B, XL.',
+  'Bloco trescientos, apto 6B',
+  'Apto 3B par',
+  'Apto 5B x par x VI',
+];
+
 /** Todas as frases de ataque que a `main` retém: o head tem de reter todas. */
-export const ATAQUES_DAS_REVISOES = [...ATAQUES_115_120_126, ...R1_142, ...R2_142, ...R3_142];
+export const ATAQUES_DAS_REVISOES = [...ATAQUES_115_120_126, ...R1_142, ...R2_142, ...R3_142, ...C2R1_142];
 
 /**
  * Citadas nos laudos e que a `main` nunca reteve (resíduo pré-existente, igual nas duas árvores): não

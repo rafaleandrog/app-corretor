@@ -531,8 +531,8 @@ test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
 // F1 (#133), opção (b) da revisão do #142 (decisão da coordenação, vetável pelo dono): só se libera
 // formato SEM grupo numérico livre, que não tem onde carregar um valor — o eixo de Brasília ("W3 Sul"), o
 // código de unidade com no máximo 2 algarismos e uma letra ("Apto 2B", "Torre B2") e a data sem ano e sem
-// hora ("28/10", que já era leitura padrão). Telefone, CEP, data com ano e data com hora continuam retidos
-// como na `main` (D2b): cada grupo de algarismos deles é um canal livre. Mesma escada de PUBLICOS_120
+// hora ("28/10", que já era leitura padrão). Telefone, CEP, data com ano e data com hora ficam retidos
+// (D2b; a data com ano passava na `main` e passou a reter): cada grupo de algarismos deles é um canal livre. Mesma escada de PUBLICOS_120
 // (contraproposta 1,46 mi; ofertas 1,3 mi e 1,4 mi; recuo 1,36 mi; alvo 1,45 mi) e, sem a oferta de
 // 1,3 mi, PERMITIDOS.
 
@@ -549,30 +549,39 @@ test('F1 (1): toda frase de ataque das revisões (#115, #120, #126 e rodadas 1 a
   for (const f of RESIDUO_DA_MAIN) assert.deepEqual(achadosDe(f), [], f);
 });
 
+// Imóvel de R$ 900 mil (alvo 870 mil, recuo 820 mil): "1,2 mi", "1,3 mi" e "1,12 mi" não revelam nada dele.
+const MOTOR_BAIXO: MandatoMotor = { ...MOTOR, preco_pedido_c: 90_000_000, alvo_c: 87_000_000, recuo_c: 82_000_000 };
+const PUBLICOS_BAIXO = [88_000_000, 90_000_000];
+
 test('F1 (2): "W3 Sul", "Apto 2B" e "Visita dia 28/10" (sem ano e sem hora) passam', () => {
+  // Na escada de 1,5 mi (recuo 1,36 mi), "W3", "2B", "B2", "C2" e "L2" se leem também 1,3 mi, 1,2 mi e 1,12 mi
+  // (milhão subentendido; "L" é 1), abaixo do recuo: retêm. Passam os que não revelam nada nessa escada.
   passa([
-    'W3 Sul',
-    'Moro na W3 Sul.',
-    'Fica na L2 Norte.',
-    'Moro na W3 Sul, por favor.',
-    'Apto 2B',
-    'Apto 2B, de frente.',
-    'O apartamento é o Apto 2B.',
-    'Torre B2.',
-    'Bloco C2, perto do metrô.',
+    'W4 Sul',
+    'Moro na W4 Sul.',
+    'Moro na W5 Sul, por favor.',
+    'Apto 4B',
+    'Apto 4B, de frente.',
+    'O apartamento é o Apto 4B.',
+    'Torre B5.',
+    'Bloco C6, perto do metrô.',
     'Apto 60B.',
     'Visita dia 28/10',
     'Visita dia 28/10?',
     'Podemos marcar a visita dia 28/10?',
   ]);
+  pega(['W3 Sul', 'Fica na L2 Norte.', 'Apto 2B', 'Torre B2.', 'Bloco C2, perto do metrô.']);
+  // Num imóvel em que 1,2 mi e 1,3 mi não revelam nada, os mesmos passam.
+  for (const m of ['W3 Sul', 'Moro na W3 Sul.', 'Fica na L2 Norte.', 'Moro na W3 Sul, por favor.', 'Apto 2B', 'Apto 2B, de frente.', 'O apartamento é o Apto 2B.', 'Torre B2.', 'Bloco C2, perto do metrô.'])
+    assert.deepEqual(vazamentos(m, MOTOR_BAIXO, PUBLICOS_BAIXO), [], m);
   // As normais de antes continuam passando.
   for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
 });
 
-test('F1 (3): telefone, CEP, data com ano e data com hora continuam retidos (decisão: opção (b))', () => {
+test('F1 (3): telefone, CEP, data com ano e data com hora ficam retidos (decisão: opção (b))', () => {
   // Decisão de desenho (coordenação, vetável pelo dono): cada grupo de algarismos deles pode carregar um
   // valor ("CEP 70.000-136", "Visita dia 28/10/1360 15h", "Me liga no 61 3333 1251"), e conferir grupo a
-  // grupo não convergiu em 3 rodadas. Retêm como na `main`; a mensagem vai ao corretor e nada vaza.
+  // grupo não convergiu em 3 rodadas. Retêm (telefone, CEP e data com hora já na `main`; a data com ano passou a reter); a mensagem vai ao corretor e nada vaza.
   pega([
     'Me liga no 61 99999 1234.',
     'Me liga no (61) 99999 1234.',
@@ -631,8 +640,64 @@ test('F1: o formato só passa sozinho, sem palavra de preço e sem algarismos qu
   // Os algarismos do código revelam valor em alguma leitura: recuo ou alvo (com o "1" de milhão
   // subentendido), abaixo do recuo em qualquer escala, diferença ou percentual com palavra de margem.
   pega(['Torre 36B.', 'Apto 45B.', 'Apto 1B.', 'Moro na W1 Sul.', 'Apto 7B.', 'Apto 9B.', 'Torre 10B.', 'Torre 13B.', 'Torre 35B.', 'Apto 14B.', 'Gordura: Torre 3B.', 'A folga é o apto 14B.']);
-  // O que não revela continua passando.
-  passa(['Torre 3B.', 'Apto 5B.', 'Torre 5B.', 'Torre 50B.', 'Moro na W4 Sul.']);
+  // O que não revela continua passando ("Torre 3B." = 1,3 mi, abaixo do recuo, passou a reter: ver o milhão
+  // subentendido abaixo).
+  passa(['Apto 5B.', 'Torre 5B.', 'Torre 50B.', 'Moro na W4 Sul.']);
+});
+
+// Rodada 1 do ciclo 2 do #142.
+test('F1 (B1): letra que o detector lê como algarismo ("l", "i", "o") entra na conferência do código', () => {
+  pega(['Torre l3', 'Bloco I3', 'Apto l2', 'Torre l6', 'Torre O3', 'Apto 3l', 'Torre 4l', 'L3 Norte', 'Fica na L3 Norte']);
+  pegaSemOferta(['Torre l3', 'Bloco I3', 'Apto l2', 'Torre l6', 'Torre O3', 'Apto 3l', 'Torre 4l', 'L3 Norte', 'Fica na L3 Norte']);
+});
+
+test('F1 (B2): vocabulário de percentual, de anunciado, de contraproposta e de aceite impede a liberação', () => {
+  const frases = [
+    'Percentual: apto 3B',
+    'Percentual: apto 4B',
+    'Porcentagem do anunciado: torre 3B',
+    'Do anunciado: apto 5B',
+    'Porcentagem sobre a contraproposta: torre 6B',
+    'Torre 6B \uFF05 da contraproposta',
+    'Torre 3B off',
+    'Torre 4B percent',
+    'Contraproposta: torre 6B',
+    'Contraoferta: apto 3B',
+    'Contra-proposta: torre 6B',
+    'Contraofertas: apto 6B',
+    'Sobre o anuncio: bloco 4C',
+    'Percentuais: apto 6B',
+    'Taxa: apto 6B',
+    'Taxas: apto 6B',
+    'Combinado: apto 6B',
+    'Combinamos o apto 6B',
+    'Pode ser no apto 3B',
+    'Podemos ser o apto 6B',
+    'Bate no apto 3B',
+    'Batemos no apto 6B',
+  ];
+  pega(frases);
+  pegaSemOferta(frases);
+});
+
+test('F1 (B3): o milhão subentendido lê os algarismos como decimal de K milhões, com os zeros da esquerda', () => {
+  const caso = (frases: string[], m: Partial<MandatoMotor>, perm: number[]) => {
+    for (const f of frases) assert.ok(vazamentos(f, { ...MOTOR, ...m }, perm).length > 0, `deveria pegar: ${f} em ${JSON.stringify(m)}`);
+  };
+  // Recuo 1,40 mi: "4" = 1,4 mi.
+  caso(['Torre 4B.', 'Apto 4B.', 'Torre B4.'], { recuo_c: 140_000_000, alvo_c: 147_000_000 }, [146_000_000, 150_000_000]);
+  // Recuo 1,05 mi: "05" = 1,05 mi (o zero da esquerda conta).
+  caso(['Torre 05B.'], { preco_pedido_c: 120_000_000, recuo_c: 105_000_000, alvo_c: 110_000_000 }, [120_000_000, 115_000_000]);
+  // Recuo 2,36 mi: "3" = 2,3 mi, abaixo dele.
+  caso(['Apto 3B.'], { preco_pedido_c: 250_000_000, recuo_c: 236_000_000, alvo_c: 245_000_000 }, [250_000_000, 246_000_000]);
+  // Na escada de 1,5 mi: "3" = 1,3 mi, abaixo do recuo.
+  pega(['Torre 3B.', 'Apto 2B', 'W3 Sul']);
+});
+
+test('F1 (B4): algarismo romano, centena em espanhol e "par" contam como outro número', () => {
+  const frases = ['Torre XIII, apto 6B', 'I Torre 3B VI', 'I · Apto 3B · VI', 'Torre 5B, XL.', 'Bloco trescientos, apto 6B', 'Bloco doscientas, apto 6B', 'Apto 3B par', 'Apto 6B, pares', 'Apto 6B, dupla', 'Apto 5B x par x VI'];
+  pega(frases);
+  pegaSemOferta(frases);
 });
 
 test('F1: os formatos liberados continuam lineares', () => {
