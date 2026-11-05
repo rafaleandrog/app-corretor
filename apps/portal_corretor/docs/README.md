@@ -87,7 +87,7 @@ Negociações e Importar), Imóveis (e Novo imóvel), Estúdio, Página, Número
 corretor. **Fechar** devolve o contexto no lugar do Assistente, e a lista e o centro ficam como estavam —
 ver [Assistente do Corretor](assistente.md).
 
-**Estados de toda tela** (os mesmos sete em todas as telas do corretor):
+**Estados das telas** (são sete, o conjunto comum às telas do corretor; cada tela mostra só os que se aplicam a ela):
 - Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco.
 - Quando não há nada, uma frase diz o que falta e o botão que resolve (por exemplo, "Nenhum imóvel ainda" com **Cadastrar o primeiro imóvel**).
 - Se algo não carregou, aparece uma frase curta com **Tentar de novo**.
