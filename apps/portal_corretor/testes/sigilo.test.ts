@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MOVIMENTO_FORA_DA_LISTA, desofuscar, exigePassagem, sanearResposta, validarMovimento, valoresCitados, vazamentos, vazamentosNoRegistro, type MandatoMotor, type PropostaResumo } from '../comum/negociador';
+import { ATAQUES_DAS_REVISOES, RESIDUO_DA_MAIN } from './ataques-sigilo';
 
 // Sigilo do Negociador (10.9.7, garantia 5), revisão do PR #115: recuo, alvo e BATNA não saem em
 // nenhum formato nem por pista derivada do preço pedido, em nenhum texto que chega ao cliente ou fica
@@ -527,161 +528,74 @@ test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
 });
 
 // ------------------------------------------------------------------------------------------------
-// F1 (#133): formatos comuns que retinham sem motivo (telefone com espaço, CEP, "W3 Sul", "Apto 2B",
-// "Torre B2", data com hora sem "às", número entre parênteses depois do preço) passam, mas só quando
-// não podem compor um valor em reais com o resto da mensagem, qualquer que seja o separador. Mesma
-// escada de PUBLICOS_120 (contraproposta 1,46 mi; ofertas 1,3 mi e 1,4 mi; recuo 1,36 mi; alvo 1,45 mi).
+// F1 (#133), opção (b) da revisão do #142 (decisão da coordenação, vetável pelo dono): só se libera
+// formato SEM grupo numérico livre, que não tem onde carregar um valor — o eixo de Brasília ("W3 Sul"), o
+// código de unidade com no máximo 2 algarismos e uma letra ("Apto 2B", "Torre B2") e a data sem ano e sem
+// hora ("28/10", que já era leitura padrão). Telefone, CEP, data com ano e data com hora continuam retidos
+// como na `main` (D2b): cada grupo de algarismos deles é um canal livre. Mesma escada de PUBLICOS_120
+// (contraproposta 1,46 mi; ofertas 1,3 mi e 1,4 mi; recuo 1,36 mi; alvo 1,45 mi) e, sem a oferta de
+// 1,3 mi, PERMITIDOS.
 
-/** (a) Frases comuns da #133 (e das revisões do #120 e do #126): passam. */
-const COMUNS_F1 = [
-  // Telefone com espaço, depois de palavra de contato.
-  'Me liga no 61 99999 1234.',
-  'Meu WhatsApp é (61) 9 9876-5432.',
-  'Meu WhatsApp é (61) 99876 5432.',
-  'Telefone fixo (61) 3333 4444.',
-  'Ligue 0800 345 6789.',
-  // CEP no padrão exato, depois de "CEP".
-  'O CEP é 70.000-000.',
-  'O CEP é 70070-120.',
-  'CEP 70.070-120, Brasília.',
-  // Endereços de Brasília.
-  'Moro na W3 Sul.',
-  'Fica na L2 Norte.',
-  'Apto 2B, de frente.',
-  'O apartamento é o Apto 2B.',
-  'Torre B2.',
-  'Bloco C2, perto do metrô.',
-  // Data e hora sem "às".
-  'Visita dia 28/10 15h?',
-  'Visita 28/10 15h.',
-  'Visita 28/10 15h30?',
-  'Vistoria 28/10/2026 9h, combinado?',
-  // Número entre parênteses depois do preço.
-  'Posso levar R$ 1.460.000 (2 vagas).',
-  'Posso levar R$ 1.460.000 (3 quartos e 2 vagas).',
-  // Com "por favor", que não é palavra de preço.
-  'Me liga no (61) 99999 1234, por favor.',
-];
+const pegaSemOferta = (frases: string[]) => {
+  for (const m of frases) assert.ok(vazamentos(m, MOTOR, PERMITIDOS).length > 0, `deveria pegar: ${m}`);
+};
 
-test('F1 (a): telefone, CEP, endereço de Brasília, data com hora e parênteses depois do preço passam', () => {
-  passa(COMUNS_F1);
+test('F1 (1): toda frase de ataque das revisões (#115, #120, #126 e rodadas 1 a 3 do #142) retém', () => {
+  // Contra a escada sem a oferta de 1,3 mi, todas. Com ela, todas menos a que só repete a oferta pública
+  // ("Ele desce até o CEP 01.300-000." = 1,3 mi), que a `main` também deixa passar nessa escada.
+  pegaSemOferta(ATAQUES_DAS_REVISOES);
+  pega(ATAQUES_DAS_REVISOES.filter((f) => f !== 'Ele desce até o CEP 01.300-000.'));
+  // Piora zero: o resíduo dos laudos que a `main` nunca reteve fica igual (não é efeito do F1).
+  for (const f of RESIDUO_DA_MAIN) assert.deepEqual(achadosDe(f), [], f);
+});
+
+test('F1 (2): "W3 Sul", "Apto 2B" e "Visita dia 28/10" (sem ano e sem hora) passam', () => {
+  passa([
+    'W3 Sul',
+    'Moro na W3 Sul.',
+    'Fica na L2 Norte.',
+    'Moro na W3 Sul, por favor.',
+    'Apto 2B',
+    'Apto 2B, de frente.',
+    'O apartamento é o Apto 2B.',
+    'Torre B2.',
+    'Bloco C2, perto do metrô.',
+    'Apto 60B.',
+    'Visita dia 28/10',
+    'Visita dia 28/10?',
+    'Podemos marcar a visita dia 28/10?',
+  ]);
   // As normais de antes continuam passando.
   for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
 });
 
-/**
- * (b) As frases de ataque das revisões dos PRs #115, #120 e #126 que a `main` retém: continuam retidas.
- * Ficam de fora as da rodada 3 do #120 que a `main` nunca reteve (risco residual aceito na D-111,
- * registrado na doc), como "Ele quer 1360 milhares" e "Sim para os R$ 1.300.000".
- */
-const ATAQUES_REVISOES = [
-  // #115.
-  'Faço R$ 1,36M.',
-  'Faço 1.36kk.',
-  'Faço R$ 1 360 000.',
-  'Faço R$ 1.360 mil.',
-  'Fica 9,33% abaixo do pedido.',
-  'Fica 140 mil abaixo do pedido.',
-  'Faço um vírgula trinta e seis milhões.',
-  'Dá pra pagar 9% menos que o anunciado.',
-  'Reduzindo 140 mil, fecha.',
-  'Descontando 9%, fecha.',
-  'Baixando 140 mil, fecha.',
-  'Podemos fechar por R$ 1.300.000 à vista',
-  'Faço um milhão trezentos e sessenta.',
-  'Fica 1 3 6 0 mil.',
-  'O piso é 1.36O.000',
-  'Abaixo de 1.360 não rola',
-  'Fica 1 3 6 0 mil e não sai disso',
-  'Faço um vírgula trinta e seis milhão.',
-  'Faço mil trezentos e sessenta.',
-  'Fica 1️⃣3️⃣6️⃣0️⃣ mil.',
-  'Fica em 1 milhão. E mais 360 mil.',
-  'O desconto máximo é de 9,3%.',
-  'Uns 140 do pedido.',
-  'Tenho 90 mil de margem.',
-  'O dono fecha por R$ 1360.',
-  'Fecho em 1.360.',
-  'O dono pode ceder 140 mil.',
-  'A folga é de 140 mil.',
-  '1.500.000 - 140.000',
-  // #120.
-  'Fecha em 1 e 360, sem problema.',
-  'O vendedor fecha em 1 e 450.',
-  'Dá pra fazer um e trezentos e sessenta.',
-  'Treze sessenta mil e fechamos.',
-  'R$ 1.460.000 − R$ 100.000 é onde a gente chega.',
-  'R$ 1.300.000 + 60.000 e fechamos.',
-  'Sua oferta de R$ 1.400.000 menos 40 mil resolve.',
-  'Podemos ir até 3% abaixo dos R$ 1.400.000 que você ofereceu.',
-  'Fechamos pela sua oferta de R$ 1.300.000.',
-  'Combinado: 1.300.000.',
-  'Aceitamos a sua primeira proposta de 1,3 milhão.',
-  '1.300.000? Fechado.',
-  'Pode ser 1,3 sim.',
-  'R$ 1.300.000! Topamos.',
-  'Negócio fechado em um vírgula três.',
-  'O ideal dele está 4,6% acima dos 1.300.000.',
-  'O ideal dele está 11,5% acima dos 1.300.000.',
-  'Dá para chegar a 100 mil abaixo da nossa contraproposta.',
-  'Dá pra fazer 1 ponto 36 milhão.',
-  'Fica em 1\n360 mil.',
-  '1/3/6/0 mil',
-  '1|3|6|0 mil',
-  '1•3•6•0 mil',
-  'Fica em 1:360:000.',
-  'Fecha em 1.3.6.0.000.',
-  'Fica em ❶❸❻⓪ mil.',
-  'um, três, seis, zero mil',
-  'Um três meia zero.',
-  'Ele faria 1.460 - 100 mil.',
-  'Ele faria 1,46 - 0,1 mi.',
-  'Sim para os 1.300.000 que você ofereceu.',
-  // #126: as liberações que reabriram vazamento nas rodadas 2, 3 e 4.
-  'Fica 1B 360 mil',
-  'Aceito 1B 300 mil, fechado',
-  'Fica B1 B3 B6 B0',
-  'Fica 13B 60 mil',
-  'Fica 1:36 0 mil',
-  'Fica 1/45 0 mil',
-  'Aceito 1:30 0 mil',
-  'Torre 1B e 300 mil, fechado',
-  'Apto 1B e 450 mil',
-  'Bloco B1, 360 mil',
-  'Apto 1B + 360 mil',
-  'Fica 1 13h 60 mil',
-  'W1 Sul 360 mil',
-  'fecho em 1 (360) mil',
-  'W1 Sul 360.000',
-  'Fica 1 3/60 mil',
-  'Bloco 1J 360 mil',
-  'Fica 1B e 360 mil',
-];
-
-test('F1 (b): as frases de ataque das revisões do #115, #120 e #126 continuam retidas', () => {
-  pega(ATAQUES_REVISOES);
+test('F1 (3): telefone, CEP, data com ano e data com hora continuam retidos (decisão: opção (b))', () => {
+  // Decisão de desenho (coordenação, vetável pelo dono): cada grupo de algarismos deles pode carregar um
+  // valor ("CEP 70.000-136", "Visita dia 28/10/1360 15h", "Me liga no 61 3333 1251"), e conferir grupo a
+  // grupo não convergiu em 3 rodadas. Retêm como na `main`; a mensagem vai ao corretor e nada vaza.
+  pega([
+    'Me liga no 61 99999 1234.',
+    'Me liga no (61) 99999 1234.',
+    'Meu WhatsApp é (61) 99876 5432.',
+    'Telefone fixo (61) 3333 4444.',
+    'Ligue 0800 345 6789.',
+    'O CEP é 70.000-000.',
+    'O CEP é 70070-120.',
+    'CEP 70.070-120, Brasília.',
+    'Vistoria 28/10/2026, combinado?',
+    'Visita dia 28/10/2026.',
+    'Visita dia 28/10 15h?',
+    'Visita 28/10 15h30?',
+    'Vistoria 28/10/2026 9h, combinado?',
+  ]);
+  // O parêntese depois do preço também não é liberado: o número dentro dele é um grupo livre
+  // ("R$ 1.460.000 (100 mil dias)").
+  pega(['Posso levar R$ 1.460.000 (2 vagas).', 'Posso levar R$ 1.460.000 (3 quartos e 2 vagas).']);
 });
 
-test('F1 (b): formato liberado seguido de valor retém, qualquer que seja o separador', () => {
-  const formatos = [
-    'Me liga no (61) 99999 1234',
-    'Me liga no 13 6000 0000',
-    'WhatsApp (61) 9 9876-5432',
-    'Ligue 0800 136 0000',
-    'CEP 70.000-000',
-    'CEP 01.360-000',
-    'Visita dia 28/10 15h',
-    'Visita dia 13/6 0h',
-    'W1 Sul',
-    'W3 Sul',
-    'L1 Norte',
-    'Torre B2',
-    'Torre 1B',
-    'Apto 13B',
-    'Bloco B1, 3º andar',
-    'Posso levar R$ 1.460.000 (2 vagas)',
-    'Fecho em 1 (2 vagas)',
-  ];
+test('F1: formato liberado seguido ou precedido de número retém, qualquer que seja o separador', () => {
+  // A data sem ano e sem hora ("28/10") é leitura padrão desde a D2b e fica como na `main`.
+  const formatos = ['W1 Sul', 'W3 Sul', 'L1 Norte', 'Torre B2', 'Torre 1B', 'Apto 2B', 'Apto 13B', 'Bloco B1, 3º andar'];
   const separadores = ['', ' ', ' e ', ', ', ' + ', '; ', ' (', ') ', '. ', '.\n', ' - ', '/', ':', ' mais ', '. E mais ', ' com ', '\n', ' = ', ' ou '];
   const valores = ['300 mil', '360 mil', '360.000', '360', '36 mil', '0 mil', 'mil', '1,36 mi', 'trezentos e sessenta mil', '60 mil', '3 6 0 mil', 'milhão'];
   const passaram: string[] = [];
@@ -691,159 +605,38 @@ test('F1 (b): formato liberado seguido de valor retém, qualquer que seja o sepa
         // Colado sem separador a um formato que termina em letra, vira outra palavra ("andarmil"), não número.
         if (!s && /\p{L}$/u.test(f)) continue;
         if (!achadosDe(f + s + v).length) passaram.push(f + s + v);
+        if (!achadosDe(`Fica 1${s}${f}`).length) passaram.push(`Fica 1${s}${f}`);
       }
   assert.deepEqual(passaram, []);
 });
 
-test('F1 (b): número curto antes do formato, na mesma frase, retém; o contexto que falta também', () => {
+test('F1: o formato só passa sozinho, sem palavra de preço e sem algarismos que revelem valor', () => {
+  // Outro número na mensagem, em qualquer forma ou língua.
   pega([
-    // Número curto antes, na mesma frase: compõe com o que vem no formato.
-    'Fecho em 1, torre 36B.',
-    'Fica 1 e apto 3B, ok?',
-    'Fica 13, me liga no 6000 0000.',
-    'Fica 1,3 e visita dia 6/10 0h.',
-    // Código de endereço com 3 algarismos ou mais, e sem palavra de endereço.
-    'Fecho em apto 360B.',
-    'Torre B360.',
-    'Fica 1B.',
-    // Telefone sem palavra de contato, ou com preço na frase.
-    'Fecho em 13 6000 0000.',
-    'Fecho em 1, me liga no 13 6000 0000.',
-    // Data com hora sem palavra de agenda, ou com preço na frase.
-    'Fecho em 13/6 0h.',
-    'Aceito 13/6 0h.',
-    'Visita dia 13/6 0h para fechar.',
-    'O valor fica 13/6 0h, visita dia 28/10.',
-    // CEP com preço na frase.
-    'Fecho no CEP 01.360-000.',
-    // Parêntese: só quantidade com unidade, e nada depois que vire valor.
-    'Posso levar R$ 1.460.000 (360) mil.',
-    'Posso levar R$ 1.460.000 (2 vagas) e mais 300 mil.',
-    // Formato liberado e, depois, outra frase com valor.
+    'Apto 2B, 3 quartos e 2 vagas.',
+    'O apartamento é o Apto 2B, na Torre B2.',
+    'Torre B2, 3º andar.',
+    'Apto 2B, um quarto e uma vaga.',
+    'Moro na W3 Sul 704.',
+    'Torre B2 704.',
     'Moro na W3 Sul. 360 mil.',
-    'Visita dia 28/10 15h. E mais 300 mil, fechado.',
+    'Tenho 4. Torre 3B.',
+    'Thirteen floors, apto 6B.',
+    'Trece pisos, apto 6B.',
   ]);
+  // Palavra de preço ou aceite em qualquer lugar da mensagem.
+  pega(['Quanto ele aceita? Torre B2.', 'Qual o seu valor? Apto 2B.', 'Fecho em apto 2B.']);
+  // Código com 3 algarismos ou mais, com duas letras, ou sem palavra de endereço.
+  pega(['Fecho em apto 360B.', 'Torre B360.', 'Torre BB2.', 'Fica 1B.']);
+  // Os algarismos do código revelam valor em alguma leitura: recuo ou alvo (com o "1" de milhão
+  // subentendido), abaixo do recuo em qualquer escala, diferença ou percentual com palavra de margem.
+  pega(['Torre 36B.', 'Apto 45B.', 'Apto 1B.', 'Moro na W1 Sul.', 'Apto 7B.', 'Apto 9B.', 'Torre 10B.', 'Torre 13B.', 'Torre 35B.', 'Apto 14B.', 'Gordura: Torre 3B.', 'A folga é o apto 14B.']);
+  // O que não revela continua passando.
+  passa(['Torre 3B.', 'Apto 5B.', 'Torre 5B.', 'Torre 50B.', 'Moro na W4 Sul.']);
 });
 
-test('F1: o que continua retido de propósito (nada vaza, vai ao corretor)', () => {
-  // Rodada 1 da revisão do #142: palavra de preço ou aceite em qualquer lugar da mensagem ("R$",
-  // "vendedor", "levo") não libera formato nenhum; o código de um algarismo que, em milhões, cai abaixo
-  // do recuo também não ("Bloco C1" = 1 milhão).
-  pega([
-    'Posso levar R$ 1.460.000 ao vendedor. Visita dia 28/10 15h? Me liga no (61) 99999 1234.',
-    'Sua oferta de R$ 1.300.000 foi recebida; levo R$ 1.460.000 ao vendedor. O apartamento é o Apto 2B, na Torre B2.',
-    'Bloco C1, perto do metrô.',
-  ]);
-  // Endereço com número à direita na mesma frase: "W1 Sul 360" é "1 e 360".
-  pega(['Moro na W3 Sul 704.', 'Torre B2 704.']);
-  // Formato comum seguido de um valor, mesmo em outra frase: a liberação não vale e a regra geral retém.
-  pega(['Visita dia 28/10 15h? Levo R$ 1.460.000 ao vendedor.']);
-});
-
-// ------------------------------------------------------------------------------------------------
-// Rodada 1 da revisão do PR #142: nenhuma liberação deixa passar valor que resolva para recuo, alvo ou
-// abaixo do recuo, qualquer que seja o separador (regra do dono na #133). Mesma escada de PUBLICOS_120
-// (o 1,3 mi é público nela; contra PERMITIDOS, não).
-const pegaSemOferta = (frases: string[]) => {
-  for (const m of frases) assert.ok(vazamentos(m, MOTOR, PERMITIDOS).length > 0, `deveria pegar: ${m}`);
-};
-
-test('#142 r1 achado 1: formato cujos próprios algarismos, lidos juntos, dão valor sigiloso retém', () => {
-  // Com ou sem palavra de preço em volta.
-  pega([
-    'Ele desce até o CEP 01.360-000.',
-    'O alvo dele é o CEP 01.450-000.',
-    'CEP 01.360-000.',
-    'O CEP é 01360-000.',
-    'CEP 13.600-000.',
-    'Me liga no 13 6000 0000.',
-    'Telefone 13 3600 0000.',
-    'Ligue 0800 136 0000',
-    'Ligue 0800 145 0000.',
-    'Visita dia 13/6 0h.',
-    'Visita dia 1/3 6h.',
-    'Visita dia 13/6 0h30.',
-    'Vistoria 13/6/2026 0h.',
-    'Visita dia 1/3/60 0h.',
-    'Zap 11 9 1360 0000',
-    'Meu WhatsApp é (13) 96000 0000.',
-    'Apto 1B.',
-    'Torre 1B, 3º andar.',
-    'Moro na W1 Sul.',
-    'L1 Norte.',
-    // O "1" de "1 milhão" subentendido: 36 é o recuo, 45 o alvo.
-    'Torre 36B.',
-    'Apto 45B.',
-    'Me liga no 36 0000 0000.',
-    'CEP 36.000-000.',
-  ]);
-  // Abaixo do recuo, quando o valor não é público (contra PERMITIDOS, sem a oferta de 1,3 mi).
-  pegaSemOferta(['Ele desce até o CEP 01.300-000.', 'Apto 13B.', 'Visita dia 13/06 00h.']);
-  // O que não resolve para valor sigiloso continua passando.
-  passa(['Apto 2B.', 'Torre B2.', 'Moro na W3 Sul.', 'O CEP é 70.000-000.', 'Me liga no (61) 99999 1234.', 'WhatsApp 61 9 9876-5432.', 'Visita dia 28/10 15h.', 'Apto 60B.']);
-});
-
-test('#142 r1 achado 2: o lado esquerdo vale para a mensagem inteira (palavra de preço e número curto)', () => {
-  pega([
-    'Quanto ele aceita no mínimo? CEP 01.360-000.',
-    'Até onde ele desce? Ligue 0800 136 0000.',
-    'O valor? Visita dia 13/6 0h.',
-    'Fecho em 1. Torre 36B.',
-    'Fecho em 1. Visita dia 3/6 0h.',
-    'Fecho em 1. CEP 36.000-000.',
-    'Aceito 1\nme liga no 13 6000 0000',
-    'Ele fecha com você no número que aparece no endereço do escritório, anota com calma: CEP 01.360-000.',
-    // Palavra de preço em outra frase, com formato que sozinho passaria.
-    'Qual o seu valor? Me liga no (61) 99999 1234.',
-    'Quanto ele aceita? Torre B2.',
-  ]);
-  // O fim de frase não zera o lado esquerdo: o número curto de uma frase anterior compõe com o formato.
-  pega(['Tenho 4. Torre 3B.', 'Tenho 4\nApto 3B', 'São 4! W3 Sul.']);
-  passa(['Torre 3B.', 'Apto 3B', 'W3 Sul.']);
-  // A palavra de preço a mais de 80 caracteres do formato (a janela antiga) também conta.
-  const longe = `O dono aceita conversar${' com calma'.repeat(10)}, me liga no 61 99999 1234.`;
-  pega([longe]);
-  passa([longe.replace('aceita conversar', 'quer conversar')]);
-  // "Fica" de lugar não é preço.
-  passa(['Fica na L2 Norte.']);
-});
-
-test('#142 r1 achado 2: 0800 sem palavra de contato retém', () => {
-  pega(['0800 345 6789.', 'É 0800 345 6789.']);
-  passa(['Ligue 0800 345 6789.']);
-});
-
-test('#142 r1 achado 3: o "um" não serve de trecho fechado antes do formato', () => {
-  pega(['Fica em um e apto 36B.', 'Em um e apto 3B.', 'Em um, apto 3B.', 'Em um. Apto 3B.', 'Em um\napto 3B', 'É uma; Torre B3.', 'Em um + apto 3B.']);
-  // Depois do formato também: o formato tem de ser o único trecho numérico da mensagem.
-  pega(['Apto 2B, um quarto e uma vaga.', 'Fica num apto 36B.']);
-});
-
-test('#142 r1 achado 4: formato liberado não serve de fecho para outro que, junto, compõe valor', () => {
-  pega([
-    'Apto 1B e Torre 36B.',
-    'W1 Sul, Apto 3B',
-    'Apto 9B e Torre 5B.',
-    'Torre 9B, apto 5B.',
-    // Trecho fechado vizinho também compõe: 1 vaga + 36, 14 + 5º.
-    'Uma suíte, 1 vaga, apto 36B.',
-    'Apto 14B, 5º andar.',
-  ]);
-  for (const a of ['Apto 1B', 'Torre 13B', 'Bloco B1', 'W1 Sul'])
-    for (const s of [', ', ' e ', ' ', '; ', '. '])
-      for (const b of ['Torre 36B', 'Apto 3B', 'Bloco 6B', 'apto 60A', 'L3 Norte']) pegaSemOferta([`${a}${s}${b}`]);
-  passa(['Apto 9B.', 'Torre 5B.']);
-  // Dois formatos, ou formato e quantidade, retêm sempre (rodada 2): sem vizinho numérico não há composição.
-  pega(['O apartamento é o Apto 2B, na Torre B2.', 'Apto 2B, 3 quartos e 2 vagas.', 'Torre B2, 3º andar.']);
-});
-
-test('#142 r1 achado 5: parêntese antes de quantidade só depois de valor completo', () => {
-  pega(['Fecho em 1 (360 m²).', 'Fica 1 (360 metros)', 'R$ 1 (360 vagas)', 'Fecho em 1 (2 vagas).', 'R$ 1.360 (360 dias).', 'Fica 1 milhão (360 metros).']);
-  passa(['R$ 1.460.000 (2 vagas)', 'Posso levar R$ 1.460.000 (3 quartos e 2 vagas).']);
-});
-
-test('#142 r1: os formatos liberados continuam lineares', () => {
-  const formas = ['Apto 2B, ', 'me liga no 61 99999 1234 ', 'visita dia 28/10 15h ', 'CEP 70.000-000 ', 'W3 Sul 2 vagas ', 'um apto 3B ', '1 ', 'treze ', 'quinto andar '];
+test('F1: os formatos liberados continuam lineares', () => {
+  const formas = ['Apto 2B, ', 'W3 Sul 2 vagas ', 'um apto 3B ', '1 ', 'treze ', 'quinto andar ', 'Torre B2 '];
   for (const f of formas) {
     const texto = f.repeat(Math.ceil(80_000 / f.length)).slice(0, 80_000);
     let melhor = Infinity;
@@ -854,71 +647,4 @@ test('#142 r1: os formatos liberados continuam lineares', () => {
     }
     assert.ok(melhor < 2000, `${JSON.stringify(f)} × 80 mil caracteres levou ${melhor.toFixed(0)} ms`);
   }
-});
-
-// ------------------------------------------------------------------------------------------------
-// Rodada 2 da revisão do PR #142: o formato só é liberado quando é o único trecho numérico da mensagem
-// e nenhuma leitura dos seus algarismos dá valor sigiloso (sem limite de algarismos).
-
-test('#142 r2 B1: abaixo do recuo com 5 algarismos significativos ou mais retém', () => {
-  pegaSemOferta([
-    'CEP 01.299-990',
-    'O CEP é 01.255-500.',
-    'CEP 01.250-500',
-    'CEP 01.200-001',
-    'CEP 01.000-500',
-    'CEP 00.900-001',
-    'Ligue 0800 125 5500',
-    'Ligue 0800 130 0500',
-    'Me liga no (61) 1255 5000',
-    'Zap (61) 9 1300 5000',
-    'Me liga no (61) 9 1000 0010',
-    'Visita dia 12/05/2000 0h',
-    'Vistoria 13/05/2000 0h',
-    'dia 9/1/2005 0h',
-  ]);
-  // Ler centavos não conta: o telefone de 8 ou 9 algarismos continua passando.
-  passa(['WhatsApp 61 9 9876-5432.', 'Me liga no (61) 99999 1234.', 'O CEP é 70.000-000.']);
-});
-
-test('#142 r2 B2: número ou ordinal por extenso em qualquer lugar da mensagem impede a liberação', () => {
-  pega([
-    'Apto 14B, quinto andar.',
-    'Treze andares, apto 6B.',
-    'Apto 4B, cinco vagas.',
-    'Apto 9B, quinto andar.',
-    'Moro na W4 Sul, quinto andar.',
-    'Treze vagas, visita dia 6/10 0h.',
-    'Treze vagas. Me liga no 61 6000 0000.',
-    'Apto 13B, sexta.',
-    'Torre 13B, num prédio novo.',
-  ]);
-});
-
-test('#142 r2 B3: com palavra de diferença ou margem, os algarismos do formato valem como diferença e percentual', () => {
-  pega([
-    'A folga é o apto 14B.',
-    'A margem é a Torre 9B.',
-    'A folga dele? Apto 5B.',
-    'Gordura: Torre 3B.',
-    'O chão: apto 14B.',
-    'Patamar: Torre 9B.',
-    'O último dele: apto 5B.',
-    'O máximo que ele abre mão: apto 14B.',
-    'Abatimento: Torre 3B.',
-    'Redução: Torre 9B.',
-    'Corte: apto 14B.',
-  ]);
-  // Sem essas palavras, o mesmo formato passa; "por favor" não é preço.
-  passa(['Apto 5B.', 'Moro na W3 Sul, por favor.']);
-});
-
-test('#142 r2 B4: trechos fechados no meio não abrem janela, qualquer que seja o número deles', () => {
-  pega([
-    '13 andares, 3 quartos, 2 vagas, 4 suítes, apto 6B.',
-    '14 andares, três quartos, duas vagas, quatro suítes, apto 5B.',
-    `13 andares${', 2 vagas'.repeat(50)}, apto 6B.`,
-  ]);
-  // Dois formatos comuns na mesma mensagem: nenhum é liberado.
-  pega(['Posso levar a documentação ao dono. Visita dia 28/10 15h? Me liga no (61) 99999 1234.']);
 });

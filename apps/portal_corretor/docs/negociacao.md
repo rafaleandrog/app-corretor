@@ -160,6 +160,10 @@ O **mandato** é o combinado do corretor com o proprietário para aquela negocia
 - Cada alteração cria uma **versão nova** do mandato; as anteriores ficam no histórico. A vigente é
   a última.
 - Negociação encerrada não aceita mandato novo.
+- O documento da autorização por anexo é conferido no momento de gravar, com a negociação e o
+  documento reservados até o fim da gravação. Se o documento foi apagado nesse meio-tempo, o mandato
+  é recusado com `DADOS_INVALIDOS` (anexe de novo); se o mandato gravou primeiro, quem tenta apagar o
+  documento recebe `DOCUMENTO_EM_USO`.
 
 **Passo máximo, como se calcula:** é a fração do intervalo que **ainda resta** entre a posição atual
 do vendedor e o ponto de recuo. Na primeira rodada, a posição atual é o preço pedido; depois, a
@@ -270,36 +274,31 @@ conversa com a IA):
    retém, olhando as palavras em volta do valor e não a frase ("1.300.000? Fechado.", "pode ser 1,3
    sim", "negócio fechado em um vírgula três"); só relatar a oferta do comprador passa ("recebi sua
    proposta de R$ 1.300.000", "sua oferta de R$ 1.300.000 fica registrada"). "2 mil" de condomínio
-   ou de taxa não é lido como preço. **Formatos comuns que passam (desde a 0.1.29):** telefone com
-   espaço depois de uma palavra de contato ("me liga no (61) 99999 1234", "WhatsApp 61 9 9876-5432");
-   CEP no padrão exato depois de "CEP" ("CEP 70.000-000"); endereço de Brasília ("W3 Sul", "L2 Norte")
-   e código de unidade de até dois algarismos logo depois de "apto", "apartamento", "ap", "torre",
-   "bloco", "bl", "unidade", "casa", "sala", "loja", "conjunto" ou "cj" ("Apto 2B", "Torre B2"); data
-   com hora sem "às" depois de uma palavra de agenda ("visita dia 28/10 15h"); e número entre
-   parênteses depois de um preço escrito por inteiro, quando é uma quantidade ("R$ 1.460.000 (2
-   vagas)"). Telefone, CEP, endereço e data só passam quando **não podem revelar nem formar um valor
-   sigiloso**, e para isso valem três condições. (1) O formato é o **único número da mensagem**:
-   nenhum outro algarismo, número ou ordinal por extenso ("treze", "quinto", "sexta"), "um", "uma" ou
-   "num", nem outro desses formatos, em lugar nenhum dela. Assim não há com o que ele se juntar. (2)
+   ou de taxa não é lido como preço. **Formatos comuns que passam (desde a 0.1.34):** só os que não têm
+   grupo de algarismos livre, onde um valor caberia: endereço de Brasília ("W3 Sul", "L2 Norte"); código
+   de unidade com no máximo dois algarismos e uma letra, logo depois de "apto", "apartamento", "ap",
+   "torre", "bloco", "bl", "unidade", "casa", "sala", "loja", "conjunto" ou "cj" ("Apto 2B", "Torre
+   B2"); e data sem ano e sem hora ("visita dia 28/10"), que já passava. Endereço e código passam
+   quando valem três condições. (1) O formato é o **único número da mensagem**: nenhum outro
+   algarismo, número ou ordinal por extenso, em português, inglês ou espanhol ("treze", "quinto",
+   "sexta", "thirteen", "trece"), "um", "uma" ou "num", nem outro formato, em lugar nenhum dela. (2)
    Os algarismos dele não dão o recuo, o alvo ou valor da alternativa do vendedor em nenhuma escala
-   (nem com o "1" de "1 milhão" subentendido), nem um valor abaixo do recuo, em reais inteiros, que não
-   seja uma proposta já trocada, qualquer que seja o número de algarismos ("CEP 01.299-990" é 1.299.990; "visita dia 9/10 15h" pode ser lido
-   910.150). Com palavra de diferença, margem ou limite na mensagem ("folga", "margem", "gordura",
-   "chão", "último", "máximo", "abre mão", "até", "por", "mais", "%"…; "por favor" não conta), eles
-   também não podem dar o recuo ou o alvo como diferença do pedido ("a folga é o apto 14B" = 140 mil)
-   ou como percentual dele ("gordura: Torre 3B" = 3%). (3) A mensagem não fala de preço, oferta ou
-   aceite ("valor", "R$", "fecho", "aceita", "desce", "vendedor"…; "fica na" de lugar não conta). Por
-   isso retêm: formatos cujos algarismos dão o recuo, o alvo ou valor abaixo do recuo ("CEP
-   01.360-000", "me liga no 13 6000 0000", "ligue 0800 136 0000", "ligue 0800 123 4567", "visita dia
-   13/6 0h", "visita dia 12/11 10h", "Apto 1B", "W1 Sul", "Bloco C1", "Torre 36B" quando o recuo é
-   1.360.000); qualquer formato com outro número na mensagem, antes ou depois, em qualquer frase
-   ("Apto 2B, 3 quartos e 2 vagas", "Torre B2, 3º andar", "Apto 14B, quinto andar", "treze andares,
-   apto 6B", "Torre 1B e 300 mil", "fecho em 1. Torre 36B", "fica em um e apto 36B", "visita dia 28/10
-   15h? Me liga no (61) 99999 1234"); qualquer formato numa mensagem que fala de preço ("Até onde ele
-   desce? Ligue 0800 ...", "Posso levar R$ 1.460.000 ao vendedor. Visita dia 28/10 15h?"); parêntese
-   depois de número que não é preço por inteiro ("fecho em 1 (360 m²)", "R$ 1 (360 vagas)"); telefone
-   sem palavra de contato ("0800 345 6789"); e "nº 123/2026", "12/2027". Uma leitura em centavos não
-   conta: "WhatsApp 61 9 9876-5432" passa, embora "9876 5432" pudesse ser lido R$ 987.654,32. Juros
+   (nem com o "1" de "1 milhão" subentendido), nem valor abaixo do recuo ("Apto 9B" pode ser 900 mil;
+   "Torre 35B", 1,35 mi); e, com palavra de diferença, margem ou limite na mensagem ("folga",
+   "margem", "gordura", "chão", "até", "por", "%"…; "por favor" não conta), também não dão o recuo ou
+   o alvo como diferença do pedido ("a folga é o apto 14B" = 140 mil) ou como percentual dele
+   ("gordura: Torre 3B" = 3%). (3) A mensagem não fala de preço, oferta ou aceite ("valor", "R$",
+   "fecho", "aceita", "desce", "vendedor"…; "fica na" de lugar não conta). **Continuam retidos, por
+   decisão:** telefone ("me liga no (61) 99999 1234", "ligue 0800 345 6789"), CEP ("CEP
+   70.000-000"), data com ano ("vistoria 28/10/2026") e data com hora ("visita dia 28/10 15h"), e o
+   número entre parênteses depois do preço ("R$ 1.460.000 (2 vagas)"). Cada grupo de algarismos
+   deles é um lugar onde um valor cabe ("CEP 70.000-136", "visita dia 28/10/1360 15h", "me liga no 61
+   3333 1251"), e conferir grupo a grupo não fechou o vazamento. Também retêm: código com outro
+   número na mensagem ("Apto 2B, 3 quartos e 2 vagas", "Torre B2, 3º andar", "treze andares, apto
+   6B", "fecho em 1. Torre 36B", "W3 Sul 704"); código com três algarismos ou duas letras ("apto
+   360B", "Torre BB2"); código cujos algarismos dão valor sigiloso ("Apto 1B", "W1 Sul", "Torre 36B",
+   "Apto 9B" quando o recuo é 1.360.000); e qualquer formato numa mensagem que fala de preço ("Quanto
+   ele aceita? Torre B2"). Juros
    e rendimento podem reter a mensagem ("juros de 9,33% ao ano" é lido como percentual sobre o
    pedido). A conferência prefere reter a mais: uma mensagem retida vai para você decidir e nada sai
    ao cliente. Uma
