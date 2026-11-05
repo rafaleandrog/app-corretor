@@ -23,7 +23,7 @@ const ORIGEM = 'https://app.exemplo';
 const ENTRADA = `
 import { render } from 'lit';
 window.render = render;
-import { renderEstudio, cartaoPeca, _recarregarEstudio } from './frontend/telas/estudio';
+import { renderEstudio, cartaoPeca, aoAbrirEstudio, _recarregarEstudio } from './frontend/telas/estudio';
 window.cartaoPeca = cartaoPeca;
 window.recarregar = _recarregarEstudio;
 const agora = Date.now();
@@ -73,11 +73,24 @@ window.urbiVerso = {
     if (caminho === '/estudio/pedido' && window.SEGURAR_CRIAR) {
       return new Promise((resolve) => (window.criacoes ??= []).push(() => resolve({ pecas: [{ ...window.PECAS[0], id: 900 }], ia: true })));
     }
-    // SEGURAR_APROVAR: o "Aprovar" da conta A fica em voo até o teste o fazer falhar.
+    // SEGURAR_APROVAR: o "Aprovar" da conta A fica em voo até o teste o fazer falhar; SEGURAR_APROVAR_OK, dar certo.
     if (/^\\/estudio\\/pecas\\/\\d+\\/aprovar$/.test(caminho) && window.SEGURAR_APROVAR) {
       return new Promise((_, rejeitar) => (window.aprovacoes ??= []).push(() => rejeitar(new Error('O servidor recusou'))));
     }
-    if (caminho === '/estudio/pecas') return { dados: window.PECAS, total: window.PECAS.length, ia: window.IA ?? true };
+    if (/^\\/estudio\\/pecas\\/\\d+\\/aprovar$/.test(caminho) && window.SEGURAR_APROVAR_OK) {
+      return new Promise((resolver) => (window.aprovacoes ??= []).push(() => resolver({ ok: true })));
+    }
+    // Remover: a peça sai das próximas cargas.
+    const removida = /^\\/estudio\\/pecas\\/(\\d+)\\/remover$/.exec(caminho);
+    if (removida) {
+      (window.REMOVIDAS ??= []).push(Number(removida[1]));
+      return { ok: true };
+    }
+    if (caminho === '/estudio/pecas') {
+      // PECAS_POR_CONTA: cada conta com as suas peças; sem ele, as mesmas em todas.
+      const dados = (window.PECAS_POR_CONTA?.[conta] ?? window.PECAS).filter((p) => !(window.REMOVIDAS ?? []).includes(p.id));
+      return { dados, total: dados.length, ia: window.IA ?? true };
+    }
     if (caminho === '/estudio/marca') return { creci: window.CRECI ?? null, logo_url: '/logo.png', foto_url: null, referencias: [{ id: 7, url: '/ref/7.jpg' }] };
     if (caminho === '/conexoes') return { instagram: window.IG === undefined ? { usuario: 'rafael.imoveis', ultimo_erro: null } : window.IG, disponivel: true };
     return {};
@@ -86,6 +99,13 @@ window.urbiVerso = {
 const raiz = document.getElementById('raiz');
 const desenhar = () => render(renderEstudio(desenhar), raiz);
 window.desenhar = desenhar;
+// Como o app (frontend/index.ts): entrar na tela e trocar de conta avisam o Estúdio (aoAbrir) e redesenham.
+window.trocar = (conta) => {
+  localStorage.setItem('portal_corretor:conta', String(conta));
+  aoAbrirEstudio();
+  desenhar();
+};
+aoAbrirEstudio();
 desenhar();
 `;
 
@@ -168,10 +188,11 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
     assert.deepEqual(r.pedidos, [20, 11], 'Seus pedidos: o mais recente primeiro, um por envio');
     assert.deepEqual(r.ativo, [11], 'o pedido aberto fica marcado');
     assert.match(r.esquerda, /Todas · 4/);
-    // Centro: o feed (expandir) e o compositor; sem faixa com IA liberada e Instagram conectado.
+    // Centro: o feed (expandir) e o compositor; sem faixa com IA liberada e Instagram conectado (e então
+    // sem o hospedeiro das faixas, que deixaria um vão acima do feed).
     // Contrato do feed (ui-componentes-conteudo.md § Onde pôr o par feed + redator): o `urbi-feed[expandir]`
     // é filho DIRETO do `urbi-3-colunas` no slot do centro; o redator vai num `urbi-hospedeiro` do mesmo slot.
-    assert.deepEqual(r.centroFilhos, ['urbi-hospedeiro', 'urbi-feed', 'urbi-hospedeiro']);
+    assert.deepEqual(r.centroFilhos, ['urbi-feed', 'urbi-hospedeiro']);
     assert.equal(r.feedPai, 'urbi-3-colunas');
     assert.equal(r.feedSlot, 'centro');
     assert.equal(r.redatorPai, 'urbi-hospedeiro');
@@ -428,8 +449,12 @@ test('Estúdio no Chromium: ação da conta A que termina depois da troca para B
         alertas: w.alertas ?? [],
         instrucoes: w.chamadas.filter((c: string) => c.includes('/instrucao')).length,
         trabalhando: (window as any).profundo(document.querySelector('urbi-3-colunas')).includes('Escrevendo os textos'),
+        pedidos: ((document.querySelector('urbi-lista') as any)?.itens ?? []).map((x: any) => x.id),
+        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
       };
     });
+    assert.ok(!depois.pedidos.includes(900) && !depois.feed.includes(900) && !depois.feed.includes(-900), 'a peça criada em A (900) não aparece em B');
+    assert.doesNotMatch(depois.url, /900/);
     assert.equal(depois.url, antes.url, 'a URL de B não ganhou o ?pedido= de A');
     assert.equal(depois.cargas, antes.cargas, 'nenhuma recarga disparada por A em B');
     assert.deepEqual(depois.avisos, [], 'nenhum aviso de A aparece em B');
@@ -504,6 +529,219 @@ test('Estúdio no Chromium: conta trocada no meio do envio pelo redator e de uma
     assert.deepEqual(depois.alertas, [], 'nem o erro da aprovação de A');
     assert.equal(depois.instrucoes, 0, 'nenhuma descrição das peças de A é buscada em B');
     assert.doesNotMatch(depois.tela, /Escrevendo os textos|Pedido da conta A/);
+  } finally {
+    await navegador.close();
+  }
+});
+
+// Peças da conta A (100) e da conta B (200): os ids nunca se repetem entre contas. Roda depois da
+// primeira carga (as peças de teste nascem no script da página).
+const POR_CONTA = () => {
+  const w = window as any;
+  w.PECAS_POR_CONTA = { 100: w.PECAS, 200: [{ ...w.PECAS[0], id: 601, pedido: 'DA CONTA B', titulo: 'Peça da conta B' }] };
+};
+
+test('Estúdio no Chromium: depois da troca de conta, nada escolhido na conta anterior aparece (pedido aberto, ?item=)', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  const ler = () =>
+    pagina.evaluate(() => {
+      const w = window as any;
+      const centros = [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')];
+      const lista = document.querySelector('urbi-lista') as any;
+      return {
+        url: location.search,
+        centro: centros.map((e) => w.profundo(e)).join(' '),
+        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+        pedidos: (lista?.itens ?? []).map((x: any) => x.id),
+        ativo: (lista?.itens ?? []).filter((x: any) => lista.itemAtivo(x)).map((x: any) => x.id),
+        painel: document.querySelector('urbi-3-colunas')?.getAttribute('painel-ativo'),
+      };
+    });
+  try {
+    // (a) Conta A com o pedido 11 aberto e a etapa "Falta a arte" escolhida.
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=11&etapa=arte`);
+    await pagina.waitForTimeout(120);
+    await pagina.evaluate(POR_CONTA);
+    let r: any = await ler();
+    assert.deepEqual(r.feed, [-11, 11, 12, 13], 'em A o pedido 11 está aberto');
+    await pagina.evaluate(() => (window as any).trocar(200));
+    await pagina.waitForTimeout(150);
+    r = await ler();
+    assert.deepEqual(r.pedidos, [601], 'B mostra só as suas peças');
+    assert.doesNotMatch(r.centro, /Não encontrado|não está na sua conta/, 'B não mostra "Não encontrado" pelo pedido de A');
+    assert.doesNotMatch(r.url, /pedido=|item=/, 'a URL de B não guarda o pedido de A');
+    assert.match(r.url, /etapa=arte/, 'a etapa é só o filtro das listas e fica');
+    assert.deepEqual(r.feed, [], 'nenhum pedido aberto em B');
+    assert.deepEqual(r.ativo, []);
+    assert.equal(r.painel, 'esquerda', 'no celular B abre na lista, não num aviso');
+
+    // (c) De volta a A: abre limpa (a escolha de antes não volta).
+    await pagina.evaluate(() => (window as any).trocar(100));
+    await pagina.waitForTimeout(150);
+    r = await ler();
+    assert.deepEqual(r.pedidos, [11], 'a lista de A, ainda na etapa Falta a arte');
+    assert.doesNotMatch(r.url, /pedido=|item=/);
+    assert.deepEqual(r.feed, []);
+    assert.match(r.centro, /Escolha um pedido na lista/);
+
+    // (b) Conta A com ?item=20 (pela Esta semana) → troca para B: idem.
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', '/portal_corretor/estudio?item=20');
+      (window as any).desenhar();
+    });
+    await pagina.waitForTimeout(80);
+    r = await ler();
+    assert.deepEqual(r.feed, [-20, 20], 'em A a peça 20 está aberta');
+    await pagina.evaluate(() => (window as any).trocar(200));
+    await pagina.waitForTimeout(150);
+    r = await ler();
+    assert.doesNotMatch(r.centro, /Não encontrado|não está na sua conta/);
+    assert.doesNotMatch(r.url, /pedido=|item=/);
+    assert.deepEqual(r.feed, []);
+    assert.equal(r.painel, 'esquerda');
+
+    // Endereço aberto já na conta nova (um link de B) fica: só a escolha de A sai.
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', '/portal_corretor/estudio?pedido=601');
+      (window as any).desenhar();
+    });
+    await pagina.waitForTimeout(80);
+    assert.deepEqual((await ler()).feed, [-601, 601]);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: "Novo post" pedido em A com a carga em voo não abre o formulário em B; numa entrada normal abre', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  let { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.addInitScript(() => ((window as any).SEGURAR = true));
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?criar=post`);
+    await pagina.waitForTimeout(120);
+    assert.doesNotMatch(await pagina.evaluate(() => location.search), /criar=/, 'o pedido do menu Criar sai da URL');
+    await pagina.evaluate(() => (window as any).trocar(200));
+    await pagina.waitForTimeout(60);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.pendentes[0].liberar(w.PECAS);
+      w.pendentes[1].liberar([{ ...w.PECAS[0], id: 601 }]);
+    });
+    await pagina.waitForTimeout(200);
+    assert.deepEqual(await pagina.evaluate(() => ((window as any).formularios ?? []).map((f: any) => f.titulo)), [], 'B não abre o "Novo pedido" de A');
+  } finally {
+    await navegador.close();
+  }
+  ({ navegador, pagina } = await montar(pw));
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?criar=post`);
+    await pagina.waitForTimeout(200);
+    assert.deepEqual(await pagina.evaluate(() => ((window as any).formularios ?? []).map((f: any) => f.titulo)), ['Novo pedido'], 'sem troca, o Novo post abre');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: aprovar em A que dá certo depois da troca para B não mostra sucesso, não recarrega e não deixa nada de A', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=11`);
+    await pagina.waitForTimeout(120);
+    await pagina.evaluate(POR_CONTA);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.SEGURAR_APROVAR_OK = true;
+      const div = document.createElement('div');
+      w.render(w.cartaoPeca(w.PECAS[1]), div); // peça 12: o principal é "Aprovar"
+      w.principais(div)[0].click();
+    });
+    await pagina.waitForTimeout(120);
+    assert.equal(await pagina.evaluate(() => (window as any).aprovacoes?.length), 1, 'a aprovação de A está em voo');
+    await pagina.evaluate(() => (window as any).trocar(200));
+    await pagina.waitForTimeout(150);
+    const antes: any = await pagina.evaluate(() => ({ url: location.search, cargas: (window as any).chamadas.filter((c: string) => c === 'GET /estudio/pecas').length }));
+    await pagina.evaluate(() => (window as any).aprovacoes[0]());
+    await pagina.waitForTimeout(250);
+    const depois: any = await pagina.evaluate(() => {
+      const w = window as any;
+      return {
+        url: location.search,
+        cargas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length,
+        avisos: w.avisos ?? [],
+        alertas: w.alertas ?? [],
+        pedidos: ((document.querySelector('urbi-lista') as any)?.itens ?? []).map((x: any) => x.id),
+        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+        tela: w.profundo(document.querySelector('urbi-3-colunas')),
+      };
+    });
+    assert.deepEqual(depois.avisos, [], 'nenhum "Peça aprovada." de A em B');
+    assert.deepEqual(depois.alertas, []);
+    assert.equal(depois.cargas, antes.cargas, 'nenhuma recarga disparada por A em B');
+    assert.equal(depois.url, antes.url);
+    assert.doesNotMatch(depois.url, /pedido=|item=/, 'o pedido aberto em A não fica na URL de B');
+    assert.deepEqual(depois.pedidos, [601], 'só as peças de B');
+    assert.deepEqual(depois.feed, [], 'nenhum pedido de A aberto em B');
+    assert.doesNotMatch(depois.tela, /Casa no Lago Sul|Não encontrado/);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: remover uma peça nunca leva a "Não encontrado"', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  const removerPeca = (id: number) =>
+    pagina.evaluate((id: number) => {
+      const w = window as any;
+      const div = document.createElement('div');
+      w.render(w.cartaoPeca(w.PECAS.find((p: any) => p.id === id)), div);
+      const item = [...div.querySelectorAll('urbi-dropdown-item')].find((e) => e.textContent!.trim() === 'Remover')!;
+      item.dispatchEvent(new CustomEvent('urbi:dropdown-select'));
+    }, id);
+  const ler = () =>
+    pagina.evaluate(() => {
+      const w = window as any;
+      return {
+        url: location.search,
+        centro: [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')].map((e) => w.profundo(e)).join(' '),
+        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+        avisos: w.avisos ?? [],
+      };
+    });
+  try {
+    // Pedido de 3 peças (11, 12, 13) aberto pelo id da primeira; remove a primeira.
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=11`);
+    await pagina.waitForTimeout(120);
+    await removerPeca(11);
+    await pagina.waitForTimeout(200);
+    let r: any = await ler();
+    assert.deepEqual(r.feed, [-12, 12, 13], 'o centro segue no pedido, com as 2 peças que sobraram');
+    assert.equal(r.url, '?pedido=12');
+    assert.doesNotMatch(r.centro, /Não encontrado|não está na sua conta/);
+    assert.deepEqual(r.avisos, ['Peça removida.']);
+
+    // Pedido de uma peça só, aberto pelo ?item=; remove a única.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.PECAS.push({ ...w.PECAS[0], id: 30, pedido: 'Visita aberta', objetivo: 'visita_aberta', formato: 'story', criado_em: new Date(Date.now() - 5 * 86400e3).toISOString() });
+      history.replaceState(null, '', '/portal_corretor/estudio?item=30');
+      w.recarregar();
+    });
+    await pagina.waitForTimeout(150);
+    assert.deepEqual((await ler()).feed, [-30, 30]);
+    await removerPeca(30);
+    await pagina.waitForTimeout(200);
+    r = await ler();
+    assert.doesNotMatch(r.centro, /Não encontrado|não está na sua conta/, 'sem "Não encontrado" depois de remover a única');
+    assert.doesNotMatch(r.url, /pedido=|item=/, 'volta a nenhum pedido escolhido');
+    assert.deepEqual(r.feed, []);
+    assert.match(r.centro, /Escolha um pedido na lista/);
   } finally {
     await navegador.close();
   }

@@ -19,7 +19,7 @@ O Estúdio abre em três colunas (no celular, três abas: **Pedidos**, **Pedido*
 |---|---|
 | **Esquerda** | O título **Estúdio** com o estado do Instagram ("@sua.conta conectado", com o ícone do Instagram, ou "Instagram não conectado"); o **Criar rápido** com quatro botões; **Seus pedidos**, em lista, com o pedido aberto marcado, e acima dela as etapas com a quantidade de peças |
 | **Centro** | O pedido aberto, como uma conversa: o seu texto e, logo abaixo, uma mensagem do Estúdio por peça (formato, título, legenda e hashtags, a arte quando já enviada e o cartão da peça, com o próximo passo e os botões). Embaixo, a **caixa do pedido** para pedir mais |
-| **Direita** | **Esta semana** (as peças agendadas para os próximos 7 dias e as publicadas nos últimos 7, cada uma com **Abrir**); a **Biblioteca** (o seu logo, a sua foto e as suas referências, para abrir e baixar, e o atalho **Sua marca**); e, só quando falta o CRECI, o aviso discreto de sempre |
+| **Direita** | **Esta semana** (em **Agendadas**, as peças com hora marcada de ontem até daqui a 7 dias, inclusive a que está sendo publicada agora, da mais próxima para a mais distante; em **Publicadas**, as publicadas nos últimos 7 dias, a mais recente primeiro; cada uma com **Abrir**); a **Biblioteca** (o seu logo, a sua foto e as suas referências, para abrir e baixar, e o atalho **Sua marca**); e, só quando falta o CRECI, o aviso discreto de sempre |
 
 **Pedido** é o que você pediu de uma vez: um envio da caixa, um Criar rápido ou um pacote de
 lançamento. Cada um vira uma peça por formato, e a lista junta as peças do mesmo envio. O endereço
@@ -30,6 +30,12 @@ Pedido que não existe ou não é da sua conta mostra "Não encontrado".
 enviar a arte, publicar, aprovar, buscar a descrição) é descartado quando termina: nada dele aparece
 na conta nova, nenhum aviso de sucesso é mostrado e o pedido escrito na caixa não conta como enviado.
 O que o servidor já tinha feito fica na conta anterior, e você vê ao voltar para ela.
+
+**Trocou de conta com um pedido aberto?** A conta nova abre como se você tivesse acabado de entrar no
+Estúdio: nenhum pedido ou peça escolhido na conta anterior fica aberto, e um "Novo post" pedido pelo
+menu Criar que ainda não tinha aberto não abre na conta nova. A etapa escolhida acima de **Seus
+pedidos** continua (é só o filtro da lista). Ao voltar para a conta anterior, ela também abre sem
+pedido escolhido.
 
 **Quando algo não está disponível**, uma faixa aparece no topo do centro e o resto continua:
 - **Instagram não conectado** (ou desconectado): publicar e agendar pelo app voltam depois de
@@ -171,7 +177,7 @@ No **Mais**, conforme a situação:
 | **Voltar a rascunho** | Tira a aprovação de uma peça aprovada (ou com erro depois de aprovada) |
 | **Publiquei por fora** | Registra que você publicou pelo Instagram, com o link do post se quiser |
 | **Copiar legenda** | Copia a legenda com as hashtags |
-| **Remover** | Tira a peça do Estúdio |
+| **Remover** | Tira a peça do Estúdio. O pedido continua aberto com as peças que sobraram; se era a única, o Estúdio fica sem pedido aberto |
 
 Peça agendada, publicando ou publicada não muda: Textos, descrição, arte e Remover não aparecem.
 

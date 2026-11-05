@@ -107,14 +107,21 @@ const estado = {
   /** Peças com a descrição à vista, e a descrição já buscada de cada uma. */
   abertas: new Set<number>(),
   instrucoes: {} as Record<number, Instrucao>,
-  /** "Novo post" do menu Criar, pendente até a primeira carga. */
-  criarPost: false,
+  /** "Novo post" do menu Criar, pendente até a primeira carga, com a conta em que foi pedido. */
+  criarPost: null as { conta: number | null } | null,
 };
 
 let redesenhar: () => void = () => {};
 
 /** Carga vigente: a resposta de uma carga que não é mais a última (outra chamada da mesma conta) é descartada. */
 let geracao = 0;
+
+/**
+ * A escolha da URL (`?pedido=`, `?item=`) do último desenho e a conta em que foi feita. Na troca de
+ * conta, o que ainda está na URL igual a ela é da conta anterior e sai (os ids são do banco, nunca
+ * valem nas duas contas); um endereço novo, aberto já na outra conta, fica.
+ */
+let escolhaVista: { conta: number | null; pedido: string | null; item: string | null } | null = null;
 
 // ---------- Estado entre contas: o ponto único ----------
 
@@ -170,7 +177,7 @@ const soltas = (acoes: Acao[]) => acoes.map(solta);
 /** O app avisa que o corretor entrou no Estúdio (ou trocou de conta): os dados são relidos. */
 export function aoAbrirEstudio() {
   estado.precisaCarregar = true;
-  if (pedidoDeCriar('post')) estado.criarPost = true;
+  if (pedidoDeCriar('post')) estado.criarPost = { conta: contaAtiva() };
 }
 
 async function carregar() {
@@ -186,6 +193,16 @@ async function carregar() {
     estado.trabalhando = null;
     estado.trocando = null;
     rolada = null;
+    // O que foi escolhido ou pedido na conta anterior: o pedido aberto, a peça do `?item=` e o "Novo
+    // post" ainda pendente. A conta nova abre como numa entrada no Estúdio. `?etapa=` é só o filtro
+    // das listas (o mesmo em qualquer conta) e fica.
+    if (estado.criarPost && estado.criarPost.conta !== conta) estado.criarPost = null;
+    if (escolhaVista && escolhaVista.conta !== conta) {
+      const q = escolha();
+      const tirar = (['pedido', 'item'] as const).filter((k) => q[k] !== null && q[k] === escolhaVista![k]);
+      if (tirar.length) filtrosNaUrl(filtrosDaUrl(), {}, [...tirar]);
+    }
+    escolhaVista = null;
     estado.conta = conta;
   }
   const minha = ++geracao;
@@ -223,7 +240,7 @@ async function carregar() {
   estado.carregando = false;
   redesenhar();
   if (estado.criarPost && estado.marca) {
-    estado.criarPost = false;
+    estado.criarPost = null;
     // Cancelar o formulário (ou trocar de conta) é só fechar; outro erro aparece.
     novoPedido('').catch((e) => {
       if (e instanceof ContaTrocada || (e instanceof Error && e.message === CANCELADO)) return;
@@ -586,7 +603,30 @@ async function publiqueiFora(p: Peca) {
 async function remover(p: Peca) {
   const naConta = nestaConta();
   const ok = await naConta(urbiVerso.confirmar({ titulo: 'Remover peça', mensagem: 'A peça sai do Estúdio.', rotuloConfirmar: 'Remover', perigo: true }));
-  if (ok) await naConta(acao(() => enviar('PATCH', `/estudio/pecas/${p.id}/remover`), 'Peça removida.'));
+  if (!ok) return;
+  await naConta(
+    acao(async () => {
+      const r = await naConta(enviar('PATCH', `/estudio/pecas/${p.id}/remover`));
+      // Só na mesma conta (o `naConta` acima lança se mudou): o pedido aberto segue sem a peça.
+      seguirSemPeca(p.id);
+      return r;
+    }, 'Peça removida.'),
+  );
+}
+
+/**
+ * Depois de remover uma peça: o id do pedido é o da sua peça de menor id, então tirar a primeira (ou a
+ * do `?item=`) faria o endereço apontar para o nada. Se sobram peças do pedido aberto, a URL passa ao
+ * pedido delas; se não sobra nada, volta a "nenhum pedido escolhido". Nunca "Não encontrado".
+ */
+function seguirSemPeca(id: number) {
+  const aberto = pedidoEscolhido(agruparPedidos(estado.pecas), escolha()).pedido;
+  estado.pecas = estado.pecas.filter((x) => x.id !== id);
+  if (!aberto || !aberto.pecas.some((x) => x.id === id)) return;
+  const resto = aberto.pecas.find((x) => x.id !== id);
+  const novo = resto ? agruparPedidos(estado.pecas).find((x) => x.pecas.some((y) => y.id === resto.id)) : null;
+  if (novo) filtrosNaUrl(filtrosDaUrl(), { pedido: novo.id }, ['item']);
+  else filtrosNaUrl(filtrosDaUrl(), {}, ['pedido', 'item']);
 }
 
 async function copiarLegenda(p: Peca) {
@@ -857,6 +897,7 @@ function centro(pedidos: Pedido<Peca>[]): { solto: boolean; conteudo: unknown } 
   const q = escolha();
   const { pedido, peca, naoEncontrado } = pedidoEscolhido(pedidos, q);
   const ig = estado.conexao?.instagram;
+  const temFaixa = !!estado.falha || estado.ia === false || !ig || !!ig.ultimo_erro;
   const faixas = html`${estado.falha
       ? estadoTela('erro', {
           mensagem: 'Não foi possível atualizar o Estúdio agora. O que está na tela pode estar desatualizado.',
@@ -873,10 +914,11 @@ function centro(pedidos: Pedido<Peca>[]): { solto: boolean; conteudo: unknown } 
         })
       : nothing}`;
   if (pedido) {
-    // As faixas ficam sempre à mão (a falha de recarga precisa aparecer com o pedido aberto).
+    // As faixas aparecem com o pedido aberto (a falha de recarga precisa ser vista); sem faixa, nem o
+    // hospedeiro delas, que deixaria um vão acima do feed.
     return {
       solto: true,
-      conteudo: html`<urbi-hospedeiro slot="centro">${faixas}</urbi-hospedeiro>${conversa(pedido, peca)}<urbi-hospedeiro slot="centro">${compositor()}</urbi-hospedeiro>`,
+      conteudo: html`${temFaixa ? html`<urbi-hospedeiro slot="centro">${faixas}</urbi-hospedeiro>` : nothing}${conversa(pedido, peca)}<urbi-hospedeiro slot="centro">${compositor()}</urbi-hospedeiro>`,
     };
   }
   let corpo: unknown;
@@ -931,13 +973,16 @@ export function renderEstudio(atualizar: () => void) {
   // Outra conta: lê já, mesmo com uma carga em voo (a resposta da anterior é descartada em `carregar`).
   if (estado.conta !== contaAtiva()) void carregar();
   else if (estado.precisaCarregar && !estado.carregando) void carregar();
+  // A escolha da URL desenhada agora é desta conta (a troca a compara antes de ler a conta nova).
+  const q = escolha();
+  escolhaVista = { conta: estado.conta ?? null, pedido: q.pedido, item: q.item };
   const rotulos = { lista: 'Pedidos', centro: 'Pedido', contexto: 'Semana' };
   if (!estado.marca) {
     const conteudo = estado.falha ? estadoDaFalha(estado.falha, recarregar) : estadoTela('carregando');
     return moldura({ menu: '/estudio', centro: conteudo }, atualizar);
   }
   const pedidos = agruparPedidos(estado.pecas);
-  const { pedido, naoEncontrado } = pedidoEscolhido(pedidos, escolha());
+  const { pedido, naoEncontrado } = pedidoEscolhido(pedidos, q);
   const c = centro(pedidos);
   return moldura(
     {

@@ -8,14 +8,14 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.32; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.33; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
 | Corretor | **Hoje** (antes, Início) | No desenho novo, em três colunas: **Precisa de você** e **Primeiros passos** (x de 5, sem o CRECI); a **fila do dia** em cartões, um botão por item; e, à direita, a agenda de hoje (com **Ver agenda**, os próximos 14 dias), **Sua semana** e a **Dica do Assistente** — ver [Funil, temperatura e fila do dia](funil.md) e [Clientes, negócios e agenda](clientes-e-agenda.md) |
 | Corretor | **Números** (antes, Desempenho) | No desenho novo: à esquerda, os relatórios (Resumo, Funil e conversão, Origem dos contatos, Tempo de resposta e Conteúdo; Mensageiro e Negociação "em breve"); no centro, o relatório com período, **Comparar** e origem; à direita, **O que melhorar** (com **Ver os N clientes**), as melhores origens e **Exportar CSV** — ver [Números, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Clientes** | No desenho novo, em três colunas: a lista (visões **Lista** e **Funil**, busca, filtros prontos Novos · Sem contato · Quentes · Retorno vencido e o papel), a **ficha** do cliente escolhido (cabeçalho com Conversa e Resumir; abas Resumo · Linha do tempo · Enviados · Negócios) e, à direita, perfil de busca, portal do cliente e privacidade; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
-| Corretor | **Imóveis** | No desenho novo: à esquerda, as abas **Carteira** (lista com miniatura, busca e chips Ativos · Rascunhos · Vendidos) e **Empreendimentos**; no centro, a ficha (galeria, dados, quem vê, fotos, descrição com IA, autorização e visitas); à direita, a qualidade com o que falta, os números de 30 dias e os clientes que combinam — ver [Imóveis e empreendimentos](imoveis.md) |
+| Corretor | **Imóveis** | No desenho novo: à esquerda, as abas **Carteira** (lista com miniatura, busca e chips Ativos · Rascunhos · Vendidos) e **Empreendimentos**; no centro, a ficha (galeria, dados, quem vê, fotos, descrição com IA, autorização e visitas); à direita, a qualidade com o que falta, os números de 30 dias e os clientes que combinam. **Novo imóvel** em 4 passos (Fotos · Dados · Autorização · Onde aparece), com rascunho salvo em cada passo, a IA lendo as fotos e nenhum passo pedindo CRECI — ver [Imóveis e empreendimentos](imoveis.md#novo-imóvel-em-4-passos) |
 | Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA e descrição pronta para gerar a arte no Canva IA (ou em outra ferramenta), envio da arte na peça, aprovação e publicação — ver [Estúdio de conteúdo](estudio.md) |
 | Corretor | **Página** (antes, Minha página) | No desenho novo: à esquerda, o endereço, **Publicar** e os blocos (Mostrar, subir e descer); no centro, a **prévia** da página no Celular ou no Computador, com o bloco escolhido destacado; à direita, os ajustes do bloco, a marca, os contatos que vieram da página e **Copiar link** — ver [Página, ficha pública e link rastreado](minha-pagina.md) |
 | Visitante | **Página e ficha pública** (sem login) | A página do corretor (capa com foto, nome, CRECI se houver e WhatsApp; imóveis em destaque com **Quero saber mais**) e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
@@ -54,7 +54,7 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 | Opção | O que acontece |
 |---|---|
 | Novo cliente | Abre Clientes já com o cadastro de contato |
-| Novo imóvel | Abre Imóveis já com o cadastro do imóvel |
+| Novo imóvel | Abre a tela Novo imóvel em 4 passos (`/imoveis/novo`), em branco e no passo Fotos |
 | Novo post | Abre o Estúdio já com o pedido de peça |
 | Nova visita | Pede o cliente, o imóvel, o dia e a hora ali mesmo; com a ficha de um cliente aberta, ele já vem escolhido. Depois abre a ficha do cliente |
 | Nova proposta | Pede o cliente (o da ficha aberta já vem escolhido), o imóvel e o valor oferecido; registra a oferta e abre a negociação em Clientes › Negociações |
@@ -68,12 +68,12 @@ ver [Assistente do Corretor](assistente.md).
 **Estados de toda tela** (**Hoje**, **Imóveis**, **Página** e **Números** já usam os estados comuns, de `frontend/estados.ts`; as demais telas passam a usá-los ao entrar no desenho novo):
 - Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco. A maioria das telas já mostra o indicador.
 - Se algo não carregou, aparece uma frase curta com **Tentar de novo**. A maioria das telas já tem o botão.
-- O que não existe ou é de outra conta aparece como **Não encontrado**. Hoje isso vale em **Números**, em **Hoje** e em **Imóveis**.
-- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona. Hoje o aviso aparece no painel do **Assistente** e em **Hoje**.
+- O que não existe ou é de outra conta aparece como **Não encontrado**. Hoje isso vale em **Números**, em **Hoje**, em **Imóveis** e no **Estúdio**.
+- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona. Hoje o aviso aparece no painel do **Assistente**, em **Hoje** e no **Estúdio**.
 
 ## Atalhos e busca
 
-**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Página, Números e Ajustes (o negociador humano não o vê). Estúdio ainda não tem trilho. A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
+**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Estúdio, Página, Números e Ajustes (o negociador humano não o vê). A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
 letras: aparecem até 5 resultados de cada tipo, só da sua conta.
 
 | Tipo | Busca por | Ao escolher |
