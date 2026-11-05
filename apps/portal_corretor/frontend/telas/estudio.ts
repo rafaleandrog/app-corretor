@@ -132,8 +132,8 @@ const silencioso = (e: unknown) => e instanceof InstanciaEncerrada || (e instanc
  * A conta em que o Estúdio trabalha: a escolhida no seletor (quem atende várias contas) ou a conta única
  * de escrita (`contaEscrita`: com uma conta só, o shell resolve sozinho e `contaAtiva()` é nula, porque
  * não há seletor nem `X-Conta`). O app só chama a tela com o contexto carregado e fora do "sem conta"
- * (`semConta()`); nula, então, só na janela em que a conta some entre esse aviso e o nascimento da
- * instância (o contexto muda e a tela é recriada em seguida).
+ * (`semConta()`); mas `semConta()` é falso quando o contexto já carregou sem o campo `conta`, e aí a
+ * tela é chamada e a conta de trabalho é nula, de forma estável (não é uma janela passageira).
  */
 const contaDeTrabalho = (): number | null => contaAtiva() ?? urbiVerso.contexto?.()?.conta?.contaEscrita ?? null;
 
@@ -436,6 +436,7 @@ export class Estudio {
     // (`agruparPedidos`). As peças criadas entram na lista já, e a URL vai ao pedido que as contém.
     this.pecas = [...this.pecas.filter((p) => !criadas.has(p.id)), ...pecas];
     filtrosNaUrl(filtrosDaUrl(), { pedido: this.pedidoDasPecas(criadas) ?? Math.min(...criadas) }, ['item', 'etapa']);
+    const urlGravada = location.search;
     for (const p of pecas) this.solto(this.abrirInstrucao(p.id));
     const antes = this.geracao;
     await this.carregar();
@@ -444,7 +445,8 @@ export class Estudio {
     // A carga desta criação gravou a lista do servidor (nenhuma outra a passou na frente, e não falhou):
     // o pedido aberto é o que contém as peças criadas. O servidor pode ter separado os grupos (outra aba
     // criou uma peça entre as nossas), e então o pedido da URL, mesmo existindo, não as contém.
-    if (this.geracao !== antes + 1 || this.falha) return;
+    // Se o usuário abriu outro pedido ou peça durante a carga, a URL mudou: a escolha dele fica.
+    if (this.geracao !== antes + 1 || this.falha || location.search !== urlGravada) return;
     const deNovo = this.pedidoDasPecas(criadas);
     if (deNovo !== null && pedidoEscolhido(agruparPedidos(this.pecas), escolha()).pedido?.id !== deNovo) {
       filtrosNaUrl(filtrosDaUrl(), { pedido: deNovo }, ['item']);

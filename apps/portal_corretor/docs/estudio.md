@@ -26,8 +26,9 @@ lançamento. Cada um vira uma peça por formato, e a lista junta as peças do me
 reconhece um envio pelas peças: mesmo texto, imóvel e objetivo, cada peça criada até 2 minutos depois
 da anterior, sem peça de outro pedido no meio. Um pacote demorado (a IA lenta) continua um pedido só.
 Por isso, dois pedidos iguais enviados no mesmo par de minutos aparecem juntos, como um só.
-Na prática: se você faz um pedido igual a outro de menos de 2 minutos atrás (mesmo texto, mesmo imóvel e
-mesmo objetivo), ele aparece junto do anterior, e é esse pedido que abre, com as peças novas dentro.
+Quando o pedido novo se junta ao anterior, é o pedido anterior que abre, com as peças novas dentro.
+Se no meio dos dois houve uma peça de outro pedido, ou passaram mais de 2 minutos desde a última peça
+do anterior, o pedido novo aparece separado e é ele que abre.
 O link da página leva ao que está aberto: copie o endereço e, ao abri-lo, o mesmo pedido (ou a mesma
 peça, com a conversa rolada até ela) aparece.
 Link de um pedido que não é da sua conta (ou que já não existe) abre o Estúdio sem pedido

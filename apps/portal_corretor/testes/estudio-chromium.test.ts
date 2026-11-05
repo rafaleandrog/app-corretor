@@ -1333,6 +1333,7 @@ test('Estúdio no Chromium: criar em que a instância morre ao fim da carga term
     });
     assert.equal(r.rejeicao, 'InstanciaEncerrada', 'o redator rejeita em silêncio, sem sucesso falso');
     assert.equal(r.url, '?pedido=901', 'a instância morta não leva a URL ao pedido novo');
+    assert.equal(r.avisosDepois, 1, 'só o "peça criada" de antes da carga; nenhum aviso depois da morte');
     assert.deepEqual(r.alertas, []);
   } finally {
     await navegador.close();
