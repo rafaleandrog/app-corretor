@@ -581,8 +581,7 @@ ao vivo, o replay de quem reconecta e as notificações por inscrição. As tela
   contatos que chegam pela sua página e pelo portal.**
 
   Um teste do app emite todos os eventos pelos caminhos reais (rotas, webhooks e listeners), com
-  nome, telefone e e-mail em tudo o que entra, e reprova se algum desses dados aparecer fora destes
-  três campos, ou se um evento novo surgir sem passar por ele.
+  nome, telefone e e-mail em tudo o que entra, e reprova se algum desses dados aparecer fora dos campos residuais acima, ou se um evento novo surgir sem passar por ele.
 
 ### O que o dono da instância precisa ligar
 

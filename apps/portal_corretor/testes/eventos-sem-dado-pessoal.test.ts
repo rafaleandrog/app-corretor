@@ -481,7 +481,9 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     }
   }
   // Oferta e aceite pelo portal não levam o texto livre: só ids e o valor.
-  for (const e of bus.emitidos.filter((x) => x.tipo === 'acao_cliente_recebida' && x.payload.tipo !== 'mensagem')) assert.equal(e.payload.texto, null, `${e.payload.tipo}: sem texto`);
+  const acoesPortal = bus.emitidos.filter((x) => x.tipo === 'acao_cliente_recebida' && x.payload.tipo !== 'mensagem');
+  assert.deepEqual(acoesPortal.map((e) => e.payload.tipo).sort(), ['proposta_aceite', 'proposta_nova'], 'oferta e aceite pelo portal emitiram');
+  for (const e of acoesPortal) assert.equal(e.payload.texto, null, `${e.payload.tipo}: sem texto`);
 });
 
 test('o risco residual está documentado na app e pedido ao shell', () => {
