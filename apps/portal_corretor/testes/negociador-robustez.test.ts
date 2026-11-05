@@ -53,7 +53,7 @@ function iaSimulada(respostas: Record<string, unknown>[]) {
   const chamadas: any[] = [];
   return {
     chamadas,
-    estadoSlot: async (slot: string) => ({ pedido: slot, efetivo: { slot, origem: 'global' }, backup: null }),
+    estadoSlot: async (slot: string): Promise<{ pedido: string; efetivo: { slot: string; origem: string } | null; backup: null }> => ({ pedido: slot, efetivo: { slot, origem: 'global' }, backup: null }),
     consultar: async (o: unknown) => {
       chamadas.push(o);
       const dados = respostas.shift();
