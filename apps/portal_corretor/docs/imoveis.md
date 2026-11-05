@@ -93,8 +93,11 @@ Com a IA desligada, a caixa diz que os dados são preenchidos à mão, e nada tr
 passo (Próximo, Voltar, tocar noutro passo, Salvar rascunho ou Concluir). **Salvar rascunho** leva à
 ficha. O endereço guarda o imóvel e o passo (`/imoveis/novo?item=<número>&passo=dados`): recarregar a
 página volta no mesmo lugar. Sem o número do imóvel (nenhum rascunho ainda), o endereço não leva a
-Autorização nem a Onde aparece: a tela abre em Dados. O que se digita enquanto um salvamento está a
-caminho continua pendente e vai no próximo. Na ficha de um rascunho, **Continuar cadastro** abre o Novo imóvel no
+Autorização nem a Onde aparece: a tela abre em Dados. Se a pessoa digita enquanto um salvamento está a
+caminho, esse texto fica pendente e vai no salvamento seguinte. Ao trocar de passo, a tela salva uma
+vez; em Salvar rascunho e Concluir, ela repete o salvamento até três vezes. Se ainda houver texto novo,
+aparece o aviso "Você continuou editando enquanto salvava. Tente de novo.", a tela fica onde está e o
+que foi digitado continua lá. Na ficha de um rascunho, **Continuar cadastro** abre o Novo imóvel no
 primeiro passo com o que fazer (sem foto, Fotos; sem tipo ou cidade, Dados; sem autorização,
 Autorização; senão, Onde aparece). O endereço com o número de um imóvel de outra conta responde
 "não encontrado".

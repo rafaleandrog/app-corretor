@@ -104,8 +104,9 @@ test('atalhos no Chromium: nada dispara no campo de texto; fora dele, J/K, E e /
     await pagina.evaluate(() => ((window as any).corretor = false));
     for (const tecla of ['/', 'c', 'a']) await pagina.keyboard.press(tecla);
     await pagina.keyboard.press('k');
+    await pagina.keyboard.press('e');
     await new Promise((r) => setTimeout(r, 50));
-    assert.deepEqual(await log(), ['escolher 4'], 'sem papel de corretor, só a navegação na lista');
+    assert.deepEqual(await log(), ['escolher 4', 'editar'], 'sem papel de corretor, só a navegação na lista e a edição');
     await pagina.evaluate(() => ((window as any).corretor = true));
 
     // Lista que saiu da tela não responde mais.
