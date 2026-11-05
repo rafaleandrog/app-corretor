@@ -68,7 +68,7 @@ Plano aprovado pelo dono em 27/10. Fonte: spec 1.2 — 2.8, 5.1, 6.16, 7.1, 10.9
 | B4 | **Clientes — Funil e Importar** (P03, P14) | #93 | B3 | [x] implementado (0.1.21, PR #121) |
 | B5 | **Imóveis** (P06, P07, M3): carteira em lista com miniatura (D-106) | #94 | B1, C1 | [~] parte 1 (P06) implementada (0.1.19, PR #116); falta a parte 2 (P07/M3, novo imóvel em 4 passos) |
 | B6 | **Estúdio** (P08) na moldura, D-89 a D-91 (D-105) | #95 | B1, C1 | [ ] |
-| B7 | **Página e Números** (P09, P10) | #96 | B1, C1 | [x] implementado (0.1.30, PR desta sessão) |
+| B7 | **Página e Números** (P09, P10) | #96 | B1, C1 | [x] implementado (0.1.30, PR #141) |
 | B8 | **Ajustes** (P12, P13 e menu de Ajustes) | #97 | B1, C1 | [x] implementado (0.1.25, PR #128) |
 | B9 | **Portal do Cliente e página pública** (M4, M5, M6) por token (D-104) | #98 | A1 (roteiro de #87: páginas públicas têm CSS próprio) | [x] implementado (0.1.14, PR #111) |
 | B10 | **Busca global e atalhos** (11.7) | #99 | B1 | [ ] |

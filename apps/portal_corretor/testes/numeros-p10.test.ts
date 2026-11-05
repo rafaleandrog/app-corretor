@@ -63,7 +63,7 @@ test('CSV de Números: só agregados, uma linha por indicador, e abre de volta n
     dias: 30,
     origem: null,
     periodo: { de, ate },
-    atual: { ...k, visitas: 1 },
+    atual: { ...k, visitas: 1, conversao_total: 0.125 },
     anterior: { ...calcularKpis([], de, ate), visitas: 0 },
     previsao: { valor_c: null, sem_dados: 0 },
     por_hora: leadsPorHora(negocios, de, ate),
@@ -75,6 +75,7 @@ test('CSV de Números: só agregados, uma linha por indicador, e abre de volta n
   const linha = (nome: string) => tabela.find((l) => l[0] === nome);
   assert.deepEqual(linha('Leads'), ['Leads', '2', '0']);
   assert.deepEqual(linha('Lead → visita'), ['Lead → visita', '50%', '']);
+  assert.equal(linha('Conversão total')?.[1], '12,5%', 'taxa decimal com vírgula, como o VGV');
   assert.deepEqual(linha('Leads de Minha página'), ['Leads de Minha página', '2', '0']);
   assert.deepEqual(linha('Perdidos por Preço'), ['Perdidos por Preço', '1', '0']);
   assert.deepEqual(linha('Peças publicadas'), ['Peças publicadas', '3', '1']);

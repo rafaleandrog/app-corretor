@@ -143,7 +143,7 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
       const m = await pagina.evaluate(() => {
         const c = document.querySelector('urbi-3-colunas')!;
         const caixa = (s: string) => {
-          const e = c.querySelector(`urbi-hospedeiro[slot="${s}"]`)!;
+          const e = c.querySelector(`:scope > urbi-hospedeiro[slot="${s}"]`)!;
           const { left, right, width, height } = e.getBoundingClientRect();
           return { left, right, width, height };
         };

@@ -297,7 +297,7 @@ export interface RespostaNumeros {
 export function linhasCsvNumeros(r: RespostaNumeros, rotuloCanal: (c: string) => string, rotuloMotivo: (m: string) => string): { cabecalho: string[]; linhas: unknown[][] } {
   const a = r.atual;
   const b = r.anterior;
-  const taxa = (v: number | null) => (v === null ? '' : `${Math.round(v * 1000) / 10}%`);
+  const taxa = (v: number | null) => (v === null ? '' : `${(Math.round(v * 1000) / 10).toString().replace('.', ',')}%`);
   const reais = (c: number | null) => (c === null ? '' : (c / 100).toFixed(2).replace('.', ','));
   const linhas: unknown[][] = [
     ['Período', `Últimos ${r.dias} dias`, `${r.dias} dias anteriores`],
