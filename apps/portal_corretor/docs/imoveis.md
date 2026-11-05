@@ -60,8 +60,9 @@ passo. Nenhum passo pede o CRECI, e a autorização de venda é opcional para o 
 o conteúdo e, embaixo, **Voltar**, **Salvar rascunho** e **Próximo** (no último passo, **Concluir**).
 
 1. **Fotos.** Antes da primeira foto, o **tipo** e a **cidade** (e, se quiser, um código seu; sem
-   código, o app numera `IM-0001`, `IM-0002`…, sem repetir na conta): com eles o imóvel já fica
-   guardado como **rascunho** na carteira. Depois, **Tirar fotos ou escolher da galeria** (no
+   código, o app numera `IM-0001`, `IM-0002`…, sem repetir na conta). Só preencher não cria nada: o
+   **rascunho** nasce na primeira vez que ele é preciso (enviar a primeira foto, sair de um passo com
+   tipo e cidade preenchidos e alterações não salvas, **Salvar rascunho**, ir a Autorização ou Onde aparece, ou **Concluir**). Depois, **Tirar fotos ou escolher da galeria** (no
    celular, abre a câmera ou a galeria; no computador, dá para arrastar várias): JPG, PNG ou WEBP,
    até 25 MB cada. Com a leitura de fotos ligada, a IA diz o ambiente de cada foto e põe a melhor de
    fachada, sala ou vista como capa, marcada **Capa sugerida**. Cada foto tem **Usar como capa** e

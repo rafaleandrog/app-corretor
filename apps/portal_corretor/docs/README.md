@@ -54,7 +54,7 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 | Opção | O que acontece |
 |---|---|
 | Novo cliente | Abre Clientes já com o cadastro de contato |
-| Novo imóvel | Abre Imóveis já com o cadastro do imóvel |
+| Novo imóvel | Abre a tela Novo imóvel em 4 passos (`/imoveis/novo`), em branco e no passo Fotos |
 | Novo post | Abre o Estúdio já com o pedido de peça |
 | Nova visita | Pede o cliente, o imóvel, o dia e a hora ali mesmo; com a ficha de um cliente aberta, ele já vem escolhido. Depois abre a ficha do cliente |
 | Nova proposta | Pede o cliente (o da ficha aberta já vem escolhido), o imóvel e o valor oferecido; registra a oferta e abre a negociação em Clientes › Negociações |
