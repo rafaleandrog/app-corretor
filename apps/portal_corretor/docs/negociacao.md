@@ -552,9 +552,10 @@ Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
 Se o e-mail do convite não sair, o convite fica valendo e a tela avisa (peça à pessoa para olhar o
 spam, ou revogue e convide de novo).
 
-**Antes de convidar:** a tela de convite avisa que a instância precisa da política "permite contas
-multi-usuário" ligada. O app não tem como consultar essa política antes: só sabe no convite, quando
-ela recusa com `CONVITE_MULTI_USUARIO_BLOQUEADO` (pedido ao shell para expor a política).
+**Antes de convidar:** a tela e o diálogo de convite avisam que a instância precisa da política
+"permite contas multi-usuário" ligada e que quem entra na conta vê os contatos que chegam pela página
+e os recados dos clientes (abaixo). O app não tem como consultar essa política antes: só sabe no
+convite, quando ela recusa com `CONVITE_MULTI_USUARIO_BLOQUEADO` (pedido ao shell para expor a política).
 
 **O que o negociador vê pelo barramento:** como membro da conta, ele lê os eventos do app pelo
 barramento da plataforma, e o barramento não filtra por negociação nem por papel. Isso vale para
@@ -578,6 +579,10 @@ ao vivo, o replay de quem reconecta e as notificações por inscrição. As tela
 
   Fechar isso depende da plataforma (pedido ao shell). Até lá, **convide só quem pode ver os
   contatos que chegam pela sua página e pelo portal.**
+
+  Um teste do app emite todos os eventos pelos caminhos reais (rotas, webhooks e listeners), com
+  nome, telefone e e-mail em tudo o que entra, e reprova se algum desses dados aparecer fora destes
+  três campos, ou se um evento novo surgir sem passar por ele.
 
 ### O que o dono da instância precisa ligar
 

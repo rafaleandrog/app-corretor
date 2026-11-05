@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { ESTILOS, GATILHOS, LIMITE_INSTRUCOES } from '../comum/negociacao';
 import { promptSistema, REGRAS_FIXAS } from '../comum/negociador';
-import { contadorInstrucoes, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, inicioDoMes, ROTULO_GATILHO } from '../comum/negociador-ajustes';
+import { contadorInstrucoes, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, inicioDoMes, LIMITE_EVENTOS, MENSAGEM_CONVITE, POLITICA_CONVITE, ROTULO_GATILHO } from '../comum/negociador-ajustes';
 
 // Ajustes › Negociador (D4, issue #103): o que a tela mostra é o que o motor usa.
 
@@ -32,4 +32,17 @@ test('gatilhos na tela: todo gatilho mostrado tem quem o leia no backend (nenhum
     assert.ok(fonte.includes(`gatilhos.${g}`) || fonte.includes(`gatilho: '${g}'`) || fonte.includes(`gatilhoLigado(config, '${g}')`), `gatilho ${g} sem leitor no backend`);
   }
   assert.deepEqual([...GATILHOS_EM_USO].sort(), [...GATILHOS].sort(), 'os quatro gatilhos de 10.9.4 aparecem');
+});
+
+test('diálogo de convite (#151): curto, e ainda com a política multi-usuário (#136 b) e o que a pessoa passa a ver (#136 a)', () => {
+  assert.match(POLITICA_CONVITE, /política "permite contas multi-usuário"/);
+  assert.match(POLITICA_CONVITE, /recusado/);
+  assert.match(LIMITE_EVENTOS, /página/);
+  assert.match(LIMITE_EVENTOS, /recados dos clientes/);
+  assert.match(LIMITE_EVENTOS, /convide só quem pode ver isso/);
+  assert.ok(MENSAGEM_CONVITE.startsWith(POLITICA_CONVITE), 'a política vem antes de tudo, antes de convidar');
+  assert.ok(MENSAGEM_CONVITE.includes(LIMITE_EVENTOS), 'o aviso de privacidade está no próprio diálogo');
+  assert.match(MENSAGEM_CONVITE, /papel negociador/, 'o passo que falta depois do aceite');
+  // O texto do F4 tinha 61 palavras e não trazia o aviso de privacidade; este traz e fica em até 50.
+  assert.ok(MENSAGEM_CONVITE.split(/\s+/).length <= 50, `curto: ${MENSAGEM_CONVITE.split(/\s+/).length} palavras`);
 });

@@ -101,7 +101,9 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 - `reacao_recebida`: o comentário do cliente na seleção;
 - `acao_cliente_recebida`: o texto da mensagem do cliente pelo portal.
 
-**Até lá:** risco residual documentado em `apps/portal_corretor/docs/negociacao.md` (Negociador humano) e avisado na tela de convite; o teste `eventos-sem-dado-pessoal.test.ts` barra qualquer outro campo pessoal em evento.
+**Até lá:** risco residual documentado em `apps/portal_corretor/docs/negociacao.md` (Negociador humano) e avisado na tela e no diálogo de convite; o teste `eventos-sem-dado-pessoal.test.ts` emite todos os eventos do app pelos caminhos reais e barra qualquer outro campo pessoal em evento (#151).
+
+**Situação (05/11/2026, #151):** em aberto. O SDK instalado segue 100.0.0 e o próprio `wh.md` reconhece a lacuna: "`req.dados` não serve aqui (ainda)".
 
 **Proposta mínima (qualquer uma fecha):** (a) `req.dados` segregado no handler de `wh`, com a conta do contexto do ingresso (como o listener recebe), para o app gravar o pedido e publicar só o id; ou (b) recorte de leitura do evento segregado por papel da app ou pela lista `destinatarios` também na listagem, no pull e nas inscrições, não só no SSE.
 
