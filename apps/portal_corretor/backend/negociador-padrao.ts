@@ -63,7 +63,7 @@ export async function avisarNegociador(notificacoes: Notificacoes | null | undef
   if (!notificacoes || typeof notificacoes.notificar !== 'function') return;
   try {
     const r = await notificacoes.notificar(usuarioId, avisoDeAtribuicao(negociacao.codigo as string | null), {
-      // Sub-rota relativa ao slug (barramento.md): o shell monta `/portal_corretor/negociacoes?item=<id>`,
+      // `rota` é opção aceita na notificação direta (barramento.md); a forma relativa ao slug é a do app (ROTA_AGENDA). O shell monta `/portal_corretor/negociacoes?item=<id>`,
       // o endereço do negociador humano (Clientes não abre para ele).
       rota: `negociacoes?item=${Number(negociacao.id)}`,
       payload: { negociacao_id: Number(negociacao.id) },

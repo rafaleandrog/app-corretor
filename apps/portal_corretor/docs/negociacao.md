@@ -529,8 +529,10 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
    por negociação: atribuir a outra tira a anterior.
 4. Para que toda negociação nova já nasça com ela, escolha a pessoa em **Ajustes › Negociador ›
    Quem negocia por padrão › Conduz as negociações novas**. Só aparecem ali as pessoas marcadas
-   **pronto**. Se a pessoa perder o papel ou sair da conta, as negociações novas voltam a nascer com
-   o Negociador IA, sem atribuição nem aviso. Escolher **Negociador IA (padrão)** tira a pessoa.
+   **pronto**. Se a pessoa perder o papel ou sair da conta, as negociações novas que o app cria
+   numa ação sua (como mover o negócio para Proposta) voltam a nascer com o Negociador IA, sem atribuição nem aviso. Nas abertas pelas reações e
+   mensagens do cliente (sem como conferir), vale a pessoa gravada, e a guarda da negociação
+   barra quem perdeu o papel. Escolher **Negociador IA (padrão)** tira a pessoa.
 
 Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
 
