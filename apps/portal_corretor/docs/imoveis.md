@@ -48,23 +48,65 @@ a aba Empreendimentos, e `/imoveis/<número>` abre a mesma tela com o imóvel es
   conta muito grande a busca olha só os primeiros 10 000 contatos com perfil (em ordem de cadastro) e
   para ao achar 10; os números dos últimos 30 dias contam até 10 000 envios do imóvel no período.
 
-### Cadastro rápido
+### Novo imóvel em 4 passos
 
-1. **Novo imóvel**: tipo, cidade e, se quiser, título, bairro, UF e um código seu. Sem código, o
-   app numera `IM-0001`, `IM-0002`… O código não se repete entre os imóveis da conta.
-2. A ficha abre já pedindo as **fotos** (o cartão de fotos fica aberto enquanto o imóvel não tem foto): arraste várias de uma vez (JPG, PNG, WEBP, vídeo MP4 ou
-   PDF, até 25 MB cada). A primeira foto é a capa.
-3. Com a leitura de fotos ligada, cada foto é lida pela IA: ela diz o ambiente (fachada, sala,
-   cozinha…), dá uma nota para o anúncio e escreve uma legenda quando a foto não tem uma (a do
-   corretor nunca é trocada). **Ordem sugerida** põe a melhor foto de fachada, sala ou vista como
-   capa e as demais na sequência de uma visita.
-4. **Editar dados** (no botão de lápis do cartão do imóvel ou em **Mais**): preço (vazio = sob consulta), condomínio, IPTU, áreas, cômodos, endereço,
-   características, proprietário e empreendimento.
+**Novo** (na Carteira), **Criar › Novo imóvel** (no alto de toda tela) e o passo "Cadastrar o
+primeiro imóvel" de Hoje abrem o **Novo imóvel** (`/imoveis/novo`), na mesma moldura: os passos à
+esquerda, o passo no centro e a qualidade à direita. No celular, uma coluna por vez, abrindo no
+passo. Nenhum passo pede o CRECI, e a autorização de venda é opcional para o rascunho.
+
+**À esquerda**, os quatro passos com o resumo de cada um (e o ✓ quando já tem o essencial) e
+**Salvar rascunho**. Tocar num passo vai até ele. **No centro**, o título do passo e "Passo n de 4",
+o conteúdo e, embaixo, **Voltar**, **Salvar rascunho** e **Próximo** (no último passo, **Concluir**).
+
+1. **Fotos.** Antes da primeira foto, o **tipo** e a **cidade** (e, se quiser, um código seu; sem
+   código, o app numera `IM-0001`, `IM-0002`…, sem repetir na conta): com eles o imóvel já fica
+   guardado como **rascunho** na carteira. Depois, **Tirar fotos ou escolher da galeria** (no
+   celular, abre a câmera ou a galeria; no computador, dá para arrastar várias): JPG, PNG ou WEBP,
+   até 25 MB cada. Com a leitura de fotos ligada, a IA diz o ambiente de cada foto e põe a melhor de
+   fachada, sala ou vista como capa, marcada **Capa sugerida**. Cada foto tem **Usar como capa** e
+   **Apagar**. Dá para seguir sem fotos e voltar depois.
+2. **Dados.** Tipo, bairro, cidade, UF, quartos, suítes, banheiros, vagas, área útil, preço,
+   condomínio, título e características. **Tipo e cidade são obrigatórios**: vazios, ficam
+   destacados e o **Próximo** não avança (o **Salvar rascunho** salva assim mesmo, se o rascunho já
+   existe). As características que as fotos mostram (varanda, área de lazer, vista, garagem) chegam
+   preenchidas, com o rótulo **preenchido pela IA** até você mexer no campo. Quartos, área e preço
+   não se deduzem de foto: ficam com você.
+3. **Autorização.** As autorizações do imóvel, **Registrar autorização** (o mesmo formulário da
+   ficha), **Anexar o documento assinado** (PDF ou foto; fica interno, nunca aparece no anúncio) e
+   **Marcar como assinada**. Pode pular: o rascunho não depende dela.
+4. **Onde aparece.** **Só você** (fica na carteira; você envia aos clientes pelas seleções) ou
+   **Público** (fica ativo e aparece na sua página). Público só com a autorização assinada e vigente;
+   sem ela, a opção explica o que falta. **Concluir** aplica a escolha e abre a ficha do imóvel na
+   carteira. "Só você" não muda a situação: o rascunho continua rascunho até você ativá-lo.
+
+**À direita**, **Qualidade agora · n**: a mesma nota de 0 a 100 da ficha, calculada com o que está na
+tela (antes mesmo de salvar), e o que falta. Embaixo, a caixa da **IA**: quantas fotos ela leu e os
+ambientes, o que pôs nas características, quantos clientes da carteira combinam com o imóvel e,
+com a escrita por IA ligada, o lembrete de que **Melhorar com IA** na ficha escreve a descrição.
+Com a IA desligada, a caixa diz que os dados são preenchidos à mão, e nada trava.
+
+**Rascunho salvo em cada passo.** As fotos e a autorização salvam na hora; os dados, ao sair do
+passo (Próximo, Voltar, tocar noutro passo, Salvar rascunho ou Concluir). **Salvar rascunho** leva à
+ficha. O endereço guarda o imóvel e o passo (`/imoveis/novo?item=<número>&passo=dados`): recarregar a
+página volta no mesmo lugar. Na ficha de um rascunho, **Continuar cadastro** abre o Novo imóvel no
+primeiro passo com o que fazer (sem foto, Fotos; sem tipo ou cidade, Dados; sem autorização,
+Autorização; senão, Onde aparece). O endereço com o número de um imóvel de outra conta responde
+"não encontrado".
+
+### Depois do cadastro
+
+- A leitura das fotos pela IA também dá uma nota para o anúncio e escreve uma legenda quando a foto
+  não tem uma (a do corretor nunca é trocada). Na ficha, **Ordem sugerida** refaz a ordem: a melhor
+  foto de fachada, sala ou vista como capa e as demais na sequência de uma visita.
+- **Editar dados** (no botão de lápis do cartão do imóvel ou em **Mais**): preço (vazio = sob consulta), condomínio, IPTU, áreas, cômodos, endereço,
+  características, proprietário e empreendimento.
 
 ### A ficha do imóvel
 
 - No alto, o código e o título, **Editar** (os dados) e **Criar conteúdo** (abre o Estúdio com um
-  post novo). No **Mais**: situação e remover.
+  post novo). No **Mais**: situação e remover. Num rascunho, também **Continuar cadastro**, que volta
+  ao Novo imóvel em 4 passos.
 - A **galeria**: a capa grande e até 8 miniaturas das outras fotos.
 - **Dados**, em grade de pares rótulo/valor: situação, qualidade, tipo, preço, condomínio, local, cômodos,
   proprietário, empreendimento e características.

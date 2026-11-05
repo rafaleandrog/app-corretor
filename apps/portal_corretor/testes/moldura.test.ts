@@ -266,7 +266,7 @@ test('`?item=` guarda o item selecionado e sobrevive a recarregar', () => {
 test('Criar: cada opção leva à criação certa, com o cliente em foco quando há', () => {
   assert.deepEqual(OPCOES_CRIAR.map((o) => o.rotulo), ['Novo cliente', 'Novo imóvel', 'Novo post', 'Nova visita', 'Nova proposta']);
   assert.equal(destinoDeCriar('cliente', '/numeros'), '/clientes?criar=cliente');
-  assert.equal(destinoDeCriar('imovel', '/'), '/imoveis?criar=imovel');
+  assert.equal(destinoDeCriar('imovel', '/'), '/imoveis/novo', 'Novo imóvel em 4 passos (P07)');
   assert.equal(destinoDeCriar('post', '/'), '/estudio?criar=post');
   assert.equal(destinoDeCriar('visita', '/'), null, 'abre o formulário ali mesmo');
   // Nova proposta abre o formulário aqui mesmo (cliente em foco já escolhido) e depois a negociação (P15).

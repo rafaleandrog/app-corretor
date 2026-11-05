@@ -38,7 +38,7 @@ function navegador(endereco: string) {
 }
 
 test('Criar leva ?criar=<tipo> ao destino, acorda o escutarRota e a tela lê o pedido', () => {
-  for (const [opcao, rota, tipo] of [['cliente', '/clientes', 'cliente'], ['imovel', '/imoveis', 'imovel'], ['post', '/estudio', 'post']] as const) {
+  for (const [opcao, rota, tipo] of [['cliente', '/clientes', 'cliente'], ['post', '/estudio', 'post']] as const) {
     const { url, empilhou } = navegador('/portal_corretor/hoje');
     const subs: string[] = [];
     (globalThis as any).urbiVerso.escutarRota((s: string) => subs.push(s));
@@ -50,6 +50,16 @@ test('Criar leva ?criar=<tipo> ao destino, acorda o escutarRota e a tela lê o p
     assert.equal(url.search, '', 'o pedido é consumido da URL');
     assert.equal(pedidoDeCriar(tipo), false);
   }
+});
+
+test('Novo imóvel do Criar abre a tela de 4 passos (P07), sem pedido na URL', () => {
+  const { url, empilhou } = navegador('/portal_corretor/hoje');
+  const subs: string[] = [];
+  (globalThis as any).urbiVerso.escutarRota((s: string) => subs.push(s));
+  criar('imovel');
+  assert.deepEqual(empilhou, ['/portal_corretor/imoveis/novo']);
+  assert.deepEqual(subs, ['/imoveis/novo']);
+  assert.equal(url.search, '');
 });
 
 test('Criar a partir da própria tela de destino ainda acorda a rota e entrega o pedido', () => {
