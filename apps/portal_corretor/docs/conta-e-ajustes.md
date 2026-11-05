@@ -66,7 +66,9 @@ anterior (lista, ficha aberta, contagens do Funil, rascunho do Novo imóvel, tex
 continua na tela. O que estava carregando ou sendo feito na conta anterior termina em silêncio: a
 resposta que chega depois da troca é descartada e não aparece na conta nova. Isso vale para todo pedido
 do app, em qualquer tela, porque quem descarta é o próprio envio: a resposta ou o erro de um pedido feito
-na conta anterior não vira lista, aviso nem alerta na conta nova, mesmo que você já esteja em outra tela. O que o servidor já
+na conta anterior não vira lista, aviso nem alerta na conta nova, mesmo que você já esteja em outra tela. Um diálogo
+que ficou aberto durante a troca (como **Nova visita** ou **Nova proposta**) para de sugerir clientes e
+imóveis na busca e, confirmado, não envia nada: feche-o e abra de novo na conta nova. O que o servidor já
 tinha gravado fica gravado, na conta em que foi pedido. A conversa do **Assistente** também é de uma
 conta só: ela recomeça vazia na conta nova.
 

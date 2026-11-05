@@ -106,6 +106,9 @@ function shellFalso(o: { papeis?: number[]; semAcesso?: number[]; nivelQueFalha?
   };
 }
 
+/** O mesmo shell sem os convites (o listener pode não tê-los): só o papel e o nível efetivo. */
+const semConvites = (s: ReturnType<typeof shellFalso>) => ({ listarUsuariosPorRole: s.listarUsuariosPorRole, nivelEfetivoUsuario: s.nivelEfetivoUsuario });
+
 const corretor = (usuario: number, conta: number, extras: Record<string, unknown> = {}): Ator => ({ usuario, conta, papeis: ['corretor'], extras });
 
 /** Uma conta com as etapas do funil de compra, um cliente, um imóvel e um negócio na etapa Visitou. */
@@ -343,6 +346,13 @@ test('listener com shell: o padrão humano é conferido no gatilho do cliente (c
     { nome: 'pronto', shell: shellFalso(), esperado: ['humano', 5], avisos: [5] },
     { nome: 'sem papel', shell: shellFalso({ papeis: [6] }), esperado: ['ia', null], avisos: [] },
     { nome: 'sem acesso', shell: shellFalso({ semAcesso: [5] }), esperado: ['ia', null], avisos: [] },
+    // Sem os convites (issue #157): o papel e o nível efetivo ainda valem; sem como conferir o nível, a IA.
+    { nome: 'sem convites, pronto', shell: semConvites(shellFalso()), esperado: ['humano', 5], avisos: [5] },
+    { nome: 'sem convites, sem acesso', shell: semConvites(shellFalso({ semAcesso: [5] })), esperado: ['ia', null], avisos: [] },
+    { nome: 'sem convites, sem papel', shell: semConvites(shellFalso({ papeis: [6] })), esperado: ['ia', null], avisos: [] },
+    { nome: 'sem convites, nível que falha', shell: semConvites(shellFalso({ nivelQueFalha: true })), esperado: ['ia', null], avisos: [] },
+    { nome: 'sem o helper de nível', shell: { listarUsuariosPorRole: shellFalso().listarUsuariosPorRole }, esperado: ['ia', null], avisos: [] },
+    { nome: 'sem shell', shell: undefined, esperado: ['ia', null], avisos: [] },
   ]) {
     const banco = new BancoFalso(UNICOS);
     const a = await base(banco, 100);
@@ -386,6 +396,109 @@ test('mensagem entregue duas vezes ao mesmo tempo: o motor roda uma vez só', as
   // Outra mensagem com fala de preço roda de novo.
   await reagir.acao_cliente_recebida({ payload: { ...p.payload, texto: 'Achei caro, faz por menos?' }, conta_id: 100 }, ctx);
   assert.equal(ia.chamadas.length, 2);
+  // A marca é interna: nenhuma rota da negociação a devolve (issue #157).
+  assert.ok(banco.linhas('negociacoes').find((x) => x.id === nid)!.motor_mensagem_hash);
+  await comServidor(rotas, corretor(1, 100), banco, shellFalso(), async (chamar) => {
+    const respostas = [
+      await chamar('GET', '/negociacoes'),
+      await chamar('GET', `/negociacoes/${nid}`),
+      await chamar('PATCH', `/negociacoes/${nid}`, { fonte_estimativa: 'conversa' }),
+      await chamar('POST', `/negociacoes/${nid}/assumir`, {}),
+      await chamar('GET', `/busca?q=NG-`),
+    ];
+    for (const r of respostas) {
+      assert.ok(r.status < 300, `${r.status} ${JSON.stringify(r.corpo)}`);
+      assert.ok(!JSON.stringify(r.corpo).includes('motor_mensagem'), JSON.stringify(r.corpo));
+    }
+  });
+});
+
+test('IA falha na mensagem com fala de preço: a marca é desfeita e a mesma mensagem, entregue de novo, roda (issue #157)', async () => {
+  for (const caso of ['falha', 'erro_qualquer'] as const) {
+    limparLimites();
+    const banco = new BancoFalso(UNICOS);
+    const a = await base(banco, 100);
+    await banco.dados(100).criar('acessos_cliente', { contato_id: a.contato.id, revogado_em: null });
+    let nid = 0;
+    await comServidor(rotas, corretor(1, 100), banco, shellFalso(), async (chamar) => {
+      nid = (await chamar('POST', '/negociacoes', { negocio_id: a.negocio.id, imovel_id: a.imovel.id })).corpo.id;
+      assert.equal((await chamar('PUT', `/negociacoes/${nid}/mandato`, MANDATO)).status, 200);
+    });
+    let falhar = true;
+    const ia = iaSimulada([resposta({})]);
+    const consultar = ia.consultar;
+    ia.consultar = async (o: unknown) => {
+      if (falhar) {
+        ia.chamadas.push(o);
+        throw caso === 'falha' ? Object.assign(new Error('modelo fora do ar'), { codigo: 'IA_INDISPONIVEL' }) : new Error('erro inesperado');
+      }
+      return consultar(o);
+    };
+    const ctx = ctxListener(banco, { eventos: eventosFalsos(), ia });
+    const [p] = await publicarMensagem({ conta_id: 100, contato_id: a.contato.id }, { tipo: 'mensagem', negociacao: nid, texto: 'Tem desconto à vista?' });
+    await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: 100 }, ctx);
+    assert.equal(ia.chamadas.length, 1, caso);
+    assert.equal(banco.linhas('negociador_execucoes').length, 0, `${caso}: nada decidido`);
+    const n = banco.linhas('negociacoes').find((x) => x.id === nid)!;
+    assert.equal(n.motor_mensagem_hash ?? null, null, `${caso}: marca desfeita`);
+    // Entregue de novo (dentro dos 10 min), agora com a IA de volta: o motor roda e decide.
+    falhar = false;
+    await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: 100 }, ctx);
+    assert.equal(ia.chamadas.length, 2, caso);
+    assert.equal(banco.linhas('negociador_execucoes').length, 1, caso);
+    // E uma terceira entrega da mesma mensagem não roda: a marca agora fica.
+    await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: 100 }, ctx);
+    assert.equal(ia.chamadas.length, 2, `${caso}: idempotente depois de decidir`);
+  }
+});
+
+test('A × B na marca da mensagem: a mesma frase nas duas contas roda nas duas; a falha em B desfaz só a marca de B (issue #157)', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const nids: Record<number, number> = {};
+  const contatos: Record<number, number> = {};
+  for (const [conta, usuario] of [[100, 1], [200, 2]] as const) {
+    const b = await base(banco, conta);
+    contatos[conta] = b.contato.id;
+    await banco.dados(conta).criar('acessos_cliente', { contato_id: b.contato.id, revogado_em: null });
+    await comServidor(rotas, corretor(usuario, conta), banco, shellFalso(), async (chamar) => {
+      nids[conta] = (await chamar('POST', '/negociacoes', { negocio_id: b.negocio.id, imovel_id: b.imovel.id })).corpo.id;
+      assert.equal((await chamar('PUT', `/negociacoes/${nids[conta]}/mandato`, MANDATO)).status, 200);
+    });
+  }
+  // A IA responde à primeira chamada (A) e falha na segunda (B).
+  const ia = iaSimulada([resposta({})]);
+  const consultar = ia.consultar;
+  ia.consultar = async (o: any) => {
+    if (ia.chamadas.length >= 1) {
+      ia.chamadas.push(o);
+      throw Object.assign(new Error('fora do ar'), { codigo: 'IA_INDISPONIVEL' });
+    }
+    return consultar(o);
+  };
+  const ctx = ctxListener(banco, { eventos: eventosFalsos(), ia });
+  const texto = 'Tem desconto à vista?';
+  const [pa] = await publicarMensagem({ conta_id: 100, contato_id: contatos[100] }, { tipo: 'mensagem', negociacao: nids[100], texto });
+  const [pb] = await publicarMensagem({ conta_id: 200, contato_id: contatos[200] }, { tipo: 'mensagem', negociacao: nids[200], texto });
+  await reagir.acao_cliente_recebida({ payload: pa.payload, conta_id: 100 }, ctx);
+  await reagir.acao_cliente_recebida({ payload: pb.payload, conta_id: 200 }, ctx);
+  assert.equal(ia.chamadas.length, 2, 'a mesma frase roda nas duas contas');
+  const marca = (conta: number) => banco.linhas('negociacoes').find((n) => n.id === nids[conta])!.motor_mensagem_hash ?? null;
+  assert.match(String(marca(100)), /^[0-9a-f]{64}$/, 'A decidiu: a marca fica');
+  assert.equal(marca(200), null, 'B falhou: só a marca de B sai');
+  assert.deepEqual(banco.linhas('negociador_execucoes').map((e) => e.conta_id), [100]);
+  // A entrega repetida em A não roda; a de B, com a IA de volta, roda — e nada cruza de conta.
+  const ia2 = iaSimulada([resposta({})]);
+  const ctx2 = ctxListener(banco, { eventos: eventosFalsos(), ia: ia2 });
+  await reagir.acao_cliente_recebida({ payload: pa.payload, conta_id: 100 }, ctx2);
+  assert.equal(ia2.chamadas.length, 0, 'A: idempotente');
+  await reagir.acao_cliente_recebida({ payload: pb.payload, conta_id: 200 }, ctx2);
+  assert.equal(ia2.chamadas.length, 1, 'B: roda de novo');
+  assert.deepEqual(banco.linhas('negociador_execucoes').map((e) => [e.conta_id, e.negociacao_id]), [[100, nids[100]], [200, nids[200]]]);
+  // A entrega de B indicando a negociação de A (conta trocada no payload) não mexe na marca de A.
+  const antes = marca(100);
+  await reagir.acao_cliente_recebida({ payload: { ...pb.payload, texto: 'Outra frase de preço, faz desconto?' }, conta_id: 100 }, ctx2);
+  assert.equal(marca(100), antes);
 });
 
 test('"faz sozinho" a partir da mensagem: a contraproposta dentro do mandato sai pelo portal; abaixo do recuo, nada sai; o acordo final nunca', async () => {

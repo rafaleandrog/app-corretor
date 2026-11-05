@@ -423,7 +423,9 @@ test('reação: com o gatilho desmarcado só a tarefa; com o padrão humano a ne
     assert.equal((await chamar('PUT', '/negociador/config', { gatilhos: { reacao_preco: true }, negociador_padrao_id: 5, conduz_padrao: 'humano' })).status, 200);
   });
   const avisos = notificacoesFalsas();
-  await reagir.reacao_recebida({ payload: { ...reacao, comentario: 'De novo' }, conta_id: 100 }, ctxListener(banco, { eventos: eventosFalsos(), notificacoes: avisos }));
+  // O listener confere o papel e o nível efetivo da pessoa (issue #157); aqui, sem os convites.
+  const { listarUsuariosPorRole, nivelEfetivoUsuario } = shellFalso();
+  await reagir.reacao_recebida({ payload: { ...reacao, comentario: 'De novo' }, conta_id: 100 }, ctxListener(banco, { eventos: eventosFalsos(), notificacoes: avisos, shell: { listarUsuariosPorRole, nivelEfetivoUsuario } }));
   const n = banco.linhas('negociacoes');
   assert.deepEqual(n.map((x) => [x.conduzida_por, x.negociador_usuario_id]), [['humano', 5]]);
   assert.deepEqual(banco.linhas('atribuicoes_negociacao').map((x) => [x.usuario_id, x.ativa]), [[5, true]]);
