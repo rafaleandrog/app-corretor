@@ -1,6 +1,6 @@
 ---
 titulo: Números, envios e dados de demonstração
-descricao: Os números do corretor (leads, conversão por etapa e por canal, gráficos, vendas, VGV, previsão de comissão), o histórico de envios e a conta de demonstração.
+descricao: Os números do corretor (leads, conversão por etapa e por canal, gráficos, vendas, VGV, previsão de comissão, negociação), o histórico de envios e a conta de demonstração.
 ---
 
 # Números, envios e dados de demonstração
@@ -11,8 +11,8 @@ descricao: Os números do corretor (leads, conversão por etapa e por canal, gr�
 colunas (no celular, uma por vez, com abas):
 
 - **À esquerda, os relatórios:** **Resumo** · **Funil e conversão** · **Origem dos contatos** ·
-  **Tempo de resposta** · **Conteúdo**, e ainda **Mensageiro** e **Negociação**, marcados "em
-  breve" (chegam com o WhatsApp e com o relatório do Negociador). Créditos não entram em Números.
+  **Tempo de resposta** · **Conteúdo** · **Negociação**, e ainda **Mensageiro**, marcado "em
+  breve" (chega com o WhatsApp). Créditos não entram em Números.
   O relatório aberto fica no endereço (`/numeros?relatorio=funil`; o antigo `?item=` também abre).
 - **No centro, o relatório aberto.** No alto, o título e três escolhas:
   - o **período**: 7, 30 ou 90 dias, ou 12 meses (`?dias=30`), sempre comparado ao período anterior
@@ -68,14 +68,35 @@ Quatro números: **Contatos** (os leads), **Contato → visita**, **Visita → p
 em andamento e perdidos hoje) e a tabela **Por canal**: leads, quantos visitaram, em andamento,
 ganhos, perdidos e a conversão de cada canal.
 
-### Tempo de resposta, Conteúdo, Mensageiro e Negociação
+### Tempo de resposta, Conteúdo e Mensageiro
 
 - **Tempo de resposta** depende das conversas do WhatsApp, que ainda não estão disponíveis: o
   relatório explica isso em vez de mostrar zero.
 - **Conteúdo** mostra as **peças publicadas** pelo Estúdio no período e os **leads do Instagram**
   (pela origem do contato), com a comparação. Alcance, cliques e leads de cada peça ainda não têm
   fonte.
-- **Mensageiro** e **Negociação** aparecem como "em breve".
+- **Mensageiro** aparece como "em breve".
+
+### Negociação
+
+Os números das negociações da conta no período escolhido, com a comparação ao período anterior.
+São só somas e médias: nenhum valor do mandato (recuo, alvo, BATNA) nem a estimativa do teto do
+comprador aparece, e nada é mostrado negociação por negociação. O filtro de origem não vale neste
+relatório (a escolha some do alto dele). Quando falta dado, aparece uma frase no lugar do número.
+
+| Número | Como é contado | Sem dado |
+|---|---|---|
+| **Propostas recebidas** | Propostas do comprador registradas no período (pelo portal, pelo WhatsApp ou pelo corretor) | "Nenhuma proposta no período" |
+| **Taxa de acordo** | Das negociações encerradas no período, quantas foram ganhas; abaixo, "N de M encerradas" | "Nenhuma negociação encerrada no período" |
+| **Desconto médio** | Nas ganhas no período, a média de (preço pedido − valor final) ÷ preço pedido. O preço pedido é o do mandato em vigor; ganha sem mandato fica de fora. Venda acima do pedido entra como desconto negativo | "Nenhum acordo com preço pedido no período" |
+| **Rodadas até o acordo** | Média de rodadas das negociações ganhas no período | "Nenhum acordo no período" |
+| **Acordos dentro da ZOPA** | Das ganhas no período que têm o teto do comprador estimado, quantas fecharam entre o seu recuo e esse teto. As que não têm estimativa são contadas à parte | "Nenhum acordo com o teto do comprador estimado" (ou "Nenhum acordo no período") |
+| **Sugestões aprovadas sem edição** | Das sugestões do Negociador enviadas no período (aprovadas ou editadas por você, pela data da decisão), quantas saíram sem edição; abaixo, "N de M enviadas". Envio automático e descartadas não entram | "Nenhuma sugestão do Negociador enviada no período" |
+| **Objeções mais frequentes** | Objeções detectadas no período, por tipo (os mesmos nomes de Ajustes › Negociador › Respostas a objeções), da mais comum para a menos | "Nenhuma objeção registrada no período." |
+
+"Encerrada no período" e "ganha no período" valem pela data em que a negociação foi encerrada.
+Só o corretor da conta abre este relatório; quem negocia por ele (o negociador convidado) não vê
+Números.
 
 ### Como cada número é contado
 

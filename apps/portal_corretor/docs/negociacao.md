@@ -379,6 +379,8 @@ seguinte. No centro, seis blocos:
 - **Números do mês:** **Rodadas** conta as sugestões que o Negociador criou desde o dia 1º;
   **Aprovadas sem edição**, a parte das sugestões criadas no mês e aprovadas ou editadas (as
   ainda abertas e as recusadas não entram na conta) que você aprovou sem editar; e o custo por rodada ("Incluído no plano").
+  Para outros períodos, com taxa de acordo, desconto médio, rodadas, ZOPA e objeções, veja
+  **Números › Negociação** (lá a conta das aprovadas sem edição vai pela data em que você decidiu).
 
 ## Negociador humano
 
