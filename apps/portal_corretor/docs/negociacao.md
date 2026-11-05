@@ -278,13 +278,21 @@ conversa com a IA):
    grupo de algarismos livre, onde um valor caberia: endereço de Brasília ("W3 Sul", "L2 Norte"); código
    de unidade com no máximo dois algarismos e uma letra, logo depois de "apto", "apartamento", "ap",
    "torre", "bloco", "bl", "unidade", "casa", "sala", "loja", "conjunto" ou "cj" ("Apto 2B", "Torre
-   B2"); e data sem ano e sem hora ("visita dia 28/10"), que já passava. Na leitura do código, "l" e
-   "i" contam como 1 e "o" como 0, como no resto da conferência: "L3 Norte" é 13, "Torre l3" é 13, e o
-   código de unidade cuja letra vira algarismo ("Apto 3l", "Torre O3") não é mais código e retém.
-   Endereço e código passam
+   B2"); e data sem ano e sem hora ("visita dia 28/10"), que já passava. Na leitura do código, toda
+   letra que alguém pode tomar por algarismo é conferida com cada algarismo que ela pode ser: "a" 4,
+   "b" 8 ou 6, "e" 3, "g" 6 ou 9, "i" e "l" 1, "o" 0, "q" 9, "s" 5, "t" 7, "z" 2. O código passa só
+   quando nenhuma leitura revela, nem a letra lida como letra nem como algarismo: "Torre E6" é também
+   36, "Apto A5" é 45, "Bloco B4" é 84, "Apto 2B" é 28 e 26, "L3 Norte" é 13. O "w" do eixo e letras
+   como "c", "d", "f", "h" ficam só letra. "l", "i" e "o", no código, contam sempre como algarismo (no
+   resto da mensagem, só quando estão entre dígitos ou antes de um, como em "1.36O.000"), então o
+   código de unidade com uma delas ("Apto 3l", "Torre O3") não é mais código e retém. A marcação também conta: sublinhado, asterisco, til, crase e os caracteres
+   invisíveis (zero-width) colados ao código (`Apto 5B_`, `*Apto 5C*`, `_W4 Sul`) fazem o formato
+   reter, e as palavras de preço, de conta e de número são procuradas também com essa marcação tirada
+   ou trocada por espaço (`_menos_ apto 5B` e `Apto 4B_six` retêm). Endereço e código passam
    quando valem três condições. (1) O formato é o **único número da mensagem**: nenhum outro
    algarismo, número ou ordinal por extenso, em português, inglês ou espanhol ("treze", "quinto",
-   "sexta", "thirteen", "trece", "trescientos"), "um", "uma" ou "num", "par" ou "dupla", algarismo
+   "sexta", "thirteen", "trece", "trescientos", "quinientos", "tercero", "cuarto", "octavo"), "um",
+   "uma" ou "num", "par", "pares", "pair", "dupla" ou "dozen", algarismo
    romano ("Torre XIII"; palavras como "vi" e "mil" também contam), nem outro formato, em lugar
    nenhum dela. (2)
    Os algarismos dele não dão o recuo, o alvo ou valor da alternativa do vendedor em nenhuma escala
@@ -293,14 +301,21 @@ conversa com a IA):
    mi; "Torre 3B", 1,3 mi). Por isso, num imóvel de 1,5 mi com recuo de 1,36 mi, "W3 Sul", "L2
    Norte", "Apto 2B" e "Torre 3B" retêm; num imóvel em que esses valores não dizem nada, passam. E,
    com palavra de diferença, margem, percentual ou limite na mensagem ("folga", "margem", "gordura",
-   "chão", "até", "por", "%", "percentual", "porcentagem", "off", "taxa"…; "por favor" não conta),
+   "chão", "até", "por", "sobre", "%" (também o de largura cheia, "％"), "pc", "pp", "bps", "percentual",
+   "porcentagem", "off", "taxa", "less", "minus", "below", "delta"…, ou um "-" ou "+" solto ou colado ao
+   código; "por favor" não conta),
    também não dão o recuo ou
    o alvo como diferença do pedido ("a folga é o apto 14B" = 140 mil) ou como percentual dele
    ("gordura: Torre 3B" = 3%). (3) A mensagem não fala de preço, oferta ou aceite ("valor", "R$",
    "fecho", "aceita", "desce", "vendedor", "anunciado", "contraproposta", "combinado", "pode ser",
-   "bate"…; "fica na" de lugar não conta). **Retidos, por decisão:** telefone ("me liga no (61) 99999
-   1234", "ligue 0800 345 6789"), CEP ("CEP 70.000-000") e data com hora ("visita dia 28/10 15h"),
-   que já retinham, e o número entre parênteses depois do preço ("R$ 1.460.000 (2 vagas)"). A data com
+   "bate", "ficamos", "ok", "sim", "de acordo", "entrada", "sinal", "comissão", "economia", "recua",
+   e em inglês e espanhol "price", "precio", "offer", "deal", "rebaja", "commission"…; "fica na" de
+   lugar não conta): é todo o vocabulário com que a conferência lê preço, oferta, aceite e limite, e
+   por isso "Ok, apto 5B" também retém. **Retidos, por decisão:** telefone ("me liga no (61) 99999
+   1234", "ligue 0800 345 6789"), CEP ("CEP 70.000-000") e data seguida direto da hora ("visita dia
+   28/10 15h", "28/10 15h30"), que já retinham, e o número entre parênteses depois do preço ("R$
+   1.460.000 (2 vagas)"). A data com a hora depois de "às" ou de vírgula ("visita dia 28/10 às 10h",
+   "visita dia 28/10, 15h") passa, como antes: data e horário são lidos cada um como leitura padrão. A data com
    ano ("vistoria 28/10/2026") passava antes e retém desde a 0.1.34. Cada grupo de algarismos
    deles é um lugar onde um valor cabe ("CEP 70.000-136", "visita dia 28/10/1360 15h", "me liga no 61
    3333 1251"), e conferir grupo a grupo não fechou o vazamento. Também retêm: código com outro

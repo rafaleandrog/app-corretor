@@ -766,14 +766,19 @@ const LEITURA_MAX = 160;
 const PALAVRA_DE_ENDERECO = String.raw`(?:apto|apartamento|ap|torre|bloco|bl|unidade|casa|sala|loja|conjunto|cj)`;
 const COMECO_LIVRE = String.raw`(?<![\p{L}\p{N}.,:\/\-])`;
 /** Número em inglês ou espanhol, que `trechosSemLeitura` não vê como trecho. */
-const NUMERO_EM_OUTRA_LINGUA = String.raw`(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundreds?|thousands?|millions?|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|uno|una|dos|cuatro|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieci\w+|veinte|veinti\w+|treinta|cuarenta|cincuenta|sesenta|ochenta|noventa|cien|ciento|cientos|\w+cient[oa]s|millon\w*)`;
+const NUMERO_EM_OUTRA_LINGUA = String.raw`(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundreds?|thousands?|millions?|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|pairs?|dozens?|half|uno|una|dos|cuatro|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieci\w+|veinte|veinti\w+|treinta|cuarenta|cincuenta|sesenta|ochenta|noventa|cien|ciento|cientos|\w+cient[oa]s|quinient[oa]s|docenas?|decenas?|centenar(?:es)?|primer[oa]?s?|tercer[oa]?s?|cuart[oa]s?|octav[oa]s?|noven[oa]s?|millon\w*)`;
 /**
  * Palavra de preço, oferta ou aceite em qualquer lugar da mensagem: nenhum formato comum é liberado ("Fecho
  * em 13/6 0h", "O valor? Visita dia 13/6 0h", "Até onde ele desce? Ligue 0800 ...", "Quanto ele aceita?
  * Apto 45B", "Contraproposta: torre 6B", "Do anunciado: apto 5B", "Combinado: apto 6B", "Pode ser no apto 3B",
- * "Bate no apto 3B"). "Fica" de lugar ("fica na L2 Norte") não conta.
+ * "Bate no apto 3B"). "Fica" de lugar ("fica na L2 Norte") não conta. Cobre, com `CONTA_NA_MENSAGEM`, todo
+ * o vocabulário com que a `main` lê preço, oferta, aceite e limite (`CONTEXTO_DE_PRECO`, `CONTEXTO_DE_OFERTA`,
+ * `PARTE_DO_PRECO`, `ACEITE`, `ACEITE_ANTES`, `ACEITE_DEPOIS`, `PALAVRAS_DE_LIMITE`): "ficamos", "entrada",
+ * "sinal", "comissão", "ok", "sim", "feito", "ótimo", "de acordo", "batna", "economia", "recua"; e os
+ * equivalentes em inglês e espanhol de preço, oferta, aceite, desconto, economia, recuo e entrada/sinal/
+ * comissão ("Price:", "Precio:", "Deal:", "Rebaja:", "Commission"). Lida em `palavrasDaMensagem`.
  */
-const PRECO_NA_MENSAGEM = /\b(?:fech\w*|aceit\w*|top\w*|faco|fic[ao](?!\s+(?:na|no|nas|nos|perto|ao lado|longe|em frente)\b)|fazemos|sai|saio|chego|vend\w*|ced\w*|levo|valor|preco|pedido|propost\w*|ofert\w*|contra-?\s?(?:propost\w*|ofert\w*)|anunci\w*|combin\w*|pode(?:mos|ria|riamos)?\s+ser|bat(?:e|o|er|emos|em|eu|ido|ida|endo)|desconto|rs|reais|mil|milh\w*|piso|minimo|limite|teto|recuo|alvo|baix\w*|abaixo|desc(?:e|er|em|endo|eria|ida|ido)|negoci\w*)\b/;
+const PRECO_NA_MENSAGEM = /\b(?:fech\w*|aceit\w*|top\w*|faco|fic[ao](?!\s+(?:na|no|nas|nos|perto|ao lado|longe|em frente)\b)|ficamos|fazemos|sai|saio|chego|vend\w*|ced\w*|levo|valor|preco|pedido|propost\w*|ofert\w*|contra-?\s?(?:propost\w*|ofert\w*)|anunci\w*|combin\w*|pode(?:mos|ria|riamos)?\s+ser|bat(?:e|o|er|emos|em|eu|ido|ida|endo)|desconto|rs|reais|mil|milh\w*|piso|minim[oa]s?|limite|teto|recu\w*|alvo|baix\w*|abaixo|desc(?:e|er|em|endo|eria|ida|ido)|negoci\w*|batna|de\s+acordo|ok|okay|feito|sim|otimo|perfeito|serve|(?:ta|esta)\s+(?:bom|certo)|entrada|sinal|parcela\w*|financ\w*|fgts|comiss\w*|corretagem|itbi|escritura|registro|econom\w*|price\w*|pricing|precio\w*|cost[oe]s?|offer\w*|bid\w*|deal\w*|accept\w*|acept\w*|agree\w*|acuerdo|trato|done|sell\w*|sale|venta\w*|clos(?:e|ing)|cerr(?:o|ar|amos|ado)|deposit\w*|down\s*payment|downpayment|comision\w*|fees?|senal|sena|enganche|saving\w*|save|ahorr\w*|retreat\w*|rebaj\w*|rebate\w*|descuento\w*)\b/;
 /**
  * Palavra feita só de letras de algarismo romano ("XIII", "VI", "XL"). Pega também palavras comuns ("vi",
  * "di", "li", "mil"): só impede a liberação do formato, o que é reter a mais.
@@ -785,7 +790,7 @@ const ROMANO = String.raw`[ivxlcdm]+`;
  * (cômodos) não conta; "quarto" conta ("quarto andar"). Também número em inglês ou espanhol ("Thirteen
  * floors, apto 6B", "Bloco trescientos"), "par"/"dupla" e algarismo romano ("Torre XIII, apto 6B").
  */
-const OUTRO_NUMERO = new RegExp(String.raw`\b(?:primeir[oa]s?|segund[oa]s?|terceir[oa]s?|terc[oa]s?|terca|quart[oa]|quartas|quint[oa]s?|sext[oa]s?|setim[oa]s?|oitav[oa]s?|non[oa]s?|decim[oa]s?|undecim[oa]s?|duodecim[oa]s?|vigesim[oa]s?|trigesim[oa]s?|quadragesim[oa]s?|quinquagesim[oa]s?|sexagesim[oa]s?|se[pt]?tuagesim[oa]s?|octogesim[oa]s?|nonagesim[oa]s?|centesim[oa]s?|milesim[oa]s?|num|numa|nuns|numas|dum|duma|duns|dumas|duzias?|dezenas?|centenas?|milhar(?:es)?|milh\w*|bilh\w*|trilh\w*|pares?|duplas?|duo|trio|${NUMERO_EM_OUTRA_LINGUA}|${ROMANO})\b`);
+const OUTRO_NUMERO = new RegExp(String.raw`\b(?:primeir[oa]s?|segund[oa]s?|terceir[oa]s?|terc[oa]s?|terca|quart[oa]|quartas|quint[oa]s?|sext[oa]s?|oitav[oa]s?|non[oa]s?|decim[oa]s?|undecim[oa]s?|duodecim[oa]s?|vigesim[oa]s?|trigesim[oa]s?|quadragesim[oa]s?|quinquagesim[oa]s?|sexagesim[oa]s?|se[pt]?tuagesim[oa]s?|se[pt]?tim[oa]s?|octogesim[oa]s?|nonagesim[oa]s?|centesim[oa]s?|milesim[oa]s?|num|numa|nuns|numas|dum|duma|duns|dumas|duzias?|dezenas?|centenas?|milhar(?:es)?|milh\w*|bilh\w*|trilh\w*|par(?:es)?|duplas?|duo|trio|${NUMERO_EM_OUTRA_LINGUA}|${ROMANO})\b`);
 /**
  * Palavra que, na `main`, faz um número ser lido como diferença ou percentual de um valor público
  * (`CONTEXTO_DE_PRECO`, `CONTEXTO_DE_DIFERENCA`, `REDUCAO_ANTES`/`REDUCAO_DEPOIS`, `OPERADOR`, "%") e os
@@ -794,10 +799,13 @@ const OUTRO_NUMERO = new RegExp(String.raw`\b(?:primeir[oa]s?|segund[oa]s?|terce
  * os algarismos do formato também são conferidos como diferença e como percentual ("A folga é o apto 14B"
  * = 140 mil do pedido; "Gordura: Torre 3B" = 3% do pedido; "Percentual: apto 3B"; "Torre 3B off"; "Taxa: apto
  * 6B"). O "%" de largura cheia ("Torre 6B ％") sobrevive a `semAcento` (NFD) e conta como o "%". "Por favor"
- * não conta.
+ * não conta. Também: o operador colado ("Apto 5B-", "Torre 5B+"), a abreviação de percentual ("pc", "pp",
+ * "bps", "pts"), "sobre"/"em cima" (base do percentual, `BASE_DO_PERCENTUAL` e `PERCENTUAL_ACIMA`) e os
+ * equivalentes em inglês e espanhol de menos, abaixo e diferença ("less", "minus", "below", "bajo", "delta").
+ * Lida em `palavrasDaMensagem`.
  */
 const CONTA_NA_MENSAGEM =
-  /[%％﹪٪]|\s[-−–+=]\s|\b(?:percent\w*|porcent\w*|off|tax\w*|por(?!\s+(?:favor|gentileza)\b)|mais|menos|menor|acima|alem|faz|cheg\w*|lev\w*|rola|consigo|posso|podemos|chegamos|saimos|vendemos|aceitamos|topamos|soma\w*|tir[ao]\w*|tira|cort\w*|reduz\w*|reduc\w*|descont\w*|abat\w*|baix\w*|abaix\w*|folga\w*|marge\w*|gordura\w*|chao|patama\w*|ultim[oa]s?|maxim[oa]s?|diferenc\w*|sobra\w*|espaco|flexib\w*|ced\w*|pag\w*|cust\w*|vale|valem|sobe|subir|subo|desc\w*|mexe\w*|abr\w*\s+mao|pct|porcento|barato|pechinch\w*|chorinho|floor|bottom|ceiling|max|min|lowest|margin\w*|discount\w*|ate|quanto\w*|colchao|folego|brecha|toleranc\w*|faixa|meta|objetivo|ideal|cintura|range|gap|spread)\b/;
+  /[%％﹪٪+=−–]|(?:^|\s)-|-(?:\s|$)|\b(?:pc|pp|bps?|pts?|pontos?\s+percentua\w*|less|minus|below|under|beneath|bajo|abajo|debajo|delta|differ\w*|sobre|em\s+cima|percent\w*|porcent\w*|off|tax\w*|por(?!\s+(?:favor|gentileza)\b)|mais|menos|menor|acima|alem|faz|cheg\w*|lev\w*|rola|consigo|posso|podemos|chegamos|saimos|vendemos|aceitamos|topamos|soma\w*|tir[ao]\w*|tira|cort\w*|reduz\w*|reduc\w*|descont\w*|abat\w*|baix\w*|abaix\w*|folga\w*|marge\w*|gordura\w*|chao|patama\w*|ultim[oa]s?|maxim[oa]s?|diferenc\w*|sobra\w*|espaco|flexib\w*|ced\w*|pag\w*|cust\w*|vale|valem|sobe|subir|subo|desc\w*|mexe\w*|abr\w*\s+mao|pct|porcento|barato|pechinch\w*|chorinho|floor|bottom|ceiling|max|min|lowest|margin\w*|discount\w*|ate|quanto\w*|colchao|folego|brecha|toleranc\w*|faixa|meta|objetivo|ideal|cintura|range|gap|spread)\b/;
 /**
  * Os formatos liberados. `grupo`: o trecho do formato é só o código ("2B" em "Apto 2B"; "W3" em "W3 Sul").
  * `unidade`: código de unidade, que precisa manter uma letra que não se lê como algarismo.
@@ -808,6 +816,55 @@ const FORMATOS_COMUNS: { re: RegExp; grupo: number; unidade?: boolean }[] = [
   // Código de unidade, no máximo 2 algarismos e uma letra, logo depois da palavra de endereço.
   { re: new RegExp(String.raw`\b${PALAVRA_DE_ENDERECO}\.?\s+(\d{1,2}[a-z]|[a-z]\d{1,2})${FIM_X}`, 'gu'), grupo: 1, unidade: true },
 ];
+/**
+ * Caractere de conexão ou de marcação: o "_" e o resto de \p{Pc} ("‿", "＿"), os invisíveis (\p{Cf}:
+ * zero-width, hífen suave, BOM), as marcas combinantes (\p{M}) e o asterisco, o til e a crase do
+ * WhatsApp. O "_" é caractere de palavra para `\b`: "_menos_" esconderia "menos" das listas; o invisível
+ * no meio da palavra ("me\u200Bnos") a parte em duas.
+ */
+const MARCACAO = /[\p{Pc}\p{Cf}\p{M}*~`]/gu;
+const MARCACAO_UMA = /[\p{Pc}\p{Cf}\p{M}*~`]/u;
+
+/**
+ * As leituras da mensagem em que as listas de palavras (`PRECO_NA_MENSAGEM`, `OUTRO_NUMERO`,
+ * `CONTA_NA_MENSAGEM`) são procuradas: com a forma de compatibilidade (NFKC: letra de largura cheia vira
+ * letra) e sem acento, uma com a marcação tirada ("me_nos" = "menos") e outra com a marcação virando
+ * espaço ("_menos_" e "4B_six" = "menos" e "six"). A palavra achada em qualquer das duas conta.
+ */
+function palavrasDaMensagem(base: string): string[] {
+  const t = semAcento(base.normalize('NFKC'));
+  return [t.replace(MARCACAO, ''), t.replace(MARCACAO, ' ')];
+}
+const naMensagem = (re: RegExp, base: string) => palavrasDaMensagem(base).some((t) => re.test(t));
+
+/**
+ * Os algarismos que cada letra pode ser para quem lê (leet e semelhança gráfica): "a" 4, "b" 8 ou 6, "e" 3,
+ * "g" 6 ou 9, "i" e "l" 1, "o" 0, "q" 9, "s" 5, "t" 7, "z" 2. As outras ("w" do eixo, "c", "d", "f"...)
+ * ficam só letra.
+ */
+const LETRA_COMO_ALGARISMO: Record<string, string[]> = {
+  a: ['4'], b: ['8', '6'], e: ['3'], g: ['6', '9'], i: ['1'], l: ['1'], o: ['0'], q: ['9'], s: ['5'], t: ['7'], z: ['2'],
+};
+/**
+ * "l", "i" e "o": no código, sempre algarismo, nunca a letra dele. `desofuscar` só as troca com contexto
+ * ("o" depois de um dígito e antes de outro, ou de separador com dígito ou de escala; "l"/"i" antes de um
+ * dígito); aqui não se exige contexto.
+ */
+const SEMPRE_ALGARISMO = /[ilo]/;
+
+/**
+ * Todas as leituras de um código em algarismos: cada letra fica letra (some) ou vira cada algarismo que
+ * pode ser ("B2" = "2", "82" e "62"; "E6" = "6" e "36").
+ */
+function leiturasDoCodigo(codigo: string): string[] {
+  let leituras = [''];
+  for (const ch of codigo) {
+    const opcoes = /\d/.test(ch) ? [ch] : ['', ...(LETRA_COMO_ALGARISMO[ch] ?? [])];
+    leituras = leituras.flatMap((l) => opcoes.map((o) => l + o));
+  }
+  return [...new Set(leituras)].filter(Boolean);
+}
+
 /** Confere os algarismos de um formato liberado contra o mandato: verdadeiro quando revelam valor sigiloso. */
 type Revela = (algarismos: string) => boolean;
 
@@ -896,7 +953,7 @@ function trechosSemLeitura(base: string, revela: Revela): { ini: number; fim: nu
  * trechos ficam como a regra geral os leu (e retêm).
  */
 function liberarFormatosComuns(base: string, principais: Unidade[], revela: Revela): Unidade[] {
-  if (!principais.length || PRECO_NA_MENSAGEM.test(base) || OUTRO_NUMERO.test(base)) return principais;
+  if (!principais.length || naMensagem(PRECO_NA_MENSAGEM, base) || naMensagem(OUTRO_NUMERO, base)) return principais;
   const primeiro = principais[0].ini;
   const ultimo = principais[principais.length - 1].fim;
   for (const f of FORMATOS_COMUNS) {
@@ -906,13 +963,15 @@ function liberarFormatosComuns(base: string, principais: Unidade[], revela: Reve
       const ini = (m.index ?? 0) + m[0].lastIndexOf(m[f.grupo]);
       const fim = ini + m[f.grupo].length;
       if (primeiro < ini || ultimo > fim) continue;
-      // Os algarismos como o detector os lê: "l" e "i" são 1 e "o" é 0, como em `desofuscar` ("Torre l3" = 13,
-      // "L3 Norte" = 13, "Torre O3" = 03). O código de unidade cuja letra vira algarismo ("Apto 3l" = 31) não
-      // tem mais letra: não é o formato e não se libera.
-      const lido = m[f.grupo].replace(/[li]/g, '1').replace(/o/g, '0');
-      if (f.unidade && !/\p{L}/u.test(lido)) continue;
-      // Confere também só os algarismos escritos ("3" em "l3"): a leitura com a letra nunca retém menos.
-      if ([m[f.grupo], lido].some((c) => revela((c.match(/\d/g) ?? []).join('')))) continue;
+      // Marcação colada ao código ("Apto 5B_", "_W3 Sul", "Apto 4B\u200Bsix"): não se libera.
+      if (MARCACAO_UMA.test(base[ini - 1] ?? '') || MARCACAO_UMA.test(base[fim] ?? '')) continue;
+      const codigo = m[f.grupo];
+      // "l", "i" e "o" contam sempre como algarismo (`SEMPRE_ALGARISMO`): o código de unidade com uma delas
+      // ("Apto 3l" = 31, "Torre O3") não tem letra, não é o formato e não se libera.
+      if (f.unidade && SEMPRE_ALGARISMO.test(codigo)) continue;
+      // Toda leitura conta: a letra como letra ("2" em "Apto 2B") e como cada algarismo que pode ser ("28" e
+      // "26"; "Torre E6" = 36; "L3 Norte" = 13). Libera só quando nenhuma revela.
+      if (leiturasDoCodigo(codigo).some(revela)) continue;
       return [{ ini: primeiro, fim: ultimo, ruim: false, algarismo: false, meia: false }];
     }
   }
@@ -1227,7 +1286,7 @@ export function vazamentos(
    *   ("Gordura: Torre 3B" = 3%) que dá o recuo ou o alvo.
    * Valor público não revela.
    */
-  const contaNaMensagem = CONTA_NA_MENSAGEM.test(base);
+  const contaNaMensagem = naMensagem(CONTA_NA_MENSAGEM, base);
   const revela = (algarismos: string): boolean => {
     const recuo = mandato.recuo_c || 0;
     const sigiloso = (c: number) => c > 0 && sigilosos.some((x) => x.c > 0 && proximo(c, x.c, 0.01));

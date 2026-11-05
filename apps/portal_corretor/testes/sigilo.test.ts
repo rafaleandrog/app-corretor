@@ -555,25 +555,28 @@ const PUBLICOS_BAIXO = [88_000_000, 90_000_000];
 
 test('F1 (2): "W3 Sul", "Apto 2B" e "Visita dia 28/10" (sem ano e sem hora) passam', () => {
   // Na escada de 1,5 mi (recuo 1,36 mi), "W3", "2B", "B2", "C2" e "L2" se leem também 1,3 mi, 1,2 mi e 1,12 mi
-  // (milhão subentendido; "L" é 1), abaixo do recuo: retêm. Passam os que não revelam nada nessa escada.
+  // (milhão subentendido; "L" é 1), abaixo do recuo: retêm. "Apto 4B" (B = 6: 46 = 1,46 mi, a 1% do alvo) e
+  // "Torre B5" (B = 8: 85 = 850 mil, abaixo do recuo) também. Passam os que não revelam nada nessa escada.
   passa([
     'W4 Sul',
     'Moro na W4 Sul.',
     'Moro na W5 Sul, por favor.',
-    'Apto 4B',
-    'Apto 4B, de frente.',
-    'O apartamento é o Apto 4B.',
-    'Torre B5.',
+    'Apto 4C',
+    'Apto 4C, de frente.',
+    'O apartamento é o Apto 4C.',
+    'Torre C5.',
     'Bloco C6, perto do metrô.',
     'Apto 60B.',
     'Visita dia 28/10',
     'Visita dia 28/10?',
     'Podemos marcar a visita dia 28/10?',
   ]);
-  pega(['W3 Sul', 'Fica na L2 Norte.', 'Apto 2B', 'Torre B2.', 'Bloco C2, perto do metrô.']);
-  // Num imóvel em que 1,2 mi e 1,3 mi não revelam nada, os mesmos passam.
-  for (const m of ['W3 Sul', 'Moro na W3 Sul.', 'Fica na L2 Norte.', 'Moro na W3 Sul, por favor.', 'Apto 2B', 'Apto 2B, de frente.', 'O apartamento é o Apto 2B.', 'Torre B2.', 'Bloco C2, perto do metrô.'])
+  pega(['W3 Sul', 'Fica na L2 Norte.', 'Apto 2B', 'Torre B2.', 'Bloco C2, perto do metrô.', 'Apto 4B', 'Torre B5.']);
+  // Num imóvel em que 1,2 mi e 1,3 mi não revelam nada, os mesmos passam ("Torre B2" não: B = 8 dá 82 = 820
+  // mil, o recuo desse imóvel).
+  for (const m of ['W3 Sul', 'Moro na W3 Sul.', 'Fica na L2 Norte.', 'Moro na W3 Sul, por favor.', 'Apto 2B', 'Apto 2B, de frente.', 'O apartamento é o Apto 2B.', 'Torre C2.', 'Bloco C2, perto do metrô.'])
     assert.deepEqual(vazamentos(m, MOTOR_BAIXO, PUBLICOS_BAIXO), [], m);
+  assert.ok(vazamentos('Torre B2.', MOTOR_BAIXO, PUBLICOS_BAIXO).length > 0);
   // As normais de antes continuam passando.
   for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
 });
@@ -712,4 +715,107 @@ test('F1: os formatos liberados continuam lineares', () => {
     }
     assert.ok(melhor < 2000, `${JSON.stringify(f)} × 80 mil caracteres levou ${melhor.toFixed(0)} ms`);
   }
+});
+
+// Rodada 2 do ciclo 2 do #142.
+test('F1 (R2-B1): marcação ou conexão ("_", "‿", "＿", zero-width) não esconde palavra nem cola algo ao código', () => {
+  const frases = [
+    '_Menos_ apto 5B.',
+    '_Gap_: apto 5B.',
+    '_Meta_: apto 4B.',
+    'Torre 6B _off_.',
+    '_Ate_ apto 4B.',
+    'Apto 4B_six',
+    'Apto 5B_',
+    'Apto 5B\u200B',
+    'Me\u200Bnos apto 5B.',
+    'Apto 4B\u200Bsix',
+    'Apto 4B\u2040six',
+    'Apto 4B\uFF3Fsix',
+    '_W4 Sul',
+    '*Apto 5C*',
+  ];
+  pega(frases);
+  pegaSemOferta(frases);
+  // Sem a marcação, as mesmas formas passam (a retenção vem dela).
+  passa(['Apto 5C', 'W4 Sul', 'Apto 5B.']);
+});
+
+test('F1 (R2-B2): toda letra que pode ser algarismo é conferida com todos os algarismos que ela pode ser', () => {
+  // Escada de 1,5 mi: E = 3 ("E6" = 36 = 1,36 mi, o recuo), A = 4 ("A5" = 45 = 1,45 mi, o alvo), B = 8 ("B4"
+  // = 84 = 840 mil), G = 9 ("G5" = 95 = 950 mil), B = 6 ("4B" = 46 = 1,46 mi, a 1% do alvo).
+  const frases = ['Torre E6', 'Apto A5', 'Apto A4', 'Apto E5', 'Bloco B4', 'Torre G5', 'Apto 4B', 'Torre B5.'];
+  pega(frases);
+  pegaSemOferta(frases);
+  // S = 5 ("S4" = 54), Z = 2 ("4Z" = 42), T = 7 ("3T" = 37), Q = 9 ("Q4" = 94), G = 6 ("G6" = 66): num mandato
+  // em que essa leitura é o recuo, retém; a letra lida só como letra ("4", "3", "6") não revelaria.
+  const caso = (f: string, recuo: number) => {
+    const m = { ...MOTOR, preco_pedido_c: recuo + 10_000_000, alvo_c: recuo + 5_000_000, recuo_c: recuo };
+    assert.ok(vazamentos(f, m, [recuo + 10_000_000]).length > 0, `deveria pegar: ${f} com recuo ${recuo}`);
+  };
+  caso('Torre S4', 154_000_000);
+  caso('Torre 4Z', 142_000_000);
+  caso('Apto 3T', 137_000_000);
+  caso('Torre Q4', 194_000_000);
+  caso('Torre G6', 166_000_000);
+  // "l", "i" e "o" seguem não sendo letra de código ("Apto 3l" = 31): retêm em qualquer mandato.
+  for (const f of ['Apto 3l', 'Torre 4i', 'Torre O3']) assert.ok(vazamentos(f, MOTOR_BAIXO, PUBLICOS_BAIXO).length > 0, f);
+  // "W" não se lê como algarismo: "W4 Sul" segue passando. "C" também não: "Apto 4C" passa.
+  passa(['W4 Sul', 'Apto 4C', 'Apto 5B.']);
+});
+
+test('F1 (R2-B3): "par", ordinal e centena em espanhol e inglês contam como outro número', () => {
+  const frases = [
+    'Apto 4B par',
+    'Par de torres, apto 6B',
+    'Apto 6B tercero',
+    'Bloco quinientos, apto 6B',
+    'Apto 6B primero',
+    'Apto 6B cuarto',
+    'Apto 6B septimo',
+    'Apto 6B octavo',
+    'Apto 6B noveno',
+    'Bloco seiscientos, apto 6B',
+    'Apto 6B, a pair',
+    'Apto 6B dozen',
+  ];
+  pega(frases);
+  pegaSemOferta(frases);
+});
+
+test('F1 (R2-B4): vocabulário de preço, conta, aceite e entrada da main, e em inglês e espanhol, impede a liberação', () => {
+  const frases = [
+    'Torre 4B pc',
+    'Apto 4B pp',
+    'Apto 4B bps',
+    'Economia: apto 5B.',
+    'Less: apto 5B.',
+    'Below: apto 4B.',
+    'Minus apto 5B.',
+    'Rebaja: apto 5B.',
+    'Recua apto 5B.',
+    'Delta: apto 5B.',
+    'Price: apto 4B.',
+    'Precio: apto 4B.',
+    'Deal: apto 5B.',
+    'Comissão: apto 5B.',
+    'Sinal: apto 5B.',
+    'Entrada: apto 5B.',
+    'Ficamos no apto 5B.',
+    'De acordo: apto 5B.',
+    'Apto 5B-',
+    'Torre 5B+',
+  ];
+  pega(frases);
+  pegaSemOferta(frases);
+});
+
+test('F1 (R2-B4): o "％" de largura cheia, sozinho, conta como o "%"', () => {
+  // Sem "contraproposta" nem outra palavra de preço: só o "％" faz "6C" ser lido como percentual (6% abaixo
+  // da contraproposta de 1,46 mi = 1,372 mi, a 1% do recuo).
+  assert.ok(vazamentos('Torre 6C \uFF05', MOTOR, PUBLICOS_120).length > 0);
+  assert.ok(vazamentos('Torre 6C \uFF05', MOTOR, PERMITIDOS).length > 0);
+  // Sem ele, a mesma frase passa.
+  assert.deepEqual(vazamentos('Torre 6C', MOTOR, PUBLICOS_120), []);
+  assert.deepEqual(vazamentos('Torre 6C', MOTOR, PERMITIDOS), []);
 });

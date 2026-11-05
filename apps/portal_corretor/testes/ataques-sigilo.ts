@@ -1,5 +1,5 @@
-// Frases de ataque publicadas nas revisões do detector de sigilo (PRs #115, #120, #126 e as 3 rodadas do
-// #142). Usadas por `sigilo.test.ts` (todas retêm) e pela comparação head × main da revisão (nenhuma que
+// Frases de ataque publicadas nas revisões do detector de sigilo (PRs #115, #120, #126, as 3 rodadas do
+// #142 e as rodadas do ciclo 2). Usadas por `sigilo.test.ts` (todas retêm) e pela comparação head × main da revisão (nenhuma que
 // a `main` retém pode passar). Ficam de fora só as que a `main` nunca reteve (risco residual aceito na
 // D-111, registrado na doc): estão em `RESIDUO_DA_MAIN`, para que a comparação as veja.
 
@@ -212,8 +212,73 @@ const C2R1_142 = [
   'Apto 5B x par x VI',
 ];
 
+/** Rodada 2 do ciclo 2 do #142: marcação que esconde palavra, toda letra lida como algarismo, "par" e espanhol, vocabulário da `main`. */
+const C2R2_142 = [
+  // R2-B1: marcação ou conexão ("_", "‿", "＿", zero-width, asterisco) colada à palavra ou ao código.
+  '_Menos_ apto 5B.',
+  '_Gap_: apto 5B.',
+  '_Meta_: apto 4B.',
+  'Torre 6B _off_.',
+  '_Ate_ apto 4B.',
+  'Apto 4B_six',
+  'Apto 5B_',
+  'Apto 5B\u200B',
+  'Me\u200Bnos apto 5B.',
+  'Apto 4B\u200Bsix',
+  'Apto 4B\u2040six',
+  'Apto 4B\uFF3Fsix',
+  '_W4 Sul',
+  '*Apto 5C*',
+  // R2-B2: letra lida como algarismo (a/4, b/8/6, e/3, g/9, q/9, t/7).
+  'Torre E6',
+  'Apto A5',
+  'Apto A4',
+  'Apto E5',
+  'Bloco B4',
+  'Torre G5',
+  'Apto 4B',
+  'Torre B5.',
+  'Apto 3T',
+  'Torre Q4',
+  // R2-B3: "par", ordinal e centena em espanhol, "pair"/"dozen".
+  'Apto 4B par',
+  'Par de torres, apto 6B',
+  'Apto 6B tercero',
+  'Bloco quinientos, apto 6B',
+  'Apto 6B primero',
+  'Apto 6B cuarto',
+  'Apto 6B septimo',
+  'Apto 6B octavo',
+  'Apto 6B noveno',
+  'Bloco seiscientos, apto 6B',
+  'Apto 6B, a pair',
+  'Apto 6B dozen',
+  // R2-B4: vocabulário de preço, conta, aceite e entrada da `main`, em inglês e espanhol; operador colado; "％".
+  'Torre 4B pc',
+  'Apto 4B pp',
+  'Apto 4B bps',
+  'Economia: apto 5B.',
+  'Less: apto 5B.',
+  'Below: apto 4B.',
+  'Minus apto 5B.',
+  'Rebaja: apto 5B.',
+  'Recua apto 5B.',
+  'Delta: apto 5B.',
+  'Price: apto 4B.',
+  'Precio: apto 4B.',
+  'Deal: apto 5B.',
+  'Comissão: apto 5B.',
+  'Sinal: apto 5B.',
+  'Entrada: apto 5B.',
+  'Ficamos no apto 5B.',
+  'De acordo: apto 5B.',
+  'Apto 5B-',
+  'Torre 5B+',
+  'Torre 6C \uFF05',
+];
+
 /** Todas as frases de ataque que a `main` retém: o head tem de reter todas. */
-export const ATAQUES_DAS_REVISOES = [...ATAQUES_115_120_126, ...R1_142, ...R2_142, ...R3_142, ...C2R1_142];
+export const ATAQUES_DAS_REVISOES = [...ATAQUES_115_120_126, ...R1_142, ...R2_142, ...R3_142, ...C2R1_142, ...C2R2_142];
 
 /**
  * Citadas nos laudos e que a `main` nunca reteve (resíduo pré-existente, igual nas duas árvores): não
