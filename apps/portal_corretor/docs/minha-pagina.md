@@ -1,14 +1,40 @@
 ---
-titulo: Minha página, ficha pública e link rastreado
+titulo: Página, ficha pública e link rastreado
 descricao: A página pública do corretor por blocos, a ficha de cada imóvel anunciado, o formulário de contato que vira cliente no funil e o link que mostra quando o cliente abriu o imóvel.
 ---
 
-# Minha página, ficha pública e link rastreado
+# Página, ficha pública e link rastreado
 
-## Minha página
+## Página
 
-Em **Minha página** o corretor monta a própria página na internet, que abre sem login, no celular
-ou no computador:
+Em **Página** (a antiga Minha página) o corretor monta a própria página na internet, que abre sem
+login, no celular ou no computador.
+
+### A tela
+
+A tela fica no desenho em colunas (no celular, uma por vez, com as abas Blocos · Prévia · Ajustes):
+
+- **À esquerda:** o endereço da página e o estado (**Publicada desde …** ou **Rascunho**), com o
+  botão **Publicar** enquanto ela não está no ar e o atalho **Nome e endereço**. Abaixo, os
+  **blocos**, na ordem em que aparecem: cada um com **Mostrar** (aparece ou fica oculto) e as setas
+  para subir e descer. Tocar num bloco o seleciona: ele fica marcado na lista, no endereço
+  (`/pagina?item=destaques`, por exemplo) e na prévia. No fim, **Refazer a página com IA** (a mesma
+  escrita com IA descrita abaixo).
+- **No centro:** a **pré-visualização**, com a escolha **Celular** ou **Computador**. A prévia é a
+  própria página que o visitante vê (a mesma capa, os mesmos cartões e a sua cor), montada com a
+  página salva e os imóveis que estão publicáveis agora; o bloco selecionado aparece contornado. Na
+  prévia nada sai da tela: os links não abrem e o formulário não envia. Bloco oculto não aparece
+  na prévia, e um aviso lembra de ligar o **Mostrar**. Antes de salvar a primeira mudança, a prévia
+  mostra a sugestão de página.
+- **À direita:** os **ajustes do bloco selecionado** (o que ele mostra hoje e **Editar bloco**); a
+  **Marca**, com a sua foto e o atalho **Editar em Ajustes › Conta e marca** (a cor e a foto vêm de
+  lá); **Últimos 30 dias**, com os **contatos** que chegaram pelo formulário da página (as
+  **visitas** à página ainda não são medidas e aparecem como "—"); e, com a página no ar, **Copiar
+  link** e, em **Mais**, Abrir minha página, Atualizar agora e Tirar do ar.
+
+Arrastar os blocos para ordenar ainda não existe: a ordem muda pelas setas.
+
+### O que a página tem
 
 - **Nome e endereço:** o nome que aparece e o endereço (`joao-corretor`, por exemplo). O endereço
   é único na plataforma inteira. Se outra pessoa já usa o endereço, o app avisa.
@@ -28,9 +54,9 @@ ou no computador:
 | Formulário de contato | Nome, telefone, e-mail, mensagem e a autorização de contato |
 | WhatsApp e Instagram | Liga ou desliga o botão do WhatsApp e informa o Instagram |
 
-- **Escrever com IA** sugere a apresentação e o "sobre mim" a partir do que o corretor contar e
+- **Refazer a página com IA** sugere a apresentação e o "sobre mim" a partir do que o corretor contar e
   das regiões dos imóveis. A IA não inventa prêmios, anos de experiência nem números. O corretor
-  revisa antes de usar. Sem a IA liberada, o botão avisa e os textos são escritos à mão.
+  revisa antes de usar. Usar os textos liga os blocos Apresentação e Sobre mim. Sem a IA liberada, o botão avisa e os textos são escritos à mão.
 - **Publicar** põe a página no ar. **Atualizar agora** refaz a página com o estado atual dos
   imóveis e do perfil. **Tirar do ar** faz a página e as fichas pararem de abrir; o formulário e
   a contagem de cliques param de receber, e os links enviados mostram "Imóvel indisponível".

@@ -222,3 +222,39 @@ export async function criarLink(req: Request, codigoLink: string, imovelId: numb
   await gravar(dados, conta, 'link', codigoLink, naVitrine.codigo, { imovel_chave: naVitrine.chave });
   return `${origemPublica(pagina.url_clique)}/portal_corretor/l?c=${encodeURIComponent(codigoLink)}`;
 }
+
+/**
+ * Prévia da Página no editor (P09): os cartões dos imóveis que a página mostraria agora, com a mesma
+ * regra da publicação (marcado para a página, anunciado e com autorização vigente) e os mesmos campos
+ * da rota pública. Lê só as tabelas da própria conta; não grava nada na vitrine.
+ */
+export async function cartoesDaPrevia(req: Request): Promise<Linha[]> {
+  const dados = req.dados!;
+  const conta = contaDoRequest(req);
+  const imoveis = await dados.varrerTudo('imoveis', { filtros: { publicado_pagina: true, conta_id: conta }, ordenar: 'criado_em', ordem: 'desc', maximo: 200 });
+  if (!imoveis.length) return [];
+  const ids = imoveis.map((i) => i.id).join(',');
+  const [midias, autorizacoes] = await Promise.all([
+    dados.varrerTudo('imovel_midias', { filtros: { imovel_id: ids, conta_id: conta }, maximo: 20000 }),
+    dados.varrerTudo('autorizacoes_venda', { filtros: { imovel_id: ids, conta_id: conta }, maximo: 5000 }),
+  ]);
+  const dia = hojeEm(req.contexto?.fuso);
+  const cartoes: Linha[] = [];
+  for (const im of imoveis) {
+    if (!publicavel(im, autorizacoes.filter((a) => a.imovel_id === im.id), dia)) continue;
+    const p = imovelPublico(im, midias.filter((m) => m.imovel_id === im.id));
+    let capa: string | null = null;
+    if (p.fotos[0] && req.arquivos) {
+      try {
+        capa = await req.arquivos.url(p.fotos[0].arquivo, 3600);
+      } catch {
+        capa = null; // foto que saiu não derruba a prévia
+      }
+    }
+    cartoes.push({
+      codigo: p.codigo, titulo: p.titulo, tipo: p.tipo, situacao: p.situacao, preco_c: p.preco_c,
+      bairro: p.bairro, cidade: p.cidade, quartos: p.quartos, area_util_m2: p.area_util_m2 ?? p.area_total_m2, vagas: p.vagas, capa,
+    });
+  }
+  return cartoes;
+}

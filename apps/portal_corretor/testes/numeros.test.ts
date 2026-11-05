@@ -31,7 +31,7 @@ test('regras puras: marco alcançado, KPIs do período e previsão ponderada', (
   );
   assert.deepEqual([k.leads, k.lead_visita, k.visita_proposta, k.proposta_ganho, k.conversao_total, k.ganhos, k.ciclo_medio_dias, k.vgv_c], [3, 0.667, 0.5, 1, 0.333, 1, 10, 1000]);
   assert.deepEqual(k.motivos_perda, [{ motivo: 'preco', quantidade: 1 }]);
-  assert.deepEqual(k.por_origem[0], { canal: 'portal', leads: 2, ganhos: 1, abertos: 1, perdidos: 0 });
+  assert.deepEqual(k.por_origem[0], { canal: 'portal', leads: 2, visitaram: 2, ganhos: 1, abertos: 1, perdidos: 0 });
   assert.deepEqual(k.etapas, { leads: 3, atendimento: 2, visitou: 2, proposta: 1, ganhos: 1 });
   assert.equal(k.clientes_unicos, 3, 'sem contato_id, cada negócio conta como um cliente');
   assert.equal(calcularKpis([{ ...base, criado_em: '2026-10-05T00:00:00.000Z', marco_max: 'novo', contato_id: 7 }, { ...base, criado_em: '2026-10-06T00:00:00.000Z', marco_max: 'novo', contato_id: 7 }], de, ate).clientes_unicos, 1);

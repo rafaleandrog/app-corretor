@@ -8,8 +8,9 @@ import { renderClientes, renderNegociacoes } from './telas/clientes.js';
 import { renderHojeNegociador } from './telas/negociacoes.js';
 import { aoAbrirImportar, renderImportar } from './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
-import { renderNumeros } from './telas/desempenho.js';
-import './telas/pagina.js';
+import { aoAbrirNumeros, renderNumeros } from './telas/desempenho.js';
+import { aoAbrirPagina, renderPagina } from './telas/pagina.js';
+import './telas/previa-pagina.js';
 import './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assistente.js';
@@ -59,8 +60,8 @@ const TELAS: Record<ChaveTela, Tela> = {
     render: (id, app) => renderImoveis(() => app?.requestUpdate(), { empreendimento: Number(id) || undefined }),
   },
   estudio: { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
-  pagina: { titulo: 'Página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
-  numeros: { titulo: 'Números', papel: 'corretor', moldura: true, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
+  pagina: { titulo: 'Página', papel: 'corretor', moldura: true, aoAbrir: aoAbrirPagina, render: (_p, app) => renderPagina(() => app?.requestUpdate()) },
+  numeros: { titulo: 'Números', papel: 'corretor', moldura: true, aoAbrir: aoAbrirNumeros, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
   ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
   corretores: { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };

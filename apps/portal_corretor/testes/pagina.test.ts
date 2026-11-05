@@ -383,3 +383,54 @@ test('quem atende 2 contas publica, edita e despublica a vitrine na conta ativa 
     assert.equal(banco.linhas('vitrine_publica').filter((l) => l.conta === 100).length, 0, 'despublicar apaga tudo da conta');
   });
 });
+
+test('prévia da Página (P09): o que o visitante veria, sem endereço de entrada nem dado pessoal; contatos da página; A × B', async () => {
+  const banco = new BancoFalso(UNICOS);
+  let publica: any = null;
+  await comServidor(rotas, A, banco, shell, async (chamar) => {
+    await imovelAnunciado(chamar, 'Apto com vista', '61911110002');
+    await chamar('POST', '/imoveis', { tipo: 'casa', cidade: 'Brasília', titulo: 'Rascunho secreto' });
+    // Antes de salvar: a prévia já monta a sugestão, com o imóvel publicável.
+    const antes = await chamar('GET', '/pagina/previa');
+    assert.equal(antes.status, 200);
+    assert.equal(antes.corpo.publicada, false);
+    assert.equal(antes.corpo.pagina.endereco, 'usuario-1');
+    assert.deepEqual(antes.corpo.imoveis.map((i: any) => i.titulo), ['Apto com vista'], 'rascunho não aparece');
+    assert.equal(antes.corpo.imoveis[0].capa, '/arquivo/501');
+    assert.equal(antes.corpo.pagina.url_formulario, null, 'na prévia o formulário não envia');
+    assert.equal('url_clique' in antes.corpo.pagina, false);
+    assert.equal('foto' in antes.corpo.pagina, false, 'id de arquivo não sai, só URL');
+    assert.ok(antes.corpo.pagina.blocos.every((b: any) => b.ativo), 'só os blocos que aparecem');
+    const texto = JSON.stringify(antes.corpo);
+    for (const proibido of ['Lúcia', '61911110002', 'SQSW 300', 'Rascunho secreto', 'comissao', 'proprietario']) assert.ok(!texto.includes(proibido), `prévia sem ${proibido}`);
+    // Os contatos da página (30 dias) contam só os que vieram pelo canal da página.
+    assert.deepEqual((await chamar('GET', '/pagina')).corpo.numeros, { contatos_30d: 0, visitas_30d: null });
+    await chamar('POST', '/contatos', { nome: 'Veio da Página', telefone: '61922223333', origem_canal: 'pagina' });
+    await chamar('POST', '/contatos', { nome: 'Veio do Portal', telefone: '61922224444', origem_canal: 'portal' });
+    assert.equal((await chamar('GET', '/pagina')).corpo.numeros.contatos_30d, 1);
+    // Publicada, a prévia mostra o mesmo que a página pública.
+    const inicial = (await chamar('GET', '/pagina')).corpo;
+    await chamar('PUT', '/pagina', { ...inicial.pagina, endereco: 'ana-corretora', nome_exibicao: 'Ana Corretora' });
+    assert.equal((await chamar('POST', '/pagina/publicar')).status, 200);
+    publica = (await chamar('GET', '/pagina/previa')).corpo;
+    assert.equal(publica.publicada, true);
+  });
+  await comServidor(rotasPublicas, VISITANTE, banco, {}, async (chamar) => {
+    const p = (await chamar('GET', '/vitrine/pagina?c=ana-corretora')).corpo;
+    assert.deepEqual(publica.imoveis, p.imoveis, 'mesmos cartões da página pública');
+    const { url_formulario: _a, url_clique: _c, ...semUrlPublica } = p.pagina;
+    const { url_formulario: _b, ...semUrlPrevia } = publica.pagina;
+    assert.deepEqual(semUrlPrevia, semUrlPublica, 'mesma página, menos os endereços de entrada');
+    assert.ok(p.pagina.url_formulario, 'o visitante continua com o formulário');
+  });
+  // B: a prévia é só da conta dele, sem nada de A.
+  await comServidor(rotas, B, banco, shell, async (chamar) => {
+    const r = (await chamar('GET', '/pagina/previa')).corpo;
+    assert.deepEqual(r.imoveis, []);
+    assert.equal(r.pagina.endereco, 'usuario-2');
+    assert.equal((await chamar('GET', '/pagina')).corpo.numeros.contatos_30d, 0);
+  });
+  await comServidor(rotas, { usuario: 9, conta: 100, papeis: ['cliente'] }, banco, shell, async (chamar) => {
+    assert.equal((await chamar('GET', '/pagina/previa')).status, 403);
+  });
+});
