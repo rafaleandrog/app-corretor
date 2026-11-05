@@ -154,3 +154,93 @@ test('trava (#143), isolamento A × B: as duas PATCH com ids de outra conta resp
   assert.equal(Number(banco.linhas('autorizacoes_venda').find((x) => x.id === a.aut)!.comissao_pct), 5);
   assert.equal(JSON.stringify(banco.linhas('imovel_midias').find((x) => x.id === a.midia)), antes, 'a mídia do A não mudou');
 });
+
+// --- Sobras da revisão do #152 (issue #157) -------------------------------------------------------------
+
+test('trava (#157): PATCH vazia da mídia repara o documento público legado (fica interno)', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const { imovel, midia } = await base(chamar);
+    // Documento que ficou público antes da regra: só por fora da rota se chega a este estado.
+    await banco.dados(100).atualizar('imovel_midias', midia, { tipo: 'documento', publica: true });
+    const r = await chamar('PATCH', `/imoveis/${imovel}/midias/${midia}`, {});
+    assert.equal(r.status, 200, JSON.stringify(r.corpo));
+    assert.deepEqual([r.corpo.tipo, r.corpo.publica], ['documento', false]);
+    const doc = banco.linhas('imovel_midias').find((x) => x.id === midia)!;
+    assert.deepEqual([doc.tipo, doc.publica], ['documento', false]);
+    // A legenda (ou qualquer outro campo) também repara, e a PATCH vazia de uma foto não mexe em nada.
+    await banco.dados(100).atualizar('imovel_midias', midia, { publica: true });
+    assert.equal((await chamar('PATCH', `/imoveis/${imovel}/midias/${midia}`, { legenda: 'Matrícula' })).corpo.publica, false);
+    const foto = (await chamar('POST', `/imoveis/${imovel}/midias`, { upload_id: 6 })).corpo;
+    const antes = JSON.stringify(banco.linhas('imovel_midias').find((x) => x.id === foto.id));
+    assert.equal((await chamar('PATCH', `/imoveis/${imovel}/midias/${foto.id}`, {})).status, 200);
+    assert.equal(JSON.stringify(banco.linhas('imovel_midias').find((x) => x.id === foto.id)), antes);
+  });
+});
+
+test('trava (#157): a comparação é por campo — chave a mais da leitura, ordem das chaves e data como Date não dão 409', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const { relerSemMudanca } = await import('../backend/imoveis');
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const { midia } = await base(chamar);
+    const linha = banco.linhas('imovel_midias').find((x) => x.id === midia)!;
+    // Como a rota a leria com um `campos_incluir` (chave a mais), as chaves em outra ordem e a data como Date.
+    const lida: Record<string, unknown> = { imovel_titulo: 'Casa', ...Object.fromEntries(Object.entries(linha).reverse()) };
+    lida.atualizado_em = new Date(String(linha.atualizado_em));
+    const viva = await banco.dados(100).transaction((trx: any) => relerSemMudanca(trx, 'imovel_midias', lida));
+    assert.equal(typeof viva, 'object', 'não é "mudou"');
+    // Uma coluna gravada que difere, sim.
+    const mudou = await banco.dados(100).transaction((trx: any) => relerSemMudanca(trx, 'imovel_midias', { ...lida, legenda: 'outra' }));
+    assert.equal(mudou, 'mudou');
+  });
+});
+
+test('trava (#157): a mídia apagada enquanto a PATCH esperava a trava responde 404 (não 409 nem 500)', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const { imovel, midia } = await base(chamar);
+    const r = await corrida(
+      banco,
+      'imovel_midias',
+      midia,
+      () => chamar('PATCH', `/imoveis/${imovel}/midias/${midia}/remover`, {}),
+      () => chamar('PATCH', `/imoveis/${imovel}/midias/${midia}`, { legenda: 'Sala' }),
+    );
+    assert.ok(r.esperou);
+    assert.equal(r.a.status, 200, JSON.stringify(r.a.corpo));
+    assert.deepEqual([r.b.status, r.b.corpo.codigo], [404, 'NAO_ENCONTRADO'], JSON.stringify(r.b.corpo));
+    assert.equal(banco.linhas('imovel_midias').some((x) => x.id === midia), false);
+  });
+});
+
+test('trava (#157): a autorização apagada entre a leitura e a trava responde 404', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const { aut } = await base(chamar);
+    const travar = (banco as any).travar.bind(banco);
+    (banco as any).travar = async (chave: string, minhas: Set<string>) => {
+      if (chave === `autorizacoes_venda:${aut}`) await banco.dados(100).deletar('autorizacoes_venda', aut);
+      return travar(chave, minhas);
+    };
+    const r = await chamar('PATCH', `/autorizacoes/${aut}`, { comissao_pct: 7 });
+    assert.deepEqual([r.status, r.corpo.codigo], [404, 'NAO_ENCONTRADO'], JSON.stringify(r.corpo));
+  });
+});
+
+test('trava (#157), A × B: documento_midia_id de outra conta é recusado (422) e a mídia de B não muda', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const b = await comServidor(rotas, B, banco, {}, async (chamar) => {
+    const imovel = (await chamar('POST', '/imoveis', { tipo: 'sala', cidade: 'Brasília' })).corpo.id as number;
+    const midia = (await chamar('POST', `/imoveis/${imovel}/midias`, { upload_id: 9 })).corpo.id as number;
+    return { imovel, midia };
+  });
+  const antes = JSON.stringify(banco.linhas('imovel_midias').find((x) => x.id === b.midia));
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const { aut } = await base(chamar);
+    const r = await chamar('PATCH', `/autorizacoes/${aut}`, { documento_midia_id: b.midia, situacao: 'assinada' });
+    assert.deepEqual([r.status, r.corpo.codigo], [422, 'DADOS_INVALIDOS'], JSON.stringify(r.corpo));
+    const salva = banco.linhas('autorizacoes_venda').find((x) => x.id === aut)!;
+    assert.deepEqual([salva.documento_midia_id ?? null, salva.situacao], [null, 'rascunho']);
+  });
+  assert.equal(JSON.stringify(banco.linhas('imovel_midias').find((x) => x.id === b.midia)), antes, 'a mídia de B não virou documento');
+});

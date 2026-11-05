@@ -263,9 +263,9 @@ function barramento() {
       emitidos.push({ tipo, payload, via: 'publicar', conta: opcoes?.conta_id });
       return { id: ++seq };
     },
-    agendar: async (tipo: string, payload: Record<string, unknown>, _o: { em: Date }) => {
+    agendar: async (tipo: string, payload: Record<string, unknown>, o: { em: Date; conta_id?: unknown }) => {
       conferir(tipo, payload);
-      emitidos.push({ tipo, payload, via: 'agendar' });
+      emitidos.push({ tipo, payload, via: 'agendar', conta: o?.conta_id });
       return { id: ++seq };
     },
     cancelarAgendamento: async () => true,
@@ -464,6 +464,8 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
 
   // Nenhuma recusa: todo payload com exatamente as chaves do manifesto.
   assert.deepEqual(bus.recusas, []);
+  // A conta (issue #157): o cenário é todo da conta 100; nenhum evento sai declarando outra.
+  for (const e of bus.emitidos) assert.ok(e.conta === undefined || e.conta === 100, `${e.tipo}: conta ${String(e.conta)}`);
   // Todos os eventos do manifesto saíram de verdade. Evento novo no manifesto sem caminho aqui reprova.
   const saidos = new Set(bus.emitidos.map((e) => e.tipo));
   assert.deepEqual(Object.keys(eventos).filter((t) => !saidos.has(t)), [], 'eventos do manifesto que o cenário não emitiu: acrescente o caminho');

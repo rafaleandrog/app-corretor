@@ -21,7 +21,9 @@ alguns formatos comuns ("W3 Sul", "Apto 2B"), com o critério de equivalência d
 entra](#quando-o-negociador-entra)); a 0.1.38 deixa esses gatilhos mais robustos (a negociação e a
 tarefa do mandato nascem juntas, e a mesma mensagem não faz o Negociador responder duas vezes). Na
 0.1.39, trocar de conta recria a tela da negociação (ver [Trocar de conta no meio de uma
-negociação](#trocar-de-conta-no-meio-de-uma-negociação)).
+negociação](#trocar-de-conta-no-meio-de-uma-negociação)). Na 0.1.40, se a IA falha numa mensagem do
+cliente, a mesma mensagem entregue de novo tenta outra vez, e a negociação aberta pela reação ou pela
+mensagem do cliente só vai ao negociador padrão quando o app consegue conferir o acesso dele.
 
 ### Resumo das garantias
 

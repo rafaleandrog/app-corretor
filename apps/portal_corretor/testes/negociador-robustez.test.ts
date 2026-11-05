@@ -541,6 +541,41 @@ test('"faz sozinho" a partir da mensagem: a contraproposta dentro do mandato sai
   for (const p of ev.publicados) for (const v of Object.values(p.payload)) assert.ok(v === null || typeof v === 'number', `${p.tipo}: só ids`);
 });
 
+test('"faz sozinho" pela rota /sugestao: a contraproposta dentro do mandato sai pelo portal, de verdade; eventos só com ids (issue #157)', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const a = await base(banco, 100);
+  await banco.dados(100).criar('acessos_cliente', { contato_id: a.contato.id, revogado_em: null });
+  const ia = iaSimulada([contraproposta(146_000_000, 'Ana Secreta, posso levar R$ 1.460.000.'), contraproposta(135_000_000, 'Faço R$ 1.350.000.')]);
+  await comServidor(rotas, corretor(1, 100, { eventos: ev, ia }), banco, shellFalso(), async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: a.negocio.id, imovel_id: a.imovel.id })).corpo.id;
+    assert.equal((await chamar('PUT', `/negociacoes/${nid}/mandato`, SOZINHO)).status, 200);
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 })).status, 201);
+    const r = await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Tem desconto à vista? Meu telefone é +5561910077777', canal: 'portal' });
+    assert.equal(r.status, 200, JSON.stringify(r.corpo));
+    // Executou: a proposta do vendedor existe, enviada pelo portal, pelo Negociador IA.
+    assert.ok(r.corpo.enviada, 'a resposta traz a proposta enviada');
+    const vendedor = banco.linhas('propostas').filter((p) => p.negociacao_id === nid && p.direcao === 'vendedor');
+    assert.deepEqual(vendedor.map((p) => [p.valor_c, p.autor_tipo, p.canal, p.estado]), [[146_000_000, 'negociador_ia', 'portal', 'enviada']]);
+    assert.deepEqual(banco.linhas('negociador_execucoes').map((e) => e.decisao), ['automatica']);
+    // O texto que saiu é o montado pelo código (sem o texto do modelo nem o nome que ele escreveu).
+    assert.ok(r.corpo.mensagem_enviada && !String(r.corpo.mensagem_enviada).includes('Secreta'), r.corpo.mensagem_enviada);
+    semSigiloso(JSON.stringify(r.corpo), 'a resposta da rota');
+    assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'aguardando_cliente');
+    // Abaixo do recuo, pela mesma rota: nada sai.
+    const b = await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faz por menos?', canal: 'portal' });
+    assert.equal(b.status, 200);
+    assert.equal(b.corpo.enviada ?? null, null);
+    assert.equal(banco.linhas('propostas').filter((p) => p.negociacao_id === nid && p.direcao === 'vendedor').length, 1);
+  });
+  assert.ok(ev.publicados.some((p) => p.tipo === 'contraproposta_enviada'), 'contraproposta_enviada publicada');
+  semSigiloso(JSON.stringify(ev.publicados), 'os eventos');
+  for (const p of ev.publicados) {
+    assert.ok(!JSON.stringify(p.payload).includes('Secreta') && !JSON.stringify(p.payload).includes('5561910077777'), `${p.tipo}: sem dado pessoal`);
+  }
+});
+
 test('pedido de desconto: outro cliente da MESMA conta indicando a negociação do primeiro é ignorado', async () => {
   limparLimites();
   const banco = new BancoFalso(UNICOS);

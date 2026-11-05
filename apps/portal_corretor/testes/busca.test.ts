@@ -160,6 +160,16 @@ test('cortarTermo: corta em BUSCA_MAX sem deixar metade de emoji (o encodeURICom
   const inteiro = 'x'.repeat(BUSCA_MAX - 2) + '😀' + 'y';
   assert.equal(cortarTermo(inteiro), 'x'.repeat(BUSCA_MAX - 2) + '😀');
   assert.ok(cortarTermo(inteiro).length <= BUSCA_MAX);
+  // Bordas (issue #157): exatamente no limite, um a mais, dois emojis cruzando o limite, alto solto no fim.
+  assert.equal(cortarTermo('x'.repeat(BUSCA_MAX)), 'x'.repeat(BUSCA_MAX));
+  assert.equal(cortarTermo('x'.repeat(BUSCA_MAX + 1)), 'x'.repeat(BUSCA_MAX));
+  const dois = 'x'.repeat(BUSCA_MAX - 3) + '😀😀';
+  assert.equal(cortarTermo(dois), 'x'.repeat(BUSCA_MAX - 3) + '😀');
+  assert.doesNotThrow(() => encodeURIComponent(cortarTermo(dois)));
+  const solto = 'Ana' + '\uD83D';
+  assert.equal(cortarTermo(solto), 'Ana');
+  assert.doesNotThrow(() => encodeURIComponent(cortarTermo(solto)));
+  assert.equal(cortarTermo('   '), '');
 });
 
 test('negociação: achada só pelo cliente, só pelo imóvel, e com cliente anonimizado sem o nome', async () => {

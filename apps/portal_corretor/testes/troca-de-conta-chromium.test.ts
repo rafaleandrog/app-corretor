@@ -273,11 +273,14 @@ test(`troca de conta (${modo}) com as respostas da conta anterior em voo: chegam
 });
 }
 
-test('Assistente: a conversa é da conta; trocar de conta (com a pergunta em voo) recomeça vazia', async (t) => {
+// Nos dois modos (issue #157: faltava o Assistente em voo com várias contas, troca pelo seletor).
+for (const modo of ['conta única trocada pelo shell', 'várias contas, troca pelo seletor'] as const) {
+test(`Assistente (${modo}): a conversa é da conta; trocar de conta (com a pergunta em voo) recomeça vazia`, async (t) => {
   const pw = playwright();
   if (!pw) return t.skip('Playwright não instalado neste ambiente');
   const { navegador, pagina, erros } = await montar(pw);
   try {
+    if (modo.startsWith('várias')) await pagina.addInitScript(() => ((window as any).VARIAS = true));
     await pagina.goto(`${ORIGEM}/portal_corretor/assistente`);
     await esperar(pagina);
     // Uma pergunta respondida na conta A.
@@ -297,11 +300,17 @@ test('Assistente: a conversa é da conta; trocar de conta (com a pergunta em voo
     const depois = await tudo(pagina);
     assert.doesNotMatch(depois, /CONTA 100|Pergunta da conta A|Outra da conta A/, 'nada da conversa de A em B');
     assert.equal(await pagina.evaluate(() => (window as any).achar('urbi-chat').itens.length), 0, 'a conversa recomeça vazia');
+    // A conta nova pergunta e recebe a própria resposta: a conversa de B segue viva.
+    await pagina.evaluate(() => (((window as any).SEGURAR = false), (window as any).achar('urbi-chat').aoEnviar({ texto: 'Pergunta da conta B' })));
+    await esperar(pagina);
+    assert.match(await tudo(pagina), /Resposta CONTA 200/, 'a resposta de B aparece em B');
+    assert.doesNotMatch(await tudo(pagina), /CONTA 100/);
     assert.deepEqual(erros, []);
   } finally {
     await navegador.close();
   }
 });
+}
 
 test('Novo imóvel: o rascunho digitado na conta A não segue para a conta B', async (t) => {
   const pw = playwright();
