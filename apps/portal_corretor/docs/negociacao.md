@@ -270,7 +270,21 @@ conversa com a IA):
    retém, olhando as palavras em volta do valor e não a frase ("1.300.000? Fechado.", "pode ser 1,3
    sim", "negócio fechado em um vírgula três"); só relatar a oferta do comprador passa ("recebi sua
    proposta de R$ 1.300.000", "sua oferta de R$ 1.300.000 fica registrada"). "2 mil" de condomínio
-   ou de taxa não é lido como preço. Juros e rendimento podem reter a mensagem ("juros de 9,33% ao
+   ou de taxa não é lido como preço. **Formatos comuns que passam (desde a 0.1.29):** telefone com
+   espaço depois de uma palavra de contato ("me liga no (61) 99999 1234", "WhatsApp 61 9 9876-5432",
+   "ligue 0800 123 4567"); CEP no padrão exato depois de "CEP" ("CEP 70.000-000"); endereço de
+   Brasília ("W3 Sul", "L2 Norte") e código de unidade de até dois algarismos logo depois de "apto",
+   "torre", "bloco", "casa", "sala" ou "loja" ("Apto 2B", "Torre B2"); data com hora sem "às" depois
+   de uma palavra de agenda ("visita dia 28/10 15h"); e número entre parênteses depois do preço,
+   quando é uma quantidade ("R$ 1.460.000 (2 vagas)"). Cada um só passa quando **não pode formar um
+   valor em reais com o resto da mensagem**: depois dele, até o fim da mensagem, só pode haver
+   quantidades com unidade ("3 quartos"), ordinais, horários, datas, telefones ou outro desses
+   formatos; antes dele, na mesma frase, só isso ou um valor completo ("R$ 1.460.000"). Telefone, CEP
+   e data com hora também não passam quando a frase fala de preço, oferta ou aceite. Por isso ainda
+   retêm: endereço com número à direita ("W3 Sul 704", "Torre B2 704"); o formato seguido de qualquer
+   valor, com qualquer separador, até em outra frase ("Torre 1B e 300 mil", "Visita dia 28/10 15h?
+   Levo R$ 1.460.000"); número curto antes dele ("fecho em 1, torre 36B"); e "nº 123/2026",
+   "12/2027". Juros e rendimento podem reter a mensagem ("juros de 9,33% ao
    ano" é lido como percentual sobre o pedido). A conferência prefere reter a mais: uma
    mensagem retida vai para você decidir e nada sai ao cliente. Uma
    alternativa do vendedor dita com outras palavras pode não ser reconhecida pela conferência, por

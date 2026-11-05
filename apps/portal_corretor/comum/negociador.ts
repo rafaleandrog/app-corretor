@@ -743,18 +743,93 @@ const DIGITOS_INTEIROS = new RegExp(`^${DIG_X}$`);
 /** O maior trecho lido de uma vez: leitura mais longa que isso não é número de conversa. */
 const LEITURA_MAX = 160;
 
+// --- Formatos comuns liberados com fecho (F1, #133) ----------------------------------------------
+// Telefone com espaço, CEP, endereço de Brasília ("W3 Sul", "Apto 2B", "Torre B2") e data com hora sem
+// "às" têm forma que a leitura padrão não consome, e por isso retinham. Cada um só é liberado quando NÃO
+// pode compor um valor em reais com o resto da mensagem, qualquer que seja o separador:
+// - depois dele, até o fim da mensagem, todo trecho que parece número é fechado (quantidade com unidade,
+//   ordinal, horário, data, telefone, outro formato liberado): nenhum valor, nenhuma escala, nenhum
+//   número solto ("Torre 1B e 300 mil", "W1 Sul 360.000", "Apto 1B + 360 mil" e "Torre 1B. 300 mil"
+//   continuam retidos);
+// - antes dele, na mesma frase, todo trecho que parece número é fechado ou é um valor completo (com
+//   milhar ou escala: "R$ 1.460.000"); um número curto ("Fecho em 1, torre 360B") bloqueia a liberação.
+// Falhou uma das condições, o trecho volta a ser lido como na regra geral (D2b), que retém.
+
+const DIA_X = String.raw`(?:0?[1-9]|[12]\d|3[01])`;
+const MES_X = String.raw`(?:0?[1-9]|1[0-2])`;
+const HORA_X = String.raw`(?:[01]?\d|2[0-3])(?:h(?:[0-5]\d(?:min)?)?|hs|:[0-5]\d)`;
+/** Palavra de endereço antes do código ("Apto 2B", "Torre B2", "Bloco C1"). */
+const PALAVRA_DE_ENDERECO = String.raw`(?:apto|apartamento|ap|torre|bloco|bl|unidade|casa|sala|loja|conjunto|cj)`;
+const COMECO_LIVRE = String.raw`(?<![\p{L}\p{N}.,:\/\-])`;
+/** Palavra de contato na frase, antes do telefone: "Me liga no", "WhatsApp", "telefone". */
+const CONTEXTO_DE_TELEFONE = /\b(?:tel\w*|fone|celular|cel|whats\w*|zap|wpp|lig\w*|contato|numero|ramal)\b/;
+/** Palavra de agenda na frase, antes da data com hora: "Visita dia 28/10 15h". */
+const CONTEXTO_DE_AGENDA = /\b(?:dia|data|visit\w*|vistoria|agend\w*|marc\w*|reuni\w*|encontro|assinatura|horario|entrega|chaves|mudanca)\b/;
+/** Palavra de preço, oferta ou aceite na frase: telefone, CEP e data com hora não são liberados ("Fecho em 13/6 0h"). */
+const PRECO_NA_FRASE = /\b(?:fech\w*|aceit\w*|top\w*|faco|fic[ao]|fazemos|sai|saio|chego|vend\w*|ced\w*|levo|valor|preco|pedido|propost\w*|ofert\w*|desconto|rs|reais|mil|milh\w*|piso|minimo|limite)\b/;
+/** O começo da frase até a posição: o texto depois do último ponto, "!", "?" ou quebra de linha. */
+const fraseAntes = (base: string, ini: number) => base.slice(Math.max(0, ini - 80), ini).split(/[.!?](?!\d)|\n/).pop() ?? '';
+/** O resto da frase depois da posição, até o próximo ponto, "!", "?" ou quebra de linha. */
+const fraseDepois = (base: string, fim: number) => base.slice(fim, fim + 80).split(/[.!?](?!\d)|\n/)[0];
+/** `antes` recebe o começo da frase até o formato e a frase inteira (com o resto depois dele). */
+const FORMATOS_COMUNS: { re: RegExp; grupo?: number; antes?: (antes: string, frase: string) => boolean }[] = [
+  // Telefone com DDD e 8 ou 9 dígitos, com espaço ou hífen, depois de palavra de contato: "Me liga no
+  // (61) 99999 1234", "WhatsApp 61 9 9876-5432". Sem a palavra, "Fecho em 13 6000 0000" retém.
+  {
+    re: new RegExp(String.raw`${COMECO_LIVRE}(?:\+?55\s?)?(?:\(\s?[1-9][1-9]\s?\)|[1-9][1-9])\s?(?:9\s?)?\d{4}[\s-]?\d{4}${FIM_X}`, 'gu'),
+    antes: (f, frase) => CONTEXTO_DE_TELEFONE.test(f) && !PRECO_NA_FRASE.test(frase),
+  },
+  // 0800, 0300, 0500 e 0900, também depois de palavra de contato: "Ligue 0800 123 4567".
+  { re: new RegExp(String.raw`${COMECO_LIVRE}0[3589]00[\s-]?\d{3}[\s-]?\d{4}${FIM_X}`, 'gu'), antes: (f, frase) => CONTEXTO_DE_TELEFONE.test(f) && !PRECO_NA_FRASE.test(frase) },
+  // CEP no padrão exato, logo depois da palavra "CEP": "CEP 70.000-000", "o CEP é 70070-120".
+  { re: new RegExp(String.raw`${COMECO_LIVRE}\d{2}\.?\d{3}-\d{3}${FIM_X}`, 'gu'), antes: (f, frase) => /\bcep\s*[:.]?\s*(?:(?:e|eh)\s+)?$/.test(f) && !PRECO_NA_FRASE.test(frase) },
+  // Eixo de Brasília: "W3 Sul", "L2 Norte" (o código; o número depois dele é outro trecho).
+  { re: new RegExp(String.raw`${COMECO_LIVRE}([wl][1-5])(?=\s+(?:sul|norte)\b)`, 'gu'), grupo: 1 },
+  // Código de unidade, até 2 algarismos, logo depois da palavra de endereço: "Apto 2B", "Torre B2".
+  { re: new RegExp(String.raw`\b${PALAVRA_DE_ENDERECO}\.?\s+(\d{1,2}[a-z]|[a-z]{1,2}\d{1,2})${FIM_X}`, 'gu'), grupo: 1 },
+  // Data e hora válidas, sem "às", depois de palavra de agenda e sem palavra de preço em toda a frase:
+  // "Visita dia 28/10 15h", "Vistoria 28/10/2026 15h30".
+  {
+    re: new RegExp(String.raw`${COMECO_LIVRE}${DIA_X}\/${MES_X}(?:\/(?:\d{4}|\d{2}))?\s+${HORA_X}${FIM_X}`, 'gu'),
+    antes: (f, frase) => CONTEXTO_DE_AGENDA.test(f) && !PRECO_NA_FRASE.test(frase),
+  },
+];
+/** Escala logo depois de um trecho ("1:36 mi", "3º mil"): ele não é mais fechado. */
+const ESCALA_DEPOIS = /^\s*(?:mil|milh\w*|bilh\w*|mi|mm|kk?|m|bi|reais)\b/;
+/** Horário e data que de fato o são: hora até 23, minuto até 59, dia até 31, mês até 12. */
+const HORA_VALIDA = /^(?:[01]?\d|2[0-3])(?:h(?:[0-5]\d(?:min)?)?|hs|:[0-5]\d(?::[0-5]\d)?)$/;
+const DATA_VALIDA = new RegExp(String.raw`^(?:${DIA_X}\/${MES_X}(?:\/\d{2,4})?|\d{4}-\d{2}-\d{2}\S*)$`);
+/** Valor completo: com milhar ou com escala ("1.460.000", "1,46 mi", "360 mil"). */
+const VALOR_COMPLETO = /\d[.,]\d{3}(?!\d)|\b(?:mil|milh\w*|bilh\w*)\b|\d\s?(?:mi|mm|kk|k|m)$/;
+/** Fim de frase: ponto, "!" ou "?" (fora de número) e quebra de linha. */
+const FIM_DE_FRASE = /[.!?](?!\d)|\n/;
+
+interface Unidade {
+  ini: number;
+  fim: number;
+  ruim: boolean;
+  algarismo: boolean;
+  meia: boolean;
+  /** Não pode compor valor: quantidade com unidade, ordinal, horário, data, telefone, formato liberado. */
+  fechada: boolean;
+  /** Valor com milhar ou escala. */
+  completo: boolean;
+}
+
 /**
  * Os trechos que parecem número e não têm leitura padrão (D2b). Parece número: qualquer caractere
  * numérico Unicode (inclui ❶, ①, ², dígito de outro alfabeto), emoji de número, letra colada a algarismo,
  * palavra de número ("zero" a "novecentos", "mil", "milhão"; "meia" junto de outro número). Cada trecho
  * assim tem de ser consumido por uma leitura padrão (`LEITURAS_PADRAO`): valor com milhar e decimal
- * padrão ou por extenso, horário, data, ordinal, quantidade com unidade, telefone. Retém o grupo (trechos
- * ligados só por sinais e conectores) em que: um trecho não foi consumido; duas leituras se ligam por algo
- * que não é separação normal ("1/3/6/0", "1:360:000", "1 ponto 36", "1\n360", em que tirar a quebra
- * junta os dois num número); ou há três algarismos soltos ("um, três, seis, zero").
+ * padrão ou por extenso, horário, data, ordinal, quantidade com unidade, telefone; ou por um formato comum
+ * com fecho (`FORMATOS_COMUNS`, F1). Retém o grupo (trechos ligados só por sinais e conectores) em que:
+ * um trecho não foi consumido; duas leituras se ligam por algo que não é separação normal ("1/3/6/0",
+ * "1:360:000", "1 ponto 36", "1\n360", em que tirar a quebra junta os dois num número); ou há três
+ * algarismos soltos ("um, três, seis, zero"). A única separação a mais aceita é o parêntese antes de uma
+ * quantidade com unidade, com fecho ("R$ 1.460.000 (2 vagas)").
  */
 function trechosSemLeitura(base: string): { ini: number; fim: number }[] {
-  const unidades: { ini: number; fim: number; ruim: boolean; algarismo: boolean; meia: boolean }[] = [];
+  const principais: Unidade[] = [];
   let coberto = 0;
   for (const m of base.matchAll(/[\p{L}\p{N}\p{M}\u{1F51F}]+/gu)) {
     const ini = m.index ?? 0;
@@ -762,27 +837,50 @@ function trechosSemLeitura(base: string): { ini: number; fim: number }[] {
     const meia = /^mei[ao]$/.test(m[0]);
     if (fim <= coberto || !(/[\p{N}\u{1F51F}]/u.test(m[0]) || PALAVRA_DE_NUMERO.test(m[0]) || meia)) continue;
     let melhor = -1;
+    // Qual leitura deu o trecho mais longo: índice de `LEITURAS_PADRAO`, ou -2 para o horário por extenso.
+    let qual = -1;
     // Colado a um número por ponto, vírgula, dois-pontos, barra ou hífen ("1.3.6", "l.360", "1:360"): sem leitura.
     if (!/[\p{L}\p{N}][.,]$|\p{N}[:\/\-]$/u.test(base.slice(Math.max(0, ini - 2), ini))) {
-      const ler = (re: RegExp, de: number) => {
+      const ler = (re: RegExp, de: number, indice: number) => {
         const trecho = base.slice(de, de + LEITURA_MAX);
         re.lastIndex = 0;
         const r = re.exec(trecho);
         // Leitura que chega ao fim do recorte sem o texto acabar: longa demais, sem leitura.
-        if (r && (de + r[0].length < de + trecho.length || de + trecho.length === base.length)) melhor = Math.max(melhor, de + r[0].length);
+        if (r && (de + r[0].length < de + trecho.length || de + trecho.length === base.length) && de + r[0].length > melhor) {
+          melhor = de + r[0].length;
+          qual = indice;
+        }
       };
-      for (const re of LEITURAS_PADRAO) ler(re, ini);
+      LEITURAS_PADRAO.forEach((re, k) => ler(re, ini, k));
       // O telefone começa no "(" ou no "+".
       let k = ini;
       while (k > 0 && ini - k < 2 && /[(+]/.test(base[k - 1])) k--;
-      if (k < ini) ler(LEITURAS_PADRAO[LEITURAS_PADRAO.length - 1], k);
-      if (/\bas\s$/.test(base.slice(Math.max(0, ini - 4), ini))) ler(HORARIO_POR_EXTENSO, ini);
+      if (k < ini) ler(LEITURAS_PADRAO[LEITURAS_PADRAO.length - 1], k, LEITURAS_PADRAO.length - 1);
+      if (/\bas\s$/.test(base.slice(Math.max(0, ini - 4), ini))) ler(HORARIO_POR_EXTENSO, ini, -2);
     }
     if (melhor >= fim) {
-      unidades.push({ ini, fim: melhor, ruim: false, algarismo: ALGARISMO.test(base.slice(ini, melhor)), meia: false });
+      const lido = base.slice(ini, melhor);
+      const depois = base.slice(melhor, melhor + 20);
+      // Fechada: horário e data válidos, ordinal de até 2 algarismos, faixa ou quantidade com unidade, telefone, horário por
+      // extenso; ou valor seguido de unidade ("3 quartos"), ou o artigo "um"/"uma". Nunca com escala depois.
+      const naoMonetaria =
+        (qual === 1 && HORA_VALIDA.test(lido)) || (qual === 2 && DATA_VALIDA.test(lido)) || (qual === 3 && /^\d{1,2}\D$/.test(lido)) || [4, 5, 7, -2].includes(qual) || (qual === 0 && (UNIDADE_DEPOIS.test(depois) || /^uma?$/.test(lido)));
+      principais.push({
+        ini,
+        fim: melhor,
+        ruim: false,
+        algarismo: ALGARISMO.test(lido),
+        meia: false,
+        fechada: naoMonetaria && !ESCALA_DEPOIS.test(depois),
+        completo: qual === 0 && VALOR_COMPLETO.test(lido),
+      });
       coberto = melhor;
-    } else unidades.push({ ini, fim, ruim: true, algarismo: false, meia });
+    } else principais.push({ ini, fim, ruim: true, algarismo: false, meia, fechada: false, completo: false });
   }
+  const unidades = liberarFormatosComuns(base, principais);
+  // Daqui em diante, a partir de cada trecho, todos os seguintes são fechados?
+  const fechadoDesde: boolean[] = new Array(unidades.length + 1).fill(true);
+  for (let k = unidades.length - 1; k >= 0; k--) fechadoDesde[k] = fechadoDesde[k + 1] && unidades[k].fechada;
   const saida: { ini: number; fim: number }[] = [];
   let i = 0;
   while (i < unidades.length) {
@@ -803,12 +901,90 @@ function trechosSemLeitura(base: string): { ini: number; fim: number }[] {
         const a = base.slice(grupo[k].ini, grupo[k].fim).match(/[\d.,]+$/)?.[0];
         const b = base.slice(grupo[k + 1].ini, grupo[k + 1].fim).match(/^[\d.,]+/)?.[0];
         ruim = !!a && !!b && DIGITOS_INTEIROS.test(a + b);
-      } else ruim = !SEPARACAO_NORMAL.test(entre);
+      } else {
+        // Parêntese antes de uma quantidade com unidade, com tudo fechado dali em diante (F1):
+        // "R$ 1.460.000 (2 vagas)". "1 (360) mil" continua sem separação normal.
+        const parentese = /^\s*\(\s*$/.test(entre) && fechadoDesde[i + k + 1] && UNIDADE_DEPOIS.test(base.slice(grupo[k + 1].fim, grupo[k + 1].fim + 20));
+        ruim = !parentese && !SEPARACAO_NORMAL.test(entre);
+      }
     }
     if (ruim) saida.push({ ini: grupo[0].ini, fim: grupo[grupo.length - 1].fim });
     i = j + 1;
   }
   return saida;
+}
+
+/**
+ * Troca, nos trechos lidos pela regra geral, os que formam um formato comum (`FORMATOS_COMUNS`) por um
+ * trecho só, fechado, quando ele tem fecho (ver o bloco acima). Sem fecho, os trechos ficam como a regra
+ * geral os leu. Repete até nenhum formato liberado perder o fecho (um formato que cai devolve trechos que
+ * podem tirar o fecho de outro); passou de 8 voltas, não libera nenhum.
+ */
+function liberarFormatosComuns(base: string, principais: Unidade[]): Unidade[] {
+  if (!principais.length) return principais;
+  // Os candidatos, sem sobreposição, alinhados aos trechos lidos: [primeiro, último] índice coberto.
+  const candidatos: { de: number; ate: number; fim: number }[] = [];
+  const achados: { ini: number; fim: number }[] = [];
+  for (const f of FORMATOS_COMUNS) {
+    f.re.lastIndex = 0;
+    for (const m of base.matchAll(f.re)) {
+      const ini = (m.index ?? 0) + (f.grupo ? m[0].lastIndexOf(m[f.grupo]) : 0);
+      const fim = f.grupo ? ini + m[f.grupo].length : (m.index ?? 0) + m[0].length;
+      if (f.antes) {
+        const antes = fraseAntes(base, m.index ?? 0);
+        if (!f.antes(antes, `${antes} ${fraseDepois(base, fim)}`)) continue;
+      }
+      // O telefone pode começar no "(" ou no "+": o trecho liberado começa no primeiro algarismo dentro dele.
+      achados.push({ ini, fim });
+    }
+  }
+  achados.sort((a, b) => a.ini - b.ini || b.fim - a.fim);
+  let ultimoFim = -1;
+  let p = 0;
+  for (const a of achados) {
+    if (a.ini < ultimoFim) continue;
+    while (p < principais.length && principais[p].fim <= a.ini) p++;
+    let q = p;
+    while (q < principais.length && principais[q].ini < a.fim) q++;
+    // Alinhado: há trechos dentro, nenhum começa antes do candidato nem termina depois dele.
+    if (q === p || principais[p].ini < a.ini || principais[q - 1].fim > a.fim) continue;
+    candidatos.push({ de: p, ate: q - 1, fim: a.fim });
+    ultimoFim = a.fim;
+  }
+  if (!candidatos.length) return principais;
+  let ativos = candidatos.map(() => true);
+  for (let volta = 0; volta < 8; volta++) {
+    // A lista com os candidatos ativos trocados por um trecho fechado.
+    const lista: Unidade[] = [];
+    const posicao: number[] = [];
+    let c = 0;
+    for (let k = 0; k < principais.length; k++) {
+      while (c < candidatos.length && candidatos[c].ate < k) c++;
+      const cand = candidatos[c];
+      if (cand && ativos[c] && k === cand.de) {
+        posicao[c] = lista.length;
+        lista.push({ ini: principais[k].ini, fim: cand.fim, ruim: false, algarismo: false, meia: false, fechada: true, completo: false });
+        k = cand.ate;
+      } else lista.push(principais[k]);
+    }
+    const fechadoDesde: boolean[] = new Array(lista.length + 1).fill(true);
+    for (let k = lista.length - 1; k >= 0; k--) fechadoDesde[k] = fechadoDesde[k + 1] && lista[k].fechada;
+    // Antes, na mesma frase: o último trecho que não é fechado nem valor completo, e onde a frase começa.
+    const livreAntes: boolean[] = [];
+    let livre = true;
+    for (let k = 0; k < lista.length; k++) {
+      if (k > 0) {
+        const entre = base.slice(lista[k - 1].fim, lista[k].ini);
+        if (FIM_DE_FRASE.test(entre) && /\p{L}/u.test(entre)) livre = true;
+      }
+      livreAntes[k] = livre;
+      if (!lista[k].fechada && !lista[k].completo) livre = false;
+    }
+    const novos = ativos.map((ativo, n) => ativo && fechadoDesde[posicao[n] + 1] && livreAntes[posicao[n]]);
+    if (novos.every((v, n) => v === ativos[n])) return lista;
+    ativos = novos;
+  }
+  return principais;
 }
 
 /**
@@ -841,7 +1017,8 @@ const escalaDe = (lido: string) => (/(milh\w*|mi|mm|kk|\dm|\sm)$/.test(lido) ? 1
  * - o que parece número e não tem leitura padrão (D2b, `trechosSemLeitura`): o detector não lista
  *   disfarces, lista leituras; todo trecho que parece número (caractere numérico Unicode, emoji de
  *   número, letra colada a algarismo, palavra de número) e não é consumido por uma leitura padrão retém
- *   ("1/3/6/0 mil", "1 ponto 36 milhão", "1\n360 mil", "❶❸❻⓪ mil", "um, três, seis, zero mil"), salvo se,
+ *   ("1/3/6/0 mil", "1 ponto 36 milhão", "1\n360 mil", "❶❸❻⓪ mil", "um, três, seis, zero mil"); os
+ *   formatos comuns com fecho (F1: telefone, CEP, "W3 Sul", "Apto 2B", data com hora) contam como leitura; salvo se,
  *   desfeito o disfarce (`desofuscar`), cada valor daquele trecho é público ("1 4 6 0 mil"); o texto
  *   também é lido de novo com o disfarce desfeito; mil subentendido em contexto de preço ("abaixo de
  *   1.360 não rola") e número por extenso sem escala ("mil trezentos e sessenta") são lidos também em

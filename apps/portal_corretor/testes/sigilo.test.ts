@@ -525,3 +525,211 @@ test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
     assert.ok(melhor < 1000, `${JSON.stringify(f)} × 40 mil caracteres levou ${melhor.toFixed(0)} ms`);
   }
 });
+
+// ------------------------------------------------------------------------------------------------
+// F1 (#133): formatos comuns que retinham sem motivo (telefone com espaço, CEP, "W3 Sul", "Apto 2B",
+// "Torre B2", data com hora sem "às", número entre parênteses depois do preço) passam, mas só quando
+// não podem compor um valor em reais com o resto da mensagem, qualquer que seja o separador. Mesma
+// escada de PUBLICOS_120 (contraproposta 1,46 mi; ofertas 1,3 mi e 1,4 mi; recuo 1,36 mi; alvo 1,45 mi).
+
+/** (a) Frases comuns da #133 (e das revisões do #120 e do #126): passam. */
+const COMUNS_F1 = [
+  // Telefone com espaço, depois de palavra de contato.
+  'Me liga no 61 99999 1234.',
+  'Meu WhatsApp é (61) 9 9876-5432.',
+  'Meu WhatsApp é (61) 99876 5432.',
+  'Telefone fixo (61) 3333 4444.',
+  'Ligue 0800 123 4567.',
+  // CEP no padrão exato, depois de "CEP".
+  'O CEP é 70.000-000.',
+  'O CEP é 70070-120.',
+  'CEP 70.070-120, Brasília.',
+  // Endereços de Brasília.
+  'Moro na W3 Sul.',
+  'Fica na L2 Norte.',
+  'Apto 2B, de frente.',
+  'O apartamento é o Apto 2B.',
+  'Torre B2, 3º andar.',
+  'Bloco C1, perto do metrô.',
+  'Apto 2B, 3 quartos e 2 vagas.',
+  // Data e hora sem "às".
+  'Visita dia 28/10 15h?',
+  'Visita 28/10 15h.',
+  'Visita 28/10 15h30?',
+  'Vistoria 28/10/2026 9h, combinado?',
+  // Número entre parênteses depois do preço.
+  'Posso levar R$ 1.460.000 (2 vagas).',
+  'Posso levar R$ 1.460.000 (3 quartos e 2 vagas).',
+  // Juntos, e com um valor completo antes, na mesma frase ou em outra.
+  'Posso levar R$ 1.460.000 ao vendedor. Visita dia 28/10 15h? Me liga no (61) 99999 1234.',
+  'Sua oferta de R$ 1.300.000 foi recebida; levo R$ 1.460.000 ao vendedor. O apartamento é o Apto 2B, na Torre B2.',
+];
+
+test('F1 (a): telefone, CEP, endereço de Brasília, data com hora e parênteses depois do preço passam', () => {
+  passa(COMUNS_F1);
+  // As normais de antes continuam passando.
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
+});
+
+/**
+ * (b) As frases de ataque das revisões dos PRs #115, #120 e #126 que a `main` retém: continuam retidas.
+ * Ficam de fora as da rodada 3 do #120 que a `main` nunca reteve (risco residual aceito na D-111,
+ * registrado na doc), como "Ele quer 1360 milhares" e "Sim para os R$ 1.300.000".
+ */
+const ATAQUES_REVISOES = [
+  // #115.
+  'Faço R$ 1,36M.',
+  'Faço 1.36kk.',
+  'Faço R$ 1 360 000.',
+  'Faço R$ 1.360 mil.',
+  'Fica 9,33% abaixo do pedido.',
+  'Fica 140 mil abaixo do pedido.',
+  'Faço um vírgula trinta e seis milhões.',
+  'Dá pra pagar 9% menos que o anunciado.',
+  'Reduzindo 140 mil, fecha.',
+  'Descontando 9%, fecha.',
+  'Baixando 140 mil, fecha.',
+  'Podemos fechar por R$ 1.300.000 à vista',
+  'Faço um milhão trezentos e sessenta.',
+  'Fica 1 3 6 0 mil.',
+  'O piso é 1.36O.000',
+  'Abaixo de 1.360 não rola',
+  'Fica 1 3 6 0 mil e não sai disso',
+  'Faço um vírgula trinta e seis milhão.',
+  'Faço mil trezentos e sessenta.',
+  'Fica 1️⃣3️⃣6️⃣0️⃣ mil.',
+  'Fica em 1 milhão. E mais 360 mil.',
+  'O desconto máximo é de 9,3%.',
+  'Uns 140 do pedido.',
+  'Tenho 90 mil de margem.',
+  'O dono fecha por R$ 1360.',
+  'Fecho em 1.360.',
+  'O dono pode ceder 140 mil.',
+  'A folga é de 140 mil.',
+  '1.500.000 - 140.000',
+  // #120.
+  'Fecha em 1 e 360, sem problema.',
+  'O vendedor fecha em 1 e 450.',
+  'Dá pra fazer um e trezentos e sessenta.',
+  'Treze sessenta mil e fechamos.',
+  'R$ 1.460.000 − R$ 100.000 é onde a gente chega.',
+  'R$ 1.300.000 + 60.000 e fechamos.',
+  'Sua oferta de R$ 1.400.000 menos 40 mil resolve.',
+  'Podemos ir até 3% abaixo dos R$ 1.400.000 que você ofereceu.',
+  'Fechamos pela sua oferta de R$ 1.300.000.',
+  'Combinado: 1.300.000.',
+  'Aceitamos a sua primeira proposta de 1,3 milhão.',
+  '1.300.000? Fechado.',
+  'Pode ser 1,3 sim.',
+  'R$ 1.300.000! Topamos.',
+  'Negócio fechado em um vírgula três.',
+  'O ideal dele está 4,6% acima dos 1.300.000.',
+  'O ideal dele está 11,5% acima dos 1.300.000.',
+  'Dá para chegar a 100 mil abaixo da nossa contraproposta.',
+  'Dá pra fazer 1 ponto 36 milhão.',
+  'Fica em 1\n360 mil.',
+  '1/3/6/0 mil',
+  '1|3|6|0 mil',
+  '1•3•6•0 mil',
+  'Fica em 1:360:000.',
+  'Fecha em 1.3.6.0.000.',
+  'Fica em ❶❸❻⓪ mil.',
+  'um, três, seis, zero mil',
+  'Um três meia zero.',
+  'Ele faria 1.460 - 100 mil.',
+  'Ele faria 1,46 - 0,1 mi.',
+  'Sim para os 1.300.000 que você ofereceu.',
+  // #126: as liberações que reabriram vazamento nas rodadas 2, 3 e 4.
+  'Fica 1B 360 mil',
+  'Aceito 1B 300 mil, fechado',
+  'Fica B1 B3 B6 B0',
+  'Fica 13B 60 mil',
+  'Fica 1:36 0 mil',
+  'Fica 1/45 0 mil',
+  'Aceito 1:30 0 mil',
+  'Torre 1B e 300 mil, fechado',
+  'Apto 1B e 450 mil',
+  'Bloco B1, 360 mil',
+  'Apto 1B + 360 mil',
+  'Fica 1 13h 60 mil',
+  'W1 Sul 360 mil',
+  'fecho em 1 (360) mil',
+  'W1 Sul 360.000',
+  'Fica 1 3/60 mil',
+  'Bloco 1J 360 mil',
+  'Fica 1B e 360 mil',
+];
+
+test('F1 (b): as frases de ataque das revisões do #115, #120 e #126 continuam retidas', () => {
+  pega(ATAQUES_REVISOES);
+});
+
+test('F1 (b): formato liberado seguido de valor retém, qualquer que seja o separador', () => {
+  const formatos = [
+    'Me liga no (61) 99999 1234',
+    'Me liga no 13 6000 0000',
+    'WhatsApp (61) 9 9876-5432',
+    'Ligue 0800 136 0000',
+    'CEP 70.000-000',
+    'CEP 01.360-000',
+    'Visita dia 28/10 15h',
+    'Visita dia 13/6 0h',
+    'W1 Sul',
+    'W3 Sul',
+    'L1 Norte',
+    'Torre B2',
+    'Torre 1B',
+    'Apto 13B',
+    'Bloco B1, 3º andar',
+    'Posso levar R$ 1.460.000 (2 vagas)',
+    'Fecho em 1 (2 vagas)',
+  ];
+  const separadores = ['', ' ', ' e ', ', ', ' + ', '; ', ' (', ') ', '. ', '.\n', ' - ', '/', ':', ' mais ', '. E mais ', ' com ', '\n', ' = ', ' ou '];
+  const valores = ['300 mil', '360 mil', '360.000', '360', '36 mil', '0 mil', 'mil', '1,36 mi', 'trezentos e sessenta mil', '60 mil', '3 6 0 mil', 'milhão'];
+  const passaram: string[] = [];
+  for (const f of formatos)
+    for (const s of separadores)
+      for (const v of valores) {
+        // Colado sem separador a um formato que termina em letra, vira outra palavra ("andarmil"), não número.
+        if (!s && /\p{L}$/u.test(f)) continue;
+        if (!achadosDe(f + s + v).length) passaram.push(f + s + v);
+      }
+  assert.deepEqual(passaram, []);
+});
+
+test('F1 (b): número curto antes do formato, na mesma frase, retém; o contexto que falta também', () => {
+  pega([
+    // Número curto antes, na mesma frase: compõe com o que vem no formato.
+    'Fecho em 1, torre 36B.',
+    'Fica 1 e apto 3B, ok?',
+    'Fica 13, me liga no 6000 0000.',
+    'Fica 1,3 e visita dia 6/10 0h.',
+    // Código de endereço com 3 algarismos ou mais, e sem palavra de endereço.
+    'Fecho em apto 360B.',
+    'Torre B360.',
+    'Fica 1B.',
+    // Telefone sem palavra de contato, ou com preço na frase.
+    'Fecho em 13 6000 0000.',
+    'Fecho em 1, me liga no 13 6000 0000.',
+    // Data com hora sem palavra de agenda, ou com preço na frase.
+    'Fecho em 13/6 0h.',
+    'Aceito 13/6 0h.',
+    'Visita dia 13/6 0h para fechar.',
+    'O valor fica 13/6 0h, visita dia 28/10.',
+    // CEP com preço na frase.
+    'Fecho no CEP 01.360-000.',
+    // Parêntese: só quantidade com unidade, e nada depois que vire valor.
+    'Posso levar R$ 1.460.000 (360) mil.',
+    'Posso levar R$ 1.460.000 (2 vagas) e mais 300 mil.',
+    // Formato liberado e, depois, outra frase com valor.
+    'Moro na W3 Sul. 360 mil.',
+    'Visita dia 28/10 15h. E mais 300 mil, fechado.',
+  ]);
+});
+
+test('F1: o que continua retido de propósito (nada vaza, vai ao corretor)', () => {
+  // Endereço com número à direita na mesma frase: "W1 Sul 360" é "1 e 360".
+  pega(['Moro na W3 Sul 704.', 'Torre B2 704.']);
+  // Formato comum seguido de um valor, mesmo em outra frase: a liberação não vale e a regra geral retém.
+  pega(['Visita dia 28/10 15h? Levo R$ 1.460.000 ao vendedor.']);
+});
