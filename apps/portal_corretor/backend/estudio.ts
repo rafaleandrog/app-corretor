@@ -212,6 +212,26 @@ async function textos(req: Request, pedido: string, im: ReturnType<typeof imovel
   }
 }
 
+/** `estadoSlot` do slot `conteudo`, sem custo; falha da sonda conta como indisponível, salvo slot fora do manifesto. */
+async function conteudoDisponivel(req: Request): Promise<boolean> {
+  if (!req.ia) return false;
+  try {
+    return !!(await req.ia.estadoSlot('conteudo'))?.efetivo;
+  } catch (e) {
+    if ((e as { codigo?: string })?.codigo === 'SLOT_INVALIDO') throw e;
+    return false;
+  }
+}
+
+/** Código e título do imóvel de cada peça, para a lista de pedidos (uma leitura só, presa à conta pelo RLS). */
+async function comImovel(req: Request, pecas: Record<string, any>[]) {
+  const ids = [...new Set(pecas.map((p) => p.imovel_id).filter(Boolean))];
+  if (!ids.length) return pecas;
+  const imoveis = await req.dados!.varrerTudo('imoveis', { filtros: { id: ids.join(',') }, maximo: 500 });
+  const por = new Map(imoveis.map((i) => [i.id, i]));
+  return pecas.map((p) => ({ ...p, imovel_codigo: por.get(p.imovel_id)?.codigo ?? null, imovel_titulo: por.get(p.imovel_id)?.titulo ?? null }));
+}
+
 async function comArquivos(req: Request, pecas: Record<string, any>[]) {
   if (!pecas.length) return [];
   const arquivos = await req.dados!.varrerTudo('peca_arquivos', { filtros: { peca_id: pecas.map((p) => p.id).join(',') }, ordenar: 'ordem', ordem: 'asc', maximo: 2000 });
@@ -230,8 +250,9 @@ estudioRotas.get(
     if (typeof req.query.estado === 'string' && req.query.estado) filtros.estado = req.query.estado;
     const iid = id(req.query.imovel_id);
     if (iid) filtros.imovel_id = iid;
-    const r = await req.dados!.listar('pecas', { filtros, ordenar: 'criado_em', ordem: 'desc', por_pagina: 200 });
-    res.json({ ...r, dados: await comArquivos(req, r.dados) });
+    const [r, ia] = await Promise.all([req.dados!.listar('pecas', { filtros, ordenar: 'criado_em', ordem: 'desc', por_pagina: 200 }), conteudoDisponivel(req)]);
+    // `ia`: o slot `conteudo` está liberado agora (sonda sem custo); a tela mostra "IA indisponível" sem ele.
+    res.json({ ...r, dados: await comImovel(req, await comArquivos(req, r.dados)), ia });
   }),
 );
 

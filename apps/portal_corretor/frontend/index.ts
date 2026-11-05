@@ -12,7 +12,7 @@ import { renderNovoImovel } from './telas/novo-imovel.js';
 import { aoAbrirNumeros, renderNumeros } from './telas/desempenho.js';
 import { aoAbrirPagina, renderPagina } from './telas/pagina.js';
 import './telas/previa-pagina.js';
-import './telas/estudio.js';
+import { renderEstudio } from './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assistente.js';
 import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
@@ -33,8 +33,12 @@ interface Tela {
   papel: Papel;
   /** Outros papéis que também abrem a tela (o negociador humano em Hoje e Negociações, D7). */
   tambem?: Papel[];
-  /** `app` é o componente raiz: telas montadas direto no body da página pedem redesenho a ele. */
-  render: (param?: string, app?: LitElement) => unknown;
+  /**
+   * `app` é o componente raiz: telas montadas direto no body da página pedem redesenho a ele. `chave` lê a
+   * chave VIGENTE do `keyed` de `conteudo` (endereço, conta e visita): a tela com estado de instância (o
+   * Estúdio) guarda a de quando nasceu e, quando ela muda, sabe que já não é a tela da página.
+   */
+  render: (param?: string, app?: LitElement, chave?: () => string) => unknown;
   /** A tela já vem na moldura do Padrão B (trilho, lista, foco, contexto): o Assistente abre dentro dela. */
   moldura?: boolean;
   /** Tela que guarda os dados fora do componente: a cada entrada (e troca de conta) eles são relidos. */
@@ -63,7 +67,9 @@ const TELAS: Record<ChaveTela, Tela> = {
     moldura: true,
     render: (id, app) => renderImoveis(() => app?.requestUpdate(), { empreendimento: Number(id) || undefined }),
   },
-  estudio: { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
+  // O Estúdio guarda o estado na instância da tela (estudio.ts): a chave de `conteudo` (endereço, conta e
+  // visita) recria a instância na troca de conta, na navegação e na volta ao Estúdio. Sem `aoAbrir`.
+  estudio: { titulo: 'Estúdio', papel: 'corretor', moldura: true, render: (_p, app, chave) => renderEstudio(() => app?.requestUpdate(), chave) },
   pagina: { titulo: 'Página', papel: 'corretor', moldura: true, aoAbrir: aoAbrirPagina, render: (_p, app) => renderPagina(() => app?.requestUpdate()) },
   numeros: { titulo: 'Números', papel: 'corretor', moldura: true, aoAbrir: aoAbrirNumeros, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
   ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
@@ -184,10 +190,13 @@ export class AppPortalCorretor extends LitElement {
         submensagem="As telas do corretor trabalham sempre dentro de uma conta. Associe seu usuário a uma conta em Admin › Acesso › Contas (ou peça a quem cuida das contas da plataforma) e recarregue a página."></urbi-estado-vazio>`;
     }
     // `keyed` pelo endereço e pela navegação: trocar de cliente recria a tela em vez de reaproveitar o estado.
-    const conteudo = keyed(`${this.sub}|${this.conta}|${this.visita}`, tela.render(param, this));
+    const conteudo = keyed(this.chaveDaTela(), tela.render(param, this, this.chaveDaTela));
     // Telas fora da moldura (migram nos itens B2 a B9) dividem a página com o Assistente quando ele abre.
     return tela.papel === 'corretor' && !tela.moldura ? comAssistente(conteudo) : conteudo;
   }
+
+  /** A chave da tela: trocar de endereço, de conta ou navegar de novo recria a tela (`keyed`). */
+  private chaveDaTela = () => `${this.sub}|${this.conta}|${this.visita}`;
 
   /** Criar em toda tela do corretor; o Assistente no cabeçalho só onde ainda não há trilho. */
   private acoes(tela: Tela | undefined) {

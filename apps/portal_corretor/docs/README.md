@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.32; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.33; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -36,7 +36,7 @@ quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na 
 ## Como as telas se organizam
 
 O menu tem, nesta ordem: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. As
-telas estão passando para um desenho só, em colunas (o "Padrão B"). **Hoje**, **Clientes**, **Imóveis**, **Página**, **Números** e **Ajustes** já estão nele; as
+telas estão passando para um desenho só, em colunas (o "Padrão B"). **Hoje**, **Clientes**, **Imóveis**, **Estúdio**, **Página**, **Números** e **Ajustes** já estão nele; as
 outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 
 | Parte | Onde fica | O que faz |
@@ -59,21 +59,21 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 | Nova visita | Pede o cliente, o imóvel, o dia e a hora ali mesmo; com a ficha de um cliente aberta, ele já vem escolhido. Depois abre a ficha do cliente |
 | Nova proposta | Pede o cliente (o da ficha aberta já vem escolhido), o imóvel e o valor oferecido; registra a oferta e abre a negociação em Clientes › Negociações |
 
-**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela. Em **Hoje**, **Imóveis**, **Página** e **Números**, já no
+**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela. Em **Hoje**, **Imóveis**, **Estúdio**, **Página** e **Números**, já no
 desenho novo, **Fechar** devolve o contexto no lugar do Assistente, e a lista e o centro ficam como estavam.
 Nas telas que ainda não estão no desenho novo, o botão **Assistente** fica no alto, ao lado de Criar, e o
 Assistente divide a tela com ela; abrir e fechar recarrega a tela, que não volta exatamente como estava —
 ver [Assistente do Corretor](assistente.md).
 
-**Estados de toda tela** (**Hoje**, **Imóveis**, **Página** e **Números** já usam os estados comuns, de `frontend/estados.ts`; as demais telas passam a usá-los ao entrar no desenho novo):
+**Estados de toda tela** (**Hoje**, **Imóveis**, **Estúdio**, **Página** e **Números** já usam os estados comuns, de `frontend/estados.ts`; as demais telas passam a usá-los ao entrar no desenho novo):
 - Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco. A maioria das telas já mostra o indicador.
 - Se algo não carregou, aparece uma frase curta com **Tentar de novo**. A maioria das telas já tem o botão.
-- O que não existe ou é de outra conta aparece como **Não encontrado**. Hoje isso vale em **Números**, em **Hoje** e em **Imóveis**.
-- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona. Hoje o aviso aparece no painel do **Assistente** e em **Hoje**.
+- O que não existe ou é de outra conta aparece como **Não encontrado**. Hoje isso vale em **Números**, em **Hoje**, em **Imóveis** e no **Estúdio**.
+- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona. Hoje o aviso aparece no painel do **Assistente**, em **Hoje** e no **Estúdio**.
 
 ## Atalhos e busca
 
-**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Página, Números e Ajustes (o negociador humano não o vê). Estúdio ainda não tem trilho. A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
+**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Estúdio, Página, Números e Ajustes (o negociador humano não o vê). A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
 letras: aparecem até 5 resultados de cada tipo, só da sua conta.
 
 | Tipo | Busca por | Ao escolher |
