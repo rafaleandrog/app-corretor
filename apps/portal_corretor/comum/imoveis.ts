@@ -424,6 +424,15 @@ export function passoValido(valor: unknown): PassoNovoImovel | null {
 export const indicePasso = (passo: PassoNovoImovel) => PASSOS_NOVO_IMOVEL.findIndex((p) => p.id === passo);
 
 /**
+ * O passo em que a tela abre sem `?item=` (nenhum rascunho ainda). Autorização e Onde aparece precisam
+ * do rascunho, que precisa de tipo e cidade: pedidos pela URL, abrem em Dados, como faz o clique no passo.
+ */
+export function passoSemRascunho(pedido: PassoNovoImovel | null): PassoNovoImovel {
+  if (!pedido) return 'fotos';
+  return indicePasso(pedido) >= indicePasso('autorizacao') ? 'dados' : pedido;
+}
+
+/**
  * Campos obrigatórios do passo Dados: os mesmos do cadastro de sempre (tipo e cidade). Preço, área e
  * cômodos contam para a qualidade, não travam o rascunho. Nenhum deles é CRECI (D-93).
  */

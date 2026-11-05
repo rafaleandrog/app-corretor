@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas } from '../backend/rotas';
-import { normalizarTermo } from '../comum/busca';
+import { BUSCA_MAX, cortarTermo, normalizarTermo } from '../comum/busca';
 import { CAMPOS_SIGILOSOS } from '../comum/negociacao';
 import { atalhoDe, focoEmCampo, opcoesDaBusca, vizinho } from '../frontend/atalhos';
 import { BancoFalso, comServidor, type Ator } from './apoio';
@@ -145,6 +145,49 @@ test('q que só fica curto depois de normalizar ("+5") devolve 422 BUSCA_CURTA; 
     const r = await chamar('GET', `/busca?q=${encodeURIComponent('101-2')}`);
     assert.equal(r.status, 200);
     assert.deepEqual(r.corpo.imoveis.map((i: any) => i.codigo), ['101-2']);
+  });
+});
+
+test('cortarTermo: corta em BUSCA_MAX sem deixar metade de emoji (o encodeURIComponent não lança)', () => {
+  assert.equal(cortarTermo('  Ana  '), 'Ana');
+  assert.equal(cortarTermo('x'.repeat(150)), 'x'.repeat(BUSCA_MAX));
+  // O 100º caractere é a primeira metade de um emoji: o emoji inteiro sai.
+  const meio = 'x'.repeat(BUSCA_MAX - 1) + '😀' + 'y';
+  const cortado = cortarTermo(meio);
+  assert.equal(cortado, 'x'.repeat(BUSCA_MAX - 1));
+  assert.doesNotThrow(() => encodeURIComponent(cortado));
+  // Emoji que cabe inteiro fica.
+  const inteiro = 'x'.repeat(BUSCA_MAX - 2) + '😀' + 'y';
+  assert.equal(cortarTermo(inteiro), 'x'.repeat(BUSCA_MAX - 2) + '😀');
+  assert.ok(cortarTermo(inteiro).length <= BUSCA_MAX);
+});
+
+test('negociação: achada só pelo cliente, só pelo imóvel, e com cliente anonimizado sem o nome', async () => {
+  const banco = new BancoFalso();
+  const a = banco.dados(100);
+  const carla = await a.criar('contatos', { nome: 'Carla Quaresma', papeis: 'comprador' });
+  const sala = await a.criar('imoveis', { codigo: 'IM-0100', titulo: 'Sala Tijuco', bairro: 'Asa Norte', situacao: 'ativo' });
+  const outro = await a.criar('imoveis', { codigo: 'IM-0101', titulo: 'Loja Centro', bairro: 'Centro', situacao: 'ativo' });
+  const davi = await a.criar('contatos', { nome: 'Davi Ribeiro', papeis: 'comprador' });
+  const anon = await a.criar('contatos', { nome: 'Zélia Anonimizada', anonimizado_em: new Date().toISOString(), papeis: 'comprador' });
+  const pelaCliente = await a.criar('negociacoes', { codigo: 'NG-0100', contato_id: carla.id, imovel_id: outro.id, estado: 'ativa' });
+  const peloImovel = await a.criar('negociacoes', { codigo: 'NG-0101', contato_id: davi.id, imovel_id: sala.id, estado: 'ativa' });
+  const anonima = await a.criar('negociacoes', { codigo: 'NG-0102', contato_id: anon.id, imovel_id: outro.id, estado: 'ativa' });
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    // "Quaresma" casa só o cliente: vem a negociação dele, não a do imóvel.
+    const porCliente = await chamar('GET', '/busca?q=Quaresma');
+    assert.deepEqual(porCliente.corpo.imoveis, []);
+    assert.deepEqual(porCliente.corpo.negociacoes.map((n: any) => n.id), [pelaCliente.id]);
+    // "Tijuco" casa só o imóvel: vem a negociação dele, não a do cliente.
+    const porImovel = await chamar('GET', '/busca?q=Tijuco');
+    assert.deepEqual(porImovel.corpo.clientes, []);
+    assert.deepEqual(porImovel.corpo.negociacoes.map((n: any) => n.id), [peloImovel.id]);
+    assert.equal(porImovel.corpo.negociacoes[0].contato_nome, 'Davi Ribeiro');
+    // Pelo código, a negociação do cliente anonimizado volta sem o nome dele.
+    const r = await chamar('GET', '/busca?q=NG-0102');
+    assert.deepEqual(r.corpo.negociacoes.map((n: any) => n.id), [anonima.id]);
+    assert.equal(r.corpo.negociacoes[0].contato_nome, null);
+    assert.ok(!JSON.stringify(r.corpo).includes('Zélia'));
   });
 });
 

@@ -303,7 +303,8 @@ test('Novo imóvel no Chromium: retoma o rascunho pelo ?item= e o de outra conta
     await pagina.addInitScript(() => {
       (window as any).SEMENTE = {
         imovel: { id: 7, codigo: 'IM-0007', situacao: 'rascunho', publicado_pagina: false, tipo: 'casa', cidade: 'Brasília', quartos: 3 },
-        midias: [{ id: 20, tipo: 'foto', ordem: 0, ia_ambiente: 'fachada' }, { id: 21, tipo: 'foto', ordem: 1, ia_ambiente: 'sala' }],
+        // A varanda foi lida antes, e o corretor apagou "varanda" das características.
+        midias: [{ id: 20, tipo: 'foto', ordem: 0, ia_ambiente: 'fachada' }, { id: 21, tipo: 'foto', ordem: 1, ia_ambiente: 'varanda' }],
         autorizacoes: [],
       };
     });
@@ -316,6 +317,16 @@ test('Novo imóvel no Chromium: retoma o rascunho pelo ?item= e o de outra conta
     assert.equal(retomado.url, '?item=7&passo=autorizacao');
     // `?passo=` explícito vale mais que a retomada.
     await pagina.goto(`${ORIGEM}/portal_corretor/imoveis/novo?item=7&passo=dados`);
+    await pagina.waitForTimeout(80);
+    assert.match(await pagina.evaluate(() => (window as any).coluna('pc-novo-imovel-passo')), /Dados Passo 2 de 4/);
+    const caracteristicas = await pagina.evaluate(() => {
+      const area = (window as any).todos('urbi-textarea')[0];
+      return { valor: area.getAttribute('valor') ?? '', rotulo: area.getAttribute('label') };
+    });
+    assert.equal(caracteristicas.valor, '', 'o que o corretor apagou não volta ao retomar');
+    assert.doesNotMatch(caracteristicas.rotulo, /preenchido pela IA/);
+    // Sem rascunho, `?passo=onde` abre em Dados.
+    await pagina.goto(`${ORIGEM}/portal_corretor/imoveis/novo?passo=onde`);
     await pagina.waitForTimeout(80);
     assert.match(await pagina.evaluate(() => (window as any).coluna('pc-novo-imovel-passo')), /Dados Passo 2 de 4/);
     await pagina.goto(`${ORIGEM}/portal_corretor/imoveis/novo?item=99`);

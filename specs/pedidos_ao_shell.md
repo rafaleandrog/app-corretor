@@ -113,6 +113,38 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** expor a política ao app, por exemplo um booleano `multi_usuario` em `req.shell.externos` (ou no retorno de uma consulta de capacidades do provisionamento), legível por quem pode convidar.
 
+## 18. Atalho global de teclado e teclas reservadas pelo shell (spec 11.0.6, item B10, #145)
+
+**Por quê:** os atalhos do corretor (`/` busca, `C` Criar, `A` Assistente, `J`/`K` e `E`) escutam `keydown` na janela (`frontend/atalhos.ts`). O SDK 100 não tem contrato para a app ouvir o teclado fora da própria tela nem diz quais teclas o shell usa ou vai usar; o único texto é "Sem atalho de teclado nesta versão." (`ui-componentes-layout.md`, no trilho). Hoje não há colisão, e o app se protege: não age em campo de texto, diálogo aberto nem com Ctrl, Cmd ou Alt. O risco é o shell ganhar um atalho com a mesma tecla e as duas ações dispararem juntas.
+
+**Até lá:** o listener do app como está, desligado ao sair do app, e sem tecla com modificador.
+
+**Proposta mínima:** documentar no SDK se a app pode ouvir teclado global e quais teclas o shell reserva (ou um registro de atalhos da app no shell, que resolva a colisão e mostre a lista ao usuário).
+
+## 19. Prefixo das tags internas da app (`app-{pasta}` × prefixo próprio) (item B7, #145)
+
+**Por quê:** o `ui.md` diz "Apps registram como `app-{nome-da-pasta}`" e não esclarece se a regra vale para os componentes internos da tela ou só para o componente de entrada. O app usa `pc-*` nos internos desde o início, e o empacotador não reclama.
+
+**Até lá:** `pc-*` nos internos.
+
+**Proposta mínima:** uma frase no `ui.md` dizendo a regra das tags internas (e, se for `app-{pasta}-*`, que o empacotador avise).
+
+## 20. Comprimento CSS em prop de primitivo (`urbi-grid min`/`gap`) (item B5b, #145)
+
+**Por quê:** o `ui.md` proíbe comprimento CSS em atributo de primitivo, mas o catálogo publica `min` e `gap` do `urbi-grid` com valores em px (`min="180px"`). O app segue o catálogo (`frontend/telas/novo-imovel.ts`, Números), e a revisão aponta a contradição a cada PR.
+
+**Até lá:** o que o catálogo publica.
+
+**Proposta mínima:** o `ui.md` abrir a exceção para as props documentadas do `urbi-grid` (ou o catálogo trocar px por um token de tamanho).
+
+## 21. Primitivos `urbi-*` disponíveis para teste fora do shell (itens B5b e B7, #145)
+
+**Por quê:** os testes no Chromium (`testes/*-chromium.test.ts`) montam as telas sem os primitivos, que não vêm no SDK. Por isso eles travam a árvore da moldura e os slots, mas não medem o layout real (largura das colunas, empilhamento no celular) e simulam o clique de `urbi-botao-alternar` em vez de clicar no primitivo de verdade.
+
+**Até lá:** CSS de teste que imita o desktop documentado, e a medição registrada como limite da superfície nos próprios testes.
+
+**Proposta mínima:** publicar no SDK um bundle dos primitivos (ou um registro de teste) que um teste possa carregar fora do shell.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

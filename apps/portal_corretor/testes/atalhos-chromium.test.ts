@@ -18,7 +18,12 @@ function playwright(): any {
 
 const ENTRADA = `
 import { instalarAtalhos, registrarEdicao, registrarLista, soltarLista } from './frontend/atalhos';
+import { aoMudarAssistente, assistenteAberto } from './frontend/telas/assistente';
 const log = [];
+let ultimoEstado = false;
+aoMudarAssistente(() => { if (assistenteAberto() !== ultimoEstado) { ultimoEstado = assistenteAberto(); log.push('assistente ' + ultimoEstado); } });
+window.corretor = true;
+// "Criar" escolhe Novo imóvel, para conferir o caminho até o destino; os demais formulários fecham.
 window.log = log;
 window.urbiVerso = {
   subRota: () => '/clientes',
@@ -27,14 +32,14 @@ window.urbiVerso = {
   contexto: () => ({ contaEscrita: 100, roles: ['corretor'] }),
   api: async () => ({}),
   notificar: () => {},
-  formulario: async (op) => (log.push('formulario ' + op.titulo), null),
+  formulario: async (op) => (log.push('formulario ' + op.titulo), op.titulo === 'Criar' ? { opcao: 'imovel' } : null),
 };
 let atual = 7;
 const dono = {};
 registrarLista(dono, { ids: () => [4, 7, 9], atual: () => atual, escolher: (id) => { atual = id; log.push('escolher ' + id); } });
 registrarEdicao({}, () => log.push('editar'));
 window.soltar = () => soltarLista(dono);
-instalarAtalhos(() => true);
+instalarAtalhos(() => window.corretor);
 
 // Um campo solto, um dentro de shadow root aberto e um conteúdo editável.
 const host = document.createElement('div');
@@ -88,7 +93,20 @@ test('atalhos no Chromium: nada dispara no campo de texto; fora dele, J/K, E e /
     await pagina.keyboard.press('/');
     await pagina.keyboard.press('Shift+C');
     await new Promise((r) => setTimeout(r, 50));
-    assert.deepEqual(await log(), ['formulario Buscar', 'formulario Criar']);
+    assert.deepEqual(await log(), ['formulario Buscar', 'formulario Criar', 'navegar /imoveis/novo'], 'C chega ao destino da opção escolhida');
+
+    // A abre e fecha o Assistente.
+    await pagina.keyboard.press('a');
+    await pagina.keyboard.press('Shift+A');
+    assert.deepEqual(await log(), ['assistente true', 'assistente false']);
+
+    // Quem não é corretor: /, C e A não fazem nada; J/K e E seguem com a lista e a ficha registradas.
+    await pagina.evaluate(() => ((window as any).corretor = false));
+    for (const tecla of ['/', 'c', 'a']) await pagina.keyboard.press(tecla);
+    await pagina.keyboard.press('k');
+    await new Promise((r) => setTimeout(r, 50));
+    assert.deepEqual(await log(), ['escolher 4'], 'sem papel de corretor, só a navegação na lista');
+    await pagina.evaluate(() => ((window as any).corretor = true));
 
     // Lista que saiu da tela não responde mais.
     await pagina.evaluate(() => (window as any).soltar());
