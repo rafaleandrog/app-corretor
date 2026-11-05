@@ -32,6 +32,8 @@ export const ENDERECOS: Record<string, ChaveTela> = {
   '/empreendimentos': 'imoveis',
   '/estudio': 'estudio',
   '/pagina': 'pagina',
+  // Apelido: Minha página virou Página (spec 11.1, P09).
+  '/minha-pagina': 'pagina',
   '/numeros': 'numeros',
   // Apelido: Desempenho virou Números (D-103).
   '/desempenho': 'numeros',
