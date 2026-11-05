@@ -823,7 +823,7 @@ test('F1 (R2-B4): o "％" de largura cheia, sozinho, conta como o "%"', () => {
 // ------------------------------------------------------------------------------------------------
 // Critério de equivalência (decisão do dono, 05/11/2026, depois da rodada 3 da revisão do #142): uma
 // frase que passa com o código liberado ("bloco C6") só é piora se a gêmea com algarismo comum ("bloco 6")
-// retém. A gêmea não tem formato liberado, então o head a lê como a `main` (conferido head × main nas 18
+// retém. A gêmea não tem formato liberado, então o head a lê como a `main` (conferido head × main nas 17
 // classes abaixo, nas duas escadas). Uma classe por achado da rodada 3: se a forma disfarçada passa, a
 // gêmea com algarismo passa também — é o risco residual que já existia na `main`, documentado em
 // docs/negociacao.md. O teste falha se alguém fechar só um dos dois lados: aí a equivalência precisa ser
@@ -874,6 +874,81 @@ test('equivalência (05/11): "Commission", prometido no comentário e na doc, im
   for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
     for (const f of ['Commission: apto 5B.', 'Commissions: torre 6C.']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
   }
+});
+
+// Revisão do #142 (B1): a liberação confere a própria gêmea. "Fica no bloco 50" retém (o número depois de
+// "fica" ou de "por" é lido como diferença de um valor público: 50 mil é a distância do pedido ao alvo), então
+// "Fica no bloco C50" tem de reter — por construção, sem lista de palavras: o código só passa se a mensagem
+// com o código trocado por cada leitura dele em algarismos passa na análise comum.
+const PARES_GEMEOS: [disfarce: string, gemea: string][] = [
+  ['Fica no bloco C50', 'Fica no bloco 50'],
+  ['Fica no bloco C38', 'Fica no bloco 38'],
+  ['Visita amanhã. Fica no bloco C50', 'Visita amanhã. Fica no bloco 50'],
+  ['Fico no bloco D55', 'Fico no bloco 55'],
+  ['Por favor, apto K43', 'Por favor, apto 43'],
+  // "S" lido como 5: a gêmea é "bloco 55" (e "bloco 5").
+  ['Fica no bloco S5', 'Fica no bloco 55'],
+];
+
+test('equivalência (B1): gêmea retida obriga o disfarce a reter, nas duas escadas', () => {
+  for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
+    for (const [disfarce, gemea] of PARES_GEMEOS) {
+      assert.ok(vazamentos(gemea, MOTOR, publicos).length > 0, `gêmea deveria reter: ${gemea}`);
+      assert.ok(vazamentos(disfarce, MOTOR, publicos).length > 0, `deveria pegar: ${disfarce}`);
+    }
+  }
+  // Com a oferta de 1,3 mi na escada, "sala 66" retém (66 mil leva ao recuo), e "sala K66" também.
+  assert.ok(vazamentos('por gentileza sala 66', MOTOR, PUBLICOS_120).length > 0);
+  assert.ok(vazamentos('por gentileza sala K66', MOTOR, PUBLICOS_120).length > 0);
+});
+
+// As leituras do código em algarismos, como o detector as faz: cada letra some ou vira cada algarismo
+// que ela pode ser (a tabela de `leiturasDoCodigo`).
+const LETRA_ALGARISMO: Record<string, string[]> = { a: ['4'], b: ['8', '6'], e: ['3'], g: ['6', '9'], i: ['1'], l: ['1'], o: ['0'], q: ['9'], s: ['5'], t: ['7'], z: ['2'] };
+const gemeasDoCodigo = (codigo: string): string[] => {
+  let r = [''];
+  for (const ch of codigo.toLowerCase()) {
+    const op = /\d/.test(ch) ? [ch] : ['', ...(LETRA_ALGARISMO[ch] ?? [])];
+    r = r.flatMap((x) => op.map((y) => x + y));
+  }
+  return [...new Set(r)].filter(Boolean);
+};
+
+test('equivalência (B1): propriedade — para todo prefixo, palavra de endereço e código de 1 a 99, gêmea retida ⇒ disfarce retido', () => {
+  // Prefixos que a `main` lê como contexto de preço ("fica", "por" e o resto de `CONTEXTO_DE_PRECO`, até 2
+  // palavras antes do número) e os de lugar e cortesia que a liberação não vê como preço.
+  const prefixos = ['', 'Fica no ', 'Fico no ', 'Fica na ', 'Por favor, ', 'por gentileza ', 'Visita amanhã. Fica no ', 'Moro no ', 'faço no ', 'sai no ', 'chego no ', 'por ', 'mais ', 'menos o ', 'acima do ', 'abaixo do ', 'posso no ', 'consigo no ', 'rola no ', 'levo no ', 'reduz no ', 'cede o '];
+  const palavras = ['apto', 'bloco', 'torre', 'sala', 'casa'];
+  // Letras que ficam só letra e letras que o detector também lê como algarismo ("s" 5, "b" 8 ou 6, "e" 3).
+  // Depois do número, fora as que fazem dele uma leitura padrão, que não é formato liberado ("6A" e "6O"
+  // ordinal, "6D" dias, "6S" segundos, "6X" vezes, "6H" horário, "6M" milhões, "6K" mil): essas a `main`
+  // já lia assim, e "Fica no apto 6A" passa nela também.
+  const letrasAntes = ['c', 'd', 'k', 's', 'b', 'e', 'h'];
+  const letrasDepois = ['c', 'f', 'j', 'n', 'b', 'e', 'p'];
+  const escadas: [MandatoMotor, number[]][] = [[MOTOR, PUBLICOS_120], [MOTOR, PERMITIDOS], [MOTOR_BAIXO, PUBLICOS_BAIXO]];
+  let k = 0;
+  let conferidas = 0;
+  for (const [mandato, publicos] of escadas)
+    for (const p of prefixos)
+      for (const w of palavras)
+        for (let n = 1; n <= 99; n++) {
+          const i = k++;
+          for (const codigo of [`${letrasAntes[i % 7]}${n}`, `${n}${letrasDepois[i % 7]}`].map((c) => c.toUpperCase())) {
+            const retida = gemeasDoCodigo(codigo).some((g) => vazamentos(`${p}${w} ${g}`, mandato, publicos).length > 0);
+            if (!retida) continue;
+            conferidas++;
+            const disfarce = `${p}${w} ${codigo}`;
+            assert.ok(vazamentos(disfarce, mandato, publicos).length > 0, `gêmea retida e disfarce passou: ${disfarce}`);
+          }
+        }
+  assert.ok(conferidas > 0);
+});
+
+test('obs. b: data com ano de dois algarismos ("28/10/26") não é leitura padrão e retém', () => {
+  for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
+    for (const f of ['Visita dia 28/10/26.', 'Vistoria 28/10/26, combinado?']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
+  }
+  assert.ok(vazamentos('Visita dia 28/10/26.', MOTOR_BAIXO, PUBLICOS_BAIXO).length > 0);
 });
 
 test('F1: data com a hora depois de vírgula passa, como na main', () => {

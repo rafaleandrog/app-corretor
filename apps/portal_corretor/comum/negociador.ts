@@ -759,7 +759,12 @@ const LEITURA_MAX = 160;
 //   (em português, inglês ou espanhol), "um"/"uma"/"num", "meia", emoji ou caractere numérico, nem outro
 //   formato, em lugar nenhum da mensagem ("Apto 1B e Torre 36B", "Treze andares, apto 6B" retêm);
 // - nenhuma palavra de preço ou aceite aparece em toda a mensagem ("Quanto ele aceita? Apto 45B");
-// - os algarismos dele não revelam valor sigiloso em nenhuma leitura (`revela` em `vazamentos`).
+// - os algarismos dele não revelam valor sigiloso em nenhuma leitura (`revela` em `vazamentos`);
+// - a mensagem-gêmea passa (`gemeaRetida` em `vazamentos`): a mesma mensagem com o código trocado por cada
+//   leitura dele em algarismos ("Fica no bloco C50" → "Fica no bloco 50"; "bloco S5" → "bloco 5" e "bloco
+//   55"), lida pela análise comum do próprio detector, sem liberar formato nenhum. Gêmea retida, o código
+//   não é liberado: o código com letra nunca passa onde o algarismo comum reteria, qualquer que seja a
+//   palavra que fez a gêmea reter (decisão do dono de 05/11, critério de equivalência).
 // Na dúvida, retém: falhou uma das condições, o trecho volta a ser lido como na regra geral (D2b).
 
 /** Palavra de endereço antes do código ("Apto 2B", "Torre B2", "Bloco C1"). */
@@ -868,6 +873,12 @@ function leiturasDoCodigo(codigo: string): string[] {
 
 /** Confere os algarismos de um formato liberado contra o mandato: verdadeiro quando revelam valor sigiloso. */
 type Revela = (algarismos: string) => boolean;
+/**
+ * A mensagem-gêmea do código em `ini`..`fim` do texto preparado (o código trocado por cada leitura dele em
+ * algarismos) é retida pela análise comum, sem liberação de formato? Verdadeiro também quando a liberação
+ * está desligada (a própria análise comum).
+ */
+type GemeaRetida = (codigo: string, ini: number, fim: number) => boolean;
 
 interface Unidade {
   ini: number;
@@ -888,7 +899,7 @@ interface Unidade {
  * que não é separação normal ("1/3/6/0", "1:360:000", "1 ponto 36", "1\n360", em que tirar a quebra
  * junta os dois num número); ou há três algarismos soltos ("um, três, seis, zero").
  */
-function trechosSemLeitura(base: string, revela: Revela): { ini: number; fim: number }[] {
+function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetida): { ini: number; fim: number }[] {
   const principais: Unidade[] = [];
   let coberto = 0;
   for (const m of base.matchAll(/[\p{L}\p{N}\p{M}\u{1F51F}]+/gu)) {
@@ -918,7 +929,7 @@ function trechosSemLeitura(base: string, revela: Revela): { ini: number; fim: nu
       coberto = melhor;
     } else principais.push({ ini, fim, ruim: true, algarismo: false, meia });
   }
-  const unidades = liberarFormatosComuns(base, principais, revela);
+  const unidades = liberarFormatosComuns(base, principais, revela, gemeaRetida);
   const saida: { ini: number; fim: number }[] = [];
   let i = 0;
   while (i < unidades.length) {
@@ -950,10 +961,11 @@ function trechosSemLeitura(base: string, revela: Revela): { ini: number; fim: nu
 /**
  * Troca, nos trechos lidos pela regra geral, o formato liberado (`FORMATOS_COMUNS`) por um trecho só, lido,
  * quando ele é o único trecho que parece número na mensagem, sem palavra de preço nem número por extenso
- * fora dos trechos (`OUTRO_NUMERO`), e seus algarismos não revelam valor sigiloso (`revela`). Sem isso, os
- * trechos ficam como a regra geral os leu (e retêm).
+ * fora dos trechos (`OUTRO_NUMERO`), seus algarismos não revelam valor sigiloso (`revela`) e a
+ * mensagem-gêmea, com o código trocado pelos algarismos dele, passa na análise comum (`gemeaRetida`). Sem
+ * isso, os trechos ficam como a regra geral os leu (e retêm).
  */
-function liberarFormatosComuns(base: string, principais: Unidade[], revela: Revela): Unidade[] {
+function liberarFormatosComuns(base: string, principais: Unidade[], revela: Revela, gemeaRetida: GemeaRetida): Unidade[] {
   if (!principais.length || naMensagem(PRECO_NA_MENSAGEM, base) || naMensagem(OUTRO_NUMERO, base)) return principais;
   const primeiro = principais[0].ini;
   const ultimo = principais[principais.length - 1].fim;
@@ -973,6 +985,8 @@ function liberarFormatosComuns(base: string, principais: Unidade[], revela: Reve
       // Toda leitura conta: a letra como letra ("2" em "Apto 2B") e como cada algarismo que pode ser ("28" e
       // "26"; "Torre E6" = 36; "L3 Norte" = 13). Libera só quando nenhuma revela.
       if (leiturasDoCodigo(codigo).some(revela)) continue;
+      // A gêmea por último (é a conferência cara): reter a gêmea retém o código, por construção.
+      if (gemeaRetida(codigo, ini, fim)) continue;
       return [{ ini: primeiro, fim: ultimo, ruim: false, algarismo: false, meia: false }];
     }
   }
@@ -1045,7 +1059,21 @@ export function vazamentos(
   mandato: Pick<MandatoMotor, 'recuo_c' | 'alvo_c' | 'batna_vendedor'> & { preco_pedido_c?: number | null },
   permitidos_c: number[] = [],
 ): string[] {
+  return analisarSigilo(texto, mandato, permitidos_c, true);
+}
+
+/**
+ * O corpo de `vazamentos`. `liberar` falso é a análise comum: nenhum formato comum é liberado (é com ela que
+ * a mensagem-gêmea de um código é conferida, sem recursão: a gêmea nunca confere outra gêmea).
+ */
+function analisarSigilo(
+  texto: string | null | undefined,
+  mandato: Pick<MandatoMotor, 'recuo_c' | 'alvo_c' | 'batna_vendedor'> & { preco_pedido_c?: number | null },
+  permitidos_c: number[],
+  liberar: boolean,
+): string[] {
   if (!texto) return [];
+  const original = texto;
   const achados: string[] = [];
   const norm = semAcento(texto);
   const base = prepararTexto(texto);
@@ -1312,7 +1340,32 @@ export function vazamentos(
     for (let f = -2; n * 10 ** f < 100; f++) if (percentualSigiloso(Math.round(n * 10 ** f * 100) / 100, Math.max(0, -f), null, true).length) return true;
     return false;
   };
-  for (const t of trechosSemLeitura(base, revela)) {
+  /**
+   * A mensagem-gêmea do código (critério de equivalência, 05/11): a mesma mensagem com o código trocado por
+   * cada leitura dele em algarismos (`leiturasDoCodigo`: "C50" = "50"; "S5" = "5" e "55"; "5B" = "5", "58" e
+   * "56"), lida pela análise comum (`liberar` falso). Se alguma gêmea retém, o código não é liberado. Duas
+   * formas da gêmea: no texto preparado (a troca no lugar exato do código) e no texto original (o código
+   * achado ali, sem diferença de maiúscula, como palavra inteira), para que nada da leitura do texto
+   * original (`desofuscar`) fique de fora. Custo: no máximo 3 leituras × 2 formas, cada uma linear; só no
+   * código que já passou nas outras condições.
+   */
+  const gemeas = new Map<string, boolean>();
+  const gemeaRetida: GemeaRetida = (codigo, ini, fim) => {
+    if (!liberar) return true;
+    // O código é só letra e algarismo ASCII (`FORMATOS_COMUNS`): entra na expressão sem escape.
+    const noOriginal = new RegExp(String.raw`(?<![\p{L}\p{N}\p{M}])${codigo}(?![\p{L}\p{N}\p{M}])`, 'giu');
+    const achadoNoOriginal = original.search(noOriginal) >= 0;
+    for (const leitura of leiturasDoCodigo(codigo)) {
+      const formas = [base.slice(0, ini) + leitura + base.slice(fim)];
+      if (achadoNoOriginal) formas.push(original.replace(noOriginal, leitura));
+      for (const g of formas) {
+        if (!gemeas.has(g)) gemeas.set(g, analisarSigilo(g, mandato, permitidos_c, false).length > 0);
+        if (gemeas.get(g)) return true;
+      }
+    }
+    return false;
+  };
+  for (const t of trechosSemLeitura(base, revela, gemeaRetida)) {
     const lidos = lerValores(prepararTexto(desofuscar(base.slice(t.ini, t.fim)).texto));
     if (!lidos.length || lidos.some((x) => !publico(x.v))) {
       achados.push('escreve número de forma disfarçada');

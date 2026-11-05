@@ -290,7 +290,7 @@ conversa com a IA):
    invisíveis (zero-width) colados ao código (`Apto 5B_`, `*Apto 5C*`, `_W4 Sul`) fazem o formato
    reter, e as palavras de preço, de conta e de número são procuradas também com essa marcação tirada
    ou trocada por espaço (`_menos_ apto 5B` e `Apto 4B_six` retêm). Endereço e código passam
-   quando valem três condições. (1) O formato é o **único número da mensagem**: nenhum outro
+   quando valem três condições e a gêmea passa (abaixo). (1) O formato é o **único número da mensagem**: nenhum outro
    algarismo, número ou ordinal por extenso, em português, inglês ou espanhol ("treze", "quinto",
    "sexta", "thirteen", "trece", "trescientos", "quinientos", "tercero", "cuarto", "octavo"), "um",
    "uma" ou "num", "par", "pares", "pair", "dupla" ou "dozen", algarismo
@@ -317,7 +317,8 @@ conversa com a IA):
    28/10 15h", "28/10 15h30"), que já retinham, e o número entre parênteses depois do preço ("R$
    1.460.000 (2 vagas)"). A data com a hora depois de "às" ou de vírgula ("visita dia 28/10 às 10h",
    "visita dia 28/10, 15h") passa, como antes: data e horário são lidos cada um como leitura padrão. A data com
-   ano ("vistoria 28/10/2026") passava antes e retém desde a 0.1.34. Cada grupo de algarismos
+   ano ("vistoria 28/10/2026"), também com o ano de dois algarismos ("visita dia 28/10/26"), passava
+   antes e retém desde a 0.1.34. Cada grupo de algarismos
    deles é um lugar onde um valor cabe ("CEP 70.000-136", "visita dia 28/10/1360 15h", "me liga no 61
    3333 1251"), e conferir grupo a grupo não fechou o vazamento. Também retêm: código com outro
    número na mensagem ("Apto 2B, 3 quartos e 2 vagas", "Torre B2, 3º andar", "treze andares, apto
@@ -333,7 +334,15 @@ conversa com a IA):
    mais um motivo para você ler antes de enviar. **Critério de equivalência dos formatos comuns
    (decisão do dono, 05/11/2026):** liberar um formato comum só conta como piora do sigilo quando a
    mesma informação, escrita com algarismo comum no lugar do código ("bloco 6" no lugar de "bloco
-   C6", "apto 5" no lugar de "apto 5B"), é retida pela conferência de antes da 0.1.34. Se a forma com
+   C6", "apto 5" no lugar de "apto 5B"), é retida pela conferência de antes da 0.1.34. **A
+   conferência aplica esse critério ela mesma:** antes de deixar um código passar, ela monta a
+   mensagem-gêmea, a mesma mensagem com o código trocado por cada leitura dele em algarismos ("bloco
+   C50" vira "bloco 50"; "bloco S5" vira "bloco 5" e "bloco 55"; "apto 5B" vira "apto 5", "apto 58" e
+   "apto 56"), e lê a gêmea do jeito comum, sem liberar formato nenhum. Se alguma gêmea retém, o código
+   retém também, qualquer que seja a palavra que fez a gêmea reter. Por isso, num imóvel de 1,5 mi com
+   alvo de 1,45 mi, "Fica no bloco C50" e "Por favor, apto K43" retêm: "Fica no bloco 50" e "Por favor,
+   apto 43" já retinham (o número depois de "fica" ou de "por" é lido como diferença de um valor
+   público, e 50 mil é a distância do pedido ao alvo). Se a forma com
    algarismo já passava, a forma com código passa também e o risco é o mesmo de antes: **risco
    residual, já existente, e não criado pelos formatos comuns**. Hoje esse risco cobre o número curto
    fora do contexto de preço disfarçado assim: número ou ordinal por extenso em outra língua
