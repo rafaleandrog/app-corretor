@@ -126,7 +126,7 @@ document.getElementById('raiz').append(app);
 window.app = app;
 window.desenhar = () => app.requestUpdate();
 // O contexto mudou (chegou, ou a conta sumiu): o app ouve \`urbi:contexto-app\`.
-const avisarContexto = () => window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: window.urbiVerso.contexto() }));
+const avisarContexto = () => window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: { ...window.urbiVerso.contexto(), appId: 'portal_corretor' } }));
 window.chegarContexto = () => {
   window.CONTEXTO_CHEGOU = true;
   avisarContexto();

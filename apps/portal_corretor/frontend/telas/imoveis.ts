@@ -12,6 +12,7 @@ import {
   corQualidade,
   filtrosDaUrl,
   filtrosNaUrl,
+  gesto,
   itemDaUrl,
   itemNaUrl,
   pedidoDeCriar,
@@ -179,16 +180,19 @@ export class PcListaImoveis extends LitElement {
     const geracao = ++this.geracao;
     this.carregando = true;
     this.falha = null;
+    // A carga é da conta de agora: trocada no meio, a resposta (ou a falha) dela não vai para a tela.
+    const g = gesto();
     try {
-      const [r, e] = await Promise.all([
+      const [r, e] = await g.esperar(Promise.all([
         chamarApi(`/imoveis?${this.consulta()}`),
         chamarApi('/empreendimentos').then((x) => x.total ?? x.dados?.length ?? 0, () => null),
-      ]);
+      ]));
       if (geracao !== this.geracao) return;
       this.imoveis = r.dados;
       this.total = r.total;
       this.totalEmpreendimentos = e;
     } catch (e) {
+      if (g.encerrado(e)) return;
       if (geracao === this.geracao) this.falha = e;
     } finally {
       if (geracao === this.geracao) this.carregando = false;
@@ -311,10 +315,12 @@ export class PcContextoImovel extends LitElement {
   private async carregar() {
     const geracao = ++this.geracao;
     this.falha = null;
+    const g = gesto();
     try {
-      const r = await chamarApi(`/imoveis/${this.imovelId}/contexto`);
+      const r = await g.esperar(chamarApi(`/imoveis/${this.imovelId}/contexto`));
       if (geracao === this.geracao) this.dados = r;
     } catch (e) {
+      if (g.encerrado(e)) return;
       if (geracao === this.geracao) this.falha = e;
     }
   }

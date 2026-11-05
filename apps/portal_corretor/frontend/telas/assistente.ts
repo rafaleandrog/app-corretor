@@ -1,6 +1,6 @@
 import { html, type TemplateResult } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, mensagemDeErro } from '../apoio';
+import { chamarApi, ehContaTrocada, enviar, mensagemDeErro, seNaoContaTrocada } from '../apoio';
 import { contatoDoEndereco } from '../enderecos';
 import { estadoTela } from '../estados';
 
@@ -57,9 +57,36 @@ const conversa = {
   ia: null as boolean | null,
   pensando: false,
   seq: 0,
+  /**
+   * A conta de trabalho dona da conversa (`contaDeTrabalho`). `undefined`: ainda nenhuma. A conversa é
+   * de uma conta só: mensagens, contato, ação proposta e sonda são da conta em que nasceram.
+   */
+  conta: undefined as number | null | undefined,
   /** Redesenho do app (o `requestUpdate` do componente raiz), registrado por `aoMudarAssistente`. */
   atualizar: () => {},
 };
+
+/**
+ * O app avisa a conta de trabalho a cada mudança de contexto e a cada escolha no seletor. Conta diferente
+ * da dona da conversa: a conversa recomeça vazia (sem contato, sem ação proposta, sem a sonda da conta
+ * anterior). O que estava em voo é descartado pelo guarda do envio (`ContaTrocada`, apoio.ts). O painel continua aberto, e a sonda de IA roda de novo.
+ */
+export function contaDoAssistente(conta: number | null) {
+  if (conversa.conta === conta) return;
+  const tinhaConta = conversa.conta !== undefined;
+  conversa.conta = conta;
+  if (!tinhaConta) return;
+  sondaSeq++;
+  conversa.mensagens = [];
+  conversa.proposta = null;
+  conversa.irPara = null;
+  conversa.contato = null;
+  conversa.foco = null;
+  conversa.ia = null;
+  conversa.pensando = false;
+  if (conversa.aberto) sondarIa();
+  conversa.atualizar();
+}
 
 /** O app avisa a tela em que o corretor está; `/assistente` é Hoje. */
 export function lembrarTela(sub: string) {
@@ -82,14 +109,14 @@ export const assistenteAberto = () => conversa.aberto;
 
 /**
  * Sonda sem custo do slot, a cada abertura de `abrirAssistente`: uma falha passageira não fica presa, a próxima
- * abertura sonda de novo. Trocar de conta com o painel aberto não sonda de novo. Só a resposta mais recente vale.
+ * abertura sonda de novo. Trocar de conta com o painel aberto sonda de novo (`contaDoAssistente`), e a sonda da conta anterior é descartada. Só a resposta mais recente vale.
  */
 let sondaSeq = 0;
 function sondarIa() {
   const minha = ++sondaSeq;
   chamarApi('/assistente/ia').then(
     (r) => minha === sondaSeq && ((conversa.ia = !!r?.assistente), conversa.atualizar()),
-    () => minha === sondaSeq && ((conversa.ia = false), conversa.atualizar()),
+    seNaoContaTrocada(() => minha === sondaSeq && ((conversa.ia = false), conversa.atualizar())),
   );
 }
 
@@ -139,6 +166,7 @@ async function perguntar(pergunta: string) {
   conversa.pensando = true;
   conversa.proposta = null;
   conversa.irPara = null;
+  let trocada = false;
   try {
     const r = (await enviar('POST', '/assistente/perguntar', {
       pergunta: p,
@@ -153,9 +181,12 @@ async function perguntar(pergunta: string) {
     conversa.irPara = r.tela && r.tela.sub !== '/assistente' ? r.tela : null;
     anotar(ASSISTENTE, `${r.resposta}${fontes}`, r.resposta);
   } catch (e) {
-    anotar(ASSISTENTE, `Não consegui responder: ${mensagemDeErro(e)}`);
+    // A conta mudou com a pergunta em voo (guarda do envio): a resposta, ou o erro, é da conversa
+    // anterior, que já recomeçou vazia; nada é anotado nem destravado na nova.
+    trocada = ehContaTrocada(e);
+    if (!trocada) anotar(ASSISTENTE, `Não consegui responder: ${mensagemDeErro(e)}`);
   } finally {
-    conversa.pensando = false;
+    if (!trocada) conversa.pensando = false;
     conversa.atualizar();
   }
 }
@@ -170,7 +201,8 @@ async function confirmar() {
     anotar(ASSISTENTE, `Feito: ${p.resumo}`);
     urbiVerso.notificar('Feito.', 'sucesso');
   } catch (e) {
-    anotar(ASSISTENTE, `Não deu para fazer: ${mensagemDeErro(e)}`);
+    // Conta trocada com a ação em voo: o "Feito" e o erro são da conversa anterior.
+    if (!ehContaTrocada(e)) anotar(ASSISTENTE, `Não deu para fazer: ${mensagemDeErro(e)}`);
   }
 }
 

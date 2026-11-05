@@ -4,7 +4,7 @@ import { CANAIS } from '../../comum/crm';
 import { gerarCsv } from '../../comum/csv';
 import { linhasCsvNumeros, type RespostaNumeros } from '../../comum/numeros';
 import { rotuloObjecao } from '../../comum/numeros-negociacao';
-import { chamarApi, contaAtiva, filtrosDaUrl, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
+import { chamarApi, contaDeTrabalho, filtrosDaUrl, gesto, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -70,7 +70,7 @@ function lerFiltros() {
 
 /** Cada entrada em Números (e cada troca de conta) relê os números do período da URL. */
 export function aoAbrirNumeros() {
-  if (estado.conta !== contaAtiva()) {
+  if (estado.conta !== contaDeTrabalho()) {
     estado.dados = null;
     estado.negociacao = null;
     estado.falhaNegociacao = null;
@@ -78,23 +78,26 @@ export function aoAbrirNumeros() {
     estado.geracaoNegociacao++;
   }
   estado.chaveNegociacao = '';
-  estado.conta = contaAtiva();
+  estado.conta = contaDeTrabalho();
   void carregar();
 }
 
 /** Lê o relatório Negociação quando ele está aberto e o período (ou a conta) mudou desde a última leitura. */
 async function carregarNegociacao() {
   const { dias, relatorio } = lerFiltros();
-  const chave = `${contaAtiva()}:${dias}`;
+  const chave = `${contaDeTrabalho()}:${dias}`;
   if (relatorio.id !== 'negociacao' || chave === estado.chaveNegociacao) return;
   estado.chaveNegociacao = chave;
   const geracao = ++estado.geracaoNegociacao;
   estado.falhaNegociacao = null;
   redesenhar();
+  // A leitura é da conta de agora: trocada no meio, nem a resposta nem a falha dela vão para o estado.
+  const g = gesto();
   try {
-    const r = await chamarApi(`/numeros/negociacao?dias=${dias}`);
+    const r = await g.esperar(chamarApi(`/numeros/negociacao?dias=${dias}`));
     if (geracao === estado.geracaoNegociacao) estado.negociacao = r;
   } catch (e) {
+    if (g.encerrado(e)) return;
     if (geracao === estado.geracaoNegociacao) {
       estado.falhaNegociacao = e;
       estado.chaveNegociacao = '';
@@ -109,10 +112,12 @@ async function carregar() {
   const { dias, origem } = lerFiltros();
   estado.falha = null;
   redesenhar();
+  const g = gesto();
   try {
-    const r = await chamarApi(`/numeros?dias=${dias}${origem ? `&origem=${encodeURIComponent(origem)}` : ''}`);
+    const r = await g.esperar(chamarApi(`/numeros?dias=${dias}${origem ? `&origem=${encodeURIComponent(origem)}` : ''}`));
     if (geracao === estado.geracao) estado.dados = r;
   } catch (e) {
+    if (g.encerrado(e)) return;
     if (geracao === estado.geracao) {
       estado.falha = e;
       // Os números na tela são de outro período ou origem: não ficam sob o rótulo do filtro novo.

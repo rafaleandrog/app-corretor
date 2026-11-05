@@ -14,7 +14,9 @@ import {
   filtrosDaUrl,
   filtrosNaUrl,
   formularioEnviar,
+  gesto,
   itemNaUrl,
+  noGesto,
   opcoesChip,
   opcoesPapelNaTela,
   pedidoDeCriar,
@@ -184,6 +186,7 @@ export function renderNegociacoes(atualizar: () => void) {
 
 /** Novo contato (o mesmo formulário na Lista e no Funil); devolve o criado ou nada. */
 async function novoContato() {
+  // `formularioEnviar` abre o gesto no clique: conta trocada com o diálogo aberto ou o POST em voo devolve `null`.
   return formularioEnviar(
     'Novo contato',
     [
@@ -210,18 +213,22 @@ async function novoContato() {
 }
 
 async function exportarContatos() {
-  try {
-    const r = await chamarFetch('/contatos/exportar');
-    if (!r.ok) throw new Error('A exportação falhou.');
-    const url = URL.createObjectURL(await r.blob());
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'contatos.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (e) {
-    await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
-  }
+  // Conta trocada com a exportação em voo: a planilha de A não é baixada na conta nova, nem há alerta.
+  await noGesto(async (g) => {
+    try {
+      const r = await g.esperar(chamarFetch('/contatos/exportar'));
+      if (!r.ok) throw new Error('A exportação falhou.');
+      const url = URL.createObjectURL(await g.esperar(r.blob()));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'contatos.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      if (g.encerrado(e)) return;
+      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
+    }
+  });
 }
 
 /** Topo da coluna esquerda de Clientes (P03 e P04): título, Importar, Novo, Exportar e as visões. */
@@ -266,6 +273,8 @@ export class PcTelaClientes extends LitElement {
   @state() private diasParado = CONFIGURACOES_PADRAO.dias_cliente_parado;
   private filtros = filtrosDaUrl();
   private geracao = 0;
+  /** A conta em que a lista nasceu (a troca a recria): continuação depois da troca termina em silêncio (issue #144). */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
@@ -287,12 +296,12 @@ export class PcTelaClientes extends LitElement {
 
   private async iniciar() {
     try {
-      const conta = await chamarApi('/conta');
+      const conta = await this.vida.esperar(chamarApi('/conta'));
       this.diasParado = conta?.configuracoes?.dias_cliente_parado ?? this.diasParado;
     } catch {
       // A lista não depende da configuração: segue com o padrão.
     }
-    await this.carregar();
+    if (this.vida.vivo()) await this.carregar();
   }
 
   /** Os filtros da Lista viram a consulta; o filtro pronto entra por cima (spec 15.8). */
@@ -309,14 +318,15 @@ export class PcTelaClientes extends LitElement {
     this.carregando = true;
     this.falha = null;
     try {
-      const r = await chamarApi(`/contatos?${this.consulta()}`);
+      const r = await this.vida.esperar(chamarApi(`/contatos?${this.consulta()}`));
       if (geracao !== this.geracao) return;
       this.contatos = r.dados;
       this.total = r.total;
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       if (geracao === this.geracao) this.falha = (e as Error).message;
     } finally {
-      if (geracao === this.geracao) this.carregando = false;
+      if (geracao === this.geracao && this.vida.vivo()) this.carregando = false;
     }
   }
 
@@ -335,7 +345,8 @@ export class PcTelaClientes extends LitElement {
     const r = await novoContato();
     if (!r?.id) return;
     await this.carregar();
-    this.aoEscolher(r.id);
+    // Conta trocada durante a releitura: o contato criado é de A, não vira o `?item=` da conta nova.
+    if (this.vida.vivo()) this.aoEscolher(r.id);
   }
 
   /** Uma linha da lista: nome e temperatura; embaixo, o próximo passo ou o contato e a origem. */

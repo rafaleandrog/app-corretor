@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { secaoDaFalta } from '../../comum/imoveis';
-import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
+import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, gesto, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 import { irParaComQuery } from '../criar.js';
 import { autorizacaoAberta, comAtual, marcarAssinada, registrarAutorizacao, SITUACAO_AUTORIZACAO } from './autorizacao-venda.js';
@@ -54,6 +54,12 @@ export class PcTelaFichaImovel extends LitElement {
   @state() private escrevendo = false;
   @state() private contatos: Linha[] = [];
   @state() private empreendimentos: Linha[] = [];
+  /**
+   * A conta em que a ficha nasceu (a troca de conta recria a tela). Toda continuação passa por
+   * `vida.esperar`: trocada a conta em qualquer await, o gesto termina em silêncio (sem novo envio,
+   * estado, aviso nem navegação).
+   */
+  private readonly vida = gesto();
 
   private aoResolver = (e: Event) => {
     const d = (e as CustomEvent).detail;
@@ -63,7 +69,7 @@ export class PcTelaFichaImovel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar(true);
-    void chamarApi('/imoveis/ia').then((r) => (this.ia = r), () => undefined);
+    void chamarApi('/imoveis/ia').then((r) => void (this.ia = r), () => undefined); // conta trocada em voo: `ContaTrocada`, nada muda
     window.addEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
     // E (11.0.6): o mesmo Editar do cabeçalho, com a ficha carregada.
     registrarEdicao(this, () => void (this.ficha && this.editar()));
@@ -79,11 +85,14 @@ export class PcTelaFichaImovel extends LitElement {
   private async carregar(primeira = false) {
     this.falha = null;
     try {
-      const [ficha, envios] = await Promise.all([chamarApi(`/imoveis/${this.imovelId}`), chamarApi(`/envios?imovel_id=${this.imovelId}`).catch(() => ({ dados: [] }))]);
+      const [ficha, envios] = await this.vida.esperar(
+        Promise.all([chamarApi(`/imoveis/${this.imovelId}`), chamarApi(`/envios?imovel_id=${this.imovelId}`).catch(() => ({ dados: [] }))]),
+      );
       this.ficha = ficha;
       this.envios = envios.dados;
       if (!primeira) window.dispatchEvent(new CustomEvent(EVENTO_IMOVEL_MUDOU, { detail: { id: this.imovelId } }));
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.falha = (e as Error).message;
     }
   }
@@ -92,11 +101,25 @@ export class PcTelaFichaImovel extends LitElement {
     if (r) await this.carregar();
   }
 
-  private async tentar(titulo: string, fn: () => Promise<unknown>) {
+  /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
+  private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    // A conta já mudou (a ficha é de antes): o gesto nem começa, nenhum diálogo abre.
+    if (!this.vida.vivo()) return;
     try {
       await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
+  }
+
+  private async tentar(titulo: string, fn: () => Promise<unknown>) {
+    // Confere antes de `fn()`: a escrita sairia já com o `X-Conta` da outra conta.
+    if (!this.vida.vivo()) return;
+    try {
+      await this.vida.esperar(fn());
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo, mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
@@ -104,7 +127,11 @@ export class PcTelaFichaImovel extends LitElement {
   // ---------- Fotos e arquivos ----------
 
   /** Envia em sequência: staging, grava a mídia e, se a IA estiver ligada, pede a leitura da foto. */
-  private async enviarArquivos(e: CustomEvent) {
+  private enviarArquivos(e: CustomEvent) {
+    return this.semAvisoDeOutraConta(() => this.enviarArquivosNaConta(e));
+  }
+
+  private async enviarArquivosNaConta(e: CustomEvent) {
     const arquivos = (e.detail.arquivos as File[]) ?? [];
     if (!arquivos.length || this.enviando) return;
     const recusados: string[] = [];
@@ -115,20 +142,22 @@ export class PcTelaFichaImovel extends LitElement {
       const mime = f.type || (/\.(jpe?g|png|webp)$/i.test(f.name) ? 'image/' : /\.mp4$/i.test(f.name) ? 'video/' : '');
       const tipo = mime.startsWith('image/') ? 'foto' : mime.startsWith('video/') ? 'video' : 'documento';
       try {
-        const upload_id = await subirArquivo('imovel_midias', 'arquivo', f);
-        novas.push(await enviar('POST', `/imoveis/${this.imovelId}/midias`, { upload_id, tipo }));
+        const upload_id = await this.vida.esperar(subirArquivo('imovel_midias', 'arquivo', f));
+        novas.push(await this.vida.esperar(enviar('POST', `/imoveis/${this.imovelId}/midias`, { upload_id, tipo })));
       } catch (err) {
+        if (this.vida.encerrado(err)) throw err;
         recusados.push(`${f.name}: ${mensagemDeErro(err)}`);
       }
     }
     if (this.ia.fotos) {
       for (const [i, m] of novas.filter((n) => n.tipo === 'foto').entries()) {
         this.enviando = `Lendo as fotos com IA (${i + 1})…`;
-        await enviar('POST', `/imoveis/${this.imovelId}/midias/${m.id}/analisar`, {}).catch(() => undefined); // leitura é bônus
+        await this.vida.esperar(enviar('POST', `/imoveis/${this.imovelId}/midias/${m.id}/analisar`, {}).catch(() => undefined)); // leitura é bônus
       }
     }
     this.enviando = null;
     await this.carregar();
+    if (!this.vida.vivo()) return;
     if (recusados.length) await urbiVerso.alertar({ titulo: 'Alguns arquivos não foram enviados', mensagem: recusados.join('\n'), tipo: 'alerta' });
     else urbiVerso.notificar(`${novas.length} arquivo(s) enviado(s).`, 'sucesso');
   }
@@ -151,12 +180,16 @@ export class PcTelaFichaImovel extends LitElement {
       ],
       'PATCH',
       `/imoveis/${this.imovelId}/midias/${m.id}`,
+      undefined,
+      { gesto: this.vida },
     ).then((r) => this.depois(r));
   }
 
-  private async removerMidia(m: Linha) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Apagar arquivo', mensagem: 'O arquivo é apagado de vez.', rotuloConfirmar: 'Apagar', perigo: true });
-    if (ok) await this.tentar('Não foi possível apagar', () => enviar('PATCH', `/imoveis/${this.imovelId}/midias/${m.id}/remover`, {}));
+  private removerMidia(m: Linha) {
+    return this.semAvisoDeOutraConta(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Apagar arquivo', mensagem: 'O arquivo é apagado de vez.', rotuloConfirmar: 'Apagar', perigo: true }));
+      if (ok) await this.tentar('Não foi possível apagar', () => enviar('PATCH', `/imoveis/${this.imovelId}/midias/${m.id}/remover`, {}));
+    });
   }
 
   private colunasMidias(): UrbiColunaTabela[] {
@@ -212,15 +245,18 @@ export class PcTelaFichaImovel extends LitElement {
   // ---------- Dados e situação ----------
 
   private async opcoesVinculos() {
-    if (!this.contatos.length) this.contatos = (await chamarApi('/contatos?papel=proprietario')).dados;
-    if (!this.empreendimentos.length) this.empreendimentos = (await chamarApi('/empreendimentos')).dados;
+    if (!this.contatos.length) this.contatos = (await this.vida.esperar(chamarApi('/contatos?papel=proprietario'))).dados;
+    if (!this.empreendimentos.length) this.empreendimentos = (await this.vida.esperar(chamarApi('/empreendimentos'))).dados;
   }
 
   private async editar() {
+    if (!this.vida.vivo()) return;
     const im = this.ficha!.imovel;
     try {
       await this.opcoesVinculos();
-    } catch {
+    } catch (e) {
+      // Conta trocada com as listas em voo: o formulário (do imóvel da conta anterior) não abre.
+      if (this.vida.encerrado(e)) return;
       /* sem as listas, o formulário abre sem proprietário e empreendimento */
     }
     const e = im.endereco ?? {};
@@ -289,36 +325,43 @@ export class PcTelaFichaImovel extends LitElement {
           ...(novoEmp !== (im.empreendimento_id ?? null) ? { empreendimento_id: novoEmp } : {}),
         };
       },
+      { gesto: this.vida },
     ).then((r) => {
+      if (!this.vida.vivo()) return;
       this.contatos = [];
       return this.depois(r);
     });
   }
 
-  private async situacao() {
-    const im = this.ficha!.imovel;
-    const v = await urbiVerso.formulario({
-      titulo: 'Situação do imóvel',
-      mensagem: 'Ativo e reservado pedem autorização de venda assinada e vigente.',
-      campos: [{ nome: 'situacao', tipo: 'selecao', rotulo: 'Situação', valor: im.situacao, opcoes: Object.entries(SITUACAO_IMOVEL).map(([valor, s]) => ({ valor, rotulo: s.rotulo })) }],
+  private situacao() {
+    return this.semAvisoDeOutraConta(async () => {
+      const im = this.ficha!.imovel;
+      const v = await this.vida.esperar(urbiVerso.formulario({
+        titulo: 'Situação do imóvel',
+        mensagem: 'Ativo e reservado pedem autorização de venda assinada e vigente.',
+        campos: [{ nome: 'situacao', tipo: 'selecao', rotulo: 'Situação', valor: im.situacao, opcoes: Object.entries(SITUACAO_IMOVEL).map(([valor, s]) => ({ valor, rotulo: s.rotulo })) }],
+      }));
+      if (v) await this.tentar('Não foi possível mudar a situação', () => enviar('PATCH', `/imoveis/${this.imovelId}`, { situacao: v.situacao }));
     });
-    if (v) await this.tentar('Não foi possível mudar a situação', () => enviar('PATCH', `/imoveis/${this.imovelId}`, { situacao: v.situacao }));
   }
 
   private async publicar(sim: boolean) {
     await this.tentar(sim ? 'Ainda não dá para publicar' : 'Não foi possível tirar da página', () => enviar('PATCH', `/imoveis/${this.imovelId}`, { publicado_pagina: sim }));
   }
 
+  /** Conta trocada com a confirmação aberta ou o PATCH em voo: nada é removido, avisado nem navegado. */
   private async remover() {
-    const ok = await urbiVerso.confirmar({ titulo: 'Remover imóvel', mensagem: 'O imóvel sai da carteira e da sua página. Fotos e autorizações ficam guardadas.', rotuloConfirmar: 'Remover', perigo: true });
-    if (!ok) return;
+    if (!this.vida.vivo()) return;
     try {
-      await enviar('PATCH', `/imoveis/${this.imovelId}/remover`, {});
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Remover imóvel', mensagem: 'O imóvel sai da carteira e da sua página. Fotos e autorizações ficam guardadas.', rotuloConfirmar: 'Remover', perigo: true }));
+      if (!ok) return;
+      await this.vida.esperar(enviar('PATCH', `/imoveis/${this.imovelId}/remover`, {}));
       window.dispatchEvent(new CustomEvent(EVENTO_IMOVEL_MUDOU, { detail: { id: this.imovelId, removido: true } }));
       // Tira o `?item=` do endereço: o centro não fica com a ficha do que saiu.
       filtrosNaUrl(filtrosDaUrl(), {}, ['item']);
       urbiVerso.navegarSub('/imoveis');
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
@@ -336,16 +379,18 @@ export class PcTelaFichaImovel extends LitElement {
       'PATCH',
       `/imoveis/${this.imovelId}`,
       undefined,
-      sugestao ? { mensagem: 'Revise antes de salvar: a IA usa só os dados cadastrados, mas confira cada informação.', rotuloConfirmar: 'Usar esta descrição' } : {},
+      { ...(sugestao ? { mensagem: 'Revise antes de salvar: a IA usa só os dados cadastrados, mas confira cada informação.', rotuloConfirmar: 'Usar esta descrição' } : {}), gesto: this.vida },
     ).then((r) => this.depois(r));
   }
 
   private async escreverComIa() {
+    if (!this.vida.vivo()) return;
     this.escrevendo = true;
     try {
-      const s = await enviar('POST', `/imoveis/${this.imovelId}/descricao`, {});
+      const s = await this.vida.esperar(enviar('POST', `/imoveis/${this.imovelId}/descricao`, {}));
       this.editarDescricao(s);
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível escrever agora', mensagem: mensagemDeErro(e), tipo: 'alerta' });
     } finally {
       this.escrevendo = false;
@@ -354,17 +399,22 @@ export class PcTelaFichaImovel extends LitElement {
 
   // ---------- Autorização ----------
 
-  private async novaAutorizacao() {
-    await this.depois(await registrarAutorizacao(this.ficha!.imovel));
+  // A autorização tem os próprios diálogos (autorizacao-venda.ts); aqui, a releitura só se a conta é a mesma.
+  private novaAutorizacao() {
+    return this.semAvisoDeOutraConta(async () => this.depois(await this.vida.esperar(registrarAutorizacao(this.ficha!.imovel, { gesto: this.vida }))));
   }
 
-  private async assinar(a: Linha) {
-    if (await marcarAssinada(a, this.ficha!.midias)) await this.carregar();
+  private assinar(a: Linha) {
+    return this.semAvisoDeOutraConta(async () => {
+      if (await this.vida.esperar(marcarAssinada(a, this.ficha!.midias, undefined, { gesto: this.vida }))) await this.carregar();
+    });
   }
 
-  private async revogar(a: Linha) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Revogar autorização', mensagem: 'Sem autorização vigente, o imóvel deixa de aparecer na sua página.', rotuloConfirmar: 'Revogar', perigo: true });
-    if (ok) await this.tentar('Não foi possível revogar', () => enviar('PATCH', `/autorizacoes/${a.id}`, { situacao: 'revogada' }));
+  private revogar(a: Linha) {
+    return this.semAvisoDeOutraConta(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Revogar autorização', mensagem: 'Sem autorização vigente, o imóvel deixa de aparecer na sua página.', rotuloConfirmar: 'Revogar', perigo: true }));
+      if (ok) await this.tentar('Não foi possível revogar', () => enviar('PATCH', `/autorizacoes/${a.id}`, { situacao: 'revogada' }));
+    });
   }
 
   private acao(rotulo: string, icone: string, fn: () => void) {

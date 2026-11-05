@@ -1,7 +1,7 @@
 import { html, nothing } from 'lit';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { ROTULO_BLOCO, type Bloco } from '../../comum/pagina';
-import { acoesComMais, avisoCreci, chamarApi, contaAtiva, dataHora, enviar, itemDaUrl, itemNaUrl, mensagemDeErro } from '../apoio';
+import { acoesComMais, avisoCreci, chamarApi, contaDeTrabalho, dataHora, ehContaTrocada, enviar, gesto, itemDaUrl, itemNaUrl, mensagemDeErro, noGesto, type Gesto } from '../apoio';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import type { PreviaPagina } from '../publico/pagina-publica.js';
@@ -30,6 +30,11 @@ interface Visao {
 // Os dados vivem no módulo (as três colunas leem o mesmo estado); `aoAbrirPagina` os relê a cada
 // entrada e na troca de conta. O bloco selecionado fica em `?item=<tipo>`.
 //
+// Cada gesto (editar, mover, nome e endereço, publicar, tirar do ar, refazer com IA) roda num `gesto` da
+// conta em que começou (apoio.ts): trocada a conta em qualquer await (diálogo aberto, carga dos imóveis,
+// envio em voo), ele termina em silêncio, sem gravar, avisar nem mexer em `salvando`/`ocupado`, que a
+// troca zera para a conta nova.
+//
 // Exceções de UI nomeadas (spec 11.9, regra do CLAUDE.md): (1) arrastar para ordenar não tem
 // primitivo: subir/descer com [↑][↓]; (2) a prévia é a página pública dentro do editor, que tem CSS
 // próprio por ser página pública, numa largura de celular (`pc-previa-pagina`); `urbi-hospedeiro` e
@@ -50,11 +55,14 @@ let redesenhar: () => void = () => {};
 
 /** Cada entrada em Página (e cada troca de conta) relê a página e a prévia. */
 export function aoAbrirPagina() {
-  if (estado.conta !== contaAtiva()) {
+  if (estado.conta !== contaDeTrabalho()) {
     estado.visao = null;
     estado.previa = null;
+    // As travas são do gesto da conta anterior, que termina em silêncio e não as solta: a nova começa livre.
+    estado.salvando = false;
+    estado.ocupado = false;
   }
-  estado.conta = contaAtiva();
+  estado.conta = contaDeTrabalho();
   void carregar();
 }
 
@@ -68,6 +76,9 @@ async function carregar() {
     if (geracao !== estado.geracao) return;
     estado.visao = visao;
   } catch (e) {
+    // Conta trocada com a carga em voo (guarda do envio): nem aviso, nem falha, nem a prévia, que sairia
+    // já com o `X-Conta` da conta nova. A conta nova relê tudo na próxima entrada (`aoAbrirPagina`).
+    if (ehContaTrocada(e)) return;
     if (geracao === estado.geracao) {
       estado.falha = e;
       // Com a página já carregada, o editor segue com a última leitura; o aviso diz que ela pode estar velha.
@@ -108,60 +119,70 @@ function selecionar(tipo: string) {
   redesenhar();
 }
 
-async function salvar(mudancas: Partial<Visao['pagina']>, extra: Record<string, unknown> = {}) {
+/**
+ * Grava a página com `mudancas`, no gesto `g` de quem chamou. A conta mudou antes (o gesto já não vive)
+ * ou com o PUT em voo: nada é enviado, ou a resposta é descartada, sem aviso e sem tocar em `salvando`.
+ */
+async function salvar(g: Gesto, mudancas: Partial<Visao['pagina']>, extra: Record<string, unknown> = {}) {
+  if (!g.vivo() || !estado.visao) return false;
   if (estado.salvando) {
     urbiVerso.notificar('Aguarde: a mudança anterior ainda está sendo salva.', 'info');
     return false;
   }
-  const p = { ...estado.visao!.pagina, ...mudancas };
+  const p = { ...estado.visao.pagina, ...mudancas };
   estado.salvando = true;
   redesenhar();
   try {
-    estado.visao = await enviar('PUT', '/pagina', { endereco: p.endereco, nome_exibicao: p.nome_exibicao, blocos: p.blocos, ...extra });
+    const visao = await g.esperar(enviar('PUT', '/pagina', { endereco: p.endereco, nome_exibicao: p.nome_exibicao, blocos: p.blocos, ...extra }));
+    estado.visao = visao;
     urbiVerso.notificar('Salvo.', 'sucesso');
     void carregarPrevia();
     return true;
   } catch (e) {
+    if (g.encerrado(e)) return false;
     await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     return false;
   } finally {
-    estado.salvando = false;
-    redesenhar();
+    // A trava é desta conta: com a conta trocada, a nova já começou livre e pode estar salvando.
+    if (g.vivo()) {
+      estado.salvando = false;
+      redesenhar();
+    }
   }
 }
 
-async function nomeEEndereco() {
+const nomeEEndereco = () => noGesto(async (g) => {
   const p = estado.visao!.pagina;
-  const v = await urbiVerso.formulario({
+  const v = await g.esperar(urbiVerso.formulario({
     titulo: 'Nome e endereço',
     campos: [
       { nome: 'nome_exibicao', tipo: 'texto', rotulo: 'Nome que aparece na página', obrigatorio: true, valor: p.nome_exibicao },
       { nome: 'endereco', tipo: 'texto', rotulo: 'Endereço (letras minúsculas, números e hífen)', obrigatorio: true, valor: p.endereco },
     ],
-  });
-  if (v) await salvar({ nome_exibicao: String(v.nome_exibicao), endereco: String(v.endereco).trim().toLowerCase() });
-}
+  }));
+  if (v) await salvar(g, { nome_exibicao: String(v.nome_exibicao), endereco: String(v.endereco).trim().toLowerCase() });
+});
 
 async function mover(i: number, passo: number) {
   const blocos = [...estado.visao!.pagina.blocos];
   const j = i + passo;
   if (j < 0 || j >= blocos.length) return;
   [blocos[i], blocos[j]] = [blocos[j], blocos[i]];
-  await salvar({ blocos });
+  await salvar(gesto(), { blocos });
 }
 
 async function alternar(i: number) {
   const blocos = estado.visao!.pagina.blocos.map((b, k) => (k === i ? { ...b, ativo: !b.ativo } : b));
-  await salvar({ blocos });
+  await salvar(gesto(), { blocos });
 }
 
-async function camposDestaques(b: Bloco): Promise<CampoFormulario[]> {
-  const r = await chamarApi('/imoveis?publicado_pagina=true&por_pagina=50');
+async function camposDestaques(g: Gesto, b: Bloco): Promise<CampoFormulario[]> {
+  const r = await g.esperar(chamarApi('/imoveis?publicado_pagina=true&por_pagina=50'));
   const lista = (r.dados ?? []).filter((i: any) => i.publicado_pagina);
   return lista.map((i: any) => ({ nome: `im_${i.codigo}`, tipo: 'booleano', rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}`, valor: (b.codigos ?? []).includes(i.codigo) }));
 }
 
-async function editar(i: number) {
+const editar = (i: number) => noGesto(async (g) => {
   const b = estado.visao!.pagina.blocos[i];
   const campos: CampoFormulario[] = [];
   if (b.tipo !== 'contato') campos.push({ nome: 'titulo', tipo: 'texto', rotulo: 'Título do bloco', valor: b.titulo ?? '' });
@@ -173,13 +194,13 @@ async function editar(i: number) {
   }
   let mensagem: string | undefined = DICA_BLOCO[b.tipo];
   if (b.tipo === 'destaques') {
-    const opcoes = await camposDestaques(b);
+    const opcoes = await camposDestaques(g, b);
     mensagem = opcoes.length
       ? 'Escolha até 6 imóveis (além disso, valem os 6 primeiros). Só aparecem os que estiverem publicados.'
       : 'Marque imóveis para a página (na ficha do imóvel) para escolher os destaques.';
     campos.push(...opcoes);
   }
-  const v = await urbiVerso.formulario({ titulo: ROTULO_BLOCO[b.tipo], campos, mensagem });
+  const v = await g.esperar(urbiVerso.formulario({ titulo: ROTULO_BLOCO[b.tipo], campos, mensagem }));
   if (!v) return;
   const novo: Bloco = { ...b };
   if ('titulo' in v) novo.titulo = String(v.titulo ?? '');
@@ -189,59 +210,71 @@ async function editar(i: number) {
   if ('instagram' in v) novo.instagram = String(v.instagram ?? '');
   if (b.tipo === 'destaques') novo.codigos = Object.entries(v).filter(([k, x]) => k.startsWith('im_') && x === true).map(([k]) => k.slice(3)).slice(0, 6);
   const blocos = estado.visao!.pagina.blocos.map((x, k) => (k === i ? novo : x));
-  await salvar({ blocos });
-}
+  await salvar(g, { blocos });
+});
 
 /** [Refazer a página com IA]: a mesma escrita de `POST /pagina/sugerir-textos`; o corretor revisa antes de usar. */
-async function refazerComIa() {
-  const v = await urbiVerso.formulario({
+const refazerComIa = () => noGesto(async (g) => {
+  const v = await g.esperar(urbiVerso.formulario({
     titulo: 'Refazer a página com IA',
     mensagem: 'A IA escreve a apresentação e o "sobre mim" com o que você contar aqui e com os imóveis da página. Você revisa antes de usar.',
     campos: [{ nome: 'observacoes', tipo: 'texto_longo', rotulo: 'Conte um pouco sobre você (opcional)', placeholder: 'Ex.: atendo famílias que buscam casa no Lago Sul há 8 anos.' }],
     rotuloConfirmar: 'Escrever',
-  });
+  }));
   if (!v) return;
   estado.ocupado = true;
   redesenhar();
   try {
-    const r = await enviar('POST', '/pagina/sugerir-textos', { observacoes: v.observacoes, nome_exibicao: estado.visao!.pagina.nome_exibicao });
-    const ok = await urbiVerso.confirmar({
+    // Os textos são da conta em que foram pedidos: com a conta trocada, não se oferecem nem se gravam na outra.
+    const r = await g.esperar(enviar('POST', '/pagina/sugerir-textos', { observacoes: v.observacoes, nome_exibicao: estado.visao!.pagina.nome_exibicao }));
+    const ok = await g.esperar(urbiVerso.confirmar({
       titulo: 'Usar estes textos?',
       mensagem: `Apresentação:\n${r.apresentacao}\n\nSobre mim:\n${r.sobre}`,
       rotuloConfirmar: 'Usar e ligar os blocos',
-    });
+    }));
     if (!ok) return;
     const blocos = estado.visao!.pagina.blocos.map((b) =>
       b.tipo === 'apresentacao' ? { ...b, texto: r.apresentacao, ativo: true } : b.tipo === 'sobre' ? { ...b, texto: r.sobre, ativo: true } : b,
     );
-    await salvar({ blocos }, { gerada_por_ia: true });
+    await salvar(g, { blocos }, { gerada_por_ia: true });
   } catch (e) {
+    if (g.encerrado(e)) return;
     await urbiVerso.alertar({ titulo: 'Não foi possível escrever agora', mensagem: mensagemDeErro(e), tipo: 'alerta' });
   } finally {
-    estado.ocupado = false;
-    redesenhar();
+    if (g.vivo()) {
+      estado.ocupado = false;
+      redesenhar();
+    }
   }
-}
+});
 
-async function acao(rota: string, sucesso: string) {
+/** Publicar, atualizar e tirar do ar: um POST e a releitura, no gesto `g` de quem chamou. */
+async function acaoNoGesto(g: Gesto, rota: string, sucesso: string) {
+  if (!g.vivo()) return;
   estado.ocupado = true;
   redesenhar();
   try {
-    const r = await enviar('POST', rota);
+    const r = await g.esperar(enviar('POST', rota));
     urbiVerso.notificar(sucesso + (typeof r?.imoveis_publicados === 'number' ? ` ${r.imoveis_publicados} imóvel(is) na página.` : ''), 'sucesso');
     await carregar();
   } catch (e) {
+    if (g.encerrado(e)) return;
     await urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' });
   } finally {
-    estado.ocupado = false;
-    redesenhar();
+    if (g.vivo()) {
+      estado.ocupado = false;
+      redesenhar();
+    }
   }
 }
 
-async function despublicar() {
-  const ok = await urbiVerso.confirmar({ titulo: 'Tirar a página do ar', mensagem: 'A página e as fichas públicas deixam de abrir. Você pode publicar de novo quando quiser.', rotuloConfirmar: 'Tirar do ar', perigo: true });
-  if (ok) await acao('/pagina/despublicar', 'Página fora do ar.');
-}
+const acao = (rota: string, sucesso: string) => noGesto((g) => acaoNoGesto(g, rota, sucesso));
+
+/** Confirmado depois de a conta mudar, não tira nada do ar: a confirmação era da página da conta anterior. */
+const despublicar = () => noGesto(async (g) => {
+  const ok = await g.esperar(urbiVerso.confirmar({ titulo: 'Tirar a página do ar', mensagem: 'A página e as fichas públicas deixam de abrir. Você pode publicar de novo quando quiser.', rotuloConfirmar: 'Tirar do ar', perigo: true }));
+  if (ok) await acaoNoGesto(g, '/pagina/despublicar', 'Página fora do ar.');
+});
 
 async function copiar() {
   try {

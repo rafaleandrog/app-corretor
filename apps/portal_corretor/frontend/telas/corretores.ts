@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi } from '../apoio.js';
+import { chamarApi, gesto } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -37,6 +37,21 @@ export class PcTelaCorretores extends LitElement {
   @state() private falhaMais: string | null = null;
   // Cada carregamento recebe um número; resposta de um carregamento anterior é descartada.
   private geracao = 0;
+  /**
+   * A conta em que a tela nasceu (a troca de conta a recria). Toda continuação passa por `vida.esperar`:
+   * trocada a conta com o diálogo aberto ou o envio em voo, nada sai com o `X-Conta` da nova, nem há
+   * estado, aviso ou alerta.
+   */
+  private readonly vida = gesto();
+
+  /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
+  private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    try {
+      if (this.vida.vivo()) await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
+  }
 
   connectedCallback() {
     super.connectedCallback();
@@ -51,12 +66,13 @@ export class PcTelaCorretores extends LitElement {
     this.falha = null;
     this.falhaMais = null;
     try {
-      const r = await chamarApi('/equipe/convites?pagina=1');
+      const r = await this.vida.esperar(chamarApi('/equipe/convites?pagina=1'));
       if (geracao !== this.geracao) return;
       this.convites = r.convites;
       this.total = r.total;
       this.pagina = 1;
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       if (geracao === this.geracao) this.falha = (e as Error).message;
     } finally {
       if (geracao === this.geracao) this.carregando = false;
@@ -65,55 +81,62 @@ export class PcTelaCorretores extends LitElement {
 
   /** Anexa a próxima página de 50. Um por vez; a falha não apaga o que já está na tela. */
   private async mostrarMais() {
-    if (this.buscandoMais || this.carregando) return;
+    if (this.buscandoMais || this.carregando || !this.vida.vivo()) return;
     const geracao = this.geracao;
     const pagina = this.pagina + 1;
     this.buscandoMais = true;
     this.falhaMais = null;
     try {
-      const r = await chamarApi(`/equipe/convites?pagina=${pagina}`);
+      const r = await this.vida.esperar(chamarApi(`/equipe/convites?pagina=${pagina}`));
       if (geracao !== this.geracao) return;
       this.convites = [...this.convites, ...r.convites];
       this.total = r.total;
       this.pagina = pagina;
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       if (geracao === this.geracao) this.falhaMais = (e as Error).message;
     } finally {
       if (geracao === this.geracao) this.buscandoMais = false;
     }
   }
 
-  private async convidar() {
-    const valores = await urbiVerso.formulario<{ email: string; conta: string }>({
-      titulo: 'Convidar corretor',
-      mensagem: 'O corretor recebe um e-mail para criar a senha. A conta dele nasce quando ele aceitar.',
-      rotuloConfirmar: 'Enviar convite',
-      campos: [
-        { nome: 'email', tipo: 'texto', rotulo: 'E-mail do corretor', obrigatorio: true, placeholder: 'nome@exemplo.com' },
-        { nome: 'conta', tipo: 'texto', rotulo: 'Nome da conta', obrigatorio: true, placeholder: 'Ex.: Marina Souza Imóveis' },
-      ],
+  private convidar() {
+    return this.semAvisoDeOutraConta(async () => {
+      const valores = await this.vida.esperar(urbiVerso.formulario<{ email: string; conta: string }>({
+        titulo: 'Convidar corretor',
+        mensagem: 'O corretor recebe um e-mail para criar a senha. A conta dele nasce quando ele aceitar.',
+        rotuloConfirmar: 'Enviar convite',
+        campos: [
+          { nome: 'email', tipo: 'texto', rotulo: 'E-mail do corretor', obrigatorio: true, placeholder: 'nome@exemplo.com' },
+          { nome: 'conta', tipo: 'texto', rotulo: 'Nome da conta', obrigatorio: true, placeholder: 'Ex.: Marina Souza Imóveis' },
+        ],
+      }));
+      if (!valores) return;
+      try {
+        const r = await this.vida.esperar(chamarApi('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } }));
+        if (r?.aviso) await this.vida.esperar(urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' }));
+        else urbiVerso.notificar('Convite enviado.', 'sucesso');
+        await this.carregar();
+      } catch (e) {
+        if (this.vida.encerrado(e)) throw e;
+        const falha = e as Error & { detalhes?: string[] };
+        await urbiVerso.alertar({ titulo: 'Convite não enviado', mensagem: falha.detalhes?.join('\n') || falha.message });
+      }
     });
-    if (!valores) return;
-    try {
-      const r = await chamarApi('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
-      if (r?.aviso) await urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' });
-      else urbiVerso.notificar('Convite enviado.', 'sucesso');
-      await this.carregar();
-    } catch (e) {
-      const falha = e as Error & { detalhes?: string[] };
-      await urbiVerso.alertar({ titulo: 'Convite não enviado', mensagem: falha.detalhes?.join('\n') || falha.message });
-    }
   }
 
-  private async revogar(c: Convite) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Revogar convite', mensagem: `O link enviado para ${c.email} deixa de funcionar.`, rotuloConfirmar: 'Revogar' });
-    if (!ok) return;
-    try {
-      await chamarApi(`/equipe/convites/${c.id}/revogar`, { method: 'POST' });
-      await this.carregar();
-    } catch (e) {
-      await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: (e as Error).message });
-    }
+  private revogar(c: Convite) {
+    return this.semAvisoDeOutraConta(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Revogar convite', mensagem: `O link enviado para ${c.email} deixa de funcionar.`, rotuloConfirmar: 'Revogar' }));
+      if (!ok) return;
+      try {
+        await this.vida.esperar(chamarApi(`/equipe/convites/${c.id}/revogar`, { method: 'POST' }));
+        await this.carregar();
+      } catch (e) {
+        if (this.vida.encerrado(e)) throw e;
+        await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: (e as Error).message });
+      }
+    });
   }
 
   private colunas(): UrbiColunaTabela[] {

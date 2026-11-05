@@ -5,7 +5,7 @@ import { ESTILOS, LIMITE_INSTRUCOES } from '../../comum/negociacao';
 import { PROMPT_PARTE_2_PADRAO, REGRAS_FIXAS } from '../../comum/negociador';
 import { contadorInstrucoes, CUSTO_POR_RODADA, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, LIMITE_EVENTOS, MENSAGEM_CONVITE, PERGUNTA_TESTE, POLITICA_CONVITE, ROTULO_GATILHO } from '../../comum/negociador-ajustes';
 import { reaisParaCentavos } from '../../comum/crm';
-import { chamarApi, enviar, mensagemDeErro, reais } from '../apoio.js';
+import { chamarApi, enviar, gesto, mensagemDeErro, reais } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -37,20 +37,37 @@ export class PcAjustesNegociador extends LitElement {
   @state() private salvando = false;
   /** Convites de negociador da conta e quem aceitou (D7); `indisponivel` diz por que não carregou. */
   @state() private equipe: { convites: Linha[]; negociadores: Linha[]; indisponivel: string | null } | null = null;
+  /**
+   * A conta em que a tela nasceu (a troca de conta a recria). Toda continuação passa por `vida.esperar`:
+   * trocada a conta com o diálogo aberto (preenchido com dado de A) ou o envio em voo, nada sai com o
+   * `X-Conta` da nova (o PUT de objeção e o de config são por categoria/campo: sobrescreveriam B), nem há
+   * estado, aviso ou alerta.
+   */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
   }
 
+  /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
+  private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    try {
+      if (this.vida.vivo()) await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
+  }
+
   private async carregar() {
     this.falha = null;
     try {
-      const [config, objecoes] = await Promise.all([chamarApi('/negociador/config'), chamarApi('/negociador/objecoes')]);
+      const [config, objecoes] = await this.vida.esperar(Promise.all([chamarApi('/negociador/config'), chamarApi('/negociador/objecoes')]));
       this.config = config;
       this.instrucoes = config.instrucoes_corretor ?? '';
       this.objecoes = objecoes.dados ?? [];
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.falha = e;
     }
     void this.carregarEquipe();
@@ -59,42 +76,49 @@ export class PcAjustesNegociador extends LitElement {
   /** Convites e negociadores: falhar aqui não derruba a seção (a política multi-usuário pode estar desligada). */
   private async carregarEquipe() {
     try {
-      const [c, n] = await Promise.all([chamarApi('/negociador/convites'), chamarApi('/negociador/negociadores')]);
+      const [c, n] = await this.vida.esperar(Promise.all([chamarApi('/negociador/convites'), chamarApi('/negociador/negociadores')]));
       this.equipe = { convites: c?.convites ?? [], negociadores: n?.dados ?? [], indisponivel: null };
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.equipe = { convites: [], negociadores: [], indisponivel: mensagemDeErro(e) };
     }
   }
 
   /** Convidar negociador: só o e-mail (D-94, sem CRECI). Os erros da plataforma chegam traduzidos pela rota. */
-  private async convidar() {
-    const v = await urbiVerso.formulario({
-      titulo: 'Convidar negociador',
-      mensagem: MENSAGEM_CONVITE,
-      campos: [{ nome: 'email', tipo: 'texto', rotulo: 'E-mail', obrigatorio: true, placeholder: 'nome@exemplo.com' }],
-      rotuloConfirmar: 'Convidar',
+  private convidar() {
+    return this.semAvisoDeOutraConta(async () => {
+      const v = await this.vida.esperar(urbiVerso.formulario({
+        titulo: 'Convidar negociador',
+        mensagem: MENSAGEM_CONVITE,
+        campos: [{ nome: 'email', tipo: 'texto', rotulo: 'E-mail', obrigatorio: true, placeholder: 'nome@exemplo.com' }],
+        rotuloConfirmar: 'Convidar',
+      }));
+      if (!v) return;
+      try {
+        const r = await this.vida.esperar(enviar('POST', '/negociador/convites', { email: String(v.email ?? '') }));
+        if (r?.aviso) await this.vida.esperar(urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' }));
+        else urbiVerso.notificar('Convite enviado.', 'sucesso');
+      } catch (e) {
+        if (this.vida.encerrado(e)) throw e;
+        await this.vida.esperar(urbiVerso.alertar({ titulo: 'Não foi possível convidar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
+      }
+      await this.carregarEquipe();
     });
-    if (!v) return;
-    try {
-      const r = await enviar('POST', '/negociador/convites', { email: String(v.email ?? '') });
-      if (r?.aviso) await urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' });
-      else urbiVerso.notificar('Convite enviado.', 'sucesso');
-    } catch (e) {
-      await urbiVerso.alertar({ titulo: 'Não foi possível convidar', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    }
-    await this.carregarEquipe();
   }
 
-  private async revogar(c: Linha) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Revogar convite', mensagem: `O convite para ${c.email} deixa de valer.`, rotuloConfirmar: 'Revogar' });
-    if (!ok) return;
-    try {
-      await enviar('POST', `/negociador/convites/${c.id}/revogar`);
-      urbiVerso.notificar('Convite revogado.', 'sucesso');
-    } catch (e) {
-      await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    }
-    await this.carregarEquipe();
+  private revogar(c: Linha) {
+    return this.semAvisoDeOutraConta(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Revogar convite', mensagem: `O convite para ${c.email} deixa de valer.`, rotuloConfirmar: 'Revogar' }));
+      if (!ok) return;
+      try {
+        await this.vida.esperar(enviar('POST', `/negociador/convites/${c.id}/revogar`));
+        urbiVerso.notificar('Convite revogado.', 'sucesso');
+      } catch (e) {
+        if (this.vida.encerrado(e)) throw e;
+        await this.vida.esperar(urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
+      }
+      await this.carregarEquipe();
+    });
   }
 
   /** Bloco do negociador humano dentro de "Quem negocia" (D7). */
@@ -169,13 +193,16 @@ export class PcAjustesNegociador extends LitElement {
    * estilo, gatilho ou liga/desliga. Se falha, o controle (`alvo`) volta ao valor gravado.
    */
   private async gravar(mudanca: Partial<Config>, aviso = 'Salvo.', alvo?: { el: any; prop: 'marcado' | 'checked'; anterior: boolean }) {
+    if (!this.vida.vivo()) return;
     this.salvando = true;
     try {
-      this.config = await enviar('PUT', '/negociador/config', mudanca);
+      this.config = await this.vida.esperar(enviar('PUT', '/negociador/config', mudanca));
       if ('instrucoes_corretor' in mudanca) this.instrucoes = this.config!.instrucoes_corretor ?? '';
       urbiVerso.notificar(aviso, 'sucesso');
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      if (!this.vida.vivo()) return;
       // O Lit só reaplica o que ele mesmo mudou: o clique mexeu no elemento por dentro, então o valor
       // gravado volta direto nele, depois do render.
       this.config = { ...this.config! };
@@ -197,28 +224,32 @@ export class PcAjustesNegociador extends LitElement {
     void this.gravar({ instrucoes_corretor: this.instrucoes.trim() || null }, 'Instruções salvas.');
   }
 
-  private async editarObjecao(o: Linha) {
-    const atual = o.minha ?? o.padrao;
-    const v = await urbiVerso.formulario({
-      titulo: `Minha resposta · ${o.titulo}`,
-      mensagem: `Quando o cliente diz "${o.fala_cliente}"`,
-      campos: [
-        { nome: 'pergunta_exploracao', tipo: 'texto_longo', rotulo: 'Pergunta para explorar', obrigatorio: true, valor: atual.pergunta_exploracao ?? '' },
-        { nome: 'resposta_base', tipo: 'texto_longo', rotulo: 'Resposta', obrigatorio: true, valor: atual.resposta_base ?? '' },
-        { nome: 'proximo_passo', tipo: 'texto_longo', rotulo: 'Próximo passo', obrigatorio: true, valor: atual.proximo_passo ?? '' },
-      ],
-      rotuloConfirmar: 'Salvar a minha resposta',
+  private editarObjecao(o: Linha) {
+    return this.semAvisoDeOutraConta(async () => {
+      const atual = o.minha ?? o.padrao;
+      const v = await this.vida.esperar(urbiVerso.formulario({
+        titulo: `Minha resposta · ${o.titulo}`,
+        mensagem: `Quando o cliente diz "${o.fala_cliente}"`,
+        campos: [
+          { nome: 'pergunta_exploracao', tipo: 'texto_longo', rotulo: 'Pergunta para explorar', obrigatorio: true, valor: atual.pergunta_exploracao ?? '' },
+          { nome: 'resposta_base', tipo: 'texto_longo', rotulo: 'Resposta', obrigatorio: true, valor: atual.resposta_base ?? '' },
+          { nome: 'proximo_passo', tipo: 'texto_longo', rotulo: 'Próximo passo', obrigatorio: true, valor: atual.proximo_passo ?? '' },
+        ],
+        rotuloConfirmar: 'Salvar a minha resposta',
+      }));
+      if (!v) return;
+      await this.objecao({ categoria: o.categoria, ...v }, 'Sua resposta foi salva.');
     });
-    if (!v) return;
-    await this.objecao({ categoria: o.categoria, ...v }, 'Sua resposta foi salva.');
   }
 
   private async objecao(corpo: Record<string, unknown>, aviso: string) {
+    if (!this.vida.vivo()) return;
     try {
-      const item = await enviar('PUT', '/negociador/objecoes', corpo);
+      const item = await this.vida.esperar(enviar('PUT', '/negociador/objecoes', corpo));
       this.objecoes = this.objecoes.map((x) => (x.categoria === item.categoria ? item : x));
       urbiVerso.notificar(aviso, 'sucesso');
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
@@ -310,16 +341,18 @@ export class PcNegociadorTeste extends LitElement {
   @state() private resultado: Linha | null = null;
   @state() private testando = false;
   @state() private numeros: Linha | null = null;
+  /** A conta em que o painel nasceu: resposta (ou falha) que volta depois da troca não entra na tela. */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
-    void chamarApi('/negociador/ia').then(
+    void this.vida.esperar(chamarApi('/negociador/ia')).then(
       (r) => (this.ia = !!r?.disponivel),
-      () => (this.ia = false),
+      (e) => void (this.vida.encerrado(e) || (this.ia = false)),
     );
-    void chamarApi('/negociador/numeros').then(
+    void this.vida.esperar(chamarApi('/negociador/numeros')).then(
       (r) => (this.numeros = r),
-      () => (this.numeros = null),
+      (e) => void (this.vida.encerrado(e) || (this.numeros = null)),
     );
   }
 
@@ -331,16 +364,18 @@ export class PcNegociadorTeste extends LitElement {
       await urbiVerso.alertar({ titulo: 'Valores inválidos', mensagem: 'Escreva os valores em reais, por exemplo 1.360.000.', tipo: 'alerta' });
       return;
     }
+    if (!this.vida.vivo()) return;
     this.testando = true;
     this.resultado = null;
     try {
-      this.resultado = await enviar('POST', '/negociador/teste', {
+      this.resultado = await this.vida.esperar(enviar('POST', '/negociador/teste', {
         mandato: { preco_pedido_c: pedido, alvo_c: alvo, recuo_c: recuo, autonomia: 'pergunta_antes' },
         propostas: [{ direcao: 'comprador', valor_c: oferta }],
         mensagem_cliente: v.mensagem,
         teto_estimado_c: teto ?? null,
-      });
+      }));
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível testar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.testando = false;

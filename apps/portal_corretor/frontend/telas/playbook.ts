@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, formularioEnviar, opcoesChip, rotuloChip } from '../apoio.js';
+import { chamarApi, formularioEnviar, gesto, opcoesChip, rotuloChip } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -17,6 +17,11 @@ const opcoesDe = (m: Record<string, string>) => Object.entries(m).map(([valor, r
 export class PcPlaybook extends LitElement {
   @state() private dados: { abordagens: Linha[]; etapas_sem_abordagem: Linha[] } | null = null;
   @state() private falha: string | null = null;
+  /**
+   * A conta em que a tela nasceu (a troca de conta a recria). O formulário e a releitura vão no mesmo
+   * gesto: trocada a conta com o formulário aberto ou o envio em voo, nada é gravado, avisado nem relido.
+   */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
@@ -26,8 +31,9 @@ export class PcPlaybook extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.dados = await chamarApi('/funil/playbook');
+      this.dados = await this.vida.esperar(chamarApi('/funil/playbook'));
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.falha = (e as Error).message;
     }
   }
@@ -41,7 +47,7 @@ export class PcPlaybook extends LitElement {
   }
 
   private editar(a: Linha) {
-    void formularioEnviar(`${a.etapa_nome} · ${temperatura(a.temperatura)}`, this.campos(a), 'PUT', `/funil/playbook/${a.id}`).then((r) => (r ? this.carregar() : undefined));
+    void formularioEnviar(`${a.etapa_nome} · ${temperatura(a.temperatura)}`, this.campos(a), 'PUT', `/funil/playbook/${a.id}`, undefined, { gesto: this.vida }).then((r) => (r ? this.carregar() : undefined));
   }
 
   private nova() {
@@ -56,6 +62,7 @@ export class PcPlaybook extends LitElement {
       'POST',
       '/funil/playbook',
       (v) => ({ ...v, etapa_id: Number(v.etapa_id) }),
+      { gesto: this.vida },
     ).then((r) => (r ? this.carregar() : undefined));
   }
 

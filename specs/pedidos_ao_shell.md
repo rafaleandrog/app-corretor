@@ -147,6 +147,14 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** publicar no SDK um bundle dos primitivos (ou um registro de teste) que um teste possa carregar fora do shell.
 
+## 22. Superfície de "conta ativa" no SDK: evento ou leitura (#144, sobra do B6)
+
+**Por quê:** as telas do app guardam estado da conta em que estão (lista, ficha aberta, rascunho, conversa do Assistente) e precisam saber, na hora, quando a conta muda, para recriar a tela e descartar o que ainda chega da conta anterior. O SDK 100 não tem uma superfície própria de "conta ativa". O app deduz a conta de `urbiVerso.contexto().conta` (`contaEscrita` com uma conta só; o seletor próprio do app, guardado no navegador, com várias) e só fica sabendo da mudança pelo `urbi:contexto-app`, que dispara quando o contexto inteiro muda (`autenticacao.md` § Quando o contexto existe), sem dizer se o que mudou foi a conta. Também não há garantia documentada de que o contexto seja recarregado quando a conta muda no servidor: o shell o busca a cada navegação para a app, então uma troca feita pela plataforma só chega à tela na próxima navegação ou recarga, sem evento no meio. O caso que motivou o pedido: o operador que atende uma conta só tem a conta trocada; até a 0.1.36, a chave das telas usava só a conta do seletor (nula sem seletor) e a troca passava despercebida.
+
+**Até lá:** `contaDeTrabalho()` (`frontend/apoio.ts`) é a identidade da conta para o estado das telas; a cada `urbi:contexto-app` o app a relê e, se mudou, recria a tela (chave `sub|conta|visita` em `frontend/index.ts`), relê os dados de módulo e recomeça o Assistente. Teste `troca-de-conta-chromium.test.ts` em cada tela do menu.
+
+**Proposta mínima (qualquer uma fecha):** (a) um evento `urbi:conta-ativa` no `window`, com `{ appId, conta }` no `detail`, disparado quando a conta de trabalho da app muda (inclusive a troca feita pela plataforma); ou (b) uma leitura `urbiVerso.contaAtiva(): number | null` com o mesmo significado do `req.contexto.contaEscrita` do backend, mais a garantia documentada de que o `urbi:contexto-app` dispara quando ela muda. Com (a) ou (b), o seletor de conta poderia também ser do shell, e o app deixaria de guardar a escolha no navegador.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

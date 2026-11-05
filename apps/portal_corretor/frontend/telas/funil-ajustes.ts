@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, mensagemDeErro } from '../apoio.js';
+import { chamarApi, enviar, gesto, mensagemDeErro } from '../apoio.js';
 import './playbook.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -28,6 +28,11 @@ export class PcTelaFunilAjustes extends LitElement {
   @state() private rascunho: Record<string, Etapa[]> = {};
   @state() private salvando: string | null = null;
   @state() private falha: string | null = null;
+  /**
+   * A conta em que a tela nasceu (a troca de conta a recria). Toda continuação passa por `vida.esperar`:
+   * trocada a conta com o formulário aberto ou o PUT em voo, o rascunho de A não vai para B, nem há aviso.
+   */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
@@ -37,10 +42,11 @@ export class PcTelaFunilAjustes extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      const r = await chamarApi('/funil/etapas');
+      const r = await this.vida.esperar(chamarApi('/funil/etapas'));
       const ativas = (r.etapas as Etapa[]).filter((e) => e.ativa !== false);
       this.rascunho = Object.fromEntries(PIPELINES.map((p) => [p.id, ativas.filter((e) => e.pipeline === p.id)]));
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.falha = (e as Error).message;
     }
   }
@@ -58,15 +64,23 @@ export class PcTelaFunilAjustes extends LitElement {
   }
 
   private async editar(pipeline: string, i: number | null) {
+    if (!this.vida.vivo()) return;
     const atual = i === null ? null : this.rascunho[pipeline][i];
-    const v = await urbiVerso.formulario({
-      titulo: atual ? 'Editar etapa' : 'Nova etapa',
-      campos: [
-        { nome: 'nome', tipo: 'texto', rotulo: 'Nome', obrigatorio: true, valor: atual?.nome ?? '' },
-        { nome: 'tipo', tipo: 'selecao', rotulo: 'Tipo', valor: atual?.tipo ?? 'aberta', opcoes: Object.entries(TIPO).map(([valor, rotulo]) => ({ valor, rotulo })) },
-        { nome: 'probabilidade', tipo: 'numero', rotulo: 'Chance de fechar (%)', min: 0, max: 100, valor: Math.round((atual?.probabilidade ?? 0.1) * 100) },
-      ],
-    });
+    let v: Record<string, unknown> | null;
+    try {
+      v = await this.vida.esperar(urbiVerso.formulario({
+        titulo: atual ? 'Editar etapa' : 'Nova etapa',
+        campos: [
+          { nome: 'nome', tipo: 'texto', rotulo: 'Nome', obrigatorio: true, valor: atual?.nome ?? '' },
+          { nome: 'tipo', tipo: 'selecao', rotulo: 'Tipo', valor: atual?.tipo ?? 'aberta', opcoes: Object.entries(TIPO).map(([valor, rotulo]) => ({ valor, rotulo })) },
+          { nome: 'probabilidade', tipo: 'numero', rotulo: 'Chance de fechar (%)', min: 0, max: 100, valor: Math.round((atual?.probabilidade ?? 0.1) * 100) },
+        ],
+      }));
+    } catch (e) {
+      // Conta trocada com o formulário aberto: a etapa não entra em rascunho nenhum.
+      if (this.vida.encerrado(e)) return;
+      throw e;
+    }
     if (!v) return;
     const etapa: Etapa = { ...atual, pipeline, nome: String(v.nome), tipo: v.tipo as Etapa['tipo'], probabilidade: Number(v.probabilidade ?? 0) / 100 };
     const lista = [...this.rascunho[pipeline]];
@@ -78,12 +92,14 @@ export class PcTelaFunilAjustes extends LitElement {
   }
 
   private async salvar(pipeline: string) {
+    if (!this.vida.vivo()) return;
     this.salvando = pipeline;
     try {
-      await enviar('PUT', `/funil/etapas/${pipeline}`, { etapas: this.rascunho[pipeline] });
+      await this.vida.esperar(enviar('PUT', `/funil/etapas/${pipeline}`, { etapas: this.rascunho[pipeline] }));
       urbiVerso.notificar('Funil salvo.', 'sucesso');
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.salvando = null;

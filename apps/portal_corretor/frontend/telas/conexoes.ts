@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, data, dataHora, enviar, filtrosNaUrl, mensagemDeErro } from '../apoio';
+import { chamarApi, data, dataHora, enviar, filtrosNaUrl, gesto, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -21,10 +21,18 @@ export class PcTelaConexoes extends LitElement {
   @state() private dados: Conexoes | null = null;
   @state() private falha: string | null = null;
   @state() private ocupado = false;
+  /**
+   * A conta em que a tela nasceu (a troca de conta a recria). Toda continuação passa por `vida.esperar`:
+   * trocada a conta em qualquer await (confirmação aberta, envio em voo), o gesto termina em silêncio,
+   * sem envio na conta nova (desconectar não leva id: sairia com o `X-Conta` dela), estado, aviso nem navegação.
+   */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
-    void this.iniciar();
+    void this.iniciar().catch((e) => {
+      if (!this.vida.encerrado(e)) throw e;
+    });
   }
 
   private async iniciar() {
@@ -41,30 +49,32 @@ export class PcTelaConexoes extends LitElement {
       // Tira o código da barra de endereço (não fica no histórico nem é reaproveitado).
       filtrosNaUrl(new URLSearchParams());
       if (q.get('error')) {
-        await urbiVerso.alertar({ titulo: 'Conexão cancelada', mensagem: 'O Instagram não autorizou a conexão. Tente de novo quando quiser.', tipo: 'alerta' });
+        await this.vida.esperar(urbiVerso.alertar({ titulo: 'Conexão cancelada', mensagem: 'O Instagram não autorizou a conexão. Tente de novo quando quiser.', tipo: 'alerta' }));
       } else if (!esperado || esperado !== q.get('state')) {
-        await urbiVerso.alertar({ titulo: 'Conexão não confirmada', mensagem: 'O retorno do Instagram não corresponde ao pedido feito nesta aba. Clique em "Conectar Instagram" de novo.', tipo: 'erro' });
-      } else {
+        await this.vida.esperar(urbiVerso.alertar({ titulo: 'Conexão não confirmada', mensagem: 'O retorno do Instagram não corresponde ao pedido feito nesta aba. Clique em "Conectar Instagram" de novo.', tipo: 'erro' }));
+      } else if (this.vida.vivo()) {
         this.ocupado = true;
         try {
-          const r = await enviar('POST', '/conexoes/instagram/retorno', { code });
+          const r = await this.vida.esperar(enviar('POST', '/conexoes/instagram/retorno', { code }));
           urbiVerso.notificar(`Instagram conectado${r.usuario ? `: @${r.usuario}` : ''}.`, 'sucesso');
-          if (r.aviso) await urbiVerso.alertar({ titulo: 'Atenção', mensagem: r.aviso, tipo: 'alerta' });
+          if (r.aviso) await this.vida.esperar(urbiVerso.alertar({ titulo: 'Atenção', mensagem: r.aviso, tipo: 'alerta' }));
         } catch (e) {
-          await urbiVerso.alertar({ titulo: 'Não foi possível conectar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+          if (this.vida.encerrado(e)) return;
+          await this.vida.esperar(urbiVerso.alertar({ titulo: 'Não foi possível conectar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
         } finally {
           this.ocupado = false;
         }
       }
     }
-    await this.carregar();
+    if (this.vida.vivo()) await this.carregar();
   }
 
   private async carregar() {
     this.falha = null;
     try {
-      this.dados = await chamarApi('/conexoes');
+      this.dados = await this.vida.esperar(chamarApi('/conexoes'));
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.falha = (e as Error).message;
     }
   }
@@ -73,6 +83,7 @@ export class PcTelaConexoes extends LitElement {
     const bytes = new Uint8Array(24);
     crypto.getRandomValues(bytes);
     const estado = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    if (!this.vida.vivo()) return;
     try {
       sessionStorage.setItem(CHAVE_ESTADO, estado);
     } catch {
@@ -80,30 +91,33 @@ export class PcTelaConexoes extends LitElement {
       return;
     }
     try {
-      const r = await enviar('POST', '/conexoes/instagram/iniciar', { state: estado });
+      const r = await this.vida.esperar(enviar('POST', '/conexoes/instagram/iniciar', { state: estado }));
       window.location.href = r.url;
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível conectar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
   private async desconectar() {
-    const ok = await urbiVerso.confirmar({ titulo: 'Desconectar o Instagram', mensagem: 'Publicações agendadas deixam de sair até você conectar de novo.', rotuloConfirmar: 'Desconectar', perigo: true });
-    if (!ok) return;
     try {
-      await enviar('POST', '/conexoes/instagram/desconectar');
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Desconectar o Instagram', mensagem: 'Publicações agendadas deixam de sair até você conectar de novo.', rotuloConfirmar: 'Desconectar', perigo: true }));
+      if (!ok) return;
+      await this.vida.esperar(enviar('POST', '/conexoes/instagram/desconectar'));
       urbiVerso.notificar('Instagram desconectado.', 'sucesso');
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível desconectar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
   private async copiarRetorno() {
     try {
-      await navigator.clipboard.writeText(this.dados!.retorno);
+      await this.vida.esperar(navigator.clipboard.writeText(this.dados!.retorno));
       urbiVerso.notificar('Endereço copiado.', 'sucesso');
-    } catch {
+    } catch (e) {
+      if (this.vida.encerrado(e)) return;
       urbiVerso.notificar('Não deu para copiar: selecione o endereço e copie à mão.', 'erro');
     }
   }

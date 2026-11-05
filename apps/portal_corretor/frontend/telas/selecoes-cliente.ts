@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, data, enviar, mensagemDeErro } from '../apoio';
+import { chamarApi, data, enviar, gesto, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -28,6 +28,26 @@ export class PcSelecoesCliente extends LitElement {
   @state() private tarefas: Linha[] = [];
   @state() private falha: string | null = null;
   @state() private ocupado = false;
+  /**
+   * A conta em que o elemento nasceu (a troca de conta recria a tela). Toda continuação passa por
+   * `vida.esperar`: trocada a conta em qualquer await (diálogo aberto, carga, envio em voo), o gesto
+   * termina em silêncio, sem escrita, estado, aviso nem cópia (issue #144).
+   */
+  private readonly vida = gesto();
+
+  /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
+  private async calado(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
+  }
+
+  /** Recarrega e lança `ContaTrocada` se a conta mudou (o `carregar` sozinho termina calado e a cadeia seguiria). */
+  private reler() {
+    return this.vida.esperar(this.carregar());
+  }
 
   connectedCallback() {
     super.connectedCallback();
@@ -47,16 +67,17 @@ export class PcSelecoesCliente extends LitElement {
     const meu = ++this.pedido;
     try {
       if (this.parte === 'selecoes') {
-        const s = await chamarApi(`/selecoes?contato_id=${this.contatoId}`);
+        const s = await this.vida.esperar(chamarApi(`/selecoes?contato_id=${this.contatoId}`));
         if (meu !== this.pedido) return;
         this.selecoes = s.dados;
         return;
       }
-      const [p, t] = await Promise.all([chamarApi(`/contatos/${this.contatoId}/portal`), chamarApi(`/contatos/${this.contatoId}/tarefas-cliente`)]);
+      const [p, t] = await this.vida.esperar(Promise.all([chamarApi(`/contatos/${this.contatoId}/portal`), chamarApi(`/contatos/${this.contatoId}/tarefas-cliente`)]));
       if (meu !== this.pedido) return;
       this.portal = p;
       this.tarefas = t.dados;
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       if (meu === this.pedido) this.falha = (e as Error).message;
     }
   }
@@ -68,9 +89,10 @@ export class PcSelecoesCliente extends LitElement {
   /** Copia a mensagem pronta; sem permissão de área de transferência, mostra para copiar à mão. */
   private async copiar(texto: string, sucesso: string) {
     try {
-      await navigator.clipboard.writeText(texto);
+      await this.vida.esperar(navigator.clipboard.writeText(texto));
       urbiVerso.notificar(sucesso, 'sucesso');
-    } catch {
+    } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Mensagem pronta para colar', mensagem: texto, tipo: 'sucesso' });
     }
   }
@@ -79,18 +101,24 @@ export class PcSelecoesCliente extends LitElement {
     return this.nome.split(' ')[0] || '';
   }
 
-  private async nova() {
+  private nova() {
+    return this.calado(() => this.novaNaConta());
+  }
+
+  private async novaNaConta() {
     let anunciaveis: Linha[] = [];
     try {
       // Só ativos e reservados, todas as páginas (a lista vem de 50 em 50).
       for (const situacao of ['ativo', 'reservado']) {
         for (let pagina = 1; pagina <= 20; pagina++) {
-          const r = await chamarApi(`/imoveis?situacao=${situacao}&pagina=${pagina}`);
+          const r = await this.vida.esperar(chamarApi(`/imoveis?situacao=${situacao}&pagina=${pagina}`));
           anunciaveis.push(...(r.dados ?? []).filter((i: Linha) => i.autorizacao_vigente));
           if (pagina >= (r.paginas ?? 1)) break;
         }
       }
     } catch (e) {
+      // Conta trocada com a carga em voo: o diálogo não abre (nem com os imóveis de A).
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível carregar os imóveis', mensagem: mensagemDeErro(e), tipo: 'erro' });
       return;
     }
@@ -103,7 +131,7 @@ export class PcSelecoesCliente extends LitElement {
       { nome: 'mensagem', tipo: 'texto_longo', rotulo: 'Mensagem (opcional)', placeholder: 'Separei estes imóveis pelo que conversamos.' },
       ...anunciaveis.map((i): CampoFormulario => ({ nome: `im_${i.id}`, tipo: 'booleano', rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}${i.bairro ? ` · ${i.bairro}` : ''}` })),
     ];
-    const v = await urbiVerso.formulario({ titulo: 'Nova seleção', campos, mensagem: `Escolha até ${MAX_ITENS} imóveis. O cliente abre pelo link, sem login, e diz o que achou de cada um.`, rotuloConfirmar: 'Criar e enviar' });
+    const v = await this.vida.esperar(urbiVerso.formulario({ titulo: 'Nova seleção', campos, mensagem: `Escolha até ${MAX_ITENS} imóveis. O cliente abre pelo link, sem login, e diz o que achou de cada um.`, rotuloConfirmar: 'Criar e enviar' }));
     if (!v) return;
     const ids = Object.entries(v).filter(([k, x]) => k.startsWith('im_') && x === true).map(([k]) => Number(k.slice(3)));
     if (!ids.length || ids.length > MAX_ITENS) {
@@ -112,14 +140,15 @@ export class PcSelecoesCliente extends LitElement {
     }
     this.ocupado = true;
     try {
-      const r = await enviar('POST', '/selecoes', { contato_id: this.contatoId, titulo: v.titulo, mensagem: v.mensagem, imovel_ids: ids });
-      await this.carregar();
+      const r = await this.vida.esperar(enviar('POST', '/selecoes', { contato_id: this.contatoId, titulo: v.titulo, mensagem: v.mensagem, imovel_ids: ids }));
+      await this.reler();
       this.mudou();
       await this.copiar(this.mensagemSelecao(r.link, ids.length), 'Seleção criada. A mensagem com o link foi copiada: é só colar no WhatsApp.');
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível criar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
-      this.ocupado = false;
+      if (this.vida.vivo()) this.ocupado = false;
     }
   }
 
@@ -127,71 +156,99 @@ export class PcSelecoesCliente extends LitElement {
     return `Olá, ${this.primeiroNome()}! Separei ${n} imóve${n > 1 ? 'is' : 'l'} para você. Abra e me diga o que achou de cada um: ${completo(link)}`;
   }
 
-  private async revogar(s: Linha) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Revogar seleção', mensagem: 'O link deixa de abrir e o cliente não consegue mais reagir.', rotuloConfirmar: 'Revogar', perigo: true });
-    if (!ok) return;
+  private revogar(s: Linha) {
+    return this.calado(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Revogar seleção', mensagem: 'O link deixa de abrir e o cliente não consegue mais reagir.', rotuloConfirmar: 'Revogar', perigo: true }));
+      if (!ok) return;
+      await this.revogarNaConta(s);
+    });
+  }
+
+  private async revogarNaConta(s: Linha) {
     try {
-      await enviar('PATCH', `/selecoes/${s.id}/revogar`);
+      await this.vida.esperar(enviar('PATCH', `/selecoes/${s.id}/revogar`));
       urbiVerso.notificar('Seleção revogada.', 'sucesso');
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
   private async gerarPortal() {
+    if (!this.vida.vivo()) return;
     this.ocupado = true;
     try {
-      const r = await enviar('POST', `/contatos/${this.contatoId}/portal`);
-      await this.carregar();
+      const r = await this.vida.esperar(enviar('POST', `/contatos/${this.contatoId}/portal`));
+      await this.reler();
       if (r.novo) this.mudou();
       await this.copiar(
         `Olá, ${this.primeiroNome()}! Este é o seu portal: os imóveis que separei para você, as visitas marcadas e um espaço para falar comigo. ${completo(r.link)}`,
         'Link do portal copiado: é só colar no WhatsApp.',
       );
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível gerar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
-      this.ocupado = false;
+      if (this.vida.vivo()) this.ocupado = false;
     }
   }
 
-  private async revogarPortal() {
-    const ok = await urbiVerso.confirmar({ titulo: 'Revogar o portal', mensagem: 'O link atual deixa de abrir. Você pode gerar um novo depois.', rotuloConfirmar: 'Revogar', perigo: true });
-    if (!ok) return;
+  private revogarPortal() {
+    return this.calado(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Revogar o portal', mensagem: 'O link atual deixa de abrir. Você pode gerar um novo depois.', rotuloConfirmar: 'Revogar', perigo: true }));
+      if (!ok) return;
+      await this.revogarPortalNaConta();
+    });
+  }
+
+  private async revogarPortalNaConta() {
     try {
-      await enviar('PATCH', `/contatos/${this.contatoId}/portal/revogar`);
+      await this.vida.esperar(enviar('PATCH', `/contatos/${this.contatoId}/portal/revogar`));
       urbiVerso.notificar('Portal revogado.', 'sucesso');
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
-  private async novaTarefa() {
-    const v = await urbiVerso.formulario({
+  private novaTarefa() {
+    return this.calado(() => this.novaTarefaNaConta());
+  }
+
+  private async novaTarefaNaConta() {
+    const v = await this.vida.esperar(urbiVerso.formulario({
       titulo: 'Pedir ao cliente',
       mensagem: 'Aparece no portal em "O que falta de você". Quando o cliente marcar como feito, você vê aqui e na linha do tempo.',
       campos: [{ nome: 'texto', tipo: 'texto', rotulo: 'O que falta', obrigatorio: true, placeholder: 'Ex.: enviar a documentação' }],
       rotuloConfirmar: 'Pedir',
-    });
+    }));
     if (!v) return;
     try {
-      await enviar('POST', `/contatos/${this.contatoId}/tarefas-cliente`, { texto: v.texto });
-      await this.carregar();
+      await this.vida.esperar(enviar('POST', `/contatos/${this.contatoId}/tarefas-cliente`, { texto: v.texto }));
+      await this.reler();
       this.mudou();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível pedir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
-  private async removerTarefa(t: Linha) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Remover pendência', mensagem: `"${t.texto}" sai do portal do cliente.`, rotuloConfirmar: 'Remover', perigo: true });
-    if (!ok) return;
+  private removerTarefa(t: Linha) {
+    return this.calado(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Remover pendência', mensagem: `"${t.texto}" sai do portal do cliente.`, rotuloConfirmar: 'Remover', perigo: true }));
+      if (!ok) return;
+      await this.removerTarefaNaConta(t);
+    });
+  }
+
+  private async removerTarefaNaConta(t: Linha) {
     try {
-      await enviar('PATCH', `/tarefas-cliente/${t.id}/remover`);
+      await this.vida.esperar(enviar('PATCH', `/tarefas-cliente/${t.id}/remover`));
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }

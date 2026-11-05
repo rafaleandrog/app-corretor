@@ -1,5 +1,5 @@
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, formularioEnviar, mensagemDeErro, ROTULO_TIPO_MIDIA } from '../apoio.js';
+import { chamarApi, enviar, formularioEnviar, gesto, mensagemDeErro, ROTULO_TIPO_MIDIA, type Gesto } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -31,13 +31,19 @@ export const autorizacaoAberta = (autorizacoes: Linha[]) => autorizacoes.find((a
 
 /**
  * Registra a autorização de venda do imóvel: proprietário que assina, vigência, preço, comissão e
- * permissões. Devolve a autorização criada, ou `null` (cancelou, falhou ou falta o proprietário).
+ * permissões. Devolve a autorização criada, ou `null` (cancelou, falhou, falta o proprietário ou a conta
+ * mudou no meio). Tudo corre no `gesto` de quem chamou (ou num novo): a carga dos proprietários, o
+ * diálogo e o POST. Conta trocada em qualquer desses awaits, termina em silêncio (issue #144).
  */
-export async function registrarAutorizacao(im: Linha): Promise<Linha | null> {
+export async function registrarAutorizacao(im: Linha, opcoes: { gesto?: Gesto } = {}): Promise<Linha | null> {
+  const g = opcoes.gesto ?? gesto();
+  if (!g.vivo()) return null;
   let contatos: Linha[] = [];
   try {
-    contatos = (await chamarApi('/contatos?papel=proprietario')).dados;
-  } catch {
+    contatos = (await g.esperar(chamarApi('/contatos?papel=proprietario'))).dados;
+  } catch (e) {
+    // Conta trocada com a lista em voo: o diálogo (com o imóvel e os proprietários de antes) não abre.
+    if (g.encerrado(e)) return null;
     /* segue com o proprietário atual, se houver */
   }
   const opcoesProp = comAtual(contatos.map((c) => ({ valor: String(c.id), rotulo: c.nome, textoBusca: c.telefone ?? '' })), im.proprietario_id, im.proprietario_nome);
@@ -69,41 +75,53 @@ export async function registrarAutorizacao(im: Linha): Promise<Linha | null> {
     'POST',
     '/autorizacoes',
     (v) => ({ ...v, imovel_id: im.id, proprietario_id: Number(v.proprietario_id) }),
-    { mensagem: 'Depois de assinada, anexe o documento e marque como assinada.' },
+    { mensagem: 'Depois de assinada, anexe o documento e marque como assinada.', gesto: g },
   );
 }
 
 /**
  * Marca a autorização como assinada, escolhendo o documento entre os arquivos do imóvel (o escolhido
- * passa a ser interno). Devolve `true` quando salvou.
+ * passa a ser interno). Devolve `true` quando salvou. No `gesto` de quem chamou (ou num novo): conta
+ * trocada com o diálogo aberto ou o PATCH em voo, termina em silêncio e devolve `false`.
  */
-export async function marcarAssinada(a: Linha, midias: Linha[], ondeAnexar = 'em "Fotos e arquivos"'): Promise<boolean> {
+export async function marcarAssinada(a: Linha, midias: Linha[], ondeAnexar = 'em "Fotos e arquivos"', opcoes: { gesto?: Gesto } = {}): Promise<boolean> {
+  const g = opcoes.gesto ?? gesto();
+  if (!g.vivo()) return false;
   const docs = midias.filter((m) => m.tipo === 'documento' || m.tipo === 'foto');
   if (!docs.length) {
     await urbiVerso.alertar({ titulo: 'Anexe o documento', mensagem: `Envie o documento assinado (PDF ou foto) ${ondeAnexar} e volte aqui.`, tipo: 'alerta' });
     return false;
   }
   const doc = docs.find((d) => d.tipo === 'documento');
-  const v = await urbiVerso.formulario({
-    titulo: 'Marcar como assinada',
-    mensagem: 'O documento escolhido fica interno: nunca aparece no anúncio.',
-    campos: [
-      {
-        nome: 'documento_midia_id',
-        tipo: 'selecao',
-        rotulo: 'Documento assinado',
-        obrigatorio: true,
-        valor: doc ? String(doc.id) : null,
-        opcoes: docs.map((d) => ({ valor: String(d.id), rotulo: `${ROTULO_TIPO_MIDIA[d.tipo]}: ${d.legenda ?? `arquivo ${d.id}`}` })),
-      },
-    ],
-    rotuloConfirmar: 'Marcar como assinada',
-  });
+  let v: Awaited<ReturnType<UrbiVersoAPI['formulario']>>;
+  try {
+    v = await g.esperar(
+      urbiVerso.formulario({
+        titulo: 'Marcar como assinada',
+        mensagem: 'O documento escolhido fica interno: nunca aparece no anúncio.',
+        campos: [
+          {
+            nome: 'documento_midia_id',
+            tipo: 'selecao',
+            rotulo: 'Documento assinado',
+            obrigatorio: true,
+            valor: doc ? String(doc.id) : null,
+            opcoes: docs.map((d) => ({ valor: String(d.id), rotulo: `${ROTULO_TIPO_MIDIA[d.tipo]}: ${d.legenda ?? `arquivo ${d.id}`}` })),
+          },
+        ],
+        rotuloConfirmar: 'Marcar como assinada',
+      }),
+    );
+  } catch (e) {
+    if (g.encerrado(e)) return false;
+    throw e;
+  }
   if (!v) return false;
   try {
-    await enviar('PATCH', `/autorizacoes/${a.id}`, { documento_midia_id: Number(v.documento_midia_id), situacao: 'assinada' });
+    await g.esperar(enviar('PATCH', `/autorizacoes/${a.id}`, { documento_midia_id: Number(v.documento_midia_id), situacao: 'assinada' }));
     return true;
   } catch (e) {
+    if (g.encerrado(e)) return false;
     await urbiVerso.alertar({ titulo: 'Não foi possível marcar como assinada', mensagem: mensagemDeErro(e), tipo: 'erro' });
     return false;
   }

@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, formularioEnviar, mensagemDeErro, reais, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
+import { chamarApi, enviar, formularioEnviar, gesto, mensagemDeErro, reais, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 import { FASE, faixa, TIPO_EMPREENDIMENTO } from './empreendimentos.js';
 
@@ -23,17 +23,34 @@ export class PcTelaFichaEmpreendimento extends LitElement {
   @state() private ficha: { empreendimento: Linha; materiais: Linha[]; imoveis: Linha[] } | null = null;
   @state() private falha: string | null = null;
   @state() private enviando = false;
+  /**
+   * A conta em que a ficha nasceu (a troca de conta recria a tela). Toda continuação passa por
+   * `vida.esperar`: trocada a conta em qualquer await (diálogo aberto, envio em voo), o gesto termina em
+   * silêncio, sem escrita, estado, aviso nem navegação (issue #144).
+   */
+  private readonly vida = gesto();
+
+  /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
+  private async calado(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
+  }
 
   connectedCallback() {
     super.connectedCallback();
-    void this.carregar();
+    void this.calado(() => this.carregar());
   }
 
+  /** Lê a ficha. Conta trocada no meio: lança `ContaTrocada` (o resto da cadeia não roda); quem chama solto usa `calado`. */
   private async carregar() {
     this.falha = null;
     try {
-      this.ficha = await chamarApi(`/empreendimentos/${this.empreendimentoId}`);
+      this.ficha = await this.vida.esperar(chamarApi(`/empreendimentos/${this.empreendimentoId}`));
     } catch (e) {
+      if (this.vida.encerrado(e)) throw e;
       this.falha = (e as Error).message;
     }
   }
@@ -57,68 +74,87 @@ export class PcTelaFichaEmpreendimento extends LitElement {
       ],
       'PATCH',
       `/empreendimentos/${this.empreendimentoId}`,
-    ).then(async (r) => {
-      if (!r) return;
-      await this.carregar();
-      avisarLista(this.empreendimentoId);
-    });
+      undefined,
+      { gesto: this.vida },
+    ).then((r) =>
+      this.calado(async () => {
+        if (!r) return;
+        await this.carregar();
+        avisarLista(this.empreendimentoId);
+      }),
+    );
   }
 
-  private async enviarMaterial(ev: CustomEvent) {
+  private enviarMaterial(ev: CustomEvent) {
+    return this.calado(() => this.enviarMaterialNaConta(ev));
+  }
+
+  private async enviarMaterialNaConta(ev: CustomEvent) {
     const f = ev.detail.arquivo as File | null;
     if (!f || this.enviando) return;
-    const v = await urbiVerso.formulario({
+    const v = await this.vida.esperar(urbiVerso.formulario({
       titulo: 'Material',
       campos: [
         { nome: 'titulo', tipo: 'texto', rotulo: 'Título', obrigatorio: true, valor: f.name.replace(/\.[^.]+$/, '') },
         { nome: 'tipo', tipo: 'selecao', rotulo: 'Tipo', valor: 'outro', opcoes: Object.entries(TIPO_MATERIAL).map(([valor, rotulo]) => ({ valor, rotulo })) },
         { nome: 'publico', tipo: 'booleano', rotulo: 'Pode ser enviado ao cliente', valor: true },
       ],
-    });
+    }));
     if (!v) return;
     this.enviando = true;
     try {
-      const upload_id = await subirArquivo('empreendimento_materiais', 'arquivo', f);
-      await enviar('POST', `/empreendimentos/${this.empreendimentoId}/materiais`, { ...v, upload_id });
+      const upload_id = await this.vida.esperar(subirArquivo('empreendimento_materiais', 'arquivo', f));
+      await this.vida.esperar(enviar('POST', `/empreendimentos/${this.empreendimentoId}/materiais`, { ...v, upload_id }));
       urbiVerso.notificar('Material enviado.', 'sucesso');
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível enviar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
-      this.enviando = false;
+      if (this.vida.vivo()) this.enviando = false;
     }
   }
 
-  private async removerMaterial(m: Linha) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Apagar material', mensagem: `"${m.titulo}" é apagado de vez.`, rotuloConfirmar: 'Apagar', perigo: true });
-    if (!ok) return;
+  private removerMaterial(m: Linha) {
+    return this.calado(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Apagar material', mensagem: `"${m.titulo}" é apagado de vez.`, rotuloConfirmar: 'Apagar', perigo: true }));
+      if (!ok) return;
+      await this.removerMaterialNaConta(m);
+    });
+  }
+
+  private async removerMaterialNaConta(m: Linha) {
     try {
-      await enviar('PATCH', `/empreendimentos/${this.empreendimentoId}/materiais/${m.id}/remover`, {});
+      await this.vida.esperar(enviar('PATCH', `/empreendimentos/${this.empreendimentoId}/materiais/${m.id}/remover`, {}));
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível apagar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
   private async remover() {
-    const ok = await urbiVerso.confirmar({ titulo: 'Remover empreendimento', mensagem: 'Ele sai da sua lista.', rotuloConfirmar: 'Remover', perigo: true });
-    if (!ok) return;
-    try {
-      await enviar('PATCH', `/empreendimentos/${this.empreendimentoId}/remover`, {});
-      avisarLista(this.empreendimentoId);
-      // Tira o `?item=` do endereço: o centro não fica com a ficha do que saiu.
-      filtrosNaUrl(filtrosDaUrl(), {}, ['item']);
-      urbiVerso.navegarSub('/empreendimentos');
-    } catch (e) {
-      await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    }
+    await this.calado(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Remover empreendimento', mensagem: 'Ele sai da sua lista.', rotuloConfirmar: 'Remover', perigo: true }));
+      if (!ok) return;
+      try {
+        await this.vida.esperar(enviar('PATCH', `/empreendimentos/${this.empreendimentoId}/remover`, {}));
+        avisarLista(this.empreendimentoId);
+        // Tira o `?item=` do endereço: o centro não fica com a ficha do que saiu.
+        filtrosNaUrl(filtrosDaUrl(), {}, ['item']);
+        urbiVerso.navegarSub('/empreendimentos');
+      } catch (e) {
+        if (this.vida.encerrado(e)) return;
+        await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      }
+    });
   }
 
   render() {
     const banner = this.falha
       ? html`<urbi-banner variante="erro">
           ${this.falha}
-          <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
+          <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.calado(() => this.carregar())}>Tentar de novo</urbi-botao>
         </urbi-banner>`
       : '';
     if (this.falha && !this.ficha) return banner;

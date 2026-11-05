@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { acoesComMais, chamarApi, enviar, mensagemDeErro, ROTULO_TIPO_ATIVIDADE, type Acao } from '../apoio.js';
+import { acoesComMais, chamarApi, enviar, gesto, mensagemDeErro, ROTULO_TIPO_ATIVIDADE, type Acao } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -14,6 +14,8 @@ export class PcTelaAgenda extends LitElement {
   @state() private atividades: Atividade[] | null = null;
   @state() private falha: string | null = null;
   @state() private total = 0;
+  /** A conta em que a tela nasceu (a troca a recria): continuação depois da troca termina em silêncio (issue #144). */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
@@ -24,19 +26,22 @@ export class PcTelaAgenda extends LitElement {
     this.falha = null;
     const ate = new Date(Date.now() + 14 * 86400e3);
     try {
-      const r = await chamarApi(`/atividades?status=pendente&ate=${encodeURIComponent(ate.toISOString())}`);
+      const r = await this.vida.esperar(chamarApi(`/atividades?status=pendente&ate=${encodeURIComponent(ate.toISOString())}`));
       this.atividades = r.dados;
       this.total = r.total ?? r.dados.length;
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.falha = (e as Error).message;
     }
   }
 
   private async mudar(a: Atividade, status: 'feita' | 'cancelada' | 'nao_compareceu') {
+    if (!this.vida.vivo()) return;
     try {
-      await enviar('PATCH', `/atividades/${a.id}`, { status });
+      await this.vida.esperar(enviar('PATCH', `/atividades/${a.id}`, { status }));
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível atualizar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }

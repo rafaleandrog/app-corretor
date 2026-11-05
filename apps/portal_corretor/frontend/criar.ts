@@ -1,6 +1,6 @@
 import { html, type TemplateResult } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, formularioEnviar, juntarDataHora } from './apoio.js';
+import { chamarApi, formularioEnviar, gesto, juntarDataHora } from './apoio.js';
 import { alternarAssistente, assistenteAberto, contatoEmFoco } from './telas/assistente.js';
 import { abrirNegociacao, novaProposta } from './telas/negociacoes.js';
 
@@ -46,6 +46,8 @@ const buscar = (rota: string, rotulo: (l: Record<string, any>) => string) => asy
 
 /** Nova visita (11.7): cliente, imóvel e horário, com o cliente da ficha aberta já escolhido. */
 export async function novaVisita() {
+  // Um gesto da conta de agora: trocada com o formulário aberto ou o envio em voo, nada é enviado nem aberto.
+  const vida = gesto();
   const foco = contatoEmFoco();
   const r = await formularioEnviar(
     'Nova visita',
@@ -59,8 +61,9 @@ export async function novaVisita() {
     'POST',
     '/atividades',
     (v) => ({ tipo: 'visita', titulo: 'Visita', quando: juntarDataHora(v.dia, v.hora), local: v.local, contato_id: v.contato_id, imovel_id: v.imovel_id ?? undefined }),
+    { gesto: vida },
   );
-  if (r?.id && r.contato_id) urbiVerso.navegarSub(`/clientes/${r.contato_id}`);
+  if (r?.id && r.contato_id && vida.vivo()) urbiVerso.navegarSub(`/clientes/${r.contato_id}`);
 }
 
 /**
@@ -79,7 +82,11 @@ export function irParaComQuery(destino: string) {
 export function criar(opcao: OpcaoCriar) {
   const destino = destinoDeCriar(opcao, urbiVerso.subRota(), window.location.search);
   if (destino) irParaComQuery(destino);
-  else if (opcao === 'proposta') void novaProposta(contatoEmFoco()).then((n) => n && abrirNegociacao(n));
+  else if (opcao === 'proposta') {
+    // A negociação criada é da conta em que o gesto começou: trocada no meio, ela não abre na outra.
+    const vida = gesto();
+    void novaProposta(contatoEmFoco()).then((n) => n && vida.vivo() && abrirNegociacao(n));
+  }
   else void novaVisita();
 }
 

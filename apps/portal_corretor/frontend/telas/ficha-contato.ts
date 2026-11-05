@@ -9,7 +9,7 @@ import { tarefaDaAbordagem } from '../../comum/funil';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
-import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, seNaoContaTrocada, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { registrarEdicao, soltarEdicao } from '../atalhos.js';
 
@@ -79,6 +79,12 @@ export class FichaContato {
   /** `?sugerir=1` (Hoje e Funil): carrega a mensagem sugerida uma vez, e só com abordagem. */
   private sugerirDaUrl = filtrosDaUrl().get('sugerir') === '1';
   private sondada = false;
+  /**
+   * A conta em que a ficha nasceu (`fichaDe` cria outra a cada conta). Toda continuação passa por
+   * `vida.esperar`: trocada a conta em qualquer await (diálogo aberto, carga, envio em voo), o gesto
+   * termina em silêncio, sem escrita, estado, aviso nem navegação (issue #144).
+   */
+  readonly vida = gesto();
 
   constructor(readonly contatoId: number) {
     const avisar = () => this.ouvintes.forEach((f) => f());
@@ -115,15 +121,16 @@ export class FichaContato {
     void this.carregar();
     if (this.sondada) return;
     this.sondada = true;
+    // Conta trocada com a sonda em voo: o guarda do envio rejeita com `ContaTrocada`, e nada é marcado.
     void chamarApi(`/contatos/${this.contatoId}/ia`).then(
       (r) => {
         this.s.ia = { resumo: !!r.resumo, mensagem: !!r.mensagem };
         this.s.iaSondada = true;
       },
       // Sonda que falha (rede, 5xx) vale como "indisponível": a tela explica o Resumir desligado em vez de calar.
-      () => {
+      seNaoContaTrocada(() => {
         this.s.iaSondada = true;
-      },
+      }),
     );
   }
 
@@ -141,12 +148,12 @@ export class FichaContato {
       filtrosNaUrl(filtrosDaUrl(), {}, ['sugerir']);
     }
     try {
-      const [ficha, etapas, envios] = await Promise.all([
+      const [ficha, etapas, envios] = await this.vida.esperar(Promise.all([
         chamarApi(`/contatos/${this.contatoId}`),
         chamarApi('/funil/etapas'),
         // O histórico de envios é complementar: se falhar, a ficha abre sem ele.
         chamarApi(`/envios?contato_id=${this.contatoId}`).catch(() => ({ dados: [] })),
-      ]);
+      ]));
       this.s.ficha = ficha;
       // Contato em foco: o Assistente aberto nesta ficha e a Nova visita do Criar já vêm com ele.
       // Só a ficha que ainda é a aberta: resposta tardia de outro contato não toma o foco.
@@ -156,12 +163,27 @@ export class FichaContato {
       // Idem para a sugestão do `?sugerir=1`: ficha que o corretor já deixou não gasta IA nem alerta sobre outra.
       if (sugerirAgora && ficha.abordagem && this.ativa) void this.sugerir();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.s.falha = e;
     }
   }
 
+  /** Recarrega e lança `ContaTrocada` se a conta mudou (o `carregar` sozinho termina calado e a cadeia seguiria). */
+  private async reler() {
+    await this.vida.esperar(this.carregar());
+  }
+
+  /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
+  private async calado(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
+  }
+
   private async depois(r: unknown) {
-    if (r) await this.carregar();
+    if (r && this.vida.vivo()) await this.carregar();
   }
 
   /** E (11.0.6): Editar contato, se a ficha já carregou. */
@@ -197,6 +219,7 @@ export class FichaContato {
         ...v,
         papeis: [...PAPEIS_NA_TELA.filter((p) => ({ comprador: papel_comprador, proprietario: papel_proprietario })[p]), ...outros].join(','),
       }),
+      { gesto: this.vida },
     ).then((r) => this.depois(r));
   }
 
@@ -217,19 +240,20 @@ export class FichaContato {
       'PATCH',
       `/contatos/${c.id}`,
       (v) => ({ proximo_passo: v.proximo_passo, proximo_passo_em: juntarDataHora(v.dia, v.hora) ?? '', proximo_passo_cliente: v.proximo_passo_cliente ?? '' }),
+      { gesto: this.vida },
     ).then((r) => this.depois(r));
   }
 
   private nota() {
-    void formularioEnviar('Registrar contato ou nota', [{ nome: 'texto', tipo: 'texto_longo', rotulo: 'O que aconteceu', obrigatorio: true }], 'POST', `/contatos/${this.contatoId}/notas`).then((r) =>
-      this.depois(r),
-    );
+    void formularioEnviar('Registrar contato ou nota', [{ nome: 'texto', tipo: 'texto_longo', rotulo: 'O que aconteceu', obrigatorio: true }], 'POST', `/contatos/${this.contatoId}/notas`, undefined, {
+      gesto: this.vida,
+    }).then((r) => this.depois(r));
   }
 
   /** Imóveis da carteira para escolher no negócio e na visita (os 50 mais recentes, com busca). */
   private async opcoesImoveis() {
     try {
-      const r = await chamarApi('/imoveis');
+      const r = await this.vida.esperar(chamarApi('/imoveis'));
       return [{ valor: '', rotulo: 'Nenhum' }, ...r.dados.map((i: Linha) => ({ valor: String(i.id), rotulo: `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`, textoBusca: i.bairro ?? '' }))];
     } catch {
       return [{ valor: '', rotulo: 'Nenhum' }];
@@ -238,6 +262,8 @@ export class FichaContato {
 
   private async novoNegocio() {
     const imoveis = await this.opcoesImoveis();
+    // A carga dos imóveis é da conta do clique: trocada no meio, o diálogo não abre (nem com os imóveis de A).
+    if (!this.vida.vivo()) return;
     void formularioEnviar(
       'Novo negócio',
       [
@@ -250,6 +276,7 @@ export class FichaContato {
       'POST',
       '/negocios',
       (v) => ({ ...v, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, contato_id: this.contatoId }),
+      { gesto: this.vida },
     ).then((r) => {
       // O negócio que já nasce na Proposta pode abrir a negociação (gatilho `etapa_proposta`).
       const aviso = avisoDeEntrada((r as Linha | null)?.negociador_entrou);
@@ -258,28 +285,34 @@ export class FichaContato {
     });
   }
 
-  private async moverEtapa(negocio: Linha) {
+  private moverEtapa(negocio: Linha) {
+    return this.calado(() => this.moverEtapaNaConta(negocio));
+  }
+
+  private async moverEtapaNaConta(negocio: Linha) {
     const etapas = this.s.etapas.filter((e) => e.pipeline === negocio.pipeline && e.ativa);
-    const v = await urbiVerso.formulario({
+    const v = await this.vida.esperar(urbiVerso.formulario({
       titulo: 'Mudar etapa',
       campos: [
         { nome: 'etapa_id', tipo: 'selecao', rotulo: 'Etapa', valor: String(negocio.etapa_id), opcoes: etapas.map((e) => ({ valor: String(e.id), rotulo: e.nome })) },
         { nome: 'motivo_perda', tipo: 'selecao', rotulo: 'Motivo, se perdido', opcoes: opcoes(ROTULO_MOTIVO_PERDA) },
       ],
-    });
+    }));
     if (!v) return;
     try {
-      const r = await enviar('PATCH', `/negocios/${negocio.id}`, { etapa_id: Number(v.etapa_id), motivo_perda: v.motivo_perda || undefined });
+      const r = await this.vida.esperar(enviar('PATCH', `/negocios/${negocio.id}`, { etapa_id: Number(v.etapa_id), motivo_perda: v.motivo_perda || undefined }));
       const aviso = avisoDeEntrada(r?.negociador_entrou);
       if (aviso) urbiVerso.notificar(aviso, 'info');
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível mudar a etapa', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
   private async novaAtividade() {
     const imoveis = await this.opcoesImoveis();
+    if (!this.vida.vivo()) return;
     void formularioEnviar(
       'Agendar',
       [
@@ -296,6 +329,7 @@ export class FichaContato {
         tipo: v.tipo, titulo: v.titulo, quando: juntarDataHora(v.dia, v.hora), local: v.local, contato_id: this.contatoId,
         imovel_id: v.tipo === 'visita' && v.imovel_id ? Number(v.imovel_id) : undefined,
       }),
+      { gesto: this.vida },
     ).then((r) => this.depois(r));
   }
 
@@ -312,53 +346,68 @@ export class FichaContato {
       'POST',
       `/visitas/${a.id}/feedback`,
       (x) => ({ ...x, nota: x.nota ? Number(x.nota) : null }),
+      { gesto: this.vida },
     ).then((r) => this.depois(r));
   }
 
   private async concluir(a: Linha) {
     try {
-      await enviar('PATCH', `/atividades/${a.id}`, { status: 'feita' });
+      await this.vida.esperar(enviar('PATCH', `/atividades/${a.id}`, { status: 'feita' }));
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
-  private async consentimento(registrar: boolean) {
-    const ok = await urbiVerso.confirmar(
+  private consentimento(registrar: boolean) {
+    return this.calado(() => this.consentimentoNaConta(registrar));
+  }
+
+  private async consentimentoNaConta(registrar: boolean) {
+    const ok = await this.vida.esperar(urbiVerso.confirmar(
       registrar
         ? { titulo: 'Registrar consentimento', mensagem: 'O cliente autorizou receber mensagens suas e do seu atendimento automático?', rotuloConfirmar: 'Sim, autorizou' }
         : { titulo: 'Revogar consentimento', mensagem: 'A partir de agora ele só recebe mensagens que você enviar manualmente.', rotuloConfirmar: 'Revogar' },
-    );
+    ));
     if (!ok) return;
     try {
-      await enviar('POST', `/contatos/${this.contatoId}/consentimento${registrar ? '' : '/revogar'}`, {});
+      await this.vida.esperar(enviar('POST', `/contatos/${this.contatoId}/consentimento${registrar ? '' : '/revogar'}`, {}));
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
-  private async remover() {
-    const ok = await urbiVerso.confirmar({ titulo: 'Remover contato', mensagem: 'O contato sai da sua lista. O histórico fica guardado.', rotuloConfirmar: 'Remover', perigo: true });
+  private remover() {
+    return this.calado(() => this.removerNaConta());
+  }
+
+  private async removerNaConta() {
+    // Confirmado depois da troca de conta: nenhum PATCH sai (com o `X-Conta` da nova), nem alerta, nem navegação.
+    const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Remover contato', mensagem: 'O contato sai da sua lista. O histórico fica guardado.', rotuloConfirmar: 'Remover', perigo: true }));
     if (!ok) return;
     try {
-      await enviar('PATCH', `/contatos/${this.contatoId}/remover`, {});
+      await this.vida.esperar(enviar('PATCH', `/contatos/${this.contatoId}/remover`, {}));
       // A lista recarrega sem ele, e a ficha fecha (sai o `?item=`).
       urbiVerso.navegarSub('/clientes');
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível remover', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
-  private async abordagemFeita() {
-    const a = this.s.ficha!.abordagem!;
-    const v = await urbiVerso.formulario({
-      titulo: 'Registrar abordagem',
-      campos: [{ nome: 'texto', tipo: 'texto_longo', rotulo: 'O que você fez', valor: a.abordagem }],
-      rotuloConfirmar: 'Registrar',
+  private abordagemFeita() {
+    return this.calado(async () => {
+      const a = this.s.ficha!.abordagem!;
+      const v = await this.vida.esperar(urbiVerso.formulario({
+        titulo: 'Registrar abordagem',
+        campos: [{ nome: 'texto', tipo: 'texto_longo', rotulo: 'O que você fez', valor: a.abordagem }],
+        rotuloConfirmar: 'Registrar',
+      }));
+      if (v) await this.tentar('Não foi possível registrar', () => enviar('POST', `/abordagens/${this.contatoId}/feita`, { texto: v.texto }));
     });
-    if (v) await this.tentar('Não foi possível registrar', () => enviar('POST', `/abordagens/${this.contatoId}/feita`, { texto: v.texto }));
   }
 
   private async adiarAbordagem() {
@@ -370,11 +419,12 @@ export class FichaContato {
   private async resumir() {
     this.s.resumindo = true;
     try {
-      this.s.resumo = (await enviar('POST', `/contatos/${this.contatoId}/resumo`, {})).resumo;
+      this.s.resumo = (await this.vida.esperar(enviar('POST', `/contatos/${this.contatoId}/resumo`, {}))).resumo;
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível resumir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
-      this.s.resumindo = false;
+      if (this.vida.vivo()) this.s.resumindo = false;
     }
   }
 
@@ -387,17 +437,19 @@ export class FichaContato {
     if (this.s.sugerindo) return;
     this.s.sugerindo = true;
     try {
-      const r = await chamarApi(`/contatos/${this.contatoId}/mensagem-sugerida${objetivo === 'playbook' ? '' : `?objetivo=${objetivo}`}`);
+      const r = await this.vida.esperar(chamarApi(`/contatos/${this.contatoId}/mensagem-sugerida${objetivo === 'playbook' ? '' : `?objetivo=${objetivo}`}`));
       this.s.sugestao = { mensagem: r.mensagem, ia: !!r.ia, objetivo };
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível sugerir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
-      this.s.sugerindo = false;
+      if (this.vida.vivo()) this.s.sugerindo = false;
     }
   }
 
   private async copiar(texto: string) {
     const ok = await navigator.clipboard?.writeText(texto).then(() => true, () => false);
+    if (!this.vida.vivo()) return;
     if (ok) urbiVerso.notificar('Mensagem copiada.', 'sucesso');
     else await urbiVerso.alertar({ titulo: 'Mensagem para copiar', mensagem: texto, tipo: 'info' });
   }
@@ -416,7 +468,7 @@ export class FichaContato {
     window.open(link, '_blank', 'noopener');
     this.s.sugestao = null;
     void this.tentar('Não foi possível registrar a abordagem', async () => {
-      await enviar('POST', `/abordagens/${this.contatoId}/feita`, { canal: 'whatsapp', texto });
+      await this.vida.esperar(enviar('POST', `/abordagens/${this.contatoId}/feita`, { canal: 'whatsapp', texto }));
       urbiVerso.notificar('Abordagem registrada.', 'sucesso');
     });
   }
@@ -428,11 +480,11 @@ export class FichaContato {
     try {
       const corpo = tarefaDaAbordagem(this.s.ficha!.abordagem as Parameters<typeof tarefaDaAbordagem>[0], this.contatoId);
       await this.tentar('Não foi possível criar a tarefa', async () => {
-        await enviar('POST', '/atividades', corpo);
+        await this.vida.esperar(enviar('POST', '/atividades', corpo));
         urbiVerso.notificar(`Tarefa criada para ${dataHora(corpo.quando)}.`, 'sucesso');
       });
     } finally {
-      this.s.criandoTarefa = false;
+      if (this.vida.vivo()) this.s.criandoTarefa = false;
     }
   }
 
@@ -451,17 +503,25 @@ export class FichaContato {
   }
 
   private async tentar(titulo: string, fn: () => Promise<unknown>) {
+    // A conta já mudou: nenhum envio sai (iria com o `X-Conta` da nova).
+    if (!this.vida.vivo()) return;
     try {
-      await fn();
+      await this.vida.esperar(fn());
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo, mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 
-  private async registrarEnvio() {
+  private registrarEnvio() {
+    return this.calado(() => this.registrarEnvioNaConta());
+  }
+
+  private async registrarEnvioNaConta() {
     const imoveis = await this.opcoesImoveis();
-    const v = await urbiVerso.formulario({
+    if (!this.vida.vivo()) return;
+    const v = await this.vida.esperar(urbiVerso.formulario({
       titulo: 'Registrar envio',
       mensagem: 'Anote o que você mandou ao cliente. Com um imóvel, o app prepara a mensagem para você colar no WhatsApp.',
       campos: [
@@ -471,17 +531,18 @@ export class FichaContato {
         { nome: 'descricao', tipo: 'texto', rotulo: 'Detalhe (opcional)' },
       ],
       rotuloConfirmar: 'Registrar',
-    });
+    }));
     if (!v) return;
     try {
-      const r = await enviar('POST', '/envios', { ...v, contato_id: this.contatoId, imovel_id: v.imovel_id ? Number(v.imovel_id) : null });
-      await this.carregar();
+      const r = await this.vida.esperar(enviar('POST', '/envios', { ...v, contato_id: this.contatoId, imovel_id: v.imovel_id ? Number(v.imovel_id) : null }));
+      await this.reler();
       if (r.mensagem) {
-        const copiada = await navigator.clipboard?.writeText(r.mensagem).then(() => true, () => false);
+        const copiada = await this.vida.esperar(navigator.clipboard?.writeText(r.mensagem).then(() => true, () => false));
         if (copiada) urbiVerso.notificar('Envio registrado. A mensagem foi copiada: é só colar no WhatsApp.', 'sucesso');
         else await urbiVerso.alertar({ titulo: 'Mensagem pronta para colar', mensagem: r.mensagem, tipo: 'sucesso' });
       } else urbiVerso.notificar('Envio registrado.', 'sucesso');
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
@@ -702,15 +763,16 @@ export class FichaContato {
   /** Exportar (Privacidade): o CSV de contatos da conta, a rota que já existe (`GET /contatos/exportar`). */
   private async exportar() {
     try {
-      const r = await chamarFetch('/contatos/exportar');
+      const r = await this.vida.esperar(chamarFetch('/contatos/exportar'));
       if (!r.ok) throw new Error('A exportação falhou.');
-      const url = URL.createObjectURL(await r.blob());
+      const url = URL.createObjectURL(await this.vida.esperar(r.blob()));
       const a = document.createElement('a');
       a.href = url;
       a.download = 'contatos.csv';
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
     }
   }
@@ -828,7 +890,7 @@ export class FichaContato {
 let aberta: { conta: number | null; ficha: FichaContato } | null = null;
 
 export function fichaDe(contatoId: number): FichaContato {
-  const conta = contaAtiva();
+  const conta = contaDeTrabalho();
   if (!aberta || aberta.conta !== conta || aberta.ficha.contatoId !== contatoId || !aberta.ficha.emUso) aberta = { conta, ficha: new FichaContato(contatoId) };
   return aberta.ficha;
 }
