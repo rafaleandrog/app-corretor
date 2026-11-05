@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from 'lit';
+import { keyed } from 'lit/directives/keyed.js';
 import { ref } from 'lit/directives/ref.js';
 import type { CampoFormulario, ChatMensagem, UrbiVersoAPI } from '@urbiverso/sdk';
 import { FERRAMENTA, FERRAMENTAS, FORMATOS, MAX_SLIDES, OBJETIVOS, ROTULO_FORMATO, ROTULO_OBJETIVO, type Ferramenta, type Formato, type Objetivo } from '../../comum/estudio';
@@ -112,11 +113,59 @@ const estado = {
 
 let redesenhar: () => void = () => {};
 
-/** Carga vigente: a resposta de uma carga que não é mais a última (outra conta, outra chamada) é descartada. */
+/** Carga vigente: a resposta de uma carga que não é mais a última (outra chamada da mesma conta) é descartada. */
 let geracao = 0;
 
-/** Ação ou leitura iniciada na conta `c`: se a conta ativa mudou até ela terminar, o resultado não toca a conta nova. */
-const mesmaConta = (c: number | null) => contaAtiva() === c;
+// ---------- Estado entre contas: o ponto único ----------
+
+/**
+ * A conta ativa mudou no meio de uma operação do Estúdio. O resultado é descartado: nada é desenhado,
+ * nenhum sucesso é mostrado (nem ao `urbi-redator`) e nada da conta anterior fica na tela, que já é
+ * reconstruída pela troca (`carregar` zera o estado e o redator é recriado por conta).
+ */
+export class ContaTrocada extends Error {
+  constructor() {
+    super('conta_trocada');
+    this.name = 'ContaTrocada';
+  }
+}
+
+/**
+ * A regra, num lugar só: espera `passo` e só devolve o resultado (ou o erro) se a conta ativa ainda for
+ * `conta`, a de quando a operação começou. Se mudou, lança `ContaTrocada` e o resto da operação não roda.
+ */
+export async function seAindaNaConta<T>(conta: number | null, passo: Promise<T>): Promise<T> {
+  let r: T;
+  try {
+    r = await passo;
+  } catch (e) {
+    if (contaAtiva() !== conta) throw new ContaTrocada();
+    throw e;
+  }
+  if (contaAtiva() !== conta) throw new ContaTrocada();
+  return r;
+}
+
+/** Abre uma operação: guarda a conta ativa agora e devolve o `seAindaNaConta` dela, para cada `await`. */
+function nestaConta() {
+  const conta = contaAtiva();
+  return <T>(passo: Promise<T>) => seAindaNaConta(conta, passo);
+}
+
+/** "Não enviado": o formulário fechou sem resposta, ou o erro já foi mostrado. O redator devolve o texto. */
+const CANCELADO = 'cancelado';
+const cancelado = () => new Error(CANCELADO);
+
+/** Quem dispara e não espera (clique, menu, `void`): a operação descartada ou cancelada termina em silêncio. */
+function solto(p: unknown): void {
+  void Promise.resolve(p).catch((e) => {
+    if (e instanceof ContaTrocada || (e instanceof Error && e.message === CANCELADO)) return;
+    console.error('[portal_corretor]', e);
+  });
+}
+
+const solta = (a: Acao): Acao => (a.aoEscolher ? { ...a, aoEscolher: () => solto(a.aoEscolher!()) } : a);
+const soltas = (acoes: Acao[]) => acoes.map(solta);
 
 /** O app avisa que o corretor entrou no Estúdio (ou trocou de conta): os dados são relidos. */
 export function aoAbrirEstudio() {
@@ -144,34 +193,40 @@ async function carregar() {
   estado.carregando = true;
   estado.falha = null;
   redesenhar();
+  let vigente = true;
   try {
-    const [p, m, c] = await Promise.all([
-      chamarApi('/estudio/pecas'),
-      chamarApi('/estudio/marca'),
-      // Sem a conexão a tela segue (mostra "não conectado"): é contexto, não o conteúdo.
-      chamarApi('/conexoes').catch(() => null),
-    ]);
-    if (minha !== geracao) return;
-    estado.pecas = p.dados;
-    estado.ia = p.ia !== false;
-    estado.marca = m;
-    estado.conexao = c;
+    const [p, m, c] = await seAindaNaConta(
+      conta,
+      Promise.all([
+        chamarApi('/estudio/pecas'),
+        chamarApi('/estudio/marca'),
+        // Sem a conexão a tela segue (mostra "não conectado"): é contexto, não o conteúdo.
+        chamarApi('/conexoes').catch(() => null),
+      ]),
+    );
+    vigente = minha === geracao;
+    if (vigente) {
+      estado.pecas = p.dados;
+      estado.ia = p.ia !== false;
+      estado.marca = m;
+      estado.conexao = c;
+    }
   } catch (e) {
-    if (minha !== geracao) return;
-    estado.falha = e;
-    // Com dados na tela a falha vira faixa (o `estadoDaFalha` só roda sem dados): o detalhe vai ao console.
-    if (estado.marca) console.error('[portal_corretor]', e);
-  } finally {
-    if (minha === geracao) {
-      estado.carregando = false;
-      redesenhar();
+    vigente = !(e instanceof ContaTrocada) && minha === geracao;
+    if (vigente) {
+      estado.falha = e;
+      // Com dados na tela a falha vira faixa (o `estadoDaFalha` só roda sem dados): o detalhe vai ao console.
+      if (estado.marca) console.error('[portal_corretor]', e);
     }
   }
+  if (!vigente) return;
+  estado.carregando = false;
+  redesenhar();
   if (estado.criarPost && estado.marca) {
     estado.criarPost = false;
-    // Cancelar o formulário lança 'cancelado' (o urbi-redator o trata); aqui é só fechar. Outro erro aparece.
+    // Cancelar o formulário (ou trocar de conta) é só fechar; outro erro aparece.
     novoPedido('').catch((e) => {
-      if (e instanceof Error && e.message === 'cancelado') return;
+      if (e instanceof ContaTrocada || (e instanceof Error && e.message === CANCELADO)) return;
       void urbiVerso.alertar({ titulo: 'Não foi possível abrir o pedido', mensagem: mensagemDeErro(e), tipo: 'erro' });
     });
   }
@@ -212,86 +267,87 @@ async function imoveisAnunciaveis(): Promise<Record<string, any>[]> {
 
 const opcaoImovel = (i: Record<string, any>) => ({ valor: String(i.id), rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}`, textoBusca: `${i.bairro ?? ''} ${i.cidade ?? ''}` });
 
-/** O pedido vem do urbi-redator (texto ou microfone); cancelar o formulário devolve o texto à caixa. */
+/**
+ * O pedido vem do urbi-redator (texto ou microfone). Só resolve quando o pedido foi criado: cancelar o
+ * formulário, falhar ou trocar de conta rejeita, e o redator não trata como enviado.
+ */
 async function novoPedido(falado: string) {
-  const conta = contaAtiva();
-  let imoveis: Record<string, any>[] = [];
-  try {
-    imoveis = await imoveisAnunciaveis();
-  } catch {
-    imoveis = [];
-  }
+  const naConta = nestaConta();
+  const imoveis = await naConta(imoveisAnunciaveis().catch((): Record<string, any>[] => []));
   const campos: CampoFormulario[] = [
     { nome: 'pedido', tipo: 'texto_longo', rotulo: 'O que você quer?', valor: falado, placeholder: 'Ex.: post de lançamento desta casa e um story, tom sofisticado.' },
     { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', pesquisavel: true, valor: '', opcoes: [{ valor: '', rotulo: 'Sem imóvel (peça institucional)' }, ...imoveis.map(opcaoImovel)] },
     { nome: 'objetivo', tipo: 'selecao', rotulo: 'Objetivo', valor: 'novo_imovel', opcoes: OBJETIVOS.map((o) => ({ valor: o, rotulo: ROTULO_OBJETIVO[o] })) },
     ...FORMATOS.map((f): CampoFormulario => ({ nome: `f_${f}`, tipo: 'booleano', rotulo: ROTULO_FORMATO[f], valor: f === 'post_1x1' })),
   ];
-  const v = await urbiVerso.formulario({
-    titulo: 'Novo pedido',
-    campos,
-    mensagem: 'O app escreve os textos (com IA, quando liberada) e a descrição da arte para colar no Canva IA, com a sua marca. Você gera lá, envia a arte aqui e revisa antes de aprovar.',
-    rotuloConfirmar: 'Criar',
-  });
-  if (!v) throw new Error('cancelado');
-  if (!mesmaConta(conta)) return; // o formulário era da conta anterior
+  const v = await naConta(
+    urbiVerso.formulario({
+      titulo: 'Novo pedido',
+      campos,
+      mensagem: 'O app escreve os textos (com IA, quando liberada) e a descrição da arte para colar no Canva IA, com a sua marca. Você gera lá, envia a arte aqui e revisa antes de aprovar.',
+      rotuloConfirmar: 'Criar',
+    }),
+  );
+  if (!v) throw cancelado();
   const formatos = FORMATOS.filter((f) => v[`f_${f}`] === true);
-  await criar('/estudio/pedido', { pedido: v.pedido, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, objetivo: v.objetivo, formatos });
+  await naConta(criar('/estudio/pedido', { pedido: v.pedido, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, objetivo: v.objetivo, formatos }));
 }
 
 /** Criar rápido (2×2): sempre de um imóvel; Lançamento é o Pacote de lançamento. */
 async function criarRapido(id: string) {
   const atalho = CRIAR_RAPIDO.find((a) => a.id === id);
   if (!atalho || estado.trabalhando) return;
-  const conta = contaAtiva();
-  let imoveis: Record<string, any>[] = [];
+  const naConta = nestaConta();
+  let imoveis: Record<string, any>[];
   try {
-    imoveis = await imoveisAnunciaveis();
+    imoveis = await naConta(imoveisAnunciaveis());
   } catch (e) {
-    if (mesmaConta(conta)) await urbiVerso.alertar({ titulo: 'Não foi possível carregar os imóveis', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    if (e instanceof ContaTrocada) throw e;
+    await naConta(urbiVerso.alertar({ titulo: 'Não foi possível carregar os imóveis', mensagem: mensagemDeErro(e), tipo: 'erro' }));
     return;
   }
-  if (!mesmaConta(conta)) return;
   if (!imoveis.length) {
-    await urbiVerso.alertar({ titulo: 'Nenhum imóvel anunciado', mensagem: `"${atalho.rotulo}" é para imóvel ativo ou reservado.`, tipo: 'alerta' });
+    await naConta(urbiVerso.alertar({ titulo: 'Nenhum imóvel anunciado', mensagem: `"${atalho.rotulo}" é para imóvel ativo ou reservado.`, tipo: 'alerta' }));
     return;
   }
-  const v = await urbiVerso.formulario({
-    titulo: atalho.formatos ? atalho.rotulo : 'Pacote de lançamento',
-    mensagem: `Sai ${atalho.resumo}: os textos e uma descrição para o Canva IA de cada peça.`,
-    campos: [
-      { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', obrigatorio: true, pesquisavel: true, opcoes: imoveis.map(opcaoImovel) },
-      { nome: 'pedido', tipo: 'texto_longo', rotulo: 'Algum pedido? (opcional)', placeholder: 'Ex.: destacar a varanda gourmet.' },
-    ],
-    rotuloConfirmar: 'Criar',
-  });
-  if (!v || !mesmaConta(conta)) return;
-  if (!atalho.formatos) await criar('/estudio/pacote', { imovel_id: Number(v.imovel_id), pedido: v.pedido, objetivo: atalho.objetivo });
-  else await criar('/estudio/pedido', { imovel_id: Number(v.imovel_id), pedido: v.pedido || atalho.rotulo, objetivo: atalho.objetivo, formatos: atalho.formatos });
+  const v = await naConta(
+    urbiVerso.formulario({
+      titulo: atalho.formatos ? atalho.rotulo : 'Pacote de lançamento',
+      mensagem: `Sai ${atalho.resumo}: os textos e uma descrição para o Canva IA de cada peça.`,
+      campos: [
+        { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', obrigatorio: true, pesquisavel: true, opcoes: imoveis.map(opcaoImovel) },
+        { nome: 'pedido', tipo: 'texto_longo', rotulo: 'Algum pedido? (opcional)', placeholder: 'Ex.: destacar a varanda gourmet.' },
+      ],
+      rotuloConfirmar: 'Criar',
+    }),
+  );
+  if (!v) return;
+  if (!atalho.formatos) await naConta(criar('/estudio/pacote', { imovel_id: Number(v.imovel_id), pedido: v.pedido, objetivo: atalho.objetivo }));
+  else await naConta(criar('/estudio/pedido', { imovel_id: Number(v.imovel_id), pedido: v.pedido || atalho.rotulo, objetivo: atalho.objetivo, formatos: atalho.formatos }));
 }
 
+/** Cria e abre o pedido novo. Falha: mostra o erro e rejeita com "cancelado" (o redator devolve o texto). */
 async function criar(rota: string, corpo: Record<string, unknown>) {
-  const conta = contaAtiva();
+  const naConta = nestaConta();
   estado.trabalhando = 'Escrevendo os textos e a descrição…';
   redesenhar();
-  let novo: number | null = null;
+  let r: Record<string, any>;
   try {
-    const r = await enviar('POST', rota, corpo);
-    if (!mesmaConta(conta)) return; // a conta mudou: o pedido é da anterior e não aparece nesta
-    const pecas = r.pecas as Peca[];
-    urbiVerso.notificar(`${pecas.length} peça(s) criada(s)${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}. Copie a descrição, gere a arte no Canva e envie na peça.`, 'sucesso');
-    novo = Math.min(...pecas.map((p) => p.id));
-    // As peças novas já abrem com a descrição e as fotos à vista.
-    for (const p of pecas) void abrirInstrucao(p.id);
+    r = await naConta(enviar('POST', rota, corpo));
   } catch (e) {
-    if (mesmaConta(conta)) await urbiVerso.alertar({ titulo: 'Não foi possível criar', mensagem: mensagemDeErro(e), tipo: 'erro' });
-  } finally {
-    if (!mesmaConta(conta)) return;
+    if (e instanceof ContaTrocada) throw e;
     estado.trabalhando = null;
-    // O pedido novo abre no centro, na etapa "Todas".
-    if (novo) filtrosNaUrl(filtrosDaUrl(), { pedido: novo }, ['item', 'etapa']);
-    await carregar();
+    redesenhar();
+    await naConta(urbiVerso.alertar({ titulo: 'Não foi possível criar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
+    throw cancelado();
   }
+  const pecas = r.pecas as Peca[];
+  estado.trabalhando = null;
+  urbiVerso.notificar(`${pecas.length} peça(s) criada(s)${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}. Copie a descrição, gere a arte no Canva e envie na peça.`, 'sucesso');
+  // O pedido novo abre no centro, na etapa "Todas", com a descrição e as fotos à vista.
+  filtrosNaUrl(filtrosDaUrl(), { pedido: Math.min(...pecas.map((p) => p.id)) }, ['item', 'etapa']);
+  for (const p of pecas) solto(abrirInstrucao(p.id));
+  await naConta(carregar());
 }
 
 // ---------- A descrição (D-89 a D-91) ----------
@@ -301,25 +357,24 @@ async function criar(rota: string, corpo: Record<string, unknown>) {
  * referências da marca; "Usar outra ferramenta" troca a ferramenta e as referências.
  */
 async function abrirInstrucao(id: number, ferramenta: Ferramenta = 'canva', referencias?: number[]): Promise<Instrucao | null> {
-  const conta = contaAtiva();
+  const naConta = nestaConta();
   estado.abertas = new Set(estado.abertas).add(id);
   redesenhar();
   const guardada = estado.instrucoes[id];
   if (guardada && guardada.ferramenta === ferramenta && !referencias) return guardada;
   const refs = referencias ?? (estado.marca?.referencias ?? []).map((r) => r.id);
+  let r: Instrucao;
   try {
-    const r = (await chamarApi(`/estudio/pecas/${id}/instrucao?ferramenta=${encodeURIComponent(ferramenta)}${refs.length ? `&referencias=${refs.join(',')}` : ''}`)) as Instrucao;
-    if (!mesmaConta(conta)) return null;
-    estado.instrucoes = { ...estado.instrucoes, [id]: r };
-    return r;
+    r = (await naConta(chamarApi(`/estudio/pecas/${id}/instrucao?ferramenta=${encodeURIComponent(ferramenta)}${refs.length ? `&referencias=${refs.join(',')}` : ''}`))) as Instrucao;
   } catch (e) {
-    if (!mesmaConta(conta)) return null;
+    if (e instanceof ContaTrocada) throw e;
     fecharInstrucao(id);
-    await urbiVerso.alertar({ titulo: 'Não foi possível preparar a descrição', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    await naConta(urbiVerso.alertar({ titulo: 'Não foi possível preparar a descrição', mensagem: mensagemDeErro(e), tipo: 'erro' }));
     return null;
-  } finally {
-    if (mesmaConta(conta)) redesenhar();
   }
+  estado.instrucoes = { ...estado.instrucoes, [id]: r };
+  redesenhar();
+  return r;
 }
 
 function fecharInstrucao(id: number) {
@@ -331,140 +386,154 @@ function fecharInstrucao(id: number) {
 
 function alternarInstrucao(p: Peca) {
   if (estado.abertas.has(p.id)) fecharInstrucao(p.id);
-  else void abrirInstrucao(p.id, estado.instrucoes[p.id]?.ferramenta);
+  else solto(abrirInstrucao(p.id, estado.instrucoes[p.id]?.ferramenta));
 }
 
 async function copiarInstrucao(p: Peca) {
-  const r = await abrirInstrucao(p.id, estado.instrucoes[p.id]?.ferramenta);
+  const naConta = nestaConta();
+  const r = await naConta(abrirInstrucao(p.id, estado.instrucoes[p.id]?.ferramenta));
   if (!r) return;
+  let copiou = true;
   try {
-    await navigator.clipboard.writeText(r.prompt);
-    urbiVerso.notificar(`Descrição copiada. ${r.onde}`, 'sucesso');
-  } catch {
-    urbiVerso.notificar('Copie a descrição que aparece na peça.', 'info'); // sem área de transferência
+    await naConta(navigator.clipboard.writeText(r.prompt));
+  } catch (e) {
+    if (e instanceof ContaTrocada) throw e;
+    copiou = false; // sem área de transferência
   }
+  urbiVerso.notificar(copiou ? `Descrição copiada. ${r.onde}` : 'Copie a descrição que aparece na peça.', copiou ? 'sucesso' : 'info');
 }
 
 /** Usar outra ferramenta (D-86): Claude Design ou outra, e as referências que entram na descrição. */
 async function outraFerramenta(p: Peca) {
-  const conta = contaAtiva();
+  const naConta = nestaConta();
   const refs = estado.marca?.referencias ?? [];
-  const v = await urbiVerso.formulario({
-    titulo: 'Usar outra ferramenta',
-    mensagem: refs.length
-      ? 'A descrição muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Conta e marca).'
-      : 'A descrição muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Conta e marca.',
-    campos: [
-      { nome: 'ferramenta', tipo: 'selecao', rotulo: 'Ferramenta', valor: estado.instrucoes[p.id]?.ferramenta ?? 'canva', opcoes: FERRAMENTAS.map((f) => ({ valor: f, rotulo: FERRAMENTA[f].rotulo })) },
-      ...refs.map((r, i): CampoFormulario => ({ nome: `r_${r.id}`, tipo: 'booleano', rotulo: `Referência ${i + 1}`, valor: true })),
-    ],
-    rotuloConfirmar: 'Preparar',
-  });
-  if (!v || !mesmaConta(conta)) return;
-  await abrirInstrucao(p.id, v.ferramenta as Ferramenta, refs.filter((r) => v[`r_${r.id}`] === true).map((r) => r.id));
+  const v = await naConta(
+    urbiVerso.formulario({
+      titulo: 'Usar outra ferramenta',
+      mensagem: refs.length
+        ? 'A descrição muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Conta e marca).'
+        : 'A descrição muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Conta e marca.',
+      campos: [
+        { nome: 'ferramenta', tipo: 'selecao', rotulo: 'Ferramenta', valor: estado.instrucoes[p.id]?.ferramenta ?? 'canva', opcoes: FERRAMENTAS.map((f) => ({ valor: f, rotulo: FERRAMENTA[f].rotulo })) },
+        ...refs.map((r, i): CampoFormulario => ({ nome: `r_${r.id}`, tipo: 'booleano', rotulo: `Referência ${i + 1}`, valor: true })),
+      ],
+      rotuloConfirmar: 'Preparar',
+    }),
+  );
+  if (!v) return;
+  await naConta(abrirInstrucao(p.id, v.ferramenta as Ferramenta, refs.filter((r) => v[`r_${r.id}`] === true).map((r) => r.id)));
 }
 
 // ---------- Ações da peça ----------
 
 async function editar(p: Peca) {
-  const conta = contaAtiva();
-  const v = await urbiVerso.formulario({
-    titulo: 'Textos da peça',
-    campos: [
-      { nome: 'titulo', tipo: 'texto', rotulo: 'Título', obrigatorio: true, valor: p.titulo },
-      { nome: 'chamada', tipo: 'texto', rotulo: 'Chamada', valor: p.chamada ?? '' },
-      { nome: 'destaques', tipo: 'texto', rotulo: 'Destaques (separados por vírgula, até 4)', valor: (p.destaques ?? []).join(', ') },
-      { nome: 'legenda', tipo: 'texto_longo', rotulo: 'Legenda', valor: p.legenda ?? '' },
-      { nome: 'hashtags', tipo: 'texto', rotulo: 'Hashtags', valor: p.hashtags ?? '' },
-    ],
-    mensagem: 'Mudou o título, a chamada ou os destaques? A descrição muda junto: copie de novo e refaça a arte no Canva.',
-  });
-  if (!v || !mesmaConta(conta)) return;
-  await acao(() => enviar('PATCH', `/estudio/pecas/${p.id}`, { ...v, destaques: String(v.destaques ?? '').split(',').map((d) => d.trim()).filter(Boolean) }), 'Textos salvos.');
-  if (!mesmaConta(conta)) return;
+  const naConta = nestaConta();
+  const v = await naConta(
+    urbiVerso.formulario({
+      titulo: 'Textos da peça',
+      campos: [
+        { nome: 'titulo', tipo: 'texto', rotulo: 'Título', obrigatorio: true, valor: p.titulo },
+        { nome: 'chamada', tipo: 'texto', rotulo: 'Chamada', valor: p.chamada ?? '' },
+        { nome: 'destaques', tipo: 'texto', rotulo: 'Destaques (separados por vírgula, até 4)', valor: (p.destaques ?? []).join(', ') },
+        { nome: 'legenda', tipo: 'texto_longo', rotulo: 'Legenda', valor: p.legenda ?? '' },
+        { nome: 'hashtags', tipo: 'texto', rotulo: 'Hashtags', valor: p.hashtags ?? '' },
+      ],
+      mensagem: 'Mudou o título, a chamada ou os destaques? A descrição muda junto: copie de novo e refaça a arte no Canva.',
+    }),
+  );
+  if (!v) return;
+  await naConta(acao(() => enviar('PATCH', `/estudio/pecas/${p.id}`, { ...v, destaques: String(v.destaques ?? '').split(',').map((d) => d.trim()).filter(Boolean) }), 'Textos salvos.'));
   // A descrição leva os textos: a guardada fica velha.
   const anterior = estado.instrucoes[p.id];
   const { [p.id]: _velha, ...resto } = estado.instrucoes;
   estado.instrucoes = resto;
-  if (estado.abertas.has(p.id)) void abrirInstrucao(p.id, anterior?.ferramenta, anterior?.referencias.map((x) => x.id));
+  if (estado.abertas.has(p.id)) solto(abrirInstrucao(p.id, anterior?.ferramenta, anterior?.referencias.map((x) => x.id)));
 }
 
 async function enviarArte(p: Peca, e: CustomEvent) {
   const arquivos = ((e.detail.arquivos as File[]) ?? []).slice(0, p.formato === 'carrossel' ? MAX_SLIDES : 1);
   if (!arquivos.length || estado.trabalhando) return;
-  const conta = contaAtiva();
+  const naConta = nestaConta();
   // Trocar uma arte que já existe pede confirmação (o seletor também avisa quando um arquivo sai da lista).
   if (p.arquivos?.length) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Trocar a arte', mensagem: `A arte da peça passa a ser ${arquivos.length === 1 ? 'esta imagem' : `estas ${arquivos.length} imagens, nesta ordem`}.`, rotuloConfirmar: 'Trocar' });
-    if (!ok || !mesmaConta(conta)) return;
+    const ok = await naConta(urbiVerso.confirmar({ titulo: 'Trocar a arte', mensagem: `A arte da peça passa a ser ${arquivos.length === 1 ? 'esta imagem' : `estas ${arquivos.length} imagens, nesta ordem`}.`, rotuloConfirmar: 'Trocar' }));
+    if (!ok) return;
   }
   const ferramenta = estado.instrucoes[p.id]?.ferramenta ?? 'canva';
   estado.trabalhando = 'Enviando a arte…';
   redesenhar();
+  let uploads: number[];
   try {
-    const uploads: number[] = [];
-    for (const f of arquivos) uploads.push(await subirArquivo('peca_arquivos', 'arquivo', f));
-    await enviar('PUT', `/estudio/pecas/${p.id}/arquivos`, { upload_ids: uploads, motor: ferramenta === 'canva' ? 'canva_ia' : 'upload' });
-    if (!mesmaConta(conta)) return;
-    estado.trocando = null;
-    fecharInstrucao(p.id);
-    urbiVerso.notificar(p.formato === 'carrossel' && uploads.length === 1 ? 'Arte enviada. O carrossel precisa de pelo menos 2 imagens: envie todas juntas.' : 'Arte enviada. Revise e aprove.', 'sucesso');
+    uploads = [];
+    for (const f of arquivos) uploads.push(await naConta(subirArquivo('peca_arquivos', 'arquivo', f)));
+    await naConta(enviar('PUT', `/estudio/pecas/${p.id}/arquivos`, { upload_ids: uploads, motor: ferramenta === 'canva' ? 'canva_ia' : 'upload' }));
   } catch (err) {
-    if (mesmaConta(conta)) await urbiVerso.alertar({ titulo: 'Não foi possível enviar', mensagem: mensagemDeErro(err), tipo: 'erro' });
-  } finally {
-    if (!mesmaConta(conta)) return;
+    if (err instanceof ContaTrocada) throw err;
     estado.trabalhando = null;
-    await carregar();
+    redesenhar();
+    await naConta(urbiVerso.alertar({ titulo: 'Não foi possível enviar', mensagem: mensagemDeErro(err), tipo: 'erro' }));
+    await naConta(carregar());
+    return;
   }
+  estado.trabalhando = null;
+  estado.trocando = null;
+  fecharInstrucao(p.id);
+  urbiVerso.notificar(p.formato === 'carrossel' && uploads.length === 1 ? 'Arte enviada. O carrossel precisa de pelo menos 2 imagens: envie todas juntas.' : 'Arte enviada. Revise e aprove.', 'sucesso');
+  await naConta(carregar());
 }
 
 async function acao(fn: () => Promise<unknown>, sucesso: string) {
-  const conta = contaAtiva();
+  const naConta = nestaConta();
+  let r: { avisos?: string[] } | undefined;
   try {
-    const r = (await fn()) as { avisos?: string[] } | undefined;
-    if (!mesmaConta(conta)) return;
-    urbiVerso.notificar([sucesso, ...(r?.avisos ?? [])].join(' '), r?.avisos?.length ? 'info' : 'sucesso');
-    await carregar();
+    r = (await naConta(fn())) as { avisos?: string[] } | undefined;
   } catch (e) {
-    if (!mesmaConta(conta)) return;
-    await urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    if (e instanceof ContaTrocada) throw e;
+    await naConta(urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' }));
+    throw cancelado();
   }
+  urbiVerso.notificar([sucesso, ...(r?.avisos ?? [])].join(' '), r?.avisos?.length ? 'info' : 'sucesso');
+  await naConta(carregar());
 }
 
 async function agendar(p: Peca) {
-  const conta = contaAtiva();
+  const naConta = nestaConta();
   const amanha = new Date(Date.now() + 86400e3).toLocaleDateString('sv-SE');
-  const v = await urbiVerso.formulario({
-    titulo: 'Agendar no Instagram',
-    mensagem: 'Na hora marcada o app confere a peça de novo e publica na sua conta conectada.',
-    campos: [
-      { nome: 'dia', tipo: 'data', rotulo: 'Dia', obrigatorio: true, valor: amanha },
-      { nome: 'hora', tipo: 'texto', rotulo: 'Hora (HH:MM)', obrigatorio: true, valor: '09:00' },
-    ],
-    rotuloConfirmar: 'Agendar',
-  });
-  if (!v || !mesmaConta(conta)) return;
-  await acao(() => enviar('POST', `/estudio/pecas/${p.id}/agendar`, { quando: juntarDataHora(v.dia, v.hora) }), 'Peça agendada.');
+  const v = await naConta(
+    urbiVerso.formulario({
+      titulo: 'Agendar no Instagram',
+      mensagem: 'Na hora marcada o app confere a peça de novo e publica na sua conta conectada.',
+      campos: [
+        { nome: 'dia', tipo: 'data', rotulo: 'Dia', obrigatorio: true, valor: amanha },
+        { nome: 'hora', tipo: 'texto', rotulo: 'Hora (HH:MM)', obrigatorio: true, valor: '09:00' },
+      ],
+      rotuloConfirmar: 'Agendar',
+    }),
+  );
+  if (!v) return;
+  await naConta(acao(() => enviar('POST', `/estudio/pecas/${p.id}/agendar`, { quando: juntarDataHora(v.dia, v.hora) }), 'Peça agendada.'));
 }
 
 /** Publicar: agora, agendar ou baixar para publicar pelo Instagram (e marcar "Publiquei por fora"). */
 async function publicarOpcoes(p: Peca) {
-  const conta = contaAtiva();
+  const naConta = nestaConta();
   const opcoes = [
     { valor: 'agora', rotulo: 'Publicar agora no Instagram' },
     { valor: 'agendar', rotulo: 'Agendar' },
     { valor: 'baixar', rotulo: 'Baixar a arte e a legenda (publico eu)' },
   ];
-  const v = await urbiVerso.formulario({
-    titulo: 'Publicar',
-    mensagem: p.formato === 'story' ? 'O story sai sem legenda: confira se o CRECI está na arte.' : undefined,
-    campos: [{ nome: 'como', tipo: 'selecao', rotulo: 'Como', obrigatorio: true, valor: opcoes[0].valor, opcoes }],
-    rotuloConfirmar: 'Continuar',
-  });
-  if (!v || !mesmaConta(conta)) return;
-  if (v.como === 'agora') await publicar(p);
-  else if (v.como === 'agendar') await agendar(p);
-  else await baixar(p);
+  const v = await naConta(
+    urbiVerso.formulario({
+      titulo: 'Publicar',
+      mensagem: p.formato === 'story' ? 'O story sai sem legenda: confira se o CRECI está na arte.' : undefined,
+      campos: [{ nome: 'como', tipo: 'selecao', rotulo: 'Como', obrigatorio: true, valor: opcoes[0].valor, opcoes }],
+      rotuloConfirmar: 'Continuar',
+    }),
+  );
+  if (!v) return;
+  if (v.como === 'agora') await naConta(publicar(p));
+  else if (v.como === 'agendar') await naConta(agendar(p));
+  else await naConta(baixar(p));
 }
 
 /** Abre cada imagem numa aba, para ver e salvar. */
@@ -474,55 +543,63 @@ function verArte(p: Peca) {
 
 /** Baixar para publicar: as imagens e a legenda copiada. */
 async function baixar(p: Peca) {
+  const naConta = nestaConta();
   verArte(p);
-  await copiarLegenda(p);
+  await naConta(copiarLegenda(p));
   urbiVerso.notificar('Publicou pelo Instagram? Use "Publiquei por fora" no Mais.', 'info');
 }
 
 async function publicar(p: Peca) {
-  const conta = contaAtiva();
-  const ok = await urbiVerso.confirmar({ titulo: 'Publicar agora', mensagem: 'A peça vai para o Instagram conectado. A API do Instagram não apaga publicações depois.', rotuloConfirmar: 'Publicar' });
-  if (!ok || !mesmaConta(conta)) return;
+  const naConta = nestaConta();
+  const ok = await naConta(urbiVerso.confirmar({ titulo: 'Publicar agora', mensagem: 'A peça vai para o Instagram conectado. A API do Instagram não apaga publicações depois.', rotuloConfirmar: 'Publicar' }));
+  if (!ok) return;
   estado.trabalhando = 'Publicando no Instagram…';
   redesenhar();
+  let publicou = true;
   try {
-    await enviar('POST', `/estudio/pecas/${p.id}/publicar`);
-    if (!mesmaConta(conta)) return;
-    urbiVerso.notificar('Publicada no Instagram.', 'sucesso');
+    await naConta(enviar('POST', `/estudio/pecas/${p.id}/publicar`));
   } catch (e) {
-    if (mesmaConta(conta)) await urbiVerso.alertar({ titulo: 'Não foi publicada', mensagem: mensagemDeErro(e), tipo: 'erro' });
-  } finally {
-    if (!mesmaConta(conta)) return;
+    if (e instanceof ContaTrocada) throw e;
+    publicou = false;
     estado.trabalhando = null;
-    await carregar();
+    redesenhar();
+    await naConta(urbiVerso.alertar({ titulo: 'Não foi publicada', mensagem: mensagemDeErro(e), tipo: 'erro' }));
   }
+  estado.trabalhando = null;
+  if (publicou) urbiVerso.notificar('Publicada no Instagram.', 'sucesso');
+  await naConta(carregar());
 }
 
 async function publiqueiFora(p: Peca) {
-  const conta = contaAtiva();
-  const v = await urbiVerso.formulario({
-    titulo: 'Publiquei por fora',
-    mensagem: 'Publicou pelo Instagram ou pelo Meta Business Suite? Registre aqui para o Estúdio saber.',
-    campos: [{ nome: 'link', tipo: 'texto', rotulo: 'Link do post (opcional)', placeholder: 'https://www.instagram.com/p/…' }],
-    rotuloConfirmar: 'Registrar',
-  });
-  if (v && mesmaConta(conta)) await acao(() => enviar('POST', `/estudio/pecas/${p.id}/publicada-fora`, { link: v.link }), 'Registrado como publicado.');
+  const naConta = nestaConta();
+  const v = await naConta(
+    urbiVerso.formulario({
+      titulo: 'Publiquei por fora',
+      mensagem: 'Publicou pelo Instagram ou pelo Meta Business Suite? Registre aqui para o Estúdio saber.',
+      campos: [{ nome: 'link', tipo: 'texto', rotulo: 'Link do post (opcional)', placeholder: 'https://www.instagram.com/p/…' }],
+      rotuloConfirmar: 'Registrar',
+    }),
+  );
+  if (v) await naConta(acao(() => enviar('POST', `/estudio/pecas/${p.id}/publicada-fora`, { link: v.link }), 'Registrado como publicado.'));
 }
 
 async function remover(p: Peca) {
-  const conta = contaAtiva();
-  const ok = await urbiVerso.confirmar({ titulo: 'Remover peça', mensagem: 'A peça sai do Estúdio.', rotuloConfirmar: 'Remover', perigo: true });
-  if (ok && mesmaConta(conta)) await acao(() => enviar('PATCH', `/estudio/pecas/${p.id}/remover`), 'Peça removida.');
+  const naConta = nestaConta();
+  const ok = await naConta(urbiVerso.confirmar({ titulo: 'Remover peça', mensagem: 'A peça sai do Estúdio.', rotuloConfirmar: 'Remover', perigo: true }));
+  if (ok) await naConta(acao(() => enviar('PATCH', `/estudio/pecas/${p.id}/remover`), 'Peça removida.'));
 }
 
 async function copiarLegenda(p: Peca) {
+  const naConta = nestaConta();
   const texto = [p.legenda, p.hashtags].filter(Boolean).join('\n\n');
   try {
-    await navigator.clipboard.writeText(texto);
-    urbiVerso.notificar('Legenda copiada.', 'sucesso');
-  } catch {
-    await urbiVerso.alertar({ titulo: 'Legenda', mensagem: texto });
+    await naConta(navigator.clipboard.writeText(texto));
+  } catch (e) {
+    if (e instanceof ContaTrocada) throw e;
+    await naConta(urbiVerso.alertar({ titulo: 'Legenda', mensagem: texto }));
+    return;
   }
+  urbiVerso.notificar('Legenda copiada.', 'sucesso');
 }
 
 const aprovar = (p: Peca) => acao(() => enviar('POST', `/estudio/pecas/${p.id}/aprovar`), 'Peça aprovada.');
@@ -592,7 +669,7 @@ function seletorArte(p: Peca, primeira: boolean) {
     icone="fa-solid fa-upload"
     texto=${primeira ? `Enviar a arte ${carrossel ? '(as imagens) ' : ''}do ${nome}` : 'Escolher a nova arte'}
     dica=${carrossel ? `Arraste aqui as imagens baixadas, todas juntas e na ordem dos slides (de 2 a ${MAX_SLIDES}, JPG ou PNG)` : 'Arraste aqui a imagem baixada (JPG ou PNG)'}
-    @urbi:seletor-arquivo-change=${(e: CustomEvent) => enviarArte(p, e)}
+    @urbi:seletor-arquivo-change=${(e: CustomEvent) => solto(enviarArte(p, e))}
   ></urbi-seletor-arquivo>`;
 }
 
@@ -642,14 +719,14 @@ export function cartaoPeca(p: Peca): TemplateResult {
     ${passo ? html`<urbi-prosa papel="dica">${passo}</urbi-prosa>` : nothing}
     ${principal === 'enviar_arte'
       ? html`<urbi-linha quebrar>
-          <urbi-botao variante="secundario" icone="fa-solid fa-copy" @click=${() => copiarInstrucao(p)}>Copiar descrição</urbi-botao>
+          <urbi-botao variante="secundario" icone="fa-solid fa-copy" @click=${() => solto(copiarInstrucao(p))}>Copiar descrição</urbi-botao>
           ${abrir ? html`<urbi-botao variante="secundario" icone="fa-solid fa-arrow-up-right-from-square" @click=${() => window.open(abrir, '_blank', 'noopener')}>Abrir no ${ferramenta.rotulo}</urbi-botao>` : nothing}
           <urbi-botao variante="fantasma" icone=${aberta ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'} @click=${() => alternarInstrucao(p)}>${aberta ? 'Esconder descrição e fotos' : 'Ver descrição e fotos'}</urbi-botao>
-          ${soMais(maisDe(p, principal))}
+          ${soMais(soltas(maisDe(p, principal)))}
         </urbi-linha>
         ${aberta ? instrucao(p) : nothing}
         ${seletorArte(p, true)}`
-      : html`${acoesComMais(acaoDe(principal, p), maisDe(p, principal))}
+      : html`${acoesComMais(solta(acaoDe(principal, p)), soltas(maisDe(p, principal)))}
         ${aberta && !travada ? instrucao(p) : nothing}
         ${estado.trocando === p.id && !travada
           ? html`<urbi-linha quebrar>
@@ -705,14 +782,18 @@ function rolarAte(el: Element | undefined, peca: number | null) {
   void Promise.resolve(feed.updateComplete).then(() => feed.rolarPara?.(peca));
 }
 
+/**
+ * O redator é recriado a cada conta (`keyed`): o envio de um pedido que termina depois da troca é
+ * rejeitado (`ContaTrocada`), e o texto que o redator devolve fica no da conta anterior, fora da tela.
+ */
 function compositor() {
-  return html`<urbi-redator
+  return keyed(estado.conta, html`<urbi-redator
     audio
     chave-audio="portal_corretor:estudio-pedido"
     ?upload-em-andamento=${!!estado.trabalhando}
     placeholder="Escreva ou fale o pedido. Ex.: post de lançamento da casa do Lago Sul e um story, tom sofisticado."
     .aoEnviar=${(d: { texto: string }) => novoPedido(d.texto)}
-  ></urbi-redator>`;
+  ></urbi-redator>`);
 }
 
 // ---------- Colunas ----------
@@ -731,12 +812,12 @@ function esquerda(pedidos: Pedido<Peca>[], aberto: number | null) {
   return html`<urbi-stack>
     <urbi-stack>
       <urbi-prosa papel="titulo">Estúdio</urbi-prosa>
-      <urbi-linha>${ig.conectado ? html`<urbi-icone classe="fa-brands fa-instagram"></urbi-icone>` : nothing}<urbi-prosa papel=${ig.conectado ? 'fraco' : 'secundario'}>${ig.texto}</urbi-prosa></urbi-linha>
+      <urbi-linha>${ig.conectado ? html`<urbi-icone icone="instagram" familia="brands"></urbi-icone>` : nothing}<urbi-prosa papel=${ig.conectado ? 'fraco' : 'secundario'}>${ig.texto}</urbi-prosa></urbi-linha>
     </urbi-stack>
     <urbi-prosa papel="secao">Criar rápido</urbi-prosa>
     <urbi-grid min="140px">
       ${CRIAR_RAPIDO.map(
-        (a) => html`<urbi-botao variante="secundario" icone=${a.icone} title=${a.resumo} ?desabilitado=${!!estado.trabalhando} @click=${() => criarRapido(a.id)}>${a.rotulo}</urbi-botao>`,
+        (a) => html`<urbi-botao variante="secundario" icone=${a.icone} title=${a.resumo} ?desabilitado=${!!estado.trabalhando} @click=${() => solto(criarRapido(a.id))}>${a.rotulo}</urbi-botao>`,
       )}
     </urbi-grid>
     ${estado.trabalhando ? html`<urbi-prosa papel="secundario">${estado.trabalhando}</urbi-prosa>` : nothing}

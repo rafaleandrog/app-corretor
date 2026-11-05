@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.30; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.31; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -25,6 +25,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Ajustes** | No desenho novo, em três colunas: as seções à esquerda (Mensageiro, Negociador, Conexões, Conta e marca, Funil e abordagens, Horário de atendimento, Privacidade), o conteúdo no centro e a ajuda à direita — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
 | Corretor | **Clientes › Negociações** | A negociação de cada negócio: a faixa com a ZOPA, a escada de propostas, a sugestão do Negociador IA (Enviar, Fazer agora, Editar, Descartar), o mandato do vendedor (recuo e BATNA mascarados) e o aceite, que é sempre seu; o jeito do Negociador fica em Ajustes › Negociador — ver [Negociação e mandato](negociacao.md) |
 | Negociador humano | **Hoje** e **Negociações** | Só as negociações que o corretor atribuiu a ele: pede sugestão, envia, edita e registra propostas dentro do mandato, sem ver o recuo, o alvo nem a BATNA do vendedor e sem aceitar o acordo final. O corretor convida a pessoa em Ajustes › Negociador (só o e-mail, sem CRECI) e atribui na negociação — ver [Negociador humano](negociacao.md#negociador-humano) |
+| Corretor | **Buscar** e atalhos de teclado | Busca clientes, imóveis e negociações da sua conta (**Buscar** no trilho das telas em colunas, ou a tecla `/` em qualquer tela da área do corretor); `C` Criar, `A` Assistente, `J`/`K` próximo e anterior na lista, `E` editar — ver [Atalhos e busca](#atalhos-e-busca) |
 | Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
 | Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Números e Hoje com o Assistente aberto; `/conta` e `/ajustes/marca` abrem Ajustes › Conta e marca |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
@@ -40,7 +41,7 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 
 | Parte | Onde fica | O que faz |
 |---|---|---|
-| **Trilho** | Faixa estreita à esquerda | Os itens do menu, com o da tela aberta destacado, e o botão **Assistente** no fim. No celular, o botão **Menu** no alto mostra o trilho |
+| **Trilho** | Faixa estreita à esquerda | Os itens do menu, com o da tela aberta destacado, e os botões **Buscar** e **Assistente** no fim. No celular, o botão **Menu** no alto mostra o trilho |
 | **Lista** | Coluna da esquerda | O que existe naquela tela (em Números, os relatórios). O item escolhido fica no endereço (`?item=`): recarregar ou abrir o link guardado reabre o mesmo |
 | **Foco** | Coluna do meio, a mais larga | O que você está fazendo: o item aberto e as ações principais |
 | **Contexto** | Coluna da direita | O que ajuda a decidir sobre o item aberto. O Assistente, quando aberto, ocupa esta coluna |
@@ -69,6 +70,35 @@ ver [Assistente do Corretor](assistente.md).
 - Se algo não carregou, aparece uma frase curta com **Tentar de novo**. A maioria das telas já tem o botão.
 - O que não existe ou é de outra conta aparece como **Não encontrado**. Hoje isso vale em **Números**, em **Hoje** e em **Imóveis**.
 - Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona. Hoje o aviso aparece no painel do **Assistente** e em **Hoje**.
+
+## Atalhos e busca
+
+**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Números e Ajustes (o negociador humano não o vê). Estúdio e Página ainda não têm trilho. A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
+letras: aparecem até 5 resultados de cada tipo, só da sua conta.
+
+| Tipo | Busca por | Ao escolher |
+|---|---|---|
+| Cliente | Nome, telefone (com ou sem máscara) ou e-mail | Abre a ficha em Clientes |
+| Imóvel | Título, código ou bairro | Abre a ficha em Imóveis |
+| Negociação | Código (NG-…), ou o nome do cliente ou o imóvel dela | Abre a negociação em Clientes › Negociações |
+
+- Clientes anonimizados (pedido de exclusão de dados) não aparecem.
+- Da negociação aparecem só o código, o cliente e o imóvel: nenhum valor, e nada do mandato.
+- A busca é do corretor. O negociador humano não busca na carteira.
+
+**Atalhos de teclado** (computador):
+
+| Tecla | O que faz |
+|---|---|
+| `/` | Abre a busca |
+| `C` | Abre Criar (escolha o que criar e confirme) |
+| `A` | Abre ou fecha o Assistente |
+| `J` / `K` | Próximo e anterior na lista de Clientes, de Negociações e da carteira de Imóveis; sem item aberto, `J` vai ao primeiro e `K` ao último |
+| `E` | Editar o cliente ou o imóvel aberto |
+
+- Nenhum atalho age com o foco num campo de texto, num seletor, numa caixa de diálogo ou num formulário, inclusive dentro de componentes. O app olha só onde está o foco: com uma janela aberta e o foco fora dela, o atalho ainda age.
+- Com Ctrl, Cmd ou Alt junto, a tecla é do navegador, não do app.
+- O negociador humano tem só `J`/`K`, na lista dele.
 
 ## Papéis
 

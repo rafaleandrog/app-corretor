@@ -73,6 +73,10 @@ window.urbiVerso = {
     if (caminho === '/estudio/pedido' && window.SEGURAR_CRIAR) {
       return new Promise((resolve) => (window.criacoes ??= []).push(() => resolve({ pecas: [{ ...window.PECAS[0], id: 900 }], ia: true })));
     }
+    // SEGURAR_APROVAR: o "Aprovar" da conta A fica em voo até o teste o fazer falhar.
+    if (/^\\/estudio\\/pecas\\/\\d+\\/aprovar$/.test(caminho) && window.SEGURAR_APROVAR) {
+      return new Promise((_, rejeitar) => (window.aprovacoes ??= []).push(() => rejeitar(new Error('O servidor recusou'))));
+    }
     if (caminho === '/estudio/pecas') return { dados: window.PECAS, total: window.PECAS.length, ia: window.IA ?? true };
     if (caminho === '/estudio/marca') return { creci: window.CRECI ?? null, logo_url: '/logo.png', foto_url: null, referencias: [{ id: 7, url: '/ref/7.jpg' }] };
     if (caminho === '/conexoes') return { instagram: window.IG === undefined ? { usuario: 'rafael.imoveis', ultimo_erro: null } : window.IG, disponivel: true };
@@ -432,6 +436,74 @@ test('Estúdio no Chromium: ação da conta A que termina depois da troca para B
     assert.deepEqual(depois.alertas, []);
     assert.equal(depois.instrucoes, 0, 'nenhuma descrição das peças de A é buscada em B');
     assert.equal(depois.trabalhando, false);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: conta trocada no meio do envio pelo redator e de uma ação: nada de A em B, e o redator não recebe sucesso', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(120);
+    // Conta A (100): o corretor envia um pedido pelo redator; a criação fica em voo. Em paralelo, um
+    // "Aprovar" de A fica em voo também.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.SEGURAR_CRIAR = true;
+      w.SEGURAR_APROVAR = true;
+      w.urbiVerso.formulario = async () => ({ pedido: 'Pedido da conta A', imovel_id: '', objetivo: 'novo_imovel', f_post_1x1: true });
+      w.redatorA = document.querySelector('urbi-redator');
+      w.resultado = 'pendente';
+      w.redatorA.aoEnviar({ texto: 'Pedido da conta A' }).then(
+        () => (w.resultado = 'resolvido'),
+        (e: Error) => (w.resultado = `rejeitado:${e.name}`),
+      );
+      const div = document.createElement('div');
+      w.render(w.cartaoPeca(w.PECAS[1]), div); // peça 12: rascunho com arte, o principal é "Aprovar"
+      w.principais(div)[0].click();
+    });
+    await pagina.waitForTimeout(150);
+    const emVoo: any = await pagina.evaluate(() => ({ criacoes: (window as any).criacoes?.length, aprovacoes: (window as any).aprovacoes?.length }));
+    assert.deepEqual(emVoo, { criacoes: 1, aprovacoes: 1 }, 'a criação e a aprovação de A estão em voo');
+    // A conta muda para B (200); a tela é reconstruída e a carga de B termina.
+    await pagina.evaluate(() => {
+      localStorage.setItem('portal_corretor:conta', '200');
+      (window as any).desenhar();
+    });
+    await pagina.waitForTimeout(150);
+    const antes: any = await pagina.evaluate(() => ({ url: location.search, cargas: (window as any).chamadas.filter((c: string) => c === 'GET /estudio/pecas').length }));
+    // As duas operações de A terminam agora: a criação dá certo, a aprovação falha.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.criacoes[0]();
+      w.aprovacoes[0]();
+    });
+    await pagina.waitForTimeout(250);
+    const depois: any = await pagina.evaluate(() => {
+      const w = window as any;
+      return {
+        resultado: w.resultado,
+        redatorNovo: document.querySelector('urbi-redator') !== w.redatorA,
+        redatorAFora: !w.redatorA.isConnected,
+        url: location.search,
+        cargas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length,
+        avisos: w.avisos ?? [],
+        alertas: w.alertas ?? [],
+        instrucoes: w.chamadas.filter((c: string) => c.includes('/instrucao')).length,
+        tela: w.profundo(document.querySelector('urbi-3-colunas')),
+      };
+    });
+    assert.equal(depois.resultado, 'rejeitado:ContaTrocada', 'o redator de A não recebe sucesso: o envio rejeita');
+    assert.ok(depois.redatorNovo && depois.redatorAFora, 'o redator de B é outro; o texto devolvido fica no de A, fora da tela');
+    assert.equal(depois.url, antes.url, 'a URL de B não ganhou o ?pedido= de A');
+    assert.equal(depois.cargas, antes.cargas, 'nenhuma recarga disparada por A em B');
+    assert.deepEqual(depois.avisos, [], 'nenhum aviso de sucesso de A aparece em B');
+    assert.deepEqual(depois.alertas, [], 'nem o erro da aprovação de A');
+    assert.equal(depois.instrucoes, 0, 'nenhuma descrição das peças de A é buscada em B');
+    assert.doesNotMatch(depois.tela, /Escrevendo os textos|Pedido da conta A/);
   } finally {
     await navegador.close();
   }

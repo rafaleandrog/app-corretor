@@ -3,6 +3,7 @@ import type { UrbiAtalhoTrilho, UrbiVersoAPI } from '@urbiverso/sdk';
 import { MENU, MENU_NEGOCIADOR } from './enderecos.js';
 import { soNegociador } from './apoio.js';
 import { alternarAssistente, assistenteAberto, painelAssistente } from './telas/assistente.js';
+import { abrirBusca } from './atalhos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -10,7 +11,7 @@ declare const urbiVerso: UrbiVersoAPI;
 // primitivos e sem CSS estrutural (ui-componentes-layout.md):
 //
 //   urbi-inbox                         raiz; sidebar sem largura, só o trilho à esquerda
-//     urbi-trilho-atalhos              slot="sidebar-trilho": o menu e o Assistente
+//     urbi-trilho-atalhos              slot="sidebar-trilho": o menu, Buscar e o Assistente
 //     urbi-3-colunas (slot="detalhe")  lista · foco · contexto, redimensionáveis e colapsáveis,
 //                                      abas no celular; `urbi-2x1` quando a tela tem só foco e contexto
 //
@@ -50,13 +51,15 @@ export interface OpcoesMoldura {
 const estado = { menuNoCelular: false, ultimoMenu: null as string | null };
 
 /**
- * Itens do trilho: o menu do corretor (D-103) e o Assistente (D-109). O negociador humano (D7) vê só
- * Hoje e Negociações, sem o Assistente (que é da área do corretor).
+ * Itens do trilho: o menu do corretor (D-103), Buscar (11.7) e o Assistente (D-109). O negociador humano (D7) vê só
+ * Hoje e Negociações, sem Buscar nem o Assistente (que são da área do corretor).
  */
 export function itensDoTrilho(menu: string): UrbiAtalhoTrilho[] {
   if (soNegociador()) return MENU_NEGOCIADOR.map((m) => ({ id: m.rota, icone: m.icone, rotulo: m.titulo, ativo: m.rota === menu }));
   return [
     ...MENU.map((m) => ({ id: m.rota, icone: m.icone, rotulo: m.titulo, ativo: !assistenteAberto() && m.rota === menu })),
+    // Busca global (11.7, B10): também pelo atalho `/`.
+    { id: 'buscar', icone: 'fa-solid fa-magnifying-glass', rotulo: 'Buscar' },
     { id: 'assistente', icone: 'fa-solid fa-comments', rotulo: 'Assistente', ativo: assistenteAberto() },
   ];
 }
@@ -66,6 +69,9 @@ function aoAtalho(e: CustomEvent, atualizar: () => void) {
   estado.menuNoCelular = false;
   if (id === 'assistente') {
     if (!soNegociador()) alternarAssistente();
+  }
+  else if (id === 'buscar') {
+    if (!soNegociador()) void abrirBusca();
   }
   else if (id) urbiVerso.navegarSub(id);
   atualizar();

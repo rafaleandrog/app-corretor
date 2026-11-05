@@ -16,6 +16,7 @@ import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assiste
 import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
 import { botaoAssistente, menuCriar } from './criar.js';
+import { instalarAtalhos } from './atalhos.js';
 import { contaAtiva, contasDoUsuario, escolherConta, semConta, soNegociador } from './apoio.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
@@ -77,6 +78,7 @@ export class AppPortalCorretor extends LitElement {
   @state() private conta: number | null = null;
   @state() private semConta = false;
   private cancelarRota?: () => void;
+  private desligarAtalhos?: () => void;
   // Contexto chega assíncrono: até `carregado`, roles vazias são falta de resposta, não de acesso.
   private aoMudarContexto = () => {
     const ctx = urbiVerso.contexto();
@@ -124,6 +126,8 @@ export class AppPortalCorretor extends LitElement {
     });
     this.aoMudarContexto();
     window.addEventListener('urbi:contexto-app', this.aoMudarContexto);
+    // Atalhos de teclado (11.0.6, B10): busca, Criar e Assistente só na área do corretor, com conta.
+    this.desligarAtalhos = instalarAtalhos(() => this.papeis.includes('corretor') && !this.semConta && !soNegociador());
   }
 
   /** O Assistente responde pela tela em que o corretor está; `/assistente` abre Hoje com ele aberto. */
@@ -153,6 +157,7 @@ export class AppPortalCorretor extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.cancelarRota?.();
+    this.desligarAtalhos?.();
     window.removeEventListener('urbi:contexto-app', this.aoMudarContexto);
   }
 

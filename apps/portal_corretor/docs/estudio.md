@@ -17,7 +17,7 @@ O Estúdio abre em três colunas (no celular, três abas: **Pedidos**, **Pedido*
 
 | Coluna | O que tem |
 |---|---|
-| **Esquerda** | O título **Estúdio** com o estado do Instagram ("◎ @sua.conta conectado", ou "Instagram não conectado"); o **Criar rápido** com quatro botões; **Seus pedidos**, em lista, com o pedido aberto marcado, e acima dela as etapas com a quantidade de peças |
+| **Esquerda** | O título **Estúdio** com o estado do Instagram ("@sua.conta conectado", com o ícone do Instagram, ou "Instagram não conectado"); o **Criar rápido** com quatro botões; **Seus pedidos**, em lista, com o pedido aberto marcado, e acima dela as etapas com a quantidade de peças |
 | **Centro** | O pedido aberto, como uma conversa: o seu texto e, logo abaixo, uma mensagem do Estúdio por peça (formato, título, legenda e hashtags, a arte quando já enviada e o cartão da peça, com o próximo passo e os botões). Embaixo, a **caixa do pedido** para pedir mais |
 | **Direita** | **Esta semana** (as peças agendadas para os próximos 7 dias e as publicadas nos últimos 7, cada uma com **Abrir**); a **Biblioteca** (o seu logo, a sua foto e as suas referências, para abrir e baixar, e o atalho **Sua marca**); e, só quando falta o CRECI, o aviso discreto de sempre |
 
@@ -25,6 +25,11 @@ O Estúdio abre em três colunas (no celular, três abas: **Pedidos**, **Pedido*
 lançamento. Cada um vira uma peça por formato, e a lista junta as peças do mesmo envio. O endereço
 guarda o que está aberto: `?pedido=` (o pedido) ou `?item=` (uma peça; a conversa rola até ela).
 Pedido que não existe ou não é da sua conta mostra "Não encontrado".
+
+**Trocou de conta no meio de uma operação?** O que estava em andamento na conta anterior (criar,
+enviar a arte, publicar, aprovar, buscar a descrição) é descartado quando termina: nada dele aparece
+na conta nova, nenhum aviso de sucesso é mostrado e o pedido escrito na caixa não conta como enviado.
+O que o servidor já tinha feito fica na conta anterior, e você vê ao voltar para ela.
 
 **Quando algo não está disponível**, uma faixa aparece no topo do centro e o resto continua:
 - **Instagram não conectado** (ou desconectado): publicar e agendar pelo app voltam depois de
@@ -126,7 +131,7 @@ Design e outra ferramenta, pede também a arte final em JPG ou PNG no tamanho ex
 a dizer o nome dela. Nas outras ferramentas não há link: abra a ferramenta você mesmo.
 
 Mudou os textos? A descrição muda junto: copie de novo e refaça a arte. Com a arte já enviada,
-**Mais › Ver a descrição** mostra a descrição e as fotos de novo, e **Mais › Trocar a arte** envia
+**Mais › Ver a descrição** mostra a descrição e as fotos de novo (e vira **Esconder a descrição** enquanto ela está à vista), e **Mais › Trocar a arte** envia
 outra (com confirmação). As peças antigas, com arte do gerador do app que saiu, continuam valendo.
 
 ## Os pedidos, por etapa
@@ -160,7 +165,7 @@ No **Mais**, conforme a situação:
 |---|---|
 | **Ver a arte** | Abre cada imagem numa aba, para conferir e salvar |
 | **Textos** | Edita título, chamada, destaques, legenda e hashtags |
-| **Ver a descrição** | Mostra de novo a descrição e as fotos, na peça com arte |
+| **Ver a descrição** / **Esconder a descrição** | Mostra de novo a descrição e as fotos, na peça com arte; com a descrição à vista, o item vira **Esconder a descrição** e a recolhe |
 | **Trocar a arte** | Abre o envio para pôr outra arte no lugar da atual |
 | **Usar outra ferramenta** | Ver acima |
 | **Voltar a rascunho** | Tira a aprovação de uma peça aprovada (ou com erro depois de aprovada) |

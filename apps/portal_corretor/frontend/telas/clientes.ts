@@ -28,6 +28,7 @@ import { moldura } from '../moldura.js';
 import { chaveDoQuadro, contatoDoFunil } from './clientes-quadro.js';
 import { novaProposta } from './negociacoes.js';
 import './ficha-contato.js';
+import { registrarLista, soltarLista } from '../atalhos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -156,7 +157,7 @@ function molduraNegociacoes(atualizar: () => void, topo: unknown, menu: string) 
     ${soNegociador()
       ? nothing
       : html`<urbi-botao pequeno icone="fa-solid fa-file-signature" @click=${() => void novaProposta().then((n) => n && escolherNegociacao(n))}>Nova proposta</urbi-botao>`}
-    <pc-negociacoes-lista .selecionado=${item} .aoEscolher=${escolherNegociacao}></pc-negociacoes-lista>
+    <pc-negociacoes-lista atalhos .selecionado=${item} .aoEscolher=${escolherNegociacao}></pc-negociacoes-lista>
   </urbi-stack>`;
   const centro = item
     ? keyed(item, html`<pc-negociacao-foco .negociacaoId=${item}></pc-negociacao-foco>`)
@@ -266,6 +267,17 @@ export class PcTelaClientes extends LitElement {
     void this.iniciar();
     // "Novo cliente" do menu Criar.
     if (pedidoDeCriar('cliente')) void this.novo();
+    // J/K (11.0.6): próximo e anterior na Lista, abrindo a ficha como o clique.
+    registrarLista(this, {
+      ids: () => (this.visao === 'lista' ? this.contatos.map((c) => c.id) : []),
+      atual: () => this.selecionado,
+      escolher: (id) => this.aoEscolher(id),
+    });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    soltarLista(this);
   }
 
   private async iniciar() {
