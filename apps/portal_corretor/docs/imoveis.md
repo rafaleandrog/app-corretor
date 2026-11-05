@@ -135,7 +135,10 @@ enquanto o mandato vigente usa o anexo, ele não é apagado, não vira foto nem 
 anexo no mandato ou encerre a negociação antes). Se alguém apaga o documento no mesmo instante em
 que o mandato é salvo com ele, um espera o outro: ou o documento é apagado e o mandato recusa o anexo
 (peça para anexar de novo), ou o mandato é salvo e a exclusão é recusada; o mandato nunca fica
-apontando para um documento apagado. Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
+apontando para um documento apagado. Se duas telas editam o mesmo arquivo (tipo, legenda ou "pode
+aparecer no anúncio") ao mesmo tempo, a primeira grava e a segunda é recusada com "Este arquivo foi
+alterado agora por outra tela. Abra de novo." (`MIDIA_ALTERADA`), em vez de desfazer calada o que a
+primeira gravou. Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
 ver, editar e apagar (apagar é de vez, para liberar o espaço). As fotos são mostradas por um link temporário, que vale uma
 hora.
 
@@ -185,6 +188,10 @@ rascunho. Assinada, o corretor envia o documento em "Fotos e arquivos" e usa **M
 escolhendo o arquivo: ele vira documento interno. A autorização assinada cujo fim passou aparece
 como **vencida**. **Revogar** encerra a autorização. O documento de uma autorização assinada não
 pode ser apagado.
+
+Se duas telas editam a mesma autorização ao mesmo tempo (por exemplo, uma marca assinada e outra
+revoga), a primeira grava e a segunda é recusada com "Esta autorização foi alterada agora por outra
+tela. Abra de novo." (`AUTORIZACAO_ALTERADA`): abra de novo, confira e repita se ainda fizer sentido.
 
 O proprietário escolhido ganha o papel "proprietário" na ficha dele, se ainda não tinha.
 

@@ -472,8 +472,8 @@ destes momentos cria para você a tarefa "O Negociador entrou na NG-0001: defina
 
 | Momento | O que acontece |
 |---|---|
-| **O negócio chega à etapa Proposta** | Ao mover um negócio de compra para a etapa Proposta (no Funil ou na ficha do cliente), a negociação nasce, se o negócio tem imóvel e ainda não tem negociação em andamento. A tela avisa: "A negociação NG-0001 foi aberta e quem conduz é o Negociador IA". Sem imóvel no negócio, nada nasce: abra a negociação à mão quando escolher o imóvel |
-| **O cliente pede desconto ou fala de preço** | Numa mensagem do portal ("tem desconto à vista?", "achei caro", "aceita proposta?", "qual o valor?"). A mensagem continua chegando a você, com a tarefa "Responder a mensagem do portal". Mandada da seção de uma negociação, ela vale para aquela negociação; mandada de outro lugar, para a única negociação em andamento do cliente ou, sem nenhuma, para o único negócio de compra em aberto dele com imóvel. Se o **Negociador IA** conduz e há mandato vigente, ele prepara a resposta a essa mensagem, com as mesmas 7 garantias de sempre: no "pergunta antes", a sugestão espera a sua aprovação; no "faz sozinho", só uma contraproposta montada pelo código sai pelo portal. Conduzida por você ou pelo negociador humano, o Negociador IA não responde por vocês. O WhatsApp do app ainda não existe: quando existir, a conversa de lá também passa por este momento |
+| **O negócio chega à etapa Proposta** | Ao mover um negócio de compra para a etapa Proposta (no Funil ou na ficha do cliente), a negociação nasce, se o negócio tem imóvel e ainda não tem negociação em andamento. Vale também para o negócio que você cria e que já nasce na Proposta (quando ela é a primeira etapa em andamento ativa do seu funil); ao registrar uma oferta para um imóvel sem negócio, a oferta entra na negociação que nasceu assim. A tela avisa: "A negociação NG-0001 foi aberta e quem conduz é o Negociador IA". Sem imóvel no negócio, nada nasce: abra a negociação à mão quando escolher o imóvel. A negociação e a tarefa do mandato nascem juntas; se algo falhar ao abri-la, o negócio muda de etapa do mesmo jeito e você abre a negociação à mão. Os negócios que chegam pelo formulário da sua página não abrem negociação sozinhos |
+| **O cliente pede desconto ou fala de preço** | Numa mensagem do portal ("tem desconto à vista?", "achei caro", "aceita proposta?", "qual o valor?"). A mensagem continua chegando a você, com a tarefa "Responder a mensagem do portal". Mandada da seção de uma negociação, ela vale para aquela negociação; mandada de outro lugar, para a única negociação em andamento do cliente ou, sem nenhuma, para o único negócio de compra em aberto dele com imóvel. Se o **Negociador IA** conduz e há mandato vigente, ele prepara a resposta a essa mensagem, com as mesmas 7 garantias de sempre: no "pergunta antes", a sugestão espera a sua aprovação; no "faz sozinho", só uma contraproposta montada pelo código sai pelo portal. Conduzida por você ou pelo negociador humano, o Negociador IA não responde por vocês. A mesma mensagem entregue de novo em até 10 minutos (inclusive duas vezes ao mesmo tempo) não faz o Negociador responder duas vezes. Uma negociação indicada que não é deste cliente (de outro cliente seu ou de outra conta) é ignorada: fica só a tarefa. O WhatsApp do app ainda não existe: quando existir, a conversa de lá também passa por este momento |
 | **O cliente reage "Conversar sobre o preço"** | Na seleção ou no portal. Vira a tarefa "Conversar sobre o preço: IM-0001 · título" e o Negociador entra na negociação daquele imóvel (ou a abre, no negócio de compra do cliente com aquele imóvel) |
 | **Uma oferta é registrada ou feita no portal** | Como antes: o Negociador IA roda sobre a oferta (ver [No Portal do Cliente](#no-portal-do-cliente)) |
 
@@ -522,17 +522,20 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
    você está). Os convites aparecem ali, com **Revogar** enquanto estão pendentes.
 2. Depois do aceite, o **administrador do app** atribui o papel `negociador` à pessoa em
    **Configurações › Usuários**, seção Externos (o app não pode atribuir papel sozinho). Até lá,
-   ela aparece como **falta o papel** e não recebe negociações.
+   ela aparece como **falta o papel** e não recebe negociações. Também aparece assim quem tem o
+   papel mas perdeu o acesso ao app (ou quando a plataforma não consegue confirmar o acesso agora).
 3. Na negociação (Clientes › Negociações), o cartão **Quem negocia**, à direita, tem **Atribuir a um
    negociador** (escolha a pessoa) e, com uma atribuída, **Trocar negociador** e **Retirar do
    negociador**. Atribuir faz a pessoa conduzir a negociação; retirar a devolve a você. Uma pessoa
    por negociação: atribuir a outra tira a anterior.
 4. Para que toda negociação nova já nasça com ela, escolha a pessoa em **Ajustes › Negociador ›
    Quem negocia por padrão › Conduz as negociações novas**. Só aparecem ali as pessoas marcadas
-   **pronto**. Se a pessoa perder o papel ou sair da conta, as negociações novas que o app cria
-   numa ação sua (como mover o negócio para Proposta) voltam a nascer com o Negociador IA, sem atribuição nem aviso. Nas abertas pelas reações e
-   mensagens do cliente (sem como conferir), vale a pessoa gravada, e a guarda da negociação
-   barra quem perdeu o papel. Escolher **Negociador IA (padrão)** tira a pessoa.
+   **pronto**. Se a pessoa perder o papel, perder o acesso ao app ou sair da conta, as negociações
+   novas voltam a nascer com o Negociador IA, sem atribuição nem aviso. Isso vale para as que o
+   app cria numa ação sua (como mover o negócio para Proposta) e também para as abertas pelas
+   reações e mensagens do cliente, quando a plataforma deixa o app conferir ali; sem como
+   conferir, vale a pessoa gravada, e a guarda da negociação barra quem perdeu o papel. Escolher
+   **Negociador IA (padrão)** tira a pessoa.
 
 Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
 
@@ -545,7 +548,7 @@ Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
 | `CONVITE_IDENTIDADE_INTERNA` | O e-mail é de alguém da equipe da plataforma |
 | `CONVITE_JA_PENDENTE` | Já há um convite pendente para o e-mail |
 | `PLANO_ASSENTOS_ESGOTADOS` | O plano da conta não tem mais lugares |
-| `NEGOCIADOR_SEM_PAPEL` (409) | Ao atribuir ou escolher como padrão: a pessoa aceitou o convite, mas ainda não tem o papel negociador |
+| `NEGOCIADOR_SEM_PAPEL` (409) | Ao atribuir ou escolher como padrão: a pessoa aceitou o convite, mas ainda não tem o papel negociador ou perdeu o acesso ao app |
 | `NEGOCIADOR_NAO_ENCONTRADO` (404) | Ao atribuir ou escolher como padrão: a pessoa não aceitou convite desta conta |
 | `CONVITE_INDISPONIVEL` (503) | Esta instância não oferece ao app o provisionamento de convites (não é falha passageira): fale com o administrador da instância |
 

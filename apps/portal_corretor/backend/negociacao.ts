@@ -109,7 +109,7 @@ export async function mandatoVigente(dados: HelperDados, negociacao: Linha): Pro
 }
 
 /** A negociação em andamento (não encerrada) do negócio, se houver. */
-export async function negociacaoAberta(dados: HelperDados, negocioId: number, conta?: number): Promise<Linha | null> {
+async function negociacaoAberta(dados: HelperDados, negocioId: number, conta?: number): Promise<Linha | null> {
   const r = await dados.listar('negociacoes', { filtros: { negocio_id: negocioId, ...(conta ? { conta_id: conta } : {}) }, por_pagina: 100 });
   return r.dados.find((n) => !encerrada(n)) ?? null;
 }
@@ -260,14 +260,28 @@ export type ResultadoCriacao = { negociacao: Linha } | { existente: Linha } | { 
  * em SISTEMA, onde a leitura enxerga todas as contas). Com `tentativas: 1` (dentro da transação do
  * listener) a violação de único sobe: quem chama repete o bloco inteiro, e na segunda vez a negociação
  * já existe. Nascendo com um negociador humano, grava também a atribuição ativa dele: as duas linhas
- * existem juntas ou nenhuma. Na rota (`tentativas` > 1, `dados` solto) elas vão numa `transaction()`
- * própria, e a violação de único desfaz o par antes da releitura, feita fora dela. No listener
- * (`tentativas: 1`) `dados` já é a transação do `comConta`, que desfaz tudo se algo lança: lá não se
- * abre outra (aninhar `transaction()` não é contrato do SDK).
+ * existem juntas ou nenhuma. `aoGravar` (o gatilho da etapa Proposta: a tarefa do mandato) entra no
+ * mesmo bloco: ou a negociação nasce com o que vem junto, ou nada nasce. Na rota (`tentativas` > 1,
+ * `dados` solto) esse bloco vai numa `transaction()` própria, e a falha desfaz tudo antes da releitura,
+ * feita fora dela. No listener (`tentativas: 1`) `dados` já é a transação do `comConta`, que desfaz
+ * tudo se algo lança: lá não se abre outra (aninhar `transaction()` não é contrato do SDK).
+ *
+ * Corrida na rota: o contrato da `transaction()` promete o `ROLLBACK`, não que o erro do banco chegue
+ * com o `code` 23505. Por isso, depois de qualquer falha, quem decide é a releitura, não o código do
+ * erro: outra negociação em andamento do negócio → `existente`; o código tentado agora é de outra
+ * linha → tenta o próximo; nenhum dos dois → a falha era outra, e sobe como veio.
  */
 export async function criarNegociacao(
   dados: HelperDados,
-  o: { negocio: Linha; imovelId: number; conducao: Conducao; atribuidaPor: number | null; conta?: number; tentativas: number },
+  o: {
+    negocio: Linha;
+    imovelId: number;
+    conducao: Conducao;
+    atribuidaPor: number | null;
+    conta?: number;
+    tentativas: number;
+    aoGravar?: (h: HelperDados, negociacao: Linha) => Promise<void>;
+  },
 ): Promise<ResultadoCriacao> {
   const negocioId = Number(o.negocio.id);
   const daConta = o.conta ? { conta_id: o.conta } : {};
@@ -276,9 +290,10 @@ export async function criarNegociacao(
   const humano = o.conducao.conduzida_por === 'humano' && !!o.conducao.negociador_usuario_id;
   for (let tentativa = 0; tentativa < o.tentativas; tentativa++) {
     const codigos = (await dados.listar('negociacoes', { filtros: { ...daConta, 'codigo[busca]': 'NG-' }, ordenar: 'id', ordem: 'desc', por_pagina: 200 })).dados.map((n) => n.codigo);
+    const codigo = proximoCodigoNegociacao(codigos);
     const gravar = async (h: HelperDados) => {
       const negociacao = await h.criar('negociacoes', {
-        codigo: proximoCodigoNegociacao(codigos),
+        codigo,
         negocio_id: negocioId,
         imovel_id: o.imovelId,
         contato_id: o.negocio.contato_id,
@@ -290,17 +305,20 @@ export async function criarNegociacao(
       if (humano) {
         await h.criar('atribuicoes_negociacao', { negociacao_id: negociacao.id, usuario_id: o.conducao.negociador_usuario_id, atribuida_por: o.atribuidaPor, ativa: true });
       }
+      if (o.aoGravar) await o.aoGravar(h, negociacao);
       return negociacao;
     };
     try {
-      const negociacao = humano && o.tentativas > 1 ? await dados.transaction(gravar) : await gravar(dados);
+      const negociacao = (humano || o.aoGravar) && o.tentativas > 1 ? await dados.transaction(gravar) : await gravar(dados);
       return { negociacao };
     } catch (e) {
-      if (!violouUnico(e) || o.tentativas === 1) throw e;
-      // Dois únicos na tabela: o do `codigo` (tenta outro código) e o da negociação em andamento por
-      // negócio (outra tela criou agora). Relê para saber qual foi, sem depender do nome do índice.
+      if (o.tentativas === 1) throw e;
+      // Dois únicos na tabela: o da negociação em andamento por negócio (outra tela criou agora) e o do
+      // `codigo` (tenta outro). Relê para saber qual foi, sem depender do nome do índice nem do `code`.
       const outra = await negociacaoAberta(dados, negocioId, o.conta);
       if (outra) return { existente: outra };
+      const tomado = await dados.listar('negociacoes', { filtros: { ...daConta, codigo }, por_pagina: 1 });
+      if (!tomado.dados.length) throw e;
     }
   }
   return { codigo_repetido: true };
@@ -641,7 +659,7 @@ negociacaoRotas.put(
         const pessoa = (await negociadoresDaConta(req.shell, contaDoRequest(req))).find((n) => n.usuario_id === uid);
         if (!pessoa) return erro(res, 404, 'NEGOCIADOR_NAO_ENCONTRADO', 'Negociador não encontrado nesta conta. Convide a pessoa em Ajustes › Negociador.');
         if (!pessoa.tem_papel) {
-          return erro(res, 409, 'NEGOCIADOR_SEM_PAPEL', 'Esta pessoa aceitou o convite, mas ainda não tem o papel negociador. Peça ao administrador do app para atribuí-lo em Configurações › Usuários.');
+          return erro(res, 409, 'NEGOCIADOR_SEM_PAPEL', 'Esta pessoa aceitou o convite, mas ainda não tem o papel negociador ou perdeu o acesso ao app. Peça ao administrador do app para conferir em Configurações › Usuários.');
         }
         valores.negociador_padrao_id = uid;
         pessoaPadrao = uid;
