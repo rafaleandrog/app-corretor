@@ -55,7 +55,9 @@ window.urbiVerso = {
   href: (s) => '/portal_corretor' + s,
   navegarSub: () => {},
   usuario: () => ({ id: 1, nome: 'Marina' }),
-  contexto: () => ({ conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] } }),
+  // FRIO: entrada a frio, como o shell publica (autenticacao.md § Quando o contexto existe): sem resposta
+  // ainda (\`carregado: false\`, sem conta) até o teste chamar \`chegarContexto()\`.
+  contexto: () => (window.FRIO && !window.CONTEXTO_CHEGOU ? { nivel: null, roles: [], carregado: false } : { conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] } }),
   notificar: (m) => (window.avisos ??= []).push(m),
   alertar: async (a) => { (window.alertas ??= []).push(a.titulo); },
   confirmar: async () => true,
@@ -105,8 +107,26 @@ window.trocar = (conta) => {
   aoAbrirEstudio();
   desenhar();
 };
+// Como o app: até o contexto chegar a moldura mostra "carregando" e a tela não é desenhada; quando ele
+// chega (\`urbi:contexto-app\`), a tela é desenhada (sem novo aoAbrir).
+const carregado = () => window.urbiVerso.contexto().carregado !== false;
+window.addEventListener('urbi:contexto-app', () => carregado() && desenhar());
+window.chegarContexto = () => {
+  window.CONTEXTO_CHEGOU = true;
+  window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: window.urbiVerso.contexto() }));
+};
+// Navegação dentro do app: outra tela (o Estúdio sai do DOM) e a volta por um endereço do Estúdio.
+window.sairDoEstudio = () => {
+  history.pushState(null, '', '/portal_corretor/clientes');
+  render('', raiz);
+};
+window.abrirEstudio = (endereco) => {
+  history.pushState(null, '', '/portal_corretor' + endereco);
+  aoAbrirEstudio();
+  desenhar();
+};
 aoAbrirEstudio();
-desenhar();
+if (carregado()) desenhar();
 `;
 
 const PROFUNDO = `
@@ -742,6 +762,92 @@ test('Estúdio no Chromium: remover uma peça nunca leva a "Não encontrado"', a
     assert.doesNotMatch(r.url, /pedido=|item=/, 'volta a nenhum pedido escolhido');
     assert.deepEqual(r.feed, []);
     assert.match(r.centro, /Escolha um pedido na lista/);
+  } finally {
+    await navegador.close();
+  }
+});
+
+// Entrada a frio (recarregar, link direto, nova aba): o Estúdio é aberto antes de o contexto da app
+// chegar, como no app (frontend/index.ts: aoAbrir no connectedCallback, a tela só depois do contexto).
+const formulariosAbertos = (p: any) => p.evaluate(() => ((window as any).formularios ?? []).map((f: any) => f.titulo));
+const lerPedido = (p: any) =>
+  p.evaluate(() => {
+    const w = window as any;
+    return {
+      url: location.search,
+      centro: [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')].map((e) => w.profundo(e)).join(' '),
+      feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+    };
+  });
+async function entrarAFrio(pw: any, endereco: string) {
+  const m = await montar(pw);
+  await m.pagina.addInitScript(() => ((window as any).FRIO = true));
+  await m.pagina.goto(`${ORIGEM}/portal_corretor${endereco}`);
+  await m.pagina.waitForTimeout(80);
+  await m.pagina.evaluate(POR_CONTA);
+  assert.equal(await m.pagina.evaluate(() => document.querySelector('urbi-3-colunas')), null, 'sem contexto a tela não é desenhada');
+  await m.pagina.evaluate(() => (window as any).chegarContexto());
+  await m.pagina.waitForTimeout(200);
+  return m;
+}
+
+test('Estúdio no Chromium: entrada a frio com ?criar=post (o contexto chega depois) abre o Novo pedido', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await entrarAFrio(pw, '/estudio?criar=post');
+  try {
+    assert.deepEqual(await formulariosAbertos(pagina), ['Novo pedido']);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: entrada a frio com ?pedido= (o contexto chega depois) abre o pedido, sem "Não encontrado"', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await entrarAFrio(pw, '/estudio?pedido=11');
+  try {
+    const r: any = await lerPedido(pagina);
+    assert.equal(r.url, '?pedido=11', 'o pedido da URL fica');
+    assert.deepEqual(r.feed, [-11, 11, 12, 13], 'o pedido 11 abre');
+    assert.doesNotMatch(r.centro, /Não encontrado|não está na sua conta/);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: depois da troca, link do Estúdio aberto já em B (?pedido=, ?criar=post) fica; a troca seguinte ainda limpa', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await entrarAFrio(pw, '/estudio?pedido=11');
+  try {
+    assert.deepEqual((await lerPedido(pagina)).feed, [-11, 11, 12, 13], 'em A o pedido 11 está aberto');
+    // (c) O ramo "fica" pelo caminho real: A no Estúdio, sai para outra tela, troca para B lá e abre um
+    // link do Estúdio de B: o pedido de B abre.
+    await pagina.evaluate(() => {
+      (window as any).sairDoEstudio();
+      localStorage.setItem('portal_corretor:conta', '200');
+      (window as any).abrirEstudio('/estudio?pedido=601');
+    });
+    await pagina.waitForTimeout(200);
+    const b: any = await lerPedido(pagina);
+    assert.equal(b.url, '?pedido=601', 'o link de B fica');
+    assert.deepEqual(b.feed, [-601, 601], 'o pedido de B abre');
+    assert.doesNotMatch(b.centro, /Não encontrado|não está na sua conta/);
+
+    // (d) Já em B depois da troca, "Novo post" pelo menu Criar abre em B.
+    await pagina.evaluate(() => (window as any).abrirEstudio('/estudio?criar=post'));
+    await pagina.waitForTimeout(200);
+    assert.deepEqual(await formulariosAbertos(pagina), ['Novo pedido'], 'em B o Novo post abre');
+
+    // A troca B→A ainda limpa o que era de B.
+    await pagina.evaluate(() => (window as any).abrirEstudio('/estudio?pedido=601'));
+    await pagina.waitForTimeout(150);
+    await pagina.evaluate(() => (window as any).trocar(100));
+    await pagina.waitForTimeout(200);
+    const a: any = await lerPedido(pagina);
+    assert.doesNotMatch(a.url, /pedido=|item=/, 'o pedido de B sai na troca para A');
+    assert.deepEqual(a.feed, []);
   } finally {
     await navegador.close();
   }

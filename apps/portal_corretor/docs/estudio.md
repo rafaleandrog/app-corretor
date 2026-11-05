@@ -19,11 +19,14 @@ O Estúdio abre em três colunas (no celular, três abas: **Pedidos**, **Pedido*
 |---|---|
 | **Esquerda** | O título **Estúdio** com o estado do Instagram ("@sua.conta conectado", com o ícone do Instagram, ou "Instagram não conectado"); o **Criar rápido** com quatro botões; **Seus pedidos**, em lista, com o pedido aberto marcado, e acima dela as etapas com a quantidade de peças |
 | **Centro** | O pedido aberto, como uma conversa: o seu texto e, logo abaixo, uma mensagem do Estúdio por peça (formato, título, legenda e hashtags, a arte quando já enviada e o cartão da peça, com o próximo passo e os botões). Embaixo, a **caixa do pedido** para pedir mais |
-| **Direita** | **Esta semana** (em **Agendadas**, as peças com hora marcada de ontem até daqui a 7 dias, inclusive a que está sendo publicada agora, da mais próxima para a mais distante; em **Publicadas**, as publicadas nos últimos 7 dias, a mais recente primeiro; cada uma com **Abrir**); a **Biblioteca** (o seu logo, a sua foto e as suas referências, para abrir e baixar, e o atalho **Sua marca**); e, só quando falta o CRECI, o aviso discreto de sempre |
+| **Direita** | **Esta semana** (em **Agendadas**, as peças com hora marcada de ontem até daqui a 7 dias, inclusive a que está sendo publicada agora, da mais próxima para a mais distante; em **Publicadas**, as publicadas de 7 dias atrás até daqui a 1 dia, a mais recente primeiro; cada uma com **Abrir**); a **Biblioteca** (o seu logo, a sua foto e as suas referências, para abrir e baixar, e o atalho **Sua marca**); e, só quando falta o CRECI, o aviso discreto de sempre |
 
 **Pedido** é o que você pediu de uma vez: um envio da caixa, um Criar rápido ou um pacote de
-lançamento. Cada um vira uma peça por formato, e a lista junta as peças do mesmo envio. O endereço
-guarda o que está aberto: `?pedido=` (o pedido) ou `?item=` (uma peça; a conversa rola até ela).
+lançamento. Cada um vira uma peça por formato, e a lista junta as peças do mesmo envio. O Estúdio
+reconhece um envio pelas peças: mesmo texto, imóvel e objetivo, criadas com até 2 minutos de
+diferença. Por isso, dois pedidos iguais enviados no mesmo par de minutos aparecem juntos, como um só.
+O link da página leva ao que está aberto: copie o endereço e, ao abri-lo, o mesmo pedido (ou a mesma
+peça, com a conversa rolada até ela) aparece.
 Pedido que não existe ou não é da sua conta mostra "Não encontrado".
 
 **Trocou de conta no meio de uma operação?** O que estava em andamento na conta anterior (criar,

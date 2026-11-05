@@ -107,8 +107,11 @@ const estado = {
   /** Peças com a descrição à vista, e a descrição já buscada de cada uma. */
   abertas: new Set<number>(),
   instrucoes: {} as Record<number, Instrucao>,
-  /** "Novo post" do menu Criar, pendente até a primeira carga, com a conta em que foi pedido. */
-  criarPost: null as { conta: number | null } | null,
+  /**
+   * "Novo post" do menu Criar, pendente até a primeira carga, com a conta em que foi pedido (`undefined`:
+   * pedido antes de o contexto chegar, e vale para a conta da primeira carga).
+   */
+  criarPost: null as { conta: number | null | undefined } | null,
 };
 
 let redesenhar: () => void = () => {};
@@ -153,6 +156,15 @@ export async function seAindaNaConta<T>(conta: number | null, passo: Promise<T>)
   return r;
 }
 
+/**
+ * A conta ativa, ou `undefined` enquanto o contexto da app não chegou (entrada a frio: o shell publica
+ * `carregado: false` sem conta antes da busca, autenticacao.md § Quando o contexto existe). Conta ainda
+ * desconhecida não é uma conta anterior: nada pedido nesse intervalo é descartado por ela.
+ */
+function contaConhecida(): number | null | undefined {
+  return urbiVerso.contexto().carregado === false ? undefined : contaAtiva();
+}
+
 /** Abre uma operação: guarda a conta ativa agora e devolve o `seAindaNaConta` dela, para cada `await`. */
 function nestaConta() {
   const conta = contaAtiva();
@@ -177,7 +189,7 @@ const soltas = (acoes: Acao[]) => acoes.map(solta);
 /** O app avisa que o corretor entrou no Estúdio (ou trocou de conta): os dados são relidos. */
 export function aoAbrirEstudio() {
   estado.precisaCarregar = true;
-  if (pedidoDeCriar('post')) estado.criarPost = { conta: contaAtiva() };
+  if (pedidoDeCriar('post')) estado.criarPost = { conta: contaConhecida() };
 }
 
 async function carregar() {
@@ -196,7 +208,7 @@ async function carregar() {
     // O que foi escolhido ou pedido na conta anterior: o pedido aberto, a peça do `?item=` e o "Novo
     // post" ainda pendente. A conta nova abre como numa entrada no Estúdio. `?etapa=` é só o filtro
     // das listas (o mesmo em qualquer conta) e fica.
-    if (estado.criarPost && estado.criarPost.conta !== conta) estado.criarPost = null;
+    if (estado.criarPost && estado.criarPost.conta !== undefined && estado.criarPost.conta !== conta) estado.criarPost = null;
     if (escolhaVista && escolhaVista.conta !== conta) {
       const q = escolha();
       const tirar = (['pedido', 'item'] as const).filter((k) => q[k] !== null && q[k] === escolhaVista![k]);
@@ -205,6 +217,8 @@ async function carregar() {
     escolhaVista = null;
     estado.conta = conta;
   }
+  // Pedido antes de o contexto chegar: passa a ser desta conta (uma troca depois ainda o descarta).
+  if (estado.criarPost && estado.criarPost.conta === undefined) estado.criarPost.conta = conta;
   const minha = ++geracao;
   estado.precisaCarregar = false;
   estado.carregando = true;
@@ -970,6 +984,9 @@ function direita() {
 /** O Estúdio na moldura: trilho · pedidos · conversa · contexto (abas no celular). */
 export function renderEstudio(atualizar: () => void) {
   redesenhar = atualizar;
+  // Contexto ainda não chegou: nada é lido nem gravado como escolha de uma conta (o app só desenha a
+  // tela depois dele; aqui é a garantia do ponto único).
+  if (contaConhecida() === undefined) return moldura({ menu: '/estudio', centro: estadoTela('carregando') }, atualizar);
   // Outra conta: lê já, mesmo com uma carga em voo (a resposta da anterior é descartada em `carregar`).
   if (estado.conta !== contaAtiva()) void carregar();
   else if (estado.precisaCarregar && !estado.carregando) void carregar();
