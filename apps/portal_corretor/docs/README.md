@@ -73,7 +73,7 @@ ver [Assistente do Corretor](assistente.md).
 
 ## Atalhos e busca
 
-**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas (Hoje, Clientes, Imóveis, Números, Ajustes e Negociações); Estúdio e Página ainda não têm trilho. A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
+**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Números e Ajustes (o negociador humano não o vê). Estúdio e Página ainda não têm trilho. A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
 letras: aparecem até 5 resultados de cada tipo, só da sua conta.
 
 | Tipo | Busca por | Ao escolher |
@@ -96,7 +96,7 @@ letras: aparecem até 5 resultados de cada tipo, só da sua conta.
 | `J` / `K` | Próximo e anterior na lista de Clientes, de Negociações e da carteira de Imóveis; sem item aberto, `J` vai ao primeiro e `K` ao último |
 | `E` | Editar o cliente ou o imóvel aberto |
 
-- Nenhum atalho age enquanto você digita num campo (busca, formulário, mensagem) ou com uma janela aberta.
+- Nenhum atalho age com o foco num campo de texto, num seletor, numa caixa de diálogo ou num formulário, inclusive dentro de componentes. O app olha só onde está o foco: com uma janela aberta e o foco fora dela, o atalho ainda age.
 - Com Ctrl, Cmd ou Alt junto, a tecla é do navegador, não do app.
 - O negociador humano tem só `J`/`K`, na lista dele.
 
