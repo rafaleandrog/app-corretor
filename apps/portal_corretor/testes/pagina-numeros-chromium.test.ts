@@ -48,10 +48,12 @@ window.urbiVerso = {
   href: (s) => '/portal_corretor' + s,
   navegarSub: (s) => window.navegou.push(s),
   usuario: () => ({ id: 1, nome: 'Rafael' }),
-  contexto: () => ({ conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }], contaEscrita: 100 } }),
+  contexto: () => window.contasTeste
+    ? { conta: { resolucao: 'escopado', contas: window.contasTeste } }
+    : { conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }], contaEscrita: 100 } },
   notificar: () => {},
   alertar: async () => {},
-  api: async (rota) => {
+  api: async (rota, opcoes) => {
     const [caminho] = rota.split('?');
     if (caminho === '/pagina') return {
       pagina: { endereco: 'rafael', nome_exibicao: 'Rafael Gualberto', blocos: ${JSON.stringify(BLOCOS)}, publicada_em: '2026-10-20T12:00:00.000Z', gerada_por_ia: false },
@@ -64,6 +66,19 @@ window.urbiVerso = {
         blocos: ${JSON.stringify(BLOCOS.filter((b) => b.ativo))} },
       imoveis: [{ codigo: 'IM-0001', titulo: 'Casa 4 quartos', tipo: 'casa', situacao: 'ativo', preco_c: 145000000, bairro: 'Jardim Botânico', cidade: 'Brasília', quartos: 4, area_util_m2: 320, vagas: 2, capa: null }],
     };
+    if (caminho === '/numeros/negociacao') {
+      window.ultimaNegociacao = rota;
+      // Cenário de duas contas: cada leitura espera o seu portão e devolve números próprios da conta.
+      const conta = Number(opcoes?.headers?.['X-Conta'] ?? 0);
+      if (conta) await window.portao[conta];
+      const vazio = { propostas_recebidas: 0, encerradas: 0, ganhas: 0, taxa_acordo: null, desconto_medio: null, rodadas_medias: null, dentro_zopa: null, zopa_sem_estimativa: 0, objecoes: [], sugestoes_enviadas: 0, sugestoes_sem_edicao: 0, taxa_sem_edicao: null };
+      return {
+        dias: 30, periodo: { de: '2026-10-06T00:00:00.000Z', ate: '2026-11-05T00:00:00.000Z' },
+        atual: { propostas_recebidas: conta === 200 ? 9 : 5, encerradas: 4, ganhas: 3, taxa_acordo: 0.75, desconto_medio: 0.075, rodadas_medias: 3, dentro_zopa: null, zopa_sem_estimativa: 3,
+          objecoes: [{ categoria: 'preco', quantidade: 2 }, { categoria: 'decisao_compartilhada', quantidade: 1 }], sugestoes_enviadas: 3, sugestoes_sem_edicao: 2, taxa_sem_edicao: 0.667 },
+        anterior: { ...vazio, propostas_recebidas: 2, desconto_medio: 0.045, rodadas_medias: 2.5, taxa_sem_edicao: 0.5, objecoes: [{ categoria: 'preco', quantidade: 1 }] },
+      };
+    }
     if (caminho === '/numeros') {
       window.ultimaNumeros = rota;
       return {
@@ -298,7 +313,7 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
       const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
       return lista.itens.map((x: any) => `${x.titulo}${x.emBreve ? ' (em breve)' : ''}`);
     });
-    assert.deepEqual(relatorios, ['Resumo', 'Funil e conversão', 'Origem dos contatos', 'Tempo de resposta', 'Conteúdo', 'Mensageiro (em breve)', 'Negociação (em breve)']);
+    assert.deepEqual(relatorios, ['Resumo', 'Funil e conversão', 'Origem dos contatos', 'Tempo de resposta', 'Conteúdo', 'Mensageiro (em breve)', 'Negociação']);
     assert.doesNotMatch(r.esquerda, /Créditos/, 'créditos não entram (D-87)');
     assert.match(r.centro, /Resumo/);
     await medirMoldura('Números');
@@ -346,7 +361,7 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     const navegou = await pagina.evaluate(() => (window as any).navegou);
     assert.deepEqual(navegou, ['/clientes?perdido_motivo=sem_resposta&perdido_desde=2026-10-06T00%3A00%3A00.000Z']);
 
-    // Mensageiro e Negociação: "em breve", sem números inventados.
+    // Negociação (D6): os 7 KPIs da 11.2 pelo `GET /numeros/negociacao`; sem dado, frase no lugar do número.
     await pagina.evaluate(() => {
       const w = window as any;
       const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
@@ -354,7 +369,26 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     });
     await esperar();
     r = await colunas();
-    assert.match(r.centro, /Em breve: o relatório da Negociação/);
+    assert.match(r.url, /relatorio=negociacao/);
+    assert.equal(await pagina.evaluate(() => (window as any).ultimaNegociacao), '/numeros/negociacao?dias=30');
+    assert.doesNotMatch(r.centro, /Em breve/);
+    for (const k of ['Propostas recebidas', 'Taxa de acordo', '3 de 4 encerradas', 'Desconto médio', 'Rodadas até o acordo', 'Acordos dentro da ZOPA',
+      'Nenhum acordo com o teto do comprador estimado', 'Sugestões aprovadas sem edição', '2 de 3 enviadas', 'Objeções mais frequentes', '\\+3 que nos 30 dias anteriores',
+      '\\+3 pontos que nos 30 dias anteriores', '\\+0,5 que nos 30 dias anteriores', '\\+17 pontos que nos 30 dias anteriores']) {
+      assert.match(r.centro, new RegExp(k), k);
+    }
+    const kpisNeg = await pagina.evaluate(() =>
+      (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-kpi').map((k: any) => [k.getAttribute('rotulo'), k.valor]),
+    );
+    assert.deepEqual(kpisNeg, [['Propostas recebidas', '5'], ['Taxa de acordo', '75%'], ['Desconto médio', '7,5%'], ['Rodadas até o acordo', '3'], ['Sugestões aprovadas sem edição', '67%']],
+      'a ZOPA sem estimativa vira frase, não número');
+    const objecoes = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-grafico-colunas')[0].categorias);
+    assert.deepEqual(objecoes, ['Preço', 'Decisão compartilhada']);
+    // Comparar ligado: o período anterior ao lado, alinhado às categorias exibidas (ausente no anterior = 0).
+    const serieObjecoes = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-grafico-colunas')[0].series);
+    assert.deepEqual(serieObjecoes, [{ rotulo: 'Este período', valores: [2, 1] }, { rotulo: 'Período anterior', valores: [1, 0] }]);
+    assert.equal(await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-select').length), 0, 'sem filtro de origem neste relatório');
+    assert.equal(r.estilos, 0);
 
     // Apelido antigo `?item=` ainda abre o relatório; o período vai à consulta.
     await pagina.goto(`${ORIGEM}/portal_corretor/numeros?item=origem&dias=90`);
@@ -364,6 +398,42 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     assert.match(r.centro, /Origem dos contatos/);
     assert.match(r.centro, /Leads por canal/);
     assert.equal(await pagina.evaluate(() => (window as any).ultimaNumeros), '/numeros?dias=90');
+
+    // Troca de conta com a leitura da outra em voo: a resposta da conta A nunca aparece na conta B.
+    await pagina.goto(`${ORIGEM}/portal_corretor/numeros?relatorio=negociacao&dias=30`);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.contasTeste = [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }];
+      localStorage.setItem('portal_corretor:conta', '100');
+      w.portao = {};
+      w.liberar = {};
+      for (const c of [100, 200]) w.portao[c] = new Promise((ok) => (w.liberar[c] = ok));
+    });
+    await pagina.evaluate(() => (window as any).abrir('numeros')); // leitura da conta A em voo, Negociação aberta
+    await esperar();
+    await pagina.evaluate(() => {
+      history.replaceState(null, '', '/portal_corretor/numeros?relatorio=resumo&dias=30'); // muda de relatório
+      localStorage.setItem('portal_corretor:conta', '200'); // troca para a conta B
+      (window as any).abrir('numeros');
+    });
+    await esperar();
+    await pagina.evaluate(() => (window as any).liberar[100]()); // a resposta de A chega
+    await esperar();
+    await pagina.evaluate(() => {
+      const w = window as any;
+      const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
+      lista.dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: lista.itens[6], indice: 6 } }));
+    });
+    await esperar(); // a leitura de B (presa no portão) ainda não chegou
+    r = await colunas();
+    assert.match(r.centro, /Carregando a negociação/, 'o número de A não aparece na conta B');
+    assert.equal(await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-kpi').length), 0);
+    await pagina.evaluate(() => (window as any).liberar[200]());
+    await esperar();
+    const propostasB = await pagina.evaluate(() =>
+      (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-kpi').map((k: any) => [k.getAttribute('rotulo'), k.valor])[0],
+    );
+    assert.deepEqual(propostasB, ['Propostas recebidas', '9'], 'a leitura da conta B é a exibida');
     assert.deepEqual(erros, []);
   } finally {
     await navegador.close();

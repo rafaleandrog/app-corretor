@@ -3,6 +3,7 @@ import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { CANAIS } from '../../comum/crm';
 import { gerarCsv } from '../../comum/csv';
 import { linhasCsvNumeros, type RespostaNumeros } from '../../comum/numeros';
+import { rotuloObjecao } from '../../comum/numeros-negociacao';
 import { chamarApi, contaAtiva, filtrosDaUrl, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
@@ -14,7 +15,8 @@ type Linha = Record<string, any>;
 
 // Números (P10, spec 11.1 e 11.2; `/desempenho` é apelido, D-103) na moldura do Padrão B:
 // - esquerda: os relatórios (Resumo · Funil e conversão · Origem dos contatos · Tempo de resposta ·
-//   Conteúdo; Mensageiro e Negociação "em breve", até o bloco 7 e o D6; Créditos não entram, D-87);
+//   Conteúdo · Negociação (D6, `GET /numeros/negociacao`); Mensageiro "em breve", até o bloco 7;
+//   Créditos não entram, D-87);
 // - centro: o relatório aberto, com o título e os chips de período, Comparar e origem;
 // - direita: "O que melhorar" com [Ver os N clientes] (abre Clientes filtrado), as melhores origens
 //   e [Exportar CSV].
@@ -36,7 +38,7 @@ export const RELATORIOS = [
   { id: 'tempo', titulo: 'Tempo de resposta', descricao: 'você e o Mensageiro', emBreve: false },
   { id: 'conteudo', titulo: 'Conteúdo', descricao: 'peças publicadas pelo Estúdio', emBreve: false },
   { id: 'mensageiro', titulo: 'Mensageiro', descricao: 'em breve, com o WhatsApp', emBreve: true },
-  { id: 'negociacao', titulo: 'Negociação', descricao: 'em breve', emBreve: true },
+  { id: 'negociacao', titulo: 'Negociação', descricao: 'propostas, acordos e o Negociador', emBreve: false },
 ] as const;
 type Relatorio = (typeof RELATORIOS)[number];
 
@@ -49,6 +51,11 @@ const estado = {
   falha: null as unknown,
   geracao: 0,
   conta: null as number | null,
+  // Relatório Negociação (D6): lido à parte, só quando ele está aberto, pelo período da URL.
+  negociacao: null as Linha | null,
+  falhaNegociacao: null as unknown,
+  chaveNegociacao: '',
+  geracaoNegociacao: 0,
 };
 let redesenhar: () => void = () => {};
 
@@ -63,12 +70,41 @@ function lerFiltros() {
 
 /** Cada entrada em Números (e cada troca de conta) relê os números do período da URL. */
 export function aoAbrirNumeros() {
-  if (estado.conta !== contaAtiva()) estado.dados = null;
+  if (estado.conta !== contaAtiva()) {
+    estado.dados = null;
+    estado.negociacao = null;
+    estado.falhaNegociacao = null;
+    // Uma leitura de Negociação em voo é da conta anterior: a resposta dela não pode mais ser gravada.
+    estado.geracaoNegociacao++;
+  }
+  estado.chaveNegociacao = '';
   estado.conta = contaAtiva();
   void carregar();
 }
 
+/** Lê o relatório Negociação quando ele está aberto e o período (ou a conta) mudou desde a última leitura. */
+async function carregarNegociacao() {
+  const { dias, relatorio } = lerFiltros();
+  const chave = `${contaAtiva()}:${dias}`;
+  if (relatorio.id !== 'negociacao' || chave === estado.chaveNegociacao) return;
+  estado.chaveNegociacao = chave;
+  const geracao = ++estado.geracaoNegociacao;
+  estado.falhaNegociacao = null;
+  redesenhar();
+  try {
+    const r = await chamarApi(`/numeros/negociacao?dias=${dias}`);
+    if (geracao === estado.geracaoNegociacao) estado.negociacao = r;
+  } catch (e) {
+    if (geracao === estado.geracaoNegociacao) {
+      estado.falhaNegociacao = e;
+      estado.chaveNegociacao = '';
+    }
+  }
+  redesenhar();
+}
+
 async function carregar() {
+  void carregarNegociacao();
   const geracao = ++estado.geracao;
   const { dias, origem } = lerFiltros();
   estado.falha = null;
@@ -85,7 +121,10 @@ async function carregar() {
 function mudar(mudancas: Record<string, string | number | null>, recarregar = true) {
   filtrosNaUrl(filtrosDaUrl(), mudancas, 'relatorio' in mudancas ? ['item'] : []);
   if (recarregar) void carregar();
-  else redesenhar();
+  else {
+    void carregarNegociacao();
+    redesenhar();
+  }
 }
 
 /** Comparação com o período anterior, em texto curto ("+3 que nos 30 dias anteriores"). */
@@ -126,9 +165,11 @@ function cabecalho(rel: Relatorio) {
         @urbi:chip-atalho:click=${(e: CustomEvent) => mudar({ dias: e.detail.id })}></urbi-chips-atalho>
       <urbi-botao-alternar icone="fa-solid fa-code-compare" .ligado=${comparar}
         @urbi:botao-alternar-change=${(e: CustomEvent<boolean>) => mudar({ comparar: e.detail ? null : '0' }, false)}>Comparar</urbi-botao-alternar>
-      <urbi-select label="Origem" valor=${origem}
-        .opcoes=${[{ valor: '', rotulo: 'Todas as origens' }, ...canais.map((c) => ({ valor: c, rotulo: canal(c) }))]}
-        @urbi:select-change=${(e: CustomEvent) => mudar({ origem: e.detail.valor || null })}></urbi-select>
+      ${rel.id === 'negociacao'
+        ? nothing
+        : html`<urbi-select label="Origem" valor=${origem}
+            .opcoes=${[{ valor: '', rotulo: 'Todas as origens' }, ...canais.map((c) => ({ valor: c, rotulo: canal(c) }))]}
+            @urbi:select-change=${(e: CustomEvent) => mudar({ origem: e.detail.valor || null })}></urbi-select>`}
     </urbi-linha>
   </urbi-stack>`;
 }
@@ -269,16 +310,81 @@ function relatorioSemFonte(rel: Relatorio) {
   const textos: Record<string, [string, string]> = {
     tempo: ['O tempo de resposta chega com o WhatsApp', 'Quanto você (e o Mensageiro) leva para responder um contato depende das conversas pelo WhatsApp, que ainda não estão disponíveis.'],
     mensageiro: ['Em breve: o relatório do Mensageiro', 'Atendimentos do Mensageiro e quantos viraram visita aparecem aqui quando ele chegar, com o WhatsApp.'],
-    negociacao: ['Em breve: o relatório da Negociação', 'Propostas recebidas, taxa de acordo, desconto médio e as sugestões do Negociador aprovadas sem edição.'],
   };
   const [mensagem, submensagem] = textos[rel.id] ?? ['Em breve', ''];
   return estadoTela('vazio', { icone: rel.emBreve ? 'fa-solid fa-hourglass-half' : 'fa-solid fa-stopwatch', mensagem, submensagem });
 }
 
+// ── Relatório Negociação (D6, spec 11.2) ─────────────────────────────────────
+// Só agregados da conta. Sem dado, uma frase no lugar do número (convenção §1), nunca zero.
+
+const media = (v: number | null, casas = 1) => (v === null ? null : v.toLocaleString('pt-BR', { maximumFractionDigits: casas }));
+
+function kpiOuFrase(rotulo: string, valor: string | null, frase: string, detalhe = '') {
+  return valor === null
+    ? html`<urbi-stack>
+        <urbi-prosa papel="secundario">${rotulo}</urbi-prosa>
+        <urbi-prosa papel="dica">${frase}</urbi-prosa>
+      </urbi-stack>`
+    : kpi(rotulo, valor, detalhe);
+}
+
+function relatorioNegociacao(n: Linha) {
+  const a = n.atual as Linha;
+  const b = n.anterior as Linha;
+  const v = (x: number | null, y: number | null, t = false) => variacao(n.dias, x, y, t);
+  const objecoes = a.objecoes as { categoria: string; quantidade: number }[];
+  const com = (base: string, x: number | null, y: number | null, t = false) => {
+    const c = v(x, y, t);
+    return c ? (base ? `${base} · ${c}` : c) : base;
+  };
+  // Período anterior alinhado às categorias exibidas (as do atual); categoria ausente no anterior conta 0 objeções.
+  const objecoesAntes = (b.objecoes as { categoria: string; quantidade: number }[]) ?? [];
+  const desconto = a.desconto_medio === null ? null : `${(Math.round(a.desconto_medio * 1000) / 10).toLocaleString('pt-BR')}%`;
+  return html`<urbi-grid min="160px">
+      ${kpiOuFrase('Propostas recebidas', a.propostas_recebidas ? a.propostas_recebidas.toLocaleString('pt-BR') : null, 'Nenhuma proposta no período',
+        v(a.propostas_recebidas, b.propostas_recebidas))}
+      ${kpiOuFrase('Taxa de acordo', a.taxa_acordo === null ? null : pct(a.taxa_acordo), 'Nenhuma negociação encerrada no período',
+        `${a.ganhas} de ${a.encerradas} encerradas${v(a.taxa_acordo, b.taxa_acordo, true) ? ` · ${v(a.taxa_acordo, b.taxa_acordo, true)}` : ''}`)}
+      ${kpiOuFrase('Desconto médio', desconto, 'Nenhum acordo com preço pedido no período',
+        com('Sobre o preço pedido, nos acordos', a.desconto_medio, b.desconto_medio, true))}
+      ${kpiOuFrase('Rodadas até o acordo', media(a.rodadas_medias), 'Nenhum acordo no período',
+        com('Média nos acordos do período', a.rodadas_medias, b.rodadas_medias))}
+    </urbi-grid>
+    <urbi-card titulo="Acordos e o Negociador" icone="fa-solid fa-handshake">
+      <urbi-grid min="160px">
+        ${kpiOuFrase('Acordos dentro da ZOPA', a.dentro_zopa === null ? null : pct(a.dentro_zopa),
+          a.ganhas ? 'Nenhum acordo com o teto do comprador estimado' : 'Nenhum acordo no período',
+          com(a.zopa_sem_estimativa ? `${a.zopa_sem_estimativa} acordo(s) sem recuo, teto estimado do comprador ou valor final ficaram de fora` : 'Entre o seu recuo e o teto estimado do comprador',
+            a.dentro_zopa, b.dentro_zopa, true))}
+        ${kpiOuFrase('Sugestões aprovadas sem edição', a.taxa_sem_edicao === null ? null : pct(a.taxa_sem_edicao), 'Nenhuma sugestão do Negociador enviada no período',
+          com(`${a.sugestoes_sem_edicao} de ${a.sugestoes_enviadas} enviadas`, a.taxa_sem_edicao, b.taxa_sem_edicao, true))}
+      </urbi-grid>
+    </urbi-card>
+    <urbi-card titulo="Objeções mais frequentes" icone="fa-solid fa-comment-dots">
+      ${objecoes.length
+        ? html`<urbi-grafico-colunas altura="220px" legenda="auto" .categorias=${objecoes.map((o) => rotuloObjecao(o.categoria))}
+            .series=${series(objecoes.map((o) => o.quantidade), objecoes.map((o) => objecoesAntes.find((x) => x.categoria === o.categoria)?.quantidade ?? 0))}></urbi-grafico-colunas>`
+        : html`<urbi-prosa papel="dica">Nenhuma objeção registrada no período.</urbi-prosa>`}
+    </urbi-card>
+    <urbi-prosa papel="fraco">Só números somados da conta: nenhum valor do mandato aparece aqui. O filtro de origem não vale neste relatório.</urbi-prosa>`;
+}
+
+function centroNegociacao() {
+  const n = estado.negociacao;
+  if (!n || n.dias !== lerFiltros().dias) {
+    return estado.falhaNegociacao
+      ? estadoDaFalha(estado.falhaNegociacao, () => void carregarNegociacao())
+      : estadoTela('carregando', { mensagem: 'Carregando a negociação…' });
+  }
+  return relatorioNegociacao(n);
+}
+
 function centro(rel: Relatorio) {
   const d = estado.dados;
   let corpo: unknown;
-  if (rel.emBreve || rel.id === 'tempo') corpo = relatorioSemFonte(rel);
+  if (rel.id === 'negociacao') corpo = centroNegociacao();
+  else if (rel.emBreve || rel.id === 'tempo') corpo = relatorioSemFonte(rel);
   else if (!d) corpo = estado.falha ? estadoDaFalha(estado.falha, () => void carregar()) : estadoTela('carregando', { mensagem: 'Carregando os números…' });
   else if (rel.id === 'funil') corpo = relatorioFunil(d);
   else if (rel.id === 'origem') corpo = relatorioOrigem(d);
