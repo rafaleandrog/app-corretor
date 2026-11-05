@@ -252,7 +252,16 @@ test('marca: o logo não ressincroniza nem afirma que o que está no ar está em
     assert.notEqual(r.corpo.vitrine_desatualizada, false);
     // O logo só vale nas artes: nada muda na vitrine (nem a cor velha é atualizada, nem o logo vai).
     assert.equal(JSON.stringify(banco.linhas('vitrine_publica')), antes);
-    assert.ok(!JSON.stringify(banco.linhas('vitrine_publica')).includes('980'), 'o logo não é público');
+    // Busca exata, valor a valor: procurar '980' no JSON inteiro casava por acaso com datas e
+    // carimbos de hora gerados no teste (#158).
+    const valores: unknown[] = [];
+    const juntar = (v: unknown): void => {
+      if (v && typeof v === 'object') Object.values(v).forEach(juntar);
+      else valores.push(v);
+    };
+    juntar(banco.linhas('vitrine_publica'));
+    assert.ok(valores.length > 0, 'a vitrine tem o que conferir');
+    assert.deepEqual(valores.filter((v) => v === 980 || v === '980' || v === '/arquivo/980'), [], 'o logo não é público');
     // O conserto continua valendo depois do logo.
     assert.equal((await chamar('POST', '/estudio/marca/republicar')).corpo.vitrine_desatualizada, false);
     assert.equal(cores(banco, 100).selecao, '#555555');
