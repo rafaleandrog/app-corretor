@@ -27,7 +27,7 @@ const POLITICA_CONVITE =
   'Para ter mais de uma pessoa na sua conta, a instância precisa da política "permite contas multi-usuário" ligada pelo administrador. Desligada, o convite é recusado.';
 /** O risco residual dos eventos que nascem no webhook (F4, #136 a): docs/negociacao.md. */
 const LIMITE_EVENTOS =
-  'Quem entra na conta lê os avisos da plataforma sobre ela, inclusive nome, telefone e e-mail de quem pede contato pela sua página. Convide só quem pode ver isso.';
+  'Quem entra na conta pode ler nome, telefone, e-mail e mensagem de quem pede contato pela sua página, os comentários dos clientes nas seleções de imóveis e as mensagens que eles mandam pelo portal. Convide só quem pode ver isso.';
 
 interface Config {
   ligado: boolean;
@@ -115,7 +115,7 @@ export class PcAjustesNegociador extends LitElement {
         <urbi-prosa>Negociador humano</urbi-prosa>
         ${eq?.indisponivel ? nothing : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-user-plus" @click=${() => void this.convidar()}>Convidar negociador</urbi-botao>`}
       </urbi-linha>
-      <urbi-prosa papel="dica">${POLITICA_CONVITE} ${LIMITE_EVENTOS}</urbi-prosa>
+      ${eq?.indisponivel ? nothing : html`<urbi-prosa papel="dica">${POLITICA_CONVITE} ${LIMITE_EVENTOS}</urbi-prosa>`}
       ${!eq
         ? html`<urbi-loading></urbi-loading>`
         : eq.indisponivel

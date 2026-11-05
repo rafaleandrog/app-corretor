@@ -557,8 +557,9 @@ multi-usuário" ligada. O app não tem como consultar essa política antes: só 
 ela recusa com `CONVITE_MULTI_USUARIO_BLOQUEADO` (pedido ao shell para expor a política).
 
 **O que o negociador vê pelo barramento:** como membro da conta, ele lê os eventos do app pelo
-barramento da plataforma (a lista de eventos e as notificações por inscrição), e o barramento não
-filtra por negociação nem por papel. As telas e rotas do app só mostram as atribuídas.
+barramento da plataforma, e o barramento não filtra por negociação nem por papel. Isso vale para
+as cinco formas de ler um evento: a lista de eventos, a busca de um evento avulso, o acompanhamento
+ao vivo, o replay de quem reconecta e as notificações por inscrição. As telas e rotas do app só mostram as atribuídas.
 
 - **Eventos de negociação** (`negociacao_iniciada`, `proposta_recebida`, `mandato_alterado` e os
   outros): levam **só ids** (negociação, negócio, proposta, mandato, objeção, execução). Sem nome,
@@ -571,6 +572,9 @@ filtra por negociação nem por papel. As telas e rotas do app só mostram as at
   - `reacao_recebida`: o comentário do cliente na reação a um imóvel da seleção;
   - `acao_cliente_recebida`: o texto da mensagem que o cliente mandou pelo portal (e o valor de uma
     oferta, que não é dado pessoal).
+
+  Esse dado também fica guardado no histórico de eventos da plataforma até a limpeza automática por
+  retenção (o prazo é da instância).
 
   Fechar isso depende da plataforma (pedido ao shell). Até lá, **convide só quem pode ver os
   contatos que chegam pela sua página e pelo portal.**
