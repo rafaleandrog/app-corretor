@@ -98,8 +98,13 @@ const AUTOR_ESTUDIO = -1;
 // ela mesma escreve na URL e lê ao nascer.
 //
 // - Troca de conta é instância nova: o app recria o conteúdo pela chave `sub|conta|visita`
-//   (frontend/index.ts, `keyed`), e a instância anterior sai do DOM. O mesmo vale para sair do Estúdio,
-//   ir a outra app ou perder o contexto (o app desenha outra coisa no lugar).
+//   (frontend/index.ts, `keyed`); a instância guarda a chave com que nasceu e, quando a do app muda, já
+//   não está viva. Sair do Estúdio, ir a outra app ou perder o contexto tira a diretiva do DOM
+//   (`disconnected`), e a instância morre também.
+//   A chave é conferida pela instância porque o `keyed` do lit 3 não avisa as diretivas assíncronas na
+//   troca de chave: ele zera o valor da parte antes de limpá-la, e o `disconnected()` delas não roda
+//   (lit-html/async-directive.js, `notifyChildPartConnectedChanged` lê o valor já zerado). Sem isso a
+//   instância velha seguiria "viva", fora da tela.
 // - Ao nascer, a instância começa do zero, consome o `?criar=post` e carrega. Na primeira carga, se o
 //   `?pedido=`/`?item=` da URL não é desta conta, a URL é limpa.
 // - Toda continuação assíncrona passa por `esperar`, que confere `vivo`. Instância morta termina em
@@ -109,7 +114,7 @@ const AUTOR_ESTUDIO = -1;
 // moldura exige o `urbi-inbox` direto no body do `urbi-shell-page` (moldura.ts). `disconnected()` da
 // diretiva faz o papel do `disconnectedCallback`.
 
-/** A instância saiu do DOM (ou a conta dela já não é a ativa): a continuação para aqui, em silêncio. */
+/** A instância saiu do DOM: a continuação para aqui, em silêncio. */
 export class InstanciaEncerrada extends Error {
   constructor() {
     super('instancia_encerrada');
@@ -162,6 +167,8 @@ export class Estudio {
   private conta: number | null = null;
   /** Ligada entre `nascer` e `morrer` (a diretiva saiu do DOM). */
   private ligada = false;
+  /** A chave do app quando a instância nasceu (`sub|conta|visita`). */
+  private minhaChave: string | undefined;
 
   private pecas: Peca[] = [];
   private marca: Marca | null = null;
@@ -184,15 +191,24 @@ export class Estudio {
   /** Peça do `?item=` à qual o feed já rolou: rola uma vez por escolha, não a cada redesenho. */
   private rolada: number | null = null;
 
-  constructor(public atualizar: () => void) {}
+  constructor(
+    public atualizar: () => void,
+    /** A chave vigente do app (`frontend/index.ts`); sem app (teste de desenho), nenhuma. */
+    private chaveVigente: () => string | undefined = () => undefined,
+  ) {}
 
-  /** Viva: no DOM e ainda na conta em que nasceu (entre a troca e o redesenho do app ela já não vale). */
+  /**
+   * Viva: no DOM (entre `nascer` e `morrer`) e ainda a instância da página (a chave do app é a de quando
+   * nasceu). Troca de conta, navegação ou volta ao Estúdio mudam a chave: a instância morre na hora, sem
+   * esperar o redesenho. Nada aqui lê a conta: a identidade é a da instância.
+   */
   get vivo(): boolean {
-    return this.ligada && contaAtiva() === this.conta;
+    return this.ligada && this.chaveVigente() === this.minhaChave;
   }
 
   nascer() {
     this.ligada = true;
+    this.minhaChave = this.chaveVigente();
     this.conta = contaAtiva();
     Estudio.aoNascer?.(this);
     if (this.conta === null) return;
@@ -1002,11 +1018,13 @@ export class Estudio {
 class DiretivaEstudio extends AsyncDirective {
   private instancia: Estudio | null = null;
   private atualizar: () => void = () => {};
+  private chave: () => string | undefined = () => undefined;
 
-  render(atualizar: () => void) {
+  render(atualizar: () => void, chave?: () => string) {
     this.atualizar = atualizar;
+    if (chave) this.chave = chave;
     if (!this.instancia) {
-      this.instancia = new Estudio(atualizar);
+      this.instancia = new Estudio(atualizar, this.chave);
       this.instancia.nascer();
     }
     this.instancia.atualizar = atualizar;
@@ -1020,7 +1038,7 @@ class DiretivaEstudio extends AsyncDirective {
 
   /** De volta ao DOM (o app saiu e voltou sem redesenhar): é uma instância nova, do zero. */
   protected reconnected() {
-    this.instancia = new Estudio(this.atualizar);
+    this.instancia = new Estudio(this.atualizar, this.chave);
     this.instancia.nascer();
     this.setValue(this.instancia.desenhar());
   }
@@ -1029,9 +1047,9 @@ class DiretivaEstudio extends AsyncDirective {
 const estudio = directive(DiretivaEstudio);
 
 /**
- * A tela do Estúdio. O `html` em volta é o que faz a chave do app (`keyed`) recriar a instância: com a
- * chave nova, o lit troca o modelo inteiro e a diretiva anterior sai do DOM (`disconnected`).
+ * A tela do Estúdio. `chave` lê a chave vigente do app (`sub|conta|visita`). O `html` em volta dá à
+ * diretiva uma parte própria, que o `keyed` do app troca inteira na chave nova (e a instância nova nasce).
  */
-export function renderEstudio(atualizar: () => void) {
-  return html`${estudio(atualizar)}`;
+export function renderEstudio(atualizar: () => void, chave?: () => string) {
+  return html`${estudio(atualizar, chave)}`;
 }

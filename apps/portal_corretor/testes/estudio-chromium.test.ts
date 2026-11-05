@@ -914,9 +914,17 @@ test('transição 1/8: A → B durante a carga inicial', async (t) => {
     await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
     await pagina.waitForTimeout(120);
     assert.deepEqual(await pendentes(pagina), [100]);
-    await pagina.evaluate(() => (window as any).trocar(200));
+    // A troca mata a instância de A NA HORA (antes do redesenho): o `keyed` do lit não a desliga sozinho.
+    const morreuNaTroca = await pagina.evaluate(() => {
+      const w = window as any;
+      w.instanciaA = w.estudio;
+      w.trocar(200);
+      return w.instanciaA.vivo;
+    });
+    assert.equal(morreuNaTroca, false, 'a instância de A deixa de estar viva no momento da troca');
     await pagina.waitForTimeout(120);
     assert.deepEqual(await pendentes(pagina), [100, 200], 'a instância de B nasce e carrega');
+    assert.equal(await pagina.evaluate(() => (window as any).estudio !== (window as any).instanciaA && (window as any).estudio.vivo), true, 'B é outra instância, viva');
     // B responde primeiro; A responde depois, para a instância morta.
     await liberar(pagina, 1, 'B');
     await pagina.waitForTimeout(80);
@@ -1078,8 +1086,13 @@ test('transição 7/8: sair do Estúdio e voltar (e ir a outra app e voltar) com
     await pagina.waitForTimeout(80);
     assert.deepEqual(await pendentes(pagina), [100]);
     // Sai para outra tela do app e volta pelo endereço do Estúdio: a instância nova carrega (em voo).
-    await pagina.evaluate(() => (window as any).sairDoEstudio());
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.instanciaAntiga = w.estudio;
+      w.sairDoEstudio();
+    });
     await pagina.waitForTimeout(80);
+    assert.equal(await pagina.evaluate(() => (window as any).instanciaAntiga.vivo), false, 'sair do Estúdio encerra a instância');
     await pagina.evaluate(() => (window as any).abrirEstudio('/estudio?pedido=11'));
     await pagina.waitForTimeout(80);
     assert.deepEqual(await pendentes(pagina), [100, 100], 'a instância nova carrega');
@@ -1098,7 +1111,12 @@ test('transição 7/8: sair do Estúdio e voltar (e ir a outra app e voltar) com
     // Outra app: o app sai do DOM com uma carga em voo e volta (sem redesenhar): instância nova.
     await pagina.evaluate(() => (window as any).recarregar());
     await pagina.waitForTimeout(60);
-    await pagina.evaluate(() => (window as any).irParaOutraApp());
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.instanciaAntiga = w.estudio;
+      w.irParaOutraApp();
+    });
+    assert.equal(await pagina.evaluate(() => (window as any).instanciaAntiga.vivo), false, 'ir a outra app encerra a instância (disconnected)');
     await liberar(pagina, 2, 'ANTIGA');
     await pagina.waitForTimeout(80);
     await pagina.evaluate(() => (window as any).voltarDaOutraApp());
