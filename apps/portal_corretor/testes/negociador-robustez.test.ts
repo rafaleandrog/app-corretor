@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import schema from '../schema.json';
 import { rotas, reagir, webhooks } from '../backend/rotas';
 import { limparLimites } from '../backend/publico';
@@ -410,6 +411,9 @@ test('mensagem entregue duas vezes ao mesmo tempo: o motor roda uma vez só', as
       assert.ok(r.status < 300, `${r.status} ${JSON.stringify(r.corpo)}`);
       assert.ok(!JSON.stringify(r.corpo).includes('motor_mensagem'), JSON.stringify(r.corpo));
     }
+    // O caso da busca não pode passar vazio: a negociação de fato veio no resultado.
+    const achadas = (respostas[4].corpo.negociacoes ?? []) as { id: number }[];
+    assert.ok(achadas.some((x) => x.id === nid), `busca sem a negociação: ${JSON.stringify(respostas[4].corpo)}`);
   });
 });
 
@@ -450,6 +454,60 @@ test('IA falha na mensagem com fala de preço: a marca é desfeita e a mesma men
     await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: 100 }, ctx);
     assert.equal(ia.chamadas.length, 2, `${caso}: idempotente depois de decidir`);
   }
+});
+
+test('só desfaz a marca DESTA mensagem: se a marca já é a de outra mensagem, a falha da IA não a apaga (issue #157)', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const a = await base(banco, 100);
+  await banco.dados(100).criar('acessos_cliente', { contato_id: a.contato.id, revogado_em: null });
+  let nid = 0;
+  await comServidor(rotas, corretor(1, 100), banco, shellFalso(), async (chamar) => {
+    nid = (await chamar('POST', '/negociacoes', { negocio_id: a.negocio.id, imovel_id: a.imovel.id })).corpo.id;
+    assert.equal((await chamar('PUT', `/negociacoes/${nid}/mandato`, MANDATO)).status, 200);
+  });
+  const hashDe = (t: string) => createHash('sha256').update(t).digest('hex');
+  const m2 = 'Achei caro, faz por menos?';
+  const ia = iaSimulada([]);
+  // Entre a marca de M1 e o desfazer, M2 entra e grava a marca dela; só então a IA de M1 falha.
+  ia.consultar = async (o: unknown) => {
+    ia.chamadas.push(o);
+    await banco.dados(100).atualizar('negociacoes', nid, { motor_mensagem_hash: hashDe(m2), motor_mensagem_em: new Date().toISOString() });
+    throw Object.assign(new Error('modelo fora do ar'), { codigo: 'IA_INDISPONIVEL' });
+  };
+  const ctx = ctxListener(banco, { eventos: eventosFalsos(), ia });
+  const [p] = await publicarMensagem({ conta_id: 100, contato_id: a.contato.id }, { tipo: 'mensagem', negociacao: nid, texto: 'Tem desconto à vista?' });
+  await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: 100 }, ctx);
+  assert.equal(ia.chamadas.length, 1);
+  const n = banco.linhas('negociacoes').find((x) => x.id === nid)!;
+  assert.equal(n.motor_mensagem_hash, hashDe(m2), 'a marca de M2 continua; a falha de M1 não a desfaz');
+  assert.ok(n.motor_mensagem_em, 'o instante da marca de M2 continua');
+});
+
+test('slot de IA fora do ar (estadoSlot sem efetivo, sem lançar): a marca é desfeita e a mesma mensagem, entregue de novo, roda (issue #157)', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const a = await base(banco, 100);
+  await banco.dados(100).criar('acessos_cliente', { contato_id: a.contato.id, revogado_em: null });
+  let nid = 0;
+  await comServidor(rotas, corretor(1, 100), banco, shellFalso(), async (chamar) => {
+    nid = (await chamar('POST', '/negociacoes', { negocio_id: a.negocio.id, imovel_id: a.imovel.id })).corpo.id;
+    assert.equal((await chamar('PUT', `/negociacoes/${nid}/mandato`, MANDATO)).status, 200);
+  });
+  let fora = true;
+  const ia = iaSimulada([resposta({})]);
+  const estadoSlot = ia.estadoSlot;
+  ia.estadoSlot = async (slot: string) => (fora ? { pedido: slot, efetivo: null, backup: null } : estadoSlot(slot));
+  const ctx = ctxListener(banco, { eventos: eventosFalsos(), ia });
+  const [p] = await publicarMensagem({ conta_id: 100, contato_id: a.contato.id }, { tipo: 'mensagem', negociacao: nid, texto: 'Tem desconto à vista?' });
+  await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: 100 }, ctx);
+  assert.equal(ia.chamadas.length, 0, 'slot fora: a IA nem é consultada');
+  assert.equal(banco.linhas('negociador_execucoes').length, 0, 'nada decidido');
+  assert.equal(banco.linhas('negociacoes').find((x) => x.id === nid)!.motor_mensagem_hash ?? null, null, 'marca desfeita');
+  fora = false;
+  await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: 100 }, ctx);
+  assert.equal(ia.chamadas.length, 1, 'a mesma mensagem, entregue de novo, roda');
+  assert.equal(banco.linhas('negociador_execucoes').length, 1);
 });
 
 test('A × B na marca da mensagem: a mesma frase nas duas contas roda nas duas; a falha em B desfaz só a marca de B (issue #157)', async () => {
