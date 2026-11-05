@@ -32,6 +32,13 @@ export interface OpcoesMoldura {
   lista?: unknown;
   /** Centro, "o que estou fazendo". */
   centro: unknown;
+  /**
+   * O `centro` já vem com `slot="centro"` em cada filho e a moldura não o embrulha num `urbi-hospedeiro`.
+   * Para o par `urbi-feed` + `urbi-redator`: o fill do feed só se mantém no filho DIRETO do container
+   * com altura (ui-componentes-conteudo.md § Onde pôr o par feed + redator). Só vale com `lista`
+   * (`urbi-3-colunas`); no `urbi-2x1` o centro segue embrulhado.
+   */
+  centroSolto?: boolean;
   /** Direita, "o que eu preciso saber para decidir". O Assistente aberto ocupa o lugar dela. */
   contexto?: unknown;
   /** Rótulos das abas do celular. */
@@ -103,7 +110,7 @@ function colunas(op: OpcoesMoldura): TemplateResult {
     label-esquerda=${r.lista ?? 'Lista'} label-centro=${r.centro ?? 'Foco'} label-direita=${aberto ? 'Assistente' : (r.contexto ?? 'Contexto')}
     painel-ativo=${aberto ? 'direita' : (op.painel ?? 'centro')}>
     ${coluna('esquerda', op.lista)}
-    ${coluna('centro', op.centro)}
+    ${op.centroSolto ? op.centro : coluna('centro', op.centro)}
     ${aberto ? direitaAssistente('direita') : coluna('direita', op.contexto ?? nothing)}
   </urbi-3-colunas>`;
 }
