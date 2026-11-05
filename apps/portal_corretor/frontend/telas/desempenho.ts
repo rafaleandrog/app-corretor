@@ -355,7 +355,7 @@ function relatorioNegociacao(n: Linha) {
       <urbi-grid min="160px">
         ${kpiOuFrase('Acordos dentro da ZOPA', a.dentro_zopa === null ? null : pct(a.dentro_zopa),
           a.ganhas ? 'Nenhum acordo com o teto do comprador estimado' : 'Nenhum acordo no período',
-          com(a.zopa_sem_estimativa ? `${a.zopa_sem_estimativa} acordo(s) sem o teto do comprador estimado ficaram de fora` : 'Entre o seu recuo e o teto estimado do comprador',
+          com(a.zopa_sem_estimativa ? `${a.zopa_sem_estimativa} acordo(s) sem recuo, teto estimado do comprador ou valor final ficaram de fora` : 'Entre o seu recuo e o teto estimado do comprador',
             a.dentro_zopa, b.dentro_zopa, true))}
         ${kpiOuFrase('Sugestões aprovadas sem edição', a.taxa_sem_edicao === null ? null : pct(a.taxa_sem_edicao), 'Nenhuma sugestão do Negociador enviada no período',
           com(`${a.sugestoes_sem_edicao} de ${a.sugestoes_enviadas} enviadas`, a.taxa_sem_edicao, b.taxa_sem_edicao, true))}
