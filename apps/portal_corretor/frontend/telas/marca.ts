@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { MAX_REFERENCIAS } from '../../comum/estudio';
-import { chamarApi, enviar, mensagemDeErro, subirArquivo } from '../apoio';
+import { chamarApi, enviar, gesto, mensagemDeErro, subirArquivo } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -37,6 +37,20 @@ export class PcTelaMarca extends LitElement {
   @state() private refazendo = false;
   /** Troca a cada envio de referência: o seletor volta vazio (ele também avisa quando um arquivo sai da lista). */
   @state() private seletorRefs = 0;
+  /**
+   * A conta em que a tela nasceu (a troca de conta a recria). Toda continuação passa por `vida.esperar`:
+   * trocada a conta em qualquer await (diálogo aberto, laço de envios), o gesto termina em silêncio.
+   */
+  private readonly vida = gesto();
+
+  /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
+  private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
+  }
 
   connectedCallback() {
     super.connectedCallback();
@@ -46,8 +60,9 @@ export class PcTelaMarca extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.marca = await chamarApi('/estudio/marca');
+      this.marca = await this.vida.esperar(chamarApi('/estudio/marca'));
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.falha = (e as Error).message;
     }
   }
@@ -55,20 +70,27 @@ export class PcTelaMarca extends LitElement {
   /** Salvar devolve a marca e diz se o que está no ar acompanhou (`vitrine_desatualizada`). */
   private async acao(fn: () => Promise<Marca>, sucesso: string) {
     try {
-      const r = await fn();
+      const r = await this.vida.esperar(fn());
       this.marca = r;
       // Só uma resposta que ressincronizou muda o alerta; sem o campo (logo), ele fica como está.
       if (r.vitrine_desatualizada === true) this.desatualizada = true;
       else if (r.vitrine_desatualizada === false) this.desatualizada = false;
       urbiVerso.notificar(sucesso, 'sucesso');
+      return true;
     } catch (e) {
+      if (this.vida.encerrado(e)) return false;
       await urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      return false;
     }
   }
 
-  private async editar() {
+  private editar() {
+    return this.semAvisoDeOutraConta(() => this.editarNaConta());
+  }
+
+  private async editarNaConta() {
     const m = this.marca!;
-    const v = await urbiVerso.formulario({
+    const v = await this.vida.esperar(urbiVerso.formulario({
       titulo: 'Sua marca',
       campos: [
         { nome: 'cor_primaria', tipo: 'texto', rotulo: 'Cor principal (#RRGGBB)', obrigatorio: true, valor: m.cor_primaria },
@@ -76,7 +98,7 @@ export class PcTelaMarca extends LitElement {
         { nome: 'estilo', tipo: 'selecao', rotulo: 'Estilo', opcoes: ESTILOS, valor: m.estilo },
         { nome: 'assinatura', tipo: 'texto', rotulo: 'Assinatura curta (opcional)', valor: m.assinatura ?? '', placeholder: 'Ex.: Seu corretor no Lago Sul' },
       ],
-    });
+    }));
     if (v) await this.acao(() => enviar('PUT', '/estudio/marca', v), 'Marca salva.');
   }
 
@@ -84,11 +106,12 @@ export class PcTelaMarca extends LitElement {
   private async refazer() {
     this.refazendo = true;
     try {
-      const r: Marca = await enviar('POST', '/estudio/marca/republicar');
+      const r: Marca = await this.vida.esperar(enviar('POST', '/estudio/marca/republicar'));
       this.marca = r;
       this.desatualizada = !!r.vitrine_desatualizada;
       if (!this.desatualizada) urbiVerso.notificar('Página, seleções e portais atualizados.', 'sucesso');
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.refazendo = false;
@@ -98,7 +121,10 @@ export class PcTelaMarca extends LitElement {
   private async enviarArquivo(tipo: 'logo' | 'foto', e: CustomEvent) {
     const f = ((e.detail.arquivos as File[]) ?? [])[0];
     if (!f) return;
-    await this.acao(async () => enviar('POST', '/estudio/marca/arquivos', { tipo, upload_id: await subirArquivo('marca_arquivos', 'arquivo', f) }), tipo === 'logo' ? 'Logo salvo.' : 'Foto salva.');
+    await this.acao(
+      async () => enviar('POST', '/estudio/marca/arquivos', { tipo, upload_id: await this.vida.esperar(subirArquivo('marca_arquivos', 'arquivo', f)) }),
+      tipo === 'logo' ? 'Logo salvo.' : 'Foto salva.',
+    );
   }
 
   /** Referências somam (até o limite), uma por arquivo escolhido. */
@@ -109,17 +135,23 @@ export class PcTelaMarca extends LitElement {
       if (livres <= 0) await urbiVerso.alertar({ titulo: 'Limite de referências', mensagem: `Até ${MAX_REFERENCIAS}. Tire uma antes de enviar outra.`, tipo: 'alerta' });
       return;
     }
+    // Cada passo do laço confere a conta: trocada no meio, nenhum envio mais sai (com o `X-Conta` da nova).
     await this.acao(async () => {
       let r: Marca = this.marca!;
-      for (const f of arquivos) r = await enviar('POST', '/estudio/marca/arquivos', { tipo: 'referencia', upload_id: await subirArquivo('marca_arquivos', 'arquivo', f) });
+      for (const f of arquivos) {
+        const upload_id = await this.vida.esperar(subirArquivo('marca_arquivos', 'arquivo', f));
+        r = await this.vida.esperar(enviar('POST', '/estudio/marca/arquivos', { tipo: 'referencia', upload_id }));
+      }
       return r;
     }, arquivos.length > 1 ? 'Referências salvas.' : 'Referência salva.');
-    this.seletorRefs++;
+    if (this.vida.vivo()) this.seletorRefs++;
   }
 
-  private async tirarReferencia(id: number) {
-    const ok = await urbiVerso.confirmar({ titulo: 'Tirar referência', mensagem: 'A imagem sai das suas referências.', rotuloConfirmar: 'Tirar', perigo: true });
-    if (ok) await this.acao(() => enviar('PATCH', `/estudio/marca/arquivos/${id}/remover`), 'Referência tirada.');
+  private tirarReferencia(id: number) {
+    return this.semAvisoDeOutraConta(async () => {
+      const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Tirar referência', mensagem: 'A imagem sai das suas referências.', rotuloConfirmar: 'Tirar', perigo: true }));
+      if (ok) await this.acao(() => enviar('PATCH', `/estudio/marca/arquivos/${id}/remover`), 'Referência tirada.');
+    });
   }
 
   render() {

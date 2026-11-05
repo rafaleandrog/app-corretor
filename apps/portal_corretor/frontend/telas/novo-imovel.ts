@@ -19,6 +19,7 @@ import {
   enviar,
   filtrosDaUrl,
   filtrosNaUrl,
+  gesto,
   mensagemDeErro,
   opcoes,
   reais,
@@ -125,8 +126,13 @@ function tipoDoArquivo(f: File): 'foto' | 'video' | 'documento' {
 /**
  * O estado do Novo imóvel, compartilhado pelas três colunas (cada uma é um elemento da moldura). Quem
  * muda chama `mudou()`, e as três se redesenham.
+ *
+ * O estado é da conta em que a tela nasceu (`vida`, um gesto de apoio.ts): a troca de conta recria a tela
+ * e um estado novo; toda continuação deste passa por `esperar`. Trocada a conta em qualquer await, o
+ * que vinha depois (novo envio, aviso, alerta, URL, ida à ficha) não acontece: termina em silêncio.
  */
 class NovoImovel extends EventTarget {
+  private readonly vida = gesto();
   id: number | null = null;
   passo: PassoNovoImovel = 'fotos';
   ficha: Ficha | null = null;
@@ -145,11 +151,29 @@ class NovoImovel extends EventTarget {
   onde: 'so_voce' | 'publico' = 'so_voce';
 
   mudou() {
-    if (this === atual) canal.dispatchEvent(new Event('mudou'));
+    if (this === atual && this.vida.vivo()) canal.dispatchEvent(new Event('mudou'));
+  }
+
+  /** Espera `passo` só enquanto a conta é a deste estado; senão lança `ContaTrocada`. */
+  private esperar<T>(passo: T | PromiseLike<T>): Promise<T> {
+    return this.vida.esperar(passo);
+  }
+
+  /** Roda um gesto que não passa por `tentar`: conta trocada no meio termina em silêncio. */
+  private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
   }
 
   /** Entrada na tela: lê `?item=` e `?passo=`; um rascunho é relido do servidor. */
-  async abrir() {
+  abrir() {
+    return this.semAvisoDeOutraConta(() => this.abrirNaConta());
+  }
+
+  private async abrirNaConta() {
     const q = filtrosDaUrl();
     const item = Number(q.get('item')) || null;
     const pedido = passoValido(q.get('passo'));
@@ -165,7 +189,7 @@ class NovoImovel extends EventTarget {
     this.id = item;
     this.carregando = true;
     this.mudou();
-    await this.recarregar();
+    await this.reler();
     this.carregando = false;
     if (this.ficha) {
       this.passo =
@@ -177,12 +201,20 @@ class NovoImovel extends EventTarget {
     this.mudou();
   }
 
-  /** Relê a ficha; os dados do formulário só são trocados quando não há edição por salvar. */
-  async recarregar() {
+  /** Relê a ficha (o [Tentar de novo] e o fim dos gestos); conta trocada no meio: em silêncio. */
+  recarregar() {
+    return this.semAvisoDeOutraConta(() => this.reler());
+  }
+
+  /**
+   * Relê a ficha; os dados do formulário só são trocados quando não há edição por salvar. Dentro de uma
+   * cadeia: com a conta trocada, lança `ContaTrocada` e o resto da cadeia não roda.
+   */
+  private async reler() {
     if (!this.id) return;
     this.falha = null;
     try {
-      this.ficha = await chamarApi(`/imoveis/${this.id}`);
+      this.ficha = await this.esperar(chamarApi(`/imoveis/${this.id}`));
       if (!this.sujo) this.form = doImovel(this.ficha!.imovel);
       this.sugerirDasFotos();
       void chamarApi(`/imoveis/${this.id}/contexto`).then(
@@ -190,6 +222,7 @@ class NovoImovel extends EventTarget {
         () => undefined,
       );
     } catch (e) {
+      if (this.vida.encerrado(e)) throw e;
       this.falha = e;
     }
     this.mudou();
@@ -251,11 +284,11 @@ class NovoImovel extends EventTarget {
     if (this.id) return this.id;
     const faltam = this.faltamObrigatorios();
     if (faltam.length) throw new Error(`Para guardar o rascunho, preencha: ${faltam.join(' e ').toLowerCase()}.`);
-    const criado = await enviar('POST', '/imoveis', this.corpo());
+    const criado = await this.esperar(enviar('POST', '/imoveis', this.corpo()));
     this.id = criado.id;
     this.sujo = false;
     this.naUrl();
-    await this.recarregar();
+    await this.reler();
     return this.id!;
   }
 
@@ -266,20 +299,24 @@ class NovoImovel extends EventTarget {
       return;
     }
     if (!this.sujo) return;
-    await enviar('PATCH', `/imoveis/${this.id}`, this.corpo());
+    await this.esperar(enviar('PATCH', `/imoveis/${this.id}`, this.corpo()));
     this.sujo = false;
-    await this.recarregar();
+    await this.reler();
   }
 
-  /** Executa com o aviso de ocupado; falha vira alerta e devolve `false`. */
+  /**
+   * Executa com o aviso de ocupado; falha vira alerta e devolve `false`. Conta trocada no meio (ou com a
+   * última requisição em voo) também devolve `false`, sem alerta: quem chamou não avisa nem navega.
+   */
   async tentar(rotulo: string, titulo: string, fn: () => Promise<unknown>): Promise<boolean> {
-    if (this.ocupado) return false;
+    if (this.ocupado || !this.vida.vivo()) return false;
     this.ocupado = rotulo;
     this.mudou();
     try {
-      await fn();
+      await this.esperar(fn());
       return true;
     } catch (e) {
+      if (this.vida.encerrado(e)) return false;
       await urbiVerso.alertar({ titulo, mensagem: mensagemDeErro(e), tipo: 'erro' });
       return false;
     } finally {
@@ -341,7 +378,11 @@ class NovoImovel extends EventTarget {
   }
 
   /** Fotos: envia uma a uma, pede a leitura da IA (se ligada) e, com ela, a ordem sugerida (capa primeiro). */
-  async enviarFotos(arquivos: File[]) {
+  enviarFotos(arquivos: File[]) {
+    return this.semAvisoDeOutraConta(() => this.enviarFotosNaConta(arquivos));
+  }
+
+  private async enviarFotosNaConta(arquivos: File[]) {
     if (!arquivos.length || this.ocupado) return;
     const recusados: string[] = [];
     let enviadas = 0;
@@ -354,10 +395,11 @@ class NovoImovel extends EventTarget {
         this.ocupado = `Enviando ${i + 1} de ${arquivos.length}…`;
         this.mudou();
         try {
-          const upload_id = await subirArquivo('imovel_midias', 'arquivo', f);
-          novas.push(await enviar('POST', `/imoveis/${this.id}/midias`, { upload_id, tipo: tipoDoArquivo(f) }));
+          const upload_id = await this.esperar(subirArquivo('imovel_midias', 'arquivo', f));
+          novas.push(await this.esperar(enviar('POST', `/imoveis/${this.id}/midias`, { upload_id, tipo: tipoDoArquivo(f) })));
           enviadas++;
         } catch (e) {
+          if (this.vida.encerrado(e)) throw e;
           recusados.push(`${f.name}: ${mensagemDeErro(e)}`);
         }
       }
@@ -366,18 +408,17 @@ class NovoImovel extends EventTarget {
         for (const [i, m] of fotos.entries()) {
           this.ocupado = `A IA está lendo as fotos (${i + 1} de ${fotos.length})…`;
           this.mudou();
-          await enviar('POST', `/imoveis/${this.id}/midias/${m.id}/analisar`, {}).catch(() => undefined); // a leitura é bônus
+          await this.esperar(enviar('POST', `/imoveis/${this.id}/midias/${m.id}/analisar`, {}).catch(() => undefined)); // a leitura é bônus
         }
         if (fotos.length) {
-          await enviar('POST', `/imoveis/${this.id}/midias/ordem-sugerida`, {}).then(
-            () => (this.capaSugerida = true),
-            () => undefined,
-          );
+          const ordenou = await this.esperar(enviar('POST', `/imoveis/${this.id}/midias/ordem-sugerida`, {}).then(() => true, () => false));
+          if (ordenou) this.capaSugerida = true;
         }
       }
     } finally {
       this.ocupado = null;
-      await this.recarregar();
+      // Com a conta trocada, não relê: a exceção `ContaTrocada` segue e o gesto termina em silêncio.
+      if (this.vida.vivo()) await this.reler();
     }
     if (recusados.length) await urbiVerso.alertar({ titulo: 'Alguns arquivos não foram enviados', mensagem: recusados.join('\n'), tipo: 'alerta' });
     else if (enviadas) urbiVerso.notificar(`${enviadas} foto(s) enviada(s).`, 'sucesso');
@@ -387,26 +428,28 @@ class NovoImovel extends EventTarget {
   async usarComoCapa(m: Linha) {
     const todas = this.ficha!.midias;
     const ids = [m.id, ...todas.filter((x) => x.id !== m.id).map((x) => x.id)];
-    const ok = await this.tentar('Mudando a capa…', 'Não foi possível mudar a capa', () => enviar('PUT', `/imoveis/${this.id}/midias/ordem`, { ids }));
+    const ok = await this.tentar('Mudando a capa…', 'Não foi possível mudar a capa', () => this.esperar(enviar('PUT', `/imoveis/${this.id}/midias/ordem`, { ids })));
     if (ok) {
       this.capaSugerida = false;
       await this.recarregar();
     }
   }
 
-  async apagarFoto(m: Linha) {
-    const sim = await urbiVerso.confirmar({ titulo: 'Apagar foto', mensagem: 'A foto é apagada de vez.', rotuloConfirmar: 'Apagar', perigo: true });
-    if (!sim) return;
-    const ok = await this.tentar('Apagando…', 'Não foi possível apagar', () => enviar('PATCH', `/imoveis/${this.id}/midias/${m.id}/remover`, {}));
-    if (ok) await this.recarregar();
+  apagarFoto(m: Linha) {
+    return this.semAvisoDeOutraConta(async () => {
+      const sim = await this.esperar(urbiVerso.confirmar({ titulo: 'Apagar foto', mensagem: 'A foto é apagada de vez.', rotuloConfirmar: 'Apagar', perigo: true }));
+      if (!sim) return;
+      const ok = await this.tentar('Apagando…', 'Não foi possível apagar', () => enviar('PATCH', `/imoveis/${this.id}/midias/${m.id}/remover`, {}));
+      if (ok) await this.reler();
+    });
   }
 
   /** Autorização: o documento assinado entra como arquivo interno do imóvel. */
   async anexarDocumento(arquivo: File | null) {
     if (!arquivo || !this.id) return;
     const ok = await this.tentar('Enviando o documento…', 'Não foi possível enviar o documento', async () => {
-      const upload_id = await subirArquivo('imovel_midias', 'arquivo', arquivo);
-      await enviar('POST', `/imoveis/${this.id}/midias`, { upload_id, tipo: 'documento' });
+      const upload_id = await this.esperar(subirArquivo('imovel_midias', 'arquivo', arquivo));
+      await this.esperar(enviar('POST', `/imoveis/${this.id}/midias`, { upload_id, tipo: 'documento' }));
     });
     if (ok) {
       urbiVerso.notificar('Documento anexado. Ele fica interno, fora do anúncio.', 'sucesso');
@@ -414,13 +457,18 @@ class NovoImovel extends EventTarget {
     }
   }
 
-  async registrarAutorizacao() {
-    if (!this.ficha) return;
-    if (await registrarAutorizacao(this.ficha.imovel)) await this.recarregar();
+  // A autorização tem os próprios diálogos (autorizacao-venda.ts); aqui, a releitura depois só se a conta é a mesma.
+  registrarAutorizacao() {
+    return this.semAvisoDeOutraConta(async () => {
+      if (!this.ficha) return;
+      if (await this.esperar(registrarAutorizacao(this.ficha.imovel))) await this.reler();
+    });
   }
 
-  async marcarAssinada(a: Linha) {
-    if (await marcarAssinada(a, this.ficha!.midias, 'aqui mesmo, em "Anexar o documento assinado",')) await this.recarregar();
+  marcarAssinada(a: Linha) {
+    return this.semAvisoDeOutraConta(async () => {
+      if (await this.esperar(marcarAssinada(a, this.ficha!.midias, 'aqui mesmo, em "Anexar o documento assinado",'))) await this.reler();
+    });
   }
 
   escolherOnde(onde: 'so_voce' | 'publico') {
@@ -442,9 +490,9 @@ class NovoImovel extends EventTarget {
       await this.garantirRascunho();
       const im = this.ficha!.imovel;
       if (this.onde === 'publico') {
-        await enviar('PATCH', `/imoveis/${this.id}`, { ...(['ativo', 'reservado'].includes(im.situacao) ? {} : { situacao: 'ativo' }), publicado_pagina: true });
+        await this.esperar(enviar('PATCH', `/imoveis/${this.id}`, { ...(['ativo', 'reservado'].includes(im.situacao) ? {} : { situacao: 'ativo' }), publicado_pagina: true }));
       } else if (im.publicado_pagina) {
-        await enviar('PATCH', `/imoveis/${this.id}`, { publicado_pagina: false });
+        await this.esperar(enviar('PATCH', `/imoveis/${this.id}`, { publicado_pagina: false }));
       }
     });
     if (!ok) return;

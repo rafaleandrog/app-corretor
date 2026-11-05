@@ -112,7 +112,7 @@ export const assistenteAberto = () => conversa.aberto;
 
 /**
  * Sonda sem custo do slot, a cada abertura de `abrirAssistente`: uma falha passageira não fica presa, a próxima
- * abertura sonda de novo. Trocar de conta com o painel aberto não sonda de novo. Só a resposta mais recente vale.
+ * abertura sonda de novo. Trocar de conta com o painel aberto sonda de novo (`contaDoAssistente`), e a sonda da conta anterior é descartada. Só a resposta mais recente vale.
  */
 let sondaSeq = 0;
 function sondarIa() {

@@ -57,7 +57,9 @@ link direto, e recarregar a tela volta à mesma seção. Os endereços antigos c
 ## Trocar de conta
 
 Quem atende mais de uma conta escolhe em qual está no seletor **Conta**, no topo do app. Quem atende
-uma conta só não vê seletor; se a equipe da plataforma trocar a sua conta, o app percebe sozinho.
+uma conta só não vê seletor; se a equipe da plataforma trocar a sua conta, a troca passa a valer na tela
+quando a plataforma recarrega os seus dados de acesso, o que acontece ao navegar de novo para o app (por
+exemplo, ao trocar de tela pelo menu) ou ao reabrir a página, e não no instante em que a equipe muda a conta.
 
 Nos dois casos, a tela em que você está abre de novo, do zero, já na conta nova: nada da conta
 anterior (lista, ficha aberta, contagens do Funil, rascunho do Novo imóvel, textos da Página, números)

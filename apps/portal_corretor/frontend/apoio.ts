@@ -65,10 +65,91 @@ export function contaDeTrabalho(): number | null {
 }
 
 export function escolherConta(id: number) {
+  observarConta();
   try {
     localStorage.setItem(CHAVE_CONTA, String(id));
   } catch {
     /* só não lembra da escolha */
+  }
+  observarConta();
+}
+
+// ---------- Gesto: continuação assíncrona de conta antiga termina em silêncio (issue #144) ----------
+//
+// Um GESTO é o que o usuário dispara de uma vez (um clique que abre diálogo, uma carga auxiliar, um laço
+// de envios, uma cadeia de awaits). Ele pertence à conta de trabalho em que começou. Se, em qualquer
+// await, a conta passou a ser outra (o seletor, ou a conta única trocada pelo shell), o gesto termina em
+// SILÊNCIO: não envia nova escrita, não grava estado nem tela, não avisa (sucesso ou erro) e não navega.
+// É o padrão do Estúdio (`esperar`/`vivo`, estudio.ts), sem a instância: a vida do gesto é a ÉPOCA da
+// conta, que avança a cada troca observada. Por época, e não só pelo id da conta, uma ida e volta A → B
+// → A no meio do gesto também o encerra.
+
+let epocaDaConta = 0;
+let contaVista: number | null | undefined;
+
+/** Lê a conta de trabalho; mudou desde a última leitura, a época avança. Devolve a época vigente. */
+function observarConta(): number {
+  let conta: number | null = null;
+  try {
+    conta = contaDeTrabalho();
+  } catch {
+    /* sem contexto (fora do shell): conta nenhuma */
+  }
+  if (contaVista !== undefined && conta !== contaVista) epocaDaConta++;
+  contaVista = conta;
+  return epocaDaConta;
+}
+
+// A troca da conta única pelo shell chega por este evento; a do seletor passa por `escolherConta`.
+// Assim a época avança mesmo sem nenhum gesto conferindo no meio da troca.
+if (typeof window !== 'undefined') window.addEventListener?.('urbi:contexto-app', () => void observarConta());
+
+/** A conta mudou no meio do gesto: a continuação para aqui, em silêncio. */
+export class ContaTrocada extends Error {
+  constructor() {
+    super('conta_trocada');
+    this.name = 'ContaTrocada';
+  }
+}
+
+export interface Gesto {
+  /** A conta de trabalho ainda é a do início do gesto (nenhuma troca desde então). */
+  vivo(): boolean;
+  /** Espera `passo` e devolve o resultado (ou o erro) só se o gesto segue vivo; senão lança `ContaTrocada`. */
+  esperar<T>(passo: T | PromiseLike<T>): Promise<T>;
+  /** O erro é do gesto encerrado (ou o gesto já não vive): não vira aviso na tela. */
+  encerrado(e: unknown): boolean;
+}
+
+/** Começa um gesto na conta de trabalho de agora. */
+export function gesto(): Gesto {
+  const minha = observarConta();
+  const vivo = () => observarConta() === minha;
+  return {
+    vivo,
+    async esperar<T>(passo: T | PromiseLike<T>): Promise<T> {
+      let r: T;
+      try {
+        r = await passo;
+      } catch (e) {
+        if (!vivo()) throw new ContaTrocada();
+        throw e;
+      }
+      if (!vivo()) throw new ContaTrocada();
+      return r;
+    },
+    encerrado: (e) => e instanceof ContaTrocada || !vivo(),
+  };
+}
+
+/** Roda `fn` num gesto novo. Conta trocada no meio: termina em silêncio e devolve `undefined`. */
+export async function noGesto<T>(fn: (g: Gesto) => Promise<T>): Promise<T | undefined> {
+  const g = gesto();
+  try {
+    return await fn(g);
+  } catch (e) {
+    if (g.encerrado(e)) return undefined;
+    throw e;
   }
 }
 
@@ -97,22 +178,31 @@ export function mensagemDeErro(e: unknown): string {
   return falha.detalhes?.length ? falha.detalhes.join('\n') : falha.message;
 }
 
-/** Abre o formulário, envia e avisa. Devolve a resposta, ou `null` se cancelou ou falhou. */
+/**
+ * Abre o formulário, envia e avisa. Devolve a resposta, ou `null` se cancelou, falhou ou a conta mudou
+ * no meio (aí em silêncio).
+ */
 export async function formularioEnviar(
   titulo: string,
   campos: CampoFormulario[],
   metodo: 'POST' | 'PUT' | 'PATCH',
   rota: string,
   ajustar: (v: Record<string, unknown>) => unknown = (v) => v,
-  opcoes: { mensagem?: string; rotuloConfirmar?: string } = {},
+  opcoes: { mensagem?: string; rotuloConfirmar?: string; gesto?: Gesto } = {},
 ) {
-  const valores = await urbiVerso.formulario({ titulo, campos, ...opcoes });
-  if (!valores) return null;
+  // O gesto de quem chamou (que pode ter esperado antes de abrir o formulário), ou um novo.
+  const { gesto: doChamador, ...doFormulario } = opcoes;
+  const g = doChamador ?? gesto();
   try {
-    const r = await enviar(metodo, rota, ajustar(valores));
+    if (!g.vivo()) return null;
+    const valores = await g.esperar(urbiVerso.formulario({ titulo, campos, ...doFormulario }));
+    if (!valores) return null;
+    const r = await g.esperar(enviar(metodo, rota, ajustar(valores)));
     urbiVerso.notificar('Salvo.', 'sucesso');
     return r ?? {};
   } catch (e) {
+    // Conta trocada com o formulário aberto ou o envio em voo: nada é gravado nem avisado na outra.
+    if (g.encerrado(e)) return null;
     await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     return null;
   }
