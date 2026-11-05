@@ -134,6 +134,11 @@ window.coluna = (tag) => {
   return [window.profundo(el), ...listas].join(' | ');
 };
 window.disparar = (no, tipo, detail) => no.dispatchEvent(new CustomEvent(tipo, { detail, bubbles: true, composed: true }));
+// Rodapé do passo: os botões do último filho do urbi-stack do centro, com o estado de cada um.
+window.rodape = () => {
+  const stack = document.querySelector('pc-novo-imovel-passo')?.shadowRoot?.querySelector('urbi-stack');
+  return [...(stack?.lastElementChild?.querySelectorAll('urbi-botao') ?? [])].map((b) => b.textContent.trim() + (b.hasAttribute('desabilitado') ? ' [desabilitado]' : ''));
+};
 window.botao = (texto) => window.todos('urbi-botao').find((b) => b.textContent.trim().startsWith(texto));
 `;
 
@@ -183,6 +188,36 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     assert.equal(inicio.travado, true, 'sem tipo e cidade, as fotos não têm onde ficar');
     assert.equal(inicio.estilos, 0, 'sem CSS próprio');
 
+    // Estrutura (moldura.ts:116-128): urbi-inbox > urbi-3-colunas[slot=detalhe] > 3 urbi-hospedeiro[expandir] nos slots
+    // esquerda, centro e direita, nessa ordem, cada um com a sua coluna; o celular abre no centro (painel-ativo, M3).
+    const estrutura = await pagina.evaluate(() => {
+      const q = (s: string) => document.querySelector(s);
+      const tres = q('#raiz > urbi-inbox > urbi-3-colunas[slot="detalhe"]') as HTMLElement;
+      const filhos = [...(tres?.children ?? [])];
+      const hosp = (slot: string) => q(`urbi-3-colunas > urbi-hospedeiro[slot="${slot}"][expandir]`) as HTMLElement | null;
+      // Medida: os `urbi-*` não estão registrados aqui (inline, sem layout de colunas: o `left` fica igual nos três),
+      // então o estável é: nenhuma coluna sobe acima da anterior (top não decrescente), a ordem no DOM e o `left` dentro do viewport.
+      const caixas = ['esquerda', 'centro', 'direita'].map((s) => hosp(s)?.getBoundingClientRect());
+      const lefts = caixas.map((c) => c?.left ?? NaN);
+      const tops = caixas.map((c) => c?.top ?? NaN);
+      return {
+        filhos: filhos.map((f) => `${f.localName}[${f.getAttribute('slot')}]`),
+        colunas: ['esquerda', 'centro', 'direita'].map((s) => hosp(s)?.firstElementChild?.localName),
+        painel: tres?.getAttribute('painel-ativo'),
+        rotulos: ['label-esquerda', 'label-centro', 'label-direita'].map((a) => tres?.getAttribute(a)),
+        tops, crescente: tops.every((t, i) => Number.isFinite(t) && (i === 0 || t >= tops[i - 1])) &&
+          [hosp('esquerda'), hosp('centro'), hosp('direita')].every((h, i, a) => i === 0 || !!(a[i - 1]!.compareDocumentPosition(h!) & Node.DOCUMENT_POSITION_FOLLOWING)),
+        dentro: lefts.every((l) => l >= 0 && l < window.innerWidth),
+      };
+    });
+    assert.deepEqual(estrutura.filhos, ['urbi-hospedeiro[esquerda]', 'urbi-hospedeiro[centro]', 'urbi-hospedeiro[direita]']);
+    assert.deepEqual(estrutura.colunas, ['pc-novo-imovel-passos', 'pc-novo-imovel-passo', 'pc-novo-imovel-qualidade']);
+    assert.equal(estrutura.painel, 'centro', 'o celular abre no centro');
+    assert.deepEqual(estrutura.rotulos, ['Passos', 'Novo imóvel', 'Qualidade']);
+    assert.equal(estrutura.crescente, true, 'esquerda, centro e direita na ordem, medidas no viewport de desktop');
+    assert.equal(estrutura.dentro, true, 'as três colunas começam dentro do viewport');
+    assert.deepEqual(await ev(`rodape()`), ['Voltar [desabilitado]', 'Salvar rascunho', 'Próximo: dados'], 'passo 1: sem volta');
+
     // Tipo e cidade liberam as fotos; a primeira foto cria o rascunho, a IA lê e sugere a capa.
     await ev(`(() => {
       disparar(todos('urbi-select')[0], 'urbi:select-change', { valor: 'casa' });
@@ -216,6 +251,7 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     assert.equal(dados.rotulo, 'Características (separe por vírgula) · preenchido pela IA');
     assert.equal(dados.valor, 'varanda');
     assert.equal(dados.url, '?item=7&passo=dados');
+    assert.deepEqual(await ev(`rodape()`), ['Voltar', 'Salvar rascunho', 'Próximo: autorização'], 'passo 2: Voltar habilitado');
     await ev(`disparar(todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade'), 'urbi:input-change', { valor: '' })`);
     await espera();
     assert.equal(await ev(`todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade').getAttribute('erro')`), 'Obrigatório');
@@ -233,6 +269,7 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
       return { centro: w.coluna('pc-novo-imovel-passo'), patch: w.chamadas.includes('PATCH /imoveis/7'), banco: w.banco.imovel };
     });
     assert.match(autorizacao.centro, /Autorização Passo 3 de 4/);
+    assert.deepEqual(await ev(`rodape()`), ['Voltar', 'Salvar rascunho', 'Próximo: onde aparece'], 'passo 3');
     assert.match(autorizacao.centro, /Opcional para o rascunho/);
     assert.equal(autorizacao.patch, true);
     assert.equal(autorizacao.banco.quartos, 4);
@@ -245,6 +282,7 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     await espera();
     const onde = await ev(`coluna('pc-novo-imovel-passo')`);
     assert.match(onde, /Onde aparece Passo 4 de 4/);
+    assert.deepEqual(await ev(`rodape()`), ['Voltar', 'Salvar rascunho', 'Concluir'], 'passo 4: Concluir no lugar do Próximo');
     assert.match(onde, /Só você · escolhido/);
     assert.match(onde, /Precisa da autorização assinada e vigente/);
     await ev(`botao('Concluir').click()`);
