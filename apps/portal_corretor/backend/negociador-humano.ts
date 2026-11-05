@@ -169,7 +169,7 @@ negociadorHumanoRotas.post(
     // Só quem aceitou o convite DESTA conta: o negociador de outra conta é "não encontrado".
     if (!pessoa) return erro(res, 404, 'NEGOCIADOR_NAO_ENCONTRADO', 'Negociador não encontrado nesta conta. Convide a pessoa em Ajustes › Negociador.');
     if (!pessoa.tem_papel) {
-      return erro(res, 409, 'NEGOCIADOR_SEM_PAPEL', 'Esta pessoa aceitou o convite, mas ainda não tem o papel negociador. Peça ao administrador do app para atribuí-lo em Configurações › Usuários.');
+      return erro(res, 409, 'NEGOCIADOR_SEM_PAPEL', 'Esta pessoa aceitou o convite, mas ainda não tem o papel negociador ou perdeu o acesso ao app. Peça ao administrador do app para conferir em Configurações › Usuários.');
     }
     const resultado = await dados.transaction(async (trx) => {
       // Trava a negociação: duas atribuições ao mesmo tempo não deixam duas ativas.
