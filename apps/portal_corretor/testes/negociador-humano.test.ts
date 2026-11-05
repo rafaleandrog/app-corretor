@@ -92,6 +92,7 @@ function shellFalso(falha?: { codigo: string; status?: number }) {
     convites,
     revogados,
     listarUsuariosPorRole: async (role: string) => (role === 'negociador' ? [5, 6] : []),
+    nivelEfetivoUsuario: async () => 'escrita',
     externos: {
       convidar: async (o: Record<string, unknown>) => {
         chamadas.push(o);

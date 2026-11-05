@@ -1,4 +1,5 @@
 import '@urbiverso/sdk/express';
+import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { MARCO_PADRAO } from '../comum/funil';
@@ -32,31 +33,48 @@ async function tarefaDoCorretor(dados: HelperDados, conta: number | undefined, c
 const tituloMandato = (codigo: unknown) => `O Negociador entrou na ${codigo ?? 'negociação'}: defina o mandato`;
 
 /** A etapa é a "Proposta" do funil de compra (pelo marco; etapa sem marco, pelo nome padrão). */
-export const ehEtapaProposta = (etapa: Linha | null | undefined) =>
+const ehEtapaProposta = (etapa: Linha | null | undefined) =>
   !!etapa && etapa.pipeline === 'compra' && (etapa.marco ?? MARCO_PADRAO[etapa.nome] ?? null) === 'proposta';
 
 /**
- * Gatilho `etapa_proposta`, na rota que muda a etapa do negócio. Com a caixa marcada, o Negociador
- * ligado, o negócio de compra com imóvel e sem negociação em andamento, a negociação nasce. Devolve o
- * que a tela precisa para avisar o corretor (código e quem conduz), ou `null`. Nunca derruba a mudança
- * de etapa: falha aqui fica no log e o corretor abre a negociação à mão, como antes.
+ * Gatilho `etapa_proposta`, nas rotas que põem o negócio numa etapa: a mudança de etapa e a criação
+ * (o funil cuja primeira etapa em andamento é a Proposta). Com a caixa marcada, o Negociador ligado, o
+ * negócio de compra com imóvel e sem negociação em andamento, a negociação nasce. Devolve o que a tela
+ * precisa para avisar o corretor (código e quem conduz), ou `null`. Nunca derruba a gravação do
+ * negócio: falha aqui fica no log e o corretor abre a negociação à mão, como antes.
+ *
+ * A negociação, a atribuição (padrão humano) e a tarefa do mandato nascem juntas, numa transação, ou
+ * nenhuma nasce. O que vem depois do commit (evento, portal, aviso direto) é melhor esforço e não
+ * esconde da tela a negociação que já existe.
  */
 export async function entrarPelaEtapaProposta(req: Request, negocio: Linha, etapa: Linha | null) {
+  let criada: Linha;
   try {
     if (!ehEtapaProposta(etapa) || negocio.pipeline !== 'compra' || !negocio.imovel_id) return null;
     const dados = req.dados!;
     const config = await configDaConta(dados);
     if (!gatilhoLigado(config, 'etapa_proposta')) return null;
     const conducao = await conducaoNova(req.shell, contaDoRequest(req), config);
-    const r = await criarNegociacao(dados, { negocio, imovelId: Number(negocio.imovel_id), conducao, atribuidaPor: req.contexto?.usuario.id ?? null, tentativas: 5 });
+    const r = await criarNegociacao(dados, {
+      negocio,
+      imovelId: Number(negocio.imovel_id),
+      conducao,
+      atribuidaPor: req.contexto?.usuario.id ?? null,
+      tentativas: 5,
+      aoGravar: (h, n) => tarefaDoCorretor(h, undefined, Number(negocio.contato_id), negocio.responsavel_id, tituloMandato(n.codigo)),
+    });
     if (!('negociacao' in r)) return null;
-    await depoisDeCriar(req, r.negociacao);
-    await tarefaDoCorretor(dados, undefined, Number(negocio.contato_id), negocio.responsavel_id, tituloMandato(r.negociacao.codigo));
-    return { negociacao_id: Number(r.negociacao.id), codigo: String(r.negociacao.codigo), conduzida_por: String(r.negociacao.conduzida_por) };
+    criada = r.negociacao;
   } catch (e) {
     console.warn(`[portal_corretor] Negociador não entrou pela etapa Proposta (negócio ${negocio.id}): ${(e as Error).message}`);
     return null;
   }
+  try {
+    await depoisDeCriar(req, criada);
+  } catch (e) {
+    console.warn(`[portal_corretor] depois de abrir a negociação ${criada.id}: ${(e as Error).message}`);
+  }
+  return { negociacao_id: Number(criada.id), codigo: String(criada.codigo), conduzida_por: String(criada.conduzida_por) };
 }
 
 /** O que o listener faz depois do commit, quando o Negociador entrou numa negociação. */
@@ -149,19 +167,32 @@ export async function meioDoListener(ctx: ContextoListener, conta: number, respo
 /** Janela em que a mesma mensagem, entregue de novo, não faz o motor rodar outra vez. */
 const JANELA_REPETIDA_MS = 10 * 60_000;
 
+/** A marca da mensagem na negociação: o hash do texto, nunca o texto (que já está na linha do tempo). */
+const marcaDaMensagem = (mensagem: string) => createHash('sha256').update(mensagem).digest('hex');
+
 /**
  * O motor roda sobre a mensagem com fala de preço? Só com o Negociador IA conduzindo, mandato vigente e
- * sem execução da mesma mensagem nos últimos minutos (evento entregue de novo). Lido dentro da transação.
+ * sem a mesma mensagem nos últimos minutos (evento entregue de novo). Dentro da transação do listener,
+ * com a negociação TRAVADA: quem decide rodar grava a marca da mensagem na própria negociação antes do
+ * commit, e uma entrega simultânea da mesma mensagem espera a trava e lê a marca já gravada. A execução
+ * do motor só é gravada depois do commit, por isso ela sozinha não bastava como guarda (ela continua
+ * valendo para a mensagem que já rodou antes da marca existir).
  */
 export async function motorNaMensagem(trx: HelperDados, conta: number, negociacao: Linha, mensagem: string): Promise<boolean> {
-  if (negociacao.conduzida_por !== 'ia' || encerrada(negociacao)) return false;
-  if (negociacao.estado === 'aguardando_proprietario' || negociacao.estado === 'pausada') return false;
-  const mandato = await mandatoVigente(trx, negociacao);
+  const viva = await trx.buscar('negociacoes', Number(negociacao.id), { travar: true });
+  if (!viva || Number(viva.conta_id ?? conta) !== conta) return false;
+  if (viva.conduzida_por !== 'ia' || encerrada(viva)) return false;
+  if (viva.estado === 'aguardando_proprietario' || viva.estado === 'pausada') return false;
+  const mandato = await mandatoVigente(trx, viva);
   const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   if (!mandato || String(mandato.validade).slice(0, 10) < hoje) return false;
   const desde = Date.now() - JANELA_REPETIDA_MS;
-  const recentes = await trx.varrerTudo('negociador_execucoes', { filtros: { conta_id: conta, negociacao_id: Number(negociacao.id) }, ordenar: 'id', ordem: 'desc', maximo: 20 });
-  return !recentes.some((e) => e.mensagem_cliente === mensagem && new Date(e.criado_em).getTime() >= desde);
+  const marca = marcaDaMensagem(mensagem);
+  if (viva.motor_mensagem_hash === marca && viva.motor_mensagem_em && new Date(viva.motor_mensagem_em).getTime() >= desde) return false;
+  const recentes = await trx.varrerTudo('negociador_execucoes', { filtros: { conta_id: conta, negociacao_id: Number(viva.id) }, ordenar: 'id', ordem: 'desc', maximo: 20 });
+  if (recentes.some((e) => e.mensagem_cliente === mensagem && new Date(e.criado_em).getTime() >= desde)) return false;
+  await trx.atualizar('negociacoes', Number(viva.id), { motor_mensagem_hash: marca, motor_mensagem_em: new Date().toISOString() });
+  return true;
 }
 
 /** Roda o motor sobre a mensagem do cliente, depois do commit (a chamada de IA fica fora da transação). */

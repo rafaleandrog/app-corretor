@@ -69,6 +69,7 @@ export const avisoDeAtribuicao = (codigo: string | null | undefined) =>
 /** O aviso da tela quando o negócio chega à Proposta e a negociação nasce (resposta `negociador_entrou`). */
 export function avisoDeEntrada(e: { codigo?: string; conduzida_por?: string } | null | undefined): string | null {
   if (!e?.codigo) return null;
-  const quem = e.conduzida_por === 'humano' ? 'o negociador humano da conta' : e.conduzida_por === 'ia' ? 'o Negociador IA' : 'você';
+  // Só nasce pelo gatilho com o Negociador ligado: quem conduz é a IA ou a pessoa padrão, nunca o corretor.
+  const quem = e.conduzida_por === 'humano' ? 'o negociador humano da conta' : 'o Negociador IA';
   return `A negociação ${e.codigo} foi aberta e quem conduz é ${quem}. Defina o mandato em Negociações para ele agir.`;
 }
