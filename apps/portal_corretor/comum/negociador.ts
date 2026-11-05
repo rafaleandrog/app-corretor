@@ -769,31 +769,40 @@ const LEITURA_MAX = 160;
 //
 // O código de unidade que a leitura padrão consome (#147): "Apto 6A" (ordinal "6ª"), "Apto 6S" (segundos),
 // "Apto 24M" (milhões), "Apto 6X", "Apto 6O". Antes ele passava sem conferência nenhuma, e a gêmea com
-// algarismo ("Fica no apto 64", "a" = 4) podia reter. Agora, logo depois da palavra de endereço, o código
-// de 1 a 3 algarismos seguidos de 1 a 3 letras confere a gêmea (`codigoLidoRetido`): gêmea retida, o
+// algarismo ("Fica no apto 64", "a" = 4) podia reter. Agora, logo depois da palavra de endereço (com
+// espaço, vírgula ou outro sinal entre os dois: `DEPOIS_DO_ENDERECO`), o código de 1 a 3 algarismos seguidos
+// de 1 a 3 letras, ou de "h" e dois algarismos ("Apto 7h15", horário), confere a gêmea (`codigoLidoRetido`,
+// `CODIGO_LIDO`): gêmea retida, o
 // código retém também; gêmea que passa, ele segue passando como antes. Só o lado do critério de
-// equivalência que faltava; nada que passa por outro motivo muda.
+// equivalência que faltava, e só retém a mais: o código retido retém a mensagem inteira, e nela nenhum outro
+// formato é liberado (`liberarFormatosComuns` devolve os trechos como a regra geral os leu); mensagem sem
+// código retido segue exatamente como antes.
 
 /** Palavra de endereço antes do código ("Apto 2B", "Torre B2", "Bloco C1"). */
 const PALAVRA_DE_ENDERECO = String.raw`(?:apto|apartamento|ap|torre|bloco|bl|unidade|casa|sala|loja|conjunto|cj)`;
 /**
  * Logo depois de uma palavra de endereço (o texto até o começo do código), só para conferir a gêmea do
  * código lido (#147): as de `PALAVRA_DE_ENDERECO` e também "apt", "quadra"/"qd", "lote"/"lt", "número"/"nº"/
- * "n.", com ponto, dois-pontos, hífen, "#" ou "nº" entre a palavra e o código ("apto: 6A", "apto nº 6A",
- * "quadra 6A"). Mais largo que o formato liberado de propósito: aqui só se retém a mais, nunca se libera.
+ * "n.". Entre a palavra e o código, qualquer sequência de espaço, quebra de linha e sinal (nada de letra nem
+ * algarismo, salvo "º"/"°"), com um "nº"/"n."/"no"/"número" no meio ou não: "apto 6A", "apto, 6A", "apto;
+ * 6A", "apto: 6A", "apto / 6A", "apto (6A", "apto - 6A", "apto nº 6A", "apto, nº 6A", "quadra 6A". O
+ * separador não muda a gêmea: com vírgula ou com espaço, o código confere a mesma mensagem com algarismo no
+ * lugar dele. Mais largo que o formato liberado de propósito: aqui só se retém a mais, nunca se libera.
  */
+const SEPARADOR_DO_ENDERECO = String.raw`(?:[^\p{L}\p{N}]|[º°])`;
 const DEPOIS_DO_ENDERECO = new RegExp(
-  String.raw`(?<![\p{L}\p{N}])(?:${PALAVRA_DE_ENDERECO}|apt|quadra|qd|lote|lt|numero|num|n)(?:\s*(?:[.:#\-º°]|n[º°o.]))*\s+(?:(?:n|no|nº|n°|numero|num)[.º°]?\s*)?$`,
+  String.raw`(?<![\p{L}\p{N}])(?:${PALAVRA_DE_ENDERECO}|apt|quadra|qd|lote|lt|numero|num|n)(?:${SEPARADOR_DO_ENDERECO}*(?:n[º°o.]?|numero|num)(?![\p{L}\p{N}]))?${SEPARADOR_DO_ENDERECO}*$`,
   'u',
 );
 /** O recorte antes do código em que `DEPOIS_DO_ENDERECO` é procurada. */
 const ANTES_DO_CODIGO = 40;
 /**
- * Código que a leitura padrão pode consumir: algarismos e depois letras ("6a", "6s", "24m", "36km"),
- * conferido na forma de compatibilidade (NFKC): o indicador de ordinal "ª" e "º" vira "a" e "o" ("6ª" é
- * "6a", e a gêmea é também "64").
+ * Código que a leitura padrão pode consumir: algarismos e depois letras ("6a", "6s", "24m", "36km"), ou
+ * horário com minutos ("7h15", "13h36", "0h30": as gêmeas são "715", "1336" e "030", o "h" some), conferido
+ * na forma de compatibilidade (NFKC): o indicador de ordinal "ª" e "º" vira "a" e "o" ("6ª" é "6a", e a
+ * gêmea é também "64").
  */
-const CODIGO_LIDO = /^\d{1,3}[a-z]{1,3}$/;
+const CODIGO_LIDO = /^\d{1,3}(?:[a-z]{1,3}|h\d{2})$/;
 /**
  * Quantos códigos lidos por mensagem conferem a gêmea (cada um custa algumas leituras da mensagem
  * inteira). Do seguinte em diante, o código retém sem conferir: reter a mais, nunca deixar sair, e o
@@ -921,6 +930,14 @@ interface Unidade {
   retida?: boolean;
 }
 
+/** O código em `ini` vem logo depois de uma palavra de endereço (`DEPOIS_DO_ENDERECO`), começada numa palavra inteira? */
+function depoisDoEndereco(base: string, ini: number): boolean {
+  const de = Math.max(0, ini - ANTES_DO_CODIGO);
+  const m = DEPOIS_DO_ENDERECO.exec(base.slice(de, ini));
+  // A palavra de endereço não pode ser o fim de outra cortada pelo recorte ("xxapto 6A").
+  return !!m && (de + m.index === 0 || !/[\p{L}\p{N}]/u.test(base[de + m.index - 1]));
+}
+
 /**
  * Os trechos que parecem número e não têm leitura padrão (D2b). Parece número: qualquer caractere
  * numérico Unicode (inclui ❶, ①, ², dígito de outro alfabeto), emoji de número, letra colada a algarismo,
@@ -932,14 +949,6 @@ interface Unidade {
  * que não é separação normal ("1/3/6/0", "1:360:000", "1 ponto 36", "1\n360", em que tirar a quebra
  * junta os dois num número); ou há três algarismos soltos ("um, três, seis, zero").
  */
-/** O código em `ini` vem logo depois de uma palavra de endereço (`DEPOIS_DO_ENDERECO`), começada numa palavra inteira? */
-function depoisDoEndereco(base: string, ini: number): boolean {
-  const de = Math.max(0, ini - ANTES_DO_CODIGO);
-  const m = DEPOIS_DO_ENDERECO.exec(base.slice(de, ini));
-  // A palavra de endereço não pode ser o fim de outra cortada pelo recorte ("xxapto 6A").
-  return !!m && (de + m.index === 0 || !/[\p{L}\p{N}]/u.test(base[de + m.index - 1]));
-}
-
 function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetida, codigoLidoRetido: GemeaRetida | null): { ini: number; fim: number; retida: boolean }[] {
   const principais: Unidade[] = [];
   let coberto = 0;
@@ -1401,8 +1410,10 @@ function analisarSigilo(
    * "56"), lida pela análise comum (`liberar` falso). Se alguma gêmea retém, o código não é liberado. Duas
    * formas da gêmea: no texto preparado (a troca no lugar exato do código) e no texto original (o código
    * achado ali, sem diferença de maiúscula, como palavra inteira), para que nada da leitura do texto
-   * original (`desofuscar`) fique de fora. Custo: no máximo 3 leituras × 2 formas, cada uma linear; só no
-   * código que já passou nas outras condições.
+   * original (`desofuscar`) fique de fora. Custo, cada forma uma leitura linear: no formato liberado (no
+   * máximo 2 algarismos e uma letra), no máximo 3 leituras × 2 formas, só no código que já passou nas outras
+   * condições; no código lido (`CODIGO_LIDO`, até 3 letras, cada uma sumindo ou virando até 2 algarismos),
+   * no máximo 3³ = 27 leituras × 2 formas, em no máximo `CODIGOS_LIDOS_MAX` códigos por mensagem.
    */
   const gemeas = new Map<string, boolean>();
   const gemeaRetida: GemeaRetida = (codigo, ini, fim) => {

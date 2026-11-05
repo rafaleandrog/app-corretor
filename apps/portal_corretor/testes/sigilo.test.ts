@@ -978,6 +978,17 @@ const PARES_147: [disfarce: string, gemeas: string[]][] = [
   ['Fica na quadra 6A', ['Fica na quadra 6', 'Fica na quadra 64']],
   ['Fica no apto 6ª', ['Fica no apto 6', 'Fica no apto 64']],
   ['Fica no apto nº 6A', ['Fica no apto nº 6', 'Fica no apto nº 64']],
+  // Revisão do PR #162, B1: vírgula, ponto e vírgula e barra entre a palavra de endereço e o código.
+  ['Fica no apto, 6A', ['Fica no apto, 6', 'Fica no apto, 64']],
+  ['Fica no apto; 6A', ['Fica no apto; 6', 'Fica no apto; 64']],
+  ['Fica no apto/ 6A', ['Fica no apto/ 6', 'Fica no apto/ 64']],
+  ['Fica no apto, 6S', ['Fica no apto, 6', 'Fica no apto, 65']],
+  ['Fica no apto, 6ª', ['Fica no apto, 6', 'Fica no apto, 64']],
+  // B2: horário com minutos ("h" some na gêmea).
+  ['Fica no apto 7h15', ['Fica no apto 715']],
+  ['Fica no apto 13h36', ['Fica no apto 1336']],
+  ['Fica no apto 0h30', ['Fica no apto 030']],
+  ['Fica no apto, 13H36', ['Fica no apto, 1336']],
 ];
 
 test('#147: código lido como ordinal, segundos ou milhões tem o mesmo resultado que a gêmea, nas três escadas', () => {
@@ -990,7 +1001,7 @@ test('#147: código lido como ordinal, segundos ou milhões tem o mesmo resultad
   }
   // Os casos da issue, na escada de 1,5 mi: a gêmea retém, o disfarce também.
   for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
-    for (const f of ['Fica no apto 6A', 'Fica no apto 6A/24M', 'Por favor, apto 43A', 'Fica no apto: 6A', 'Fica no apto 6ª']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
+    for (const f of ['Fica no apto 6A', 'Fica no apto 6A/24M', 'Por favor, apto 43A', 'Fica no apto: 6A', 'Fica no apto 6ª', 'Fica no apto, 6A', 'Fica no apto 7h15', 'Fica no apto 13h36', 'Fica no apto 0h30']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
   }
   assert.ok(vazamentos('Fica no apto 6S', MOTOR, PUBLICOS_120).length > 0);
 });
@@ -1025,6 +1036,35 @@ test('#147: propriedade — código lido pela leitura padrão, gêmea retida ⇒
             assert.ok(vazamentos(disfarce, mandato, publicos).length > 0, `gêmea retida e disfarce passou: ${disfarce}`);
           }
   assert.ok(conferidas > 0);
+});
+
+test('#147 (revisão do PR #162): com qualquer separador entre a palavra de endereço e o código, e no horário com minutos, gêmea retida ⇒ disfarce retido', () => {
+  const separadores = [' ', ', ', '; ', ': ', '/ ', ' / ', ' (', ' - ', ', nº ', ' , ', '\n'];
+  const prefixos = ['', 'Fica no ', 'Por favor, ', 'Fecho em 1, '];
+  const sufixos = ['a', 'o', 's', 'm', 'x', 'h', 'km', 'min', 'ª', 'º', 'A', 'S', 'M', 'h15', 'h30', 'h36', 'H45'];
+  const escadas: [MandatoMotor, number[]][] = [[MOTOR, PUBLICOS_120], [MOTOR, PERMITIDOS], [MOTOR_BAIXO, PUBLICOS_BAIXO]];
+  let conferidas = 0;
+  for (const [mandato, publicos] of escadas)
+    for (const sep of separadores)
+      for (const p of prefixos)
+        for (let n = 0; n <= 99; n += 7)
+          for (const l of sufixos) {
+            const codigo = `${n}${l}`;
+            if (!gemeasDoCodigo(codigo.normalize('NFKC')).some((g) => vazamentos(`${p}apto${sep}${g}`, mandato, publicos).length > 0)) continue;
+            conferidas++;
+            const disfarce = `${p}apto${sep}${codigo}`;
+            assert.ok(vazamentos(disfarce, mandato, publicos).length > 0, `gêmea retida e disfarce passou: ${JSON.stringify(disfarce)}`);
+          }
+  assert.ok(conferidas > 0);
+  // Frases comuns que já passavam seguem passando, com vírgula também.
+  for (const f of ['Apto 6A', 'Apto, 6A', 'Apto 2A', 'Fica no 6º andar.', 'Visita dia 28/10', 'Visita às 7h15']) {
+    assert.deepEqual(vazamentos(f, MOTOR, PUBLICOS_120), [], f);
+    assert.deepEqual(vazamentos(f, MOTOR, PERMITIDOS), [], f);
+  }
+  // "Torre B2" retém nas três escadas, também na `main` (B = 8 ou 6); código com a letra antes não muda aqui.
+  for (const f of ['W3 Sul', 'Apto 2B', 'Apto 6A', 'Apto 2A', 'Visita dia 28/10', 'Fica no 6º andar.']) {
+    assert.deepEqual(vazamentos(f, MOTOR_BAIXO, PUBLICOS_BAIXO), [], f);
+  }
 });
 
 test('#147: gêmea retida retém o código mesmo que o valor lido dele seja público', () => {

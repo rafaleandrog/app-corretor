@@ -368,12 +368,14 @@ conversa com a IA):
    apto 43" já retinham (o número depois de "fica" ou de "por" é lido como diferença de um valor
    público, e 50 mil é a distância do pedido ao alvo). **Desde a 0.1.40**, a gêmea vale também para o
    código que se lê como ordinal, tempo ou escala ("apto 6A" como "6ª", "apto 6S" como segundos, "apto
-   24M" como milhões, "6O", "6D", "6X", "6H", "6K"), que antes passava sem conferência: logo depois de
-   "apto", "torre", "bloco" e das outras palavras de endereço (também "apt", "quadra", "lote", "nº", com
-   ponto, dois-pontos ou hífen antes do código; "6ª" conta como "6A"), ele retém quando alguma gêmea retém, mesmo
-   que o valor lido do código seja público ("Fica
-   no apto 6A" retém, porque "Fica no apto 64" retém) e segue passando quando nenhuma retém ("Apto 6A",
-   "Apto 2A", "Fica no 6º andar"). Na mesma mensagem, até quatro códigos assim são conferidos; do quinto
+   24M" como milhões, "6O", "6D", "6X", "6H", "6K") e para o horário com minutos ("apto 7h15", cuja
+   gêmea é "apto 715"), que antes passavam sem conferência: logo depois de "apto", "torre", "bloco" e das
+   outras palavras de endereço (também "apt", "quadra", "lote", "nº"), com qualquer separador entre a
+   palavra e o código (espaço, vírgula, ponto e vírgula, dois-pontos, barra, hífen, parêntese ou "nº":
+   "apto, 6A" é conferido igual a "apto 6A"; "6ª" conta como "6A"), ele retém quando alguma gêmea
+   retém, mesmo que o valor lido do código seja público ("Fica no apto 6A" e "Fica no apto, 6A" retêm,
+   porque "Fica no apto 64" e "Fica no apto, 64" retêm; "Fica no apto 7h15" retém, porque "Fica no
+   apto 715" retém) e segue passando quando nenhuma retém ("Apto 6A", "Apto 2A", "Fica no 6º andar"). Na mesma mensagem, até quatro códigos assim são conferidos; do quinto
    em diante, a mensagem retém sem conferir. Se a forma com
    algarismo já passava, a forma com código passa também e o risco é o mesmo de antes: **risco
    residual, já existente, e não criado pelos formatos comuns**. Hoje esse risco cobre o número curto
