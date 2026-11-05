@@ -23,8 +23,9 @@ const ORIGEM = 'https://app.exemplo';
 const ENTRADA = `
 import { render } from 'lit';
 window.render = render;
-import { renderEstudio, cartaoPeca } from './frontend/telas/estudio';
+import { renderEstudio, cartaoPeca, _recarregarEstudio } from './frontend/telas/estudio';
 window.cartaoPeca = cartaoPeca;
+window.recarregar = _recarregarEstudio;
 const agora = Date.now();
 const iso = (d) => new Date(agora + d * 86400e3).toISOString();
 const arte = [{ id: 1, ordem: 1, url: '/arte/1.jpg' }];
@@ -54,7 +55,7 @@ window.urbiVerso = {
   href: (s) => '/portal_corretor' + s,
   navegarSub: () => {},
   usuario: () => ({ id: 1, nome: 'Marina' }),
-  contexto: () => ({ conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }], contaEscrita: 100 } }),
+  contexto: () => ({ conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] } }),
   notificar: () => {},
   alertar: async () => {},
   confirmar: async () => true,
@@ -62,6 +63,11 @@ window.urbiVerso = {
   api: async (rota, opcoes) => {
     window.chamadas.push((opcoes?.method ?? 'GET') + ' ' + rota);
     const [caminho] = rota.split('?');
+    const conta = Number(new Headers(opcoes?.headers).get('X-Conta'));
+    // SEGURAR: a resposta de /estudio/pecas só sai quando o teste a libera (window.pendentes), com as peças da conta.
+    if (caminho === '/estudio/pecas' && window.SEGURAR) {
+      return new Promise((resolve) => (window.pendentes ??= []).push({ conta, liberar: (dados) => resolve({ dados, total: dados.length, ia: true }) }));
+    }
     if (caminho === '/estudio/pecas') return { dados: window.PECAS, total: window.PECAS.length, ia: window.IA ?? true };
     if (caminho === '/estudio/marca') return { creci: window.CRECI ?? null, logo_url: '/logo.png', foto_url: null, referencias: [{ id: 7, url: '/ref/7.jpg' }] };
     if (caminho === '/conexoes') return { instagram: window.IG === undefined ? { usuario: 'rafael.imoveis', ultimo_erro: null } : window.IG, disponivel: true };
@@ -134,7 +140,11 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
         rapidos: [...col('esquerda')!.querySelectorAll('urbi-grid > urbi-botao')].map((b) => w.profundo(b)),
         pedidos: lista.itens.map((x: any) => x.id),
         ativo: lista.itens.filter((x: any) => lista.itemAtivo(x)).map((x: any) => x.id),
-        centroFilhos: [...col('centro')!.children].map((e) => e.localName),
+        centroFilhos: [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')].map((e) => e.localName),
+        feedPai: feed?.parentElement?.localName,
+        feedSlot: feed?.getAttribute('slot'),
+        redatorPai: document.querySelector('urbi-redator')?.parentElement?.localName,
+        redatorSlotPai: document.querySelector('urbi-redator')?.parentElement?.getAttribute('slot'),
         feedExpandir: feed?.hasAttribute('expandir'),
         rodapes,
         direita: w.profundo(col('direita')),
@@ -149,7 +159,13 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
     assert.deepEqual(r.ativo, [11], 'o pedido aberto fica marcado');
     assert.match(r.esquerda, /Todas · 4/);
     // Centro: o feed (expandir) e o compositor; sem faixa com IA liberada e Instagram conectado.
-    assert.deepEqual(r.centroFilhos, ['urbi-feed', 'urbi-redator']);
+    // Contrato do feed (ui-componentes-conteudo.md § Onde pôr o par feed + redator): o `urbi-feed[expandir]`
+    // é filho DIRETO do `urbi-3-colunas` no slot do centro; o redator vai num `urbi-hospedeiro` do mesmo slot.
+    assert.deepEqual(r.centroFilhos, ['urbi-hospedeiro', 'urbi-feed', 'urbi-hospedeiro']);
+    assert.equal(r.feedPai, 'urbi-3-colunas');
+    assert.equal(r.feedSlot, 'centro');
+    assert.equal(r.redatorPai, 'urbi-hospedeiro');
+    assert.equal(r.redatorSlotPai, 'centro');
     assert.ok(r.feedExpandir);
     assert.deepEqual(r.rodapes.map((x: any) => [x.id, x.autor]), [[-11, 'Você'], [11, 'Estúdio'], [12, 'Estúdio'], [13, 'Estúdio']]);
     assert.equal(r.rodapes[0].texto, '', 'a mensagem do corretor não tem cartão');
@@ -202,6 +218,8 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
     });
     assert.deepEqual(s.filhos, ['urbi-estado-vazio', 'urbi-redator']);
     assert.match(s.texto, /Não encontrado/);
+    assert.deepEqual(await pagina.evaluate(() => [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')].map((e) => e.localName)), ['urbi-hospedeiro'], 'sem pedido aberto o centro segue embrulhado num bloco só');
+    assert.equal(await pagina.evaluate(() => document.querySelector('urbi-3-colunas')!.getAttribute('painel-ativo')), 'centro', 'id que não acha pedido: o celular abre no centro');
   } finally {
     await navegador.close();
   }
@@ -235,6 +253,93 @@ test('Estúdio no Chromium: Instagram desconectado e IA indisponível são faixa
     assert.match(s.texto, /Escolha um pedido na lista/);
     assert.match(s.esquerda, /Instagram não conectado/);
     assert.equal(s.painel, 'esquerda', 'sem pedido escolhido, o celular abre na lista');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: troca de conta com carga em voo descarta a resposta da anterior; falha de recarga fica visível', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    // Carga da conta A (100) fica em voo.
+    await pagina.addInitScript(() => ((window as any).SEGURAR = true));
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(120);
+    const lido = () =>
+      pagina.evaluate(() => {
+        const w = window as any;
+        const lista = document.querySelector('urbi-lista') as any;
+        return { texto: w.profundo(document.querySelector('urbi-inbox')), pedidos: (lista?.itens ?? []).map((x: any) => x.id), pendentes: w.pendentes.map((p: any) => p.conta), chamadas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length };
+      });
+    let r: any = await lido();
+    assert.deepEqual(r.pendentes, [100]);
+    assert.match(r.texto, /Carregando/);
+
+    // (a) a conta muda para B com A em voo: carrega B; A responde e é descartada; nada de A na tela.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      localStorage.setItem('portal_corretor:conta', '200');
+      w.desenhar();
+    });
+    await pagina.waitForTimeout(60);
+    r = await lido();
+    assert.deepEqual(r.pendentes, [100, 200], 'uma carga de B acontece');
+    assert.match(r.texto, /Carregando/);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.pendentes[0].liberar([{ ...w.PECAS[0], id: 501, pedido: 'DA CONTA A', titulo: 'Peça da conta A' }]);
+    });
+    await pagina.waitForTimeout(120);
+    r = await lido();
+    assert.match(r.texto, /Carregando/, 'a resposta de A não vira tela: B ainda não respondeu');
+    assert.deepEqual(r.pedidos, [], 'nenhuma peça de A na tela');
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.pendentes[1].liberar([{ ...w.PECAS[0], id: 601, pedido: 'DA CONTA B', titulo: 'Peça da conta B' }]);
+    });
+    await pagina.waitForTimeout(120);
+    r = await lido();
+    assert.deepEqual(r.pedidos, [601], 'só o que veio de B');
+
+    // (b) duas cargas da mesma conta em sequência (a segunda antes de a primeira responder): só a última vale.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.recarregar();
+      w.recarregar();
+    });
+    await pagina.waitForTimeout(60);
+    assert.deepEqual(await pagina.evaluate(() => (window as any).pendentes.map((p: any) => p.conta)), [100, 200, 200, 200]);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.pendentes[3].liberar([{ ...w.PECAS[0], id: 701, pedido: 'ULTIMA', titulo: 'Peça da última carga' }]);
+    });
+    await pagina.waitForTimeout(100);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.pendentes[2].liberar([{ ...w.PECAS[0], id: 702, pedido: 'PENULTIMA', titulo: 'Peça da penúltima carga' }]);
+    });
+    await pagina.waitForTimeout(100);
+    r = await lido();
+    assert.deepEqual(r.pedidos, [701], 'só a resposta da última carga vale');
+
+    // Falha de recarga com dados na tela: faixa com "Tentar de novo", dados preservados.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.SEGURAR = false;
+      const original = w.urbiVerso.api;
+      w.urbiVerso.api = async (rota: string, o: any) => {
+        if (rota.startsWith('/estudio/pecas')) throw Object.assign(new Error('x'), { status: 500 });
+        return original(rota, o);
+      };
+      w.recarregar();
+    });
+    await pagina.waitForTimeout(150);
+    r = await lido();
+    assert.match(r.texto, /Não foi possível atualizar o Estúdio/);
+    assert.match(r.texto, /Tentar de novo/);
+    assert.deepEqual(r.pedidos, [701], 'os dados continuam na tela');
   } finally {
     await navegador.close();
   }

@@ -45,10 +45,10 @@ caracteres. Se não couber, a legenda fica como está e a aprovação avisa "o C
 legenda" (confira se ele está na arte): é um aviso, nunca uma pendência.
 
 **O CRECI é opcional e não trava nada.** Sem CRECI cadastrado (Ajustes › Conta e marca), a descrição e a
-legenda saem sem ele, e a peça é aprovada, agendada e publicada normalmente. Cada peça ainda não
-publicada mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
-anúncios"*, com o atalho **Ajustes › Conta e marca**, na coluna da direita; o topo do Estúdio não
-mostra aviso. A aprovação devolve o mesmo lembrete.
+legenda saem sem ele, e a peça é aprovada, agendada e publicada normalmente. Enquanto ele falta, a
+coluna da direita do Estúdio mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele
+apareça nos anúncios"*, com o atalho **Ajustes › Conta e marca**. É um aviso só da tela, não um por
+peça; o topo do Estúdio não mostra aviso. A aprovação devolve o mesmo lembrete.
 
 A marca é a mesma da sua página, das seleções e do portal do cliente: a cor principal e a foto
 aparecem lá também ([A marca](conta-e-ajustes.md#a-marca)).

@@ -112,6 +112,9 @@ const estado = {
 
 let redesenhar: () => void = () => {};
 
+/** Carga vigente: a resposta de uma carga que não é mais a última (outra conta, outra chamada) é descartada. */
+let geracao = 0;
+
 /** O app avisa que o corretor entrou no Estúdio (ou trocou de conta): os dados são relidos. */
 export function aoAbrirEstudio() {
   estado.precisaCarregar = true;
@@ -127,8 +130,13 @@ async function carregar() {
     estado.ia = null;
     estado.abertas = new Set();
     estado.instrucoes = {};
+    // O que dependia da conta anterior: ação em andamento, "Trocar a arte" aberto e a peça já rolada.
+    estado.trabalhando = null;
+    estado.trocando = null;
+    rolada = null;
     estado.conta = conta;
   }
+  const minha = ++geracao;
   estado.precisaCarregar = false;
   estado.carregando = true;
   estado.falha = null;
@@ -140,15 +148,21 @@ async function carregar() {
       // Sem a conexão a tela segue (mostra "não conectado"): é contexto, não o conteúdo.
       chamarApi('/conexoes').catch(() => null),
     ]);
+    if (minha !== geracao) return;
     estado.pecas = p.dados;
     estado.ia = p.ia !== false;
     estado.marca = m;
     estado.conexao = c;
   } catch (e) {
+    if (minha !== geracao) return;
     estado.falha = e;
+    // Com dados na tela a falha vira faixa (o `estadoDaFalha` só roda sem dados): o detalhe vai ao console.
+    if (estado.marca) console.error('[portal_corretor]', e);
   } finally {
-    estado.carregando = false;
-    redesenhar();
+    if (minha === geracao) {
+      estado.carregando = false;
+      redesenhar();
+    }
   }
   if (estado.criarPost && estado.marca) {
     estado.criarPost = false;
@@ -645,7 +659,7 @@ export function mensagensDoPedido(x: Pedido<Peca>, eu: { id: number; nome?: stri
 function conversa(x: Pedido<Peca>, peca: number | null) {
   const eu = urbiVerso.usuario() ?? { id: 0 };
   const porId = new Map(x.pecas.map((p) => [p.id, p]));
-  return html`<urbi-feed expandir usuario-atual-id=${eu.id} agrupar-minutos="0"
+  return html`<urbi-feed slot="centro" expandir usuario-atual-id=${eu.id} agrupar-minutos="0"
     .itens=${mensagensDoPedido(x, eu)}
     .renderRodape=${(m: ChatMensagem) => (porId.has(m.id) ? cartaoPeca(porId.get(m.id)!) : nothing)}
     ${ref((el) => rolarAte(el, peca))}></urbi-feed>`;
@@ -724,11 +738,22 @@ function esquerda(pedidos: Pedido<Peca>[], aberto: number | null) {
   </urbi-stack>`;
 }
 
-function centro(pedidos: Pedido<Peca>[]) {
+/**
+ * Com pedido aberto o centro é o par feed + redator no `slot="centro"` do `urbi-3-colunas`: o feed
+ * `expandir` é filho direto (o fill só se mantém aí), as faixas de estado e o redator vão em
+ * `urbi-hospedeiro` do mesmo slot (`centroSolto` na moldura). Sem pedido aberto o centro é um bloco só.
+ */
+function centro(pedidos: Pedido<Peca>[]): { solto: boolean; conteudo: unknown } {
   const q = escolha();
   const { pedido, peca, naoEncontrado } = pedidoEscolhido(pedidos, q);
   const ig = estado.conexao?.instagram;
-  const faixas = html`${estado.ia === false
+  const faixas = html`${estado.falha
+      ? estadoTela('erro', {
+          mensagem: 'Não foi possível atualizar o Estúdio agora. O que está na tela pode estar desatualizado.',
+          aoTentar: recarregar,
+        })
+      : nothing}
+    ${estado.ia === false
       ? estadoTela('ia_indisponivel', { mensagem: `${DICA_IA_INDISPONIVEL}: os textos saem do modelo do app. A descrição da arte e o resto do Estúdio funcionam.` })
       : nothing}
     ${!ig || ig.ultimo_erro
@@ -737,12 +762,18 @@ function centro(pedidos: Pedido<Peca>[]) {
           mensagem: ig ? 'Seu Instagram desconectou: publicar e agendar pelo app voltam depois de reconectar. Baixar e publicar você continua valendo.' : 'Instagram não conectado: para publicar e agendar pelo app, conecte. Baixar e publicar você funciona sem ele.',
         })
       : nothing}`;
+  if (pedido) {
+    // As faixas ficam sempre à mão (a falha de recarga precisa aparecer com o pedido aberto).
+    return {
+      solto: true,
+      conteudo: html`<urbi-hospedeiro slot="centro">${faixas}</urbi-hospedeiro>${conversa(pedido, peca)}<urbi-hospedeiro slot="centro">${compositor()}</urbi-hospedeiro>`,
+    };
+  }
   let corpo: unknown;
-  if (pedido) corpo = conversa(pedido, peca);
-  else if (naoEncontrado) corpo = estadoTela('sem_permissao');
+  if (naoEncontrado) corpo = estadoTela('sem_permissao');
   else if (pedidos.length) corpo = estadoTela('vazio', { icone: 'fa-solid fa-wand-magic-sparkles', mensagem: 'Escolha um pedido na lista', submensagem: 'Ou escreva um novo abaixo: o app escreve os textos e a descrição da arte para o Canva IA.' });
   else corpo = estadoTela('vazio', { icone: 'fa-solid fa-images', mensagem: 'Nenhum pedido ainda', submensagem: 'Escreva ou fale o pedido abaixo: o app escreve a descrição para você levar ao Canva.' });
-  return html`${faixas}${corpo}${compositor()}`;
+  return { solto: false, conteudo: html`${faixas}${corpo}${compositor()}` };
 }
 
 function direita() {
@@ -787,23 +818,27 @@ function direita() {
 /** O Estúdio na moldura: trilho · pedidos · conversa · contexto (abas no celular). */
 export function renderEstudio(atualizar: () => void) {
   redesenhar = atualizar;
-  if (estado.conta !== contaAtiva()) estado.precisaCarregar = true;
-  if (estado.precisaCarregar && !estado.carregando) void carregar();
+  // Outra conta: lê já, mesmo com uma carga em voo (a resposta da anterior é descartada em `carregar`).
+  if (estado.conta !== contaAtiva()) void carregar();
+  else if (estado.precisaCarregar && !estado.carregando) void carregar();
   const rotulos = { lista: 'Pedidos', centro: 'Pedido', contexto: 'Semana' };
   if (!estado.marca) {
     const conteudo = estado.falha ? estadoDaFalha(estado.falha, recarregar) : estadoTela('carregando');
     return moldura({ menu: '/estudio', centro: conteudo }, atualizar);
   }
   const pedidos = agruparPedidos(estado.pecas);
-  const { pedido } = pedidoEscolhido(pedidos, escolha());
+  const { pedido, naoEncontrado } = pedidoEscolhido(pedidos, escolha());
+  const c = centro(pedidos);
   return moldura(
     {
       menu: '/estudio',
       lista: esquerda(pedidos, pedido?.id ?? null),
-      centro: centro(pedidos),
+      centro: c.conteudo,
+      centroSolto: c.solto,
       contexto: direita(),
       rotulos,
-      painel: pedido ? 'centro' : 'esquerda',
+      // Id na URL que não acha pedido: o "Não encontrado" está no centro, e o celular abre nele.
+      painel: pedido || naoEncontrado ? 'centro' : 'esquerda',
     },
     atualizar,
   );
@@ -811,3 +846,4 @@ export function renderEstudio(atualizar: () => void) {
 
 // Para os testes: o estado é do módulo.
 export const _estadoEstudio = estado;
+export const _recarregarEstudio = recarregar;
