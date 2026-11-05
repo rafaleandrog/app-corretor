@@ -8,15 +8,20 @@ export const BUSCA_MAX = 100;
 export const POR_TIPO = 5;
 
 /**
- * O termo que vai ao banco. Um termo só de dígitos e sinais de telefone ("(61) 99999-0000", "+55 61")
- * busca só no telefone, pelos dígitos, porque o telefone é gravado como `+5561999990000` (spec 6.2).
- * O resto busca como foi digitado (nome, e-mail, código, bairro, título).
+ * O termo que vai ao banco, ou `null` quando ele ficaria curto demais (o chamador responde 422 BUSCA_CURTA).
+ * `termo` é o que foi digitado, sem o espaço das pontas: vai para nome, e-mail, código, bairro e título
+ * (o código do corretor pode ser "101-2"). `telefone` só vem quando o texto é só dígitos e sinais de
+ * telefone ("(61) 99999-0000", "+55 61"): a forma em dígitos, que vai SÓ para a coluna de telefone, gravado
+ * como `+5561999990000` (spec 6.2); nesse caso a busca de clientes é só no telefone.
+ * Invariante: o que efetivamente vai ao banco nunca tem menos de BUSCA_MIN caracteres.
  */
-export function normalizarTermo(q: string): { termo: string; telefone: boolean } {
-  const limpo = q.trim();
-  if (/^[\d\s()+.-]+$/.test(limpo)) {
-    const digitos = limpo.replace(/\D/g, '');
-    if (digitos.length >= BUSCA_MIN) return { termo: digitos, telefone: true };
+export function normalizarTermo(q: string): { termo: string; telefone: string | null } | null {
+  const termo = q.trim();
+  if (termo.length < BUSCA_MIN) return null;
+  if (/^[\d\s()+.-]+$/.test(termo)) {
+    const digitos = termo.replace(/\D/g, '');
+    if (digitos.length < BUSCA_MIN) return null;
+    return { termo, telefone: digitos };
   }
-  return { termo: limpo.replace(/^\+/, ''), telefone: false };
+  return { termo, telefone: null };
 }

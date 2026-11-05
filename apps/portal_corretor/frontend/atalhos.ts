@@ -1,5 +1,5 @@
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { BUSCA_MAX, BUSCA_MIN } from '../comum/busca';
+import { BUSCA_MAX, BUSCA_MIN, normalizarTermo } from '../comum/busca';
 import { chamarApi } from './apoio.js';
 import { criar, irParaComQuery, OPCOES_CRIAR, type OpcaoCriar } from './criar.js';
 import { alternarAssistente } from './telas/assistente.js';
@@ -152,9 +152,10 @@ export async function abrirBusca() {
   const destinos = new Map<number, DestinoBusca>();
   let seq = 0;
   const buscar = async (termo: string, signal: AbortSignal) => {
-    const q = termo.trim();
-    if (q.length < BUSCA_MIN) return [];
-    const r = (await chamarApi(`/busca?q=${encodeURIComponent(q.slice(0, BUSCA_MAX))}`, { signal })) as RespostaBusca;
+    const q = termo.trim().slice(0, BUSCA_MAX);
+    // Mesma regra da rota: termo que ela recusaria por curto ("+5", "(1") nem é enviado.
+    if (!normalizarTermo(q)) return [];
+    const r = (await chamarApi(`/busca?q=${encodeURIComponent(q)}`, { signal })) as RespostaBusca;
     return opcoesDaBusca(r).map((o) => {
       destinos.set(++seq, o.destino);
       return { valor: seq, rotulo: o.rotulo };

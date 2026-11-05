@@ -121,11 +121,31 @@ test('q curto ou longo devolve 422; só o corretor busca', async () => {
   });
 });
 
-test('telefone com máscara vira dígitos; o resto busca como foi digitado', () => {
-  assert.deepEqual(normalizarTermo('(61) 99999-0001'), { termo: '61999990001', telefone: true });
-  assert.deepEqual(normalizarTermo('+55 61'), { termo: '5561', telefone: true });
-  assert.deepEqual(normalizarTermo('IM-0001'), { termo: 'IM-0001', telefone: false });
-  assert.deepEqual(normalizarTermo(' Ana '), { termo: 'Ana', telefone: false });
+test('telefone com máscara vira dígitos só para o telefone; o resto busca como foi digitado', () => {
+  assert.deepEqual(normalizarTermo('(61) 99999-0001'), { termo: '(61) 99999-0001', telefone: '61999990001' });
+  assert.deepEqual(normalizarTermo('+55 61'), { termo: '+55 61', telefone: '5561' });
+  assert.deepEqual(normalizarTermo('101-2'), { termo: '101-2', telefone: '1012' });
+  assert.deepEqual(normalizarTermo('IM-0001'), { termo: 'IM-0001', telefone: null });
+  assert.deepEqual(normalizarTermo(' Ana '), { termo: 'Ana', telefone: null });
+  assert.deepEqual(normalizarTermo('+ab'), { termo: '+ab', telefone: null });
+  // Termo efetivo curto: null (422), em qualquer forma.
+  for (const q of ['', 'a', '+5', '(1', '1 ', '1-', '--', ' + ']) assert.equal(normalizarTermo(q), null, JSON.stringify(q));
+});
+
+test('q que só fica curto depois de normalizar ("+5") devolve 422 BUSCA_CURTA; código "101-2" é achado', async () => {
+  const banco = new BancoFalso();
+  await semear(banco);
+  await banco.dados(100).criar('imoveis', { codigo: '101-2', titulo: 'Sala comercial', bairro: 'Asa Norte', situacao: 'ativo' });
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    for (const q of ['+5', '(1', '1-']) {
+      const r = await chamar('GET', `/busca?q=${encodeURIComponent(q)}`);
+      assert.equal(r.status, 422, q);
+      assert.equal(r.corpo.codigo, 'BUSCA_CURTA', q);
+    }
+    const r = await chamar('GET', `/busca?q=${encodeURIComponent('101-2')}`);
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.corpo.imoveis.map((i: any) => i.codigo), ['101-2']);
+  });
 });
 
 // ---------- Atalhos ----------

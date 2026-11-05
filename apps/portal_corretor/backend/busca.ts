@@ -44,13 +44,15 @@ buscaRotas.get(
     if (q.length < BUSCA_MIN) return erro(res, 422, 'BUSCA_CURTA', `Digite pelo menos ${BUSCA_MIN} letras para buscar.`);
     if (q.length > BUSCA_MAX) return erro(res, 422, 'BUSCA_LONGA', `A busca aceita até ${BUSCA_MAX} caracteres.`);
     const dados = req.dados!;
-    const { termo, telefone } = normalizarTermo(q);
+    const normal = normalizarTermo(q);
+    if (!normal) return erro(res, 422, 'BUSCA_CURTA', `Digite pelo menos ${BUSCA_MIN} letras para buscar.`);
+    const { termo, telefone } = normal;
 
     // Clientes: nome, telefone e e-mail; anonimizado (LGPD) não volta. Imóveis: título, código e bairro.
     const [contatos, imoveis, porCodigo] = await Promise.all([
       dados.listar('contatos', {
         filtros: { 'anonimizado_em[nulo]': 'true' },
-        busca_ou: { colunas: telefone ? ['telefone'] : ['nome', 'email', 'telefone'], termo },
+        busca_ou: telefone ? { colunas: ['telefone'], termo: telefone } : { colunas: ['nome', 'email', 'telefone'], termo },
         ordenar: 'nome',
         ordem: 'asc',
         por_pagina: ALCANCE_NEGOCIACAO,
