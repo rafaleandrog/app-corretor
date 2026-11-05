@@ -68,11 +68,12 @@ window.urbiVerso = {
   usuario: () => ({ id: 1, nome: 'Marina' }),
   // FRIO: entrada a frio, como o shell publica (autenticacao.md § Quando o contexto existe): sem resposta
   // ainda (\`carregado: false\`, sem conta) até o teste chamar \`chegarContexto()\`. SEM_CONTA: o usuário
-  // deixou de estar em conta (escopado, conjunto vazio).
+  // deixou de estar em conta (escopado, conjunto vazio). CONTA_CTX: o \`conta\` do contexto dado pelo teste
+  // (uma conta só com \`contaEscrita\`, \`negar\`...).
   contexto: () =>
     window.FRIO && !window.CONTEXTO_CHEGOU
       ? { nivel: null, roles: [], carregado: false }
-      : { carregado: true, nivel: 'usuario', roles: ['corretor'], conta: { resolucao: 'escopado', contas: window.SEM_CONTA ? [] : [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] } },
+      : { carregado: true, nivel: 'usuario', roles: ['corretor'], conta: window.CONTA_CTX ?? { resolucao: 'escopado', contas: window.SEM_CONTA ? [] : [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] } },
   notificar: (m) => (window.avisos ??= []).push(m),
   alertar: async (a) => { (window.alertas ??= []).push(a.titulo); },
   confirmar: async () => true,
@@ -90,6 +91,13 @@ window.urbiVerso = {
     if (caminho === '/estudio/pedido' && window.SEGURAR_CRIAR) {
       return new Promise((resolve) => (window.criacoes ??= []).push(() => resolve({ pecas: [{ ...window.PECAS[0], id: 900 }], ia: true })));
     }
+    // CRIAR: a criação dá certo agora; a peça nova (id seguido, criada agora) entra nas próximas cargas.
+    if (caminho === '/estudio/pedido' && window.CRIAR) {
+      const c = JSON.parse(opcoes.body);
+      const peca = { ...base, id: 900 + (window.CRIADAS ??= []).length + 1, pedido: c.pedido, imovel_id: c.imovel_id, objetivo: c.objetivo, formato: c.formatos[0], estado: 'rascunho', arquivos: [], titulo: 'Peça criada', criado_em: new Date().toISOString() };
+      window.CRIADAS.push(peca);
+      return { pecas: [peca], ia: true };
+    }
     // SEGURAR_APROVAR: o "Aprovar" da conta A fica em voo até o teste o fazer falhar; SEGURAR_APROVAR_OK, dar certo.
     if (/^\\/estudio\\/pecas\\/\\d+\\/aprovar$/.test(caminho) && window.SEGURAR_APROVAR) {
       return new Promise((_, rejeitar) => (window.aprovacoes ??= []).push(() => rejeitar(new Error('O servidor recusou'))));
@@ -105,7 +113,7 @@ window.urbiVerso = {
     }
     if (caminho === '/estudio/pecas') {
       // PECAS_POR_CONTA: cada conta com as suas peças; sem ele, as mesmas em todas.
-      const dados = (window.PECAS_POR_CONTA?.[conta] ?? window.PECAS).filter((p) => !(window.REMOVIDAS ?? []).includes(p.id));
+      const dados = [...(window.PECAS_POR_CONTA?.[conta] ?? window.PECAS), ...(window.CRIADAS ?? [])].filter((p) => !(window.REMOVIDAS ?? []).includes(p.id));
       return { dados, total: dados.length, ia: window.IA ?? true };
     }
     if (caminho === '/estudio/marca') return { creci: window.CRECI ?? null, logo_url: '/logo.png', foto_url: null, referencias: [{ id: 7, url: '/ref/7.jpg' }] };
@@ -963,6 +971,7 @@ test('transição 2/8: A → B com um pedido em voo', async (t) => {
     assert.deepEqual(r.pedidos, [601]);
     assert.doesNotMatch(r.url, /pedido=|900/, 'a URL de B não ganha o pedido criado em A');
     assert.deepEqual(r.avisos, [], 'nenhum "peça criada" de A em B');
+    assert.deepEqual(r.alertas, [], 'nenhum alerta de A em B');
     assert.doesNotMatch(r.texto, /Escrevendo os textos/, 'nada "trabalhando" herdado');
   } finally {
     await navegador.close();
@@ -996,6 +1005,7 @@ test('transição 3/8: A → B com um aprovar em voo', async (t) => {
     assert.deepEqual(r.pedidos, [601]);
     assert.deepEqual(r.feed, []);
     assert.deepEqual(r.avisos, [], 'nenhum "Peça aprovada." de A em B');
+    assert.deepEqual(r.alertas, [], 'nenhum alerta de A em B');
     assert.equal(await pagina.evaluate(() => (window as any).chamadas.filter((c: string) => c === 'GET /estudio/pecas').length), cargas, 'a instância morta não recarrega');
   } finally {
     await navegador.close();
@@ -1061,6 +1071,7 @@ test('transição 6/8: A → sem conta (com uma carga de A em voo)', async (t) =
     assert.match(r.texto, /Você ainda não está em nenhuma conta/, 'o estado vazio de "sem conta"');
     assert.equal(await pagina.evaluate(() => (window as any).$q('urbi-3-colunas')), null, 'nada da moldura de A fica');
     assert.deepEqual(r.avisos, []);
+    assert.deepEqual(r.alertas, []);
   } finally {
     await navegador.close();
   }
@@ -1107,10 +1118,21 @@ test('transição 7/8: sair do Estúdio e voltar (e ir a outra app e voltar) com
     semCarregarNemAnterior(r, 'sair do Estúdio e voltar', /INSTANCIA ANTIGA/);
     assert.deepEqual(r.feed, [-11, 11, 12, 13]);
     assert.deepEqual(r.avisos, [], 'nenhum "Peça aprovada." da instância que saiu');
+    assert.deepEqual(r.alertas, [], 'nenhum alerta da instância que saiu');
 
-    // Outra app: o app sai do DOM com uma carga em voo e volta (sem redesenhar): instância nova.
-    await pagina.evaluate(() => (window as any).recarregar());
+    // Outra app: o app sai do DOM com uma carga e um aprovar em voo e volta (sem redesenhar): instância
+    // nova. O aprovar termina em ERRO depois de o app sair: a instância morta não alerta.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.recarregar();
+      w.SEGURAR_APROVAR_OK = false;
+      w.SEGURAR_APROVAR = true;
+      const div = document.createElement('div');
+      w.render(w.cartaoVivo(w.PECAS[1]), div);
+      w.principais(div)[0].click();
+    });
     await pagina.waitForTimeout(60);
+    assert.equal(await pagina.evaluate(() => (window as any).aprovacoes.length), 2, 'o aprovar de antes de ir a outra app está em voo');
     await pagina.evaluate(() => {
       const w = window as any;
       w.instanciaAntiga = w.estudio;
@@ -1118,6 +1140,7 @@ test('transição 7/8: sair do Estúdio e voltar (e ir a outra app e voltar) com
     });
     assert.equal(await pagina.evaluate(() => (window as any).instanciaAntiga.vivo), false, 'ir a outra app encerra a instância (disconnected)');
     await liberar(pagina, 2, 'ANTIGA');
+    await pagina.evaluate(() => (window as any).aprovacoes[1]());
     await pagina.waitForTimeout(80);
     await pagina.evaluate(() => (window as any).voltarDaOutraApp());
     await pagina.waitForTimeout(120);
@@ -1127,6 +1150,8 @@ test('transição 7/8: sair do Estúdio e voltar (e ir a outra app e voltar) com
     r = await telaFinal(pagina);
     semCarregarNemAnterior(r, 'outra app e volta', /INSTANCIA ANTIGA/);
     assert.deepEqual(r.feed, [-11, 11, 12, 13]);
+    assert.deepEqual(r.avisos, [], 'nenhum aviso da instância de antes da outra app');
+    assert.deepEqual(r.alertas, [], 'o aprovar que falhou depois de ir a outra app não alerta');
   } finally {
     await navegador.close();
   }
@@ -1143,6 +1168,99 @@ test('transição 8/8: "Novo post" a frio', async (t) => {
     semCarregarNemAnterior(r, '"Novo post" a frio', /DA CONTA B/);
     assert.deepEqual(r.formularios, ['Novo pedido'], 'o Novo pedido abre uma vez, depois da primeira carga');
     assert.doesNotMatch(r.url, /criar=/, 'o pedido do menu Criar sai da URL');
+  } finally {
+    await navegador.close();
+  }
+});
+
+// ---------- Contexto da conta (contas.md: com uma conta só, a escrita vai para ela sem seletor) ----------
+
+test('Estúdio no Chromium: contexto da conta: uma conta (contaEscrita) carrega; várias carregam; sem conta mostra o vazio do app', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const linhas: [string, unknown, 'carrega' | 'sem conta'][] = [
+    ['escopado, contaEscrita definido, uma conta', { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }], contaEscrita: 100 }, 'carrega'],
+    ['escopado, sem contaEscrita, contas A e B', { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] }, 'carrega'],
+    ['negar', { resolucao: 'negar', contas: [] }, 'sem conta'],
+    ['escopado sem contas e sem contaEscrita', { resolucao: 'escopado', contas: [] }, 'sem conta'],
+  ];
+  for (const [linha, ctx, esperado] of linhas) {
+    const { navegador, pagina } = await montar(pw);
+    try {
+      await pagina.addInitScript((c: unknown) => ((window as any).CONTA_CTX = c), ctx);
+      // Um ?pedido= que não existe: com a conta carregada, a instância o limpa ao nascer (nada de "Não encontrado").
+      await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=999`);
+      await pagina.waitForTimeout(150);
+      const r: any = await telaFinal(pagina);
+      const cargas = await pagina.evaluate(() => (window as any).chamadas.filter((c: string) => c === 'GET /estudio/pecas').length);
+      assert.equal(r.carregando, 0, `${linha}: nada em "carregando"`);
+      assert.doesNotMatch(r.texto, /Nenhuma conta ativa/, `${linha}: o Estúdio não diz "Nenhuma conta ativa" com contexto de conta`);
+      if (esperado === 'carrega') {
+        assert.equal(cargas, 1, `${linha}: o Estúdio carrega`);
+        assert.deepEqual(r.pedidos, [20, 11], `${linha}: as peças aparecem`);
+        assert.equal(r.url, '', `${linha}: o ?pedido= que não é desta conta sai da URL`);
+        assert.doesNotMatch(r.texto, /Não encontrado/, `${linha}: nada de "Não encontrado"`);
+        assert.equal(await pagina.evaluate(() => (window as any).estudio.vivo), true, `${linha}: a instância está viva`);
+        // Navegar para fora e voltar: a instância morre e nasce de novo (a chave muda pela visita).
+        await pagina.evaluate(() => {
+          const w = window as any;
+          w.instanciaAntiga = w.estudio;
+          w.sairDoEstudio();
+        });
+        await pagina.waitForTimeout(80);
+        assert.equal(await pagina.evaluate(() => (window as any).instanciaAntiga.vivo), false, `${linha}: sair encerra a instância`);
+        await pagina.evaluate(() => (window as any).abrirEstudio('/estudio'));
+        await pagina.waitForTimeout(150);
+        assert.equal(await pagina.evaluate(() => (window as any).estudio !== (window as any).instanciaAntiga && (window as any).estudio.vivo), true, `${linha}: a volta é uma instância nova, viva`);
+        assert.deepEqual((await telaFinal(pagina)).pedidos, [20, 11], `${linha}: e carrega de novo`);
+      } else {
+        assert.equal(cargas, 0, `${linha}: nada carrega`);
+        assert.match(r.texto, /Você ainda não está em nenhuma conta/, `${linha}: o estado vazio de "sem conta" do app`);
+        assert.equal(await pagina.evaluate(() => (window as any).$q('urbi-3-colunas')), null, `${linha}: sem a moldura do Estúdio`);
+      }
+      assert.deepEqual(r.alertas, [], `${linha}: nenhum alerta`);
+    } finally {
+      await navegador.close();
+    }
+  }
+});
+
+// ---------- Criar abre o pedido que contém as peças criadas ----------
+
+test('Estúdio no Chromium: criar duas vezes o mesmo pedido (menos de 2 min) abre o pedido com as peças, nunca "Não encontrado"', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(120);
+    const criar = () =>
+      pagina.evaluate(async () => {
+        const w = window as any;
+        w.CRIAR = true;
+        w.urbiVerso.formulario = async () => ({ pedido: 'Post da casa', imovel_id: '5', objetivo: 'novo_imovel', f_post_1x1: true });
+        await w.estudio.novoPedido('Post da casa');
+      });
+    // Registra todo texto do centro entre a criação e o fim da carga (pega o "Não encontrado" de passagem).
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.vistos = [];
+      new MutationObserver(() => w.vistos.push(w.profundo(w.$q('urbi-3-colunas')))).observe(w.app.shadowRoot, { subtree: true, childList: true, attributes: true });
+    });
+    await criar();
+    await pagina.waitForTimeout(120);
+    let r: any = await telaFinal(pagina);
+    assert.equal(r.url, '?pedido=901', 'a primeira criação abre o pedido novo');
+    assert.deepEqual(r.feed, [-901, 901]);
+    await criar();
+    await pagina.waitForTimeout(150);
+    r = await telaFinal(pagina);
+    assert.equal(r.url, '?pedido=901', 'o envio igual em menos de 2 min entra no pedido anterior, e é ele que abre');
+    assert.deepEqual(r.feed, [-901, 901, 902], 'as peças novas estão no pedido aberto');
+    assert.doesNotMatch(r.texto, /Não encontrado/);
+    assert.ok(!(await pagina.evaluate(() => (window as any).vistos.some((t: string) => /Não encontrado/.test(t)))), 'nem de passagem');
+    assert.deepEqual(r.alertas, []);
+    assert.equal(r.avisos.length, 2, 'um "peça criada" por envio');
   } finally {
     await navegador.close();
   }

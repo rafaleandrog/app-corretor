@@ -128,6 +128,14 @@ const cancelado = () => new Error(CANCELADO);
 /** A regra do silêncio, num lugar só: instância encerrada ou operação cancelada não viram erro na tela. */
 const silencioso = (e: unknown) => e instanceof InstanciaEncerrada || (e instanceof Error && e.message === CANCELADO);
 
+/**
+ * A conta em que o Estúdio trabalha: a escolhida no seletor (quem atende várias contas) ou a conta única
+ * de escrita (`contaEscrita`: com uma conta só, o shell resolve sozinho e `contaAtiva()` é nula, porque
+ * não há seletor nem `X-Conta`). Nula só sem contexto de conta (entrada a frio, outra app, sessão caída):
+ * o "sem conta" de verdade (`semConta()`) o app mostra antes de chamar a tela.
+ */
+const contaDeTrabalho = (): number | null => contaAtiva() ?? urbiVerso.contexto?.()?.conta?.contaEscrita ?? null;
+
 const opcaoImovel = (i: Record<string, any>) => ({ valor: String(i.id), rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}`, textoBusca: `${i.bairro ?? ''} ${i.cidade ?? ''}` });
 
 function escolha() {
@@ -163,7 +171,7 @@ export class Estudio {
   /** Gancho de teste (o teste do Chromium guarda a instância viva); nulo no app. Não guarda estado. */
   static aoNascer: ((e: Estudio) => void) | null = null;
 
-  /** A conta em que a instância nasceu; `null`: sem conta ativa (o estado vazio da moldura). */
+  /** A conta em que a instância nasceu (`contaDeTrabalho`); `null`: sem contexto de conta (o estado vazio da moldura). */
   private conta: number | null = null;
   /** Ligada entre `nascer` e `morrer` (a diretiva saiu do DOM). */
   private ligada = false;
@@ -209,7 +217,7 @@ export class Estudio {
   nascer() {
     this.ligada = true;
     this.minhaChave = this.chaveVigente();
-    this.conta = contaAtiva();
+    this.conta = contaDeTrabalho();
     Estudio.aoNascer?.(this);
     if (this.conta === null) return;
     this.criarPost = pedidoDeCriar('post');
@@ -419,12 +427,27 @@ export class Estudio {
       throw cancelado();
     }
     const pecas = r.pecas as Peca[];
+    const criadas = new Set(pecas.map((p) => p.id));
     this.trabalhando = null;
     urbiVerso.notificar(`${pecas.length} peça(s) criada(s)${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}. Copie a descrição, gere a arte no Canva e envie na peça.`, 'sucesso');
-    // O pedido novo abre no centro, na etapa "Todas", com a descrição e as fotos à vista.
-    filtrosNaUrl(filtrosDaUrl(), { pedido: Math.min(...pecas.map((p) => p.id)) }, ['item', 'etapa']);
+    // O pedido novo abre no centro, na etapa "Todas", com a descrição e as fotos à vista. O id do pedido
+    // não é o da peça criada: um envio igual ao anterior em menos de 2 min junta as peças ao pedido dele
+    // (`agruparPedidos`). As peças criadas entram na lista já, e a URL vai ao pedido que as contém.
+    this.pecas = [...this.pecas.filter((p) => !criadas.has(p.id)), ...pecas];
+    filtrosNaUrl(filtrosDaUrl(), { pedido: this.pedidoDasPecas(criadas) ?? Math.min(...criadas) }, ['item', 'etapa']);
     for (const p of pecas) this.solto(this.abrirInstrucao(p.id));
     await this.carregar();
+    // A carga trouxe o que o servidor tem: se o pedido aberto não existe mais nela, vai ao que contém as peças.
+    const deNovo = this.pedidoDasPecas(criadas);
+    if (deNovo !== null && pedidoEscolhido(agruparPedidos(this.pecas), escolha()).naoEncontrado) {
+      filtrosNaUrl(filtrosDaUrl(), { pedido: deNovo }, ['item']);
+      this.redesenhar();
+    }
+  }
+
+  /** O id do pedido (agrupado) que contém as peças `ids`, ou `null`. */
+  private pedidoDasPecas(ids: Set<number>): number | null {
+    return agruparPedidos(this.pecas).find((x) => x.pecas.some((p) => ids.has(p.id)))?.id ?? null;
   }
 
   // ---------- A descrição (D-89 a D-91) ----------
