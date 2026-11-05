@@ -82,7 +82,10 @@ anúncio". **Documento nunca aparece no anúncio**, mesmo marcado; o documento d
 não pode virar foto nem ficar público, e o de uma autorização assinada não pode ser apagado. O mesmo
 vale para o documento que é a autorização do proprietário no mandato de uma negociação em andamento:
 enquanto o mandato vigente usa o anexo, ele não é apagado, não vira foto nem fica público (troque o
-anexo no mandato ou encerre a negociação antes). Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
+anexo no mandato ou encerre a negociação antes). Se alguém apaga o documento no mesmo instante em
+que o mandato é salvo com ele, um espera o outro: ou o documento é apagado e o mandato recusa o anexo
+(peça para anexar de novo), ou o mandato é salvo e a exclusão é recusada; o mandato nunca fica
+apontando para um documento apagado. Cada imóvel guarda até 80 arquivos. Dá para subir, descer,
 ver, editar e apagar (apagar é de vez, para liberar o espaço). As fotos são mostradas por um link temporário, que vale uma
 hora.
 
