@@ -2288,6 +2288,13 @@
             "min": 0
           }
         },
+        "motor_mensagem_hash": {
+          "tipo": "texto",
+          "limite": 64
+        },
+        "motor_mensagem_em": {
+          "tipo": "datahora"
+        },
         "encerrada_em": {
           "tipo": "datahora"
         }

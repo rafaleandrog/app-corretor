@@ -81,8 +81,9 @@ window.urbiVerso = {
     }
     if (caminho === '/numeros') {
       window.ultimaNumeros = rota;
+      if (window.falharNumeros) throw Object.assign(new Error('fora do ar'), { status: 503 });
       return {
-        dias: 30, origem: null, origens_disponiveis: ['instagram', 'pagina', 'nao_informada'], periodo: { de: '2026-10-06T00:00:00.000Z', ate: '2026-11-05T00:00:00.000Z' },
+        dias: Number(new URLSearchParams(rota.split('?')[1] ?? '').get('dias') ?? 30), origem: null, origens_disponiveis: ['instagram', 'pagina', 'nao_informada'], periodo: { de: '2026-10-06T00:00:00.000Z', ate: '2026-11-05T00:00:00.000Z' },
         atual: ${JSON.stringify(kpis(6))}, anterior: ${JSON.stringify(kpis(4))},
         previsao: { valor_c: 10482500, sem_dados: 0 },
         serie_leads: { categorias: ['01/10', '02/10'], atual: [3, 3], anterior: [2, 2] },
@@ -398,6 +399,22 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     assert.match(r.centro, /Origem dos contatos/);
     assert.match(r.centro, /Leads por canal/);
     assert.equal(await pagina.evaluate(() => (window as any).ultimaNumeros), '/numeros?dias=90');
+
+    // A leitura do filtro novo falha: os números do período anterior não ficam sob o rótulo novo.
+    await pagina.goto(`${ORIGEM}/portal_corretor/numeros?dias=30`);
+    await pagina.evaluate(() => (window as any).abrir('numeros'));
+    await esperar();
+    const kpis = () => pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-kpi').length);
+    assert.ok((await kpis()) > 0, 'os números de 30 dias na tela');
+    await pagina.evaluate(() => {
+      (window as any).falharNumeros = true;
+      history.replaceState(null, '', '/portal_corretor/numeros?dias=90');
+      (window as any).abrir('numeros');
+    });
+    await esperar();
+    assert.equal(await kpis(), 0, 'sem os números de 30 dias sob o rótulo de 90');
+    assert.equal(await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-banner').length), 1, 'o erro no lugar');
+    await pagina.evaluate(() => ((window as any).falharNumeros = false));
 
     // Troca de conta com a leitura da outra em voo: a resposta da conta A nunca aparece na conta B.
     await pagina.goto(`${ORIGEM}/portal_corretor/numeros?relatorio=negociacao&dias=30`);

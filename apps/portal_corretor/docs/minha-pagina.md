@@ -32,6 +32,9 @@ A tela fica no desenho em colunas (no celular, uma por vez, com as abas Blocos �
   **visitas** à página ainda não são medidas e aparecem como "—"); e, com a página no ar, **Copiar
   link** e, em **Mais**, Abrir minha página, Atualizar agora e Tirar do ar.
 
+Se a releitura da página falhar ao voltar à tela, o editor segue com a última leitura e um aviso
+diz que ela pode estar desatualizada.
+
 Arrastar os blocos para ordenar ainda não existe: a ordem muda pelas setas.
 
 ### O que a página tem

@@ -101,7 +101,9 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 - `reacao_recebida`: o comentário do cliente na seleção;
 - `acao_cliente_recebida`: o texto da mensagem do cliente pelo portal.
 
-**Até lá:** risco residual documentado em `apps/portal_corretor/docs/negociacao.md` (Negociador humano) e avisado na tela de convite; o teste `eventos-sem-dado-pessoal.test.ts` barra qualquer outro campo pessoal em evento.
+**Até lá:** risco residual documentado em `apps/portal_corretor/docs/negociacao.md` (Negociador humano) e avisado na tela e no diálogo de convite; o teste `eventos-sem-dado-pessoal.test.ts` emite todos os eventos do app pelos caminhos reais e barra qualquer outro campo pessoal em evento (#151).
+
+**Situação (05/11/2026, #151):** em aberto. O SDK instalado segue 100.0.0 e o próprio `wh.md` reconhece a lacuna: "`req.dados` não serve aqui (ainda)".
 
 **Proposta mínima (qualquer uma fecha):** (a) `req.dados` segregado no handler de `wh`, com a conta do contexto do ingresso (como o listener recebe), para o app gravar o pedido e publicar só o id; ou (b) recorte de leitura do evento segregado por papel da app ou pela lista `destinatarios` também na listagem, no pull e nas inscrições, não só no SSE.
 
@@ -113,7 +115,39 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** expor a política ao app, por exemplo um booleano `multi_usuario` em `req.shell.externos` (ou no retorno de uma consulta de capacidades do provisionamento), legível por quem pode convidar.
 
-## 18. Superfície de "conta ativa" no SDK: evento ou leitura (#144, sobra do B6)
+## 18. Atalho global de teclado e teclas reservadas pelo shell (spec 11.0.6, item B10, #145)
+
+**Por quê:** os atalhos do corretor (`/` busca, `C` Criar, `A` Assistente, `J`/`K` e `E`) escutam `keydown` na janela (`frontend/atalhos.ts`). O SDK 100 não tem contrato para a app ouvir o teclado fora da própria tela nem diz quais teclas o shell usa ou vai usar; o único texto é "Sem atalho de teclado nesta versão." (`ui-componentes-layout.md`, no trilho). Hoje não há colisão, e o app se protege: não age em campo de texto, diálogo aberto nem com Ctrl, Cmd ou Alt. O risco é o shell ganhar um atalho com a mesma tecla e as duas ações dispararem juntas.
+
+**Até lá:** o listener do app como está, desligado ao sair do app, e sem tecla com modificador.
+
+**Proposta mínima:** documentar no SDK se a app pode ouvir teclado global e quais teclas o shell reserva (ou um registro de atalhos da app no shell, que resolva a colisão e mostre a lista ao usuário).
+
+## 19. Prefixo das tags internas da app (`app-{pasta}` × prefixo próprio) (item B7, #145)
+
+**Por quê:** o `ui.md` diz "Apps registram como `app-{nome-da-pasta}`" e não esclarece se a regra vale para os componentes internos da tela ou só para o componente de entrada. O app usa `pc-*` nos internos desde o início, e o empacotador não reclama.
+
+**Até lá:** `pc-*` nos internos.
+
+**Proposta mínima:** uma frase no `ui.md` dizendo a regra das tags internas (e, se for `app-{pasta}-*`, que o empacotador avise).
+
+## 20. Comprimento CSS em prop de primitivo (`urbi-grid min`/`gap`) (item B5b, #145)
+
+**Por quê:** o `ui.md` proíbe comprimento CSS em atributo de primitivo, mas o catálogo publica `min` e `gap` do `urbi-grid` com valores em px (`min="180px"`). O app segue o catálogo (`frontend/telas/novo-imovel.ts`, Números), e a revisão aponta a contradição a cada PR.
+
+**Até lá:** o que o catálogo publica.
+
+**Proposta mínima:** o `ui.md` abrir a exceção para as props documentadas do `urbi-grid` (ou o catálogo trocar px por um token de tamanho).
+
+## 21. Primitivos `urbi-*` disponíveis para teste fora do shell (itens B5b e B7, #145)
+
+**Por quê:** os testes no Chromium (`testes/*-chromium.test.ts`) montam as telas sem os primitivos, que não vêm no SDK. Por isso eles travam a árvore da moldura e os slots, mas não medem o layout real (largura das colunas, empilhamento no celular) e simulam o clique de `urbi-botao-alternar` em vez de clicar no primitivo de verdade.
+
+**Até lá:** CSS de teste que imita o desktop documentado, e a medição registrada como limite da superfície nos próprios testes.
+
+**Proposta mínima:** publicar no SDK um bundle dos primitivos (ou um registro de teste) que um teste possa carregar fora do shell.
+
+## 22. Superfície de "conta ativa" no SDK: evento ou leitura (#144, sobra do B6)
 
 **Por quê:** as telas do app guardam estado da conta em que estão (lista, ficha aberta, rascunho, conversa do Assistente) e precisam saber, na hora, quando a conta muda, para recriar a tela e descartar o que ainda chega da conta anterior. O SDK 100 não tem uma superfície própria de "conta ativa". O app deduz a conta de `urbiVerso.contexto().conta` (`contaEscrita` com uma conta só; o seletor próprio do app, guardado no navegador, com várias) e só fica sabendo da mudança pelo `urbi:contexto-app`, que dispara quando o contexto inteiro muda (`autenticacao.md` § Quando o contexto existe), sem dizer se o que mudou foi a conta. Também não há garantia documentada de que o contexto seja recarregado quando a conta muda no servidor: o shell o busca a cada navegação para a app, então uma troca feita pela plataforma só chega à tela na próxima navegação ou recarga, sem evento no meio. O caso que motivou o pedido: o operador que atende uma conta só tem a conta trocada; até a 0.1.36, a chave das telas usava só a conta do seletor (nula sem seletor) e a troca passava despercebida.
 

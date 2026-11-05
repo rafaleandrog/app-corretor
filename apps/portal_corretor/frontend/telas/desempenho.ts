@@ -113,7 +113,12 @@ async function carregar() {
     const r = await chamarApi(`/numeros?dias=${dias}${origem ? `&origem=${encodeURIComponent(origem)}` : ''}`);
     if (geracao === estado.geracao) estado.dados = r;
   } catch (e) {
-    if (geracao === estado.geracao) estado.falha = e;
+    if (geracao === estado.geracao) {
+      estado.falha = e;
+      // Os números na tela são de outro período ou origem: não ficam sob o rótulo do filtro novo.
+      const d = estado.dados;
+      if (d && (d.dias !== dias || (d.origem ?? '') !== origem)) estado.dados = null;
+    }
   }
   redesenhar();
 }

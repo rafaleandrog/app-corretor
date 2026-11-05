@@ -44,6 +44,16 @@ test('regras puras do P10: hora no fuso, fora do horário, melhores origens e a 
   // Taxas da turma: lead→visita 3/5 = 60%, visita→proposta 1/3 = 33%, proposta→ganho 0/1 = 0%.
   assert.match(m.texto, /60% dos contatos chegam à visita, mas só 0% das propostas viram venda/);
   assert.match(m.texto, /"Sem resposta" \(2 negócios\)/);
+  // Perdas sem motivo em maior número: a frase diz "informado", e negócio sem cliente não entra no N.
+  const semMotivo: NegocioNum[] = [
+    ...Array.from({ length: 8 }, (_, i) => ({ ...base, criado_em: '2026-10-05T13:00:00.000Z', marco_max: 'novo', contato_id: 20 + i, perdido_em: '2026-10-20T00:00:00.000Z', motivo_perda: 'sem_motivo' }) as NegocioNum),
+    { ...base, criado_em: '2026-10-05T13:00:00.000Z', marco_max: 'novo', contato_id: 30, perdido_em: '2026-10-20T00:00:00.000Z', motivo_perda: 'preco' },
+    { ...base, criado_em: '2026-10-05T13:00:00.000Z', marco_max: 'novo', contato_id: null, perdido_em: '2026-10-20T00:00:00.000Z', motivo_perda: 'preco' },
+  ];
+  const m2 = oQueMelhorar(semMotivo, calcularKpis(semMotivo, de, ate), de, ate, (x) => (x === 'preco' ? 'Preço' : x));
+  assert.equal(m2.motivo, 'preco');
+  assert.match(m2.texto, /O motivo de perda informado mais comum foi "Preço" \(2 negócios\)/);
+  assert.equal(m2.clientes, 1, 'o negócio sem cliente não aparece na lista, então não conta');
   assert.deepEqual(oQueMelhorar([], calcularKpis([], de, ate), de, ate), {
     texto: 'Nenhum lead no período. Quando os contatos chegarem, a leitura mostra onde eles param no funil.',
     motivo: null,

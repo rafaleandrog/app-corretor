@@ -24,14 +24,16 @@ colunas (no celular, uma por vez, com abas):
     origem, aparecem como "—".
 
   As escolhas ficam no endereço sem criar entrada no histórico do navegador (o Voltar não as
-  desfaz), e recarregar ou abrir o link guardado mantém as mesmas.
+  desfaz), e recarregar ou abrir o link guardado mantém as mesmas. Se a leitura do filtro novo
+  falhar, a tela mostra o erro, com a opção de tentar de novo, e não os números do filtro anterior.
 - **À direita:**
   - **O que melhorar**: uma leitura curta feita pelo app com os números do período, sem IA. Ela
     aponta o passo do funil em que mais se perde (entre contato → visita, visita → proposta e
-    proposta → venda) e o motivo de perda mais comum. Havendo esse motivo, **Ver os N clientes**
+    proposta → venda) e o motivo de perda informado mais comum (as perdas marcadas sem motivo não
+    entram nessa escolha). Havendo esse motivo, **Ver os N clientes**
     abre Clientes só com quem teve negócio de compra perdido por ele desde o início do período (e
     do canal escolhido, se houver). N conta clientes, não negócios: dois negócios perdidos do mesmo
-    cliente contam um. Em Clientes, uma faixa diz que o filtro veio de Números, com **Tirar o
+    cliente contam um, e negócio sem cliente não conta. Em Clientes, uma faixa diz que o filtro veio de Números, com **Tirar o
     filtro**;
   - **Melhores origens**: até quatro canais, os que mais levaram leads do período à visita (no
     empate, os com mais leads), com as visitas e os leads de cada um;

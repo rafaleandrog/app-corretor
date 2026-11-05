@@ -76,7 +76,11 @@ async function carregar() {
     if (geracao !== estado.geracao) return;
     estado.visao = visao;
   } catch (e) {
-    if (geracao === estado.geracao) estado.falha = e;
+    if (geracao === estado.geracao) {
+      estado.falha = e;
+      // Com a página já carregada, o editor segue com a última leitura; o aviso diz que ela pode estar velha.
+      if (estado.visao) urbiVerso.notificar('Não foi possível atualizar a página. Mostrando a última leitura.', 'erro');
+    }
   } finally {
     if (geracao === estado.geracao) estado.carregando = false;
   }

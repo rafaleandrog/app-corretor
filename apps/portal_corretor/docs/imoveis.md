@@ -65,13 +65,15 @@ o conteúdo e, embaixo, **Voltar**, **Salvar rascunho** e **Próximo** (no últi
    tipo e cidade preenchidos e alterações não salvas, **Salvar rascunho**, ir a Autorização ou Onde aparece, ou **Concluir**). Depois, **Tirar fotos ou escolher da galeria** (no
    celular, abre a câmera ou a galeria; no computador, dá para arrastar várias): JPG, PNG ou WEBP,
    até 25 MB cada. Com a leitura de fotos ligada, a IA diz o ambiente de cada foto e põe a melhor de
-   fachada, sala ou vista como capa, marcada **Capa sugerida**. Cada foto tem **Usar como capa** e
+   fachada, sala ou vista como capa, marcada **Capa sugerida** (se nenhuma foto do envio pôde ser
+   lida, a ordem fica como estava e não há sugestão). Cada foto tem **Usar como capa** e
    **Apagar**. Dá para seguir sem fotos e voltar depois.
 2. **Dados.** Tipo, bairro, cidade, UF, quartos, suítes, banheiros, vagas, área útil, preço,
    condomínio, título e características. **Tipo e cidade são obrigatórios**: vazios, ficam
    destacados e o **Próximo** não avança (o **Salvar rascunho** salva assim mesmo, se o rascunho já
    existe). As características que as fotos mostram (varanda, área de lazer, vista, garagem) chegam
-   preenchidas, com o rótulo **preenchido pela IA** até você mexer no campo. Quartos, área e preço
+   preenchidas, com o rótulo **preenchido pela IA** até você mexer no campo. Isso acontece quando as
+   fotos são lidas: ao retomar um rascunho, o que você apagou das características não volta. Quartos, área e preço
    não se deduzem de foto: ficam com você.
 3. **Autorização.** As autorizações do imóvel, **Registrar autorização** (o mesmo formulário da
    ficha), **Anexar o documento assinado** (PDF ou foto; fica interno, nunca aparece no anúncio) e
@@ -90,7 +92,12 @@ Com a IA desligada, a caixa diz que os dados são preenchidos à mão, e nada tr
 **Rascunho salvo em cada passo.** As fotos e a autorização salvam na hora; os dados, ao sair do
 passo (Próximo, Voltar, tocar noutro passo, Salvar rascunho ou Concluir). **Salvar rascunho** leva à
 ficha. O endereço guarda o imóvel e o passo (`/imoveis/novo?item=<número>&passo=dados`): recarregar a
-página volta no mesmo lugar. Na ficha de um rascunho, **Continuar cadastro** abre o Novo imóvel no
+página volta no mesmo lugar. Sem o número do imóvel (nenhum rascunho ainda), o endereço não leva a
+Autorização nem a Onde aparece: a tela abre em Dados. Se a pessoa digita enquanto um salvamento está a
+caminho, esse texto fica pendente e vai no salvamento seguinte. Ao trocar de passo, a tela salva uma
+vez; em Salvar rascunho e Concluir, ela repete o salvamento até três vezes. Se ainda houver texto novo,
+aparece o aviso "Você continuou editando enquanto salvava. Tente de novo.", a tela fica onde está e o
+que foi digitado continua lá. Na ficha de um rascunho, **Continuar cadastro** abre o Novo imóvel no
 primeiro passo com o que fazer (sem foto, Fotos; sem tipo ou cidade, Dados; sem autorização,
 Autorização; senão, Onde aparece). O endereço com o número de um imóvel de outra conta responde
 "não encontrado".

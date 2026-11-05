@@ -450,7 +450,10 @@ crmRotas.post(
       origem_id: contato.origem_id ?? null,
     });
     await registrar(dados, req, { tipo: 'negocio.criado', alvo_tipo: 'negocio', alvo_id: negocio.id, contato_id: cid, resumo: `Negócio aberto: ${negocio.titulo} (${primeira.nome})` });
-    res.status(201).json(negocio);
+    // Gatilho `etapa_proposta` (10.9.4) também no negócio que já nasce na Proposta (o funil cuja primeira
+    // etapa em andamento é ela): o Negociador entra como entraria se o negócio tivesse chegado lá.
+    const entrou = await entrarPelaEtapaProposta(req, negocio, primeira);
+    res.status(201).json(entrou ? { ...negocio, negociador_entrou: entrou } : negocio);
   }),
 );
 

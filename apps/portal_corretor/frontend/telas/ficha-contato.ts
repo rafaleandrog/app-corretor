@@ -250,7 +250,12 @@ export class FichaContato {
       'POST',
       '/negocios',
       (v) => ({ ...v, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, contato_id: this.contatoId }),
-    ).then((r) => this.depois(r));
+    ).then((r) => {
+      // O negócio que já nasce na Proposta pode abrir a negociação (gatilho `etapa_proposta`).
+      const aviso = avisoDeEntrada((r as Linha | null)?.negociador_entrou);
+      if (aviso) urbiVerso.notificar(aviso, 'info');
+      return this.depois(r);
+    });
   }
 
   private async moverEtapa(negocio: Linha) {

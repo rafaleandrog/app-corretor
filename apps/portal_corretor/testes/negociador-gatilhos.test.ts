@@ -75,9 +75,10 @@ const respostaObjecao = {
 
 /**
  * Dublê de `req.shell`: negociadores 5 (conta 100, com papel), 7 (conta 100, sem papel) e 6 (conta 200,
- * com papel). `papeis` muda quem tem o papel (para o caso da pessoa que perdeu o papel).
+ * com papel). `papeis` muda quem tem o papel (para o caso da pessoa que perdeu o papel); `semAcesso`,
+ * quem tem o papel gravado mas o nível efetivo `nenhuma` no app (perdeu o acesso).
  */
-function shellFalso(papeis = [5, 6]) {
+function shellFalso(papeis = [5, 6], semAcesso: number[] = []) {
   const convites = [
     { id: 2, intencao: 'admitir_existente', credencial: 'neg5@a.com', status: 'resgatado', usuarioId: 5, contaId: 100, contaAlvo: 100 },
     { id: 3, intencao: 'admitir_existente', credencial: 'neg7@a.com', status: 'resgatado', usuarioId: 7, contaId: 100, contaAlvo: 100 },
@@ -85,6 +86,7 @@ function shellFalso(papeis = [5, 6]) {
   ];
   return {
     listarUsuariosPorRole: async (role: string) => (role === 'negociador' ? papeis : []),
+    nivelEfetivoUsuario: async (uid: number) => (semAcesso.includes(uid) ? 'nenhuma' : 'escrita'),
     externos: {
       convidar: async () => ({ conviteId: 99, vigenteAte: new Date('2099-01-01') }),
       listarConvites: async (o: { contaAlvo?: number; status?: string } = {}) => {

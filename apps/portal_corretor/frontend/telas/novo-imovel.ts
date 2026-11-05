@@ -8,6 +8,7 @@ import {
   obrigatoriosVazios,
   PASSOS_NOVO_IMOVEL,
   passoParaRetomar,
+  passoSemRascunho,
   passoValido,
   qualidadeAnuncio,
   type PassoNovoImovel,
@@ -141,6 +142,11 @@ class NovoImovel extends EventTarget {
   sujo = false;
   /** Campos que o corretor mexeu nesta visita: a IA não os preenche mais. */
   editados = new Set<string>();
+  /**
+   * Alguma foto foi lida pela IA nesta visita à tela. Só aí as características das fotos entram no
+   * formulário: ao retomar um rascunho, o que o corretor apagou antes não volta sozinho.
+   */
+  leuFotosAgora = false;
   ia = { fotos: false, conteudo: false };
   ocupado: string | null = null;
   falha: unknown = null;
@@ -182,7 +188,7 @@ class NovoImovel extends EventTarget {
       () => undefined,
     );
     if (!item) {
-      this.passo = pedido ?? 'fotos';
+      this.passo = passoSemRascunho(pedido);
       this.mudou();
       return;
     }
@@ -216,7 +222,7 @@ class NovoImovel extends EventTarget {
     try {
       this.ficha = await this.esperar(chamarApi(`/imoveis/${this.id}`));
       if (!this.sujo) this.form = doImovel(this.ficha!.imovel);
-      this.sugerirDasFotos();
+      if (this.leuFotosAgora) this.sugerirDasFotos();
       void chamarApi(`/imoveis/${this.id}/contexto`).then(
         (c) => ((this.combinam = c.combinam?.length ?? 0), this.mudou()),
         () => undefined,
@@ -284,9 +290,11 @@ class NovoImovel extends EventTarget {
     if (this.id) return this.id;
     const faltam = this.faltamObrigatorios();
     if (faltam.length) throw new Error(`Para guardar o rascunho, preencha: ${faltam.join(' e ').toLowerCase()}.`);
+    // O que se digitar com o POST em voo continua pendente: só o que foi enviado conta como salvo.
+    const enviado = this.form;
     const criado = await this.esperar(enviar('POST', '/imoveis', this.corpo()));
     this.id = criado.id;
-    this.sujo = false;
+    if (this.form === enviado) this.sujo = false;
     this.naUrl();
     await this.reler();
     return this.id!;
@@ -299,9 +307,24 @@ class NovoImovel extends EventTarget {
       return;
     }
     if (!this.sujo) return;
+    const enviado = this.form;
     await this.esperar(enviar('PATCH', `/imoveis/${this.id}`, this.corpo()));
-    this.sujo = false;
+    if (this.form === enviado) this.sujo = false;
     await this.reler();
+  }
+
+  /**
+   * Salva tudo o que está pendente e garante o rascunho, e só volta com `sujo` falso: o que se digitou com
+   * um salvamento em voo (ou o que a releitura sugeriu) vai numa nova rodada. Poucas rodadas: quem não para
+   * de digitar recebe o aviso em vez de um laço sem fim. Conta trocada no meio: `ContaTrocada` segue.
+   */
+  async salvarTudo() {
+    for (let rodada = 0; rodada < 3; rodada++) {
+      await this.salvarDados();
+      await this.garantirRascunho();
+      if (!this.sujo) return;
+    }
+    throw new Error('Você continuou editando enquanto salvava. Tente de novo.');
   }
 
   /**
@@ -369,8 +392,7 @@ class NovoImovel extends EventTarget {
       return;
     }
     const ok = await this.tentar('Salvando…', 'Não foi possível salvar o rascunho', async () => {
-      await this.salvarDados();
-      await this.garantirRascunho();
+      await this.salvarTudo();
     });
     if (!ok) return;
     urbiVerso.notificar('Rascunho salvo. Na ficha, "Continuar cadastro" volta a este passo.', 'sucesso');
@@ -405,12 +427,20 @@ class NovoImovel extends EventTarget {
       }
       if (this.ia.fotos) {
         const fotos = novas.filter((n) => n.tipo === 'foto');
+        let lidas = 0;
         for (const [i, m] of fotos.entries()) {
           this.ocupado = `A IA está lendo as fotos (${i + 1} de ${fotos.length})…`;
           this.mudou();
-          await this.esperar(enviar('POST', `/imoveis/${this.id}/midias/${m.id}/analisar`, {}).catch(() => undefined)); // a leitura é bônus
+          await this.esperar(
+            enviar('POST', `/imoveis/${this.id}/midias/${m.id}/analisar`, {}).then(
+              () => lidas++,
+              () => undefined, // a leitura é bônus
+            ),
+          );
         }
-        if (fotos.length) {
+        if (lidas) this.leuFotosAgora = true;
+        // Sem nenhuma leitura, não há base para sugerir a capa: a ordem fica como estava, sem o selo.
+        if (lidas) {
           const ordenou = await this.esperar(enviar('POST', `/imoveis/${this.id}/midias/ordem-sugerida`, {}).then(() => true, () => false));
           if (ordenou) this.capaSugerida = true;
         }
@@ -486,14 +516,20 @@ class NovoImovel extends EventTarget {
    */
   async concluir() {
     const ok = await this.tentar('Concluindo…', 'Não foi possível concluir', async () => {
-      await this.salvarDados();
-      await this.garantirRascunho();
-      const im = this.ficha!.imovel;
+      await this.salvarTudo();
+      // A última leitura pode ter falhado: decidir sobre a ficha nula ou velha publicaria às cegas.
+      if (this.falha || !this.ficha) await this.recarregar();
+      if (this.falha || !this.ficha) throw this.falha ?? new Error('Não foi possível ler o imóvel. Tente de novo.');
+      // A releitura pode ter deixado edição pendente (a sugestão das fotos): nada sai da tela sujo.
+      if (this.sujo) await this.salvarTudo();
+      const im = this.ficha.imovel;
       if (this.onde === 'publico') {
         await this.esperar(enviar('PATCH', `/imoveis/${this.id}`, { ...(['ativo', 'reservado'].includes(im.situacao) ? {} : { situacao: 'ativo' }), publicado_pagina: true }));
       } else if (im.publicado_pagina) {
         await this.esperar(enviar('PATCH', `/imoveis/${this.id}`, { publicado_pagina: false }));
       }
+      // Digitado durante a publicação: ainda vai, antes de sair.
+      if (this.sujo) await this.salvarTudo();
     });
     if (!ok) return;
     urbiVerso.notificar(this.onde === 'publico' ? 'Imóvel ativo e na sua página.' : 'Imóvel salvo. Só você vê.', 'sucesso');

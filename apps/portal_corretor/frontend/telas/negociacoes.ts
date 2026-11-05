@@ -635,7 +635,7 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       await urbiVerso.alertar({
         titulo: 'Nenhum negociador pronto',
         mensagem: semPapel
-          ? 'Quem aceitou o seu convite ainda não tem o papel negociador. Peça ao administrador do app para atribuí-lo em Configurações › Usuários.'
+          ? 'Quem aceitou o seu convite ainda não tem o papel negociador ou perdeu o acesso ao app. Peça ao administrador do app para conferir em Configurações › Usuários.'
           : 'Convide uma pessoa em Ajustes › Negociador › Quem negocia. Depois do aceite, o administrador do app atribui o papel negociador a ela.',
         tipo: 'info',
       });
@@ -783,7 +783,10 @@ async function novaPropostaNoGesto(g: Gesto, foco?: { id: number; nome: string }
       const livre = (n: Linha) => n.etapa_tipo === 'aberta' && n.pipeline === 'compra' && !ocupados.has(Number(n.id));
       const aberto = negocios.find((n) => livre(n) && Number(n.imovel_id) === imovel) ?? negocios.find((n) => livre(n) && !n.imovel_id);
       const negocio = aberto ?? (await g.esperar(enviar('POST', '/negocios', { contato_id: contato, imovel_id: imovel })));
-      negociacao = await g.esperar(enviar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel }));
+      // O negócio novo que já nasce na Proposta abre a negociação sozinho (gatilho `etapa_proposta`):
+      // a oferta entra nela, sem pedir outra (que daria 409 NEGOCIACAO_EXISTENTE).
+      const entrou = !aberto ? negocio?.negociador_entrou : null;
+      negociacao = entrou?.negociacao_id ? { id: entrou.negociacao_id } : await g.esperar(enviar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel }));
       if (!aberto) urbiVerso.notificar('Aberto um negócio novo do cliente para este imóvel.', 'info');
     }
     await g.esperar(enviar('POST', `/negociacoes/${negociacao!.id}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }));
