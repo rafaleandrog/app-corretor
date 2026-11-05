@@ -1265,3 +1265,76 @@ test('Estúdio no Chromium: criar duas vezes o mesmo pedido (menos de 2 min) abr
     await navegador.close();
   }
 });
+
+// Outra aba criou uma peça entre as nossas: o servidor separa os grupos, e o pedido da URL (que existe)
+// não contém a peça nova. A carga desta criação leva a URL ao pedido que a contém.
+const prepararCriarComOutraAba = async (pagina: any) => {
+  await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+  await pagina.waitForTimeout(120);
+  await pagina.evaluate(async () => {
+    const w = window as any;
+    w.CRIAR = true;
+    w.urbiVerso.formulario = async () => ({ pedido: 'Post da casa', imovel_id: '5', objetivo: 'novo_imovel', f_post_1x1: true });
+    await w.estudio.novoPedido('Post da casa');
+  });
+  await pagina.waitForTimeout(120);
+  // Outra origem: só o servidor tem a 902, de outro texto, entre a nossa anterior (901) e a nova (903).
+  await pagina.evaluate(() => {
+    const w = window as any;
+    w.CRIADAS.push({ ...w.PECAS[0], id: 902, pedido: 'Outro envio', formato: 'story', estado: 'rascunho', arquivos: [], criado_em: new Date().toISOString() });
+  });
+};
+
+test('Estúdio no Chromium: criar com o pedido da URL existindo mas sem a peça nova (outra aba no meio) abre o pedido que a contém', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await prepararCriarComOutraAba(pagina);
+    assert.equal((await telaFinal(pagina)).url, '?pedido=901');
+    await pagina.evaluate(async () => {
+      const w = window as any;
+      await w.estudio.novoPedido('Post da casa');
+    });
+    await pagina.waitForTimeout(150);
+    const r: any = await telaFinal(pagina);
+    assert.equal(r.url, '?pedido=903', 'o pedido aberto é o que contém a peça nova, não o 901 que continua existindo');
+    assert.deepEqual(r.feed, [-903, 903]);
+    assert.doesNotMatch(r.texto, /Não encontrado/);
+    assert.deepEqual(r.alertas, []);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: criar em que a instância morre ao fim da carga termina em silêncio e não mexe na URL', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await prepararCriarComOutraAba(pagina);
+    const r = await pagina.evaluate(async () => {
+      const w = window as any;
+      const e = w.estudio;
+      // A instância morre no instante em que `carregar` volta (normalmente) para `criar`.
+      const carregar = e.carregar.bind(e);
+      e.carregar = async () => {
+        await carregar();
+        e.morrer();
+      };
+      w.avisos = [];
+      let rejeicao = 'nenhuma';
+      try {
+        await e.novoPedido('Post da casa');
+      } catch (err: any) {
+        rejeicao = err?.name ?? String(err);
+      }
+      return { rejeicao, url: location.search, avisosDepois: w.avisos.length, alertas: w.alertas ?? [] };
+    });
+    assert.equal(r.rejeicao, 'InstanciaEncerrada', 'o redator rejeita em silêncio, sem sucesso falso');
+    assert.equal(r.url, '?pedido=901', 'a instância morta não leva a URL ao pedido novo');
+    assert.deepEqual(r.alertas, []);
+  } finally {
+    await navegador.close();
+  }
+});
