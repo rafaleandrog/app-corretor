@@ -16,8 +16,24 @@ export async function convitesDaConta(shell: NonNullable<Shell>, conta: number, 
 }
 
 /**
+ * A pessoa ainda abre o app? `listarUsuariosPorRole` não considera o nível efetivo (permissoes.md): quem
+ * perdeu o acesso continua com o papel gravado. Antes de referenciá-la numa negociação, o nível tem de
+ * ser ao menos `leitura`. Sem como conferir, ou com a conferência falhando, a resposta é não.
+ */
+async function temAcesso(shell: NonNullable<Shell>, usuarioId: number) {
+  if (typeof shell.nivelEfetivoUsuario !== 'function') return false;
+  try {
+    return (await shell.nivelEfetivoUsuario(usuarioId)) !== 'nenhuma';
+  } catch (e) {
+    console.warn(`[portal_corretor] nível do negociador ${usuarioId} não conferido: ${(e as Error).message}`);
+    return false;
+  }
+}
+
+/**
  * Quem pode receber negociações nesta conta: quem aceitou o convite da conta (o shell devolve a conta
- * no convite resgatado) e já tem o papel `negociador` no app. Sem o papel, aparece com o aviso.
+ * no convite resgatado), tem o papel `negociador` no app e ainda tem acesso a ele (nível efetivo ao
+ * menos `leitura`). Sem o papel ou sem o acesso, aparece com o aviso "falta o papel" (`tem_papel` falso).
  */
 export async function negociadoresDaConta(shell: NonNullable<Shell>, conta: number) {
   const [resgatados, comPapel] = await Promise.all([convitesDaConta(shell, conta, 'resgatado'), shell.listarUsuariosPorRole('negociador')]);
@@ -28,12 +44,17 @@ export async function negociadoresDaConta(shell: NonNullable<Shell>, conta: numb
     if (!uid || (c.contaId ?? c.contaAlvo) !== conta || vistos.has(uid)) continue;
     vistos.set(uid, { usuario_id: uid, email: c.credencial, tem_papel: papel.has(uid) });
   }
-  return [...vistos.values()];
+  const lista = [...vistos.values()];
+  await Promise.all(lista.filter((n) => n.tem_papel).map(async (n) => (n.tem_papel = await temAcesso(shell, n.usuario_id))));
+  return lista;
 }
 
 /** O shell sabe responder quem são os negociadores da conta? (rota com `req.shell`; o listener pode não ter os convites.) */
 export const shellConfereNegociadores = (shell: Shell | null | undefined): shell is NonNullable<Shell> =>
-  !!shell && typeof shell.externos?.listarConvites === 'function' && typeof shell.listarUsuariosPorRole === 'function';
+  !!shell &&
+  typeof shell.externos?.listarConvites === 'function' &&
+  typeof shell.listarUsuariosPorRole === 'function' &&
+  typeof shell.nivelEfetivoUsuario === 'function';
 
 /**
  * Quem conduz a negociação nova desta conta (D-94). Com o padrão `humano`, a pessoa só recebe se ainda
