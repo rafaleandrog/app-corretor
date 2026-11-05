@@ -8,6 +8,7 @@ import { renderClientes, renderNegociacoes } from './telas/clientes.js';
 import { renderHojeNegociador } from './telas/negociacoes.js';
 import { aoAbrirImportar, renderImportar } from './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
+import { renderNovoImovel } from './telas/novo-imovel.js';
 import { aoAbrirNumeros, renderNumeros } from './telas/desempenho.js';
 import { aoAbrirPagina, renderPagina } from './telas/pagina.js';
 import './telas/previa-pagina.js';
@@ -52,6 +53,8 @@ const TELAS: Record<ChaveTela, Tela> = {
   // `/clientes/:id` é apelido: `chegar` troca o endereço por `/clientes?item=:id` antes de desenhar.
   cliente: { titulo: 'Clientes', papel: 'corretor', moldura: true, render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
   imoveis: { titulo: 'Imóveis', papel: 'corretor', moldura: true, render: (_p, app) => renderImoveis(() => app?.requestUpdate()) },
+  // Novo imóvel em 4 passos (P07, M3), na moldura: passos à esquerda, o passo no centro, a qualidade à direita.
+  novo_imovel: { titulo: 'Novo imóvel', papel: 'corretor', moldura: true, render: (_p, app) => renderNovoImovel(() => app?.requestUpdate()) },
   // A ficha abre na moldura de Imóveis, com o item já escolhido (P06).
   imovel: { titulo: 'Imóveis', papel: 'corretor', moldura: true, render: (id, app) => renderImoveis(() => app?.requestUpdate(), { imovel: Number(id) || undefined }) },
   empreendimento: {

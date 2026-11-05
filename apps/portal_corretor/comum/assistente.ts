@@ -10,6 +10,7 @@ export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
   '/': { nome: 'Hoje', doc: 'funil' },
   '/clientes': { nome: 'Clientes', doc: 'clientes-e-agenda' },
   '/imoveis': { nome: 'Imóveis', doc: 'imoveis' },
+  '/imoveis/novo': { nome: 'Imóveis › Novo imóvel', doc: 'imoveis' },
   '/numeros': { nome: 'Números', doc: 'desempenho' },
   '/pagina': { nome: 'Página', doc: 'minha-pagina' },
   '/estudio': { nome: 'Estúdio', doc: 'estudio' },

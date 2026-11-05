@@ -7,7 +7,8 @@ import { abrirNegociacao, novaProposta } from './telas/negociacoes.js';
 declare const urbiVerso: UrbiVersoAPI;
 
 // Menu Criar (spec 11.0.1 e 11.7): Novo cliente · Novo imóvel · Novo post · Nova visita · Nova
-// proposta, no cabeçalho de toda tela do corretor. Cada opção abre a criação que já existe na tela
+// proposta, no cabeçalho de toda tela do corretor. O Novo imóvel abre a tela de 4 passos (`/imoveis/novo`,
+// P07); as outras abrem a criação que já existe na tela
 // dela, pedida por `?criar=<tipo>` (a tela consome o parâmetro: `pedidoDeCriar`), ou, na visita, um
 // formulário próprio com o cliente em foco já escolhido. "Nova proposta" também abre um formulário
 // (cliente, imóvel e a oferta) e depois a negociação em Clientes › Negociações (P15).
@@ -28,7 +29,7 @@ export function destinoDeCriar(opcao: OpcaoCriar, _sub: string, _busca = ''): st
     case 'cliente':
       return '/clientes?criar=cliente';
     case 'imovel':
-      return '/imoveis?criar=imovel';
+      return '/imoveis/novo';
     case 'post':
       return '/estudio?criar=post';
     case 'proposta':

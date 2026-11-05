@@ -403,3 +403,72 @@ export function combina(perfil: unknown, im: Record<string, any>): string[] | nu
   }
   return motivos.length ? motivos : null;
 }
+
+// ---------- Novo imóvel em 4 passos (P07, M3; B5 parte 2) ----------
+
+/** Os passos do Novo imóvel, nesta ordem. Nenhum exige CRECI (D-93); a autorização é opcional para o rascunho. */
+export const PASSOS_NOVO_IMOVEL = [
+  { id: 'fotos', rotulo: 'Fotos' },
+  { id: 'dados', rotulo: 'Dados' },
+  { id: 'autorizacao', rotulo: 'Autorização' },
+  { id: 'onde', rotulo: 'Onde aparece' },
+] as const;
+export type PassoNovoImovel = (typeof PASSOS_NOVO_IMOVEL)[number]['id'];
+
+/** O passo do `?passo=` do endereço; valor desconhecido ou ausente é `null`. */
+export function passoValido(valor: unknown): PassoNovoImovel | null {
+  return PASSOS_NOVO_IMOVEL.some((p) => p.id === valor) ? (valor as PassoNovoImovel) : null;
+}
+
+/** Índice (0 a 3) do passo; o rótulo "Passo n de 4" é este + 1. */
+export const indicePasso = (passo: PassoNovoImovel) => PASSOS_NOVO_IMOVEL.findIndex((p) => p.id === passo);
+
+/**
+ * Campos obrigatórios do passo Dados: os mesmos do cadastro de sempre (tipo e cidade). Preço, área e
+ * cômodos contam para a qualidade, não travam o rascunho. Nenhum deles é CRECI (D-93).
+ */
+export const OBRIGATORIOS_NOVO_IMOVEL = [
+  { campo: 'tipo', rotulo: 'Tipo' },
+  { campo: 'cidade', rotulo: 'Cidade' },
+] as const;
+
+/** Rótulos dos obrigatórios ainda vazios. */
+export function obrigatoriosVazios(dados: Record<string, unknown>): string[] {
+  return OBRIGATORIOS_NOVO_IMOVEL.filter(({ campo }) => !String(dados[campo] ?? '').trim()).map(({ rotulo }) => rotulo);
+}
+
+/**
+ * O que a leitura das fotos pela IA (`/midias/:midia/analisar`, ambiente de cada foto) permite preencher
+ * nos dados: só as características que o ambiente mostra. Quartos, área e preço não se deduzem de foto:
+ * ficam com o corretor.
+ */
+const CARACTERISTICA_DO_AMBIENTE: Record<string, string> = {
+  varanda: 'varanda',
+  area_lazer: 'área de lazer',
+  vista: 'vista',
+  garagem: 'garagem',
+};
+
+export function caracteristicasDasFotos(ambientes: (string | null | undefined)[]): string[] {
+  return [...new Set(ambientes.map((a) => CARACTERISTICA_DO_AMBIENTE[a ?? '']).filter(Boolean))];
+}
+
+/** Acrescenta as sugestões às características que já existem, sem repetir (sem diferença de caixa). */
+export function juntarCaracteristicas(atual: string | null | undefined, sugeridas: string[]): string {
+  const itens = (atual ?? '').split(/[,;\n]/).map((x) => x.trim()).filter(Boolean);
+  const tem = new Set(itens.map((x) => x.toLowerCase()));
+  for (const s of sugeridas) if (!tem.has(s.toLowerCase())) (itens.push(s), tem.add(s.toLowerCase()));
+  return itens.join(', ');
+}
+
+/**
+ * Passo em que um rascunho retoma (`/imoveis/novo?item=<id>` sem `passo`): o primeiro que ainda tem o
+ * que fazer. Sem foto, Fotos; obrigatório vazio, Dados; sem autorização registrada, Autorização; senão,
+ * Onde aparece.
+ */
+export function passoParaRetomar(r: { fotos: number; dados: Record<string, unknown>; autorizacoes: number }): PassoNovoImovel {
+  if (!r.fotos) return 'fotos';
+  if (obrigatoriosVazios(r.dados).length) return 'dados';
+  if (!r.autorizacoes) return 'autorizacao';
+  return 'onde';
+}
