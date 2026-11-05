@@ -196,4 +196,7 @@ isso o corretor o envia só ao cliente e o revoga se ele for parar em outras mã
   `proposta_aceite_cliente` e `proposta_recebida` publicam só ids (a negociação e a proposta).
   O `valor_c` sai do registro do webhook (só o registro; o evento segue com ele). Se o link do
   portal for revogado antes de a oferta ou o aceite ser processado, o pedido é descartado.
+  O `comentario` da reação e o `texto` da mensagem vão no evento (nascem no webhook, que ainda não
+  grava na conta) e todo membro da conta os lê, inclusive um negociador convidado: risco residual
+  documentado em Negociação e mandato › Negociador humano.
 - **Páginas públicas:** `/portal_corretor/s` (seleção) e `/portal_corretor/c` (portal).
