@@ -35,9 +35,33 @@ quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na 
 
 ## Como as telas se organizam
 
-O menu tem, nesta ordem: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. As
-telas estão passando para um desenho só, em colunas (o "Padrão B"). **Hoje**, **Clientes**, **Imóveis**, **Estúdio**, **Página**, **Números** e **Ajustes** já estão nele; as
-outras chegam nas próximas versões, sem perder nada do que fazem hoje.
+O menu tem, nesta ordem: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. Todas
+as telas do corretor estão num desenho só, em colunas (o "Padrão B"): Hoje, Clientes (Lista, Funil,
+Negociações e Importar), Imóveis (e Novo imóvel), Estúdio, Página, Números e Ajustes. A tela
+**Corretores**, da equipe da plataforma, fica fora desse desenho.
+
+### Mapa das telas
+
+| Tela | Como chegar | Endereço | Onde está explicada |
+|---|---|---|---|
+| Hoje | Menu › **Hoje** | `/` (aba Agenda: `/agenda`) | [Funil, temperatura e fila do dia](funil.md) |
+| Clientes › Lista e ficha | Menu › **Clientes** › escolha um cliente | `/clientes?item=<número>` | [Clientes, negócios e agenda](clientes-e-agenda.md) |
+| Clientes › Funil | Menu › **Clientes** › botão **Funil** | `/clientes?visao=funil` (ou `/funil`) | [Funil, temperatura e fila do dia](funil.md) |
+| Clientes › Negociações | Menu › **Clientes** › botão **Negociações** | `/clientes?visao=negociacoes&item=<número>` (ou `/negociacoes`) | [Negociação e mandato](negociacao.md) |
+| Mandato do vendedor | Clientes › Negociações › negociação › **Editar mandato** | (janela sobre a negociação) | [Negociação e mandato](negociacao.md#o-formulário-do-mandato) |
+| Importar contatos | Menu › **Clientes** › **Importar** | `/clientes/importar` | [Clientes, negócios e agenda](clientes-e-agenda.md) |
+| Imóveis (Carteira e Empreendimentos) | Menu › **Imóveis** | `/imoveis` (ou `/empreendimentos`) | [Imóveis e empreendimentos](imoveis.md) |
+| Novo imóvel | **Criar** › Novo imóvel, ou Imóveis › **Novo** | `/imoveis/novo` | [Imóveis e empreendimentos](imoveis.md#novo-imóvel-em-4-passos) |
+| Estúdio | Menu › **Estúdio** | `/estudio` | [Estúdio de conteúdo](estudio.md) |
+| Página | Menu › **Página** | `/pagina` (ou `/minha-pagina`) | [Página, ficha pública e link rastreado](minha-pagina.md) |
+| Números | Menu › **Números** | `/numeros?relatorio=<relatório>` (ou `/desempenho`) | [Números, envios e dados de demonstração](desempenho.md) |
+| Ajustes › Conta e marca | Menu › **Ajustes** › Conta e marca | `/ajustes/conta` | [Conta e ajustes](conta-e-ajustes.md) |
+| Ajustes › Conexões | Menu › **Ajustes** › Conexões | `/ajustes/conexoes` | [Conexões (Instagram)](conexoes.md) |
+| Ajustes › Negociador | Menu › **Ajustes** › Negociador | `/ajustes/negociador` | [Negociação e mandato](negociacao.md#ajustes-do-negociador) |
+| Ajustes › Funil e abordagens | Menu › **Ajustes** › Funil e abordagens | `/ajustes/funil` | [Funil, temperatura e fila do dia](funil.md) |
+| Assistente | Botão **Assistente** no trilho (ou tecla `A`) | `/assistente` abre Hoje com ele aberto | [Assistente do Corretor](assistente.md) |
+| Página pública e ficha do imóvel | Link da Página (sem login) | página pública do app | [Página, ficha pública e link rastreado](minha-pagina.md) |
+| Portal do Cliente e seleção | Link pessoal do cliente (sem login) | página pública do app | [Seleções e Portal do Cliente](selecoes-e-portal.md) |
 
 | Parte | Onde fica | O que faz |
 |---|---|---|
@@ -59,17 +83,18 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 | Nova visita | Pede o cliente, o imóvel, o dia e a hora ali mesmo; com a ficha de um cliente aberta, ele já vem escolhido. Depois abre a ficha do cliente |
 | Nova proposta | Pede o cliente (o da ficha aberta já vem escolhido), o imóvel e o valor oferecido; registra a oferta e abre a negociação em Clientes › Negociações |
 
-**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela. Em **Hoje**, **Imóveis**, **Estúdio**, **Página** e **Números**, já no
-desenho novo, **Fechar** devolve o contexto no lugar do Assistente, e a lista e o centro ficam como estavam.
-Nas telas que ainda não estão no desenho novo, o botão **Assistente** fica no alto, ao lado de Criar, e o
-Assistente divide a tela com ela; abrir e fechar recarrega a tela, que não volta exatamente como estava —
+**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela, em todas as telas do
+corretor. **Fechar** devolve o contexto no lugar do Assistente, e a lista e o centro ficam como estavam —
 ver [Assistente do Corretor](assistente.md).
 
-**Estados de toda tela** (**Hoje**, **Imóveis**, **Estúdio**, **Página** e **Números** já usam os estados comuns, de `frontend/estados.ts`; as demais telas passam a usá-los ao entrar no desenho novo):
-- Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco. A maioria das telas já mostra o indicador.
-- Se algo não carregou, aparece uma frase curta com **Tentar de novo**. A maioria das telas já tem o botão.
-- O que não existe ou é de outra conta aparece como **Não encontrado**. Hoje isso vale em **Números**, em **Hoje**, em **Imóveis** e no **Estúdio**.
-- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona. Hoje o aviso aparece no painel do **Assistente**, em **Hoje** e no **Estúdio**.
+**Estados das telas** (são sete, o conjunto comum às telas do corretor; cada tela mostra só os que se aplicam a ela):
+- Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco.
+- Quando não há nada, uma frase diz o que falta e o botão que resolve (por exemplo, "Nenhum imóvel ainda" com **Cadastrar o primeiro imóvel**).
+- Se algo não carregou, aparece uma frase curta com **Tentar de novo**.
+- O que não existe ou é de outra conta aparece como **Não encontrado**, nunca como "sem permissão".
+- Quando o Instagram desconecta, uma faixa no Estúdio diz "Seu Instagram desconectou" com **Reconectar** (leva a Ajustes › Conexões).
+- Quando a IA não está liberada, aparece o aviso "IA indisponível agora" e o resto da tela funciona (Hoje, ficha do cliente, Negociações, Estúdio, Ajustes › Negociador e o Assistente).
+- A faixa "Créditos do mês acabaram" está pronta, mas ainda não aparece: nenhuma função gasta crédito antes do Mensageiro.
 
 ## Atalhos e busca
 
