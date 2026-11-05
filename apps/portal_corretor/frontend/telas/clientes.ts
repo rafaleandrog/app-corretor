@@ -18,6 +18,8 @@ import {
   opcoesChip,
   opcoesPapelNaTela,
   pedidoDeCriar,
+  ROTULO_MOTIVO_PERDA,
+  ROTULO_ORIGEM,
   ROTULO_PAPEL,
   soNegociador,
   type OpcoesAba,
@@ -28,6 +30,10 @@ import { moldura } from '../moldura.js';
 import { chaveDoQuadro, contatoDoFunil } from './clientes-quadro.js';
 import { novaProposta } from './negociacoes.js';
 import './ficha-contato.js';
+import { registrarLista, soltarLista } from '../atalhos.js';
+
+/** Parâmetros do filtro "Ver os N clientes" de Números (P10), repassados a `GET /contatos`. */
+const FILTRO_PERDIDOS = ['perdido_motivo', 'perdido_desde', 'perdido_origem'];
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -156,7 +162,7 @@ function molduraNegociacoes(atualizar: () => void, topo: unknown, menu: string) 
     ${soNegociador()
       ? nothing
       : html`<urbi-botao pequeno icone="fa-solid fa-file-signature" @click=${() => void novaProposta().then((n) => n && escolherNegociacao(n))}>Nova proposta</urbi-botao>`}
-    <pc-negociacoes-lista .selecionado=${item} .aoEscolher=${escolherNegociacao}></pc-negociacoes-lista>
+    <pc-negociacoes-lista atalhos .selecionado=${item} .aoEscolher=${escolherNegociacao}></pc-negociacoes-lista>
   </urbi-stack>`;
   const centro = item
     ? keyed(item, html`<pc-negociacao-foco .negociacaoId=${item}></pc-negociacao-foco>`)
@@ -266,6 +272,17 @@ export class PcTelaClientes extends LitElement {
     void this.iniciar();
     // "Novo cliente" do menu Criar.
     if (pedidoDeCriar('cliente')) void this.novo();
+    // J/K (11.0.6): próximo e anterior na Lista, abrindo a ficha como o clique.
+    registrarLista(this, {
+      ids: () => (this.visao === 'lista' ? this.contatos.map((c) => c.id) : []),
+      atual: () => this.selecionado,
+      escolher: (id) => this.aoEscolher(id),
+    });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    soltarLista(this);
   }
 
   private async iniciar() {
@@ -281,7 +298,7 @@ export class PcTelaClientes extends LitElement {
   /** Os filtros da Lista viram a consulta; o filtro pronto entra por cima (spec 15.8). */
   private consulta() {
     const q = new URLSearchParams();
-    for (const k of ['busca', 'papel', 'temperatura', 'origem', 'pagina']) if (this.filtros.get(k)) q.set(k, this.filtros.get(k)!);
+    for (const k of ['busca', 'papel', 'temperatura', 'origem', 'pagina', ...FILTRO_PERDIDOS]) if (this.filtros.get(k)) q.set(k, this.filtros.get(k)!);
     const pronto = this.filtros.get('pronto');
     for (const [k, v] of Object.entries(parametrosDoPronto(ehPronto(pronto) ? pronto : null, this.diasParado))) q.set(k, v);
     return q;
@@ -338,6 +355,19 @@ export class PcTelaClientes extends LitElement {
     </urbi-stack>`;
   }
 
+  /** Filtro que vem de Números › O que melhorar ("Ver os N clientes"): visível e removível. */
+  private filtroPerdidos() {
+    const m = this.filtros.get('perdido_motivo');
+    if (!m) return '';
+    const desde = this.filtros.get('perdido_desde');
+    const origem = this.filtros.get('perdido_origem');
+    const quando = desde && !Number.isNaN(new Date(desde).getTime()) ? ` desde ${new Date(desde).toLocaleDateString('pt-BR')}` : '';
+    return html`<urbi-banner variante="info">
+      Perdidos por "${ROTULO_MOTIVO_PERDA[m] ?? m}"${quando}${origem ? `, vindos de ${ROTULO_ORIGEM[origem] ?? origem}` : ''} (de Números).
+      <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.filtrar(Object.fromEntries(FILTRO_PERDIDOS.map((k) => [k, ''])))}>Tirar o filtro</urbi-botao>
+    </urbi-banner>`;
+  }
+
   private explicacaoDoPronto(pronto: FiltroPronto) {
     switch (pronto) {
       case 'novos':
@@ -370,6 +400,7 @@ export class PcTelaClientes extends LitElement {
         ativo=${papel || 'todos'}
         @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ papel: e.detail.id === 'todos' ? '' : e.detail.id })}></urbi-chips-atalho>
       ${ativo ? html`<urbi-prosa papel="dica">${this.explicacaoDoPronto(ativo)}</urbi-prosa>` : ''}
+      ${this.filtroPerdidos()}
       <urbi-linha quebrar>
         <urbi-select label="Temperatura" valor=${ativo === 'quentes' ? 'quente' : temperatura} placeholder="Todas"
           .opcoes=${opcoesChip('temperatura')}

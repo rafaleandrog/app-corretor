@@ -131,6 +131,24 @@ crmRotas.get(
       if (!origens.length) return res.json({ dados: [], total: 0 });
       filtros.origem_id = origens.map((o) => o.id).join(',');
     }
+    // "Ver os N clientes" de Números (P10): quem teve negócio de compra perdido por este motivo desde a
+    // data (e, com o filtro de origem de Números, vindo daquele canal). Motivo fora do catálogo é ignorado.
+    const perdido = typeof req.query.perdido_motivo === 'string' && (MOTIVOS_PERDA as readonly string[]).includes(req.query.perdido_motivo) ? req.query.perdido_motivo : '';
+    if (perdido) {
+      const fNeg: Record<string, unknown> = { pipeline: 'compra', motivo_perda: perdido };
+      const perdidoDesde = instanteDaUrl(req.query.perdido_desde);
+      if (perdidoDesde) fNeg['perdido_em[gte]'] = perdidoDesde;
+      const canalPerda = typeof req.query.perdido_origem === 'string' && (CANAIS as readonly string[]).includes(req.query.perdido_origem) ? req.query.perdido_origem : '';
+      if (canalPerda) {
+        const origens = await req.dados!.varrerTudo('origens', { filtros: { canal: canalPerda }, maximo: 5000 });
+        if (!origens.length) return res.json({ dados: [], total: 0 });
+        fNeg.origem_id = origens.map((o) => o.id).join(',');
+      }
+      const negocios = await req.dados!.varrerTudo('negocios', { filtros: fNeg, maximo: 20000 });
+      const ids = [...new Set(negocios.filter((n) => n.perdido_em).map((n) => n.contato_id).filter(Boolean))];
+      if (!ids.length) return res.json({ dados: [], total: 0 });
+      filtros.id = ids.join(',');
+    }
     const busca = typeof req.query.busca === 'string' ? req.query.busca.trim().slice(0, 100) : '';
     const pagina = Math.min(Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1), 1000);
     const r = await req.dados!.listar('contatos', {

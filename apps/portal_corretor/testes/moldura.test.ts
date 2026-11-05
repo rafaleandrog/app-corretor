@@ -152,9 +152,9 @@ test('estrutura da moldura: inbox com trilho, três colunas com respiro, nada de
     const fonte = readFileSync(resolve(process.cwd(), arq), 'utf8');
     assert.doesNotMatch(fonte, /\bcss`|style=|<style|static styles/, arq);
   }
-  // Trilho: o menu do Padrão B na ordem de 11.0.1 e o Assistente no pé, com o item da tela ativo.
+  // Trilho: o menu do Padrão B na ordem de 11.0.1, Buscar (11.7) e o Assistente no pé, com o item da tela ativo.
   const itens = itensDoTrilho('/numeros');
-  assert.deepEqual(itens.map((i) => i.rotulo), ['Hoje', 'Clientes', 'Imóveis', 'Estúdio', 'Página', 'Números', 'Ajustes', 'Assistente']);
+  assert.deepEqual(itens.map((i) => i.rotulo), ['Hoje', 'Clientes', 'Imóveis', 'Estúdio', 'Página', 'Números', 'Ajustes', 'Buscar', 'Assistente']);
   assert.deepEqual(itens.filter((i) => i.ativo).map((i) => i.id), ['/numeros']);
 });
 
@@ -266,7 +266,7 @@ test('`?item=` guarda o item selecionado e sobrevive a recarregar', () => {
 test('Criar: cada opção leva à criação certa, com o cliente em foco quando há', () => {
   assert.deepEqual(OPCOES_CRIAR.map((o) => o.rotulo), ['Novo cliente', 'Novo imóvel', 'Novo post', 'Nova visita', 'Nova proposta']);
   assert.equal(destinoDeCriar('cliente', '/numeros'), '/clientes?criar=cliente');
-  assert.equal(destinoDeCriar('imovel', '/'), '/imoveis?criar=imovel');
+  assert.equal(destinoDeCriar('imovel', '/'), '/imoveis/novo', 'Novo imóvel em 4 passos (P07)');
   assert.equal(destinoDeCriar('post', '/'), '/estudio?criar=post');
   assert.equal(destinoDeCriar('visita', '/'), null, 'abre o formulário ali mesmo');
   // Nova proposta abre o formulário aqui mesmo (cliente em foco já escolhido) e depois a negociação (P15).

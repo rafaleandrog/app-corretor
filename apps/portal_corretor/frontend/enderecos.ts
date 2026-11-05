@@ -9,6 +9,7 @@ export type ChaveTela =
   | 'cliente'
   | 'imoveis'
   | 'imovel'
+  | 'novo_imovel'
   | 'empreendimento'
   | 'estudio'
   | 'pagina'
@@ -30,8 +31,12 @@ export const ENDERECOS: Record<string, ChaveTela> = {
   '/imoveis': 'imoveis',
   // Apelido: Empreendimentos virou a aba Empreendimentos de Imóveis (D-84).
   '/empreendimentos': 'imoveis',
+  // Novo imóvel em 4 passos (P07, M3); `?item=<id>` retoma um rascunho e `?passo=` abre o passo.
+  '/imoveis/novo': 'novo_imovel',
   '/estudio': 'estudio',
   '/pagina': 'pagina',
+  // Apelido: Minha página virou Página (spec 11.1, P09).
+  '/minha-pagina': 'pagina',
   '/numeros': 'numeros',
   // Apelido: Desempenho virou Números (D-103).
   '/desempenho': 'numeros',

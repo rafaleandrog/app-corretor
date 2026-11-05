@@ -12,10 +12,8 @@ import {
   corQualidade,
   filtrosDaUrl,
   filtrosNaUrl,
-  formularioEnviar,
   itemDaUrl,
   itemNaUrl,
-  opcoes,
   pedidoDeCriar,
   reais,
   ROTULO_TIPO_IMOVEL,
@@ -31,6 +29,7 @@ import './empreendimentos.js';
 import { EVENTO_EMPREENDIMENTO_MUDOU } from './ficha-empreendimento.js';
 import { EVENTO_IMOVEL_MUDOU, EVENTO_RESOLVER_FALTA } from './ficha-imovel.js';
 import './ficha-empreendimento.js';
+import { registrarLista, soltarLista } from '../atalhos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -152,12 +151,19 @@ export class PcListaImoveis extends LitElement {
     void this.carregar();
     window.addEventListener(EVENTO_IMOVEL_MUDOU, this.aoImovelMudar);
     window.addEventListener(EVENTO_EMPREENDIMENTO_MUDOU, this.aoEmpreendimentoMudar);
-    // "Novo imóvel" do menu Criar.
-    if (pedidoDeCriar('imovel')) void this.novo();
+    // Endereço antigo do Criar (`?criar=imovel`): leva ao Novo imóvel em 4 passos.
+    if (pedidoDeCriar('imovel')) this.novo();
+    // J/K (11.0.6): próximo e anterior na carteira.
+    registrarLista(this, {
+      ids: () => (this.aba === 'carteira' ? this.imoveis.map((i) => i.id) : []),
+      atual: () => this.selecionado,
+      escolher: (id) => this.aoEscolher(id),
+    });
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    soltarLista(this);
     window.removeEventListener(EVENTO_IMOVEL_MUDOU, this.aoImovelMudar);
     window.removeEventListener(EVENTO_EMPREENDIMENTO_MUDOU, this.aoEmpreendimentoMudar);
   }
@@ -196,26 +202,9 @@ export class PcListaImoveis extends LitElement {
     void this.carregar();
   }
 
-  private async novo() {
-    const r = await formularioEnviar(
-      'Novo imóvel',
-      [
-        { nome: 'tipo', tipo: 'selecao', rotulo: 'Tipo', obrigatorio: true, opcoes: opcoes(ROTULO_TIPO_IMOVEL), valor: 'apartamento' },
-        { nome: 'titulo', tipo: 'texto', rotulo: 'Título (opcional)', placeholder: 'Ex.: Apartamento 3 quartos com vista' },
-        { nome: 'bairro', tipo: 'texto', rotulo: 'Bairro' },
-        { nome: 'cidade', tipo: 'texto', rotulo: 'Cidade', obrigatorio: true },
-        { nome: 'uf', tipo: 'texto', rotulo: 'UF', placeholder: 'DF' },
-        { nome: 'codigo', tipo: 'texto', rotulo: 'Seu código (opcional)', placeholder: 'Em branco: IM-0001, IM-0002…' },
-      ],
-      'POST',
-      '/imoveis',
-      undefined,
-      { mensagem: 'Depois de criar, você já envia as fotos.', rotuloConfirmar: 'Criar e enviar fotos' },
-    );
-    if (r?.id) {
-      await this.carregar();
-      this.aoEscolher(r.id);
-    }
+  /** Novo imóvel em 4 passos (P07, M3): tela própria, `/imoveis/novo`. */
+  private novo() {
+    urbiVerso.navegarSub('/imoveis/novo');
   }
 
   private item(i: Imovel) {
@@ -244,7 +233,7 @@ export class PcListaImoveis extends LitElement {
             icone: 'fa-solid fa-house',
             mensagem: 'Nenhum imóvel ainda',
             submensagem: 'Leva poucos minutos: tipo, cidade e as fotos.',
-            acao: { rotulo: 'Cadastrar o primeiro imóvel', icone: 'fa-solid fa-plus', aoEscolher: () => void this.novo() },
+            acao: { rotulo: 'Cadastrar o primeiro imóvel', icone: 'fa-solid fa-plus', aoEscolher: () => this.novo() },
           });
     }
     return html`<urbi-lista separador clicavel .itens=${this.imoveis} .itemAtivo=${(i: Imovel) => i.id === this.selecionado}

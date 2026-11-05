@@ -23,7 +23,7 @@ export const PASSOS_INICIAIS: { id: IdPasso; rotulo: string; rota: string }[] = 
   { id: 'conta', rotulo: 'Dar nome à conta', rota: '/ajustes/conta' },
   { id: 'telefone', rotulo: 'Informar o seu telefone', rota: '/ajustes/conta' },
   { id: 'instagram', rotulo: 'Conectar o Instagram', rota: '/ajustes/conexoes' },
-  { id: 'imovel', rotulo: 'Cadastrar o primeiro imóvel', rota: '/imoveis?criar=imovel' },
+  { id: 'imovel', rotulo: 'Cadastrar o primeiro imóvel', rota: '/imoveis/novo' },
   { id: 'pagina', rotulo: 'Publicar a Página', rota: '/pagina' },
 ];
 

@@ -8,14 +8,17 @@ import { renderClientes, renderNegociacoes } from './telas/clientes.js';
 import { renderHojeNegociador } from './telas/negociacoes.js';
 import { aoAbrirImportar, renderImportar } from './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
-import { renderNumeros } from './telas/desempenho.js';
-import './telas/pagina.js';
+import { renderNovoImovel } from './telas/novo-imovel.js';
+import { aoAbrirNumeros, renderNumeros } from './telas/desempenho.js';
+import { aoAbrirPagina, renderPagina } from './telas/pagina.js';
+import './telas/previa-pagina.js';
 import './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assistente.js';
 import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
 import { botaoAssistente, menuCriar } from './criar.js';
+import { instalarAtalhos } from './atalhos.js';
 import { contaAtiva, contasDoUsuario, escolherConta, semConta, soNegociador } from './apoio.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
@@ -50,6 +53,8 @@ const TELAS: Record<ChaveTela, Tela> = {
   // `/clientes/:id` é apelido: `chegar` troca o endereço por `/clientes?item=:id` antes de desenhar.
   cliente: { titulo: 'Clientes', papel: 'corretor', moldura: true, render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
   imoveis: { titulo: 'Imóveis', papel: 'corretor', moldura: true, render: (_p, app) => renderImoveis(() => app?.requestUpdate()) },
+  // Novo imóvel em 4 passos (P07, M3), na moldura: passos à esquerda, o passo no centro, a qualidade à direita.
+  novo_imovel: { titulo: 'Novo imóvel', papel: 'corretor', moldura: true, render: (_p, app) => renderNovoImovel(() => app?.requestUpdate()) },
   // A ficha abre na moldura de Imóveis, com o item já escolhido (P06).
   imovel: { titulo: 'Imóveis', papel: 'corretor', moldura: true, render: (id, app) => renderImoveis(() => app?.requestUpdate(), { imovel: Number(id) || undefined }) },
   empreendimento: {
@@ -59,8 +64,8 @@ const TELAS: Record<ChaveTela, Tela> = {
     render: (id, app) => renderImoveis(() => app?.requestUpdate(), { empreendimento: Number(id) || undefined }),
   },
   estudio: { titulo: 'Estúdio', papel: 'corretor', render: () => html`<pc-tela-estudio></pc-tela-estudio>` },
-  pagina: { titulo: 'Página', papel: 'corretor', render: () => html`<pc-tela-pagina></pc-tela-pagina>` },
-  numeros: { titulo: 'Números', papel: 'corretor', moldura: true, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
+  pagina: { titulo: 'Página', papel: 'corretor', moldura: true, aoAbrir: aoAbrirPagina, render: (_p, app) => renderPagina(() => app?.requestUpdate()) },
+  numeros: { titulo: 'Números', papel: 'corretor', moldura: true, aoAbrir: aoAbrirNumeros, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
   ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
   corretores: { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
@@ -77,6 +82,7 @@ export class AppPortalCorretor extends LitElement {
   @state() private conta: number | null = null;
   @state() private semConta = false;
   private cancelarRota?: () => void;
+  private desligarAtalhos?: () => void;
   // Contexto chega assíncrono: até `carregado`, roles vazias são falta de resposta, não de acesso.
   private aoMudarContexto = () => {
     const ctx = urbiVerso.contexto();
@@ -124,6 +130,8 @@ export class AppPortalCorretor extends LitElement {
     });
     this.aoMudarContexto();
     window.addEventListener('urbi:contexto-app', this.aoMudarContexto);
+    // Atalhos de teclado (11.0.6, B10): busca, Criar e Assistente só na área do corretor, com conta.
+    this.desligarAtalhos = instalarAtalhos(() => this.papeis.includes('corretor') && !this.semConta && !soNegociador());
   }
 
   /** O Assistente responde pela tela em que o corretor está; `/assistente` abre Hoje com ele aberto. */
@@ -153,6 +161,7 @@ export class AppPortalCorretor extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     this.cancelarRota?.();
+    this.desligarAtalhos?.();
     window.removeEventListener('urbi:contexto-app', this.aoMudarContexto);
   }
 

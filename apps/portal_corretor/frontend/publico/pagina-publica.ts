@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import type { Bloco } from '../../comum/pagina';
 import { linkWhatsapp } from '../../comum/pagina';
@@ -45,7 +45,20 @@ const estiloPagina = css`
   .cartao .ver { display: block; color: inherit; text-decoration: none; }
   .cartao .acoes { margin: 0; padding: 0 14px 14px; }
   .cartao .acoes .botao { width: 100%; }
+  :host([previa]) { min-height: 0; }
+  .destacado { outline: 3px solid var(--acento); outline-offset: 6px; border-radius: 8px; }
 `;
+
+/**
+ * Prévia no editor da Página (P09): os dados já montados pela rota autenticada `GET /pagina/previa` e o
+ * bloco selecionado, que ganha contorno. Na prévia nada sai da tela: links não navegam e o formulário
+ * não envia. Sem `previa`, o componente é a página pública de sempre.
+ */
+export interface PreviaPagina {
+  pagina: PaginaPublica;
+  imoveis: Cartao[];
+  destacar?: Bloco['tipo'] | null;
+}
 
 // Minha Página (`/portal_corretor/p?c=<endereço>`) e ficha pública do imóvel (`…&i=<código>`), no
 // formato do mockup M6 desde o B9: capa com foto, nome, CRECI só se houver (D-93) e WhatsApp;
@@ -63,11 +76,40 @@ export class PcPaginaPublica extends LitElement {
   @state() private resposta: { ok: boolean; texto: string } | null = null;
   @state() private foto: string | null = null;
 
+  /** Modo prévia (editor da Página); sem ele, a página pública lida pela query. */
+  @property({ attribute: false }) previa: PreviaPagina | null = null;
+
   private readonly params = new URLSearchParams(window.location.search);
 
   connectedCallback() {
     super.connectedCallback();
-    void this.carregar();
+    if (this.previa) this.aplicarPrevia();
+    else void this.carregar();
+  }
+
+  willUpdate(mudou: Map<string, unknown>) {
+    if (mudou.has('previa') && this.previa) this.aplicarPrevia();
+  }
+
+  private aplicarPrevia() {
+    const p = this.previa!;
+    this.pagina = p.pagina;
+    this.imoveis = p.imoveis;
+    this.imovel = null;
+    this.toggleAttribute('previa', true);
+    if (/^#[0-9a-fA-F]{6}$/.test(p.pagina.cor)) this.style.setProperty('--acento', p.pagina.cor);
+    else this.style.removeProperty('--acento');
+    this.estado = 'pronto';
+  }
+
+  /** Classe do bloco selecionado na prévia. */
+  private destaque(...tipos: Bloco['tipo'][]) {
+    return this.previa?.destacar && tipos.includes(this.previa.destacar) ? 'destacado' : '';
+  }
+
+  /** Na prévia, nenhum link sai da tela do editor. */
+  private segurarLinks(e: Event) {
+    if (e.composedPath().some((n) => n instanceof HTMLAnchorElement)) e.preventDefault();
   }
 
   private async carregar() {
@@ -122,6 +164,7 @@ export class PcPaginaPublica extends LitElement {
 
   private async enviar(ev: Event) {
     ev.preventDefault();
+    if (this.previa) return;
     const form = ev.target as HTMLFormElement;
     const campos = new FormData(form);
     const corpo: Record<string, unknown> = { consentimento: campos.get('consentimento') === 'sim' };
@@ -151,8 +194,8 @@ export class PcPaginaPublica extends LitElement {
   }
 
   private formulario(titulo: string) {
-    if (!this.pagina?.url_formulario) return nothing;
-    return html`<section>
+    if (!this.pagina || (!this.pagina.url_formulario && !this.previa)) return nothing;
+    return html`<section class=${this.destaque('formulario')}>
       <h2>${titulo}</h2>
       <div class="caixa">
         <form @submit=${(e: Event) => this.enviar(e)}>
@@ -163,7 +206,8 @@ export class PcPaginaPublica extends LitElement {
           <label class="escondido" aria-hidden="true">Site <input name="site" tabindex="-1" autocomplete="off" /></label>
           <label class="marcar"><input type="checkbox" name="consentimento" value="sim" required /> Autorizo ${this.pagina.nome} a entrar em contato comigo sobre imóveis.</label>
           ${this.resposta ? html`<div class="aviso ${this.resposta.ok ? '' : 'erro'}" role=${this.resposta.ok ? 'status' : 'alert'}>${this.resposta.texto}</div>` : nothing}
-          <div><button class="botao" type="submit" ?disabled=${this.enviando}>${this.enviando ? 'Enviando…' : 'Enviar'}</button></div>
+          <div><button class="botao" type="submit" ?disabled=${this.enviando || !!this.previa}>${this.enviando ? 'Enviando…' : 'Enviar'}</button></div>
+          ${this.previa ? html`<p class="suave">Na prévia o formulário não envia.</p>` : nothing}
         </form>
       </div>
     </section>`;
@@ -199,7 +243,7 @@ export class PcPaginaPublica extends LitElement {
     const contato = this.bloco('contato');
     const instagram = contato?.instagram && /^[A-Za-z0-9._]{1,30}$/.test(contato.instagram) ? contato.instagram : null;
     const zap = contato?.whatsapp !== false ? linkWhatsapp(p.telefone, this.imovel ? `Olá! Vi o imóvel ${this.imovel.codigo} na sua página.` : 'Olá! Vi sua página e quero falar sobre imóveis.') : null;
-    return html`<header class="topo">
+    return html`<header class="topo ${this.destaque('apresentacao', 'contato')}">
       <div class="conteudo">
         <div class="capa">
           ${p.foto_url ? html`<img class="foto-corretor" src=${p.foto_url} alt=${`Foto de ${p.nome}`} />` : html`<span class="iniciais" aria-hidden="true">${iniciais(p.nome)}</span>`}
@@ -226,17 +270,17 @@ export class PcPaginaPublica extends LitElement {
         ${blocos.map((b) => {
           if (b.tipo === 'destaques') {
             const lista = (b.codigos ?? []).map((c) => this.imoveis.find((i) => i.codigo === c)).filter((i): i is Cartao => !!i);
-            return lista.length ? html`<section><h2>${b.titulo || 'Imóveis em destaque'}</h2><div class="grade">${lista.map((i) => this.cartao(i))}</div></section>` : nothing;
+            return lista.length ? html`<section class=${this.destaque('destaques')}><h2>${b.titulo || 'Imóveis em destaque'}</h2><div class="grade">${lista.map((i) => this.cartao(i))}</div></section>` : nothing;
           }
           if (b.tipo === 'imoveis') {
-            return html`<section>
+            return html`<section class=${this.destaque('imoveis')}>
               <h2>${b.titulo || 'Imóveis'}</h2>
               ${this.imoveis.length ? html`<div class="grade">${this.imoveis.map((i) => this.cartao(i))}</div>` : html`<p class="suave">Novos imóveis em breve.</p>`}
             </section>`;
           }
-          if (b.tipo === 'sobre' && b.texto) return html`<section><h2>${b.titulo || 'Sobre mim'}</h2><div class="caixa texto">${b.texto}</div></section>`;
+          if (b.tipo === 'sobre' && b.texto) return html`<section class=${this.destaque('sobre')}><h2>${b.titulo || 'Sobre mim'}</h2><div class="caixa texto">${b.texto}</div></section>`;
           if (b.tipo === 'bairros' && b.lista?.length) {
-            return html`<section><h2>${b.titulo || 'Onde eu atendo'}</h2><ul class="etiquetas">${b.lista.map((x) => html`<li>${x}</li>`)}</ul></section>`;
+            return html`<section class=${this.destaque('bairros')}><h2>${b.titulo || 'Onde eu atendo'}</h2><ul class="etiquetas">${b.lista.map((x) => html`<li>${x}</li>`)}</ul></section>`;
           }
           if (b.tipo === 'formulario') return this.formulario(b.titulo || 'Fale comigo');
           return nothing;
@@ -300,6 +344,7 @@ export class PcPaginaPublica extends LitElement {
     if (this.estado === 'falha') {
       return html`<div class="centro"><h2>Não foi possível abrir agora</h2><p><button class="botao" @click=${() => { this.estado = 'carregando'; void this.carregar(); }}>Tentar de novo</button></p></div>`;
     }
+    if (this.previa) return html`<div @click=${(e: Event) => this.segurarLinks(e)}>${this.renderPagina()}</div>`;
     return this.imovel ? this.renderImovel() : this.renderPagina();
   }
 }

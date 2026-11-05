@@ -5,6 +5,9 @@ import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { secaoDaFalta } from '../../comum/imoveis';
 import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
+import { irParaComQuery } from '../criar.js';
+import { autorizacaoAberta, comAtual, marcarAssinada, registrarAutorizacao, SITUACAO_AUTORIZACAO } from './autorizacao-venda.js';
+import { registrarEdicao, soltarEdicao } from '../atalhos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -24,20 +27,11 @@ interface Ficha {
   negocios: Linha[];
 }
 
-const SITUACAO_AUTORIZACAO: Record<string, { rotulo: string; cor: string }> = {
-  rascunho: { rotulo: 'Rascunho', cor: 'padrao' },
-  enviada: { rotulo: 'Enviada ao proprietário', cor: 'info' },
-  assinada: { rotulo: 'Assinada', cor: 'sucesso' },
-  vencida: { rotulo: 'Vencida', cor: 'alerta' },
-  revogada: { rotulo: 'Revogada', cor: 'padrao' },
-};
-const hojeIso = () => new Date().toLocaleDateString('sv-SE');
 /** Par rótulo/valor da grade de dados: só primitivos `urbi-*`. */
 const par = (rotulo: string, valor: unknown) => html`<urbi-stack>
   <urbi-prosa papel="fraco">${rotulo}</urbi-prosa>
   ${typeof valor === 'string' ? html`<urbi-prosa>${valor}</urbi-prosa>` : valor}
 </urbi-stack>`;
-const mais = (dias: number) => new Date(Date.now() + dias * 86400e3).toLocaleDateString('sv-SE');
 
 /** A ficha avisa que o imóvel mudou ou saiu (dados, fotos, situação, publicação, autorização): o contexto da direita e a lista da esquerda releem. */
 export const EVENTO_IMOVEL_MUDOU = 'pc:imovel-mudou';
@@ -71,10 +65,13 @@ export class PcTelaFichaImovel extends LitElement {
     void this.carregar(true);
     void chamarApi('/imoveis/ia').then((r) => (this.ia = r), () => undefined);
     window.addEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
+    // E (11.0.6): o mesmo Editar do cabeçalho, com a ficha carregada.
+    registrarEdicao(this, () => void (this.ficha && this.editar()));
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    soltarEdicao(this);
     window.removeEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
   }
 
@@ -264,7 +261,7 @@ export class PcTelaFichaImovel extends LitElement {
           rotulo: 'Proprietário (contatos com papel proprietário)',
           pesquisavel: true,
           valor: im.proprietario_id ? String(im.proprietario_id) : '',
-          opcoes: this.comAtual(
+          opcoes: comAtual(
             [{ valor: '', rotulo: 'Sem proprietário' }, ...this.contatos.map((c) => ({ valor: String(c.id), rotulo: c.nome, textoBusca: c.telefone ?? '' }))],
             im.proprietario_id,
             im.proprietario_nome,
@@ -275,7 +272,7 @@ export class PcTelaFichaImovel extends LitElement {
           tipo: 'selecao',
           rotulo: 'Empreendimento',
           valor: im.empreendimento_id ? String(im.empreendimento_id) : '',
-          opcoes: this.comAtual([{ valor: '', rotulo: 'Nenhum' }, ...this.empreendimentos.map((x) => ({ valor: String(x.id), rotulo: x.nome }))], im.empreendimento_id, im.empreendimento_nome),
+          opcoes: comAtual([{ valor: '', rotulo: 'Nenhum' }, ...this.empreendimentos.map((x) => ({ valor: String(x.id), rotulo: x.nome }))], im.empreendimento_id, im.empreendimento_nome),
         },
       ],
       'PATCH',
@@ -296,12 +293,6 @@ export class PcTelaFichaImovel extends LitElement {
       this.contatos = [];
       return this.depois(r);
     });
-  }
-
-  /** Garante a opção atual na seleção, mesmo fora da lista carregada (a seleção abriria vazia). */
-  private comAtual(opcoes: { valor: string; rotulo: string; textoBusca?: string }[], atual: number | null, nome: string | null) {
-    if (!atual || opcoes.some((o) => o.valor === String(atual))) return opcoes;
-    return [{ valor: String(atual), rotulo: nome ?? `Atual (${atual})` }, ...opcoes];
   }
 
   private async situacao() {
@@ -364,67 +355,11 @@ export class PcTelaFichaImovel extends LitElement {
   // ---------- Autorização ----------
 
   private async novaAutorizacao() {
-    const im = this.ficha!.imovel;
-    try {
-      await this.opcoesVinculos();
-    } catch {
-      /* segue com o proprietário atual, se houver */
-    }
-    const opcoesProp = this.comAtual(this.contatos.map((c) => ({ valor: String(c.id), rotulo: c.nome, textoBusca: c.telefone ?? '' })), im.proprietario_id, im.proprietario_nome);
-    if (!opcoesProp.length) {
-      await urbiVerso.alertar({ titulo: 'Cadastre o proprietário', mensagem: 'Em Clientes, cadastre quem assina a autorização com o papel "proprietário" e volte aqui.', tipo: 'alerta' });
-      return;
-    }
-    void formularioEnviar(
-      'Autorização de venda',
-      [
-        {
-          nome: 'proprietario_id',
-          tipo: 'selecao',
-          rotulo: 'Proprietário que assina',
-          obrigatorio: true,
-          pesquisavel: true,
-          valor: im.proprietario_id ? String(im.proprietario_id) : null,
-          opcoes: opcoesProp,
-        },
-        { nome: 'inicio', tipo: 'data', rotulo: 'Início', obrigatorio: true, valor: hojeIso() },
-        { nome: 'fim', tipo: 'data', rotulo: 'Fim', obrigatorio: true, valor: mais(180) },
-        { nome: 'preco_autorizado', tipo: 'numero', rotulo: 'Preço autorizado (R$)', obrigatorio: true, valor: im.preco_c ? im.preco_c / 100 : null, min: 0 },
-        { nome: 'comissao_pct', tipo: 'numero', rotulo: 'Comissão (%)', obrigatorio: true, valor: 6, min: 0, max: 100, step: 0.5 },
-        { nome: 'exclusiva', tipo: 'booleano', rotulo: 'Exclusiva', valor: false },
-        { nome: 'permite_placa', tipo: 'booleano', rotulo: 'Permite placa', valor: true },
-        { nome: 'permite_portais', tipo: 'booleano', rotulo: 'Permite anunciar em portais', valor: true },
-        { nome: 'permite_parceria', tipo: 'booleano', rotulo: 'Permite parceria com outros corretores', valor: false },
-      ],
-      'POST',
-      '/autorizacoes',
-      (v) => ({ ...v, imovel_id: this.imovelId, proprietario_id: Number(v.proprietario_id) }),
-      { mensagem: 'Depois de assinada, anexe o documento e marque como assinada.' },
-    ).then((r) => this.depois(r));
+    await this.depois(await registrarAutorizacao(this.ficha!.imovel));
   }
 
   private async assinar(a: Linha) {
-    const docs = this.ficha!.midias.filter((m) => m.tipo === 'documento' || m.tipo === 'foto');
-    if (!docs.length) {
-      await urbiVerso.alertar({ titulo: 'Anexe o documento', mensagem: 'Envie o documento assinado (PDF ou foto) em "Fotos e arquivos" e volte aqui.', tipo: 'alerta' });
-      return;
-    }
-    const v = await urbiVerso.formulario({
-      titulo: 'Marcar como assinada',
-      mensagem: 'O documento escolhido fica interno: nunca aparece no anúncio.',
-      campos: [
-        {
-          nome: 'documento_midia_id',
-          tipo: 'selecao',
-          rotulo: 'Documento assinado',
-          obrigatorio: true,
-          valor: docs.find((d) => d.tipo === 'documento') ? String(docs.find((d) => d.tipo === 'documento')!.id) : null,
-          opcoes: docs.map((d) => ({ valor: String(d.id), rotulo: `${ROTULO_TIPO_MIDIA[d.tipo]}: ${d.legenda ?? `arquivo ${d.id}`}` })),
-        },
-      ],
-      rotuloConfirmar: 'Marcar como assinada',
-    });
-    if (v) await this.tentar('Não foi possível marcar como assinada', () => enviar('PATCH', `/autorizacoes/${a.id}`, { documento_midia_id: Number(v.documento_midia_id), situacao: 'assinada' }));
+    if (await marcarAssinada(a, this.ficha!.midias)) await this.carregar();
   }
 
   private async revogar(a: Linha) {
@@ -446,7 +381,7 @@ export class PcTelaFichaImovel extends LitElement {
       case 'descricao':
         return this.editarDescricao();
       case 'autorizacao': {
-        const aberta = this.ficha!.autorizacoes.find((a) => ['rascunho', 'enviada'].includes(a.situacao));
+        const aberta = autorizacaoAberta(this.ficha!.autorizacoes);
         return void (aberta ? this.assinar(aberta) : this.novaAutorizacao());
       }
       case 'fotos':
@@ -490,7 +425,10 @@ export class PcTelaFichaImovel extends LitElement {
       ${banner}
       <urbi-linha justificar="entre" quebrar>
         <urbi-prosa papel="titulo">${im.codigo} · ${im.titulo ?? ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo}</urbi-prosa>
-        <urbi-linha>
+        <urbi-linha quebrar>
+          ${im.situacao === 'rascunho'
+            ? html`<urbi-botao icone="fa-solid fa-list-check" @click=${() => irParaComQuery(`/imoveis/novo?item=${im.id}`)}>Continuar cadastro</urbi-botao>`
+            : ''}
           <urbi-botao variante="secundario" icone="fa-solid fa-pen" @click=${() => this.editar()}>Editar</urbi-botao>
           ${acoesComMais({ rotulo: 'Criar conteúdo', icone: 'fa-solid fa-wand-magic-sparkles', sub: '/estudio?criar=post' }, [
             { rotulo: 'Situação', icone: 'fa-solid fa-flag', aoEscolher: () => void this.situacao() },

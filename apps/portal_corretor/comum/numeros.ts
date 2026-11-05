@@ -62,6 +62,8 @@ export interface EtapasFunil {
 export interface Origem {
   canal: string;
   leads: number;
+  /** Dos leads do canal, quantos chegaram a "Visitou" ou além (as "Melhores origens" de P10). */
+  visitaram: number;
   ganhos: number;
   abertos: number;
   perdidos: number;
@@ -104,8 +106,9 @@ export function calcularKpis(negocios: NegocioNum[], de: string, ate: string): K
   const origens = new Map<string, Origem>();
   for (const n of coorte) {
     const c = n.origem_canal ?? 'nao_informada';
-    const o = origens.get(c) ?? { canal: c, leads: 0, ganhos: 0, abertos: 0, perdidos: 0 };
+    const o = origens.get(c) ?? { canal: c, leads: 0, visitaram: 0, ganhos: 0, abertos: 0, perdidos: 0 };
     o.leads++;
+    if (chegou(n, 'visitou')) o.visitaram++;
     if (n.ganho_em) o.ganhos++;
     else if (n.perdido_em) o.perdidos++;
     else o.abertos++;
@@ -188,4 +191,139 @@ export function serieDeLeads(negocios: NegocioNum[], dias: number, agora = new D
       : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
   const categorias = atual.map((_, i) => rotulo(new Date(inicio + i * passo)));
   return { categorias, atual, anterior };
+}
+
+/**
+ * Horário comercial usado em "Contatos por horário" (P10): das 8h às 19h, no fuso da conta. O app ainda
+ * não tem horário de atendimento configurável (Ajustes › Horário de atendimento guarda só prazos):
+ * quando tiver, este padrão dá lugar ao do corretor.
+ */
+export const HORARIO_COMERCIAL = { inicio: 8, fim: 19 } as const;
+export const foraDoHorario = (hora: number) => hora < HORARIO_COMERCIAL.inicio || hora >= HORARIO_COMERCIAL.fim;
+
+/** Hora (0–23) de um instante no fuso dado; fuso inválido cai no de Brasília. */
+export function horaNoFuso(instante: string, fuso?: string | null): number {
+  const d = new Date(instante);
+  const ler = (tz: string) => Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: tz }).format(d));
+  try {
+    return ler(fuso || 'America/Sao_Paulo');
+  } catch {
+    return ler('America/Sao_Paulo');
+  }
+}
+
+/** Leads (negócios de compra criados em [de, ate)) por hora do dia, e quantos chegaram fora do horário comercial. */
+export function leadsPorHora(negocios: NegocioNum[], de: string, ate: string, fuso?: string | null) {
+  const horas = new Array<number>(24).fill(0);
+  for (const n of negocios) {
+    if (n.pipeline !== 'compra' || !dentro(n.criado_em, de, ate)) continue;
+    horas[horaNoFuso(iso(n.criado_em)!, fuso)]++;
+  }
+  const fora = horas.reduce((s, v, h) => s + (foraDoHorario(h) ? v : 0), 0);
+  return { horas, fora, inicio: HORARIO_COMERCIAL.inicio, fim: HORARIO_COMERCIAL.fim };
+}
+
+/** "Melhores origens" (P10): os canais cujos leads mais chegaram à visita; empate, mais leads. */
+export function melhoresOrigens(origens: Origem[], quantas = 4): Origem[] {
+  return [...origens].filter((o) => o.leads > 0).sort((a, b) => b.visitaram - a.visitaram || b.leads - a.leads).slice(0, quantas);
+}
+
+export interface Melhoria {
+  /** A leitura, em uma ou duas frases, só com números do período. */
+  texto: string;
+  /** O maior motivo de perda do período, que vira o filtro de "Ver os N clientes". */
+  motivo: string | null;
+  /** Clientes distintos perdidos por esse motivo no período (o N do botão). */
+  clientes: number;
+}
+
+const pctTexto = (v: number) => `${Math.round(v * 100)}%`;
+
+/**
+ * "O que melhorar" (P10): leitura feita pelo código a partir dos números do período, sem IA (o mapa
+ * 11.8 não dá slot ao P10, e uma leitura calculada nunca inventa número). Aponta o passo do funil que
+ * mais perde e o motivo de perda mais comum, com os clientes perdidos por ele.
+ */
+export function oQueMelhorar(negocios: NegocioNum[], k: Kpis, de: string, ate: string, rotuloMotivo: (m: string) => string = (m) => m): Melhoria {
+  if (!k.leads) {
+    return { texto: 'Nenhum lead no período. Quando os contatos chegarem, a leitura mostra onde eles param no funil.', motivo: null, clientes: 0 };
+  }
+  const passos: [string, number | null][] = [
+    ['dos contatos chegam à visita', k.lead_visita],
+    ['das visitas viram proposta', k.visita_proposta],
+    ['das propostas viram venda', k.proposta_ganho],
+  ];
+  const medidos = passos.filter((p): p is [string, number] => p[1] !== null);
+  const frases: string[] = [];
+  if (medidos.length) {
+    const pior = medidos.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const melhor = medidos.reduce((a, b) => (b[1] > a[1] ? b : a));
+    frases.push(
+      melhor === pior
+        ? `Só ${pctTexto(pior[1])} ${pior[0]}.`
+        : `${pctTexto(melhor[1])} ${melhor[0]}, mas só ${pctTexto(pior[1])} ${pior[0]}: é aí que mais se perde.`,
+    );
+  }
+  const motivo = k.motivos_perda.find((m) => m.motivo !== 'sem_motivo')?.motivo ?? null;
+  let clientes = 0;
+  if (motivo) {
+    const ids = new Set(
+      negocios.filter((n) => n.pipeline === 'compra' && n.motivo_perda === motivo && dentro(n.perdido_em, de, ate)).map((n, i) => n.contato_id ?? `sem-${i}`),
+    );
+    clientes = ids.size;
+    const qtd = k.motivos_perda.find((m) => m.motivo === motivo)!.quantidade;
+    frases.push(`O motivo de perda mais comum foi "${rotuloMotivo(motivo)}" (${qtd} ${qtd === 1 ? 'negócio' : 'negócios'}): vale retomar esses clientes.`);
+  }
+  if (!frases.length) frases.push('Ainda há poucos dados no período para apontar onde se perde mais.');
+  return { texto: frases.join(' '), motivo, clientes };
+}
+
+/** Resposta de `GET /numeros` no que o CSV usa. */
+export interface RespostaNumeros {
+  dias: number;
+  origem: string | null;
+  periodo: { de: string; ate: string };
+  atual: Kpis & { visitas: number | null };
+  anterior: Kpis & { visitas: number | null };
+  previsao: { valor_c: number | null; sem_dados: number };
+  por_hora: { horas: number[]; fora: number };
+  conteudo?: { publicadas: number; publicadas_anterior: number };
+}
+
+/**
+ * [Exportar CSV] de Números (P10): uma linha por indicador, com o período e o anterior, mais as
+ * origens, os motivos de perda e os leads por hora. Só agregados da conta, nunca dado de cliente.
+ */
+export function linhasCsvNumeros(r: RespostaNumeros, rotuloCanal: (c: string) => string, rotuloMotivo: (m: string) => string): { cabecalho: string[]; linhas: unknown[][] } {
+  const a = r.atual;
+  const b = r.anterior;
+  const taxa = (v: number | null) => (v === null ? '' : `${(Math.round(v * 1000) / 10).toString().replace('.', ',')}%`);
+  const reais = (c: number | null) => (c === null ? '' : (c / 100).toFixed(2).replace('.', ','));
+  const linhas: unknown[][] = [
+    ['Período', `Últimos ${r.dias} dias`, `${r.dias} dias anteriores`],
+    ['Origem', r.origem ? rotuloCanal(r.origem) : 'Todas', ''],
+    ['Leads', a.leads, b.leads],
+    ['Clientes únicos', a.clientes_unicos, b.clientes_unicos],
+    ['Chegaram a Em atendimento', a.etapas.atendimento, b.etapas.atendimento],
+    ['Chegaram a Visitou', a.etapas.visitou, b.etapas.visitou],
+    ['Chegaram a Proposta', a.etapas.proposta, b.etapas.proposta],
+    ['Ganhos da turma', a.etapas.ganhos, b.etapas.ganhos],
+    ['Lead → atendimento', taxa(a.lead_atendimento), taxa(b.lead_atendimento)],
+    ['Lead → visita', taxa(a.lead_visita), taxa(b.lead_visita)],
+    ['Visita → proposta', taxa(a.visita_proposta), taxa(b.visita_proposta)],
+    ['Proposta → ganho', taxa(a.proposta_ganho), taxa(b.proposta_ganho)],
+    ['Conversão total', taxa(a.conversao_total), taxa(b.conversao_total)],
+    ['Vendas no período', a.ganhos, b.ganhos],
+    ['VGV (R$)', reais(a.vgv_c), reais(b.vgv_c)],
+    ['Ciclo médio (dias)', a.ciclo_medio_dias ?? '', b.ciclo_medio_dias ?? ''],
+    ['Visitas feitas', a.visitas ?? '', b.visitas ?? ''],
+    ['Captações', a.captacoes, b.captacoes],
+    ['Comissão prevista hoje (R$)', reais(r.previsao.valor_c), ''],
+    ['Leads fora do horário comercial', r.por_hora.fora, ''],
+  ];
+  if (r.conteudo) linhas.push(['Peças publicadas', r.conteudo.publicadas, r.conteudo.publicadas_anterior]);
+  for (const o of a.por_origem) linhas.push([`Leads de ${rotuloCanal(o.canal)}`, o.leads, b.por_origem.find((x) => x.canal === o.canal)?.leads ?? 0]);
+  for (const m of a.motivos_perda) linhas.push([`Perdidos por ${rotuloMotivo(m.motivo)}`, m.quantidade, b.motivos_perda.find((x) => x.motivo === m.motivo)?.quantidade ?? 0]);
+  r.por_hora.horas.forEach((n, h) => linhas.push([`Leads das ${h}h`, n, '']));
+  return { cabecalho: ['Indicador', 'Este período', 'Período anterior'], linhas };
 }

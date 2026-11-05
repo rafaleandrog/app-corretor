@@ -14,7 +14,7 @@ Na ficha do cliente, na aba **Negócios**, o cartão **Seleções** tem o botão
 
 1. Dê um título e, se quiser, uma mensagem.
 2. Escolha de 1 a 12 imóveis da carteira. Só aparecem imóveis **ativos ou reservados com
-   autorização de venda vigente**. Não precisam estar marcados para a Minha página.
+   autorização de venda vigente**. Não precisam estar marcados para a Página.
 3. **Criar e enviar** copia a mensagem com o link, pronta para colar no WhatsApp.
 
 O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>`. Vale pelo prazo de
@@ -37,7 +37,7 @@ aparece na linha do tempo, por exemplo "Gostou do IM-0001: a cozinha é pequena 
 o comentário vai como mensagem ao corretor, citando o imóvel.
 
 Os ícones de quartos, área e vagas são os mesmos na sua página e na ficha pública do imóvel
-([Minha página](minha-pagina.md)). Lá a foto fica menor: na página, em grade; na ficha, as fotos
+([Página](minha-pagina.md)). Lá a foto fica menor: na página, em grade; na ficha, as fotos
 passam de lado. O cartão de foto grande é o da seleção e o do portal.
 
 O que nunca aparece: proprietário, comissão, documentos e endereço além do que o imóvel libera em
@@ -69,7 +69,7 @@ com o mesmo link. O link não vence. **Revogar** faz ele parar de abrir, e um no
 depois. O portal abre por link, sem login.
 
 O portal se chama **Meu atendimento** e é curado por você (o modelo do Compass One). No topo
-ficam o nome do corretor (o da Minha página, se houver), a foto (sem foto, as iniciais), o CRECI
+ficam o nome do corretor (o da Página, se houver), a foto (sem foto, as iniciais), o CRECI
 só se você tiver preenchido, e o botão de WhatsApp, na cor da marca. Embaixo, em destaque, o
 **próximo passo para o cliente**, se você escreveu um, com o botão **Ver**: ele leva à aba Agenda
 quando há visita marcada e à aba Imóveis quando não há.
