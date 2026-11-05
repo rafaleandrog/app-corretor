@@ -256,8 +256,8 @@ conversa com a IA):
    parece número e não tem leitura padrão também retém.** Parece número: algarismo de qualquer tipo
    (inclusive "❶", "①" e emoji de número), letra colada a algarismo ("1.36O.000") e número por
    extenso. Leitura padrão: valor com milhar e decimal usuais ou por extenso ("1.460.000", "1,46 mi",
-   "um milhão e quatrocentos e sessenta mil"), horário, data, ordinal ("5º andar"), quantidade
-   ("2-3 vagas") e telefone. Por isso retêm dígitos separados ("1 3 6 0 mil", "1/3/6/0", "1:360:000",
+   "um milhão e quatrocentos e sessenta mil"), horário, data sem ano ("28/10"), ordinal ("5º andar"), quantidade
+   ("2-3 vagas") e telefone com hífen ("(61) 99999-9999"). Por isso retêm dígitos separados ("1 3 6 0 mil", "1/3/6/0", "1:360:000",
    "1 ponto 36 milhão", o número partido por uma quebra de linha) e algarismos ditos um a um ("um,
    três, seis, zero mil"). Se, desfeito o disfarce, cada número daquele trecho for a contraproposta, o
    pedido ou uma oferta já trocada ("1 4 6 0 mil"), a mensagem passa; um número público em outro ponto
@@ -274,12 +274,85 @@ conversa com a IA):
    retém, olhando as palavras em volta do valor e não a frase ("1.300.000? Fechado.", "pode ser 1,3
    sim", "negócio fechado em um vírgula três"); só relatar a oferta do comprador passa ("recebi sua
    proposta de R$ 1.300.000", "sua oferta de R$ 1.300.000 fica registrada"). "2 mil" de condomínio
-   ou de taxa não é lido como preço. Juros e rendimento podem reter a mensagem ("juros de 9,33% ao
-   ano" é lido como percentual sobre o pedido). A conferência prefere reter a mais: uma
-   mensagem retida vai para você decidir e nada sai ao cliente. Uma
+   ou de taxa não é lido como preço. **Formatos comuns que passam (desde a 0.1.35):** só os que não têm
+   grupo de algarismos livre, onde um valor caberia: endereço de Brasília ("W3 Sul", "L2 Norte"); código
+   de unidade com no máximo dois algarismos e uma letra, logo depois de "apto", "apartamento", "ap",
+   "torre", "bloco", "bl", "unidade", "casa", "sala", "loja", "conjunto" ou "cj" ("Apto 2B", "Torre
+   B2"); e data sem ano e sem hora ("visita dia 28/10"), que já passava. Na leitura do código, toda
+   letra que alguém pode tomar por algarismo é conferida com cada algarismo que ela pode ser: "a" 4,
+   "b" 8 ou 6, "e" 3, "g" 6 ou 9, "i" e "l" 1, "o" 0, "q" 9, "s" 5, "t" 7, "z" 2. O código passa só
+   quando nenhuma leitura revela, nem a letra lida como letra nem como algarismo: "Torre E6" é também
+   36, "Apto A5" é 45, "Bloco B4" é 84, "Apto 2B" é 28 e 26, "L3 Norte" é 13. O "w" do eixo e letras
+   como "c", "d", "f", "h" ficam só letra. "l", "i" e "o", no código, contam sempre como algarismo (no
+   resto da mensagem, só com contexto: "o" depois de um dígito, como em "1.36O.000"; "l" e "I"
+   maiúsculo antes de um dígito; o "i" minúsculo, nunca), então o
+   código de unidade com uma delas ("Apto 3l", "Torre O3") não é mais código e retém. A marcação também conta: sublinhado, asterisco, til, crase e os caracteres
+   invisíveis (zero-width) colados ao código (`Apto 5B_`, `*Apto 5C*`, `_W4 Sul`) fazem o formato
+   reter, e as palavras de preço, de conta e de número são procuradas também com essa marcação tirada
+   ou trocada por espaço (`_menos_ apto 5B` e `Apto 4B_six` retêm). Endereço e código passam
+   quando valem três condições e a gêmea passa (abaixo). (1) O formato é o **único número da mensagem**: nenhum outro
+   algarismo, número ou ordinal por extenso, em português, inglês ou espanhol ("treze", "quinto",
+   "sexta", "thirteen", "trece", "trescientos", "quinientos", "tercero", "cuarto", "octavo"), "um",
+   "uma" ou "num", "par", "pares", "pair", "dupla" ou "dozen", algarismo
+   romano ("Torre XIII"; palavras como "vi" e "mil" também contam), nem outro formato, em lugar
+   nenhum dela. (2)
+   Os algarismos dele não dão o recuo, o alvo ou valor da alternativa do vendedor em nenhuma escala
+   (nem com o milhão subentendido: "Torre 36B" pode ser 1,36 mi, e "Torre 4B", 1,4 mi ou 2,4 mi;
+   "Torre 05B", 1,05 mi), nem valor abaixo do recuo ("Apto 9B" pode ser 900 mil; "Torre 35B", 1,35
+   mi; "Torre 3B", 1,3 mi). Por isso, num imóvel de 1,5 mi com recuo de 1,36 mi, "W3 Sul", "L2
+   Norte", "Apto 2B" e "Torre 3B" retêm; num imóvel em que esses valores não dizem nada, passam. E,
+   com palavra de diferença, margem, percentual ou limite na mensagem ("folga", "margem", "gordura",
+   "chão", "até", "por", "sobre", "%" (também o de largura cheia, "％"), "pc", "pp", "bps", "percentual",
+   "porcentagem", "off", "taxa", "less", "minus", "below", "delta"…, ou um "-" ou "+" solto ou colado ao
+   código; "por favor" não conta),
+   também não dão o recuo ou
+   o alvo como diferença do pedido ("a folga é o apto 14B" = 140 mil) ou como percentual dele
+   ("gordura: Torre 3B" = 3%). (3) A mensagem não fala de preço, oferta ou aceite ("valor", "R$",
+   "fecho", "aceita", "desce", "vendedor", "anunciado", "contraproposta", "combinado", "pode ser",
+   "bate", "ficamos", "ok", "sim", "de acordo", "entrada", "sinal", "comissão", "economia", "recua",
+   e em inglês e espanhol "price", "precio", "offer", "deal", "rebaja", "commission"…; "fica na" de
+   lugar não conta): é todo o vocabulário com que a conferência lê preço, oferta, aceite e limite, e
+   por isso "Ok, apto 5B" também retém. **Retidos, por decisão:** telefone com espaço ou sem hífen ("me liga no (61) 99999
+   1234", "ligue 0800 345 6789"), CEP ("CEP 70.000-000") e data seguida direto da hora ("visita dia
+   28/10 15h", "28/10 15h30"), que já retinham, e o número entre parênteses depois do preço ("R$
+   1.460.000 (2 vagas)"). O telefone com hífen ("(61) 99999-9999") segue leitura padrão e passa. A data com a hora depois de "às" ou de vírgula ("visita dia 28/10 às 10h",
+   "visita dia 28/10, 15h") passa, como antes: data e horário são lidos cada um como leitura padrão. A data com
+   ano ("vistoria 28/10/2026"), também com o ano de dois algarismos ("visita dia 28/10/26"), passava
+   antes e retém desde a 0.1.35. Cada grupo de algarismos
+   deles é um lugar onde um valor cabe ("CEP 70.000-136", "visita dia 28/10/1360 15h", "me liga no 61
+   3333 1251"), e conferir grupo a grupo não fechou o vazamento. Também retêm: código com outro
+   número na mensagem ("Apto 2B, 3 quartos e 2 vagas", "Torre B2, 3º andar", "treze andares, apto
+   6B", "fecho em 1. Torre 36B", "W3 Sul 704"); código com três algarismos ou duas letras ("apto
+   360B", "Torre BB2"); código cujos algarismos dão valor sigiloso ("Apto 1B", "W1 Sul", "Torre 36B",
+   "Apto 9B" quando o recuo é 1.360.000); e qualquer formato numa mensagem que fala de preço ("Quanto
+   ele aceita? Torre B2"). Juros
+   e rendimento podem reter a mensagem ("juros de 9,33% ao ano" é lido como percentual sobre o
+   pedido). A conferência prefere reter a mais: uma mensagem retida vai para você decidir e nada sai
+   ao cliente. Uma
    alternativa do vendedor dita com outras palavras pode não ser reconhecida pela conferência, por
    isso essa regra também está nas instruções do Negociador; o risco não some por completo, e é
-   mais um motivo para você ler antes de enviar.
+   mais um motivo para você ler antes de enviar. **Critério de equivalência dos formatos comuns
+   (decisão do dono, 05/11/2026):** liberar um formato comum só conta como piora do sigilo quando a
+   mesma informação, escrita com algarismo comum no lugar do código ("bloco 6" no lugar de "bloco
+   C6", "apto 5" no lugar de "apto 5B"), é retida pela conferência de antes da 0.1.35. **A
+   conferência aplica esse critério ela mesma:** antes de deixar um código passar, ela monta a
+   mensagem-gêmea, a mesma mensagem com o código trocado por cada leitura dele em algarismos ("bloco
+   C50" vira "bloco 50"; "bloco S5" vira "bloco 5" e "bloco 55"; "apto 5B" vira "apto 5", "apto 58" e
+   "apto 56"), e lê a gêmea do jeito comum, sem liberar formato nenhum. Se alguma gêmea retém, o código
+   retém também, qualquer que seja a palavra que fez a gêmea reter. Por isso, num imóvel de 1,5 mi com
+   alvo de 1,45 mi, "Fica no bloco C50" e "Por favor, apto K43" retêm: "Fica no bloco 50" e "Por favor,
+   apto 43" já retinham (o número depois de "fica" ou de "por" é lido como diferença de um valor
+   público, e 50 mil é a distância do pedido ao alvo). Se a forma com
+   algarismo já passava, a forma com código passa também e o risco é o mesmo de antes: **risco
+   residual, já existente, e não criado pelos formatos comuns**. Hoje esse risco cobre o número curto
+   fora do contexto de preço disfarçado assim: número ou ordinal por extenso em outra língua
+   ("Thirteenth story, bloco C6", "decimotercera", "cero"); símbolo que lembra número (emoji de dado,
+   "⚀⚂ Bloco C6"); palavra de conta abreviada, com erro de grafia ou soletrada ("Dif.: apto 5B", "dsct",
+   "men.", "menoz", "bxa", "g a p", "o-f-f"); caractere invisível que parte a palavra ("menos" partido em dois) ou
+   caractere de tag colado ao código; traço longo ou hífen seguido de pontuação ("Apto 5B—", "Apto
+   5B-."); e "d" lido como 0 ("Torre D5"). Em todos, "bloco 6", "apto 5" ou "torre 5" com o mesmo
+   disfarce já passavam. Por isso a conferência não é a única barreira: no "só sugere" e no
+   "pergunta antes", você lê a mensagem antes de ela sair.
 6. **Validade:** o mandato está vigente; "faz sozinho" só com a autorização do proprietário.
 7. **Canal:** portal ou Fazer agora; "faz sozinho" só pelo portal.
 

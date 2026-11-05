@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MOVIMENTO_FORA_DA_LISTA, desofuscar, exigePassagem, sanearResposta, validarMovimento, valoresCitados, vazamentos, vazamentosNoRegistro, type MandatoMotor, type PropostaResumo } from '../comum/negociador';
+import { ATAQUES_DAS_REVISOES, RESIDUO_DA_MAIN } from './ataques-sigilo';
 
 // Sigilo do Negociador (10.9.7, garantia 5), revisão do PR #115: recuo, alvo e BATNA não saem em
 // nenhum formato nem por pista derivada do preço pedido, em nenhum texto que chega ao cliente ou fica
@@ -524,4 +525,434 @@ test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
     // Folga para a máquina lenta do CI: o que o teste pega é o crescimento quadrático, não o tempo absoluto.
     assert.ok(melhor < 1000, `${JSON.stringify(f)} × 40 mil caracteres levou ${melhor.toFixed(0)} ms`);
   }
+});
+
+// ------------------------------------------------------------------------------------------------
+// F1 (#133), opção (b) da revisão do #142 (decisão da coordenação, vetável pelo dono): só se libera
+// formato SEM grupo numérico livre, que não tem onde carregar um valor — o eixo de Brasília ("W3 Sul"), o
+// código de unidade com no máximo 2 algarismos e uma letra ("Apto 2B", "Torre B2") e a data sem ano e sem
+// hora ("28/10", que já era leitura padrão). Telefone, CEP, data com ano e data com hora ficam retidos
+// (D2b; a data com ano passava na `main` e passou a reter): cada grupo de algarismos deles é um canal livre. Mesma escada de PUBLICOS_120
+// (contraproposta 1,46 mi; ofertas 1,3 mi e 1,4 mi; recuo 1,36 mi; alvo 1,45 mi) e, sem a oferta de
+// 1,3 mi, PERMITIDOS. "Ele desce até o CEP 01.300-000." só é exigida na escada sem a oferta de 1,3 mi: com ela
+// é a oferta pública e a `main` também a deixa passar.
+
+const pegaSemOferta = (frases: string[]) => {
+  for (const m of frases) assert.ok(vazamentos(m, MOTOR, PERMITIDOS).length > 0, `deveria pegar: ${m}`);
+};
+
+test('F1 (1): toda frase de ataque das revisões (#115, #120, #126 e rodadas 1 a 3 do #142) retém', () => {
+  // Contra a escada sem a oferta de 1,3 mi, todas. Com ela, todas menos a que só repete a oferta pública
+  // ("Ele desce até o CEP 01.300-000." = 1,3 mi), que a `main` também deixa passar nessa escada.
+  pegaSemOferta(ATAQUES_DAS_REVISOES);
+  pega(ATAQUES_DAS_REVISOES.filter((f) => f !== 'Ele desce até o CEP 01.300-000.'));
+  // Piora zero: o resíduo dos laudos que a `main` nunca reteve fica igual (não é efeito do F1).
+  for (const f of RESIDUO_DA_MAIN) assert.deepEqual(achadosDe(f), [], f);
+});
+
+// Imóvel de R$ 900 mil (alvo 870 mil, recuo 820 mil): "1,2 mi", "1,3 mi" e "1,12 mi" não revelam nada dele.
+const MOTOR_BAIXO: MandatoMotor = { ...MOTOR, preco_pedido_c: 90_000_000, alvo_c: 87_000_000, recuo_c: 82_000_000 };
+const PUBLICOS_BAIXO = [88_000_000, 90_000_000];
+
+test('F1 (2): "W3 Sul", "Apto 2B" e "Visita dia 28/10" (sem ano e sem hora) passam', () => {
+  // Na escada de 1,5 mi (recuo 1,36 mi), "W3", "2B", "B2", "C2" e "L2" se leem também 1,3 mi, 1,2 mi e 1,12 mi
+  // (milhão subentendido; "L" é 1), abaixo do recuo: retêm. "Apto 4B" (B = 6: 46 = 1,46 mi, a 1% do alvo) e
+  // "Torre B5" (B = 8: 85 = 850 mil, abaixo do recuo) também. Passam os que não revelam nada nessa escada.
+  passa([
+    'W4 Sul',
+    'Moro na W4 Sul.',
+    'Moro na W5 Sul, por favor.',
+    'Apto 4C',
+    'Apto 4C, de frente.',
+    'O apartamento é o Apto 4C.',
+    'Torre C5.',
+    'Bloco C6, perto do metrô.',
+    'Apto 60B.',
+    'Visita dia 28/10',
+    'Visita dia 28/10?',
+    'Podemos marcar a visita dia 28/10?',
+  ]);
+  pega(['W3 Sul', 'Fica na L2 Norte.', 'Apto 2B', 'Torre B2.', 'Bloco C2, perto do metrô.', 'Apto 4B', 'Torre B5.']);
+  // Num imóvel em que 1,2 mi e 1,3 mi não revelam nada, os mesmos passam ("Torre B2" não: B = 8 dá 82 = 820
+  // mil, o recuo desse imóvel).
+  for (const m of ['W3 Sul', 'Moro na W3 Sul.', 'Fica na L2 Norte.', 'Moro na W3 Sul, por favor.', 'Apto 2B', 'Apto 2B, de frente.', 'O apartamento é o Apto 2B.', 'Torre C2.', 'Bloco C2, perto do metrô.'])
+    assert.deepEqual(vazamentos(m, MOTOR_BAIXO, PUBLICOS_BAIXO), [], m);
+  assert.ok(vazamentos('Torre B2.', MOTOR_BAIXO, PUBLICOS_BAIXO).length > 0);
+  // As normais de antes continuam passando.
+  for (const m of [...NORMAIS, ...NORMAIS_2]) assert.deepEqual(achadosDe(m), [], m);
+});
+
+test('F1 (3): telefone, CEP, data com ano e data com hora ficam retidos (decisão: opção (b))', () => {
+  // Decisão de desenho (coordenação, vetável pelo dono): cada grupo de algarismos deles pode carregar um
+  // valor ("CEP 70.000-136", "Visita dia 28/10/1360 15h", "Me liga no 61 3333 1251"), e conferir grupo a
+  // grupo não convergiu em 3 rodadas. Retêm (telefone, CEP e data com hora já na `main`; a data com ano passou a reter); a mensagem vai ao corretor e nada vaza.
+  pega([
+    'Me liga no 61 99999 1234.',
+    'Me liga no (61) 99999 1234.',
+    'Meu WhatsApp é (61) 99876 5432.',
+    'Telefone fixo (61) 3333 4444.',
+    'Ligue 0800 345 6789.',
+    'O CEP é 70.000-000.',
+    'O CEP é 70070-120.',
+    'CEP 70.070-120, Brasília.',
+    'Vistoria 28/10/2026, combinado?',
+    'Visita dia 28/10/2026.',
+    'Visita dia 28/10 15h?',
+    'Visita 28/10 15h30?',
+    'Vistoria 28/10/2026 9h, combinado?',
+  ]);
+  // O parêntese depois do preço também não é liberado: o número dentro dele é um grupo livre
+  // ("R$ 1.460.000 (100 mil dias)").
+  pega(['Posso levar R$ 1.460.000 (2 vagas).', 'Posso levar R$ 1.460.000 (3 quartos e 2 vagas).']);
+});
+
+test('F1: formato liberado seguido ou precedido de número retém, qualquer que seja o separador', () => {
+  // A data sem ano e sem hora ("28/10") é leitura padrão desde a D2b e fica como na `main`.
+  const formatos = ['W1 Sul', 'W3 Sul', 'L1 Norte', 'Torre B2', 'Torre 1B', 'Apto 2B', 'Apto 13B', 'Bloco B1, 3º andar'];
+  const separadores = ['', ' ', ' e ', ', ', ' + ', '; ', ' (', ') ', '. ', '.\n', ' - ', '/', ':', ' mais ', '. E mais ', ' com ', '\n', ' = ', ' ou '];
+  const valores = ['300 mil', '360 mil', '360.000', '360', '36 mil', '0 mil', 'mil', '1,36 mi', 'trezentos e sessenta mil', '60 mil', '3 6 0 mil', 'milhão'];
+  const passaram: string[] = [];
+  for (const f of formatos)
+    for (const s of separadores)
+      for (const v of valores) {
+        // Colado sem separador a um formato que termina em letra, vira outra palavra ("andarmil"), não número.
+        if (!s && /\p{L}$/u.test(f)) continue;
+        if (!achadosDe(f + s + v).length) passaram.push(f + s + v);
+        if (!achadosDe(`Fica 1${s}${f}`).length) passaram.push(`Fica 1${s}${f}`);
+      }
+  assert.deepEqual(passaram, []);
+});
+
+test('F1: o formato só passa sozinho, sem palavra de preço e sem algarismos que revelem valor', () => {
+  // Outro número na mensagem, em qualquer forma ou língua.
+  pega([
+    'Apto 2B, 3 quartos e 2 vagas.',
+    'O apartamento é o Apto 2B, na Torre B2.',
+    'Torre B2, 3º andar.',
+    'Apto 2B, um quarto e uma vaga.',
+    'Moro na W3 Sul 704.',
+    'Torre B2 704.',
+    'Moro na W3 Sul. 360 mil.',
+    'Tenho 4. Torre 3B.',
+    'Thirteen floors, apto 6B.',
+    'Trece pisos, apto 6B.',
+  ]);
+  // Palavra de preço ou aceite em qualquer lugar da mensagem.
+  pega(['Quanto ele aceita? Torre B2.', 'Qual o seu valor? Apto 2B.', 'Fecho em apto 2B.']);
+  // Código com 3 algarismos ou mais, com duas letras, ou sem palavra de endereço.
+  pega(['Fecho em apto 360B.', 'Torre B360.', 'Torre BB2.', 'Fica 1B.']);
+  // Os algarismos do código revelam valor em alguma leitura: recuo ou alvo (com o "1" de milhão
+  // subentendido), abaixo do recuo em qualquer escala, diferença ou percentual com palavra de margem.
+  pega(['Torre 36B.', 'Apto 45B.', 'Apto 1B.', 'Moro na W1 Sul.', 'Apto 7B.', 'Apto 9B.', 'Torre 10B.', 'Torre 13B.', 'Torre 35B.', 'Apto 14B.', 'Gordura: Torre 3B.', 'A folga é o apto 14B.']);
+  // O que não revela continua passando ("Torre 3B." = 1,3 mi, abaixo do recuo, passou a reter: ver o milhão
+  // subentendido abaixo).
+  passa(['Apto 5B.', 'Torre 5B.', 'Torre 50B.', 'Moro na W4 Sul.']);
+});
+
+// Rodada 1 do ciclo 2 do #142.
+test('F1 (B1): letra que o detector lê como algarismo ("l", "i", "o") entra na conferência do código', () => {
+  pega(['Torre l3', 'Bloco I3', 'Apto l2', 'Torre l6', 'Torre O3', 'Apto 3l', 'Torre 4l', 'L3 Norte', 'Fica na L3 Norte']);
+  pegaSemOferta(['Torre l3', 'Bloco I3', 'Apto l2', 'Torre l6', 'Torre O3', 'Apto 3l', 'Torre 4l', 'L3 Norte', 'Fica na L3 Norte']);
+});
+
+test('F1 (B2): vocabulário de percentual, de anunciado, de contraproposta e de aceite impede a liberação', () => {
+  const frases = [
+    'Percentual: apto 3B',
+    'Percentual: apto 4B',
+    'Porcentagem do anunciado: torre 3B',
+    'Do anunciado: apto 5B',
+    'Porcentagem sobre a contraproposta: torre 6B',
+    'Torre 6B \uFF05 da contraproposta',
+    'Torre 3B off',
+    'Torre 4B percent',
+    'Contraproposta: torre 6B',
+    'Contraoferta: apto 3B',
+    'Contra-proposta: torre 6B',
+    'Contraofertas: apto 6B',
+    'Sobre o anuncio: bloco 4C',
+    'Percentuais: apto 6B',
+    'Taxa: apto 6B',
+    'Taxas: apto 6B',
+    'Combinado: apto 6B',
+    'Combinamos o apto 6B',
+    'Pode ser no apto 3B',
+    'Podemos ser o apto 6B',
+    'Bate no apto 3B',
+    'Batemos no apto 6B',
+  ];
+  pega(frases);
+  pegaSemOferta(frases);
+});
+
+test('F1 (B3): o milhão subentendido lê os algarismos como decimal de K milhões, com os zeros da esquerda', () => {
+  const caso = (frases: string[], m: Partial<MandatoMotor>, perm: number[]) => {
+    for (const f of frases) assert.ok(vazamentos(f, { ...MOTOR, ...m }, perm).length > 0, `deveria pegar: ${f} em ${JSON.stringify(m)}`);
+  };
+  // Recuo 1,40 mi: "4" = 1,4 mi.
+  caso(['Torre 4B.', 'Apto 4B.', 'Torre B4.'], { recuo_c: 140_000_000, alvo_c: 147_000_000 }, [146_000_000, 150_000_000]);
+  // Recuo 1,05 mi: "05" = 1,05 mi (o zero da esquerda conta).
+  caso(['Torre 05B.'], { preco_pedido_c: 120_000_000, recuo_c: 105_000_000, alvo_c: 110_000_000 }, [120_000_000, 115_000_000]);
+  // Recuo 2,36 mi: "3" = 2,3 mi, abaixo dele.
+  caso(['Apto 3B.'], { preco_pedido_c: 250_000_000, recuo_c: 236_000_000, alvo_c: 245_000_000 }, [250_000_000, 246_000_000]);
+  // Na escada de 1,5 mi: "3" = 1,3 mi, abaixo do recuo.
+  pega(['Torre 3B.', 'Apto 2B', 'W3 Sul']);
+});
+
+test('F1 (B4): algarismo romano, centena em espanhol e "par" contam como outro número', () => {
+  const frases = ['Torre XIII, apto 6B', 'I Torre 3B VI', 'I · Apto 3B · VI', 'Torre 5B, XL.', 'Bloco trescientos, apto 6B', 'Bloco doscientas, apto 6B', 'Apto 3B par', 'Apto 6B, pares', 'Apto 6B, dupla', 'Apto 5B x par x VI'];
+  pega(frases);
+  pegaSemOferta(frases);
+});
+
+test('F1: os formatos liberados continuam lineares', () => {
+  const formas = ['Apto 2B, ', 'W3 Sul 2 vagas ', 'um apto 3B ', '1 ', 'treze ', 'quinto andar ', 'Torre B2 '];
+  for (const f of formas) {
+    const texto = f.repeat(Math.ceil(80_000 / f.length)).slice(0, 80_000);
+    let melhor = Infinity;
+    for (let k = 0; k < 2; k++) {
+      const t0 = performance.now();
+      vazamentos(texto, MOTOR, PUBLICOS_120);
+      melhor = Math.min(melhor, performance.now() - t0);
+    }
+    assert.ok(melhor < 2000, `${JSON.stringify(f)} × 80 mil caracteres levou ${melhor.toFixed(0)} ms`);
+  }
+});
+
+// Rodada 2 do ciclo 2 do #142.
+test('F1 (R2-B1): marcação ou conexão ("_", "‿", "＿", zero-width) não esconde palavra nem cola algo ao código', () => {
+  const frases = [
+    '_Menos_ apto 5B.',
+    '_Gap_: apto 5B.',
+    '_Meta_: apto 4B.',
+    'Torre 6B _off_.',
+    '_Ate_ apto 4B.',
+    'Apto 4B_six',
+    'Apto 5B_',
+    'Apto 5B\u200B',
+    'Me\u200Bnos apto 5B.',
+    'Apto 4B\u200Bsix',
+    'Apto 4B\u2040six',
+    'Apto 4B\uFF3Fsix',
+    '_W4 Sul',
+    '*Apto 5C*',
+  ];
+  pega(frases);
+  pegaSemOferta(frases);
+  // Sem a marcação, as mesmas formas passam (a retenção vem dela).
+  passa(['Apto 5C', 'W4 Sul', 'Apto 5B.']);
+});
+
+test('F1 (R2-B2): toda letra que pode ser algarismo é conferida com todos os algarismos que ela pode ser', () => {
+  // Escada de 1,5 mi: E = 3 ("E6" = 36 = 1,36 mi, o recuo), A = 4 ("A5" = 45 = 1,45 mi, o alvo), B = 8 ("B4"
+  // = 84 = 840 mil), G = 9 ("G5" = 95 = 950 mil), B = 6 ("4B" = 46 = 1,46 mi, a 1% do alvo).
+  const frases = ['Torre E6', 'Apto A5', 'Apto A4', 'Apto E5', 'Bloco B4', 'Torre G5', 'Apto 4B', 'Torre B5.'];
+  pega(frases);
+  pegaSemOferta(frases);
+  // S = 5 ("S4" = 54), Z = 2 ("4Z" = 42), T = 7 ("3T" = 37), Q = 9 ("Q4" = 94), G = 6 ("G6" = 66): num mandato
+  // em que essa leitura é o recuo, retém; a letra lida só como letra ("4", "3", "6") não revelaria.
+  const caso = (f: string, recuo: number) => {
+    const m = { ...MOTOR, preco_pedido_c: recuo + 10_000_000, alvo_c: recuo + 5_000_000, recuo_c: recuo };
+    assert.ok(vazamentos(f, m, [recuo + 10_000_000]).length > 0, `deveria pegar: ${f} com recuo ${recuo}`);
+  };
+  caso('Torre S4', 154_000_000);
+  caso('Torre 4Z', 142_000_000);
+  caso('Apto 3T', 137_000_000);
+  caso('Torre Q4', 194_000_000);
+  caso('Torre G6', 166_000_000);
+  // "l", "i" e "o" seguem não sendo letra de código ("Apto 3l" = 31): retêm em qualquer mandato.
+  for (const f of ['Apto 3l', 'Torre 4i', 'Torre O3']) assert.ok(vazamentos(f, MOTOR_BAIXO, PUBLICOS_BAIXO).length > 0, f);
+  // "W" não se lê como algarismo: "W4 Sul" segue passando. "C" também não: "Apto 4C" passa.
+  passa(['W4 Sul', 'Apto 4C', 'Apto 5B.']);
+});
+
+test('F1 (R2-B3): "par", ordinal e centena em espanhol e inglês contam como outro número', () => {
+  const frases = [
+    'Apto 4B par',
+    'Par de torres, apto 6B',
+    'Apto 6B tercero',
+    'Bloco quinientos, apto 6B',
+    'Apto 6B primero',
+    'Apto 6B cuarto',
+    'Apto 6B septimo',
+    'Apto 6B octavo',
+    'Apto 6B noveno',
+    'Bloco seiscientos, apto 6B',
+    'Apto 6B, a pair',
+    'Apto 6B dozen',
+  ];
+  pega(frases);
+  pegaSemOferta(frases);
+});
+
+test('F1 (R2-B4): vocabulário de preço, conta, aceite e entrada da main, e em inglês e espanhol, impede a liberação', () => {
+  const frases = [
+    'Torre 4B pc',
+    'Apto 4B pp',
+    'Apto 4B bps',
+    'Economia: apto 5B.',
+    'Less: apto 5B.',
+    'Below: apto 4B.',
+    'Minus apto 5B.',
+    'Rebaja: apto 5B.',
+    'Recua apto 5B.',
+    'Delta: apto 5B.',
+    'Price: apto 4B.',
+    'Precio: apto 4B.',
+    'Deal: apto 5B.',
+    'Comissão: apto 5B.',
+    'Sinal: apto 5B.',
+    'Entrada: apto 5B.',
+    'Ficamos no apto 5B.',
+    'De acordo: apto 5B.',
+    'Apto 5B-',
+    'Torre 5B+',
+  ];
+  pega(frases);
+  pegaSemOferta(frases);
+});
+
+test('F1 (R2-B4): o "％" de largura cheia, sozinho, conta como o "%"', () => {
+  // Sem "contraproposta" nem outra palavra de preço: só o "％" faz "6C" ser lido como percentual (6% abaixo
+  // da contraproposta de 1,46 mi = 1,372 mi, a 1% do recuo).
+  assert.ok(vazamentos('Torre 6C \uFF05', MOTOR, PUBLICOS_120).length > 0);
+  assert.ok(vazamentos('Torre 6C \uFF05', MOTOR, PERMITIDOS).length > 0);
+  // Sem ele, a mesma frase passa.
+  assert.deepEqual(vazamentos('Torre 6C', MOTOR, PUBLICOS_120), []);
+  assert.deepEqual(vazamentos('Torre 6C', MOTOR, PERMITIDOS), []);
+});
+
+// ------------------------------------------------------------------------------------------------
+// Critério de equivalência (decisão do dono, 05/11/2026, depois da rodada 3 da revisão do #142): uma
+// frase que passa com o código liberado ("bloco C6") só é piora se a gêmea com algarismo comum ("bloco 6")
+// retém. A gêmea não tem formato liberado, então o head a lê como a `main` (conferido head × main nas 17
+// classes abaixo, nas duas escadas). Uma classe por achado da rodada 3: se a forma disfarçada passa, a
+// gêmea com algarismo passa também — é o risco residual que já existia na `main`, documentado em
+// docs/negociacao.md. O teste falha se alguém fechar só um dos dois lados: aí a equivalência precisa ser
+// refeita (fechar a gêmea pede fechar o disfarce também).
+
+const RESIDUO_EQUIVALENTE: [disfarce: string, gemea: string][] = [
+  // Ordinal ou número por extenso em outra língua (ponto "único número", 3ª passagem).
+  ['Thirteenth story, bloco C6.', 'Thirteenth story, bloco 6.'],
+  ['Fourteenth story, torre C5.', 'Fourteenth story, torre 5.'],
+  ['Decimotercera planta, bloco C6.', 'Decimotercera planta, bloco 6.'],
+  ['Cero, bloco C6.', 'Cero, bloco 6.'],
+  // Símbolo que lembra número (\p{So}, não \p{N}).
+  ['⚀⚂ Bloco C6.', '⚀⚂ Bloco 6.'],
+  // Palavra de conta abreviada ou com erro de grafia (ponto "vocabulário", 3ª passagem).
+  ['dsct: Apto 5B.', 'dsct: Apto 5.'],
+  ['men. Apto 5B', 'men. Apto 5'],
+  ['menoz: Apto 5B', 'menoz: Apto 5'],
+  ['Dif.: apto 5B.', 'Dif.: apto 5.'],
+  ['bxa: Apto 5B', 'bxa: Apto 5'],
+  // Palavra de conta soletrada com separador.
+  ['g a p: Apto 5B', 'g a p: Apto 5'],
+  ['o-f-f: Torre 6C', 'o-f-f: Torre 6'],
+  // Caractere invisível que parte a palavra (U+3164) e caractere de tag astral colado (obs. 1).
+  ['Meㅤnos apto 5B.', 'Meㅤnos apto 5.'],
+  ['Apto 5B\u{E0036}', 'Apto 5\u{E0036}'],
+  // Traço longo ou hífen seguido de pontuação colado ao código.
+  ['Apto 5B—', 'Apto 5—'],
+  ['Apto 5B-.', 'Apto 5-.'],
+  // "D" lido como 0 (obs. 2).
+  ['Torre D5', 'Torre 5'],
+];
+
+test('equivalência (05/11): cada classe da rodada 3 tem o mesmo resultado na forma disfarçada e na gêmea com algarismo', () => {
+  for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
+    for (const [disfarce, gemea] of RESIDUO_EQUIVALENTE) {
+      const retemDisfarce = vazamentos(disfarce, MOTOR, publicos).length > 0;
+      const retemGemea = vazamentos(gemea, MOTOR, publicos).length > 0;
+      assert.equal(retemDisfarce, retemGemea, `${JSON.stringify(disfarce)} × ${JSON.stringify(gemea)}`);
+      // O critério em si: gêmea retida obriga o disfarce a reter (só isso seria bloqueante).
+      if (retemGemea) assert.ok(retemDisfarce, `piora bloqueante: ${JSON.stringify(disfarce)}`);
+    }
+  }
+});
+
+test('equivalência (05/11): "Commission", prometido no comentário e na doc, impede a liberação', () => {
+  // Fechamento da rodada 3: o disfarce retém. A gêmea "Commission: apto 5." passa na `main` e segue
+  // passando (resíduo da `main`, número curto fora do contexto de preço): reter a mais não viola o critério.
+  for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
+    for (const f of ['Commission: apto 5B.', 'Commissions: torre 6C.']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
+  }
+});
+
+// Revisão do #142 (B1): a liberação confere a própria gêmea. "Fica no bloco 50" retém (o número depois de
+// "fica" ou de "por" é lido como diferença de um valor público: 50 mil é a distância do pedido ao alvo), então
+// "Fica no bloco C50" tem de reter — por construção, sem lista de palavras: o código só passa se a mensagem
+// com o código trocado por cada leitura dele em algarismos passa na análise comum.
+const PARES_GEMEOS: [disfarce: string, gemea: string][] = [
+  ['Fica no bloco C50', 'Fica no bloco 50'],
+  ['Fica no bloco C38', 'Fica no bloco 38'],
+  ['Visita amanhã. Fica no bloco C50', 'Visita amanhã. Fica no bloco 50'],
+  ['Fico no bloco D55', 'Fico no bloco 55'],
+  ['Por favor, apto K43', 'Por favor, apto 43'],
+  // "S" lido como 5: a gêmea é "bloco 55" (e "bloco 5").
+  ['Fica no bloco S5', 'Fica no bloco 55'],
+];
+
+test('equivalência (B1): gêmea retida obriga o disfarce a reter, nas duas escadas', () => {
+  for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
+    for (const [disfarce, gemea] of PARES_GEMEOS) {
+      assert.ok(vazamentos(gemea, MOTOR, publicos).length > 0, `gêmea deveria reter: ${gemea}`);
+      assert.ok(vazamentos(disfarce, MOTOR, publicos).length > 0, `deveria pegar: ${disfarce}`);
+    }
+  }
+  // Com a oferta de 1,3 mi na escada, "sala 66" retém (66 mil leva ao recuo), e "sala K66" também.
+  assert.ok(vazamentos('por gentileza sala 66', MOTOR, PUBLICOS_120).length > 0);
+  assert.ok(vazamentos('por gentileza sala K66', MOTOR, PUBLICOS_120).length > 0);
+});
+
+// As leituras do código em algarismos, como o detector as faz: cada letra some ou vira cada algarismo
+// que ela pode ser (a tabela de `leiturasDoCodigo`).
+const LETRA_ALGARISMO: Record<string, string[]> = { a: ['4'], b: ['8', '6'], e: ['3'], g: ['6', '9'], i: ['1'], l: ['1'], o: ['0'], q: ['9'], s: ['5'], t: ['7'], z: ['2'] };
+const gemeasDoCodigo = (codigo: string): string[] => {
+  let r = [''];
+  for (const ch of codigo.toLowerCase()) {
+    const op = /\d/.test(ch) ? [ch] : ['', ...(LETRA_ALGARISMO[ch] ?? [])];
+    r = r.flatMap((x) => op.map((y) => x + y));
+  }
+  return [...new Set(r)].filter(Boolean);
+};
+
+test('equivalência (B1): propriedade — para todo prefixo, palavra de endereço e código de 1 a 99, gêmea retida ⇒ disfarce retido', () => {
+  // Prefixos que a `main` lê como contexto de preço ("fica", "por" e o resto de `CONTEXTO_DE_PRECO`, até 2
+  // palavras antes do número) e os de lugar e cortesia que a liberação não vê como preço.
+  const prefixos = ['', 'Fica no ', 'Fico no ', 'Fica na ', 'Por favor, ', 'por gentileza ', 'Visita amanhã. Fica no ', 'Moro no ', 'faço no ', 'sai no ', 'chego no ', 'por ', 'mais ', 'menos o ', 'acima do ', 'abaixo do ', 'posso no ', 'consigo no ', 'rola no ', 'levo no ', 'reduz no ', 'cede o '];
+  const palavras = ['apto', 'bloco', 'torre', 'sala', 'casa'];
+  // Letras que ficam só letra e letras que o detector também lê como algarismo ("s" 5, "b" 8 ou 6, "e" 3).
+  // Depois do número, fora as que fazem dele uma leitura padrão, que não é formato liberado ("6A" e "6O"
+  // ordinal, "6D" dias, "6S" segundos, "6X" vezes, "6H" horário, "6M" milhões, "6K" mil): essas a `main`
+  // já lia assim, e "Fica no apto 6A" passa nela também.
+  const letrasAntes = ['c', 'd', 'k', 's', 'b', 'e', 'h'];
+  const letrasDepois = ['c', 'f', 'j', 'n', 'b', 'e', 'p'];
+  const escadas: [MandatoMotor, number[]][] = [[MOTOR, PUBLICOS_120], [MOTOR, PERMITIDOS], [MOTOR_BAIXO, PUBLICOS_BAIXO]];
+  let k = 0;
+  let conferidas = 0;
+  for (const [mandato, publicos] of escadas)
+    for (const p of prefixos)
+      for (const w of palavras)
+        for (let n = 1; n <= 99; n++) {
+          const i = k++;
+          for (const codigo of [`${letrasAntes[i % 7]}${n}`, `${n}${letrasDepois[i % 7]}`].map((c) => c.toUpperCase())) {
+            const retida = gemeasDoCodigo(codigo).some((g) => vazamentos(`${p}${w} ${g}`, mandato, publicos).length > 0);
+            if (!retida) continue;
+            conferidas++;
+            const disfarce = `${p}${w} ${codigo}`;
+            assert.ok(vazamentos(disfarce, mandato, publicos).length > 0, `gêmea retida e disfarce passou: ${disfarce}`);
+          }
+        }
+  assert.ok(conferidas > 0);
+});
+
+test('obs. b: data com ano de dois algarismos ("28/10/26") não é leitura padrão e retém', () => {
+  for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
+    for (const f of ['Visita dia 28/10/26.', 'Vistoria 28/10/26, combinado?']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
+  }
+  assert.ok(vazamentos('Visita dia 28/10/26.', MOTOR_BAIXO, PUBLICOS_BAIXO).length > 0);
+});
+
+test('F1: data com a hora depois de vírgula passa, como na main', () => {
+  assert.deepEqual(vazamentos('Visita dia 28/10, 15h.', MOTOR, PUBLICOS_120), []);
+  assert.deepEqual(vazamentos('Visita dia 28/10, 15h.', MOTOR, PERMITIDOS), []);
 });
