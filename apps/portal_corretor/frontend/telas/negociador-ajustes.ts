@@ -22,6 +22,7 @@ type Linha = Record<string, any>;
 interface Config {
   ligado: boolean;
   conduz_padrao: string;
+  negociador_padrao_id: number | null;
   gatilhos: Record<string, boolean>;
   estilo: string;
   instrucoes_corretor: string | null;
@@ -135,6 +136,33 @@ export class PcAjustesNegociador extends LitElement {
   }
 
   /**
+   * Quem conduz as negociações novas (F3): o Negociador IA (padrão, D-94) ou uma pessoa que aceitou o
+   * convite e já tem o papel negociador. A negociação nova já nasce atribuída a ela, que recebe o aviso.
+   */
+  private quemConduz(c: Config) {
+    const prontos = (this.equipe?.negociadores ?? []).filter((n) => n.tem_papel);
+    const atual = c.conduz_padrao === 'humano' && c.negociador_padrao_id ? `pessoa:${c.negociador_padrao_id}` : 'ia';
+    const opcoes = [
+      { valor: 'ia', rotulo: 'Negociador IA (padrão)' },
+      ...prontos.map((n) => ({ valor: `pessoa:${n.usuario_id}`, rotulo: n.email })),
+      // A pessoa gravada que saiu da lista (perdeu o papel ou a conta): continua visível, com o aviso.
+      ...(atual !== 'ia' && !prontos.some((n) => `pessoa:${n.usuario_id}` === atual) ? [{ valor: atual, rotulo: 'Pessoa escolhida (sem o papel negociador agora)' }] : []),
+    ];
+    const pessoa = atual !== 'ia';
+    return html`<urbi-select label="Conduz as negociações novas" valor=${atual} .opcoes=${opcoes} ?desabilitado=${this.salvando || !c.ligado}
+        @urbi:select-change=${(e: CustomEvent) => {
+          const v = String(e.detail.valor ?? 'ia');
+          const uid = Number(v.replace('pessoa:', ''));
+          void this.gravar(v.startsWith('pessoa:') && uid ? { negociador_padrao_id: uid, conduz_padrao: 'humano' } : { conduz_padrao: 'ia', negociador_padrao_id: null }, 'Salvo.');
+        }}></urbi-select>
+      <urbi-prosa papel="dica">${!c.ligado
+        ? 'Desligado: nada entra sozinho e as negociações novas começam conduzidas por você.'
+        : pessoa
+          ? 'Toda negociação nova já nasce atribuída a esta pessoa, que recebe um aviso. Ela conduz dentro do mandato, com as mesmas garantias do Negociador IA; o aceite final continua só seu.'
+          : 'Toda negociação nova começa conduzida pelo Negociador IA; em cada uma, você assume quando quiser.'}</urbi-prosa>`;
+  }
+
+  /**
    * Grava uma mudança da config e redesenha com a resposta (que é a config inteira). As instruções só
    * voltam do servidor quando foram elas a mudança: o que está digitado e não salvo sobrevive a um
    * estilo, gatilho ou liga/desliga. Se falha, o controle (`alvo`) volta ao valor gravado.
@@ -216,13 +244,7 @@ export class PcAjustesNegociador extends LitElement {
               @urbi-toggle:change=${(e: CustomEvent) =>
                 void this.gravar({ ligado: !!e.detail }, e.detail ? 'Negociador ligado.' : 'Negociador desligado.', { el: e.target, prop: 'checked', anterior: c.ligado })}></urbi-toggle>
           </urbi-linha>
-          <urbi-linha>
-            <urbi-prosa>Negociador IA</urbi-prosa>
-            <urbi-badge cor="info">padrão</urbi-badge>
-          </urbi-linha>
-          <urbi-prosa papel="dica">${c.ligado
-            ? 'Toda negociação nova começa conduzida por ele; em cada uma, você assume quando quiser.'
-            : 'Desligado: as negociações novas começam conduzidas por você.'}</urbi-prosa>
+          ${this.quemConduz(c)}
           ${this.pessoas()}
         </urbi-card>
         <urbi-card expandir titulo="3 · Estilo" icone="fa-solid fa-comment-dots">

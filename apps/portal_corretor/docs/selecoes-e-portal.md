@@ -1,6 +1,6 @@
 ---
 titulo: Seleções e Portal do Cliente
-descricao: Seleção de imóveis que o cliente abre pelo link e marca gostei, não gostei, quero visitar ou comenta, e o portal do cliente (Meu atendimento) com o próximo passo e as abas Conversa, Imóveis, Agenda e Arquivos.
+descricao: Seleção de imóveis que o cliente abre pelo link e marca gostei, não gostei, quero visitar, conversar sobre o preço ou comenta, e o portal do cliente (Meu atendimento) com o próximo passo e as abas Conversa, Imóveis, Agenda e Arquivos.
 ---
 
 # Seleções e Portal do Cliente
@@ -29,7 +29,7 @@ Logo abaixo do topo, em destaque, a data até quando a seleção vale.
 
 Cada imóvel é um cartão de **foto grande** (as fotos passam de lado), pensado para o celular:
 - preço em destaque, bairro e cidade, e ícones de quartos, área e vagas; a descrição abre num toque;
-- botões grandes: **Gostei**, **Não gostei**, **Quero visitar** e **Comentar**.
+- botões grandes: **Gostei**, **Não gostei**, **Quero visitar**, **Conversar sobre o preço** e **Comentar**.
 
 **Comentar** abre um campo (até 300 letras). O comentário vai junto com a reação já dada e
 aparece na linha do tempo, por exemplo "Gostou do IM-0001: a cozinha é pequena (seleção
@@ -53,6 +53,11 @@ com o corretor.
 - conta como contato com o cliente, e a temperatura é recalculada;
 - **Quero visitar** cria a tarefa "Marcar visita: IM-0001 · título", sem repetir se ela já
   estiver pendente.
+- **Conversar sobre o preço** cria a tarefa "Conversar sobre o preço: IM-0001 · título" (também
+  sem repetir) e, com o momento marcado em Ajustes › Negociador, faz o Negociador entrar na
+  negociação daquele imóvel (ver
+  [Quando o Negociador entra](negociacao.md#quando-o-negociador-entra)). O cliente vê "Recebido. O
+  corretor vai falar com você sobre o preço deste imóvel".
 
 **Copiar** gera de novo a mensagem com o link. **Revogar** faz o link parar de abrir, e a
 seleção sai do portal. A ficha mostra cada seleção como válida (com a data limite), vencida ou
@@ -81,7 +86,7 @@ cliente volta para a mesma aba ao recarregar; no celular, a aba escolhida rola p
 | Aba | O que tem |
 |---|---|
 | Conversa | As datas em destaque: a **próxima visita** (dia e hora, e quanto falta: hoje, amanhã ou em N dias) e até quando a **seleção vale** (a que vence primeiro). O **histórico**: uma linha do tempo, da mais recente para a mais antiga, com cada seleção recebida ("Recebeu 3 imóveis: Casas no Noroeste"), cada visita feita ("Visitou Apto com varanda, Noroeste"), cada pendência resolvida e, embaixo, o começo. O campo **Escreva para <seu nome>** e o botão **Conversar no WhatsApp** |
-| Imóveis | No alto, **Suas seleções** (**Sua seleção**, se houver só uma): o título e a mensagem que o corretor escreveu em cada seleção válida que tenha um dos dois; seleção sem título nem mensagem não aparece, e a que só repete imóveis de outra aparece se tiver um dos dois. Sem nenhuma, o bloco some. Depois, o imóvel em **destaque**, com o nome da seleção a que pertence (só quando ela tem título), em cartão de foto grande (as fotos passam de lado), com o selo **Visita sáb.** quando há visita marcada a ele e os botões **Gostei · Não gostei · Quero visitar · Comentar**. Embaixo, **Outros imóveis**, cada um com a miniatura, o bairro, o preço e a reação dada ("Gostei", "Sem reação"); um toque põe o imóvel no destaque. Por fim, **O que falta de você**: as pendências que você pediu, cada uma com o botão **Feito** (só aparece se houver alguma). O número da aba conta os imóveis das seleções válidas, sem repetir o mesmo imóvel |
+| Imóveis | No alto, **Suas seleções** (**Sua seleção**, se houver só uma): o título e a mensagem que o corretor escreveu em cada seleção válida que tenha um dos dois; seleção sem título nem mensagem não aparece, e a que só repete imóveis de outra aparece se tiver um dos dois. Sem nenhuma, o bloco some. Depois, o imóvel em **destaque**, com o nome da seleção a que pertence (só quando ela tem título), em cartão de foto grande (as fotos passam de lado), com o selo **Visita sáb.** quando há visita marcada a ele e os botões **Gostei · Não gostei · Quero visitar · Conversar sobre o preço · Comentar**. Embaixo, **Outros imóveis**, cada um com a miniatura, o bairro, o preço e a reação dada ("Gostei", "Sem reação"); um toque põe o imóvel no destaque. Por fim, **O que falta de você**: as pendências que você pediu, cada uma com o botão **Feito** (só aparece se houver alguma). O número da aba conta os imóveis das seleções válidas, sem repetir o mesmo imóvel |
 | Agenda | As visitas marcadas, por dia, com hora e imóvel. Um dia com mais de uma visita vira um **roteiro**: as paradas numeradas na ordem do horário e o link **Ver o roteiro no mapa**, com o trajeto todo. Em cada visita, **Como chegar** (abre o mapa do celular com a rota), **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar**. O mapa só usa o que o imóvel mostra em público: com o endereço publicado, a rota vai até ele; só com o bairro, o botão vira **Ver o bairro no mapa**; publicado só como região, não há mapa. O número da aba, o botão **Ver**, o selo de visita e a "Próxima visita" da Conversa usam o mesmo critério: visita que ainda vai acontecer ou que começou há até 1 hora (para a visita em andamento não sumir) |
 | Propostas | Ver [Propostas](#propostas), abaixo. O número conta as negociações com uma proposta do vendedor esperando a resposta do cliente (no máximo uma por negociação, fora as vencidas) |
 | Arquivos | Ainda sem arquivos (D-73): a aba avisa que, por enquanto, os documentos chegam pelo WhatsApp. O número fica em 0 |
@@ -101,7 +106,8 @@ foram enviadas a ele, com condições, concessão, contrapartida e validade. Aba
 - **Fazer nova oferta:** o cliente digita o valor em reais (por exemplo, 1.380.000);
 - **Mensagem ao corretor:** abre um campo de texto ali mesmo, na negociação. A mensagem vai pelo mesmo
   caminho da aba Conversa e já cita o imóvel ("Sobre a negociação do imóvel …"), então o corretor
-  sabe de qual negociação se trata.
+  sabe de qual negociação se trata. Se o cliente pede desconto ou fala de preço, o Negociador entra
+  nessa negociação (ver [Quando o Negociador entra](negociacao.md#quando-o-negociador-entra)).
 
 Ao abrir a confirmação do aceite ou a nova oferta, o cursor já vai para ela. Depois de uma oferta ou
 de um aceite, o portal se atualiza sozinho algumas vezes por cerca de um minuto, para mostrar a

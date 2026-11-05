@@ -2,6 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
+import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { FILTROS_PRONTOS, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
 import { chamarApi, chip, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, opcoes, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
@@ -160,7 +161,9 @@ export class PcClientesQuadro extends LitElement {
       motivo = String(v.motivo);
     }
     try {
-      await enviar('PATCH', `/negocios/${item.id}`, { etapa_id: etapa.id, motivo_perda: motivo });
+      const r = await enviar('PATCH', `/negocios/${item.id}`, { etapa_id: etapa.id, motivo_perda: motivo });
+      const aviso = avisoDeEntrada(r?.negociador_entrou);
+      if (aviso) urbiVerso.notificar(aviso, 'info');
     } catch (err) {
       await urbiVerso.alertar({ titulo: 'Não foi possível mover', mensagem: mensagemDeErro(err), tipo: 'erro' });
     }

@@ -1229,6 +1229,8 @@ Em qualquer nível: **aceitar o acordo final, reduzir abaixo do recuo, mudar o m
 
 **Entra** (gatilhos configuráveis em P17): negócio movido para a etapa Proposta; cliente pede desconto ou fala de preço (quando o Mensageiro existir, ele passa ao Negociador com o motivo `negociacao_preco` em vez de passar ao corretor); reação "conversar sobre o preço" no portal ou na seleção; oferta registrada em P15 ou feita no portal (M5b).
 
+**Sinais no app (1.2, F3, #135):** etapa Proposta = o negócio de compra com imóvel chega à etapa de marco `proposta`; pedido de desconto = **só a mensagem do portal** com fala de preço (lista explícita de palavras) até o Mensageiro existir — o WhatsApp do app ainda não é sinal; reação = o botão "Conversar sobre o preço" (`conversar_preco`) da seleção e do portal. "Entrar" é a negociação do negócio passar a existir com quem conduz por padrão; o motor só roda sobre a mensagem com fala de preço quando o Negociador IA conduz e há mandato vigente. Implementado: ver `apps/portal_corretor/docs/negociacao.md` (Quando o Negociador entra).
+
 **Sai:** acordo proposto (vai à decisão do corretor e do proprietário); negociação encerrada (ganho ou perdido com motivo); gatilho de passagem ao corretor (10.9.5); negócio devolvido ao Mensageiro quando o cliente desiste de negociar e volta a buscar imóveis.
 
 **Um atendente por vez:** quando houver conversa no app, o cabeçalho de P02 mostra quem atende (Mensageiro, Negociador ou o corretor), e enquanto o Negociador atende o Mensageiro não responde naquela conversa.

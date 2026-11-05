@@ -35,7 +35,9 @@ de **abordagem atrasada**.
   todas. A conta é sobre os negócios do quadro (os em andamento e os ganhos e perdidos dos últimos
   30 dias), sem os filtros. Uma etapa que você criou em Ajustes › Funil não tem taxa.
 - **Arraste** o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
-  motivo, nada é gravado e o cartão volta.
+  motivo, nada é gravado e o cartão volta. Ao soltar um negócio de compra com imóvel em
+  **Proposta**, o Negociador entra: a negociação nasce e a tela avisa com o código dela (ver
+  [Quando o Negociador entra](negociacao.md#quando-o-negociador-entra)).
 - **Toque** no cartão para ver o cliente na coluna da direita, sem sair do Funil. No cartão com
   **abordagem atrasada**, o cliente abre já com a **Mensagem sugerida** pronta.
 - Ganhos e perdidos ficam no quadro por 30 dias; os em andamento ficam sempre.

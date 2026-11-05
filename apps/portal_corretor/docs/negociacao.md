@@ -126,8 +126,11 @@ conta. Ela recebe um código `NG-0001`, `NG-0002`… e guarda o cliente do negó
   (os mesmos motivos de perda do funil). Encerrada, a negociação não muda mais.
 - **Quem conduz:** o **Negociador IA** (o padrão), o **corretor** ou o **negociador humano** (uma
   pessoa convidada pelo corretor, a quem ele atribui a negociação; ver
-  [Negociador humano](#negociador-humano)). Com o Negociador desligado nos ajustes, a negociação
-  nova começa conduzida pelo corretor.
+  [Negociador humano](#negociador-humano)). A negociação nova começa com quem está em **Ajustes ›
+  Negociador › Quem negocia por padrão**: o Negociador IA ou a pessoa escolhida ali, que já recebe a
+  negociação atribuída e um aviso. Com o Negociador desligado nos ajustes, a negociação nova começa
+  conduzida pelo corretor. A negociação aberta à mão (**Nova proposta**) segue o mesmo padrão; depois
+  de aberta, **Assumir** passa a condução a você e **Devolver** a entrega de novo ao Negociador.
 - **Leitura do comprador:** teto estimado, a fonte da estimativa e a alternativa provável do
   comprador. Essa alternativa é o que a sigla **BATNA** quer dizer: o que a pessoa faria se não
   fechasse este negócio (por exemplo, comprar outro imóvel parecido). Aqui é uma estimativa do
@@ -421,14 +424,18 @@ em **Salvar instruções**. Cada gravação sobe a versão da configuração. A 
 guarda a **assinatura** que o cliente vê; ela aparece na tela com o negociador humano, numa versão
 seguinte. No centro, seis blocos:
 
-1. **Quando entra:** uma oferta é registrada ou feita no portal (marcado por padrão). Os demais
-   momentos (o negócio chega à etapa Proposta, o cliente pede desconto ou reage "conversar sobre o
-   preço") chegam numa versão seguinte.
-2. **Quem negocia por padrão:** o **Negociador IA**, com o botão **Negociador ligado** (padrão:
-   ligado). Desligado, as negociações novas começam conduzidas por você. Abaixo, o **negociador
-   humano**: **Convidar negociador** (só o e-mail, sem CRECI), os convites pendentes (com
-   **Revogar**) e quem já aceitou, marcado **pronto** ou **falta o papel** (ver
-   [Negociador humano](#negociador-humano)). O Negociador não pede CRECI.
+1. **Quando entra:** quatro caixas, todas marcadas por padrão (ver
+   [Quando o Negociador entra](#quando-o-negociador-entra)): o negócio chega à etapa Proposta; o
+   cliente pede desconto ou fala de preço numa mensagem do portal; o cliente reage "Conversar sobre o
+   preço"; uma oferta é registrada ou feita no portal.
+2. **Quem negocia por padrão:** o botão **Negociador ligado** (padrão: ligado) e **Conduz as
+   negociações novas**: **Negociador IA (padrão)** ou uma das pessoas que aceitaram o convite e já
+   têm o papel negociador. Escolhida uma pessoa, toda negociação nova já nasce atribuída a ela, que
+   recebe um aviso. Desligado o Negociador, nada entra sozinho e as negociações novas começam
+   conduzidas por você (a escolha fica guardada, mas sem efeito). Abaixo, o **negociador humano**:
+   **Convidar negociador** (só o e-mail, sem CRECI), os convites pendentes (com **Revogar**) e quem
+   já aceitou, marcado **pronto** ou **falta o papel** (ver [Negociador humano](#negociador-humano)).
+   O Negociador não pede CRECI.
 3. **Estilo:** cooperativo (padrão), firme ou consultivo, cada um com um exemplo de fala; **Usar**
    troca o estilo.
 4. **Regras fixas:** as 10 regras que o Negociador nunca quebra, só para ler. São as mesmas,
@@ -455,6 +462,27 @@ seguinte. No centro, seis blocos:
   Para outros períodos, com taxa de acordo, desconto médio, rodadas, ZOPA e objeções, veja
   **Números › Negociação** (lá a conta das aprovadas sem edição vai pela data em que você decidiu).
 
+### Quando o Negociador entra
+
+Cada momento tem a sua caixa em **Quando entra**; com a caixa desmarcada, ou o Negociador desligado,
+o app faz o que fazia antes (a tarefa para você, sem negociação nova). "Entrar" quer dizer: a
+negociação do negócio passa a existir, conduzida por quem está em **Quem negocia por padrão**. O
+Negociador só propõe valores com o **mandato** definido; por isso, toda negociação aberta por um
+destes momentos cria para você a tarefa "O Negociador entrou na NG-0001: defina o mandato".
+
+| Momento | O que acontece |
+|---|---|
+| **O negócio chega à etapa Proposta** | Ao mover um negócio de compra para a etapa Proposta (no Funil ou na ficha do cliente), a negociação nasce, se o negócio tem imóvel e ainda não tem negociação em andamento. A tela avisa: "A negociação NG-0001 foi aberta e quem conduz é o Negociador IA". Sem imóvel no negócio, nada nasce: abra a negociação à mão quando escolher o imóvel |
+| **O cliente pede desconto ou fala de preço** | Numa mensagem do portal ("tem desconto à vista?", "achei caro", "aceita proposta?", "qual o valor?"). A mensagem continua chegando a você, com a tarefa "Responder a mensagem do portal". Mandada da seção de uma negociação, ela vale para aquela negociação; mandada de outro lugar, para a única negociação em andamento do cliente ou, sem nenhuma, para o único negócio de compra em aberto dele com imóvel. Se o **Negociador IA** conduz e há mandato vigente, ele prepara a resposta a essa mensagem, com as mesmas 7 garantias de sempre: no "pergunta antes", a sugestão espera a sua aprovação; no "faz sozinho", só uma contraproposta montada pelo código sai pelo portal. Conduzida por você ou pelo negociador humano, o Negociador IA não responde por vocês. O WhatsApp do app ainda não existe: quando existir, a conversa de lá também passa por este momento |
+| **O cliente reage "Conversar sobre o preço"** | Na seleção ou no portal. Vira a tarefa "Conversar sobre o preço: IM-0001 · título" e o Negociador entra na negociação daquele imóvel (ou a abre, no negócio de compra do cliente com aquele imóvel) |
+| **Uma oferta é registrada ou feita no portal** | Como antes: o Negociador IA roda sobre a oferta (ver [No Portal do Cliente](#no-portal-do-cliente)) |
+
+Quando não dá para saber de qual negociação o cliente fala (duas em andamento, ou nenhuma e mais de
+um negócio de compra com imóvel), nada nasce: você recebe a tarefa de sempre e decide.
+
+O aceite final continua só seu, em qualquer caso: nenhum desses momentos fecha acordo, mexe no
+mandato ou leva nada ao proprietário.
+
 ## Negociador humano
 
 Uma pessoa que o corretor convida para conduzir negociações por ele: um sócio, um especialista ou
@@ -463,6 +491,10 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
 
 ### O que o negociador vê e faz
 
+- **Aviso:** quando recebe uma negociação (atribuída pelo corretor ou por ser o negociador padrão da
+  conta), a pessoa recebe uma notificação da plataforma só para ela: "Você recebeu a negociação
+  NG-0001 no Portal do Corretor", com o link para a negociação. O aviso não traz o nome do cliente,
+  telefone nem valores. Atribuir de novo a mesma pessoa não repete o aviso.
 - **Menu:** só **Hoje** (as negociações atribuídas a ele) e **Negociações**. Conversas entra quando
   houver WhatsApp. Ele não vê clientes, imóveis, Estúdio, Página, Números nem Ajustes: essas telas
   mostram "Esta área não está liberada para você", e a API responde `403 SEM_PAPEL`.
@@ -495,6 +527,12 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
    negociador** (escolha a pessoa) e, com uma atribuída, **Trocar negociador** e **Retirar do
    negociador**. Atribuir faz a pessoa conduzir a negociação; retirar a devolve a você. Uma pessoa
    por negociação: atribuir a outra tira a anterior.
+4. Para que toda negociação nova já nasça com ela, escolha a pessoa em **Ajustes › Negociador ›
+   Quem negocia por padrão › Conduz as negociações novas**. Só aparecem ali as pessoas marcadas
+   **pronto**. Se a pessoa perder o papel ou sair da conta, as negociações novas que o app cria
+   numa ação sua (como mover o negócio para Proposta) voltam a nascer com o Negociador IA, sem atribuição nem aviso. Nas abertas pelas reações e
+   mensagens do cliente (sem como conferir), vale a pessoa gravada, e a guarda da negociação
+   barra quem perdeu o papel. Escolher **Negociador IA (padrão)** tira a pessoa.
 
 Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
 
@@ -507,6 +545,8 @@ Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
 | `CONVITE_IDENTIDADE_INTERNA` | O e-mail é de alguém da equipe da plataforma |
 | `CONVITE_JA_PENDENTE` | Já há um convite pendente para o e-mail |
 | `PLANO_ASSENTOS_ESGOTADOS` | O plano da conta não tem mais lugares |
+| `NEGOCIADOR_SEM_PAPEL` (409) | Ao atribuir ou escolher como padrão: a pessoa aceitou o convite, mas ainda não tem o papel negociador |
+| `NEGOCIADOR_NAO_ENCONTRADO` (404) | Ao atribuir ou escolher como padrão: a pessoa não aceitou convite desta conta |
 | `CONVITE_INDISPONIVEL` (503) | Esta instância não oferece ao app o provisionamento de convites (não é falha passageira): fale com o administrador da instância |
 
 Se o e-mail do convite não sair, o convite fica valendo e a tela avisa (peça à pessoa para olhar o

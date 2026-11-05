@@ -19,6 +19,7 @@ import { assincrono, erro, guardarCorretor, MENSAGEM_VARIAS_CONTAS, primeiro } f
 import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { encerrarAcessosDoCliente, tentarPortal } from './portal';
 import { iso, MARCO_PADRAO } from '../comum/funil';
+import { entrarPelaEtapaProposta } from './negociador-entrada';
 import { marcoMaisAvancado } from '../comum/numeros';
 import { programarLembreteVisita } from './lembretes';
 
@@ -484,9 +485,10 @@ crmRotas.patch(
       mudar.imovel_id = iid;
     }
     let resumo: string | null = null;
+    let etapa: Record<string, any> | null = null;
     const etapaId = id(req.body?.etapa_id);
     if (etapaId && etapaId !== atual.etapa_id) {
-      const etapa = await dados.buscar('etapas_funil', etapaId);
+      etapa = await dados.buscar('etapas_funil', etapaId);
       if (!etapa || etapa.pipeline !== atual.pipeline) return erro(res, 422, 'DADOS_INVALIDOS', 'Etapa de outro funil.');
       const motivo = req.body?.motivo_perda;
       if (etapa.tipo === 'perdida' && !(MOTIVOS_PERDA as readonly string[]).includes(motivo)) {
@@ -513,6 +515,9 @@ crmRotas.patch(
       });
       await dados.atualizar('contatos', atual.contato_id, { ultimo_contato_em: agora() });
       await reclassificar(dados, atual.contato_id);
+      // Gatilho `etapa_proposta` (F3, 10.9.4): chegou à Proposta, o Negociador entra. A tela avisa.
+      const entrou = await entrarPelaEtapaProposta(req, negocio, etapa);
+      if (entrou) return res.json({ ...negocio, negociador_entrou: entrou });
     }
     res.json(negocio);
   }),

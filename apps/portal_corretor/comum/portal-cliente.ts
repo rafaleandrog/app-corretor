@@ -94,6 +94,7 @@ export const ROTULO_REACAO_CLIENTE: Record<string, string> = {
   gostei: 'Gostei',
   nao_gostei: 'Não gostei',
   quero_visitar: 'Quero visitar',
+  conversar_preco: 'Conversar sobre o preço',
 };
 
 /** Reação dada, como aparece na lista "outros imóveis". */
