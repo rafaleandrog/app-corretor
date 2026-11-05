@@ -73,6 +73,9 @@ export function aoAbrirNumeros() {
   if (estado.conta !== contaAtiva()) {
     estado.dados = null;
     estado.negociacao = null;
+    estado.falhaNegociacao = null;
+    // Uma leitura de Negociação em voo é da conta anterior: a resposta dela não pode mais ser gravada.
+    estado.geracaoNegociacao++;
   }
   estado.chaveNegociacao = '';
   estado.conta = contaAtiva();
@@ -331,28 +334,37 @@ function relatorioNegociacao(n: Linha) {
   const b = n.anterior as Linha;
   const v = (x: number | null, y: number | null, t = false) => variacao(n.dias, x, y, t);
   const objecoes = a.objecoes as { categoria: string; quantidade: number }[];
+  const com = (base: string, x: number | null, y: number | null, t = false) => {
+    const c = v(x, y, t);
+    return c ? (base ? `${base} · ${c}` : c) : base;
+  };
+  // Período anterior alinhado às categorias exibidas (as do atual); categoria ausente no anterior conta 0 objeções.
+  const objecoesAntes = (b.objecoes as { categoria: string; quantidade: number }[]) ?? [];
   const desconto = a.desconto_medio === null ? null : `${(Math.round(a.desconto_medio * 1000) / 10).toLocaleString('pt-BR')}%`;
   return html`<urbi-grid min="160px">
       ${kpiOuFrase('Propostas recebidas', a.propostas_recebidas ? a.propostas_recebidas.toLocaleString('pt-BR') : null, 'Nenhuma proposta no período',
         v(a.propostas_recebidas, b.propostas_recebidas))}
       ${kpiOuFrase('Taxa de acordo', a.taxa_acordo === null ? null : pct(a.taxa_acordo), 'Nenhuma negociação encerrada no período',
         `${a.ganhas} de ${a.encerradas} encerradas${v(a.taxa_acordo, b.taxa_acordo, true) ? ` · ${v(a.taxa_acordo, b.taxa_acordo, true)}` : ''}`)}
-      ${kpiOuFrase('Desconto médio', desconto, 'Nenhum acordo com preço pedido no período', 'Sobre o preço pedido, nos acordos')}
-      ${kpiOuFrase('Rodadas até o acordo', media(a.rodadas_medias), 'Nenhum acordo no período', 'Média nos acordos do período')}
+      ${kpiOuFrase('Desconto médio', desconto, 'Nenhum acordo com preço pedido no período',
+        com('Sobre o preço pedido, nos acordos', a.desconto_medio, b.desconto_medio, true))}
+      ${kpiOuFrase('Rodadas até o acordo', media(a.rodadas_medias), 'Nenhum acordo no período',
+        com('Média nos acordos do período', a.rodadas_medias, b.rodadas_medias))}
     </urbi-grid>
     <urbi-card titulo="Acordos e o Negociador" icone="fa-solid fa-handshake">
       <urbi-grid min="160px">
         ${kpiOuFrase('Acordos dentro da ZOPA', a.dentro_zopa === null ? null : pct(a.dentro_zopa),
           a.ganhas ? 'Nenhum acordo com o teto do comprador estimado' : 'Nenhum acordo no período',
-          a.zopa_sem_estimativa ? `${a.zopa_sem_estimativa} acordo(s) sem o teto do comprador estimado ficaram de fora` : 'Entre o seu recuo e o teto estimado do comprador')}
+          com(a.zopa_sem_estimativa ? `${a.zopa_sem_estimativa} acordo(s) sem o teto do comprador estimado ficaram de fora` : 'Entre o seu recuo e o teto estimado do comprador',
+            a.dentro_zopa, b.dentro_zopa, true))}
         ${kpiOuFrase('Sugestões aprovadas sem edição', a.taxa_sem_edicao === null ? null : pct(a.taxa_sem_edicao), 'Nenhuma sugestão do Negociador enviada no período',
-          `${a.sugestoes_sem_edicao} de ${a.sugestoes_enviadas} enviadas`)}
+          com(`${a.sugestoes_sem_edicao} de ${a.sugestoes_enviadas} enviadas`, a.taxa_sem_edicao, b.taxa_sem_edicao, true))}
       </urbi-grid>
     </urbi-card>
     <urbi-card titulo="Objeções mais frequentes" icone="fa-solid fa-comment-dots">
       ${objecoes.length
-        ? html`<urbi-grafico-colunas altura="220px" .categorias=${objecoes.map((o) => rotuloObjecao(o.categoria))}
-            .series=${[{ rotulo: 'Objeções', valores: objecoes.map((o) => o.quantidade) }]}></urbi-grafico-colunas>`
+        ? html`<urbi-grafico-colunas altura="220px" legenda="auto" .categorias=${objecoes.map((o) => rotuloObjecao(o.categoria))}
+            .series=${series(objecoes.map((o) => o.quantidade), objecoes.map((o) => objecoesAntes.find((x) => x.categoria === o.categoria)?.quantidade ?? 0))}></urbi-grafico-colunas>`
         : html`<urbi-prosa papel="dica">Nenhuma objeção registrada no período.</urbi-prosa>`}
     </urbi-card>
     <urbi-prosa papel="fraco">Só números somados da conta: nenhum valor do mandato aparece aqui. O filtro de origem não vale neste relatório.</urbi-prosa>`;

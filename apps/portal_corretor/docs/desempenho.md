@@ -79,7 +79,11 @@ ganhos, perdidos e a conversão de cada canal.
 
 ### Negociação
 
-Os números das negociações da conta no período escolhido, com a comparação ao período anterior.
+Os números das negociações da conta no período escolhido. Com **Comparar** ligado (o padrão), cada
+número que tem valor no período anterior traz a comparação em texto pequeno (taxas e porcentagens em
+pontos; contagens e médias em diferença simples) e o gráfico de objeções mostra o período anterior
+ao lado, nas mesmas categorias do período atual. Sem valor no período anterior, não há comparação
+(nunca "0"). Com Comparar desligado, só o período atual.
 São só somas e médias: nenhum valor do mandato (recuo, alvo, BATNA) nem a estimativa do teto do
 comprador aparece, e nada é mostrado negociação por negociação. O filtro de origem não vale neste
 relatório (a escolha some do alto dele). Quando falta dado, aparece uma frase no lugar do número.
@@ -90,7 +94,7 @@ relatório (a escolha some do alto dele). Quando falta dado, aparece uma frase n
 | **Taxa de acordo** | Das negociações encerradas no período, quantas foram ganhas; abaixo, "N de M encerradas" | "Nenhuma negociação encerrada no período" |
 | **Desconto médio** | Nas ganhas no período, a média de (preço pedido − valor final) ÷ preço pedido. O preço pedido é o do mandato em vigor; ganha sem mandato fica de fora. Venda acima do pedido entra como desconto negativo | "Nenhum acordo com preço pedido no período" |
 | **Rodadas até o acordo** | Média de rodadas das negociações ganhas no período | "Nenhum acordo no período" |
-| **Acordos dentro da ZOPA** | Das ganhas no período que têm o teto do comprador estimado, quantas fecharam entre o seu recuo e esse teto. As que não têm estimativa são contadas à parte | "Nenhum acordo com o teto do comprador estimado" (ou "Nenhum acordo no período") |
+| **Acordos dentro da ZOPA** | Das ganhas no período que têm o recuo do mandato, o teto do comprador estimado e o valor final, quantas fecharam entre o seu recuo e esse teto. As que não têm algum desses três (por exemplo, sem estimativa ou sem mandato) são contadas à parte | "Nenhum acordo com o teto do comprador estimado" (ou "Nenhum acordo no período") |
 | **Sugestões aprovadas sem edição** | Das sugestões do Negociador enviadas no período (aprovadas ou editadas por você, pela data da decisão), quantas saíram sem edição; abaixo, "N de M enviadas". Envio automático e descartadas não entram | "Nenhuma sugestão do Negociador enviada no período" |
 | **Objeções mais frequentes** | Objeções detectadas no período, por tipo (os mesmos nomes de Ajustes › Negociador › Respostas a objeções), da mais comum para a menos | "Nenhuma objeção registrada no período." |
 
