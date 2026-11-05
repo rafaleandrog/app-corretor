@@ -280,6 +280,20 @@ class NovoImovel extends EventTarget {
     await this.recarregar();
   }
 
+  /**
+   * Salva tudo o que está pendente e garante o rascunho, e só volta com `sujo` falso: o que se digitou com
+   * um salvamento em voo (ou o que a releitura sugeriu) vai numa nova rodada. Poucas rodadas: quem não para
+   * de digitar recebe o aviso em vez de um laço sem fim.
+   */
+  async salvarTudo() {
+    for (let rodada = 0; rodada < 3; rodada++) {
+      await this.salvarDados();
+      await this.garantirRascunho();
+      if (!this.sujo) return;
+    }
+    throw new Error('Você continuou editando enquanto salvava. Tente de novo.');
+  }
+
   /** Executa com o aviso de ocupado; falha vira alerta e devolve `false`. */
   async tentar(rotulo: string, titulo: string, fn: () => Promise<unknown>): Promise<boolean> {
     if (this.ocupado) return false;
@@ -341,8 +355,7 @@ class NovoImovel extends EventTarget {
       return;
     }
     const ok = await this.tentar('Salvando…', 'Não foi possível salvar o rascunho', async () => {
-      await this.salvarDados();
-      await this.garantirRascunho();
+      await this.salvarTudo();
     });
     if (!ok) return;
     urbiVerso.notificar('Rascunho salvo. Na ficha, "Continuar cadastro" volta a este passo.', 'sucesso');
@@ -453,17 +466,20 @@ class NovoImovel extends EventTarget {
    */
   async concluir() {
     const ok = await this.tentar('Concluindo…', 'Não foi possível concluir', async () => {
-      await this.salvarDados();
-      await this.garantirRascunho();
+      await this.salvarTudo();
       // A última leitura pode ter falhado: decidir sobre a ficha nula ou velha publicaria às cegas.
       if (this.falha || !this.ficha) await this.recarregar();
       if (this.falha || !this.ficha) throw this.falha ?? new Error('Não foi possível ler o imóvel. Tente de novo.');
+      // A releitura pode ter deixado edição pendente (a sugestão das fotos): nada sai da tela sujo.
+      if (this.sujo) await this.salvarTudo();
       const im = this.ficha.imovel;
       if (this.onde === 'publico') {
         await enviar('PATCH', `/imoveis/${this.id}`, { ...(['ativo', 'reservado'].includes(im.situacao) ? {} : { situacao: 'ativo' }), publicado_pagina: true });
       } else if (im.publicado_pagina) {
         await enviar('PATCH', `/imoveis/${this.id}`, { publicado_pagina: false });
       }
+      // Digitado durante a publicação: ainda vai, antes de sair.
+      if (this.sujo) await this.salvarTudo();
     });
     if (!ok) return;
     urbiVerso.notificar(this.onde === 'publico' ? 'Imóvel ativo e na sua página.' : 'Imóvel salvo. Só você vê.', 'sucesso');

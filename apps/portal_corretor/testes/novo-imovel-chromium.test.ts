@@ -62,6 +62,7 @@ window.urbiVerso = {
         midias: banco.midias.map((x) => ({ ...x, url: 'https://img/' + x.id })), autorizacoes: banco.autorizacoes };
     }
     if (m && !resto && metodo === 'PATCH') {
+      if (window.gancho) await window.gancho(corpo);
       if (corpo.publicado_pagina === true) throw Object.assign(new Error('Para anunciar, anexe a autorização.'), { status: 409 });
       Object.assign(banco.imovel, corpo);
       return banco.imovel;
@@ -337,5 +338,58 @@ test('Novo imóvel no Chromium: retoma o rascunho pelo ?item= e o de outra conta
     assert.equal(await pagina.evaluate(() => (window as any).coluna('pc-novo-imovel-passos') + (window as any).coluna('pc-novo-imovel-qualidade')), '', 'esquerda e direita vazias');
   } finally {
     await navegador.close();
+  }
+});
+
+test('Novo imóvel no Chromium: o que se digita com o PATCH em voo chega ao servidor antes de Salvar rascunho e Concluir saírem da tela', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  for (const acao of ['Salvar rascunho', 'Concluir']) {
+    const { navegador, pagina } = await montar(pw);
+    try {
+      await pagina.addInitScript(() => {
+        const w = window as any;
+        w.SEMENTE = {
+          imovel: { id: 7, codigo: 'IM-0007', situacao: 'rascunho', publicado_pagina: false, tipo: 'casa', cidade: 'Brasília' },
+          midias: [],
+          autorizacoes: [],
+        };
+        // Segura o primeiro PATCH até o teste liberar; os seguintes passam direto.
+        w.corposPatch = [];
+        w.liberarPatch = null;
+        let primeiro = true;
+        w.gancho = async (corpo: unknown) => {
+          w.corposPatch.push(JSON.stringify(corpo));
+          if (!primeiro) return;
+          primeiro = false;
+          await new Promise((r) => (w.liberarPatch = r));
+        };
+      });
+      await pagina.goto(`${ORIGEM}/portal_corretor/imoveis/novo?item=7&passo=dados`);
+      await pagina.waitForTimeout(80);
+      // O campo Cidade só existe no passo Dados: guarda o elemento, cujo ouvinte segue valendo nos outros passos.
+      await pagina.evaluate(`window.campo = todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade'); 0`);
+      const cidade = (v: string) => `disparar(window.campo, 'urbi:input-change', { valor: '${v}' })`;
+      if (acao === 'Concluir') {
+        for (let i = 0; i < 2; i++) {
+          await pagina.evaluate(`botao('Próximo').click()`);
+          await pagina.waitForTimeout(80);
+        }
+      }
+      await pagina.evaluate(cidade('Gama'));
+      await pagina.evaluate(`botao('${acao}').click()`);
+      await pagina.waitForFunction(() => (window as any).liberarPatch);
+      // Digita com o PATCH a caminho, depois libera.
+      await pagina.evaluate(cidade('Taguatinga'));
+      await pagina.evaluate(`window.liberarPatch(); 0`);
+      await pagina.waitForTimeout(150);
+      const fim = await pagina.evaluate(() => ({ cidade: (window as any).banco.imovel.cidade, url: location.pathname + location.search, avisos: (window as any).avisos }));
+      const saiu = fim.url === '/portal_corretor/imoveis?item=7';
+      assert.ok(!saiu || fim.cidade === 'Taguatinga', `${acao}: saiu da tela com "${fim.cidade}" no servidor, e o digitado se perdeu`);
+      assert.equal(fim.cidade, 'Taguatinga', `${acao}: o texto digitado durante o PATCH tem que chegar ao servidor`);
+      assert.ok(saiu, `${acao}: sem edição pendente, segue para a ficha`);
+    } finally {
+      await navegador.close();
+    }
   }
 });
