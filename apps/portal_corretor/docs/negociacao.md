@@ -160,6 +160,10 @@ O **mandato** é o combinado do corretor com o proprietário para aquela negocia
 - Cada alteração cria uma **versão nova** do mandato; as anteriores ficam no histórico. A vigente é
   a última.
 - Negociação encerrada não aceita mandato novo.
+- O documento da autorização por anexo é conferido no momento de gravar, com a negociação e o
+  documento reservados até o fim da gravação. Se o documento foi apagado nesse meio-tempo, o mandato
+  é recusado com `DADOS_INVALIDOS` (anexe de novo); se o mandato gravou primeiro, quem tenta apagar o
+  documento recebe `DOCUMENTO_EM_USO`.
 
 **Passo máximo, como se calcula:** é a fração do intervalo que **ainda resta** entre a posição atual
 do vendedor e o ponto de recuo. Na primeira rodada, a posição atual é o preço pedido; depois, a
