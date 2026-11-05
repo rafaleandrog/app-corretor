@@ -153,6 +153,8 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Até lá:** `contaDeTrabalho()` (`frontend/apoio.ts`) é a identidade da conta para o estado das telas; a cada `urbi:contexto-app` o app a relê e, se mudou, recria a tela (chave `sub|conta|visita` em `frontend/index.ts`), relê os dados de módulo e recomeça o Assistente. Teste `troca-de-conta-chromium.test.ts` em cada tela do menu.
 
+**Diálogo aberto durante a troca (#157):** `urbiVerso.formulario` e `urbiVerso.confirmar` abertos numa conta continuam abertos depois da troca, e o app não tem como fechá-los. Até a superfície existir, o app prende ao gesto que abriu o diálogo a busca dos campos `busca` (`buscaDoGesto`, em "Nova visita" e "Nova proposta": depois da troca ela não lista nem consulta nada) e descarta o que for confirmado depois. Com (a) ou (b), o shell poderia fechar os diálogos da app quando a conta muda.
+
 **Proposta mínima (qualquer uma fecha):** (a) um evento `urbi:conta-ativa` no `window`, com `{ appId, conta }` no `detail`, disparado quando a conta de trabalho da app muda (inclusive a troca feita pela plataforma); ou (b) uma leitura `urbiVerso.contaAtiva(): number | null` com o mesmo significado do `req.contexto.contaEscrita` do backend, mais a garantia documentada de que o `urbi:contexto-app` dispara quando ela muda. Com (a) ou (b), o seletor de conta poderia também ser do shell, e o app deixaria de guardar a escolha no navegador.
 
 ## Se o shell não puder atender 1 e 2 a tempo

@@ -26,13 +26,20 @@ export const RODADAS_MAX_PADRAO = 4;
  */
 export const CAMPOS_SIGILOSOS = ['recuo_c', 'alvo_c', 'batna_vendedor'] as const;
 
-/** Cópia profunda sem os campos sigilosos, em qualquer nível (objeto aninhado ou lista). */
+/**
+ * Colunas internas da negociação que nenhuma tela usa: a marca da última mensagem do portal em que o
+ * motor rodou (o hash do texto e quando), só para o listener não rodar duas vezes a mesma mensagem.
+ * Não são sigilo do mandato, mas também não saem: `semSigilo()` as tira junto (issue #157).
+ */
+export const CAMPOS_INTERNOS = ['motor_mensagem_hash', 'motor_mensagem_em'] as const;
+
+/** Cópia profunda sem os campos sigilosos (nem os internos), em qualquer nível (objeto aninhado ou lista). */
 export function semSigilo<T>(valor: T): T {
   if (Array.isArray(valor)) return valor.map((v) => semSigilo(v)) as T;
   if (valor && typeof valor === 'object' && !(valor instanceof Date)) {
     const limpo: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(valor as Record<string, unknown>)) {
-      if ((CAMPOS_SIGILOSOS as readonly string[]).includes(k)) continue;
+      if ((CAMPOS_SIGILOSOS as readonly string[]).includes(k) || (CAMPOS_INTERNOS as readonly string[]).includes(k)) continue;
       limpo[k] = semSigilo(v);
     }
     return limpo as T;

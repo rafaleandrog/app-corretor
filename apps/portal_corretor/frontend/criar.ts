@@ -1,6 +1,6 @@
 import { html, type TemplateResult } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, formularioEnviar, gesto, juntarDataHora } from './apoio.js';
+import { buscaDoGesto, formularioEnviar, gesto, juntarDataHora } from './apoio.js';
 import { alternarAssistente, assistenteAberto, contatoEmFoco } from './telas/assistente.js';
 import { abrirNegociacao, novaProposta } from './telas/negociacoes.js';
 
@@ -38,12 +38,6 @@ export function destinoDeCriar(opcao: OpcaoCriar, _sub: string, _busca = ''): st
   }
 }
 
-/** Busca do formulário: a primeira página da lista, com o termo digitado. */
-const buscar = (rota: string, rotulo: (l: Record<string, any>) => string) => async (termo: string, signal: AbortSignal) => {
-  const r = await chamarApi(`${rota}?busca=${encodeURIComponent(termo)}`, { signal });
-  return (r?.dados ?? []).map((l: Record<string, any>) => ({ valor: Number(l.id), rotulo: rotulo(l) }));
-};
-
 /** Nova visita (11.7): cliente, imóvel e horário, com o cliente da ficha aberta já escolhido. */
 export async function novaVisita() {
   // Um gesto da conta de agora: trocada com o formulário aberto ou o envio em voo, nada é enviado nem aberto.
@@ -52,8 +46,8 @@ export async function novaVisita() {
   const r = await formularioEnviar(
     'Nova visita',
     [
-      { nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, valor: foco?.id ?? null, rotuloValor: foco?.nome, placeholder: 'Nome ou telefone', buscar: buscar('/contatos', (c) => c.nome) },
-      { nome: 'imovel_id', tipo: 'busca', rotulo: 'Imóvel (opcional)', placeholder: 'Código, bairro ou título', buscar: buscar('/imoveis', (i) => `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`) },
+      { nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, valor: foco?.id ?? null, rotuloValor: foco?.nome, placeholder: 'Nome ou telefone', buscar: buscaDoGesto(vida, '/contatos', (c) => c.nome) },
+      { nome: 'imovel_id', tipo: 'busca', rotulo: 'Imóvel (opcional)', placeholder: 'Código, bairro ou título', buscar: buscaDoGesto(vida, '/imoveis', (i) => `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`) },
       { nome: 'dia', tipo: 'data', rotulo: 'Dia', obrigatorio: true },
       { nome: 'hora', tipo: 'texto', rotulo: 'Hora', valor: '10:00' },
       { nome: 'local', tipo: 'texto', rotulo: 'Local (opcional)' },
