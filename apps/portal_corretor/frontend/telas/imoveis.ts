@@ -31,6 +31,7 @@ import './empreendimentos.js';
 import { EVENTO_EMPREENDIMENTO_MUDOU } from './ficha-empreendimento.js';
 import { EVENTO_IMOVEL_MUDOU, EVENTO_RESOLVER_FALTA } from './ficha-imovel.js';
 import './ficha-empreendimento.js';
+import { registrarLista, soltarLista } from '../atalhos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -154,10 +155,17 @@ export class PcListaImoveis extends LitElement {
     window.addEventListener(EVENTO_EMPREENDIMENTO_MUDOU, this.aoEmpreendimentoMudar);
     // "Novo imóvel" do menu Criar.
     if (pedidoDeCriar('imovel')) void this.novo();
+    // J/K (11.0.6): próximo e anterior na carteira.
+    registrarLista(this, {
+      ids: () => (this.aba === 'carteira' ? this.imoveis.map((i) => i.id) : []),
+      atual: () => this.selecionado,
+      escolher: (id) => this.aoEscolher(id),
+    });
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    soltarLista(this);
     window.removeEventListener(EVENTO_IMOVEL_MUDOU, this.aoImovelMudar);
     window.removeEventListener(EVENTO_EMPREENDIMENTO_MUDOU, this.aoEmpreendimentoMudar);
   }
