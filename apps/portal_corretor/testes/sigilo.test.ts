@@ -972,6 +972,12 @@ const PARES_147: [disfarce: string, gemeas: string[]][] = [
   ['Fecho em 1, apto 36A', ['Fecho em 1, apto 36', 'Fecho em 1, apto 364']],
   ['Apto 6A', ['Apto 6', 'Apto 64']],
   ['Torre 6O', ['Torre 6', 'Torre 60']],
+  // Revisão do próprio diff: separador, abreviação, quadra e o indicador de ordinal ("ª" = "a").
+  ['Fica no apto: 6A', ['Fica no apto: 6', 'Fica no apto: 64']],
+  ['Fica no apt 6A', ['Fica no apt 6', 'Fica no apt 64']],
+  ['Fica na quadra 6A', ['Fica na quadra 6', 'Fica na quadra 64']],
+  ['Fica no apto 6ª', ['Fica no apto 6', 'Fica no apto 64']],
+  ['Fica no apto nº 6A', ['Fica no apto nº 6', 'Fica no apto nº 64']],
 ];
 
 test('#147: código lido como ordinal, segundos ou milhões tem o mesmo resultado que a gêmea, nas três escadas', () => {
@@ -984,7 +990,7 @@ test('#147: código lido como ordinal, segundos ou milhões tem o mesmo resultad
   }
   // Os casos da issue, na escada de 1,5 mi: a gêmea retém, o disfarce também.
   for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
-    for (const f of ['Fica no apto 6A', 'Fica no apto 6A/24M', 'Por favor, apto 43A']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
+    for (const f of ['Fica no apto 6A', 'Fica no apto 6A/24M', 'Por favor, apto 43A', 'Fica no apto: 6A', 'Fica no apto 6ª']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
   }
   assert.ok(vazamentos('Fica no apto 6S', MOTOR, PUBLICOS_120).length > 0);
 });
@@ -1019,6 +1025,14 @@ test('#147: propriedade — código lido pela leitura padrão, gêmea retida ⇒
             assert.ok(vazamentos(disfarce, mandato, publicos).length > 0, `gêmea retida e disfarce passou: ${disfarce}`);
           }
   assert.ok(conferidas > 0);
+});
+
+test('#147: gêmea retida retém o código mesmo que o valor lido dele seja público', () => {
+  // Com 6 mi entre os valores públicos, "6A" lido como 6 (em milhões) é público; a gêmea "Fica no apto 64"
+  // retém (64 mil do pedido leva ao recuo), então o disfarce retém também.
+  const publicos = [...PUBLICOS_120, 600_000_000];
+  assert.ok(vazamentos('Fica no apto 64', MOTOR, publicos).length > 0);
+  assert.ok(vazamentos('Fica no apto 6A', MOTOR, publicos).length > 0);
 });
 
 test('#147: do quinto código lido em diante, retém sem conferir a gêmea (reter a mais)', () => {
