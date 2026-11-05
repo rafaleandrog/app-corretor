@@ -819,3 +819,64 @@ test('F1 (R2-B4): o "％" de largura cheia, sozinho, conta como o "%"', () => {
   assert.deepEqual(vazamentos('Torre 6C', MOTOR, PUBLICOS_120), []);
   assert.deepEqual(vazamentos('Torre 6C', MOTOR, PERMITIDOS), []);
 });
+
+// ------------------------------------------------------------------------------------------------
+// Critério de equivalência (decisão do dono, 05/11/2026, depois da rodada 3 da revisão do #142): uma
+// frase que passa com o código liberado ("bloco C6") só é piora se a gêmea com algarismo comum ("bloco 6")
+// retém. A gêmea não tem formato liberado, então o head a lê como a `main` (conferido head × main nas 18
+// classes abaixo, nas duas escadas). Uma classe por achado da rodada 3: se a forma disfarçada passa, a
+// gêmea com algarismo passa também — é o risco residual que já existia na `main`, documentado em
+// docs/negociacao.md. O teste falha se alguém fechar só um dos dois lados: aí a equivalência precisa ser
+// refeita (fechar a gêmea pede fechar o disfarce também).
+
+const RESIDUO_EQUIVALENTE: [disfarce: string, gemea: string][] = [
+  // Ordinal ou número por extenso em outra língua (ponto "único número", 3ª passagem).
+  ['Thirteenth story, bloco C6.', 'Thirteenth story, bloco 6.'],
+  ['Fourteenth story, torre C5.', 'Fourteenth story, torre 5.'],
+  ['Decimotercera planta, bloco C6.', 'Decimotercera planta, bloco 6.'],
+  ['Cero, bloco C6.', 'Cero, bloco 6.'],
+  // Símbolo que lembra número (\p{So}, não \p{N}).
+  ['⚀⚂ Bloco C6.', '⚀⚂ Bloco 6.'],
+  // Palavra de conta abreviada ou com erro de grafia (ponto "vocabulário", 3ª passagem).
+  ['dsct: Apto 5B.', 'dsct: Apto 5.'],
+  ['men. Apto 5B', 'men. Apto 5'],
+  ['menoz: Apto 5B', 'menoz: Apto 5'],
+  ['Dif.: apto 5B.', 'Dif.: apto 5.'],
+  ['bxa: Apto 5B', 'bxa: Apto 5'],
+  // Palavra de conta soletrada com separador.
+  ['g a p: Apto 5B', 'g a p: Apto 5'],
+  ['o-f-f: Torre 6C', 'o-f-f: Torre 6'],
+  // Caractere invisível que parte a palavra (U+3164) e caractere de tag astral colado (obs. 1).
+  ['Meㅤnos apto 5B.', 'Meㅤnos apto 5.'],
+  ['Apto 5B\u{E0036}', 'Apto 5\u{E0036}'],
+  // Traço longo ou hífen seguido de pontuação colado ao código.
+  ['Apto 5B—', 'Apto 5—'],
+  ['Apto 5B-.', 'Apto 5-.'],
+  // "D" lido como 0 (obs. 2).
+  ['Torre D5', 'Torre 5'],
+];
+
+test('equivalência (05/11): cada classe da rodada 3 tem o mesmo resultado na forma disfarçada e na gêmea com algarismo', () => {
+  for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
+    for (const [disfarce, gemea] of RESIDUO_EQUIVALENTE) {
+      const retemDisfarce = vazamentos(disfarce, MOTOR, publicos).length > 0;
+      const retemGemea = vazamentos(gemea, MOTOR, publicos).length > 0;
+      assert.equal(retemDisfarce, retemGemea, `${JSON.stringify(disfarce)} × ${JSON.stringify(gemea)}`);
+      // O critério em si: gêmea retida obriga o disfarce a reter (só isso seria bloqueante).
+      if (retemGemea) assert.ok(retemDisfarce, `piora bloqueante: ${JSON.stringify(disfarce)}`);
+    }
+  }
+});
+
+test('equivalência (05/11): "Commission", prometido no comentário e na doc, impede a liberação', () => {
+  // Fechamento da rodada 3: o disfarce retém. A gêmea "Commission: apto 5." passa na `main` e segue
+  // passando (resíduo da `main`, número curto fora do contexto de preço): reter a mais não viola o critério.
+  for (const publicos of [PUBLICOS_120, PERMITIDOS]) {
+    for (const f of ['Commission: apto 5B.', 'Commissions: torre 6C.']) assert.ok(vazamentos(f, MOTOR, publicos).length > 0, f);
+  }
+});
+
+test('F1: data com a hora depois de vírgula passa, como na main', () => {
+  assert.deepEqual(vazamentos('Visita dia 28/10, 15h.', MOTOR, PUBLICOS_120), []);
+  assert.deepEqual(vazamentos('Visita dia 28/10, 15h.', MOTOR, PERMITIDOS), []);
+});

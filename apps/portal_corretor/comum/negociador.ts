@@ -778,7 +778,7 @@ const NUMERO_EM_OUTRA_LINGUA = String.raw`(?:one|two|three|four|five|six|seven|e
  * equivalentes em inglês e espanhol de preço, oferta, aceite, desconto, economia, recuo e entrada/sinal/
  * comissão ("Price:", "Precio:", "Deal:", "Rebaja:", "Commission"). Lida em `palavrasDaMensagem`.
  */
-const PRECO_NA_MENSAGEM = /\b(?:fech\w*|aceit\w*|top\w*|faco|fic[ao](?!\s+(?:na|no|nas|nos|perto|ao lado|longe|em frente)\b)|ficamos|fazemos|sai|saio|chego|vend\w*|ced\w*|levo|valor|preco|pedido|propost\w*|ofert\w*|contra-?\s?(?:propost\w*|ofert\w*)|anunci\w*|combin\w*|pode(?:mos|ria|riamos)?\s+ser|bat(?:e|o|er|emos|em|eu|ido|ida|endo)|desconto|rs|reais|mil|milh\w*|piso|minim[oa]s?|limite|teto|recu\w*|alvo|baix\w*|abaixo|desc(?:e|er|em|endo|eria|ida|ido)|negoci\w*|batna|de\s+acordo|ok|okay|feito|sim|otimo|perfeito|serve|(?:ta|esta)\s+(?:bom|certo)|entrada|sinal|parcela\w*|financ\w*|fgts|comiss\w*|corretagem|itbi|escritura|registro|econom\w*|price\w*|pricing|precio\w*|cost[oe]s?|offer\w*|bid\w*|deal\w*|accept\w*|acept\w*|agree\w*|acuerdo|trato|done|sell\w*|sale|venta\w*|clos(?:e|ing)|cerr(?:o|ar|amos|ado)|deposit\w*|down\s*payment|downpayment|comision\w*|fees?|senal|sena|enganche|saving\w*|save|ahorr\w*|retreat\w*|rebaj\w*|rebate\w*|descuento\w*)\b/;
+const PRECO_NA_MENSAGEM = /\b(?:fech\w*|aceit\w*|top\w*|faco|fic[ao](?!\s+(?:na|no|nas|nos|perto|ao lado|longe|em frente)\b)|ficamos|fazemos|sai|saio|chego|vend\w*|ced\w*|levo|valor|preco|pedido|propost\w*|ofert\w*|contra-?\s?(?:propost\w*|ofert\w*)|anunci\w*|combin\w*|pode(?:mos|ria|riamos)?\s+ser|bat(?:e|o|er|emos|em|eu|ido|ida|endo)|desconto|rs|reais|mil|milh\w*|piso|minim[oa]s?|limite|teto|recu\w*|alvo|baix\w*|abaixo|desc(?:e|er|em|endo|eria|ida|ido)|negoci\w*|batna|de\s+acordo|ok|okay|feito|sim|otimo|perfeito|serve|(?:ta|esta)\s+(?:bom|certo)|entrada|sinal|parcela\w*|financ\w*|fgts|comiss\w*|corretagem|itbi|escritura|registro|econom\w*|price\w*|pricing|precio\w*|cost[oe]s?|offer\w*|bid\w*|deal\w*|accept\w*|acept\w*|agree\w*|acuerdo|trato|done|sell\w*|sale|venta\w*|clos(?:e|ing)|cerr(?:o|ar|amos|ado)|deposit\w*|down\s*payment|downpayment|comision\w*|commission\w*|fees?|senal|sena|enganche|saving\w*|save|ahorr\w*|retreat\w*|rebaj\w*|rebate\w*|descuento\w*)\b/;
 /**
  * Palavra feita só de letras de algarismo romano ("XIII", "VI", "XL"). Pega também palavras comuns ("vi",
  * "di", "li", "mil"): só impede a liberação do formato, o que é reter a mais.
@@ -846,9 +846,10 @@ const LETRA_COMO_ALGARISMO: Record<string, string[]> = {
   a: ['4'], b: ['8', '6'], e: ['3'], g: ['6', '9'], i: ['1'], l: ['1'], o: ['0'], q: ['9'], s: ['5'], t: ['7'], z: ['2'],
 };
 /**
- * "l", "i" e "o": no código, sempre algarismo, nunca a letra dele. `desofuscar` só as troca com contexto
- * ("o" depois de um dígito e antes de outro, ou de separador com dígito ou de escala; "l"/"i" antes de um
- * dígito); aqui não se exige contexto.
+ * "l", "i" e "o": no código, sempre algarismo, nunca a letra dele. `desofuscar` só troca com contexto, e
+ * não as três: "o"/"O" só depois de um dígito e antes de outro, de separador com dígito ou de escala; "l"
+ * e "I" maiúsculo antes de um dígito (depois de outro dígito ou sem letra antes); o "i" minúsculo nunca.
+ * Aqui não se exige contexto, o que só retém a mais.
  */
 const SEMPRE_ALGARISMO = /[ilo]/;
 

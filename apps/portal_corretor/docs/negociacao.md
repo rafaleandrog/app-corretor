@@ -284,7 +284,8 @@ conversa com a IA):
    quando nenhuma leitura revela, nem a letra lida como letra nem como algarismo: "Torre E6" é também
    36, "Apto A5" é 45, "Bloco B4" é 84, "Apto 2B" é 28 e 26, "L3 Norte" é 13. O "w" do eixo e letras
    como "c", "d", "f", "h" ficam só letra. "l", "i" e "o", no código, contam sempre como algarismo (no
-   resto da mensagem, só quando estão entre dígitos ou antes de um, como em "1.36O.000"), então o
+   resto da mensagem, só com contexto: "o" depois de um dígito, como em "1.36O.000"; "l" e "I"
+   maiúsculo antes de um dígito; o "i" minúsculo, nunca), então o
    código de unidade com uma delas ("Apto 3l", "Torre O3") não é mais código e retém. A marcação também conta: sublinhado, asterisco, til, crase e os caracteres
    invisíveis (zero-width) colados ao código (`Apto 5B_`, `*Apto 5C*`, `_W4 Sul`) fazem o formato
    reter, e as palavras de preço, de conta e de número são procuradas também com essa marcação tirada
@@ -329,7 +330,20 @@ conversa com a IA):
    ao cliente. Uma
    alternativa do vendedor dita com outras palavras pode não ser reconhecida pela conferência, por
    isso essa regra também está nas instruções do Negociador; o risco não some por completo, e é
-   mais um motivo para você ler antes de enviar.
+   mais um motivo para você ler antes de enviar. **Critério de equivalência dos formatos comuns
+   (decisão do dono, 05/11/2026):** liberar um formato comum só conta como piora do sigilo quando a
+   mesma informação, escrita com algarismo comum no lugar do código ("bloco 6" no lugar de "bloco
+   C6", "apto 5" no lugar de "apto 5B"), é retida pela conferência de antes da 0.1.34. Se a forma com
+   algarismo já passava, a forma com código passa também e o risco é o mesmo de antes: **risco
+   residual, já existente, e não criado pelos formatos comuns**. Hoje esse risco cobre o número curto
+   fora do contexto de preço disfarçado assim: número ou ordinal por extenso em outra língua
+   ("Thirteenth story, bloco C6", "decimotercera", "cero"); símbolo que lembra número (emoji de dado,
+   "⚀⚂ Bloco C6"); palavra de conta abreviada, com erro de grafia ou soletrada ("Dif.: apto 5B", "dsct",
+   "men.", "menoz", "bxa", "g a p", "o-f-f"); caractere invisível que parte a palavra ("menos" partido em dois) ou
+   caractere de tag colado ao código; traço longo ou hífen seguido de pontuação ("Apto 5B—", "Apto
+   5B-."); e "d" lido como 0 ("Torre D5"). Em todos, "bloco 6", "apto 5" ou "torre 5" com o mesmo
+   disfarce já passavam. Por isso a conferência não é a única barreira: no "só sugere" e no
+   "pergunta antes", você lê a mensagem antes de ela sair.
 6. **Validade:** o mandato está vigente; "faz sozinho" só com a autorização do proprietário.
 7. **Canal:** portal ou Fazer agora; "faz sozinho" só pelo portal.
 
