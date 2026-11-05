@@ -164,7 +164,9 @@ deixou de ser anunciado mostra "Imóvel indisponível" (a abertura ainda é cont
   webhooks (Admin › Variáveis).
 - **Eventos:** `lead_recebido` e `link_clicado` são da conta: só os membros da conta os veem. O
   `lead_recebido` leva nome, telefone, e-mail e mensagem do visitante (é por ele que o contato
-  chega ao app) e fica guardado pelo prazo de retenção de eventos da instância.
+  chega ao app) e fica guardado pelo prazo de retenção de eventos da instância. Todo membro da
+  conta o lê, inclusive um negociador convidado: é risco residual documentado em Negociação e
+  mandato › Negociador humano, até a plataforma deixar o webhook gravar na conta.
 - **Endereço público da instância:** o link rastreado só é gerado quando a instância tem URL
   pública configurada.
 - **Páginas públicas:** o app declara duas:

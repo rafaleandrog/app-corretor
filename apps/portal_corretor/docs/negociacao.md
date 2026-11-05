@@ -552,10 +552,32 @@ Quando o convite não sai, a tela diz por quê. Os casos mais comuns:
 Se o e-mail do convite não sair, o convite fica valendo e a tela avisa (peça à pessoa para olhar o
 spam, ou revogue e convide de novo).
 
-**Limite da plataforma, leia antes de convidar:** como membro da conta, o negociador lê os eventos
-do app pelo barramento da plataforma, inclusive `lead_recebido`, que traz nome, telefone e e-mail de
-quem pediu contato, e os eventos de negociações que não são dele. As telas e rotas do app só
-mostram as atribuídas, mas o barramento não filtra por negociação. Convide só quem pode ver isso.
+**Antes de convidar:** a tela de convite avisa que a instância precisa da política "permite contas
+multi-usuário" ligada. O app não tem como consultar essa política antes: só sabe no convite, quando
+ela recusa com `CONVITE_MULTI_USUARIO_BLOQUEADO` (pedido ao shell para expor a política).
+
+**O que o negociador vê pelo barramento:** como membro da conta, ele lê os eventos do app pelo
+barramento da plataforma, e o barramento não filtra por negociação nem por papel. Isso vale para
+as cinco formas de ler um evento: a lista de eventos, a busca de um evento avulso, o acompanhamento
+ao vivo, o replay de quem reconecta e as notificações por inscrição. As telas e rotas do app só mostram as atribuídas.
+
+- **Eventos de negociação** (`negociacao_iniciada`, `proposta_recebida`, `mandato_alterado` e os
+  outros): levam **só ids** (negociação, negócio, proposta, mandato, objeção, execução). Sem nome,
+  telefone, e-mail, valores, recuo, alvo nem BATNA. De uma negociação que não é dele, o negociador
+  vê só que algo aconteceu nela; para abrir, a rota responde "não encontrado".
+- **Risco residual:** três eventos nascem num webhook público (formulário, seleção e portal), onde a
+  plataforma ainda não deixa o app gravar na conta antes de publicar. O dado chega ao app só pelo
+  evento, e o negociador também o lê:
+  - `lead_recebido`: nome, telefone, e-mail e mensagem de quem pediu contato pela página;
+  - `reacao_recebida`: o comentário do cliente na reação a um imóvel da seleção;
+  - `acao_cliente_recebida`: o texto da mensagem que o cliente mandou pelo portal (e o valor de uma
+    oferta, que não é dado pessoal).
+
+  Esse dado também fica guardado no histórico de eventos da plataforma até a limpeza automática por
+  retenção (o prazo é da instância).
+
+  Fechar isso depende da plataforma (pedido ao shell). Até lá, **convide só quem pode ver os
+  contatos que chegam pela sua página e pelo portal.**
 
 ### O que o dono da instância precisa ligar
 

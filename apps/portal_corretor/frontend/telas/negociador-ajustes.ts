@@ -19,6 +19,16 @@ declare const urbiVerso: UrbiVersoAPI;
 
 type Linha = Record<string, any>;
 
+/**
+ * Antes de convidar (F4, #136 b): o app não consegue consultar a política "contas multi-usuário" da
+ * instância (pedido ao shell), então explica antes; desligada, o convite é recusado e a tela diz por quê.
+ */
+const POLITICA_CONVITE =
+  'Para ter mais de uma pessoa na sua conta, a instância precisa da política "permite contas multi-usuário" ligada pelo administrador. Desligada, o convite é recusado.';
+/** O risco residual dos eventos que nascem no webhook (F4, #136 a): docs/negociacao.md. */
+const LIMITE_EVENTOS =
+  'Quem entra na conta pode ler nome, telefone, e-mail e mensagem de quem pede contato pela sua página, os comentários dos clientes nas seleções de imóveis e as mensagens que eles mandam pelo portal. Convide só quem pode ver isso.';
+
 interface Config {
   ligado: boolean;
   conduz_padrao: string;
@@ -70,7 +80,7 @@ export class PcAjustesNegociador extends LitElement {
   private async convidar() {
     const v = await urbiVerso.formulario({
       titulo: 'Convidar negociador',
-      mensagem: 'A pessoa recebe um convite por e-mail para entrar na sua conta e conduzir as negociações que você atribuir. Não precisa de CRECI. Depois do aceite, o administrador do app atribui o papel negociador a ela.',
+      mensagem: `${POLITICA_CONVITE} A pessoa recebe um convite por e-mail para entrar na sua conta e conduzir as negociações que você atribuir. Não precisa de CRECI. Depois do aceite, o administrador do app atribui o papel negociador a ela.`,
       campos: [{ nome: 'email', tipo: 'texto', rotulo: 'E-mail', obrigatorio: true, placeholder: 'nome@exemplo.com' }],
       rotuloConfirmar: 'Convidar',
     });
@@ -105,6 +115,7 @@ export class PcAjustesNegociador extends LitElement {
         <urbi-prosa>Negociador humano</urbi-prosa>
         ${eq?.indisponivel ? nothing : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-user-plus" @click=${() => void this.convidar()}>Convidar negociador</urbi-botao>`}
       </urbi-linha>
+      ${eq?.indisponivel ? nothing : html`<urbi-prosa papel="dica">${POLITICA_CONVITE} ${LIMITE_EVENTOS}</urbi-prosa>`}
       ${!eq
         ? html`<urbi-loading></urbi-loading>`
         : eq.indisponivel

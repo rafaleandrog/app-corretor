@@ -93,6 +93,26 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** fechar o gap (o externo abre o menu da app) ou expor em `urbiVerso.contexto()` um booleano "o menu da app está visível".
 
+## 16. Evento segregado lido por todo membro da conta, e `wh` sem `req.dados` segregado (F4, #136)
+
+**Por quê:** o negociador humano (D7) é membro da conta do corretor e lê, pelo barramento (listagem, busca individual e notificações por inscrição), todo evento segregado da conta: o recorte é por conta, não por papel nem por registro. O `destinatarios` do `publicar` recorta só o stream SSE (`barramento.md` § Destinatários). Os eventos de negociação já saem só com ids, mas três eventos nascem num handler de `wh`, onde o `req.dados` não é segregado e o app não pode gravar na conta antes de publicar (`wh.md`, `contas.md` § Modo de conexão). O dado pessoal só chega ao listener pelo evento:
+
+- `lead_recebido`: nome, telefone, e-mail e mensagem de quem pediu contato;
+- `reacao_recebida`: o comentário do cliente na seleção;
+- `acao_cliente_recebida`: o texto da mensagem do cliente pelo portal.
+
+**Até lá:** risco residual documentado em `apps/portal_corretor/docs/negociacao.md` (Negociador humano) e avisado na tela de convite; o teste `eventos-sem-dado-pessoal.test.ts` barra qualquer outro campo pessoal em evento.
+
+**Proposta mínima (qualquer uma fecha):** (a) `req.dados` segregado no handler de `wh`, com a conta do contexto do ingresso (como o listener recebe), para o app gravar o pedido e publicar só o id; ou (b) recorte de leitura do evento segregado por papel da app ou pela lista `destinatarios` também na listagem, no pull e nas inscrições, não só no SSE.
+
+## 17. Saber se a política "permite contas multi-usuário" está ligada (F4, #136)
+
+**Por quê:** o convite do negociador humano só funciona com a política ligada; desligada, a emissão é recusada com `CONVITE_MULTI_USUARIO_BLOQUEADO` (`contas.md` § Políticas de instância). O SDK 100 não tem como o app consultar a política antes, então a tela não pode esconder o botão nem dizer de antemão se vai dar certo.
+
+**Até lá:** Ajustes › Negociador explica a política antes de convidar e, na recusa, traduz o código.
+
+**Proposta mínima:** expor a política ao app, por exemplo um booleano `multi_usuario` em `req.shell.externos` (ou no retorno de uma consulta de capacidades do provisionamento), legível por quem pode convidar.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.
