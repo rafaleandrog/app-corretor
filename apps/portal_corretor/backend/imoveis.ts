@@ -544,14 +544,26 @@ imoveisRotas.patch(
     const imovel = await imovelOu404(req);
     const midia = imovel ? await midiaDoImovel(req, imovel.id) : null;
     if (!midia) return erro(res, 404, 'NAO_ENCONTRADO', 'Arquivo não encontrado.');
-    const dados = req.dados!;
-    const usa = await primeiro(dados, 'autorizacoes_venda', { documento_midia_id: midia.id, situacao: 'assinada' });
-    if (usa) return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização assinada. Revogue ou troque o documento antes.');
-    if (await anexoDeMandatoVigente(dados, imovel!.id, midia.id)) {
+    // Confere e apaga com a mídia travada (F2, #134). O PUT do mandato trava a mesma linha ao reler o
+    // anexo: quem chega depois espera o outro terminar. Se o mandato gravou antes, a checagem abaixo já
+    // o vê e recusa (409); se a remoção apagou antes, o PUT relê a mídia e recusa o anexo (422). Assim o
+    // mandato vigente nunca aponta para um documento apagado. Recusar é o caminho conservador: o "faz
+    // sozinho" (D-99) não é desligado por baixo dos panos; o corretor troca o anexo ou encerra antes.
+    const recusa = await req.dados!.transaction(async (trx) => {
+      const viva = await trx.buscar('imovel_midias', midia.id, { travar: true });
+      if (!viva || Number(viva.imovel_id) !== Number(imovel!.id)) return 'sumiu' as const;
+      const usa = await primeiro(trx, 'autorizacoes_venda', { documento_midia_id: midia.id, situacao: 'assinada' });
+      if (usa) return 'autorizacao' as const;
+      if (await anexoDeMandatoVigente(trx, imovel!.id, midia.id)) return 'mandato' as const;
+      // Apagar de verdade leva o arquivo para a fila de exclusão (arquivos.md).
+      await trx.deletar('imovel_midias', midia.id);
+      return null;
+    });
+    if (recusa === 'sumiu') return erro(res, 404, 'NAO_ENCONTRADO', 'Arquivo não encontrado.');
+    if (recusa === 'autorizacao') return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização assinada. Revogue ou troque o documento antes.');
+    if (recusa === 'mandato') {
       return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é a autorização do proprietário no mandato de uma negociação em andamento. Troque o anexo no mandato ou encerre a negociação antes.');
     }
-    // Apagar de verdade leva o arquivo para a fila de exclusão (arquivos.md).
-    await dados.deletar('imovel_midias', midia.id);
     await tentarSincronizar(req, imovel!.id);
     res.json({ ok: true });
   }),

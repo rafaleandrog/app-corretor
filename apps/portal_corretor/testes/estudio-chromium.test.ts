@@ -56,8 +56,8 @@ window.urbiVerso = {
   navegarSub: () => {},
   usuario: () => ({ id: 1, nome: 'Marina' }),
   contexto: () => ({ conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] } }),
-  notificar: () => {},
-  alertar: async () => {},
+  notificar: (m) => (window.avisos ??= []).push(m),
+  alertar: async (a) => { (window.alertas ??= []).push(a.titulo); },
   confirmar: async () => true,
   formulario: async (f) => { (window.formularios ??= []).push(f); return null; },
   api: async (rota, opcoes) => {
@@ -67,6 +67,11 @@ window.urbiVerso = {
     // SEGURAR: a resposta de /estudio/pecas só sai quando o teste a libera (window.pendentes), com as peças da conta.
     if (caminho === '/estudio/pecas' && window.SEGURAR) {
       return new Promise((resolve) => (window.pendentes ??= []).push({ conta, liberar: (dados) => resolve({ dados, total: dados.length, ia: true }) }));
+    }
+    if (caminho === '/imoveis') return { dados: [{ id: 5, codigo: 'IM-0005', titulo: 'Casa' }], paginas: 1 };
+    // SEGURAR_CRIAR: a criação da conta A fica em voo até o teste liberar.
+    if (caminho === '/estudio/pedido' && window.SEGURAR_CRIAR) {
+      return new Promise((resolve) => (window.criacoes ??= []).push(() => resolve({ pecas: [{ ...window.PECAS[0], id: 900 }], ia: true })));
     }
     if (caminho === '/estudio/pecas') return { dados: window.PECAS, total: window.PECAS.length, ia: window.IA ?? true };
     if (caminho === '/estudio/marca') return { creci: window.CRECI ?? null, logo_url: '/logo.png', foto_url: null, referencias: [{ id: 7, url: '/ref/7.jpg' }] };
@@ -153,7 +158,8 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
       };
     });
     assert.equal(r.trilhoAtivo, '/estudio');
-    assert.match(r.esquerda, /Estúdio ◎ @rafael\.imoveis conectado/);
+    assert.match(r.esquerda, /Estúdio @rafael\.imoveis conectado/);
+    assert.ok(!r.esquerda.includes('◎'), 'o ícone é o urbi-icone, não um glifo no texto');
     assert.deepEqual(r.rapidos, ['Lançamento', 'Baixou o preço', 'Vendido', 'Visita aberta']);
     assert.deepEqual(r.pedidos, [20, 11], 'Seus pedidos: o mais recente primeiro, um por envio');
     assert.deepEqual(r.ativo, [11], 'o pedido aberto fica marcado');
@@ -340,6 +346,92 @@ test('Estúdio no Chromium: troca de conta com carga em voo descarta a resposta 
     assert.match(r.texto, /Não foi possível atualizar o Estúdio/);
     assert.match(r.texto, /Tentar de novo/);
     assert.deepEqual(r.pedidos, [701], 'os dados continuam na tela');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: com pedido aberto, falha de recarga fica visível com "Tentar de novo" e os dados do pedido continuam', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=11`);
+    await pagina.waitForTimeout(120);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      const original = w.urbiVerso.api;
+      w.urbiVerso.api = async (rota: string, o: any) => {
+        if (rota.startsWith('/estudio/pecas')) throw Object.assign(new Error('x'), { status: 500 });
+        return original(rota, o);
+      };
+      w.recarregar();
+    });
+    await pagina.waitForTimeout(150);
+    const r: any = await pagina.evaluate(() => {
+      const w = window as any;
+      const centros = [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')];
+      return {
+        filhos: centros.map((e) => e.localName),
+        faixa: centros.map((e) => w.profundo(e)).join(' '),
+        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+      };
+    });
+    assert.deepEqual(r.filhos, ['urbi-hospedeiro', 'urbi-feed', 'urbi-hospedeiro'], 'o pedido continua aberto');
+    assert.match(r.faixa, /Não foi possível atualizar o Estúdio/);
+    assert.match(r.faixa, /Tentar de novo/);
+    assert.deepEqual(r.feed, [-11, 11, 12, 13], 'os dados do pedido continuam');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium: ação da conta A que termina depois da troca para B não mexe no estado de B', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(120);
+    // Conta A cria um pedido (Criar rápido) e a resposta fica em voo.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.SEGURAR_CRIAR = true;
+      w.urbiVerso.formulario = async () => ({ imovel_id: '5', pedido: '' });
+      (document.querySelectorAll('urbi-3-colunas > [slot="esquerda"] urbi-grid > urbi-botao')[2] as HTMLElement).click();
+    });
+    await pagina.waitForTimeout(120);
+    assert.equal(await pagina.evaluate(() => (window as any).criacoes.length), 1, 'a criação de A está em voo');
+    // A conta muda para B; a carga de B termina.
+    await pagina.evaluate(() => {
+      localStorage.setItem('portal_corretor:conta', '200');
+      (window as any).desenhar();
+    });
+    await pagina.waitForTimeout(150);
+    const antes: any = await pagina.evaluate(() => {
+      const w = window as any;
+      return { cargas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length, url: location.search };
+    });
+    // A criação de A termina agora.
+    await pagina.evaluate(() => (window as any).criacoes[0]());
+    await pagina.waitForTimeout(200);
+    const depois: any = await pagina.evaluate(() => {
+      const w = window as any;
+      return {
+        cargas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length,
+        url: location.search,
+        avisos: w.avisos ?? [],
+        alertas: w.alertas ?? [],
+        instrucoes: w.chamadas.filter((c: string) => c.includes('/instrucao')).length,
+        trabalhando: (window as any).profundo(document.querySelector('urbi-3-colunas')).includes('Escrevendo os textos'),
+      };
+    });
+    assert.equal(depois.url, antes.url, 'a URL de B não ganhou o ?pedido= de A');
+    assert.equal(depois.cargas, antes.cargas, 'nenhuma recarga disparada por A em B');
+    assert.deepEqual(depois.avisos, [], 'nenhum aviso de A aparece em B');
+    assert.deepEqual(depois.alertas, []);
+    assert.equal(depois.instrucoes, 0, 'nenhuma descrição das peças de A é buscada em B');
+    assert.equal(depois.trabalhando, false);
   } finally {
     await navegador.close();
   }

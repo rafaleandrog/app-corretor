@@ -370,17 +370,22 @@ negociacaoRotas.put(
     if (!v.ok) return res.status(v.status).json({ erro: true, codigo: v.codigo, motivo: v.motivo, mensagem: v.mensagem, ...(v.detalhes ? { detalhes: v.detalhes } : {}) });
     // Autorização por anexo: o documento é uma mídia tipo documento do MESMO imóvel da negociação (não há
     // armazenamento próprio; o documento entra pela ficha do imóvel). `buscar` só enxerga a conta ativa.
+    // A mídia é relida DENTRO da transação, com a negociação e a própria mídia travadas (F2, #134): a
+    // remoção da mídia trava a mesma linha, então ou ela apaga antes (e aqui a mídia some: 422) ou espera
+    // este mandato gravar (e lá recusa: 409). Ordem de trava: negociação, depois mídia.
     const aut = v.dados.autorizacao_proprietario as { tipo: string; arquivo_id: number | null } | null;
-    if (aut?.tipo === 'anexo') {
-      const midia = await dados.buscar('imovel_midias', Number(aut.arquivo_id));
-      if (!midia || midia.tipo !== 'documento' || Number(midia.imovel_id) !== Number(negociacao.imovel_id)) {
-        return erro(res, 422, 'DADOS_INVALIDOS', 'O documento da autorização tem de ser um documento anexado a este imóvel (ficha do imóvel › Fotos e arquivos).');
-      }
-    }
+    const ANEXO_INVALIDO = 'O documento da autorização tem de ser um documento anexado a este imóvel (ficha do imóvel › Fotos e arquivos).';
     // Cada alteração é uma versão nova; as anteriores ficam (histórico). A vigente é a da negociação.
-    let mandato: Linha;
+    let resultado: { mandato: Linha } | { recusa: 'encerrada' | 'anexo' | 'sumiu' };
     try {
-      mandato = await dados.transaction(async (trx) => {
+      resultado = await dados.transaction(async (trx) => {
+        const viva = await trx.buscar('negociacoes', nid!, { travar: true });
+        if (!viva) return { recusa: 'sumiu' as const };
+        if (encerrada(viva)) return { recusa: 'encerrada' as const };
+        if (aut?.tipo === 'anexo') {
+          const midia = await trx.buscar('imovel_midias', Number(aut.arquivo_id), { travar: true });
+          if (!midia || midia.tipo !== 'documento' || Number(midia.imovel_id) !== Number(viva.imovel_id)) return { recusa: 'anexo' as const };
+        }
         const ultima = (await trx.listar('mandatos_negociacao', { filtros: { negociacao_id: nid }, ordenar: 'versao', ordem: 'desc', por_pagina: 1 })).dados[0];
         const criado = await trx.criar('mandatos_negociacao', {
           ...v.dados,
@@ -389,12 +394,18 @@ negociacaoRotas.put(
           alterado_por_id: req.contexto?.usuario.id ?? null,
         });
         await trx.atualizar('negociacoes', nid!, { mandato_id: criado.id });
-        return criado;
+        return { mandato: criado };
       });
     } catch (e) {
       if (!violouUnico(e)) throw e;
       return erro(res, 409, 'MANDATO_ALTERADO', 'O mandato foi alterado agora por outra tela. Abra de novo.');
     }
+    if ('recusa' in resultado) {
+      if (resultado.recusa === 'sumiu') return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+      if (resultado.recusa === 'encerrada') return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+      return erro(res, 422, 'DADOS_INVALIDOS', ANEXO_INVALIDO);
+    }
+    const mandato = resultado.mandato;
     // Sem valores: só os ids (13.1).
     await publicar(req, 'mandato_alterado', { negociacao_id: nid!, mandato_id: mandato.id });
     // Ao corretor que gravou, a versão completa (com recuo, alvo e BATNA), como no GET do mandato.
