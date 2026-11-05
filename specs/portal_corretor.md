@@ -285,7 +285,7 @@ Vários corretores usam o mesmo app, cada um com seus imóveis e seus clientes. 
 |---|---|
 | Entre corretores | **Proibição absoluta, garantida pelo banco:** cada corretor é uma conta; todas as tabelas `segregada_por_conta: true` → RLS forçado no PostgreSQL. Nenhuma rota, listener, rotina ou IA consegue ler ou gravar linha de outra conta, nem por erro de código. Nenhuma tabela da app fica fora do regime, **exceto `vitrine_publica` (D-55)**: só o que o corretor publicou, sem dado pessoal |
 | Corretor × cliente na mesma conta | Toda tabela `acesso_externo: "restrito"` (sem CRUD genérico); rotas próprias: role `corretor` lê a conta, role `cliente` lê **só** o que está em `itens_cliente` com o `usuario.id` dele. **No MVP (D-56) o cliente não tem conta: vê só o que o link com token dele alcança.** |
-| Entre clientes do mesmo corretor | Mesmo filtro por `usuario.id` em `itens_cliente` **No MVP (D-56) o cliente não tem conta: vê só o que o link com token dele alcança.** |
+| Entre clientes do mesmo corretor | Mesmo filtro por `usuario.id` em `itens_cliente`. **No MVP (D-56) o cliente não tem conta: vê só o que o link com token dele alcança.** |
 | Público anônimo | Rotas públicas só devolvem o que tem `visibilidade = publico`, sem dado pessoal |
 | IA | Contexto montado pelo app só com dados da conta e, para o cliente, só com o que ele recebeu |
 | Fornecedores com conta da plataforma (Canva, render) | Pasta e prefixo por conta; `canva_vinculos` (9.4) |
@@ -1725,11 +1725,11 @@ Telas autenticadas usam só primitivos `urbi-*` e tokens; as páginas públicas 
 | P03 Funil | `urbi-kanban`, `urbi-chips-atalho` ou `urbi-badge` interativo (filtros prontos), `urbi-ficha`, `urbi-kpi` |
 | P04 Ficha | `urbi-2x1 largura="largo"` (D-92) dentro das colunas centro e direita, `urbi-feed` (histórico), `urbi-tabela` (lista), `urbi-dropdown` (menu "mais"), `urbi-planilha` (P14) |
 | P05 Assistente | `urbi-chat` na coluna direita, `urbi-card` (ação proposta) |
-| P06–P07, M3 Imóveis | `urbi-lista` com `urbi-avatar` (miniatura, D-65), `urbi-seletor-arquivo`, `urbi-visualizador-arquivo`, `urbi-formulario` |
+| P06–P07, M3 Imóveis | `urbi-lista` com `urbi-avatar` (miniatura, D-65), `urbi-seletor-arquivo`, `urbi-visualizador-arquivo`; campos da tela com `urbi-input`, `urbi-select` e `urbi-textarea` (o `urbi-formulario` do SDK 100 é só diálogo, `urbiVerso.formulario`; observação O7 da revisão do #109) |
 | P08 Estúdio | `urbi-lista` (listas por etapa), `urbi-card` (peça) com `urbi-avatar` (miniatura da arte; exceção nomeada "cartão de arte", bloco 8a), `urbi-seletor-arquivo` (área de arrastar), `urbi-redator` (pedido), `urbi-dropdown` (menu "mais") |
 | P09 Página | `urbi-lista` (blocos), `urbi-botao-alternar` (Celular · Computador), `urbi-card` + `urbi-linha` (ajustes do bloco, marca, últimos 30 dias), `urbi-kpi`, diálogo `urbiVerso.formulario`. **Exceções nomeadas do B7:** (a) *prévia da Página* (`pc-previa-pagina`): a prévia é a própria página pública (`pc-pagina-publica`, com o CSS próprio das páginas públicas) num envoltório com estilo próprio, com borda e raio dos tokens, que limita a largura a 390 px no Celular; `urbi-hospedeiro` dá o respiro, empilha os filhos na vertical e rola, e `urbi-moldura` só aceita um pinner, então nenhum primitivo limita a largura de um conteúdo nem mostra uma página com estilo próprio; (b) *ordenar por setas*: sem primitivo de arrastar para ordenar, os blocos sobem e descem com [↑][↓] |
 | P10 Números | `urbi-kpi`, `urbi-grafico-colunas`, `urbi-grafico-linha`, `urbi-tabela` |
-| P11–P14, P16–P17 | `urbi-formulario`, `urbi-toggle`, `urbi-chat` (testes), `urbi-planilha` (prévia da importação), `urbi-modal` (P16); seletor de três posições (lacuna; até lá, `urbi-select`) |
+| P11–P14, P16–P17 | campos da tela com `urbi-input`, `urbi-select`, `urbi-textarea` e `urbi-input-numero` (o `urbi-formulario` só como diálogo, `urbiVerso.formulario`, O7), `urbi-toggle`, `urbi-chat` (testes), `urbi-planilha` (prévia da importação), `urbi-modal` (P16); seletor de três posições (lacuna; até lá, `urbi-select`) |
 | P15 Negociação | `urbi-tabela` (escada de propostas, responsiva em várias linhas), `urbi-card` (sugestão, mandato e leitura do comprador); **faixa ZOPA** (lacuna; forma provisória da 0.1.23: as marcas em `urbi-badge` em ordem de valor, com o recuo mascarado, e a ZOPA em texto com um `urbi-badge` de estado) |
 | Portal, seleção e Página pública | CSS próprio: cartões com foto dominante, linha do tempo vertical, botões grandes |
 

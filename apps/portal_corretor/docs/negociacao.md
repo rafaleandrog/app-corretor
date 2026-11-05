@@ -13,7 +13,26 @@ telas: **Clientes › Negociações**, o formulário do **mandato** e a aba **Ne
 cliente (ver [As telas da negociação](#as-telas-da-negociação)). Na versão 0.1.27 chega a seção
 **Ajustes › Negociador** (ver [Ajustes do Negociador](#ajustes-do-negociador)). Na versão 0.1.28
 chega o **negociador humano**: uma pessoa que o corretor convida para conduzir negociações (ver
-[Negociador humano](#negociador-humano)).
+[Negociador humano](#negociador-humano)). Na 0.1.35 a conferência de sigilo passa a deixar sair
+alguns formatos comuns ("W3 Sul", "Apto 2B"), com o critério de equivalência decidido pelo dono (ver
+[Como o Negociador IA decide](#como-o-negociador-ia-decide-e-o-que-ele-nunca-faz)). Na 0.1.36 chegam os
+**gatilhos** (etapa Proposta, pedido de desconto no portal e a reação "Conversar sobre o preço"), o
+**negociador padrão** da conta e o aviso direto ao negociador humano (ver [Quando o Negociador
+entra](#quando-o-negociador-entra)); a 0.1.38 deixa esses gatilhos mais robustos (a negociação e a
+tarefa do mandato nascem juntas, e a mesma mensagem não faz o Negociador responder duas vezes). Na
+0.1.39, trocar de conta recria a tela da negociação (ver [Trocar de conta no meio de uma
+negociação](#trocar-de-conta-no-meio-de-uma-negociação)).
+
+### Resumo das garantias
+
+| Garantia | Onde está explicada |
+|---|---|
+| Nenhuma contraproposta abaixo do ponto de recuo, nem acima do passo máximo ou depois da última rodada | [Como o Negociador IA decide](#como-o-negociador-ia-decide-e-o-que-ele-nunca-faz) |
+| Recuo, alvo e alternativa (BATNA) do vendedor nunca saem ao cliente: a conferência de sigilo retém o que parece número, e um formato comum só sai se a mensagem-gêmea com algarismo comum também sairia (critério de equivalência) | [Como o Negociador IA decide](#como-o-negociador-ia-decide-e-o-que-ele-nunca-faz) |
+| O aceite final, o mandato e a decisão do proprietário são só do corretor | [Negociação](#negociação) e [Negociador humano](#negociador-humano) |
+| Quando o Negociador entra: só pelos momentos marcados em Ajustes › Negociador, conduzido por quem está em **Quem negocia por padrão** (o Negociador IA, se nada for escolhido) | [Quando o Negociador entra](#quando-o-negociador-entra) |
+| Eventos de negociação levam só números de identificação, sem nome, telefone, valor ou mandato; três eventos de webhook público ficam como risco residual, até a plataforma resolver | [Negociador humano](#negociador-humano) |
+| Uma resposta que chega depois de trocar de conta não aparece na conta nova | [Trocar de conta no meio de uma negociação](#trocar-de-conta-no-meio-de-uma-negociação) |
 
 ## As telas da negociação
 
@@ -602,6 +621,18 @@ Sem isto, o convite é recusado com a mensagem do código correspondente:
 - **O e-mail de sistema** da instância ligado e com domínio (o convite vai por e-mail).
 - **O papel `negociador`** atribuído à pessoa em **Configurações › Usuários** (seção Externos) pelo
   administrador do app, depois que ela aceitar o convite.
+
+## Trocar de conta no meio de uma negociação
+
+Quem atende mais de uma conta (ou tem a conta trocada pela equipe da plataforma) pode mudar de conta
+com uma negociação aberta. Nesse momento a tela de **Negociações** abre de novo, do zero, já na conta
+nova: a negociação que estava aberta, a sugestão, a faixa e o mandato da conta anterior saem da tela.
+
+O app confere a conta num lugar só, no envio de todo pedido ao servidor: se a resposta (ou o erro) de
+um pedido feito na conta anterior chega depois da troca, ela é descartada em silêncio, e nada dela
+aparece na conta nova, nem como aviso de erro. Vale para pedir sugestão, enviar, aprovar, registrar
+proposta e salvar o mandato. O que já tinha sido gravado antes da troca fica gravado na conta em que
+foi feito; confira lá, voltando a ela. Ver também [Trocar de conta](conta-e-ajustes.md#trocar-de-conta).
 
 ## Respostas a objeções
 
