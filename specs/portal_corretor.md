@@ -1491,8 +1491,8 @@ As rotas são as de `apps/portal_corretor/docs/` (Estúdio). **Celular:** lista 
 | Coluna | Conteúdo |
 |---|---|
 | Esquerda | Endereço e estado (publicada/rascunho), **Publicar**; **Blocos** com subir, descer e mostrar (apresentação, imóveis em destaque, todos os imóveis, sobre mim, bairros, formulário, WhatsApp e Instagram) |
-| Centro | Edição do bloco selecionado; pré-visualização é a própria página pública aberta em outra aba depois de publicada (exceção nomeada, bloco 5a) |
-| Direita | **Marca** (a marca única de Ajustes, D-85); **Copiar link**; "Atualizar agora" no menu "mais"; visitas e contatos que vieram da página (em Números) |
+| Centro | **Pré-visualização** com o seletor Celular · Computador: a própria página pública (CSS próprio) com os dados de `GET /pagina/previa` e o bloco selecionado contornado; no Celular, numa largura de celular (exceção nomeada `pc-previa-pagina`, ver 11.9) |
+| Direita | **Ajustes do bloco selecionado** (resumo e Editar bloco); **Marca** (a marca única de Ajustes, D-85); contatos e visitas dos últimos 30 dias; **Copiar link**; "Atualizar agora" no menu "mais"; visitas e contatos que vieram da página (em Números) |
 
 **Backend:** rotas da Página em `apps/portal_corretor/docs/`; página pública com endereço por query (D-71). Com CRECI no perfil, ele aparece na capa; sem CRECI, não aparece (D-93).
 
@@ -1724,13 +1724,13 @@ Telas autenticadas usam só primitivos `urbi-*` e tokens; as páginas públicas 
 | P05 Assistente | `urbi-chat` na coluna direita, `urbi-card` (ação proposta) |
 | P06–P07, M3 Imóveis | `urbi-lista` com `urbi-avatar` (miniatura, D-65), `urbi-seletor-arquivo`, `urbi-visualizador-arquivo`, `urbi-formulario` |
 | P08 Estúdio | `urbi-lista` (listas por etapa), `urbi-card` (peça) com `urbi-avatar` (miniatura da arte; exceção nomeada "cartão de arte", bloco 8a), `urbi-seletor-arquivo` (área de arrastar), `urbi-redator` (pedido), `urbi-dropdown` (menu "mais") |
-| P09 Página | `urbi-card` + `urbi-linha` (blocos), diálogo `urbiVerso.formulario` |
+| P09 Página | `urbi-lista` (blocos), `urbi-botao-alternar` (Celular · Computador), `urbi-card` + `urbi-linha` (ajustes do bloco, marca, últimos 30 dias), `urbi-kpi`, diálogo `urbiVerso.formulario`. **Exceções nomeadas do B7:** (a) *prévia da Página* (`pc-previa-pagina`): a prévia é a própria página pública (`pc-pagina-publica`, com o CSS próprio das páginas públicas) num envoltório com estilo próprio, com borda e raio dos tokens, que limita a largura a 390 px no Celular; `urbi-hospedeiro` só dá o respiro e `urbi-moldura` só aceita um pinner, então nenhum primitivo limita a largura de um conteúdo nem mostra uma página com estilo próprio; (b) *ordenar por setas*: sem primitivo de arrastar para ordenar, os blocos sobem e descem com [↑][↓] |
 | P10 Números | `urbi-kpi`, `urbi-grafico-colunas`, `urbi-grafico-linha`, `urbi-tabela` |
 | P11–P14, P16–P17 | `urbi-formulario`, `urbi-toggle`, `urbi-chat` (testes), `urbi-planilha` (prévia da importação), `urbi-modal` (P16); seletor de três posições (lacuna; até lá, `urbi-select`) |
 | P15 Negociação | `urbi-tabela` (escada de propostas, responsiva em várias linhas), `urbi-card` (sugestão, mandato e leitura do comprador); **faixa ZOPA** (lacuna; forma provisória da 0.1.23: as marcas em `urbi-badge` em ordem de valor, com o recuo mascarado, e a ZOPA em texto com um `urbi-badge` de estado) |
 | Portal, seleção e Página pública | CSS próprio: cartões com foto dominante, linha do tempo vertical, botões grandes |
 
-**Lacunas a registrar como exceção nomeada ou pedir como primitivo novo:** calendário (agenda e calendário editorial; até lá, lista por dia com `urbi-lista`); galeria de fotos (até lá, `urbi-avatar` e `urbi-visualizador-arquivo`, D-65); **cartão com capa** (pedido ao shell 7); estado da aba do `urbi-abas` na URL (pedido ao shell 8); pré-visualização da Página dentro do editor; cartão de arte com proporção fixa (1:1, 4:5, 9:16); e, confirmadas no catálogo `ui-componentes-*` do SDK 100 para o Padrão B: **gaveta** (pedido ao shell 10; P16 e a coluna de contexto em telas estreitas usam `urbi-modal`), **barra de progresso** (pedido 11), **seletor segmentado de três posições** "Não faz · Pergunta antes · Faz sozinho" (pedido 12) e **faixa ZOPA** (régua horizontal com marcas e intervalo colorido; pedido 13).
+**Lacunas a registrar como exceção nomeada ou pedir como primitivo novo:** calendário (agenda e calendário editorial; até lá, lista por dia com `urbi-lista`); galeria de fotos (até lá, `urbi-avatar` e `urbi-visualizador-arquivo`, D-65); **cartão com capa** (pedido ao shell 7); estado da aba do `urbi-abas` na URL (pedido ao shell 8); pré-visualização da Página dentro do editor (exceção nomeada `pc-previa-pagina` no B7, ver P09); ordenar blocos arrastando (exceção nomeada: setas [↑][↓] no B7); cartão de arte com proporção fixa (1:1, 4:5, 9:16); e, confirmadas no catálogo `ui-componentes-*` do SDK 100 para o Padrão B: **gaveta** (pedido ao shell 10; P16 e a coluna de contexto em telas estreitas usam `urbi-modal`), **barra de progresso** (pedido 11), **seletor segmentado de três posições** "Não faz · Pergunta antes · Faz sozinho" (pedido 12) e **faixa ZOPA** (régua horizontal com marcas e intervalo colorido; pedido 13).
 
 ## 12. Importação, exportação e migração
 

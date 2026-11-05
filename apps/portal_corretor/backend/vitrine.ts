@@ -226,17 +226,18 @@ export async function criarLink(req: Request, codigoLink: string, imovelId: numb
 /**
  * Prévia da Página no editor (P09): os cartões dos imóveis que a página mostraria agora, com a mesma
  * regra da publicação (marcado para a página, anunciado e com autorização vigente) e os mesmos campos
- * da rota pública. Lê só as tabelas da própria conta; não grava nada na vitrine.
+ * da rota pública. Lê só as tabelas da própria conta; não grava nada na vitrine. Os tetos de
+ * `varrerTudo` (que lança, não corta) são os de `sincronizarTudo`: conta que publica também abre a prévia.
  */
 export async function cartoesDaPrevia(req: Request): Promise<Linha[]> {
   const dados = req.dados!;
   const conta = contaDoRequest(req);
-  const imoveis = await dados.varrerTudo('imoveis', { filtros: { publicado_pagina: true, conta_id: conta }, ordenar: 'criado_em', ordem: 'desc', maximo: 200 });
+  const imoveis = await dados.varrerTudo('imoveis', { filtros: { publicado_pagina: true, conta_id: conta }, ordenar: 'criado_em', ordem: 'desc', maximo: 5000 });
   if (!imoveis.length) return [];
   const ids = imoveis.map((i) => i.id).join(',');
   const [midias, autorizacoes] = await Promise.all([
-    dados.varrerTudo('imovel_midias', { filtros: { imovel_id: ids, conta_id: conta }, maximo: 20000 }),
-    dados.varrerTudo('autorizacoes_venda', { filtros: { imovel_id: ids, conta_id: conta }, maximo: 5000 }),
+    dados.varrerTudo('imovel_midias', { filtros: { imovel_id: ids, conta_id: conta }, maximo: 50000 }),
+    dados.varrerTudo('autorizacoes_venda', { filtros: { imovel_id: ids, conta_id: conta }, maximo: 20000 }),
   ]);
   const dia = hojeEm(req.contexto?.fuso);
   const cartoes: Linha[] = [];

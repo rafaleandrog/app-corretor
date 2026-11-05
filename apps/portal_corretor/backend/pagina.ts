@@ -51,7 +51,7 @@ async function visao(req: Request) {
   const nome = req.contexto!.usuario.nome || conta?.nome || 'Corretor';
   const [imoveis, contatos] = await Promise.all([
     dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaId }, por_pagina: 1 }),
-    contatosDaPagina(dados),
+    contatosDaPagina(dados, contaId),
   ]);
   const pagina = p ?? { endereco: sugerirEndereco(nome), nome_exibicao: nome, blocos: blocosPadrao(), publicada_em: null, gerada_por_ia: false };
   const base = origemPublica(p?.url_formulario);
@@ -75,12 +75,16 @@ async function visao(req: Request) {
   };
 }
 
-/** Contatos da conta cadastrados pelo formulário da página (origem canal `pagina`) nos últimos 30 dias. */
-async function contatosDaPagina(dados: NonNullable<Request['dados']>): Promise<number> {
-  const origens = await dados.varrerTudo('origens', { filtros: { canal: 'pagina' }, maximo: 50 });
+/**
+ * Contatos da conta do request cadastrados pelo formulário da página (origem canal `pagina`) nos últimos
+ * 30 dias. Quem é membro de várias contas lê todas: `conta_id` prende as duas leituras à conta que
+ * o request escreve. A campanha é texto livre (uma origem por par), então o teto é o do CRM (5000).
+ */
+async function contatosDaPagina(dados: NonNullable<Request['dados']>, contaId: number): Promise<number> {
+  const origens = await dados.varrerTudo('origens', { filtros: { canal: 'pagina', conta_id: contaId }, maximo: 5000 });
   if (!origens.length) return 0;
   const de = new Date(Date.now() - 30 * 86400e3).toISOString();
-  const r = await dados.listar('contatos', { filtros: { origem_id: origens.map((o) => o.id).join(','), 'criado_em[gte]': de }, por_pagina: 1 });
+  const r = await dados.listar('contatos', { filtros: { origem_id: origens.map((o) => o.id).join(','), conta_id: contaId, 'criado_em[gte]': de }, por_pagina: 1 });
   return r.total;
 }
 

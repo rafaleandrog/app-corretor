@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import type { PreviaPagina } from '../publico/pagina-publica.js';
 import '../publico/pagina-publica.js';
 
-// Prévia da Página no editor (P09, centro). Exceção de UI nomeada (spec 11.5): a prévia é a própria
+// Prévia da Página no editor (P09, centro). Exceção de UI nomeada (spec 11.9): a prévia é a própria
 // página pública (`pc-pagina-publica`, com o CSS próprio das páginas públicas), e no modo Celular ela
 // fica numa largura de celular, centralizada e com borda. Nenhum primitivo `urbi-*` limita a largura
 // de um conteúdo nem mostra uma página com estilo próprio (`urbi-hospedeiro` dá só o respiro e

@@ -42,6 +42,7 @@ import { aoAbrirPagina, renderPagina } from './frontend/telas/pagina';
 import { aoAbrirNumeros, renderNumeros } from './frontend/telas/desempenho';
 import './frontend/telas/previa-pagina';
 window.navegou = [];
+window.litRender = render;
 window.urbiVerso = {
   subRota: () => location.pathname.replace(/^\\/portal_corretor/, '') || '/',
   href: (s) => '/portal_corretor' + s,
@@ -86,6 +87,11 @@ window.desenhar = desenhar;
 window.abrir = (t) => { window.tela = t; desenhar(); (t === 'pagina' ? aoAbrirPagina : aoAbrirNumeros)(); };
 `;
 
+// O primitivo `urbi-3-colunas` não é registrado neste teste (só a prévia é real); este CSS, só do teste,
+// reproduz o desktop documentado (esquerda | centro mais largo | direita) para a medição provar que as
+// três colunas são filhas diretas da moldura, nos slots certos, com conteúdo e lado a lado.
+const MOLDURA_DE_TESTE = 'urbi-3-colunas{display:grid;grid-template-columns:220px minmax(0,1fr) 280px;width:100%}urbi-3-colunas>urbi-hospedeiro{display:block;min-width:0}';
+
 const PROFUNDO = `
 window.profundo = (no) => {
   if (!no) return '';
@@ -124,7 +130,7 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     tsconfig: 'tsconfig.json',
     logLevel: 'silent',
   });
-  const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><div id="raiz"></div><script>${PROFUNDO}</script><script>${pacote.outputFiles[0].text}</script></body></html>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>${MOLDURA_DE_TESTE}</style></head><body><div id="raiz"></div><script>${PROFUNDO}</script><script>${pacote.outputFiles[0].text}</script></body></html>`;
   const navegador = await pw.chromium.launch();
   try {
     const pagina = await navegador.newPage({ viewport: { width: 1440, height: 900 } });
@@ -132,6 +138,23 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     pagina.on('pageerror', (e: Error) => erros.push(e.message));
     await pagina.route(`${ORIGEM}/**`, (r: any) => r.fulfill({ contentType: 'text/html', body: html }));
     const esperar = () => pagina.waitForTimeout(120);
+    // Moldura de três colunas medida: lado a lado, sem sobreposição, cada uma com largura.
+    const medirMoldura = async (tela: string) => {
+      const m = await pagina.evaluate(() => {
+        const c = document.querySelector('urbi-3-colunas')!;
+        const caixa = (s: string) => {
+          const e = c.querySelector(`urbi-hospedeiro[slot="${s}"]`)!;
+          const { left, right, width, height } = e.getBoundingClientRect();
+          return { left, right, width, height };
+        };
+        return { esquerda: caixa('esquerda'), centro: caixa('centro'), direita: caixa('direita') };
+      });
+      for (const k of ['esquerda', 'centro', 'direita'] as const) {
+        assert.ok(m[k].width > 0 && m[k].height > 0, `${tela}: coluna ${k} visível (${m[k].width}x${m[k].height})`);
+      }
+      assert.ok(m.esquerda.right <= m.centro.left + 0.5, `${tela}: esquerda à esquerda do centro`);
+      assert.ok(m.centro.right <= m.direita.left + 0.5, `${tela}: centro à esquerda da direita`);
+    };
     const colunas = () =>
       pagina.evaluate(() => {
         const w = window as any;
@@ -171,6 +194,21 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     assert.match(r.direita, /Contatos/);
     assert.match(r.direita, /Copiar link/);
     assert.equal(r.estilos, 0, 'nenhum <style> nem style= na tela (a exceção da prévia fica no shadow dela)');
+    await medirMoldura('Página');
+
+    // Cada "Mostrar" diz de qual bloco é (nome acessível por bloco).
+    const nomes = await pagina.evaluate(() => {
+      const w = window as any;
+      const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
+      // `urbi-lista` não está registrada: renderiza-se o `render_item` de cada bloco à parte.
+      return lista.itens.map((b: any, i: number) => {
+        const d = document.createElement('div');
+        w.litRender(lista.render_item(b, i), d);
+        return d.querySelector('urbi-checkbox')!.getAttribute('label');
+      });
+    });
+    assert.equal(new Set(nomes).size, 7, `rótulos distintos: ${nomes}`);
+    assert.ok(nomes.every((n: string) => /^Mostrar .+/.test(n)));
 
     // Celular: a prévia tem largura de celular; Computador: ocupa o centro.
     const largura = () =>
@@ -192,6 +230,36 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     assert.equal(l.dispositivo, 'computador');
     assert.ok(l.largura > 392, `computador com ${l.largura}px`);
 
+    // Par exclusivo: clicar no botão já ligado não o apaga (o primitivo inverte o próprio `ligado`).
+    const ligados = () =>
+      pagina.evaluate(() => {
+        const w = window as any;
+        const o: Record<string, boolean> = {};
+        for (const b of w.todos(document, 'urbi-botao-alternar')) {
+          const n = b.textContent.trim();
+          if (n === 'Celular' || n === 'Computador') o[n] = b.ligado;
+        }
+        return o;
+      });
+    const clicar = async (nome: string) => {
+      await pagina.evaluate((n: string) => {
+        const w = window as any;
+        const b = w.todos(document, 'urbi-botao-alternar').find((x: any) => x.textContent.trim() === n);
+        b.ligado = !b.ligado; // o que o primitivo faz ao clique
+        b.dispatchEvent(new CustomEvent('urbi:botao-alternar-change', { detail: b.ligado }));
+      }, nome);
+      await esperar();
+    };
+    assert.deepEqual(await ligados(), { Celular: false, Computador: true });
+    await clicar('Computador');
+    assert.deepEqual(await ligados(), { Celular: false, Computador: true }, 'Computador segue aceso');
+    assert.equal((await largura()).dispositivo, 'computador');
+    await clicar('Celular');
+    assert.deepEqual(await ligados(), { Celular: true, Computador: false });
+    await clicar('Celular');
+    assert.deepEqual(await ligados(), { Celular: true, Computador: false }, 'Celular segue aceso');
+    assert.equal((await largura()).dispositivo, 'celular');
+
     // Escolher "Imóveis em destaque": vira o selecionado, vai para a URL e ganha contorno na prévia.
     await pagina.evaluate(() => {
       const w = window as any;
@@ -209,6 +277,16 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
       return [...pub.shadowRoot.querySelectorAll('.destacado')].map((e: Element) => e.querySelector('h2')?.textContent);
     });
     assert.deepEqual(destaque, ['Imóveis em destaque']);
+    const contorno = await pagina.evaluate(() => {
+      const w = window as any;
+      const pub = w.todos(document, 'pc-pagina-publica')[0];
+      const e = pub.shadowRoot.querySelector('.destacado');
+      const c = getComputedStyle(e);
+      return { estilo: c.outlineStyle, largura: c.outlineWidth, cor: c.outlineColor };
+    });
+    assert.equal(contorno.estilo, 'solid');
+    assert.equal(contorno.largura, '3px');
+    assert.notEqual(contorno.cor, 'rgba(0, 0, 0, 0)');
 
     // ── P10 · Números ──
     await pagina.goto(`${ORIGEM}/portal_corretor/numeros`);
@@ -223,6 +301,7 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     assert.deepEqual(relatorios, ['Resumo', 'Funil e conversão', 'Origem dos contatos', 'Tempo de resposta', 'Conteúdo', 'Mensageiro (em breve)', 'Negociação (em breve)']);
     assert.doesNotMatch(r.esquerda, /Créditos/, 'créditos não entram (D-87)');
     assert.match(r.centro, /Resumo/);
+    await medirMoldura('Números');
     const origens = await pagina.evaluate(() => {
       const w = window as any;
       return w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-select')[0].opcoes.map((o: any) => o.rotulo);

@@ -434,3 +434,24 @@ test('prévia da Página (P09): o que o visitante veria, sem endereço de entrad
     assert.equal((await chamar('GET', '/pagina/previa')).status, 403);
   });
 });
+
+// Guarda de regressão: hoje o recorte já vem do escopo de conta (backend/escopo.ts) e do filtro explícito de contatosDaPagina.
+test('GET /pagina: contatos_30d conta só os da página da conta do request, mesmo para quem atende 2 contas', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const atendente: Ator = { usuario: 8, conta: 100, contas: [100, 200], papeis: ['corretor'], extras: { arquivos } };
+  const naConta = (conta: number): Ator => ({ ...atendente, conta });
+  // Dois contatos da página na conta 100 e um na 200 (a leitura do membro enxerga as duas).
+  await comServidor(rotas, naConta(100), banco, shell, async (chamar) => {
+    await chamar('POST', '/contatos', { nome: 'Página A1', telefone: '61900000001', origem_canal: 'pagina' });
+    await chamar('POST', '/contatos', { nome: 'Página A2', telefone: '61900000002', origem_canal: 'pagina' });
+  });
+  await comServidor(rotas, naConta(200), banco, shell, async (chamar) => {
+    await chamar('POST', '/contatos', { nome: 'Página B1', telefone: '61900000003', origem_canal: 'pagina' });
+  });
+  await comServidor(rotas, naConta(100), banco, shell, async (chamar) => {
+    assert.equal((await chamar('GET', '/pagina')).corpo.numeros.contatos_30d, 2, 'conta 100: só os dela');
+  });
+  await comServidor(rotas, naConta(200), banco, shell, async (chamar) => {
+    assert.equal((await chamar('GET', '/pagina')).corpo.numeros.contatos_30d, 1, 'conta 200: só o dela');
+  });
+});

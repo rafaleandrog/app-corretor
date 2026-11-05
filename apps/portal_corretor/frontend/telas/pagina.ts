@@ -30,7 +30,7 @@ interface Visao {
 // Os dados vivem no módulo (as três colunas leem o mesmo estado); `aoAbrirPagina` os relê a cada
 // entrada e na troca de conta. O bloco selecionado fica em `?item=<tipo>`.
 //
-// Exceções de UI nomeadas (spec 11.5, regra do CLAUDE.md): (1) arrastar para ordenar não tem
+// Exceções de UI nomeadas (spec 11.9, regra do CLAUDE.md): (1) arrastar para ordenar não tem
 // primitivo: subir/descer com [↑][↓]; (2) a prévia é a página pública dentro do editor, que tem CSS
 // próprio por ser página pública, numa largura de celular (`pc-previa-pagina`); `urbi-hospedeiro` e
 // `urbi-moldura` não mostram uma página com estilo próprio nem limitam a largura.
@@ -269,7 +269,7 @@ function itemBloco(b: Bloco, i: number, total: number, sel: number) {
         ?desabilitado=${i === 0 || estado.salvando} @click=${(e: Event) => (e.stopPropagation(), void mover(i, -1))}></urbi-botao>
       <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-down" ariaLabel=${`Descer ${ROTULO_BLOCO[b.tipo]}`} title="Descer"
         ?desabilitado=${i === total - 1 || estado.salvando} @click=${(e: Event) => (e.stopPropagation(), void mover(i, 1))}></urbi-botao>
-      <urbi-checkbox label="Mostrar" ?marcado=${b.ativo} ?desabilitado=${estado.salvando}
+      <urbi-checkbox label=${`Mostrar ${ROTULO_BLOCO[b.tipo]}`} ?marcado=${b.ativo} ?desabilitado=${estado.salvando}
         @click=${(e: Event) => e.stopPropagation()} @urbi:checkbox-change=${() => void alternar(i)}></urbi-checkbox>
     </urbi-linha>
   </urbi-linha>`;
@@ -316,8 +316,12 @@ function colunaBlocos() {
 function colunaPrevia() {
   const v = estado.visao!;
   const b = v.pagina.blocos[selecionado()];
-  const dispositivo = (d: 'celular' | 'computador') => {
+  // Par exclusivo: o primitivo inverte o próprio `ligado` ao clique e emite o novo estado; clicar no que
+  // já está ligado o apagaria sem mudar a prévia (o lit não reaplica um valor igual). Por isso o `ligado`
+  // do botão clicado é reposto à força: ele fica ligado se, e só se, a prévia está nesse modo.
+  const dispositivo = (d: 'celular' | 'computador', e: Event) => {
     estado.dispositivo = d;
+    (e.currentTarget as HTMLElement & { ligado: boolean }).ligado = true;
     redesenhar();
   };
   return html`<urbi-stack>
@@ -325,9 +329,9 @@ function colunaPrevia() {
       <urbi-prosa papel="secao">Pré-visualização</urbi-prosa>
       <urbi-linha>
         <urbi-botao-alternar icone="fa-solid fa-mobile-screen" .ligado=${estado.dispositivo === 'celular'}
-          @urbi:botao-alternar-change=${() => dispositivo('celular')}>Celular</urbi-botao-alternar>
+          @urbi:botao-alternar-change=${(e: Event) => dispositivo('celular', e)}>Celular</urbi-botao-alternar>
         <urbi-botao-alternar icone="fa-solid fa-desktop" .ligado=${estado.dispositivo === 'computador'}
-          @urbi:botao-alternar-change=${() => dispositivo('computador')}>Computador</urbi-botao-alternar>
+          @urbi:botao-alternar-change=${(e: Event) => dispositivo('computador', e)}>Computador</urbi-botao-alternar>
       </urbi-linha>
     </urbi-linha>
     ${b && !b.ativo ? html`<urbi-prosa papel="dica">O bloco ${ROTULO_BLOCO[b.tipo]} está oculto: ligue "Mostrar" para ele aparecer na página.</urbi-prosa>` : nothing}
