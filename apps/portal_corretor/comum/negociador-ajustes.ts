@@ -48,3 +48,13 @@ export const contadorInstrucoes = (texto: string, limite: number) =>
 export function inicioDoMes(fuso: string, agora = new Date()): string {
   return `${agora.toLocaleDateString('sv-SE', { timeZone: fuso }).slice(0, 7)}-01`;
 }
+
+/**
+ * Antes de convidar (F4, #136 b): o app não consegue consultar a política "contas multi-usuário" da
+ * instância (pedido ao shell 17), então explica antes; desligada, o convite é recusado e a tela diz por quê.
+ */
+export const POLITICA_CONVITE = 'O convite exige a política "permite contas multi-usuário" ligada na instância; sem ela, é recusado.';
+/** O risco residual dos eventos que nascem no webhook (F4, #136 a; pedido ao shell 16): docs/negociacao.md. */
+export const LIMITE_EVENTOS = 'Quem entra na conta vê os contatos que chegam pela sua página e os recados dos clientes: convide só quem pode ver isso.';
+/** O diálogo de convite, curto (#151): a política, o passo do administrador e o que a pessoa passa a ver. */
+export const MENSAGEM_CONVITE = `${POLITICA_CONVITE} Depois do aceite, o administrador dá a ela o papel negociador. ${LIMITE_EVENTOS}`;
