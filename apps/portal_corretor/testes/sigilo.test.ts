@@ -534,7 +534,8 @@ test('#120 r2 I5: texto longo de números é conferido em tempo linear', () => {
 // hora ("28/10", que já era leitura padrão). Telefone, CEP, data com ano e data com hora ficam retidos
 // (D2b; a data com ano passava na `main` e passou a reter): cada grupo de algarismos deles é um canal livre. Mesma escada de PUBLICOS_120
 // (contraproposta 1,46 mi; ofertas 1,3 mi e 1,4 mi; recuo 1,36 mi; alvo 1,45 mi) e, sem a oferta de
-// 1,3 mi, PERMITIDOS.
+// 1,3 mi, PERMITIDOS. "Ele desce até o CEP 01.300-000." só é exigida na escada sem a oferta de 1,3 mi: com ela
+// é a oferta pública e a `main` também a deixa passar.
 
 const pegaSemOferta = (frases: string[]) => {
   for (const m of frases) assert.ok(vazamentos(m, MOTOR, PERMITIDOS).length > 0, `deveria pegar: ${m}`);

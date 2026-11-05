@@ -257,7 +257,7 @@ conversa com a IA):
    (inclusive "❶", "①" e emoji de número), letra colada a algarismo ("1.36O.000") e número por
    extenso. Leitura padrão: valor com milhar e decimal usuais ou por extenso ("1.460.000", "1,46 mi",
    "um milhão e quatrocentos e sessenta mil"), horário, data sem ano ("28/10"), ordinal ("5º andar"), quantidade
-   ("2-3 vagas") e telefone. Por isso retêm dígitos separados ("1 3 6 0 mil", "1/3/6/0", "1:360:000",
+   ("2-3 vagas") e telefone com hífen ("(61) 99999-9999"). Por isso retêm dígitos separados ("1 3 6 0 mil", "1/3/6/0", "1:360:000",
    "1 ponto 36 milhão", o número partido por uma quebra de linha) e algarismos ditos um a um ("um,
    três, seis, zero mil"). Se, desfeito o disfarce, cada número daquele trecho for a contraproposta, o
    pedido ou uma oferta já trocada ("1 4 6 0 mil"), a mensagem passa; um número público em outro ponto
@@ -312,10 +312,10 @@ conversa com a IA):
    "bate", "ficamos", "ok", "sim", "de acordo", "entrada", "sinal", "comissão", "economia", "recua",
    e em inglês e espanhol "price", "precio", "offer", "deal", "rebaja", "commission"…; "fica na" de
    lugar não conta): é todo o vocabulário com que a conferência lê preço, oferta, aceite e limite, e
-   por isso "Ok, apto 5B" também retém. **Retidos, por decisão:** telefone ("me liga no (61) 99999
+   por isso "Ok, apto 5B" também retém. **Retidos, por decisão:** telefone com espaço ou sem hífen ("me liga no (61) 99999
    1234", "ligue 0800 345 6789"), CEP ("CEP 70.000-000") e data seguida direto da hora ("visita dia
    28/10 15h", "28/10 15h30"), que já retinham, e o número entre parênteses depois do preço ("R$
-   1.460.000 (2 vagas)"). A data com a hora depois de "às" ou de vírgula ("visita dia 28/10 às 10h",
+   1.460.000 (2 vagas)"). O telefone com hífen ("(61) 99999-9999") segue leitura padrão e passa. A data com a hora depois de "às" ou de vírgula ("visita dia 28/10 às 10h",
    "visita dia 28/10, 15h") passa, como antes: data e horário são lidos cada um como leitura padrão. A data com
    ano ("vistoria 28/10/2026"), também com o ano de dois algarismos ("visita dia 28/10/26"), passava
    antes e retém desde a 0.1.35. Cada grupo de algarismos
