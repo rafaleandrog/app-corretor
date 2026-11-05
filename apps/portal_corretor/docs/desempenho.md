@@ -7,24 +7,83 @@ descricao: Os números do corretor (leads, conversão por etapa e por canal, gr�
 
 ## Números
 
-**Números** (o antigo Desempenho; o endereço `/desempenho` continua abrindo) já está no desenho em
-colunas: à esquerda, os relatórios (por enquanto, o **Resumo do período**); no meio, o relatório
-aberto; à direita, o que ainda não tem fonte e o botão **Perguntar ao Assistente**. O relatório
-aberto fica no endereço (`?item=resumo`). O Resumo mostra os números do período escolhido (7, 30 ou 90 dias, ou 12 meses),
-comparados ao período anterior de mesmo tamanho. O período fica no endereço (`?dias=30`). A troca não cria entrada no
-histórico do navegador (o Voltar não desfaz a escolha), mas recarregar a página ou abrir o link
-guardado mantém o mesmo período.
+**Números** (o antigo Desempenho; o endereço `/desempenho` continua abrindo) fica no desenho em
+colunas (no celular, uma por vez, com abas):
 
-No topo, quatro números: **Leads**, **Conversão total**, **Vendas** e **Comissão prevista**. Abaixo
-de cada um, em texto pequeno, a comparação com o período anterior ("+3 que nos 30 dias
-anteriores"; nas taxas, em pontos). A comissão prevista não tem comparação: é a previsão de hoje,
-sobre os negócios em andamento.
+- **À esquerda, os relatórios:** **Resumo** · **Funil e conversão** · **Origem dos contatos** ·
+  **Tempo de resposta** · **Conteúdo**, e ainda **Mensageiro** e **Negociação**, marcados "em
+  breve" (chegam com o WhatsApp e com o relatório do Negociador). Créditos não entram em Números.
+  O relatório aberto fica no endereço (`/numeros?relatorio=funil`; o antigo `?item=` também abre).
+- **No centro, o relatório aberto.** No alto, o título e três escolhas:
+  - o **período**: 7, 30 ou 90 dias, ou 12 meses (`?dias=30`), sempre comparado ao período anterior
+    de mesmo tamanho;
+  - **Comparar**: ligado (o padrão), cada número traz a comparação em texto pequeno e os gráficos
+    mostram o período anterior ao lado; desligado (`?comparar=0`), só o período;
+  - a **origem**: **Todas as origens** ou um canal que teve leads (`?origem=instagram`). Com um
+    canal, todos os números contam só os negócios daquele canal; as visitas feitas, que não têm
+    origem, aparecem como "—".
 
-**Conversão** (cartão abaixo dos quatro números). A turma é a dos negócios de compra **abertos no
-período** (os leads). Para cada um, conta até onde ele chegou, mesmo que depois tenha recuado ou sido
-perdido. O cartão mostra quantos chegaram a cada etapa, a fatia dos leads e a comparação com o período
-anterior, mais um gráfico de colunas das etapas (este período ao lado do anterior) e quantos
-**clientes únicos** há entre os leads (um cliente com dois negócios conta uma vez):
+  As escolhas ficam no endereço sem criar entrada no histórico do navegador (o Voltar não as
+  desfaz), e recarregar ou abrir o link guardado mantém as mesmas.
+- **À direita:**
+  - **O que melhorar**: uma leitura curta feita pelo app com os números do período, sem IA. Ela
+    aponta o passo do funil em que mais se perde (entre contato → visita, visita → proposta e
+    proposta → venda) e o motivo de perda mais comum. Havendo esse motivo, **Ver os N clientes**
+    abre Clientes só com quem teve negócio de compra perdido por ele desde o início do período (e
+    do canal escolhido, se houver). N conta clientes, não negócios: dois negócios perdidos do mesmo
+    cliente contam um. Em Clientes, uma faixa diz que o filtro veio de Números, com **Tirar o
+    filtro**;
+  - **Melhores origens**: até quatro canais, os que mais levaram leads do período à visita (no
+    empate, os com mais leads), com as visitas e os leads de cada um;
+  - **Exportar CSV**: baixa uma planilha (separador `;`) com um indicador por linha, o período e o
+    anterior: leads, etapas, taxas, vendas, VGV, ciclo, visitas, captações, comissão prevista,
+    leads fora do horário, peças publicadas, leads por origem, perdas por motivo e leads por hora.
+    Só números da conta, nenhum dado de cliente;
+  - **Perguntar ao Assistente**.
+
+### Resumo
+
+Quatro números: **Leads**, **Conversão total**, **Vendas** e **Comissão prevista**. Abaixo de cada
+um, em texto pequeno, a comparação com o período anterior ("+3 que nos 30 dias anteriores"; nas
+taxas, em pontos). A comissão prevista não tem comparação: é a previsão de hoje, sobre os negócios
+em andamento. Depois, **Resultados** (VGV, ciclo médio, visitas feitas e captações) e **Leads ao
+longo do período**.
+
+### Funil e conversão
+
+Quatro números: **Contatos** (os leads), **Contato → visita**, **Visita → proposta** e **Ganhos**
+(com o valor das vendas, quando há). Depois:
+
+- **Até onde os contatos chegaram**: as colunas de cada etapa (explicadas abaixo) e, abrindo o
+  cartão, as taxas entre etapas;
+- **Contatos por horário**: a hora do dia em que cada lead do período chegou, no fuso da conta, com
+  os que chegaram **fora do horário comercial** (antes das 8h ou a partir das 19h) em destaque e a
+  conta "N de M no período". O app ainda não tem horário de atendimento configurável, por isso vale
+  esse horário fixo;
+- **Por que perdemos**: os motivos de perda do período.
+
+### Origem dos contatos
+
+**Leads por canal** (pizza), **Situação por canal** (dos leads de cada canal, quantos estão ganhos,
+em andamento e perdidos hoje) e a tabela **Por canal**: leads, quantos visitaram, em andamento,
+ganhos, perdidos e a conversão de cada canal.
+
+### Tempo de resposta, Conteúdo, Mensageiro e Negociação
+
+- **Tempo de resposta** depende das conversas do WhatsApp, que ainda não estão disponíveis: o
+  relatório explica isso em vez de mostrar zero.
+- **Conteúdo** mostra as **peças publicadas** pelo Estúdio no período e os **leads do Instagram**
+  (pela origem do contato), com a comparação. Alcance, cliques e leads de cada peça ainda não têm
+  fonte.
+- **Mensageiro** e **Negociação** aparecem como "em breve".
+
+### Como cada número é contado
+
+**Até onde os contatos chegaram** (em Funil e conversão). A turma é a dos negócios de compra
+**abertos no período** (os leads). Para cada um, conta até onde ele chegou, mesmo que depois tenha
+recuado ou sido perdido. O cartão mostra um gráfico de colunas das etapas (com Comparar, o período
+anterior ao lado) e quantos **clientes únicos** há entre os leads (um cliente com dois negócios
+conta uma vez):
 
 | Etapa | Conta |
 |---|---|
@@ -43,7 +102,7 @@ Abrindo o cartão (seta), aparecem as taxas entre etapas, com a comparação em 
 | Visita → proposta | Dos que visitaram, quantos chegaram à proposta |
 | Proposta → ganho | Dos que chegaram à proposta, quantos foram ganhos |
 
-A conversão total (ganhos sobre leads) é um dos quatro números do topo.
+A conversão total (ganhos sobre leads) é um dos quatro números do Resumo e também aparece entre as taxas.
 
 "Chegar a uma etapa" vale pelo papel da etapa no funil, não pelo nome: renomear "Visitou" não
 muda a conta. Etapa criada pelo corretor não tem papel próprio: o negócio continua contado nos
@@ -52,24 +111,20 @@ antes desta versão, o app só sabe a etapa atual: um negócio desses que já fo
 como tendo chegado a visita ou proposta. Sem leads, as taxas aparecem
 como "—".
 
-**Comissão prevista** (no topo) é a soma, nos negócios em andamento, de valor × comissão × chance
+**Comissão prevista** (no Resumo) é a soma, nos negócios em andamento, de valor × comissão × chance
 da etapa (Ajustes › Funil). Negócio sem valor ou sem comissão fica de fora e é contado à parte.
 
 **Resultados** (cartão) traz o resto: VGV (soma do valor estimado das vendas), ciclo médio (dias
 entre abrir e ganhar), visitas feitas e captações (negócios de venda abertos no período que
-chegaram à autorização assinada). **Vendas**, no topo, são os ganhos no período.
-
-**Leads por canal** (gráfico de pizza) e **Situação por canal** (colunas empilhadas: dos leads de
-cada canal, quantos estão ganhos, em andamento e perdidos hoje). Abrindo o cartão da situação, a
-tabela por origem traz leads, em andamento, ganhos, perdidos e a conversão de cada canal.
+chegaram à autorização assinada). **Vendas**, no Resumo, são os ganhos no período.
 
 **Leads ao longo do período**: os leads abertos em cada intervalo, ao lado do período anterior na
 mesma posição. Intervalo de um dia em 7 e 30 dias, de uma semana em 90 dias e de um doze avos do ano
 em 12 meses.
 
-**Motivos de perda** (gráfico de colunas) fecham o relatório. Na coluna da direita, **Sobre estes números** explica o que ainda não tem fonte: tempo de primeiro atendimento e números do
-atendimento automático (o Mensageiro) chegam com o WhatsApp; conteúdo publicado, com o Estúdio;
-custo por lead, comissão recebida e metas, em versões seguintes.
+Ainda sem fonte: tempo de primeiro atendimento e números do atendimento automático (o Mensageiro),
+que chegam com o WhatsApp; alcance do conteúdo; custo por lead, comissão recebida e metas, em
+versões seguintes.
 
 **Hoje** mostra, à direita, **Sua semana**: contatos novos, leads e visitas feitas nos últimos 7 dias
 e a comissão prevista.
@@ -82,8 +137,8 @@ a mensagem pronta para colar no WhatsApp (nome do cliente, título, bairro e pre
 proprietário nem o endereço completo). O envio conta como contato com o cliente e entra na linha
 do tempo. A ficha do imóvel mostra a quem ele foi enviado.
 
-Com a Minha página no ar e o imóvel publicado, a mensagem leva um link rastreado: o cartão
-**Enviados ao cliente** da ficha mostra quantas vezes ele abriu — ver [Minha página, ficha pública e link rastreado](minha-pagina.md#link-rastreado).
+Com a Página no ar e o imóvel publicado, a mensagem leva um link rastreado: o cartão
+**Enviados ao cliente** da ficha mostra quantas vezes ele abriu — ver [Página, ficha pública e link rastreado](minha-pagina.md#link-rastreado).
 
 ## Dados de demonstração
 
@@ -174,6 +229,12 @@ números do guia (92, 78, 64 e 41):
 - Por origem: cada canal com 1 lead em andamento (Instagram, Portal imobiliário, Minha Página,
   Indicação, WhatsApp, Placa).
 - Hoje, Sua semana: 6 contatos novos, 6 leads, 5 atendidos.
+- Funil e conversão: Contatos **6**, Contato → visita **50%**, Visita → proposta **67%**, Ganhos
+  **0**; Contatos por horário soma 6.
+- O que melhorar: sem perdas, só a leitura do funil ("67% das visitas viram proposta, mas só 0% das
+  propostas viram venda"), sem o botão Ver os N clientes.
+- Melhores origens: primeiro os canais com 1 visita (Instagram, Portal imobiliário e Placa), depois
+  um canal com 1 lead e nenhuma visita.
 - Comissão prevista: 5% × (1,45 mi × 70% + 920 mil × 70% + 800 mil × 20% + 400 mil × 5% + 600 mil
   × 10% + 395 mil × 50%) = **R$ 104.825**.
 - **Negociação:** última oferta × pedido = 1.320.000 ÷ 1.450.000 = **−9%**. ZOPA de R$ 1.360.000

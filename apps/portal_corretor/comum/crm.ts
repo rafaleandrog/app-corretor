@@ -11,6 +11,16 @@ export const TEMPERATURAS = ['frio', 'morno', 'quente'] as const;
 export const TIPOS_ATIVIDADE = ['tarefa', 'ligacao', 'mensagem', 'visita', 'reuniao', 'retorno'] as const;
 export const STATUS_ATIVIDADE = ['pendente', 'feita', 'cancelada', 'nao_compareceu'] as const;
 export const MOTIVOS_PERDA = ['preco', 'localizacao', 'financiamento', 'desistiu', 'comprou_com_outro', 'sem_resposta', 'outro'] as const;
+/** Rótulo de cada motivo de perda, igual na tela e na leitura de Números. */
+export const ROTULO_MOTIVO_PERDA: Record<string, string> = {
+  preco: 'Preço',
+  localizacao: 'Localização',
+  financiamento: 'Financiamento',
+  desistiu: 'Desistiu',
+  comprou_com_outro: 'Comprou com outro corretor',
+  sem_resposta: 'Sem resposta',
+  outro: 'Outro',
+};
 
 /** Papéis que a tela oferece no filtro e no cadastro (spec 15.9, S11); os outros ficam no dado. */
 export const PAPEIS_NA_TELA = ['comprador', 'proprietario'] as const;
