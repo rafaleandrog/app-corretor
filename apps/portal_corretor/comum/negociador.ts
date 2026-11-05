@@ -743,24 +743,21 @@ const DIGITOS_INTEIROS = new RegExp(`^${DIG_X}$`);
 /** O maior trecho lido de uma vez: leitura mais longa que isso não é número de conversa. */
 const LEITURA_MAX = 160;
 
-// --- Formatos comuns liberados com fecho (F1, #133) ----------------------------------------------
+// --- Formatos comuns liberados (F1, #133) --------------------------------------------------------
 // Telefone com espaço, CEP, endereço de Brasília ("W3 Sul", "Apto 2B", "Torre B2") e data com hora sem
-// "às" têm forma que a leitura padrão não consome, e por isso retinham. Cada um só é liberado quando NÃO
+// "às" têm forma que a leitura padrão não consome, e por isso retinham. Um deles só é liberado quando NÃO
 // pode revelar nem compor um valor sigiloso, qualquer que seja o separador:
-// - os próprios algarismos dele, lidos juntos como um disfarce, em qualquer escala, não dão o recuo, o
-//   alvo ou valor da BATNA (±1%) nem, com até 4 algarismos significativos, valor abaixo do recuo na faixa
-//   de preço ("CEP 01.360-000", "13 6000 0000", "Visita dia 13/6 0h", "Apto 1B", "W1 Sul" retêm); no
-//   telefone, também a partir de cada grupo (sem o DDD, o 9 ou o 0800: "Zap 11 9 1360 0000");
-// - nem juntos aos dos trechos vizinhos, outro formato liberado ou trecho fechado, até `CADEIA_MAX`
-//   trechos ("Apto 9B e Torre 5B" = 950 mil, "1 vaga, apto 36B", "Apto 14B, 5º andar" retêm);
-// - depois dele, até o fim da mensagem, todo trecho que parece número é fechado (quantidade com unidade,
-//   ordinal, horário, data, telefone, outro formato liberado): nenhum valor, nenhuma escala, nenhum
-//   número solto ("Torre 1B e 300 mil", "W1 Sul 360.000", "Apto 1B + 360 mil" e "Torre 1B. 300 mil"
-//   continuam retidos);
-// - antes dele, em toda a mensagem (qualquer frase), todo trecho que parece número é fechado ou é um
-//   valor completo com 3 algarismos significativos ou mais ("R$ 1.460.000"); um número curto ("Fecho em
-//   1. Torre 36B"), o "um"/"uma" ("Fica em um e apto 36B") e o valor redondo que o formato completaria
-//   ("Fica 1 milhão! Apto 36B") bloqueiam a liberação;
+// - ele é o ÚNICO trecho da mensagem que parece número: nenhum outro algarismo, número ou ordinal por
+//   extenso ("quinto", "treze", "sexta"), "um"/"uma"/"num", "meia", emoji ou caractere numérico, nem
+//   outro formato comum, em lugar nenhum da mensagem, antes ou depois dele. Sem vizinho numérico, não há
+//   composição a conferir ("Apto 1B e Torre 36B", "Treze andares, apto 6B", "Fecho em 1. Torre 36B",
+//   "Apto 2B, 3 quartos" retêm);
+// - os próprios algarismos dele não revelam valor sigiloso em nenhuma leitura (`revela` em `vazamentos`):
+//   recuo, alvo ou valor da BATNA (±1%) em qualquer escala; valor abaixo do recuo na faixa de preço, em
+//   reais inteiros, com qualquer número de algarismos ("CEP 01.299-990", "Ligue 0800 125 5500",
+//   "Visita dia 9/1/2005 0h" retêm); e, com palavra de diferença, margem ou percentual em qualquer lugar
+//   da mensagem ("folga", "margem", "gordura", "%", "por"...), a diferença ou o percentual sobre um valor
+//   público que dá o recuo ou o alvo ("A folga é o apto 14B" = 140 mil, "Gordura: Torre 3B" = 3%);
 // - nenhuma palavra de preço ou aceite em toda a mensagem ("Até onde ele desce? Ligue 0800 ...", "O
 //   valor? Visita dia ...", "Quanto ele aceita? Apto 45B"); e telefone, CEP e data com hora pedem palavra
 //   de contato, "CEP" ou de agenda na frase, antes deles.
@@ -782,6 +779,23 @@ const CONTEXTO_DE_AGENDA = /\b(?:dia|data|visit\w*|vistoria|agend\w*|marc\w*|reu
  * Apto 45B"). "Fica" de lugar ("fica na L2 Norte") não conta.
  */
 const PRECO_NA_MENSAGEM = /\b(?:fech\w*|aceit\w*|top\w*|faco|fic[ao](?!\s+(?:na|no|nas|nos|perto|ao lado|longe|em frente)\b)|fazemos|sai|saio|chego|vend\w*|ced\w*|levo|valor|preco|pedido|propost\w*|ofert\w*|desconto|rs|reais|mil|milh\w*|piso|minimo|limite|teto|recuo|alvo|baix\w*|abaixo|desc(?:e|er|em|endo|eria|ida|ido)|negoci\w*)\b/;
+/**
+ * Número que `trechosSemLeitura` não vê como trecho e que pode compor com o formato: ordinal por extenso
+ * (também o dia da semana: "quinta", "sexta"), "num"/"numa", dúzia, dezena, centena, milhar. "quartos"
+ * (cômodos) não conta; "quarto" conta ("quarto andar").
+ */
+const OUTRO_NUMERO =
+  /\b(?:primeir[oa]s?|segund[oa]s?|terceir[oa]s?|terc[oa]s?|terca|quart[oa]|quartas|quint[oa]s?|sext[oa]s?|setim[oa]s?|oitav[oa]s?|non[oa]s?|decim[oa]s?|undecim[oa]s?|duodecim[oa]s?|vigesim[oa]s?|trigesim[oa]s?|quadragesim[oa]s?|quinquagesim[oa]s?|sexagesim[oa]s?|se[pt]?tuagesim[oa]s?|octogesim[oa]s?|nonagesim[oa]s?|centesim[oa]s?|milesim[oa]s?|num|numa|nuns|numas|dum|duma|duns|dumas|duzias?|dezenas?|centenas?|milhar(?:es)?|milh\w*|bilh\w*|trilh\w*)\b/;
+/**
+ * Palavra que, na `main`, faz um número ser lido como diferença ou percentual de um valor público
+ * (`CONTEXTO_DE_PRECO`, `CONTEXTO_DE_DIFERENCA`, `REDUCAO_ANTES`/`REDUCAO_DEPOIS`, `OPERADOR`, "%") e os
+ * sinônimos de margem e de limite ("gordura", "chão", "patamar", "último", "máximo", "abre mão",
+ * "pechincha", "floor", "até onde", "meta", "ideal"). Em qualquer lugar da mensagem, sem janela: com ela,
+ * os algarismos do formato também são conferidos como diferença e como percentual ("A folga é o apto 14B"
+ * = 140 mil do pedido; "Gordura: Torre 3B" = 3% do pedido). "Por favor" não conta.
+ */
+const CONTA_NA_MENSAGEM =
+  /%|\s[-−–+=]\s|\b(?:por(?!\s+(?:favor|gentileza)\b)|mais|menos|menor|acima|alem|faz|cheg\w*|lev\w*|rola|consigo|posso|podemos|chegamos|saimos|vendemos|aceitamos|topamos|soma\w*|tir[ao]\w*|tira|cort\w*|reduz\w*|reduc\w*|descont\w*|abat\w*|baix\w*|abaix\w*|folga\w*|marge\w*|gordura\w*|chao|patama\w*|ultim[oa]s?|maxim[oa]s?|diferenc\w*|sobra\w*|espaco|flexib\w*|ced\w*|pag\w*|cust\w*|vale|valem|sobe|subir|subo|desc\w*|mexe\w*|abr\w*\s+mao|pct|porcento|barato|pechinch\w*|chorinho|floor|bottom|ceiling|max|min|lowest|margin\w*|discount\w*|ate|quanto\w*|colchao|folego|brecha|toleranc\w*|faixa|meta|objetivo|ideal|cintura|range|gap|spread)\b/;
 /** O começo da frase até a posição: o texto depois do último ponto, "!", "?" ou quebra de linha. */
 const fraseAntes = (base: string, ini: number) => base.slice(Math.max(0, ini - 80), ini).split(/[.!?](?!\d)|\n/).pop() ?? '';
 /**
@@ -840,8 +854,6 @@ interface Unidade {
   fechada: boolean;
   /** Valor com milhar ou escala e 3 algarismos significativos ou mais ("1.460.000"; não "1 milhão"). */
   completo: boolean;
-  /** O "um"/"uma": fechado depois de um formato ("Apto 2B, um quarto"), nunca antes dele ("um e apto 36B"). */
-  artigo?: boolean;
 }
 
 /**
@@ -850,7 +862,7 @@ interface Unidade {
  * palavra de número ("zero" a "novecentos", "mil", "milhão"; "meia" junto de outro número). Cada trecho
  * assim tem de ser consumido por uma leitura padrão (`LEITURAS_PADRAO`): valor com milhar e decimal
  * padrão ou por extenso, horário, data, ordinal, quantidade com unidade, telefone; ou por um formato comum
- * com fecho (`FORMATOS_COMUNS`, F1). Retém o grupo (trechos ligados só por sinais e conectores) em que:
+ * liberado (`FORMATOS_COMUNS`, F1). Retém o grupo (trechos ligados só por sinais e conectores) em que:
  * um trecho não foi consumido; duas leituras se ligam por algo que não é separação normal ("1/3/6/0",
  * "1:360:000", "1 ponto 36", "1\n360", em que tirar a quebra junta os dois num número); ou há três
  * algarismos soltos ("um, três, seis, zero"). A única separação a mais aceita é o parêntese entre um valor
@@ -902,7 +914,6 @@ function trechosSemLeitura(base: string, revela: Revela): { ini: number; fim: nu
         meia: false,
         fechada: naoMonetaria && !ESCALA_DEPOIS.test(depois),
         completo: qual === 0 && VALOR_COMPLETO.test(lido) && significativos(lido) >= 3,
-        artigo: qual === 0 && /^uma?$/.test(lido),
       });
       coberto = melhor;
     } else principais.push({ ini, fim, ruim: true, algarismo: false, meia, fechada: false, completo: false });
@@ -946,103 +957,28 @@ function trechosSemLeitura(base: string, revela: Revela): { ini: number; fim: nu
 }
 
 /**
- * Quantos trechos seguidos, com um formato liberado entre eles, são conferidos juntos (`Revela`): "Apto 9B
- * e Torre 5B" = 950 mil, "1 vaga, apto 36B" = 1.360.000.
- */
-const CADEIA_MAX = 4;
-
-/**
- * Troca, nos trechos lidos pela regra geral, os que formam um formato comum (`FORMATOS_COMUNS`) por um
- * trecho só, fechado, quando ele tem fecho (ver o bloco acima). Sem fecho, os trechos ficam como a regra
- * geral os leu. Repete até nenhum formato liberado perder o fecho (um formato que cai devolve trechos que
- * podem tirar o fecho de outro); passou de 8 voltas, não libera nenhum.
+ * Troca, nos trechos lidos pela regra geral, o formato comum (`FORMATOS_COMUNS`) por um trecho só,
+ * fechado, quando ele é o único trecho que parece número na mensagem, sem palavra de preço nem número
+ * por extenso fora dos trechos (`OUTRO_NUMERO`), e seus algarismos não revelam valor sigiloso (`revela`).
+ * Sem isso, os trechos ficam como a regra geral os leu (e retêm).
  */
 function liberarFormatosComuns(base: string, principais: Unidade[], revela: Revela): Unidade[] {
-  // Palavra de preço ou aceite em qualquer lugar da mensagem, antes ou depois do formato: nada é liberado.
-  if (!principais.length || PRECO_NA_MENSAGEM.test(base)) return principais;
-  // Os candidatos, sem sobreposição, alinhados aos trechos lidos: [primeiro, último] índice coberto, e os
-  // grupos de algarismos do formato.
-  const candidatos: { de: number; ate: number; fim: number; grupos: string[] }[] = [];
-  const achados: { ini: number; fim: number; grupos: string[] }[] = [];
+  if (!principais.length || PRECO_NA_MENSAGEM.test(base) || OUTRO_NUMERO.test(base)) return principais;
+  const primeiro = principais[0].ini;
+  const ultimo = principais[principais.length - 1].fim;
   for (const f of FORMATOS_COMUNS) {
     f.re.lastIndex = 0;
     for (const m of base.matchAll(f.re)) {
-      // O trecho liberado começa onde o formato casa (no "(" ou no "+" do telefone, quando há; no código,
-      // para "Apto 2B" e "W3 Sul") e só vale se nenhum trecho lido começar antes dele (alinhamento abaixo).
+      // O trecho do formato começa onde ele casa (no "(" ou no "+" do telefone; no código, para "Apto 2B"
+      // e "W3 Sul") e tem de conter todos os trechos que parecem número da mensagem.
       const ini = (m.index ?? 0) + (f.grupo ? m[0].lastIndexOf(m[f.grupo]) : 0);
       const fim = f.grupo ? ini + m[f.grupo].length : (m.index ?? 0) + m[0].length;
+      if (primeiro < ini || ultimo > fim) continue;
       if (f.antes && !f.antes(fraseAntes(base, m.index ?? 0))) continue;
-      // Os próprios algarismos, lidos juntos como disfarce, não podem revelar valor sigiloso.
-      const grupos = base.slice(ini, fim).match(/\d+/g) ?? [];
-      if (revela(grupos, !!f.sufixos)) continue;
-      achados.push({ ini, fim, grupos });
+      // Os próprios algarismos, em todas as leituras, não podem revelar valor sigiloso.
+      if (revela(base.slice(ini, fim).match(/\d+/g) ?? [], !!f.sufixos)) continue;
+      return [{ ini: primeiro, fim: ultimo, ruim: false, algarismo: false, meia: false, fechada: true, completo: false }];
     }
-  }
-  achados.sort((a, b) => a.ini - b.ini || b.fim - a.fim);
-  let ultimoFim = -1;
-  let p = 0;
-  for (const a of achados) {
-    if (a.ini < ultimoFim) continue;
-    while (p < principais.length && principais[p].fim <= a.ini) p++;
-    let q = p;
-    while (q < principais.length && principais[q].ini < a.fim) q++;
-    // Alinhado: há trechos dentro, nenhum começa antes do candidato nem termina depois dele.
-    if (q === p || principais[p].ini < a.ini || principais[q - 1].fim > a.fim) continue;
-    candidatos.push({ de: p, ate: q - 1, fim: a.fim, grupos: a.grupos });
-    ultimoFim = a.fim;
-  }
-  if (!candidatos.length) return principais;
-  let ativos = candidatos.map(() => true);
-  for (let volta = 0; volta < 8; volta++) {
-    // A lista com os candidatos ativos trocados por um trecho fechado.
-    const lista: Unidade[] = [];
-    const posicao: number[] = [];
-    // Para cada trecho da lista, os algarismos (null no valor completo, que não entra na conferência abaixo).
-    const algarismos: (string | null)[] = [];
-    let c = 0;
-    for (let k = 0; k < principais.length; k++) {
-      while (c < candidatos.length && candidatos[c].ate < k) c++;
-      const cand = candidatos[c];
-      if (cand && ativos[c] && k === cand.de) {
-        posicao[c] = lista.length;
-        algarismos.push(cand.grupos.join(''));
-        lista.push({ ini: principais[k].ini, fim: cand.fim, ruim: false, algarismo: false, meia: false, fechada: true, completo: false });
-        k = cand.ate;
-      } else {
-        lista.push(principais[k]);
-        algarismos.push(principais[k].completo ? null : (base.slice(principais[k].ini, principais[k].fim).match(/\d/g) ?? []).join(''));
-      }
-    }
-    const fechadoDesde: boolean[] = new Array(lista.length + 1).fill(true);
-    for (let k = lista.length - 1; k >= 0; k--) fechadoDesde[k] = fechadoDesde[k + 1] && lista[k].fechada;
-    // Antes, em toda a mensagem (qualquer frase): algum trecho que não é fechado nem valor completo, ou
-    // um "um"/"uma".
-    const livreAntes: boolean[] = [];
-    let livre = true;
-    for (let k = 0; k < lista.length; k++) {
-      livreAntes[k] = livre;
-      if ((!lista[k].fechada && !lista[k].completo) || lista[k].artigo) livre = false;
-    }
-    const novos = ativos.map((ativo, n) => ativo && fechadoDesde[posicao[n] + 1] && livreAntes[posicao[n]]);
-    // Um formato liberado não serve de fecho para outro, nem um trecho fechado para ele, quando, juntos,
-    // revelam valor sigiloso ("Apto 9B e Torre 5B" = 950 mil, "1 vaga, apto 36B", "Apto 14B, 5º andar"):
-    // cada sequência de até `CADEIA_MAX` trechos com um formato liberado, sem valor completo no meio.
-    for (let n = 0; n < candidatos.length; n++) {
-      if (!novos[n]) continue;
-      const k = posicao[n];
-      for (let a = Math.max(0, k - CADEIA_MAX + 1); a <= k && novos[n]; a++) {
-        for (let b = k; b < Math.min(lista.length, a + CADEIA_MAX); b++) {
-          const trecho = algarismos.slice(a, b + 1);
-          if (b === a || trecho.some((d) => d === null)) continue;
-          if (revela([trecho.join('')], false)) {
-            novos[n] = false;
-            break;
-          }
-        }
-      }
-    }
-    if (novos.every((v, n) => v === ativos[n])) return lista;
-    ativos = novos;
   }
   return principais;
 }
@@ -1078,8 +1014,8 @@ const escalaDe = (lido: string) => (/(milh\w*|mi|mm|kk|\dm|\sm)$/.test(lido) ? 1
  *   disfarces, lista leituras; todo trecho que parece número (caractere numérico Unicode, emoji de
  *   número, letra colada a algarismo, palavra de número) e não é consumido por uma leitura padrão retém
  *   ("1/3/6/0 mil", "1 ponto 36 milhão", "1\n360 mil", "❶❸❻⓪ mil", "um, três, seis, zero mil"); os
- *   formatos comuns com fecho (F1: telefone, CEP, "W3 Sul", "Apto 2B", data com hora) contam como leitura
- *   quando seus algarismos, sozinhos ou com os vizinhos, não revelam valor sigiloso; salvo se,
+ *   formatos comuns (F1: telefone, CEP, "W3 Sul", "Apto 2B", data com hora) contam como leitura quando
+ *   são o único número da mensagem e seus algarismos não revelam valor sigiloso; salvo se,
  *   desfeito o disfarce (`desofuscar`), cada valor daquele trecho é público ("1 4 6 0 mil"); o texto
  *   também é lido de novo com o disfarce desfeito; mil subentendido em contexto de preço ("abaixo de
  *   1.360 não rola") e número por extenso sem escala ("mil trezentos e sessenta") são lidos também em
@@ -1138,19 +1074,26 @@ export function vazamentos(
   // negociação (2% da base ou mais); diferença de centavos entre dois valores vizinhos não diz nada.
   const bases = [...new Set(permitidos)];
   const explicadoPorPublico = (d: number, folga: number) => bases.some((b) => permitido(b - d, folga) || permitido(b + d, folga));
-  const diferencaRevela = (d: number, como: (nome: string) => string) => {
-    if (d <= 0 || explicadoPorPublico(d, 0) || permitido(d)) return;
+  /** Os sigilosos (recuo, alvo) a que a diferença `d` leva a partir de um valor público. */
+  const diferencaSigilosa = (d: number): string[] => {
+    if (d <= 0 || explicadoPorPublico(d, 0) || permitido(d)) return [];
+    const nomes: string[] = [];
     for (const s of sigilosos.slice(0, 2)) {
       if (!(s.c > 0)) continue;
       // A distância de cada base até o sigiloso, com a folga de ±1% do sigiloso (a mesma do valor direto):
       // "140 mil" do pedido de 1,5 mi é o recuo de 1,36 mi.
       const alvos = bases.map((b) => Math.abs(b - s.c)).filter((dist, i) => dist >= bases[i] * 0.02);
-      if (alvos.some((dist) => Math.abs(d - dist) <= Math.max(dist * 0.05, s.c * 0.01))) achados.push(como(s.nome));
+      if (alvos.some((dist) => Math.abs(d - dist) <= Math.max(dist * 0.05, s.c * 0.01))) nomes.push(s.nome);
     }
+    return nomes;
+  };
+  const diferencaRevela = (d: number, como: (nome: string) => string) => {
+    for (const nome of diferencaSigilosa(d)) achados.push(como(nome));
   };
   // Base do percentual sem base citada: o pedido e a contraproposta (por convenção, `permitidos_c[0]`).
   const basesDoPercentual = [...new Set([pedido, permitidos_c[0] ?? 0].filter((b) => b > 0))];
-  const percentualRevela = (pctV: number, casas: number, citada: number | null, acima: boolean, como: (nome: string) => string) => {
+  /** Os sigilosos (recuo, alvo) a que o percentual leva sobre a base citada ou, sem ela, sobre o pedido e a contraproposta. */
+  const percentualSigiloso = (pctV: number, casas: number, citada: number | null, acima: boolean): string[] => {
     // Com a base citada no texto ("3% abaixo dos R$ 1.400.000"), a conta é com ela e com nenhuma outra.
     // "acima", "a mais", "além", "sobre": a base somada ao percentual também ("4,6% acima dos 1.300.000").
     const contas = (citada ? [citada] : basesDoPercentual).flatMap((b) => {
@@ -1159,10 +1102,15 @@ export function vazamentos(
     });
     // Cada conta por si: a que dá um valor público ("2,67% sobre o pedido" = a contraproposta) não
     // absolve a que dá o recuo.
+    const nomes: string[] = [];
     for (const k of contas) {
       if (permitido(k.v, k.folga)) continue;
-      for (const s of sigilosos.slice(0, 2)) if (s.c > 0 && Math.abs(k.v - s.c) <= s.c * 0.01 + k.folga) achados.push(como(s.nome));
+      for (const s of sigilosos.slice(0, 2)) if (s.c > 0 && Math.abs(k.v - s.c) <= s.c * 0.01 + k.folga) nomes.push(s.nome);
     }
+    return nomes;
+  };
+  const percentualRevela = (pctV: number, casas: number, citada: number | null, acima: boolean, como: (nome: string) => string) => {
+    for (const nome of percentualSigiloso(pctV, casas, citada, acima)) achados.push(como(nome));
   };
   /**
    * Valor abaixo do recuo, na faixa, com aceite ou oferta do vendedor nas palavras em volta ("Combinado:
@@ -1330,15 +1278,24 @@ export function vazamentos(
   // disfarce, cada valor dele é público (em reais, em milhares ou em milhões: "1 4 6 0 mil").
   const publico = (v: number) => [1, 1000, 1_000_000].some((m) => permitido(Math.round(v * m * 100)));
   /**
-   * Os algarismos de um formato comum (F1), lidos juntos como disfarce, revelam valor sigiloso? Sem os
-   * zeros da esquerda, em qualquer escala (o disfarce não conta os zeros: "13 6000 0000" é 1.360.000): o
-   * recuo, o alvo ou valor da BATNA (±1%); ou, com até 4 algarismos significativos, valor abaixo do recuo
-   * na faixa de preço ("CEP 01.300-000", "Visita dia 13/06 00h"). Um algarismo significativo só vale como
-   * escrito, em milhares ou em milhões ("Apto 1B" = 1 milhão; "CEP 70.000-000" não é 700 mil). Valor
-   * público não revela. O "1" de "1 milhão" pode estar subentendido ("Torre 36B", "Apto 45B"). Com
-   * `sufixos`, também a partir de cada grupo ("Zap 11 9 1360 0000"; abaixo do recuo, só o que termina em
-   * zero). Custo fixo por formato; cada sequência de algarismos é conferida uma vez por mensagem.
+   * Os algarismos de um formato comum (F1) revelam valor sigiloso em alguma leitura? Sem os zeros da
+   * esquerda (o disfarce não os conta: "CEP 01.360-000" é 1.360.000), e sem limite de algarismos:
+   * - recuo, alvo ou valor da BATNA (±1%), em qualquer escala ("13 6000 0000", "Visita dia 13/6 0h");
+   * - o "1" de "1 milhão" subentendido ("Torre 36B" é o recuo de 1.360.000; "Apto 45B", o alvo);
+   * - valor abaixo do recuo na faixa de preço, em reais inteiros, em qualquer escala para cima ("CEP
+   *   01.299-990" = 1.299.990, "Ligue 0800 125 5500" = 1.255.500, "Visita dia 9/1/2005 0h" = 912.005,
+   *   "Me liga no (61) 1255 5000"). Um algarismo significativo só vale como escrito, em milhares ou em
+   *   milhões ("Apto 1B" = 1 milhão; "CEP 70.000-000" não é 700 mil). Ler centavos ("9876 5432" =
+   *   987.654,32) não conta: um telefone de 8 algarismos sempre cairia;
+   * - com palavra de diferença, margem ou percentual na mensagem (`CONTA_NA_MENSAGEM`), a diferença de um
+   *   valor público ("A folga é o apto 14B" = 140 mil) ou o percentual sobre o pedido ou a contraproposta
+   *   ("Gordura: Torre 3B" = 3%) que dá o recuo ou o alvo.
+   * Valor público não revela. Com `sufixos` (telefone), também a partir de cada grupo ("Zap 11 9 1360
+   * 0000"); abaixo do recuo, só a partir do primeiro grupo ou de um que não é o último, ou do último quando
+   * ele termina em zero ("99999 1234" não é 1,234 mi). Cada sequência de algarismos é conferida uma vez
+   * por mensagem.
    */
+  const contaNaMensagem = CONTA_NA_MENSAGEM.test(base);
   const conferidos = new Map<string, boolean>();
   const revela = (grupos: string[], sufixos: boolean): boolean => {
     const chave = `${sufixos ? 's' : ''}${grupos.join(' ')}`;
@@ -1350,22 +1307,31 @@ export function vazamentos(
   };
   const revelaSemCache = (grupos: string[], sufixos: boolean): boolean => {
     const recuo = mandato.recuo_c;
-    const proibido = (c: number, comAbaixo: boolean) =>
-      c > 0 &&
-      !permitido(c) &&
-      (sigilosos.some((s) => s.c > 0 && proximo(c, s.c, 0.01)) || (comAbaixo && recuo > 0 && c < recuo && c >= recuo * FAIXA_PISO));
+    const sigiloso = (c: number) => c > 0 && !permitido(c) && sigilosos.some((s) => s.c > 0 && proximo(c, s.c, 0.01));
+    const abaixo = (c: number) => c > 0 && !permitido(c) && recuo > 0 && c < recuo && c >= recuo * FAIXA_PISO;
+    const teto = Math.max(topo * FAIXA_TETO, ...sigilosos.map((x) => x.c));
     for (let k = 0; k < (sufixos ? grupos.length : Math.min(1, grupos.length)); k++) {
       const s = grupos.slice(k).join('').replace(/^0+/, '');
-      if (!s || s.length > 15) continue;
+      if (!s) continue;
       const sig = s.replace(/0+$/, '');
-      const n = Number(sig);
-      // A partir de um grupo do meio, só o que termina em zero ("1360 0000"): "99999 1234" não é 1,234 mi.
-      const abaixo = sig.length <= 4 && (k === 0 || sig.length < s.length);
-      // Um algarismo significativo: abaixo do recuo só como escrito, em milhares ou em milhões.
-      if (sig.length === 1 && [1, 1000, 1_000_000].some((m) => proibido(Math.round(Number(s) * m * 100), abaixo))) return true;
-      for (let e = -15; e <= 15; e++) if (proibido(Math.round(n * 10 ** e * 100), abaixo && sig.length > 1)) return true;
-      // O "1" de "1 milhão" subentendido: "Torre 36B" é o recuo de 1.360.000; "Apto 45B", o alvo de 1.450.000.
+      // Recuo, alvo ou BATNA em qualquer escala: a mantissa (1,36... para "136...") vezes cada potência de 10, em centavos.
+      const mantissa = Number(`${sig[0]}.${sig.slice(1, 16)}`);
+      for (let p = 0; p <= 18; p++) if (sigiloso(Math.round(mantissa * 10 ** p))) return true;
+      // O "1" de "1 milhão" subentendido.
       if (sig.length >= 2 && sigilosos.some((x) => x.c > 0 && !permitido(x.c) && String(x.c).replace(/0+$/, '').slice(1) === sig)) return true;
+      if (sig.length > 15) continue;
+      const n = Number(sig);
+      // Abaixo do recuo, em reais inteiros (sig × 10^f, f ≥ 0, em centavos).
+      if (k === 0 || k < grupos.length - 1 || sig.length < s.length) {
+        if (sig.length === 1) {
+          if ([1, 1000, 1_000_000].some((m) => abaixo(Math.round(Number(s) * m * 100)))) return true;
+        } else for (let c = n * 100; c < recuo; c *= 10) if (abaixo(c)) return true;
+      }
+      if (!contaNaMensagem) continue;
+      // Diferença de um valor público, em reais inteiros.
+      for (let c = n * 100; c <= teto; c *= 10) if (diferencaSigilosa(c).length) return true;
+      // Percentual sobre o pedido ou a contraproposta, com até 2 casas ("933" = 9,33%).
+      for (let f = -2; n * 10 ** f < 100; f++) if (percentualSigiloso(Math.round(n * 10 ** f * 100) / 100, Math.max(0, -f), null, true).length) return true;
     }
     return false;
   };

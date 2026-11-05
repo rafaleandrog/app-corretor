@@ -539,7 +539,7 @@ const COMUNS_F1 = [
   'Meu WhatsApp é (61) 9 9876-5432.',
   'Meu WhatsApp é (61) 99876 5432.',
   'Telefone fixo (61) 3333 4444.',
-  'Ligue 0800 123 4567.',
+  'Ligue 0800 345 6789.',
   // CEP no padrão exato, depois de "CEP".
   'O CEP é 70.000-000.',
   'O CEP é 70070-120.',
@@ -549,9 +549,8 @@ const COMUNS_F1 = [
   'Fica na L2 Norte.',
   'Apto 2B, de frente.',
   'O apartamento é o Apto 2B.',
-  'Torre B2, 3º andar.',
+  'Torre B2.',
   'Bloco C2, perto do metrô.',
-  'Apto 2B, 3 quartos e 2 vagas.',
   // Data e hora sem "às".
   'Visita dia 28/10 15h?',
   'Visita 28/10 15h.',
@@ -560,9 +559,8 @@ const COMUNS_F1 = [
   // Número entre parênteses depois do preço.
   'Posso levar R$ 1.460.000 (2 vagas).',
   'Posso levar R$ 1.460.000 (3 quartos e 2 vagas).',
-  // Juntos, e com um valor completo antes, na mesma frase ou em outra.
-  'Posso levar a documentação ao dono. Visita dia 28/10 15h? Me liga no (61) 99999 1234.',
-  'O apartamento é o Apto 2B, na Torre B2.',
+  // Com "por favor", que não é palavra de preço.
+  'Me liga no (61) 99999 1234, por favor.',
 ];
 
 test('F1 (a): telefone, CEP, endereço de Brasília, data com hora e parênteses depois do preço passam', () => {
@@ -811,14 +809,14 @@ test('#142 r1 achado 2: o lado esquerdo vale para a mensagem inteira (palavra de
 });
 
 test('#142 r1 achado 2: 0800 sem palavra de contato retém', () => {
-  pega(['0800 123 4567.', 'É 0800 123 4567.']);
-  passa(['Ligue 0800 123 4567.']);
+  pega(['0800 345 6789.', 'É 0800 345 6789.']);
+  passa(['Ligue 0800 345 6789.']);
 });
 
 test('#142 r1 achado 3: o "um" não serve de trecho fechado antes do formato', () => {
   pega(['Fica em um e apto 36B.', 'Em um e apto 3B.', 'Em um, apto 3B.', 'Em um. Apto 3B.', 'Em um\napto 3B', 'É uma; Torre B3.', 'Em um + apto 3B.']);
-  // Depois do formato, o "um" continua fechado.
-  passa(['Apto 2B, um quarto e uma vaga.']);
+  // Depois do formato também: o formato tem de ser o único trecho numérico da mensagem.
+  pega(['Apto 2B, um quarto e uma vaga.', 'Fica num apto 36B.']);
 });
 
 test('#142 r1 achado 4: formato liberado não serve de fecho para outro que, junto, compõe valor', () => {
@@ -834,7 +832,9 @@ test('#142 r1 achado 4: formato liberado não serve de fecho para outro que, jun
   for (const a of ['Apto 1B', 'Torre 13B', 'Bloco B1', 'W1 Sul'])
     for (const s of [', ', ' e ', ' ', '; ', '. '])
       for (const b of ['Torre 36B', 'Apto 3B', 'Bloco 6B', 'apto 60A', 'L3 Norte']) pegaSemOferta([`${a}${s}${b}`]);
-  passa(['Apto 9B.', 'Torre 5B.', 'O apartamento é o Apto 2B, na Torre B2.', 'Apto 2B, 3 quartos e 2 vagas.']);
+  passa(['Apto 9B.', 'Torre 5B.']);
+  // Dois formatos, ou formato e quantidade, retêm sempre (rodada 2): sem vizinho numérico não há composição.
+  pega(['O apartamento é o Apto 2B, na Torre B2.', 'Apto 2B, 3 quartos e 2 vagas.', 'Torre B2, 3º andar.']);
 });
 
 test('#142 r1 achado 5: parêntese antes de quantidade só depois de valor completo', () => {
@@ -843,7 +843,7 @@ test('#142 r1 achado 5: parêntese antes de quantidade só depois de valor compl
 });
 
 test('#142 r1: os formatos liberados continuam lineares', () => {
-  const formas = ['Apto 2B, ', 'me liga no 61 99999 1234 ', 'visita dia 28/10 15h ', 'CEP 70.000-000 ', 'W3 Sul 2 vagas ', 'um apto 3B '];
+  const formas = ['Apto 2B, ', 'me liga no 61 99999 1234 ', 'visita dia 28/10 15h ', 'CEP 70.000-000 ', 'W3 Sul 2 vagas ', 'um apto 3B ', '1 ', 'treze ', 'quinto andar '];
   for (const f of formas) {
     const texto = f.repeat(Math.ceil(80_000 / f.length)).slice(0, 80_000);
     let melhor = Infinity;
@@ -854,4 +854,71 @@ test('#142 r1: os formatos liberados continuam lineares', () => {
     }
     assert.ok(melhor < 2000, `${JSON.stringify(f)} × 80 mil caracteres levou ${melhor.toFixed(0)} ms`);
   }
+});
+
+// ------------------------------------------------------------------------------------------------
+// Rodada 2 da revisão do PR #142: o formato só é liberado quando é o único trecho numérico da mensagem
+// e nenhuma leitura dos seus algarismos dá valor sigiloso (sem limite de algarismos).
+
+test('#142 r2 B1: abaixo do recuo com 5 algarismos significativos ou mais retém', () => {
+  pegaSemOferta([
+    'CEP 01.299-990',
+    'O CEP é 01.255-500.',
+    'CEP 01.250-500',
+    'CEP 01.200-001',
+    'CEP 01.000-500',
+    'CEP 00.900-001',
+    'Ligue 0800 125 5500',
+    'Ligue 0800 130 0500',
+    'Me liga no (61) 1255 5000',
+    'Zap (61) 9 1300 5000',
+    'Me liga no (61) 9 1000 0010',
+    'Visita dia 12/05/2000 0h',
+    'Vistoria 13/05/2000 0h',
+    'dia 9/1/2005 0h',
+  ]);
+  // Ler centavos não conta: o telefone de 8 ou 9 algarismos continua passando.
+  passa(['WhatsApp 61 9 9876-5432.', 'Me liga no (61) 99999 1234.', 'O CEP é 70.000-000.']);
+});
+
+test('#142 r2 B2: número ou ordinal por extenso em qualquer lugar da mensagem impede a liberação', () => {
+  pega([
+    'Apto 14B, quinto andar.',
+    'Treze andares, apto 6B.',
+    'Apto 4B, cinco vagas.',
+    'Apto 9B, quinto andar.',
+    'Moro na W4 Sul, quinto andar.',
+    'Treze vagas, visita dia 6/10 0h.',
+    'Treze vagas. Me liga no 61 6000 0000.',
+    'Apto 13B, sexta.',
+    'Torre 13B, num prédio novo.',
+  ]);
+});
+
+test('#142 r2 B3: com palavra de diferença ou margem, os algarismos do formato valem como diferença e percentual', () => {
+  pega([
+    'A folga é o apto 14B.',
+    'A margem é a Torre 9B.',
+    'A folga dele? Apto 5B.',
+    'Gordura: Torre 3B.',
+    'O chão: apto 14B.',
+    'Patamar: Torre 9B.',
+    'O último dele: apto 5B.',
+    'O máximo que ele abre mão: apto 14B.',
+    'Abatimento: Torre 3B.',
+    'Redução: Torre 9B.',
+    'Corte: apto 14B.',
+  ]);
+  // Sem essas palavras, o mesmo formato passa; "por favor" não é preço.
+  passa(['Apto 5B.', 'Moro na W3 Sul, por favor.']);
+});
+
+test('#142 r2 B4: trechos fechados no meio não abrem janela, qualquer que seja o número deles', () => {
+  pega([
+    '13 andares, 3 quartos, 2 vagas, 4 suítes, apto 6B.',
+    '14 andares, três quartos, duas vagas, quatro suítes, apto 5B.',
+    `13 andares${', 2 vagas'.repeat(50)}, apto 6B.`,
+  ]);
+  // Dois formatos comuns na mesma mensagem: nenhum é liberado.
+  pega(['Posso levar a documentação ao dono. Visita dia 28/10 15h? Me liga no (61) 99999 1234.']);
 });
