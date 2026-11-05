@@ -134,15 +134,7 @@ export const ROTULO_TIPO_ATIVIDADE: Record<string, string> = {
   reuniao: 'Reunião',
   retorno: 'Retorno',
 };
-export const ROTULO_MOTIVO_PERDA: Record<string, string> = {
-  preco: 'Preço',
-  localizacao: 'Localização',
-  financiamento: 'Financiamento',
-  desistiu: 'Desistiu',
-  comprou_com_outro: 'Comprou com outro corretor',
-  sem_resposta: 'Sem resposta',
-  outro: 'Outro',
-};
+export { ROTULO_MOTIVO_PERDA } from '../comum/crm';
 export const opcoes = (rotulos: Record<string, string>) => Object.entries(rotulos).map(([valor, rotulo]) => ({ valor, rotulo }));
 
 /**

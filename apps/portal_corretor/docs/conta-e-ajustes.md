@@ -61,7 +61,7 @@ A seção **Conta e marca** guarda também a marca da conta, e ela é uma só pa
 | Onde | O que da marca aparece |
 |---|---|
 | [Estúdio](estudio.md#sua-marca) | Tudo: cores, estilo, assinatura, logo e foto, na descrição para o Canva e no logo para anexar; as referências, só na descrição (o cliente nunca as vê) |
-| [Minha página](minha-pagina.md) | A cor principal (topo, botões e destaques) e a sua foto na capa; sem foto, a capa mostra as iniciais |
+| [Página](minha-pagina.md) | A cor principal (topo, botões e destaques) e a sua foto na capa; sem foto, a capa mostra as iniciais |
 | [Seleção e Portal do Cliente](selecoes-e-portal.md) | A cor principal e a sua foto, no topo |
 
 Até você salvar a marca, vale o padrão: azul `#0b5394` e cor de apoio amarela, sem foto. A página
@@ -69,7 +69,7 @@ não tem mais cor própria. Quem tinha escolhido uma cor para a página antes de
 fosse o "Oceano", que já é o azul padrão) e ainda não tinha salvo a marca ganha essa cor como cor
 principal da marca; o app faz isso sozinho, ao iniciar, uma vez por conta. Quem já tinha marca
 salva fica com a marca. Se a página for refeita antes de esse preenchimento rodar, ela sai no azul
-padrão, e o preenchimento não a refaz: ela só ganha a cor quando for refeita de novo, por **Atualizar agora** (Minha página) ou **Atualizar o que está no ar** (Ajustes › Marca), ou ao salvar a marca.
+padrão, e o preenchimento não a refaz: ela só ganha a cor quando for refeita de novo, por **Atualizar agora** (Página) ou **Atualizar o que está no ar** (Ajustes › Marca), ou ao salvar a marca.
 
 **Salvar a marca, ou trocar a foto, já atualiza o que está no ar**: a página publicada, as seleções
 válidas e os portais dos clientes passam a usar a cor e a foto novas, sem publicar de novo. Se algo
@@ -77,7 +77,7 @@ disso não acompanhar, a marca fica salva mesmo assim e a seção **Conta e marc
 foi salva, mas a sua página, as seleções ou o portal do cliente ainda mostram a marca anterior",
 com o botão **Atualizar o que está no ar**. Ele refaz a página (se estiver publicada), as seleções
 e os portais com a marca salva, e também funciona com a página fora do ar. O **Atualizar agora**
-da Minha página refaz só a página, não as seleções nem os portais. O logo vale só nas artes do
+da Página refaz só a página, não as seleções nem os portais. O logo vale só nas artes do
 Estúdio.
 
 ## Horário de atendimento

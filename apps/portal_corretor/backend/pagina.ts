@@ -2,7 +2,7 @@ import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import { blocosPadrao, FORMATO_ENDERECO, sugerirEndereco, validarPagina } from '../comum/pagina';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
-import { contaDoRequest, despublicarTudo, origemPublica, paginaDaConta, sincronizarTudo } from './vitrine';
+import { cartoesDaPrevia, conteudoPagina, contaDoRequest, despublicarTudo, origemPublica, paginaDaConta, sincronizarTudo } from './vitrine';
 
 // Minha Página (bloco 5, spec 6.15 `paginas_corretor`, 11.3): o corretor monta a página por blocos,
 // escolhe o endereço e publica. Publicar gera os endereços de entrada (wh) do formulário e dos
@@ -49,7 +49,10 @@ async function visao(req: Request) {
     primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
   ]);
   const nome = req.contexto!.usuario.nome || conta?.nome || 'Corretor';
-  const imoveis = await dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaId }, por_pagina: 1 });
+  const [imoveis, contatos] = await Promise.all([
+    dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaId }, por_pagina: 1 }),
+    contatosDaPagina(dados, contaId),
+  ]);
   const pagina = p ?? { endereco: sugerirEndereco(nome), nome_exibicao: nome, blocos: blocosPadrao(), publicada_em: null, gerada_por_ia: false };
   const base = origemPublica(p?.url_formulario);
   return {
@@ -66,13 +69,51 @@ async function visao(req: Request) {
     marcados_para_pagina: imoveis.total,
     // CRECI opcional (D-93): a página publica sem ele; o editor só mostra o aviso discreto.
     sem_creci: !eu?.creci && !conta?.creci_juridico,
+    // Contatos que chegaram pelo formulário da página nos últimos 30 dias (P09, direita). Visitas à
+    // página ainda não são medidas: `null`, e a tela diz isso em vez de mostrar zero.
+    numeros: { contatos_30d: contatos, visitas_30d: null as number | null },
   };
+}
+
+/**
+ * Contatos da conta do request cadastrados pelo formulário da página (origem canal `pagina`) nos últimos
+ * 30 dias. Quem é membro de várias contas lê todas: `conta_id` prende as duas leituras à conta que
+ * o request escreve. A campanha é texto livre (uma origem por par), então o teto é o do CRM (5000).
+ */
+async function contatosDaPagina(dados: NonNullable<Request['dados']>, contaId: number): Promise<number> {
+  const origens = await dados.varrerTudo('origens', { filtros: { canal: 'pagina', conta_id: contaId }, maximo: 5000 });
+  if (!origens.length) return 0;
+  const de = new Date(Date.now() - 30 * 86400e3).toISOString();
+  const r = await dados.listar('contatos', { filtros: { origem_id: origens.map((o) => o.id).join(','), conta_id: contaId, 'criado_em[gte]': de }, por_pagina: 1 });
+  return r.total;
 }
 
 paginaRotas.get(
   '/pagina',
   assincrono(async (req, res) => {
     res.json(await visao(req));
+  }),
+);
+
+/**
+ * Prévia da Página (P09, centro): o mesmo conteúdo que o visitante veria, montado da página salva (ou da
+ * sugestão, antes de salvar) e dos imóveis publicáveis agora. Sem endereço de entrada: na prévia o
+ * formulário não envia e nenhum clique conta. Só a própria conta; nada é gravado.
+ */
+paginaRotas.get(
+  '/pagina/previa',
+  assincrono(async (req, res) => {
+    const v = await visao(req);
+    const { foto, url_formulario: _f, url_clique: _c, ...pagina } = await conteudoPagina(req, { ...v.pagina, url_formulario: null, url_clique: null });
+    let foto_url: string | null = null;
+    if (foto && req.arquivos) {
+      try {
+        foto_url = await req.arquivos.url(Number(foto), 3600);
+      } catch {
+        foto_url = null;
+      }
+    }
+    res.json({ pagina: { ...pagina, foto_url, url_formulario: null }, imoveis: await cartoesDaPrevia(req), publicada: !!v.pagina.publicada_em });
   }),
 );
 

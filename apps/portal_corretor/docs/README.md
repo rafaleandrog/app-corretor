@@ -8,16 +8,16 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.31; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.32; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
 | Corretor | **Hoje** (antes, Início) | No desenho novo, em três colunas: **Precisa de você** e **Primeiros passos** (x de 5, sem o CRECI); a **fila do dia** em cartões, um botão por item; e, à direita, a agenda de hoje (com **Ver agenda**, os próximos 14 dias), **Sua semana** e a **Dica do Assistente** — ver [Funil, temperatura e fila do dia](funil.md) e [Clientes, negócios e agenda](clientes-e-agenda.md) |
-| Corretor | **Números** (antes, Desempenho) | Leads, conversão entre etapas, vendas, VGV, captações, comissão prevista, origem e motivos de perda — ver [Números, envios e dados de demonstração](desempenho.md) |
+| Corretor | **Números** (antes, Desempenho) | No desenho novo: à esquerda, os relatórios (Resumo, Funil e conversão, Origem dos contatos, Tempo de resposta e Conteúdo; Mensageiro e Negociação "em breve"); no centro, o relatório com período, **Comparar** e origem; à direita, **O que melhorar** (com **Ver os N clientes**), as melhores origens e **Exportar CSV** — ver [Números, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Clientes** | No desenho novo, em três colunas: a lista (visões **Lista** e **Funil**, busca, filtros prontos Novos · Sem contato · Quentes · Retorno vencido e o papel), a **ficha** do cliente escolhido (cabeçalho com Conversa e Resumir; abas Resumo · Linha do tempo · Enviados · Negócios) e, à direita, perfil de busca, portal do cliente e privacidade; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
 | Corretor | **Imóveis** | No desenho novo: à esquerda, as abas **Carteira** (lista com miniatura, busca e chips Ativos · Rascunhos · Vendidos) e **Empreendimentos**; no centro, a ficha (galeria, dados, quem vê, fotos, descrição com IA, autorização e visitas); à direita, a qualidade com o que falta, os números de 30 dias e os clientes que combinam — ver [Imóveis e empreendimentos](imoveis.md) |
 | Corretor | **Estúdio** | Peças para o Instagram com a sua marca: textos com IA e descrição pronta para gerar a arte no Canva IA (ou em outra ferramenta), envio da arte na peça, aprovação e publicação — ver [Estúdio de conteúdo](estudio.md) |
-| Corretor | **Página** (antes, Minha página) | A página pública por blocos, com os imóveis anunciados e o formulário de contato — ver [Minha página, ficha pública e link rastreado](minha-pagina.md) |
+| Corretor | **Página** (antes, Minha página) | No desenho novo: à esquerda, o endereço, **Publicar** e os blocos (Mostrar, subir e descer); no centro, a **prévia** da página no Celular ou no Computador, com o bloco escolhido destacado; à direita, os ajustes do bloco, a marca, os contatos que vieram da página e **Copiar link** — ver [Página, ficha pública e link rastreado](minha-pagina.md) |
 | Visitante | **Página e ficha pública** (sem login) | A página do corretor (capa com foto, nome, CRECI se houver e WhatsApp; imóveis em destaque com **Quero saber mais**) e a ficha de cada imóvel anunciado; o contato vira cliente no funil |
 | Corretor | **Clientes › ficha › Seleções e Portal do cliente** | Monta seleções de imóveis (aba Negócios), gera, reenvia e revoga o link do portal do cliente e pede pendências a ele (**Pedir ao cliente**), na coluna da direita; o próximo passo que ele vê no portal fica no cartão Próximo passo — ver [Seleções e Portal do Cliente](selecoes-e-portal.md) |
 | Cliente | **Seleção e Portal do Cliente** (link pessoal, sem login) | O portal "Meu atendimento" com o próximo passo e as abas Conversa, Imóveis, Agenda, Propostas (quando há negociação: vê as rodadas, aceita a condição do vendedor, que não fecha o acordo, ou faz nova oferta) e Arquivos: reage aos imóveis (gostei, não gostei, quero visitar, comentar), vê as visitas, pede para remarcar, manda mensagem ao corretor e marca como feitas as pendências que o corretor pediu (botão **Feito**); link revogado mostra "Link expirado" |
@@ -27,22 +27,22 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Negociador humano | **Hoje** e **Negociações** | Só as negociações que o corretor atribuiu a ele: pede sugestão, envia, edita e registra propostas dentro do mandato, sem ver o recuo, o alvo nem a BATNA do vendedor e sem aceitar o acordo final. O corretor convida a pessoa em Ajustes › Negociador (só o e-mail, sem CRECI) e atribui na negociação — ver [Negociador humano](negociacao.md#negociador-humano) |
 | Corretor | **Buscar** e atalhos de teclado | Busca clientes, imóveis e negociações da sua conta (**Buscar** no trilho das telas em colunas, ou a tecla `/` em qualquer tela da área do corretor); `C` Criar, `A` Assistente, `J`/`K` próximo e anterior na lista, `E` editar — ver [Atalhos e busca](#atalhos-e-busca) |
 | Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
-| Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Números e Hoje com o Assistente aberto; `/conta` e `/ajustes/marca` abrem Ajustes › Conta e marca |
+| Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/minha-pagina`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Página, Números e Hoje com o Assistente aberto; `/conta` e `/ajustes/marca` abrem Ajustes › Conta e marca |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
-Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, na ficha do cliente (Resumir e Mensagem sugerida), nos imóveis (descrição e leitura de fotos), na Minha página e no Estúdio (textos),
+Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, na ficha do cliente (Resumir e Mensagem sugerida), nos imóveis (descrição e leitura de fotos), na Página e no Estúdio (textos),
 quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Como as telas se organizam
 
 O menu tem, nesta ordem: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. As
-telas estão passando para um desenho só, em colunas (o "Padrão B"). **Hoje**, **Clientes**, **Imóveis** e **Números** já estão nele; as
+telas estão passando para um desenho só, em colunas (o "Padrão B"). **Hoje**, **Clientes**, **Imóveis**, **Página**, **Números** e **Ajustes** já estão nele; as
 outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 
 | Parte | Onde fica | O que faz |
 |---|---|---|
 | **Trilho** | Faixa estreita à esquerda | Os itens do menu, com o da tela aberta destacado, e os botões **Buscar** e **Assistente** no fim. No celular, o botão **Menu** no alto mostra o trilho |
-| **Lista** | Coluna da esquerda | O que existe naquela tela (em Números, os relatórios). O item escolhido fica no endereço (`?item=`): recarregar ou abrir o link guardado reabre o mesmo |
+| **Lista** | Coluna da esquerda | O que existe naquela tela (em Números, os relatórios; em Página, os blocos). O item escolhido fica no endereço (`?item=`; em Números, `?relatorio=`): recarregar ou abrir o link guardado reabre o mesmo |
 | **Foco** | Coluna do meio, a mais larga | O que você está fazendo: o item aberto e as ações principais |
 | **Contexto** | Coluna da direita | O que ajuda a decidir sobre o item aberto. O Assistente, quando aberto, ocupa esta coluna |
 
@@ -59,13 +59,13 @@ outras chegam nas próximas versões, sem perder nada do que fazem hoje.
 | Nova visita | Pede o cliente, o imóvel, o dia e a hora ali mesmo; com a ficha de um cliente aberta, ele já vem escolhido. Depois abre a ficha do cliente |
 | Nova proposta | Pede o cliente (o da ficha aberta já vem escolhido), o imóvel e o valor oferecido; registra a oferta e abre a negociação em Clientes › Negociações |
 
-**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela. Em **Hoje**, **Imóveis** e **Números**, já no
+**Assistente:** abre na coluna da direita da tela em que você está, sem sair dela. Em **Hoje**, **Imóveis**, **Página** e **Números**, já no
 desenho novo, **Fechar** devolve o contexto no lugar do Assistente, e a lista e o centro ficam como estavam.
 Nas telas que ainda não estão no desenho novo, o botão **Assistente** fica no alto, ao lado de Criar, e o
 Assistente divide a tela com ela; abrir e fechar recarrega a tela, que não volta exatamente como estava —
 ver [Assistente do Corretor](assistente.md).
 
-**Estados de toda tela** (**Hoje**, **Imóveis** e **Números** já usam os estados comuns, de `frontend/estados.ts`; as demais telas passam a usá-los ao entrar no desenho novo):
+**Estados de toda tela** (**Hoje**, **Imóveis**, **Página** e **Números** já usam os estados comuns, de `frontend/estados.ts`; as demais telas passam a usá-los ao entrar no desenho novo):
 - Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco. A maioria das telas já mostra o indicador.
 - Se algo não carregou, aparece uma frase curta com **Tentar de novo**. A maioria das telas já tem o botão.
 - O que não existe ou é de outra conta aparece como **Não encontrado**. Hoje isso vale em **Números**, em **Hoje** e em **Imóveis**.
@@ -73,7 +73,7 @@ ver [Assistente do Corretor](assistente.md).
 
 ## Atalhos e busca
 
-**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Números e Ajustes (o negociador humano não o vê). Estúdio e Página ainda não têm trilho. A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
+**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Página, Números e Ajustes (o negociador humano não o vê). Estúdio ainda não tem trilho. A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
 letras: aparecem até 5 resultados de cada tipo, só da sua conta.
 
 | Tipo | Busca por | Ao escolher |
@@ -141,7 +141,7 @@ conexões com a Meta, quando elas chegarem.
   e o liga-desliga ficam em Configurações da app › Rotinas (admin da app); sem ajuste, roda às 06:00 UTC.
 
 - **Páginas públicas e webhooks:** a página do corretor, a ficha do imóvel, o formulário e o link
-  rastreado — ver [Minha página, ficha pública e link rastreado](minha-pagina.md#para-o-administrador-da-instância);
+  rastreado — ver [Página, ficha pública e link rastreado](minha-pagina.md#para-o-administrador-da-instância);
   a seleção e o portal do cliente — ver [Seleções e Portal do Cliente](selecoes-e-portal.md#para-o-administrador-da-instância).
 
 - **Instagram:** o app da Meta, os parâmetros `meta_app_id` e `meta_app_secret` e as contas de
