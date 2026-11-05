@@ -25,8 +25,11 @@ export interface PecaTela {
 /**
  * Um pedido ao Estúdio: as peças que saíram de um mesmo envio (um `POST /estudio/pedido` ou
  * `/estudio/pacote` cria uma peça por formato, em sequência). O banco não guarda o envio; a tela o
- * reconstrói pelas peças (D-B6-1, no PR): mesmo texto de pedido, mesmo imóvel, mesmo objetivo e
- * criadas em até `JANELA_PEDIDO_MS` da primeira, em ids seguidos. O id do pedido é o da primeira peça.
+ * reconstrói pelas peças (D-B6-1, no PR): mesmo texto de pedido, mesmo imóvel, mesmo objetivo, cada
+ * peça criada em até `JANELA_PEDIDO_MS` da ANTERIOR do pedido (o pacote cria as peças em série, uma
+ * chamada de IA cada: com IA lenta o pacote inteiro passa de 2 min e continua um pedido só) e em ids
+ * seguidos: uma peça de outro envio no meio fecha o pedido (`agruparPedidos` só estende o último). O id
+ * do pedido é o da primeira peça.
  */
 export interface Pedido<P extends PecaTela = PecaTela> {
   id: number;
@@ -52,7 +55,8 @@ export function agruparPedidos<P extends PecaTela>(pecas: P[]): Pedido<P>[] {
   const pedidos: Pedido<P>[] = [];
   let atual: Pedido<P> | null = null;
   for (const p of ordem) {
-    if (atual && mesmoEnvio(atual.pecas[0], p)) atual.pecas.push(p);
+    // Só o último pedido aberto recebe a peça (ids seguidos), e a janela conta da peça anterior dele.
+    if (atual && mesmoEnvio(atual.pecas[atual.pecas.length - 1], p)) atual.pecas.push(p);
     else {
       atual = { id: p.id, texto: p.pedido ?? null, imovel_id: p.imovel_id ?? null, objetivo: p.objetivo, criado_em: p.criado_em, pecas: [p] };
       pedidos.push(atual);

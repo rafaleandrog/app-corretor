@@ -12,7 +12,7 @@ import { renderNovoImovel } from './telas/novo-imovel.js';
 import { aoAbrirNumeros, renderNumeros } from './telas/desempenho.js';
 import { aoAbrirPagina, renderPagina } from './telas/pagina.js';
 import './telas/previa-pagina.js';
-import { aoAbrirEstudio, renderEstudio } from './telas/estudio.js';
+import { renderEstudio } from './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assistente.js';
 import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
@@ -63,7 +63,9 @@ const TELAS: Record<ChaveTela, Tela> = {
     moldura: true,
     render: (id, app) => renderImoveis(() => app?.requestUpdate(), { empreendimento: Number(id) || undefined }),
   },
-  estudio: { titulo: 'Estúdio', papel: 'corretor', moldura: true, aoAbrir: aoAbrirEstudio, render: (_p, app) => renderEstudio(() => app?.requestUpdate()) },
+  // O Estúdio guarda o estado na instância da tela (estudio.ts): a chave do `keyed` em `conteudo` (endereço,
+  // conta e visita) recria a instância na troca de conta, na navegação e na volta ao Estúdio. Sem `aoAbrir`.
+  estudio: { titulo: 'Estúdio', papel: 'corretor', moldura: true, render: (_p, app) => renderEstudio(() => app?.requestUpdate()) },
   pagina: { titulo: 'Página', papel: 'corretor', moldura: true, aoAbrir: aoAbrirPagina, render: (_p, app) => renderPagina(() => app?.requestUpdate()) },
   numeros: { titulo: 'Números', papel: 'corretor', moldura: true, aoAbrir: aoAbrirNumeros, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
   ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },

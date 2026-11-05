@@ -31,6 +31,17 @@ test('pedidos: as peças de um envio formam um pedido; texto, imóvel, objetivo 
   assert.deepEqual(agruparPedidos([]), []);
 });
 
+test('pedidos: a janela conta da peça anterior (pacote lento segue um pedido); outro envio no meio fecha o pedido', () => {
+  // Pacote com IA lenta: 3 peças a 100 s uma da outra (a 3ª passa de 2 min da 1ª).
+  const lento = [peca(1, { criado_em: em(0) }), peca(2, { criado_em: em(100e3) }), peca(3, { criado_em: em(200e3) })];
+  assert.deepEqual(agruparPedidos(lento).map((x) => x.pecas.map((p) => p.id)), [[1, 2, 3]]);
+  // Remover a 1ª não muda o agrupamento das outras (a âncora não é mais a primeira).
+  assert.deepEqual(agruparPedidos(lento.slice(1)).map((x) => x.pecas.map((p) => p.id)), [[2, 3]]);
+  // Ids seguidos: um envio diferente entre duas peças iguais separa os dois pedidos iguais.
+  const meio = [peca(1), peca(2, { pedido: 'Outro' }), peca(3)];
+  assert.deepEqual(agruparPedidos(meio).map((x) => x.pecas.map((p) => p.id)), [[3], [2], [1]]);
+});
+
 test('pedidos: ?item= vale mais que ?pedido=; id que não existe é "não encontrado"', () => {
   const pedidos = agruparPedidos([peca(1), peca(2), peca(3, { pedido: 'B' })]);
   assert.equal(pedidoEscolhido(pedidos, {}).pedido, null);
@@ -120,13 +131,18 @@ test('GET /estudio/pecas: sonda de IA (slot conteudo), código do imóvel e nada
   await comServidor(rotas, AcomIA, banco, {}, async (chamar) => {
     assert.equal((await chamar('GET', '/estudio/pecas')).corpo.ia, true);
   });
-  // Isolamento (spec 4.5): o corretor B não vê as peças nem o imóvel de A, nem por id.
+  // Isolamento (spec 4.5): o corretor B não vê as peças nem o imóvel de A, nem por id. B tem a sua
+  // própria peça, para o filtro por imóvel provar alguma coisa (o 0 não vem de B estar vazio).
+  const idsDeA = banco.linhas('pecas').map((p) => p.id);
+  assert.equal(idsDeA.length, 2);
   await comServidor(rotas, B, banco, {}, async (chamar) => {
+    const imB = (await chamar('POST', '/imoveis', { tipo: 'apartamento', cidade: 'Brasília', bairro: 'Asa Sul', titulo: 'Apto de B' })).corpo;
+    assert.equal((await chamar('POST', '/estudio/pedido', { pedido: 'Post de B', imovel_id: imB.id, objetivo: 'novo_imovel', formatos: ['post_1x1'] })).status, 201);
     const r = (await chamar('GET', '/estudio/pecas')).corpo;
-    assert.equal(r.dados.length, 0);
-    assert.equal((await chamar('GET', `/estudio/pecas?imovel_id=${imovelId}`)).corpo.dados.length, 0);
-    const ids = banco.linhas('pecas').map((p) => p.id);
-    assert.equal(ids.length, 2);
-    for (const id of ids) assert.equal((await chamar('GET', `/estudio/pecas/${id}`)).status, 404);
+    assert.equal(r.dados.length, 1, 'B vê só a sua peça');
+    assert.ok(r.dados.every((p: any) => !idsDeA.includes(p.id)));
+    assert.equal((await chamar('GET', `/estudio/pecas?imovel_id=${imB.id}`)).corpo.dados.length, 1, 'o filtro funciona na conta de B');
+    assert.equal((await chamar('GET', `/estudio/pecas?imovel_id=${imovelId}`)).corpo.dados.length, 0, 'e não alcança o imóvel de A');
+    for (const id of idsDeA) assert.equal((await chamar('GET', `/estudio/pecas/${id}`)).status, 404);
   });
 });

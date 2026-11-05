@@ -23,9 +23,14 @@ const ORIGEM = 'https://app.exemplo';
 const ENTRADA = `
 import { render } from 'lit';
 window.render = render;
-import { renderEstudio, cartaoPeca, aoAbrirEstudio, _recarregarEstudio } from './frontend/telas/estudio';
-window.cartaoPeca = cartaoPeca;
-window.recarregar = _recarregarEstudio;
+import { Estudio } from './frontend/telas/estudio';
+import './frontend/index';
+// A instância viva do Estúdio (gancho de teste): recarregar e o cartão com as ações dela.
+Estudio.aoNascer = (e) => (window.estudio = e);
+window.recarregar = () => window.estudio.recarregar();
+window.cartaoVivo = (p) => window.estudio.cartaoPeca(p);
+// Só para desenhar um cartão (contar botões): uma instância que nunca nasceu, sem ação nenhuma.
+window.cartaoPeca = (p) => new Estudio(() => {}).cartaoPeca(p);
 const agora = Date.now();
 const iso = (d) => new Date(agora + d * 86400e3).toISOString();
 const arte = [{ id: 1, ordem: 1, url: '/arte/1.jpg' }];
@@ -50,14 +55,24 @@ window.ESTADOS_TESTE = [
   { estado: 'erro', arquivos: [] },
 ].map((e, i) => ({ ...base, id: 100 + i, formato: 'post_1x1', criado_em: iso(0), ...e }));
 window.chamadas = [];
+let aoMudarRota = null;
 window.urbiVerso = {
   subRota: () => location.pathname.replace(/^\\/portal_corretor/, '') || '/',
   href: (s) => '/portal_corretor' + s,
-  navegarSub: () => {},
+  escutarRota: (cb) => ((aoMudarRota = cb), () => (aoMudarRota = null)),
+  // Navegar dentro do app, como o shell: empilha o endereço e avisa a rota (o app recria a tela).
+  navegarSub: (s) => {
+    history.pushState(null, '', '/portal_corretor' + s);
+    aoMudarRota?.(s.split('?')[0]);
+  },
   usuario: () => ({ id: 1, nome: 'Marina' }),
   // FRIO: entrada a frio, como o shell publica (autenticacao.md § Quando o contexto existe): sem resposta
-  // ainda (\`carregado: false\`, sem conta) até o teste chamar \`chegarContexto()\`.
-  contexto: () => (window.FRIO && !window.CONTEXTO_CHEGOU ? { nivel: null, roles: [], carregado: false } : { conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] } }),
+  // ainda (\`carregado: false\`, sem conta) até o teste chamar \`chegarContexto()\`. SEM_CONTA: o usuário
+  // deixou de estar em conta (escopado, conjunto vazio).
+  contexto: () =>
+    window.FRIO && !window.CONTEXTO_CHEGOU
+      ? { nivel: null, roles: [], carregado: false }
+      : { carregado: true, nivel: 'usuario', roles: ['corretor'], conta: { resolucao: 'escopado', contas: window.SEM_CONTA ? [] : [{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }] } },
   notificar: (m) => (window.avisos ??= []).push(m),
   alertar: async (a) => { (window.alertas ??= []).push(a.titulo); },
   confirmar: async () => true,
@@ -98,38 +113,36 @@ window.urbiVerso = {
     return {};
   },
 };
-const raiz = document.getElementById('raiz');
-const desenhar = () => render(renderEstudio(desenhar), raiz);
-window.desenhar = desenhar;
-// Como o app (frontend/index.ts): entrar na tela e trocar de conta avisam o Estúdio (aoAbrir) e redesenham.
-window.trocar = (conta) => {
-  localStorage.setItem('portal_corretor:conta', String(conta));
-  aoAbrirEstudio();
-  desenhar();
-};
-// Como o app: até o contexto chegar a moldura mostra "carregando" e a tela não é desenhada; quando ele
-// chega (\`urbi:contexto-app\`), a tela é desenhada (sem novo aoAbrir).
-const carregado = () => window.urbiVerso.contexto().carregado !== false;
-window.addEventListener('urbi:contexto-app', () => carregado() && desenhar());
+const app = document.createElement('app-portal-corretor');
+document.getElementById('raiz').append(app);
+window.app = app;
+window.desenhar = () => app.requestUpdate();
+// O contexto mudou (chegou, ou a conta sumiu): o app ouve \`urbi:contexto-app\`.
+const avisarContexto = () => window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: window.urbiVerso.contexto() }));
 window.chegarContexto = () => {
   window.CONTEXTO_CHEGOU = true;
-  window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: window.urbiVerso.contexto() }));
+  avisarContexto();
+};
+window.ficarSemConta = () => {
+  window.SEM_CONTA = true;
+  avisarContexto();
+};
+// Trocar de conta pelo seletor do app (o caminho real: aoEscolherConta → chave nova → instância nova).
+window.trocar = (conta) => {
+  const sel = app.shadowRoot.querySelector('urbi-select');
+  sel.dispatchEvent(new CustomEvent('urbi:select-change', { detail: { valor: String(conta) } }));
 };
 // Navegação dentro do app: outra tela (o Estúdio sai do DOM) e a volta por um endereço do Estúdio.
-window.sairDoEstudio = () => {
-  history.pushState(null, '', '/portal_corretor/clientes');
-  render('', raiz);
-};
-window.abrirEstudio = (endereco) => {
-  history.pushState(null, '', '/portal_corretor' + endereco);
-  aoAbrirEstudio();
-  desenhar();
-};
-aoAbrirEstudio();
-if (carregado()) desenhar();
+window.sairDoEstudio = () => window.urbiVerso.navegarSub('/corretores');
+window.abrirEstudio = (endereco) => window.urbiVerso.navegarSub(endereco);
+// Outra app: o elemento do app sai do DOM (e volta depois, sem redesenhar).
+window.irParaOutraApp = () => app.remove();
+window.voltarDaOutraApp = () => document.getElementById('raiz').append(app);
 `;
 
 const PROFUNDO = `
+window.$q = (s) => document.querySelector('app-portal-corretor')?.shadowRoot?.querySelector(s) ?? null;
+window.$qa = (s) => [...(document.querySelector('app-portal-corretor')?.shadowRoot?.querySelectorAll(s) ?? [])];
 window.profundo = (no) => {
   if (!no) return '';
   const partes = [];
@@ -175,8 +188,8 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
     await esperar();
     const r: any = await pagina.evaluate(() => {
       const w = window as any;
-      const col = (slot: string) => document.querySelector(`urbi-3-colunas > [slot="${slot}"]`);
-      const feed = document.querySelector('urbi-feed') as any;
+      const col = (slot: string) => (window as any).$q(`urbi-3-colunas > [slot="${slot}"]`);
+      const feed = (window as any).$q('urbi-feed') as any;
       const lista = col('esquerda')!.querySelector('urbi-lista') as any;
       const rodapes = (feed?.itens ?? []).map((m: any) => {
         const div = document.createElement('div');
@@ -184,20 +197,20 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
         return { id: m.id, autor: m.autorNome, principais: w.principais(div).length, texto: w.profundo(div) };
       });
       return {
-        trilhoAtivo: (document.querySelector('urbi-trilho-atalhos') as any)?.itens.find((i: any) => i.ativo)?.id,
+        trilhoAtivo: ((window as any).$q('urbi-trilho-atalhos') as any)?.itens.find((i: any) => i.ativo)?.id,
         esquerda: w.profundo(col('esquerda')),
         rapidos: [...col('esquerda')!.querySelectorAll('urbi-grid > urbi-botao')].map((b) => w.profundo(b)),
         pedidos: lista.itens.map((x: any) => x.id),
         ativo: lista.itens.filter((x: any) => lista.itemAtivo(x)).map((x: any) => x.id),
-        centroFilhos: [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')].map((e) => e.localName),
+        centroFilhos: [...(window as any).$qa('urbi-3-colunas > [slot="centro"]')].map((e) => e.localName),
         feedPai: feed?.parentElement?.localName,
         feedSlot: feed?.getAttribute('slot'),
-        redatorPai: document.querySelector('urbi-redator')?.parentElement?.localName,
-        redatorSlotPai: document.querySelector('urbi-redator')?.parentElement?.getAttribute('slot'),
+        redatorPai: (window as any).$q('urbi-redator')?.parentElement?.localName,
+        redatorSlotPai: (window as any).$q('urbi-redator')?.parentElement?.getAttribute('slot'),
         feedExpandir: feed?.hasAttribute('expandir'),
         rodapes,
         direita: w.profundo(col('direita')),
-        estilos: document.querySelectorAll('style').length,
+        estilos: (window as any).$qa('style').length,
         chamadas: w.chamadas.slice(),
       };
     });
@@ -252,8 +265,8 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
     await pagina.evaluate(() => (window as any).desenhar());
     let s: any = await pagina.evaluate(() => {
       const w = window as any;
-      const lista = document.querySelector('urbi-3-colunas > [slot="esquerda"] urbi-lista') as any;
-      return { ativo: lista.itens.filter((x: any) => lista.itemAtivo(x)).map((x: any) => x.id), feed: (document.querySelector('urbi-feed') as any).itens.map((m: any) => m.id) };
+      const lista = (window as any).$q('urbi-3-colunas > [slot="esquerda"] urbi-lista') as any;
+      return { ativo: lista.itens.filter((x: any) => lista.itemAtivo(x)).map((x: any) => x.id), feed: ((window as any).$q('urbi-feed') as any).itens.map((m: any) => m.id) };
     });
     assert.deepEqual(s, { ativo: [20], feed: [-20, 20] });
 
@@ -264,13 +277,13 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
     });
     s = await pagina.evaluate(() => {
       const w = window as any;
-      const centro = document.querySelector('urbi-3-colunas > [slot="centro"]')!;
+      const centro = (window as any).$q('urbi-3-colunas > [slot="centro"]')!;
       return { filhos: [...centro.children].map((e) => e.localName), texto: w.profundo(centro) };
     });
     assert.deepEqual(s.filhos, ['urbi-estado-vazio', 'urbi-redator']);
     assert.match(s.texto, /Não encontrado/);
-    assert.deepEqual(await pagina.evaluate(() => [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')].map((e) => e.localName)), ['urbi-hospedeiro'], 'sem pedido aberto o centro segue embrulhado num bloco só');
-    assert.equal(await pagina.evaluate(() => document.querySelector('urbi-3-colunas')!.getAttribute('painel-ativo')), 'centro', 'id que não acha pedido: o celular abre no centro');
+    assert.deepEqual(await pagina.evaluate(() => [...(window as any).$qa('urbi-3-colunas > [slot="centro"]')].map((e) => e.localName)), ['urbi-hospedeiro'], 'sem pedido aberto o centro segue embrulhado num bloco só');
+    assert.equal(await pagina.evaluate(() => (window as any).$q('urbi-3-colunas')!.getAttribute('painel-ativo')), 'centro', 'id que não acha pedido: o celular abre no centro');
   } finally {
     await navegador.close();
   }
@@ -290,12 +303,12 @@ test('Estúdio no Chromium: Instagram desconectado e IA indisponível são faixa
     await pagina.waitForTimeout(120);
     const s: any = await pagina.evaluate(() => {
       const w = window as any;
-      const centro = document.querySelector('urbi-3-colunas > [slot="centro"]')!;
+      const centro = (window as any).$q('urbi-3-colunas > [slot="centro"]')!;
       return {
         filhos: [...centro.children].map((e) => e.localName + (e.getAttribute('variante') ? `:${e.getAttribute('variante')}` : '')),
         texto: w.profundo(centro),
-        esquerda: w.profundo(document.querySelector('urbi-3-colunas > [slot="esquerda"]')),
-        painel: document.querySelector('urbi-3-colunas')!.getAttribute('painel-ativo'),
+        esquerda: w.profundo((window as any).$q('urbi-3-colunas > [slot="esquerda"]')),
+        painel: (window as any).$q('urbi-3-colunas')!.getAttribute('painel-ativo'),
       };
     });
     assert.deepEqual(s.filhos, ['urbi-banner:info', 'urbi-banner:alerta', 'urbi-stack', 'urbi-redator']);
@@ -321,8 +334,8 @@ test('Estúdio no Chromium: troca de conta com carga em voo descarta a resposta 
     const lido = () =>
       pagina.evaluate(() => {
         const w = window as any;
-        const lista = document.querySelector('urbi-lista') as any;
-        return { texto: w.profundo(document.querySelector('urbi-inbox')), pedidos: (lista?.itens ?? []).map((x: any) => x.id), pendentes: w.pendentes.map((p: any) => p.conta), chamadas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length };
+        const lista = (window as any).$q('urbi-lista') as any;
+        return { texto: w.profundo((window as any).$q('urbi-inbox')), pedidos: (lista?.itens ?? []).map((x: any) => x.id), pendentes: w.pendentes.map((p: any) => p.conta), chamadas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length };
       });
     let r: any = await lido();
     assert.deepEqual(r.pendentes, [100]);
@@ -331,8 +344,7 @@ test('Estúdio no Chromium: troca de conta com carga em voo descarta a resposta 
     // (a) a conta muda para B com A em voo: carrega B; A responde e é descartada; nada de A na tela.
     await pagina.evaluate(() => {
       const w = window as any;
-      localStorage.setItem('portal_corretor:conta', '200');
-      w.desenhar();
+      w.trocar(200);
     });
     await pagina.waitForTimeout(60);
     r = await lido();
@@ -415,11 +427,11 @@ test('Estúdio no Chromium: com pedido aberto, falha de recarga fica visível co
     await pagina.waitForTimeout(150);
     const r: any = await pagina.evaluate(() => {
       const w = window as any;
-      const centros = [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')];
+      const centros = [...(window as any).$qa('urbi-3-colunas > [slot="centro"]')];
       return {
         filhos: centros.map((e) => e.localName),
         faixa: centros.map((e) => w.profundo(e)).join(' '),
-        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+        feed: (((window as any).$q('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
       };
     });
     assert.deepEqual(r.filhos, ['urbi-hospedeiro', 'urbi-feed', 'urbi-hospedeiro'], 'o pedido continua aberto');
@@ -443,14 +455,13 @@ test('Estúdio no Chromium: ação da conta A que termina depois da troca para B
       const w = window as any;
       w.SEGURAR_CRIAR = true;
       w.urbiVerso.formulario = async () => ({ imovel_id: '5', pedido: '' });
-      (document.querySelectorAll('urbi-3-colunas > [slot="esquerda"] urbi-grid > urbi-botao')[2] as HTMLElement).click();
+      ((window as any).$qa('urbi-3-colunas > [slot="esquerda"] urbi-grid > urbi-botao')[2] as HTMLElement).click();
     });
     await pagina.waitForTimeout(120);
     assert.equal(await pagina.evaluate(() => (window as any).criacoes.length), 1, 'a criação de A está em voo');
     // A conta muda para B; a carga de B termina.
     await pagina.evaluate(() => {
-      localStorage.setItem('portal_corretor:conta', '200');
-      (window as any).desenhar();
+      (window as any).trocar(200);
     });
     await pagina.waitForTimeout(150);
     const antes: any = await pagina.evaluate(() => {
@@ -468,9 +479,9 @@ test('Estúdio no Chromium: ação da conta A que termina depois da troca para B
         avisos: w.avisos ?? [],
         alertas: w.alertas ?? [],
         instrucoes: w.chamadas.filter((c: string) => c.includes('/instrucao')).length,
-        trabalhando: (window as any).profundo(document.querySelector('urbi-3-colunas')).includes('Escrevendo os textos'),
-        pedidos: ((document.querySelector('urbi-lista') as any)?.itens ?? []).map((x: any) => x.id),
-        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+        trabalhando: (window as any).profundo((window as any).$q('urbi-3-colunas')).includes('Escrevendo os textos'),
+        pedidos: (((window as any).$q('urbi-lista') as any)?.itens ?? []).map((x: any) => x.id),
+        feed: (((window as any).$q('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
       };
     });
     assert.ok(!depois.pedidos.includes(900) && !depois.feed.includes(900) && !depois.feed.includes(-900), 'a peça criada em A (900) não aparece em B');
@@ -500,14 +511,14 @@ test('Estúdio no Chromium: conta trocada no meio do envio pelo redator e de uma
       w.SEGURAR_CRIAR = true;
       w.SEGURAR_APROVAR = true;
       w.urbiVerso.formulario = async () => ({ pedido: 'Pedido da conta A', imovel_id: '', objetivo: 'novo_imovel', f_post_1x1: true });
-      w.redatorA = document.querySelector('urbi-redator');
+      w.redatorA = (window as any).$q('urbi-redator');
       w.resultado = 'pendente';
       w.redatorA.aoEnviar({ texto: 'Pedido da conta A' }).then(
         () => (w.resultado = 'resolvido'),
         (e: Error) => (w.resultado = `rejeitado:${e.name}`),
       );
       const div = document.createElement('div');
-      w.render(w.cartaoPeca(w.PECAS[1]), div); // peça 12: rascunho com arte, o principal é "Aprovar"
+      w.render(w.cartaoVivo(w.PECAS[1]), div); // peça 12: rascunho com arte, o principal é "Aprovar"
       w.principais(div)[0].click();
     });
     await pagina.waitForTimeout(150);
@@ -515,8 +526,7 @@ test('Estúdio no Chromium: conta trocada no meio do envio pelo redator e de uma
     assert.deepEqual(emVoo, { criacoes: 1, aprovacoes: 1 }, 'a criação e a aprovação de A estão em voo');
     // A conta muda para B (200); a tela é reconstruída e a carga de B termina.
     await pagina.evaluate(() => {
-      localStorage.setItem('portal_corretor:conta', '200');
-      (window as any).desenhar();
+      (window as any).trocar(200);
     });
     await pagina.waitForTimeout(150);
     const antes: any = await pagina.evaluate(() => ({ url: location.search, cargas: (window as any).chamadas.filter((c: string) => c === 'GET /estudio/pecas').length }));
@@ -531,17 +541,17 @@ test('Estúdio no Chromium: conta trocada no meio do envio pelo redator e de uma
       const w = window as any;
       return {
         resultado: w.resultado,
-        redatorNovo: document.querySelector('urbi-redator') !== w.redatorA,
+        redatorNovo: (window as any).$q('urbi-redator') !== w.redatorA,
         redatorAFora: !w.redatorA.isConnected,
         url: location.search,
         cargas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length,
         avisos: w.avisos ?? [],
         alertas: w.alertas ?? [],
         instrucoes: w.chamadas.filter((c: string) => c.includes('/instrucao')).length,
-        tela: w.profundo(document.querySelector('urbi-3-colunas')),
+        tela: w.profundo((window as any).$q('urbi-3-colunas')),
       };
     });
-    assert.equal(depois.resultado, 'rejeitado:ContaTrocada', 'o redator de A não recebe sucesso: o envio rejeita');
+    assert.equal(depois.resultado, 'rejeitado:InstanciaEncerrada', 'o redator de A não recebe sucesso: o envio rejeita');
     assert.ok(depois.redatorNovo && depois.redatorAFora, 'o redator de B é outro; o texto devolvido fica no de A, fora da tela');
     assert.equal(depois.url, antes.url, 'a URL de B não ganhou o ?pedido= de A');
     assert.equal(depois.cargas, antes.cargas, 'nenhuma recarga disparada por A em B');
@@ -568,15 +578,15 @@ test('Estúdio no Chromium: depois da troca de conta, nada escolhido na conta an
   const ler = () =>
     pagina.evaluate(() => {
       const w = window as any;
-      const centros = [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')];
-      const lista = document.querySelector('urbi-lista') as any;
+      const centros = [...(window as any).$qa('urbi-3-colunas > [slot="centro"]')];
+      const lista = (window as any).$q('urbi-lista') as any;
       return {
         url: location.search,
         centro: centros.map((e) => w.profundo(e)).join(' '),
-        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+        feed: (((window as any).$q('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
         pedidos: (lista?.itens ?? []).map((x: any) => x.id),
         ativo: (lista?.itens ?? []).filter((x: any) => lista.itemAtivo(x)).map((x: any) => x.id),
-        painel: document.querySelector('urbi-3-colunas')?.getAttribute('painel-ativo'),
+        painel: (window as any).$q('urbi-3-colunas')?.getAttribute('painel-ativo'),
       };
     });
   try {
@@ -677,7 +687,7 @@ test('Estúdio no Chromium: aprovar em A que dá certo depois da troca para B n�
       const w = window as any;
       w.SEGURAR_APROVAR_OK = true;
       const div = document.createElement('div');
-      w.render(w.cartaoPeca(w.PECAS[1]), div); // peça 12: o principal é "Aprovar"
+      w.render(w.cartaoVivo(w.PECAS[1]), div); // peça 12: o principal é "Aprovar"
       w.principais(div)[0].click();
     });
     await pagina.waitForTimeout(120);
@@ -694,9 +704,9 @@ test('Estúdio no Chromium: aprovar em A que dá certo depois da troca para B n�
         cargas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length,
         avisos: w.avisos ?? [],
         alertas: w.alertas ?? [],
-        pedidos: ((document.querySelector('urbi-lista') as any)?.itens ?? []).map((x: any) => x.id),
-        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
-        tela: w.profundo(document.querySelector('urbi-3-colunas')),
+        pedidos: (((window as any).$q('urbi-lista') as any)?.itens ?? []).map((x: any) => x.id),
+        feed: (((window as any).$q('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+        tela: w.profundo((window as any).$q('urbi-3-colunas')),
       };
     });
     assert.deepEqual(depois.avisos, [], 'nenhum "Peça aprovada." de A em B');
@@ -720,7 +730,7 @@ test('Estúdio no Chromium: remover uma peça nunca leva a "Não encontrado"', a
     pagina.evaluate((id: number) => {
       const w = window as any;
       const div = document.createElement('div');
-      w.render(w.cartaoPeca(w.PECAS.find((p: any) => p.id === id)), div);
+      w.render(w.cartaoVivo(w.PECAS.find((p: any) => p.id === id)), div);
       const item = [...div.querySelectorAll('urbi-dropdown-item')].find((e) => e.textContent!.trim() === 'Remover')!;
       item.dispatchEvent(new CustomEvent('urbi:dropdown-select'));
     }, id);
@@ -729,8 +739,8 @@ test('Estúdio no Chromium: remover uma peça nunca leva a "Não encontrado"', a
       const w = window as any;
       return {
         url: location.search,
-        centro: [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')].map((e) => w.profundo(e)).join(' '),
-        feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+        centro: [...(window as any).$qa('urbi-3-colunas > [slot="centro"]')].map((e) => w.profundo(e)).join(' '),
+        feed: (((window as any).$q('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
         avisos: w.avisos ?? [],
       };
     });
@@ -768,15 +778,15 @@ test('Estúdio no Chromium: remover uma peça nunca leva a "Não encontrado"', a
 });
 
 // Entrada a frio (recarregar, link direto, nova aba): o Estúdio é aberto antes de o contexto da app
-// chegar, como no app (frontend/index.ts: aoAbrir no connectedCallback, a tela só depois do contexto).
+// chegar, como no app (frontend/index.ts: a tela só é desenhada, e o Estúdio só nasce, depois do contexto).
 const formulariosAbertos = (p: any) => p.evaluate(() => ((window as any).formularios ?? []).map((f: any) => f.titulo));
 const lerPedido = (p: any) =>
   p.evaluate(() => {
     const w = window as any;
     return {
       url: location.search,
-      centro: [...document.querySelectorAll('urbi-3-colunas > [slot="centro"]')].map((e) => w.profundo(e)).join(' '),
-      feed: ((document.querySelector('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
+      centro: [...(window as any).$qa('urbi-3-colunas > [slot="centro"]')].map((e) => w.profundo(e)).join(' '),
+      feed: (((window as any).$q('urbi-feed') as any)?.itens ?? []).map((m: any) => m.id),
     };
   });
 async function entrarAFrio(pw: any, endereco: string) {
@@ -785,7 +795,7 @@ async function entrarAFrio(pw: any, endereco: string) {
   await m.pagina.goto(`${ORIGEM}/portal_corretor${endereco}`);
   await m.pagina.waitForTimeout(80);
   await m.pagina.evaluate(POR_CONTA);
-  assert.equal(await m.pagina.evaluate(() => document.querySelector('urbi-3-colunas')), null, 'sem contexto a tela não é desenhada');
+  assert.equal(await m.pagina.evaluate(() => (window as any).$q('urbi-3-colunas')), null, 'sem contexto a tela não é desenhada');
   await m.pagina.evaluate(() => (window as any).chegarContexto());
   await m.pagina.waitForTimeout(200);
   return m;
@@ -826,7 +836,7 @@ test('Estúdio no Chromium: depois da troca, link do Estúdio aberto já em B (?
     // link do Estúdio de B: o pedido de B abre.
     await pagina.evaluate(() => {
       (window as any).sairDoEstudio();
-      localStorage.setItem('portal_corretor:conta', '200');
+      (window as any).trocar(200);
       (window as any).abrirEstudio('/estudio?pedido=601');
     });
     await pagina.waitForTimeout(200);
@@ -848,6 +858,273 @@ test('Estúdio no Chromium: depois da troca, link do Estúdio aberto já em B (?
     const a: any = await lerPedido(pagina);
     assert.doesNotMatch(a.url, /pedido=|item=/, 'o pedido de B sai na troca para A');
     assert.deepEqual(a.feed, []);
+  } finally {
+    await navegador.close();
+  }
+});
+
+// ---------- Tabela de transições (decisão de desenho: o estado é da instância da tela) ----------
+//
+// Um caso por linha. Em todos, a tela final não está em "carregando" e não mostra nada da conta (ou da
+// instância) anterior. Ids das peças: A (100) tem 11 a 20; B (200) tem 601; o que uma instância morta
+// recebe traz o texto "DA CONTA A" / "INSTANCIA ANTIGA" para a asserção pegar qualquer vazamento.
+
+const telaFinal = (p: any) =>
+  p.evaluate(() => {
+    const w = window as any;
+    const lista = w.$q('urbi-lista');
+    return {
+      texto: w.profundo(w.app.shadowRoot),
+      carregando: w.$qa('urbi-loading').length,
+      url: location.search,
+      pedidos: (lista?.itens ?? []).map((x: any) => x.id),
+      feed: (w.$q('urbi-feed')?.itens ?? []).map((m: any) => m.id),
+      avisos: w.avisos ?? [],
+      alertas: w.alertas ?? [],
+      formularios: (w.formularios ?? []).map((f: any) => f.titulo),
+    };
+  });
+
+function semCarregarNemAnterior(r: any, linha: string, anterior: RegExp = /DA CONTA A|INSTANCIA ANTIGA|Casa no Lago Sul|Lançamento da casa/) {
+  assert.equal(r.carregando, 0, `${linha}: a tela final não está em "carregando"`);
+  assert.doesNotMatch(r.texto, /Carregando/, `${linha}: nenhum "Carregando…" na tela final`);
+  assert.doesNotMatch(r.texto, anterior, `${linha}: nada da conta (ou instância) anterior`);
+}
+
+const liberar = (p: any, i: number, pecas: 'A' | 'B' | 'ANTIGA' | 'TODAS') =>
+  p.evaluate(
+    ([i, pecas]: [number, string]) => {
+      const w = window as any;
+      const dados =
+        pecas === 'TODAS' ? w.PECAS
+        : pecas === 'B' ? [{ ...w.PECAS[0], id: 601, pedido: 'DA CONTA B', titulo: 'Peça da conta B' }]
+        : [{ ...w.PECAS[0], id: 501, pedido: pecas === 'A' ? 'DA CONTA A' : 'INSTANCIA ANTIGA', titulo: pecas === 'A' ? 'DA CONTA A' : 'INSTANCIA ANTIGA' }];
+      w.pendentes[i].liberar(dados);
+    },
+    [i, pecas],
+  );
+const pendentes = (p: any) => p.evaluate(() => ((window as any).pendentes ?? []).map((x: any) => x.conta));
+
+test('transição 1/8: A → B durante a carga inicial', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.addInitScript(() => ((window as any).SEGURAR = true));
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(120);
+    assert.deepEqual(await pendentes(pagina), [100]);
+    await pagina.evaluate(() => (window as any).trocar(200));
+    await pagina.waitForTimeout(120);
+    assert.deepEqual(await pendentes(pagina), [100, 200], 'a instância de B nasce e carrega');
+    // B responde primeiro; A responde depois, para a instância morta.
+    await liberar(pagina, 1, 'B');
+    await pagina.waitForTimeout(80);
+    await liberar(pagina, 0, 'A');
+    await pagina.waitForTimeout(150);
+    const r: any = await telaFinal(pagina);
+    semCarregarNemAnterior(r, 'A → B na carga inicial');
+    assert.deepEqual(r.pedidos, [601]);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('transição 2/8: A → B com um pedido em voo', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(120);
+    await pagina.evaluate(POR_CONTA);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.SEGURAR_CRIAR = true;
+      w.urbiVerso.formulario = async () => ({ imovel_id: '5', pedido: '' });
+      (w.$qa('urbi-3-colunas > [slot="esquerda"] urbi-grid > urbi-botao')[2] as HTMLElement).click();
+    });
+    await pagina.waitForTimeout(120);
+    assert.equal(await pagina.evaluate(() => (window as any).criacoes.length), 1, 'a criação de A está em voo');
+    await pagina.evaluate(() => (window as any).trocar(200));
+    await pagina.waitForTimeout(150);
+    await pagina.evaluate(() => (window as any).criacoes[0]());
+    await pagina.waitForTimeout(200);
+    const r: any = await telaFinal(pagina);
+    semCarregarNemAnterior(r, 'A → B com pedido em voo');
+    assert.deepEqual(r.pedidos, [601]);
+    assert.doesNotMatch(r.url, /pedido=|900/, 'a URL de B não ganha o pedido criado em A');
+    assert.deepEqual(r.avisos, [], 'nenhum "peça criada" de A em B');
+    assert.doesNotMatch(r.texto, /Escrevendo os textos/, 'nada "trabalhando" herdado');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('transição 3/8: A → B com um aprovar em voo', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=11`);
+    await pagina.waitForTimeout(120);
+    await pagina.evaluate(POR_CONTA);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.SEGURAR_APROVAR_OK = true;
+      const div = document.createElement('div');
+      w.render(w.cartaoVivo(w.PECAS[1]), div); // peça 12: o principal é "Aprovar"
+      w.principais(div)[0].click();
+    });
+    await pagina.waitForTimeout(120);
+    assert.equal(await pagina.evaluate(() => (window as any).aprovacoes?.length), 1, 'o aprovar de A está em voo');
+    await pagina.evaluate(() => (window as any).trocar(200));
+    await pagina.waitForTimeout(150);
+    const cargas = await pagina.evaluate(() => (window as any).chamadas.filter((c: string) => c === 'GET /estudio/pecas').length);
+    await pagina.evaluate(() => (window as any).aprovacoes[0]());
+    await pagina.waitForTimeout(200);
+    const r: any = await telaFinal(pagina);
+    semCarregarNemAnterior(r, 'A → B com aprovar em voo');
+    assert.deepEqual(r.pedidos, [601]);
+    assert.deepEqual(r.feed, []);
+    assert.deepEqual(r.avisos, [], 'nenhum "Peça aprovada." de A em B');
+    assert.equal(await pagina.evaluate(() => (window as any).chamadas.filter((c: string) => c === 'GET /estudio/pecas').length), cargas, 'a instância morta não recarrega');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('transição 4/8: A → B com o ?pedido= de A na URL', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=11&etapa=arte`);
+    await pagina.waitForTimeout(120);
+    await pagina.evaluate(POR_CONTA);
+    assert.deepEqual((await telaFinal(pagina)).feed, [-11, 11, 12, 13]);
+    await pagina.evaluate(() => (window as any).trocar(200));
+    await pagina.waitForTimeout(200);
+    const r: any = await telaFinal(pagina);
+    semCarregarNemAnterior(r, 'A → B com ?pedido= de A');
+    assert.equal(r.url, '?etapa=arte', 'ao nascer, a instância de B limpa o ?pedido= que não é dela; a etapa fica');
+    assert.doesNotMatch(r.texto, /Não encontrado|não está na sua conta/);
+    assert.deepEqual(r.feed, []);
+    assert.equal(await pagina.evaluate(() => (window as any).$q('urbi-3-colunas').getAttribute('painel-ativo')), 'esquerda');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('transição 5/8: frio (sem contexto) → A', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await entrarAFrio(pw, '/estudio?pedido=11');
+  try {
+    const r: any = await telaFinal(pagina);
+    // Não há conta anterior: o que não pode aparecer é a conta B nem o estado "carregando".
+    semCarregarNemAnterior(r, 'frio → A', /DA CONTA B|Peça da conta B/);
+    assert.equal(r.url, '?pedido=11', 'o pedido do link é de A e fica');
+    assert.deepEqual(r.feed, [-11, 11, 12, 13]);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('transição 6/8: A → sem conta (com uma carga de A em voo)', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=11`);
+    await pagina.waitForTimeout(120);
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.SEGURAR = true;
+      w.recarregar();
+    });
+    await pagina.waitForTimeout(60);
+    await pagina.evaluate(() => (window as any).ficarSemConta());
+    await pagina.waitForTimeout(100);
+    await liberar(pagina, 0, 'A');
+    await pagina.waitForTimeout(150);
+    const r: any = await telaFinal(pagina);
+    semCarregarNemAnterior(r, 'A → sem conta');
+    assert.match(r.texto, /Você ainda não está em nenhuma conta/, 'o estado vazio de "sem conta"');
+    assert.equal(await pagina.evaluate(() => (window as any).$q('urbi-3-colunas')), null, 'nada da moldura de A fica');
+    assert.deepEqual(r.avisos, []);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('transição 7/8: sair do Estúdio e voltar (e ir a outra app e voltar) com operação em voo', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio?pedido=11`);
+    await pagina.waitForTimeout(120);
+    // Em voo: um aprovar e uma recarga desta instância.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.SEGURAR_APROVAR_OK = true;
+      const div = document.createElement('div');
+      w.render(w.cartaoVivo(w.PECAS[1]), div);
+      w.principais(div)[0].click();
+      w.SEGURAR = true;
+      w.recarregar();
+    });
+    await pagina.waitForTimeout(80);
+    assert.deepEqual(await pendentes(pagina), [100]);
+    // Sai para outra tela do app e volta pelo endereço do Estúdio: a instância nova carrega (em voo).
+    await pagina.evaluate(() => (window as any).sairDoEstudio());
+    await pagina.waitForTimeout(80);
+    await pagina.evaluate(() => (window as any).abrirEstudio('/estudio?pedido=11'));
+    await pagina.waitForTimeout(80);
+    assert.deepEqual(await pendentes(pagina), [100, 100], 'a instância nova carrega');
+    // A instância antiga recebe tudo agora: a carga e o aprovar. Nada disso aparece.
+    await liberar(pagina, 0, 'ANTIGA');
+    await pagina.evaluate(() => (window as any).aprovacoes[0]());
+    await pagina.waitForTimeout(120);
+    assert.equal((await telaFinal(pagina)).carregando, 1, 'a instância nova ainda espera a SUA carga');
+    await liberar(pagina, 1, 'TODAS');
+    await pagina.waitForTimeout(150);
+    let r: any = await telaFinal(pagina);
+    semCarregarNemAnterior(r, 'sair do Estúdio e voltar', /INSTANCIA ANTIGA/);
+    assert.deepEqual(r.feed, [-11, 11, 12, 13]);
+    assert.deepEqual(r.avisos, [], 'nenhum "Peça aprovada." da instância que saiu');
+
+    // Outra app: o app sai do DOM com uma carga em voo e volta (sem redesenhar): instância nova.
+    await pagina.evaluate(() => (window as any).recarregar());
+    await pagina.waitForTimeout(60);
+    await pagina.evaluate(() => (window as any).irParaOutraApp());
+    await liberar(pagina, 2, 'ANTIGA');
+    await pagina.waitForTimeout(80);
+    await pagina.evaluate(() => (window as any).voltarDaOutraApp());
+    await pagina.waitForTimeout(120);
+    assert.deepEqual(await pendentes(pagina), [100, 100, 100, 100], 'a volta é uma instância nova, que carrega');
+    await liberar(pagina, 3, 'TODAS');
+    await pagina.waitForTimeout(150);
+    r = await telaFinal(pagina);
+    semCarregarNemAnterior(r, 'outra app e volta', /INSTANCIA ANTIGA/);
+    assert.deepEqual(r.feed, [-11, 11, 12, 13]);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('transição 8/8: "Novo post" a frio', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await entrarAFrio(pw, '/estudio?criar=post');
+  try {
+    await pagina.evaluate(() => (window as any).desenhar());
+    await pagina.waitForTimeout(100);
+    const r: any = await telaFinal(pagina);
+    semCarregarNemAnterior(r, '"Novo post" a frio', /DA CONTA B/);
+    assert.deepEqual(r.formularios, ['Novo pedido'], 'o Novo pedido abre uma vez, depois da primeira carga');
+    assert.doesNotMatch(r.url, /criar=/, 'o pedido do menu Criar sai da URL');
   } finally {
     await navegador.close();
   }

@@ -23,22 +23,28 @@ O Estúdio abre em três colunas (no celular, três abas: **Pedidos**, **Pedido*
 
 **Pedido** é o que você pediu de uma vez: um envio da caixa, um Criar rápido ou um pacote de
 lançamento. Cada um vira uma peça por formato, e a lista junta as peças do mesmo envio. O Estúdio
-reconhece um envio pelas peças: mesmo texto, imóvel e objetivo, criadas com até 2 minutos de
-diferença. Por isso, dois pedidos iguais enviados no mesmo par de minutos aparecem juntos, como um só.
+reconhece um envio pelas peças: mesmo texto, imóvel e objetivo, cada peça criada até 2 minutos depois
+da anterior, sem peça de outro pedido no meio. Um pacote demorado (a IA lenta) continua um pedido só.
+Por isso, dois pedidos iguais enviados no mesmo par de minutos aparecem juntos, como um só.
 O link da página leva ao que está aberto: copie o endereço e, ao abri-lo, o mesmo pedido (ou a mesma
 peça, com a conversa rolada até ela) aparece.
-Pedido que não existe ou não é da sua conta mostra "Não encontrado".
+Link de um pedido que não é da sua conta (ou que já não existe) abre o Estúdio sem pedido
+escolhido, e o endereço fica limpo. Se o pedido aberto deixa de existir enquanto você está na tela
+(removido em outra aba, por exemplo), o centro mostra "Não encontrado".
 
-**Trocou de conta no meio de uma operação?** O que estava em andamento na conta anterior (criar,
-enviar a arte, publicar, aprovar, buscar a descrição) é descartado quando termina: nada dele aparece
-na conta nova, nenhum aviso de sucesso é mostrado e o pedido escrito na caixa não conta como enviado.
-O que o servidor já tinha feito fica na conta anterior, e você vê ao voltar para ela.
+**Trocou de conta, ou saiu do Estúdio, no meio de uma operação?** O Estúdio abre de novo, do zero,
+a cada troca de conta e a cada entrada nele (inclusive vindo de outra app). O que estava em andamento
+(criar, enviar a arte, publicar, aprovar, buscar a descrição) termina em silêncio: nada dele aparece
+na tela nova, nenhum aviso de sucesso é mostrado e o pedido escrito na caixa não conta como enviado.
+O que o servidor já tinha feito fica feito, na conta em que foi pedido, e aparece quando você abrir o
+Estúdio nela.
 
 **Trocou de conta com um pedido aberto?** A conta nova abre como se você tivesse acabado de entrar no
 Estúdio: nenhum pedido ou peça escolhido na conta anterior fica aberto, e um "Novo post" pedido pelo
 menu Criar que ainda não tinha aberto não abre na conta nova. A etapa escolhida acima de **Seus
 pedidos** continua (é só o filtro da lista). Ao voltar para a conta anterior, ela também abre sem
-pedido escolhido.
+pedido escolhido. Sem conta nenhuma, o Estúdio não mostra nada da conta de antes: só o aviso de que
+você não está em nenhuma conta.
 
 **Quando algo não está disponível**, uma faixa aparece no topo do centro e o resto continua:
 - **Instagram não conectado** (ou desconectado): publicar e agendar pelo app voltam depois de
@@ -148,7 +154,7 @@ outra (com confirmação). As peças antigas, com arte do gerador do app que sai
 Acima de **Seus pedidos**, chips contam as peças pela etapa em que estão: **Todas**, **Falta a
 arte**, **Para aprovar**, **Prontas para publicar** (inclui as que deram erro ao publicar),
 **Agendadas** e **Publicadas**. Escolher uma etapa deixa na lista só os pedidos com ao menos uma
-peça nela (a etapa fica no endereço, em `?etapa=`). Etapa vazia não aparece. Um pedido novo volta a
+peça nela (a etapa fica no endereço da página: recarregar ou abrir o link guardado volta a ela). Etapa vazia não aparece. Um pedido novo volta a
 lista para **Todas**. Cada pedido mostra quantas peças tem e em que pé estão ("3 peças · 1 sem arte
 · 1 agendada").
 
