@@ -193,15 +193,23 @@ export async function formularioEnviar(
   // O gesto de quem chamou (que pode ter esperado antes de abrir o formulário), ou um novo.
   const { gesto: doChamador, ...doFormulario } = opcoes;
   const g = doChamador ?? gesto();
+  if (!g.vivo()) return null;
+  // O diálogo fica fora do tratamento de "não salvou": a falha dele segue para quem chamou, como antes.
+  // Só a conta trocada com o formulário aberto é engolida (em silêncio).
+  let valores: Awaited<ReturnType<UrbiVersoAPI['formulario']>>;
   try {
-    if (!g.vivo()) return null;
-    const valores = await g.esperar(urbiVerso.formulario({ titulo, campos, ...doFormulario }));
-    if (!valores) return null;
+    valores = await g.esperar(urbiVerso.formulario({ titulo, campos, ...doFormulario }));
+  } catch (e) {
+    if (g.encerrado(e)) return null;
+    throw e;
+  }
+  if (!valores) return null;
+  try {
     const r = await g.esperar(enviar(metodo, rota, ajustar(valores)));
     urbiVerso.notificar('Salvo.', 'sucesso');
     return r ?? {};
   } catch (e) {
-    // Conta trocada com o formulário aberto ou o envio em voo: nada é gravado nem avisado na outra.
+    // Conta trocada com o envio em voo: nada é avisado na outra.
     if (g.encerrado(e)) return null;
     await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     return null;

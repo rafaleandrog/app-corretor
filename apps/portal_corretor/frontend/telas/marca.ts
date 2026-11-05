@@ -45,6 +45,8 @@ export class PcTelaMarca extends LitElement {
 
   /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
   private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    // A conta já mudou (a tela é de antes): o gesto nem começa, nenhum diálogo abre.
+    if (!this.vida.vivo()) return;
     try {
       await fn();
     } catch (e) {
@@ -69,6 +71,8 @@ export class PcTelaMarca extends LitElement {
 
   /** Salvar devolve a marca e diz se o que está no ar acompanhou (`vitrine_desatualizada`). */
   private async acao(fn: () => Promise<Marca>, sucesso: string) {
+    // Confere antes de `fn()`: a escrita sairia já com o `X-Conta` da outra conta.
+    if (!this.vida.vivo()) return false;
     try {
       const r = await this.vida.esperar(fn());
       this.marca = r;
@@ -104,6 +108,7 @@ export class PcTelaMarca extends LitElement {
 
   /** Refaz a página no ar (se publicada), as seleções e os portais com a marca salva. */
   private async refazer() {
+    if (!this.vida.vivo()) return;
     this.refazendo = true;
     try {
       const r: Marca = await this.vida.esperar(enviar('POST', '/estudio/marca/republicar'));
@@ -131,6 +136,7 @@ export class PcTelaMarca extends LitElement {
   private async enviarReferencias(e: CustomEvent) {
     const livres = MAX_REFERENCIAS - (this.marca?.referencias.length ?? 0);
     const arquivos = ((e.detail.arquivos as File[]) ?? []).slice(0, Math.max(livres, 0));
+    if (!this.vida.vivo()) return;
     if (!arquivos.length) {
       if (livres <= 0) await urbiVerso.alertar({ titulo: 'Limite de referências', mensagem: `Até ${MAX_REFERENCIAS}. Tire uma antes de enviar outra.`, tipo: 'alerta' });
       return;

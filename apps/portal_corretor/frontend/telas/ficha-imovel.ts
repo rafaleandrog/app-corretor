@@ -69,7 +69,7 @@ export class PcTelaFichaImovel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar(true);
-    void chamarApi('/imoveis/ia').then((r) => (this.ia = r), () => undefined);
+    void chamarApi('/imoveis/ia').then((r) => void (this.vida.vivo() && (this.ia = r)), () => undefined);
     window.addEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
     // E (11.0.6): o mesmo Editar do cabeçalho, com a ficha carregada.
     registrarEdicao(this, () => void (this.ficha && this.editar()));
@@ -103,6 +103,8 @@ export class PcTelaFichaImovel extends LitElement {
 
   /** Um gesto com diálogo ou cadeia de awaits: conta trocada no meio termina em silêncio. */
   private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    // A conta já mudou (a ficha é de antes): o gesto nem começa, nenhum diálogo abre.
+    if (!this.vida.vivo()) return;
     try {
       await fn();
     } catch (e) {
@@ -111,6 +113,8 @@ export class PcTelaFichaImovel extends LitElement {
   }
 
   private async tentar(titulo: string, fn: () => Promise<unknown>) {
+    // Confere antes de `fn()`: a escrita sairia já com o `X-Conta` da outra conta.
+    if (!this.vida.vivo()) return;
     try {
       await this.vida.esperar(fn());
       await this.carregar();
@@ -246,6 +250,7 @@ export class PcTelaFichaImovel extends LitElement {
   }
 
   private async editar() {
+    if (!this.vida.vivo()) return;
     const im = this.ficha!.imovel;
     try {
       await this.opcoesVinculos();
@@ -322,6 +327,7 @@ export class PcTelaFichaImovel extends LitElement {
       },
       { gesto: this.vida },
     ).then((r) => {
+      if (!this.vida.vivo()) return;
       this.contatos = [];
       return this.depois(r);
     });
@@ -345,6 +351,7 @@ export class PcTelaFichaImovel extends LitElement {
 
   /** Conta trocada com a confirmação aberta ou o PATCH em voo: nada é removido, avisado nem navegado. */
   private async remover() {
+    if (!this.vida.vivo()) return;
     try {
       const ok = await this.vida.esperar(urbiVerso.confirmar({ titulo: 'Remover imóvel', mensagem: 'O imóvel sai da carteira e da sua página. Fotos e autorizações ficam guardadas.', rotuloConfirmar: 'Remover', perigo: true }));
       if (!ok) return;
@@ -377,6 +384,7 @@ export class PcTelaFichaImovel extends LitElement {
   }
 
   private async escreverComIa() {
+    if (!this.vida.vivo()) return;
     this.escrevendo = true;
     try {
       const s = await this.vida.esperar(enviar('POST', `/imoveis/${this.imovelId}/descricao`, {}));
@@ -393,12 +401,12 @@ export class PcTelaFichaImovel extends LitElement {
 
   // A autorização tem os próprios diálogos (autorizacao-venda.ts); aqui, a releitura só se a conta é a mesma.
   private novaAutorizacao() {
-    return this.semAvisoDeOutraConta(async () => this.depois(await this.vida.esperar(registrarAutorizacao(this.ficha!.imovel))));
+    return this.semAvisoDeOutraConta(async () => this.depois(await this.vida.esperar(registrarAutorizacao(this.ficha!.imovel, { gesto: this.vida }))));
   }
 
   private assinar(a: Linha) {
     return this.semAvisoDeOutraConta(async () => {
-      if (await this.vida.esperar(marcarAssinada(a, this.ficha!.midias))) await this.carregar();
+      if (await this.vida.esperar(marcarAssinada(a, this.ficha!.midias, undefined, { gesto: this.vida }))) await this.carregar();
     });
   }
 

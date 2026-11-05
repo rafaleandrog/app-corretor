@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { corpoDoFormularioMandato, errosDoFormularioMandato as errosDoFormulario, type FormularioMandato } from '../../comum/negociacao';
-import { chamarApi, data, enviar, mensagemDeErro } from '../apoio.js';
+import { chamarApi, data, enviar, gesto, mensagemDeErro } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -50,19 +50,37 @@ export class PcMandatoModal extends LitElement {
   @state() private documentos: Linha[] | null = null;
   // Trocou quem negocia: fechar sem salvar ainda relê a negociação.
   private conduziu = false;
+  /**
+   * A conta em que o modal abriu (issue #144). Toda continuação passa por `vida.esperar`: trocada a conta
+   * com um diálogo aberto ou um envio em voo, o gesto termina em silêncio (sem envio, estado nem aviso).
+   */
+  private vida = gesto();
+
+  /** Um gesto com diálogo: conta trocada antes ou no meio termina em silêncio. */
+  private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    if (!this.vida.vivo()) return;
+    try {
+      await fn();
+    } catch (e) {
+      if (!this.vida.encerrado(e)) throw e;
+    }
+  }
 
   connectedCallback() {
     super.connectedCallback();
+    this.vida = gesto();
     this.conduz = this.conduzidaPor;
     this.f = formularioDe(this.atual, null);
     this.recuoAberto = !this.f.recuo;
+    const vida = this.vida;
     void chamarApi(`/imoveis/${this.imovelId}`).then(
       (r) => {
+        if (!vida.vivo()) return;
         this.documentos = ((r?.midias ?? []) as Linha[]).filter((m) => m.tipo === 'documento');
         // Sem mandato: o preço pedido vem do anúncio.
         if (!this.atual && this.f && !this.f.pedido) this.f = { ...this.f, pedido: reaisDe(r?.imovel?.preco_c) };
       },
-      () => (this.documentos = []),
+      () => void (vida.vivo() && (this.documentos = [])),
     );
   }
 
@@ -72,15 +90,16 @@ export class PcMandatoModal extends LitElement {
 
   /** Negociador IA ou você: /devolver ou /assumir. Devolver exige o Negociador ligado nos ajustes. */
   private async trocarQuemNegocia(para: string) {
-    if (para === this.conduz || this.trocando) return;
+    if (para === this.conduz || this.trocando || !this.vida.vivo()) return;
     const antes = this.conduz;
     this.conduz = para;
     this.trocando = true;
     try {
-      await enviar('POST', `/negociacoes/${this.negociacaoId}/${para === 'corretor' ? 'assumir' : 'devolver'}`, {});
+      await this.vida.esperar(enviar('POST', `/negociacoes/${this.negociacaoId}/${para === 'corretor' ? 'assumir' : 'devolver'}`, {}));
       this.conduziu = true;
       urbiVerso.notificar(para === 'corretor' ? 'Você passou a negociar.' : 'O Negociador IA passou a negociar.', 'sucesso');
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.conduz = antes;
       const desligado = (e as { codigo?: string }).codigo === 'NEGOCIADOR_DESLIGADO';
       await urbiVerso.alertar({
@@ -101,37 +120,41 @@ export class PcMandatoModal extends LitElement {
     this.mudar({ concessoes: this.f!.concessoes.map((c, j) => (j === i ? { ...c, [campo]: valor } : c)) });
   }
 
-  private async registrarAutorizacao() {
-    const v = await urbiVerso.formulario({
-      titulo: 'Autorização do proprietário',
-      mensagem: 'Registre a data em que o proprietário autorizou, por mensagem, o Negociador a fazer sozinho dentro desta faixa.',
-      campos: [{ nome: 'data', tipo: 'data', rotulo: 'Autorizado em', obrigatorio: true, valor: new Date().toLocaleDateString('sv-SE') }],
-      rotuloConfirmar: 'Registrar',
+  private registrarAutorizacao() {
+    return this.semAvisoDeOutraConta(async () => {
+      const v = await this.vida.esperar(urbiVerso.formulario({
+        titulo: 'Autorização do proprietário',
+        mensagem: 'Registre a data em que o proprietário autorizou, por mensagem, o Negociador a fazer sozinho dentro desta faixa.',
+        campos: [{ nome: 'data', tipo: 'data', rotulo: 'Autorizado em', obrigatorio: true, valor: new Date().toLocaleDateString('sv-SE') }],
+        rotuloConfirmar: 'Registrar',
+      }));
+      if (v?.data) this.mudar({ autorizacao: { tipo: 'mensagem', arquivo_id: null, data: String(v.data) } });
     });
-    if (v?.data) this.mudar({ autorizacao: { tipo: 'mensagem', arquivo_id: null, data: String(v.data) } });
   }
 
   /** Anexo: um documento já anexado ao imóvel (`arquivo_id` = id da mídia); a rota confere que é dele. */
-  private async anexarDocumento() {
-    const docs = this.documentos ?? [];
-    if (!docs.length) {
-      await urbiVerso.alertar({
-        titulo: 'Nenhum documento no imóvel',
-        mensagem: 'O documento entra pela ficha do imóvel: Imóveis › ficha › Fotos e arquivos, como documento. Depois volte aqui e anexe.',
-        tipo: 'alerta',
-      });
-      return;
-    }
-    const v = await urbiVerso.formulario({
-      titulo: 'Autorização do proprietário',
-      mensagem: 'Escolha o documento em que o proprietário autoriza o Negociador a fazer sozinho dentro desta faixa.',
-      campos: [
-        { nome: 'arquivo_id', tipo: 'selecao', rotulo: 'Documento', obrigatorio: true, valor: String(docs[0].id), opcoes: docs.map((d) => ({ valor: String(d.id), rotulo: this.nomeDoDocumento(d) })) },
-        { nome: 'data', tipo: 'data', rotulo: 'Autorizado em', obrigatorio: true, valor: new Date().toLocaleDateString('sv-SE') },
-      ],
-      rotuloConfirmar: 'Anexar',
+  private anexarDocumento() {
+    return this.semAvisoDeOutraConta(async () => {
+      const docs = this.documentos ?? [];
+      if (!docs.length) {
+        await urbiVerso.alertar({
+          titulo: 'Nenhum documento no imóvel',
+          mensagem: 'O documento entra pela ficha do imóvel: Imóveis › ficha › Fotos e arquivos, como documento. Depois volte aqui e anexe.',
+          tipo: 'alerta',
+        });
+        return;
+      }
+      const v = await this.vida.esperar(urbiVerso.formulario({
+        titulo: 'Autorização do proprietário',
+        mensagem: 'Escolha o documento em que o proprietário autoriza o Negociador a fazer sozinho dentro desta faixa.',
+        campos: [
+          { nome: 'arquivo_id', tipo: 'selecao', rotulo: 'Documento', obrigatorio: true, valor: String(docs[0].id), opcoes: docs.map((d) => ({ valor: String(d.id), rotulo: this.nomeDoDocumento(d) })) },
+          { nome: 'data', tipo: 'data', rotulo: 'Autorizado em', obrigatorio: true, valor: new Date().toLocaleDateString('sv-SE') },
+        ],
+        rotuloConfirmar: 'Anexar',
+      }));
+      if (v?.arquivo_id && v.data) this.mudar({ autorizacao: { tipo: 'anexo', arquivo_id: Number(v.arquivo_id), data: String(v.data) } });
     });
-    if (v?.arquivo_id && v.data) this.mudar({ autorizacao: { tipo: 'anexo', arquivo_id: Number(v.arquivo_id), data: String(v.data) } });
   }
 
   private nomeDoDocumento(d: Linha | undefined) {
@@ -146,13 +169,14 @@ export class PcMandatoModal extends LitElement {
   }
 
   private async salvar() {
-    if (errosDoFormulario(this.f!).length) return;
+    if (errosDoFormulario(this.f!).length || !this.vida.vivo()) return;
     this.salvando = true;
     try {
-      await enviar('PUT', `/negociacoes/${this.negociacaoId}/mandato`, corpoDoFormularioMandato(this.f!));
+      await this.vida.esperar(enviar('PUT', `/negociacoes/${this.negociacaoId}/mandato`, corpoDoFormularioMandato(this.f!)));
       urbiVerso.notificar('Mandato salvo.', 'sucesso');
       this.aoFechar(true);
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'O mandato não foi salvo', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.salvando = false;

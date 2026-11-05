@@ -167,6 +167,8 @@ class NovoImovel extends EventTarget {
 
   /** Roda um gesto que não passa por `tentar`: conta trocada no meio termina em silêncio. */
   private async semAvisoDeOutraConta(fn: () => Promise<unknown>) {
+    // A conta já mudou (o estado é de antes): o gesto nem começa, nenhum diálogo abre.
+    if (!this.vida.vivo()) return;
     try {
       await fn();
     } catch (e) {
@@ -184,7 +186,7 @@ class NovoImovel extends EventTarget {
     const item = Number(q.get('item')) || null;
     const pedido = passoValido(q.get('passo'));
     void chamarApi('/imoveis/ia').then(
-      (r) => ((this.ia = r), this.mudou()),
+      (r) => void (this.vida.vivo() && ((this.ia = r), this.mudou())),
       () => undefined,
     );
     if (!item) {
@@ -224,7 +226,7 @@ class NovoImovel extends EventTarget {
       if (!this.sujo) this.form = doImovel(this.ficha!.imovel);
       if (this.leuFotosAgora) this.sugerirDasFotos();
       void chamarApi(`/imoveis/${this.id}/contexto`).then(
-        (c) => ((this.combinam = c.combinam?.length ?? 0), this.mudou()),
+        (c) => void (this.vida.vivo() && ((this.combinam = c.combinam?.length ?? 0), this.mudou())),
         () => undefined,
       );
     } catch (e) {
@@ -350,7 +352,7 @@ class NovoImovel extends EventTarget {
 
   /** Vai a outro passo salvando o atual. Os passos 3 e 4 precisam do rascunho criado. */
   async irPara(passo: PassoNovoImovel) {
-    if (passo === this.passo) return;
+    if (passo === this.passo || !this.vida.vivo()) return;
     // Autorização e Onde aparece precisam do rascunho, que precisa de tipo e cidade: sem eles, vai a Dados.
     if (!this.id && indicePasso(passo) >= indicePasso('autorizacao') && this.faltamObrigatorios().length) {
       urbiVerso.notificar('Antes, preencha tipo e cidade: com eles o rascunho fica guardado.', 'info');
@@ -370,6 +372,7 @@ class NovoImovel extends EventTarget {
 
   /** O passo Dados só avança com os obrigatórios preenchidos; os outros avançam sempre. */
   async proximo() {
+    if (!this.vida.vivo()) return;
     if (this.passo === 'dados' && this.faltamObrigatorios().length) {
       urbiVerso.notificar('Preencha os campos destacados para continuar. Para parar agora, salve o rascunho.', 'info');
       return;
@@ -386,6 +389,7 @@ class NovoImovel extends EventTarget {
 
   /** Salva o que há e vai para a ficha do rascunho na carteira. */
   async salvarRascunho() {
+    if (!this.vida.vivo()) return;
     if (!this.id && this.faltamObrigatorios().length) {
       urbiVerso.notificar('Para salvar o rascunho, preencha tipo e cidade.', 'info');
       if (this.passo !== 'fotos') await this.irPara('dados');
@@ -491,17 +495,18 @@ class NovoImovel extends EventTarget {
   registrarAutorizacao() {
     return this.semAvisoDeOutraConta(async () => {
       if (!this.ficha) return;
-      if (await this.esperar(registrarAutorizacao(this.ficha.imovel))) await this.reler();
+      if (await this.esperar(registrarAutorizacao(this.ficha.imovel, { gesto: this.vida }))) await this.reler();
     });
   }
 
   marcarAssinada(a: Linha) {
     return this.semAvisoDeOutraConta(async () => {
-      if (await this.esperar(marcarAssinada(a, this.ficha!.midias, 'aqui mesmo, em "Anexar o documento assinado",'))) await this.reler();
+      if (await this.esperar(marcarAssinada(a, this.ficha!.midias, 'aqui mesmo, em "Anexar o documento assinado",', { gesto: this.vida }))) await this.reler();
     });
   }
 
   escolherOnde(onde: 'so_voce' | 'publico') {
+    if (!this.vida.vivo()) return;
     if (onde === 'publico' && !this.ficha?.autorizacao_vigente) {
       urbiVerso.notificar('Para aparecer na sua página, a autorização precisa estar assinada e vigente (passo 3).', 'info');
       return;
@@ -518,7 +523,8 @@ class NovoImovel extends EventTarget {
     const ok = await this.tentar('Concluindo…', 'Não foi possível concluir', async () => {
       await this.salvarTudo();
       // A última leitura pode ter falhado: decidir sobre a ficha nula ou velha publicaria às cegas.
-      if (this.falha || !this.ficha) await this.recarregar();
+      // `reler`, e não `recarregar`: com a conta trocada, `ContaTrocada` segue e a cadeia para aqui.
+      if (this.falha || !this.ficha) await this.reler();
       if (this.falha || !this.ficha) throw this.falha ?? new Error('Não foi possível ler o imóvel. Tente de novo.');
       // A releitura pode ter deixado edição pendente (a sugestão das fotos): nada sai da tela sujo.
       if (this.sujo) await this.salvarTudo();

@@ -1,6 +1,6 @@
 import { html, nothing } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, gesto, mensagemDeErro, noGesto, reais, type Acao, type OpcoesAba } from '../apoio.js';
 import { ABAS_INICIO, APELIDOS_INICIO, type TipoFila } from '../../comum/funil';
 import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, FILA_VISIVEL, iniciarCarga, marcarEntrada, mostrarTudo, precisaCarregar, receberCarga, telaDeHoje, TIPO_NA_FILA, type AcaoFila, type PassoInicial } from '../../comum/hoje';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
@@ -84,38 +84,53 @@ async function carregar(atualizar: () => void) {
   estado.carga = iniciarCarga(estado.carga);
   atualizar();
   const geracao = estado.carga.geracao;
+  // A carga é da conta de agora: trocada no meio, a resposta (ou a falha) não é gravada como desta.
+  const g = gesto();
   try {
-    const [dados, ia] = await Promise.all([chamarApi('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]);
+    const [dados, ia] = await g.esperar(Promise.all([chamarApi('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]));
     const antes = estado.carga;
     estado.carga = receberCarga(antes, geracao, { dados });
     if (estado.carga !== antes) estado.ia = ia;
   } catch (e) {
-    estado.carga = receberCarga(estado.carga, geracao, { falha: e });
+    if (!g.encerrado(e)) estado.carga = receberCarga(estado.carga, geracao, { falha: e });
   } finally {
     atualizar();
   }
 }
 
-async function registrar(caminho: () => Promise<unknown>, atualizar: () => void) {
-  try {
-    await caminho();
+/**
+ * "Fiz" e "Visita feita": envio → aviso → recarga, num gesto da conta em que o cartão foi clicado. Trocada
+ * a conta com o envio em voo, termina em silêncio (nem "Registrado.", nem alerta, nem recarga de lá).
+ */
+function registrar(caminho: () => Promise<unknown>, atualizar: () => void) {
+  return noGesto(async (g) => {
+    if (!g.vivo()) return;
+    try {
+      await g.esperar(caminho());
+    } catch (e) {
+      if (g.encerrado(e)) throw e;
+      await g.esperar(urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
+      return;
+    }
     urbiVerso.notificar('Registrado.', 'sucesso');
     await carregar(atualizar);
-  } catch (e) {
-    await urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' });
-  }
+  });
 }
 
+/** Gerar a demonstração: o mesmo gesto calado se a conta muda com o POST em voo. */
 async function gerarDemo(atualizar: () => void) {
+  const g = gesto();
+  if (!g.vivo()) return;
   estado.gerandoDemo = true;
   atualizar();
   try {
-    await enviar('POST', '/demo/semear', {});
+    await g.esperar(enviar('POST', '/demo/semear', {}));
     urbiVerso.notificar('Dados de demonstração criados.', 'sucesso');
     await carregar(atualizar);
   } catch (e) {
-    await urbiVerso.alertar({ titulo: 'Não foi possível gerar', mensagem: mensagemDeErro(e), tipo: 'alerta' });
+    if (!g.encerrado(e)) await urbiVerso.alertar({ titulo: 'Não foi possível gerar', mensagem: mensagemDeErro(e), tipo: 'alerta' });
   } finally {
+    // O "gerando" é da tela, não da conta: volta ao normal mesmo com a conta trocada (senão o botão fica preso).
     estado.gerandoDemo = false;
     atualizar();
   }

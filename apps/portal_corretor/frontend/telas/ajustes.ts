@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ABAS_AJUSTES, ABA_PADRAO, abaDoEndereco, ehAbaAjustes, type AbaAjustes } from '../../comum/ajustes';
-import { avisoCreci, chamarApi, chamarFetch } from '../apoio.js';
+import { avisoCreci, chamarApi, chamarFetch, gesto } from '../apoio.js';
 import { estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -120,6 +120,8 @@ export function renderAjustes(atualizar: () => void) {
 @customElement('pc-ajustes-aviso-creci')
 export class PcAjustesAvisoCreci extends LitElement {
   @state() private semCreci = false;
+  /** A conta em que o aviso nasceu: a releitura que volta depois da troca não diz nada sobre a conta nova. */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
@@ -134,10 +136,11 @@ export class PcAjustesAvisoCreci extends LitElement {
 
   // Relê a conta ao aparecer e depois de salvar no centro (`pc-conta-salva`).
   private reler = () => {
-    void chamarApi('/conta').then(
+    if (!this.vida.vivo()) return;
+    void this.vida.esperar(chamarApi('/conta')).then(
       (c) => (this.semCreci = !c?.meu_perfil?.creci && !c?.perfil?.creci_juridico),
-      // Sem a conta, nada a avisar: o centro mostra a falha.
-      () => (this.semCreci = false),
+      // Sem a conta, nada a avisar: o centro mostra a falha. Conta trocada: nada muda.
+      (e) => void (this.vida.encerrado(e) || (this.semCreci = false)),
     );
   };
 
@@ -153,19 +156,23 @@ export class PcAjustesAvisoCreci extends LitElement {
 @customElement('pc-ajustes-privacidade')
 export class PcAjustesPrivacidade extends LitElement {
   @state() private exportando = false;
+  /** A conta em que a seção nasceu: trocada no meio da exportação, nada é baixado nem avisado. */
+  private readonly vida = gesto();
 
   private async exportar() {
+    if (!this.vida.vivo()) return;
     this.exportando = true;
     try {
-      const r = await chamarFetch('/contatos/exportar');
+      const r = await this.vida.esperar(chamarFetch('/contatos/exportar'));
       if (!r.ok) throw new Error('A exportação falhou.');
-      const url = URL.createObjectURL(await r.blob());
+      const url = URL.createObjectURL(await this.vida.esperar(r.blob()));
       const a = document.createElement('a');
       a.href = url;
       a.download = 'contatos.csv';
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
     } finally {
       this.exportando = false;

@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, formularioEnviar, reais } from '../apoio.js';
+import { chamarApi, formularioEnviar, gesto, reais } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -24,6 +24,8 @@ export class PcListaEmpreendimentos extends LitElement {
   @state() private falha: unknown = null;
   @state() private busca = '';
   private geracao = 0;
+  /** A conta em que a lista nasceu (a troca a recria): continuação depois da troca termina em silêncio (issue #144). */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
@@ -34,9 +36,10 @@ export class PcListaEmpreendimentos extends LitElement {
     const geracao = ++this.geracao;
     this.falha = null;
     try {
-      const r = await chamarApi(`/empreendimentos${this.busca ? `?busca=${encodeURIComponent(this.busca)}` : ''}`);
+      const r = await this.vida.esperar(chamarApi(`/empreendimentos${this.busca ? `?busca=${encodeURIComponent(this.busca)}` : ''}`));
       if (geracao === this.geracao) this.lista = r.dados; // resposta velha não sobrescreve a nova
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       if (geracao === this.geracao) this.falha = e;
     }
   }
@@ -54,10 +57,13 @@ export class PcListaEmpreendimentos extends LitElement {
       ],
       'POST',
       '/empreendimentos',
+      undefined,
+      { gesto: this.vida },
     );
     if (r?.id) {
       await this.carregar();
-      this.aoEscolher(r.id);
+      // Conta trocada durante a releitura: o criado é de A, não vira o `?item=` da conta nova.
+      if (this.vida.vivo()) this.aoEscolher(r.id);
     }
   }
 

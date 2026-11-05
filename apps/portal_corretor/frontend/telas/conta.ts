@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi } from '../apoio.js';
+import { chamarApi, gesto } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -30,6 +30,11 @@ export class PcTelaConta extends LitElement {
   @property() parte: 'conta' | 'atendimento' = 'conta';
   @state() private dados: DadosConta | null = null;
   @state() private falha: string | null = null;
+  /**
+   * A conta em que a tela nasceu (a troca de conta a recria). Toda continuação passa por `vida.esperar`:
+   * trocada a conta com o formulário aberto ou o PUT em voo, nada é gravado, avisado nem relido.
+   */
+  private readonly vida = gesto();
 
   connectedCallback() {
     super.connectedCallback();
@@ -39,8 +44,9 @@ export class PcTelaConta extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.dados = await chamarApi('/conta');
+      this.dados = await this.vida.esperar(chamarApi('/conta'));
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       this.falha = (e as Error).message;
     }
   }
@@ -48,16 +54,18 @@ export class PcTelaConta extends LitElement {
   // Abre o formulário, grava e recarrega. Erro de validação volta com a lista em `detalhes`.
   // `fixos` vão junto sem aparecer no formulário (campo que saiu da tela mas continua no dado).
   private async editar(titulo: string, rota: string, campos: CampoFormulario[], fixos: Record<string, unknown> = {}) {
-    const valores = await urbiVerso.formulario({ titulo, campos });
-    if (!valores) return;
     try {
-      const r = await chamarApi(rota, { method: 'PUT', body: JSON.stringify({ ...fixos, ...valores }), headers: { 'Content-Type': 'application/json' } });
+      if (!this.vida.vivo()) return;
+      const valores = await this.vida.esperar(urbiVerso.formulario({ titulo, campos }));
+      if (!valores) return;
+      const r = await this.vida.esperar(chamarApi(rota, { method: 'PUT', body: JSON.stringify({ ...fixos, ...valores }), headers: { 'Content-Type': 'application/json' } }));
       // Salvo com aviso (CRECI fora do formato usual, D-93): avisa sem desfazer nada.
       const avisos: string[] = Array.isArray(r?.avisos) ? r.avisos : [];
       urbiVerso.notificar(avisos.length ? `Salvo. ${avisos.join(' ')}` : 'Salvo.', avisos.length ? 'info' : 'sucesso');
       window.dispatchEvent(new CustomEvent('pc-conta-salva'));
       await this.carregar();
     } catch (e) {
+      if (this.vida.encerrado(e)) return;
       const falha = e as Error & { detalhes?: string[] };
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: falha.detalhes?.join('\n') || falha.message });
     }

@@ -55,6 +55,8 @@ function responder(metodo, caminho, c) {
   if (caminho === '/imoveis' && metodo === 'POST') return { id: c + 1 };
   if (caminho === '/imoveis') return { dados: [{ id: c + 1, codigo: 'IM-' + c, titulo: 'Casa ' + M, tipo: 'casa', situacao: 'ativo', publicado_pagina: true }], total: 1, paginas: 1 };
   if (caminho === '/imoveis/ia') return { fotos: false, conteudo: false };
+  // Proprietários: 150 é de A, 250 é de B.
+  if (caminho === '/contatos') return { dados: [{ id: c + 50, nome: 'Prop ' + M, telefone: null }], total: 1, paginas: 1 };
   const im = /^\\/imoveis\\/(\\d+)(\\/contexto)?$/.exec(caminho);
   if (im) {
     const id = Number(im[1]);
@@ -169,6 +171,16 @@ const depoisDaTroca = (p: any): Promise<Depois> =>
     return { chamadas: w.chamadas.slice(w.marco) as string[], avisos: w.avisos as string[], alertas: w.alertas as string[], url: location.pathname + location.search, formularios: w.formularios as string[] };
   });
 const trocar = (p: any) => p.evaluate(() => ((window as any).marco = (window as any).chamadas.length, (window as any).trocarConta(200)));
+/** A → B → A: a conta volta a ser a do início, mas o gesto começado antes da ida já terminou. */
+const idaEVolta = async (p: any) => {
+  await trocar(p);
+  await esperar(p);
+  await p.evaluate(() => (window as any).trocarConta(100));
+};
+const RESPOSTA_AUTORIZACAO = {
+  proprietario_id: '150', inicio: '2026-11-01', fim: '2027-05-01', preco_autorizado: 1, comissao_pct: 6,
+  exclusiva: false, permite_placa: true, permite_portais: true, permite_parceria: false,
+};
 
 for (const modo of MODOS) {
   test(`Página (${modo}): editar Destaques com a carga de /imoveis em voo; a conta muda; nada de A no diálogo nem PUT em B`, async (t) => {
@@ -274,6 +286,127 @@ for (const modo of MODOS) {
       assert.doesNotMatch(r.url, /item=101/, 'o id de A não vai para o endereço');
       assert.deepEqual(r.avisos, []);
       assert.deepEqual(r.alertas, []);
+    });
+  });
+
+  test(`Página (${modo}): sem troca, editar Destaques segue como antes (o PUT sai em A e avisa)`, async (t) => {
+    await cenario(t, modo, '/pagina?item=destaques', '', async (p) => {
+      await p.evaluate(() => {
+        const w = window as any;
+        w.marco = w.chamadas.length;
+        w.RESPOSTA_FORMULARIO = { titulo: 'Destaques escolhidos', 'im_IM-100': true };
+        w.clicar('urbi-botao', 'Editar bloco');
+      });
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.ok(r.formularios.some((f) => /IM-100/.test(f)), 'o diálogo abre com os imóveis de A');
+      assert.ok(r.chamadas.some((c) => c.startsWith('PUT /pagina @100')), 'o PUT /pagina sai em A');
+      assert.deepEqual(r.avisos, ['Salvo.']);
+      assert.deepEqual(r.alertas, []);
+    });
+  });
+
+  test(`Novo imóvel (${modo}): sem troca, Concluir segue como antes (PATCH em A, aviso e ida à ficha)`, async (t) => {
+    await cenario(t, modo, '/imoveis/novo?item=101&passo=onde', '', async (p) => {
+      await p.evaluate(() => {
+        const w = window as any;
+        w.marco = w.chamadas.length;
+        w.clicar('urbi-botao', 'Concluir');
+      });
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.ok(r.chamadas.some((c) => c.startsWith('PATCH /imoveis/101 @100')), 'o PATCH sai em A');
+      assert.deepEqual(r.avisos, ['Imóvel ativo e na sua página.']);
+      assert.deepEqual(r.alertas, []);
+      assert.equal(r.url, '/portal_corretor/imoveis?item=101', 'vai à ficha do imóvel');
+    });
+  });
+
+  test(`Novo imóvel (${modo}): Registrar autorização com a carga de proprietários em voo; a conta muda; nada de A no diálogo nem POST em B`, async (t) => {
+    await cenario(t, modo, '/imoveis/novo?item=101&passo=autorizacao', '', async (p) => {
+      await p.evaluate((resposta: unknown) => {
+        const w = window as any;
+        w.RESPOSTA_FORMULARIO = resposta;
+        w.SEGURAR = (m: string, c: string, k: number) => m === 'GET' && c === '/contatos' && k === 100;
+        w.clicar('urbi-botao', 'Registrar autorização');
+      }, RESPOSTA_AUTORIZACAO);
+      await esperar(p, 50);
+      assert.ok((await p.evaluate(() => (window as any).chamadas.some((c: string) => c.startsWith('GET /contatos?papel=proprietario @100')))), 'a carga dos proprietários de A está em voo');
+      await trocar(p);
+      await esperar(p);
+      await p.evaluate(() => (window as any).liberar());
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.deepEqual(r.formularios.filter((f) => /Autorização de venda|Prop CONTA 100/.test(f)), [], 'o diálogo não abre com proprietário de A');
+      assert.deepEqual(r.chamadas.filter((c) => c.startsWith('POST /autorizacoes')), [], 'nenhum POST /autorizacoes');
+      assert.deepEqual(r.avisos, []);
+      assert.deepEqual(r.alertas, []);
+    });
+  });
+
+  test(`Novo imóvel (${modo}): sem troca, Registrar autorização segue como antes (diálogo com o proprietário de A e POST em A)`, async (t) => {
+    await cenario(t, modo, '/imoveis/novo?item=101&passo=autorizacao', '', async (p) => {
+      await p.evaluate((resposta: unknown) => {
+        const w = window as any;
+        w.marco = w.chamadas.length;
+        w.RESPOSTA_FORMULARIO = resposta;
+        w.clicar('urbi-botao', 'Registrar autorização');
+      }, RESPOSTA_AUTORIZACAO);
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.ok(r.formularios.some((f) => /Prop CONTA 100/.test(f)), 'o diálogo traz o proprietário de A');
+      assert.ok(r.chamadas.some((c) => c.startsWith('POST /autorizacoes @100') && c.includes('"imovel_id":101')), 'o POST sai em A');
+      assert.deepEqual(r.avisos, ['Salvo.']);
+    });
+  });
+
+  test(`Novo imóvel (${modo}): ida e volta A → B → A com a carga de proprietários em voo também encerra o gesto`, async (t) => {
+    await cenario(t, modo, '/imoveis/novo?item=101&passo=autorizacao', '', async (p) => {
+      await p.evaluate((resposta: unknown) => {
+        const w = window as any;
+        w.RESPOSTA_FORMULARIO = resposta;
+        w.SEGURAR = (m: string, c: string, k: number) => m === 'GET' && c === '/contatos' && k === 100;
+        w.clicar('urbi-botao', 'Registrar autorização');
+      }, RESPOSTA_AUTORIZACAO);
+      await esperar(p, 50);
+      await idaEVolta(p);
+      await esperar(p);
+      // Só a carga do gesto antigo é liberada; a tela recriada em A não segura nada.
+      await p.evaluate(() => {
+        const w = window as any;
+        w.SEGURAR = () => false;
+        w.liberar();
+      });
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.deepEqual(r.formularios.filter((f) => /Autorização de venda/.test(f)), [], 'o diálogo do gesto antigo não abre');
+      assert.deepEqual(r.chamadas.filter((c) => c.startsWith('POST /autorizacoes')), [], 'nenhum POST /autorizacoes');
+      assert.deepEqual(r.avisos, []);
+      assert.deepEqual(r.alertas, []);
+    });
+  });
+
+  test(`Novo imóvel (${modo}): ida e volta A → B → A com o PATCH de Concluir em voo; sem aviso nem ida à ficha`, async (t) => {
+    await cenario(t, modo, '/imoveis/novo?item=101&passo=onde', '', async (p) => {
+      await p.evaluate(() => {
+        const w = window as any;
+        w.SEGURAR = (m: string, k: string, c: number) => m === 'PATCH' && c === 100;
+        w.clicar('urbi-botao', 'Concluir');
+      });
+      await esperar(p, 50);
+      await idaEVolta(p);
+      await esperar(p);
+      await p.evaluate(() => {
+        const w = window as any;
+        w.SEGURAR = () => false;
+        w.liberar();
+      });
+      await esperar(p);
+      const r = await depoisDaTroca(p);
+      assert.deepEqual(r.chamadas.filter((c) => !c.startsWith('GET ')), [], 'nenhum PATCH/POST depois da troca');
+      assert.deepEqual(r.avisos, []);
+      assert.deepEqual(r.alertas, []);
+      assert.ok(r.url.startsWith('/portal_corretor/imoveis/novo'), `não foi à ficha (${r.url})`);
     });
   });
 }

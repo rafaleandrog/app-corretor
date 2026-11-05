@@ -1,6 +1,6 @@
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { BUSCA_MIN, cortarTermo, normalizarTermo } from '../comum/busca';
-import { chamarApi } from './apoio.js';
+import { chamarApi, noGesto } from './apoio.js';
 import { criar, irParaComQuery, OPCOES_CRIAR, type OpcaoCriar } from './criar.js';
 import { alternarAssistente } from './telas/assistente.js';
 import { abrirNegociacao } from './telas/negociacoes.js';
@@ -146,48 +146,64 @@ export function irPara(d: DestinoBusca) {
   else abrirNegociacao(d.id);
 }
 
-/** A busca global (`/` ou Buscar no trilho). */
-export async function abrirBusca() {
-  // O campo `busca` do formulário devolve um número: cada resultado ganha um, e o mapa diz aonde ir.
-  const destinos = new Map<number, DestinoBusca>();
-  let seq = 0;
-  const buscar = async (termo: string, signal: AbortSignal) => {
-    const q = cortarTermo(termo);
-    // Mesma regra da rota: termo que ela recusaria por curto ("+5", "(1") nem é enviado.
-    if (!normalizarTermo(q)) return [];
-    const r = (await chamarApi(`/busca?q=${encodeURIComponent(q)}`, { signal })) as RespostaBusca;
-    return opcoesDaBusca(r).map((o) => {
-      destinos.set(++seq, o.destino);
-      return { valor: seq, rotulo: o.rotulo };
-    });
-  };
-  const r = await urbiVerso.formulario({
-    titulo: 'Buscar',
-    rotuloConfirmar: 'Abrir',
-    campos: [
-      {
-        nome: 'alvo',
-        tipo: 'busca',
-        rotulo: 'Cliente, imóvel ou negociação',
-        placeholder: `Nome, telefone, e-mail, código ou bairro (${BUSCA_MIN}+ letras)`,
-        obrigatorio: true,
-        buscar,
-      },
-    ],
+/**
+ * A busca global (`/` ou Buscar no trilho). É um gesto da conta em que abriu: trocada a conta com o
+ * diálogo aberto, a lista para de buscar e o escolhido (que é da conta anterior) não abre nada.
+ */
+export function abrirBusca() {
+  return noGesto(async (g) => {
+    if (!g.vivo()) return;
+    // O campo `busca` do formulário devolve um número: cada resultado ganha um, e o mapa diz aonde ir.
+    const destinos = new Map<number, DestinoBusca>();
+    let seq = 0;
+    const buscar = async (termo: string, signal: AbortSignal) => {
+      const q = cortarTermo(termo);
+      // Mesma regra da rota: termo que ela recusaria por curto ("+5", "(1") nem é enviado.
+      // Conta trocada com o diálogo aberto: nada de buscar na outra conta para uma lista desta.
+      if (!normalizarTermo(q) || !g.vivo()) return [];
+      let r: RespostaBusca;
+      try {
+        r = (await g.esperar(chamarApi(`/busca?q=${encodeURIComponent(q)}`, { signal }))) as RespostaBusca;
+      } catch (e) {
+        // A resposta chegou com a conta já trocada: a lista fica vazia, sem erro no diálogo.
+        if (g.encerrado(e)) return [];
+        throw e;
+      }
+      return opcoesDaBusca(r).map((o) => {
+        destinos.set(++seq, o.destino);
+        return { valor: seq, rotulo: o.rotulo };
+      });
+    };
+    const r = await g.esperar(urbiVerso.formulario({
+      titulo: 'Buscar',
+      rotuloConfirmar: 'Abrir',
+      campos: [
+        {
+          nome: 'alvo',
+          tipo: 'busca',
+          rotulo: 'Cliente, imóvel ou negociação',
+          placeholder: `Nome, telefone, e-mail, código ou bairro (${BUSCA_MIN}+ letras)`,
+          obrigatorio: true,
+          buscar,
+        },
+      ],
+    }));
+    const destino = typeof r?.alvo === 'number' ? destinos.get(r.alvo) : undefined;
+    if (destino) irPara(destino);
   });
-  const destino = typeof r?.alvo === 'number' ? destinos.get(r.alvo) : undefined;
-  if (destino) irPara(destino);
 }
 
-/** Criar pelo teclado: as mesmas opções do botão Criar, num formulário de uma escolha. */
-async function criarPeloTeclado() {
-  const r = await urbiVerso.formulario({
-    titulo: 'Criar',
-    rotuloConfirmar: 'Continuar',
-    campos: [{ nome: 'opcao', tipo: 'selecao', rotulo: 'O que criar', obrigatorio: true, opcoes: OPCOES_CRIAR.map((o) => ({ valor: o.id, rotulo: o.rotulo })) }],
+/** Criar pelo teclado: as mesmas opções do botão Criar, num formulário de uma escolha (conta trocada com ele aberto: nada). */
+function criarPeloTeclado() {
+  return noGesto(async (g) => {
+    const r = await g.esperar(urbiVerso.formulario({
+      titulo: 'Criar',
+      rotuloConfirmar: 'Continuar',
+      campos: [{ nome: 'opcao', tipo: 'selecao', rotulo: 'O que criar', obrigatorio: true, opcoes: OPCOES_CRIAR.map((o) => ({ valor: o.id, rotulo: o.rotulo })) }],
+    }));
+    const opcao = OPCOES_CRIAR.find((o) => o.id === r?.opcao)?.id as OpcaoCriar | undefined;
+    if (opcao) criar(opcao);
   });
-  const opcao = OPCOES_CRIAR.find((o) => o.id === r?.opcao)?.id as OpcaoCriar | undefined;
-  if (opcao) criar(opcao);
 }
 
 // ---------- Instalação ----------

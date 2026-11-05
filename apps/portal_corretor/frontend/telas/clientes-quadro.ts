@@ -1,10 +1,11 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
+import type { Gesto } from '../apoio.js';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { FILTROS_PRONTOS, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
-import { chamarApi, chip, contaDeTrabalho, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, opcoes, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, chip, contaDeTrabalho, enviar, filtrosDaUrl, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -134,6 +135,8 @@ export class PcClientesQuadro extends LitElement {
 
   private async carregar() {
     const geracao = ++this.geracao;
+    // A carga é da conta de agora: trocada no meio, a resposta (ou a falha) dela não vai para a tela.
+    const g = gesto();
     const conta = contaDeTrabalho();
     this.falha = null;
     try {
@@ -142,36 +145,47 @@ export class PcClientesQuadro extends LitElement {
       const q = new URLSearchParams();
       for (const k of ['pipeline', 'temperatura', 'parado_dias']) if (f.get(k)) q.set(k, f.get(k)!);
       const pronto = f.get('pronto');
-      if (ehPronto(pronto)) for (const [k, v] of Object.entries(parametrosDoPronto(pronto, await lerDiasParado()))) q.set(k, v);
-      const r = await chamarApi(`/funil/quadro?${q}`);
+      if (ehPronto(pronto)) for (const [k, v] of Object.entries(parametrosDoPronto(pronto, await g.esperar(lerDiasParado())))) q.set(k, v);
+      const r = await g.esperar(chamarApi(`/funil/quadro?${q}`));
       if (geracao !== this.geracao || !this.isConnected || conta !== contaDeTrabalho()) return;
       this.quadro = r;
       publicarResumo(conta, { funis: r.funis, temperaturas: r.temperaturas });
     } catch (e) {
+      if (g.encerrado(e)) return;
       if (geracao === this.geracao && this.isConnected) this.falha = (e as Error).message;
     }
   }
 
-  private async mover(e: CustomEvent) {
+  /**
+   * Arrastar o cartão: diálogo do motivo (se Perdido) → PATCH → aviso → recarga, num gesto só. Trocada a
+   * conta em qualquer await, o gesto termina em silêncio: nenhum PATCH, aviso ou alerta na outra conta.
+   */
+  private mover(e: CustomEvent) {
+    return noGesto((g) => this.moverNaConta(g, e));
+  }
+
+  private async moverNaConta(g: Gesto, e: CustomEvent) {
     const { item, listaDestino } = e.detail as { item: Linha; listaDestino: string };
-    const etapa = this.quadro!.etapas.find((x) => String(x.id) === String(listaDestino));
+    if (!g.vivo() || !this.quadro) return;
+    const etapa = this.quadro.etapas.find((x) => String(x.id) === String(listaDestino));
     if (!etapa) return;
     let motivo: string | undefined;
     if (etapa.tipo === 'perdida') {
-      const v = await urbiVerso.formulario({
+      const v = await g.esperar(urbiVerso.formulario({
         titulo: 'Por que perdeu?',
         campos: [{ nome: 'motivo', tipo: 'selecao', rotulo: 'Motivo', obrigatorio: true, opcoes: opcoes(ROTULO_MOTIVO_PERDA) }],
         rotuloConfirmar: 'Marcar como perdido',
-      });
+      }));
       if (!v) return void this.carregar(); // sem motivo nada é gravado: o cartão volta para onde estava
       motivo = String(v.motivo);
     }
     try {
-      const r = await enviar('PATCH', `/negocios/${item.id}`, { etapa_id: etapa.id, motivo_perda: motivo });
+      const r = await g.esperar(enviar('PATCH', `/negocios/${item.id}`, { etapa_id: etapa.id, motivo_perda: motivo }));
       const aviso = avisoDeEntrada(r?.negociador_entrou);
       if (aviso) urbiVerso.notificar(aviso, 'info');
     } catch (err) {
-      await urbiVerso.alertar({ titulo: 'Não foi possível mover', mensagem: mensagemDeErro(err), tipo: 'erro' });
+      if (g.encerrado(err)) throw err;
+      await g.esperar(urbiVerso.alertar({ titulo: 'Não foi possível mover', mensagem: mensagemDeErro(err), tipo: 'erro' }));
     }
     await this.carregar();
   }
