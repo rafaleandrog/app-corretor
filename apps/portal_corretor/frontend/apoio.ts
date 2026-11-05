@@ -51,6 +51,19 @@ export function contaAtiva(): number | null {
   return contas.find((c) => c.id === salva)?.id ?? contas[0].id;
 }
 
+/**
+ * A conta em que as telas trabalham: a escolhida no seletor (quem atende várias contas) ou a conta única
+ * de escrita (`contaEscrita`: com uma conta só, o shell resolve sozinho e `contaAtiva()` é nula, porque
+ * não há seletor nem `X-Conta`). É a IDENTIDADE da conta para o estado das telas (a chave `sub|conta` do
+ * app, o dono dos dados guardados fora do componente): o operador de conta única que tem a conta trocada
+ * muda `contaEscrita`, e só por ela a troca aparece. O `X-Conta` continua saindo de `contaAtiva()`.
+ * O SDK não tem evento nem leitura de "conta ativa" (pedido ao shell em specs/pedidos_ao_shell.md): ela
+ * é lida do contexto, que avisa por `urbi:contexto-app`.
+ */
+export function contaDeTrabalho(): number | null {
+  return contaAtiva() ?? urbiVerso.contexto?.()?.conta?.contaEscrita ?? null;
+}
+
 export function escolherConta(id: number) {
   try {
     localStorage.setItem(CHAVE_CONTA, String(id));

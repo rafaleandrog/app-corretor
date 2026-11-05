@@ -54,6 +54,18 @@ link direto, e recarregar a tela volta à mesma seção. Os endereços antigos c
 - **Tipo**: corretor autônomo, imobiliária ou incorporadora.
 - **CPF ou CNPJ** e **CRECI jurídico** (imobiliária): opcionais.
 
+## Trocar de conta
+
+Quem atende mais de uma conta escolhe em qual está no seletor **Conta**, no topo do app. Quem atende
+uma conta só não vê seletor; se a equipe da plataforma trocar a sua conta, o app percebe sozinho.
+
+Nos dois casos, a tela em que você está abre de novo, do zero, já na conta nova: nada da conta
+anterior (lista, ficha aberta, contagens do Funil, rascunho do Novo imóvel, textos da Página, números)
+continua na tela. O que estava carregando ou sendo feito na conta anterior termina em silêncio: a
+resposta que chega depois da troca é descartada e não aparece na conta nova. O que o servidor já
+tinha gravado fica gravado, na conta em que foi pedido. A conversa do **Assistente** também é de uma
+conta só: ela recomeça vazia na conta nova.
+
 ## A marca
 
 A seção **Conta e marca** guarda também a marca da conta, e ela é uma só para tudo o que o cliente vê:

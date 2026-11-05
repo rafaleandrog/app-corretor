@@ -1,7 +1,7 @@
 import { html, nothing } from 'lit';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { ROTULO_BLOCO, type Bloco } from '../../comum/pagina';
-import { acoesComMais, avisoCreci, chamarApi, contaAtiva, dataHora, enviar, itemDaUrl, itemNaUrl, mensagemDeErro } from '../apoio';
+import { acoesComMais, avisoCreci, chamarApi, contaDeTrabalho, dataHora, enviar, itemDaUrl, itemNaUrl, mensagemDeErro } from '../apoio';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import type { PreviaPagina } from '../publico/pagina-publica.js';
@@ -50,11 +50,11 @@ let redesenhar: () => void = () => {};
 
 /** Cada entrada em Página (e cada troca de conta) relê a página e a prévia. */
 export function aoAbrirPagina() {
-  if (estado.conta !== contaAtiva()) {
+  if (estado.conta !== contaDeTrabalho()) {
     estado.visao = null;
     estado.previa = null;
   }
-  estado.conta = contaAtiva();
+  estado.conta = contaDeTrabalho();
   void carregar();
 }
 
@@ -110,10 +110,14 @@ async function salvar(mudancas: Partial<Visao['pagina']>, extra: Record<string, 
     return false;
   }
   const p = { ...estado.visao!.pagina, ...mudancas };
+  const conta = estado.conta;
   estado.salvando = true;
   redesenhar();
   try {
-    estado.visao = await enviar('PUT', '/pagina', { endereco: p.endereco, nome_exibicao: p.nome_exibicao, blocos: p.blocos, ...extra });
+    const visao = await enviar('PUT', '/pagina', { endereco: p.endereco, nome_exibicao: p.nome_exibicao, blocos: p.blocos, ...extra });
+    // A conta mudou com o salvamento em voo: a página devolvida é da conta anterior e não entra na tela.
+    if (conta !== estado.conta) return false;
+    estado.visao = visao;
     urbiVerso.notificar('Salvo.', 'sucesso');
     void carregarPrevia();
     return true;
@@ -197,16 +201,19 @@ async function refazerComIa() {
     rotuloConfirmar: 'Escrever',
   });
   if (!v) return;
+  const conta = estado.conta;
   estado.ocupado = true;
   redesenhar();
   try {
     const r = await enviar('POST', '/pagina/sugerir-textos', { observacoes: v.observacoes, nome_exibicao: estado.visao!.pagina.nome_exibicao });
+    // Os textos são da conta em que foram pedidos: com a conta trocada, não se oferecem nem se gravam na outra.
+    if (conta !== estado.conta) return;
     const ok = await urbiVerso.confirmar({
       titulo: 'Usar estes textos?',
       mensagem: `Apresentação:\n${r.apresentacao}\n\nSobre mim:\n${r.sobre}`,
       rotuloConfirmar: 'Usar e ligar os blocos',
     });
-    if (!ok) return;
+    if (!ok || conta !== estado.conta) return;
     const blocos = estado.visao!.pagina.blocos.map((b) =>
       b.tipo === 'apresentacao' ? { ...b, texto: r.apresentacao, ativo: true } : b.tipo === 'sobre' ? { ...b, texto: r.sobre, ativo: true } : b,
     );

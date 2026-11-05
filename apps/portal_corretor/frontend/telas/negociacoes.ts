@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { PLAYBOOK_OBJECOES_PADRAO } from '../../comum/negociacao';
 import { reaisParaCentavos } from '../../comum/crm';
-import { chamarApi, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, reais, soNegociador } from '../apoio.js';
+import { chamarApi, contaDeTrabalho, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, reais, soNegociador } from '../apoio.js';
 import { moldura } from '../moldura.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import './mandato.js';
@@ -285,7 +285,7 @@ let aberta: { conta: number | null; n: NegociacaoAberta } | null = null;
 
 /** A negociação aberta: uma por vez, da conta ativa; uma visita nova relê do zero. */
 export function negociacaoDe(id: number): NegociacaoAberta {
-  const conta = contaAtiva();
+  const conta = contaDeTrabalho();
   if (!aberta || aberta.conta !== conta || aberta.n.id !== id || !aberta.n.emUso) aberta = { conta, n: new NegociacaoAberta(id) };
   return aberta.n;
 }

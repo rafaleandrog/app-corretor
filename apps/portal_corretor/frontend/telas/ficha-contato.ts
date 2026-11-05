@@ -9,7 +9,7 @@ import { tarefaDaAbordagem } from '../../comum/funil';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
-import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { registrarEdicao, soltarEdicao } from '../atalhos.js';
 
@@ -823,7 +823,7 @@ export class FichaContato {
 let aberta: { conta: number | null; ficha: FichaContato } | null = null;
 
 export function fichaDe(contatoId: number): FichaContato {
-  const conta = contaAtiva();
+  const conta = contaDeTrabalho();
   if (!aberta || aberta.conta !== conta || aberta.ficha.contatoId !== contatoId || !aberta.ficha.emUso) aberta = { conta, ficha: new FichaContato(contatoId) };
   return aberta.ficha;
 }

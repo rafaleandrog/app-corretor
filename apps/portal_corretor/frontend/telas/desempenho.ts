@@ -4,7 +4,7 @@ import { CANAIS } from '../../comum/crm';
 import { gerarCsv } from '../../comum/csv';
 import { linhasCsvNumeros, type RespostaNumeros } from '../../comum/numeros';
 import { rotuloObjecao } from '../../comum/numeros-negociacao';
-import { chamarApi, contaAtiva, filtrosDaUrl, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
+import { chamarApi, contaDeTrabalho, filtrosDaUrl, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -70,7 +70,7 @@ function lerFiltros() {
 
 /** Cada entrada em Números (e cada troca de conta) relê os números do período da URL. */
 export function aoAbrirNumeros() {
-  if (estado.conta !== contaAtiva()) {
+  if (estado.conta !== contaDeTrabalho()) {
     estado.dados = null;
     estado.negociacao = null;
     estado.falhaNegociacao = null;
@@ -78,14 +78,14 @@ export function aoAbrirNumeros() {
     estado.geracaoNegociacao++;
   }
   estado.chaveNegociacao = '';
-  estado.conta = contaAtiva();
+  estado.conta = contaDeTrabalho();
   void carregar();
 }
 
 /** Lê o relatório Negociação quando ele está aberto e o período (ou a conta) mudou desde a última leitura. */
 async function carregarNegociacao() {
   const { dias, relatorio } = lerFiltros();
-  const chave = `${contaAtiva()}:${dias}`;
+  const chave = `${contaDeTrabalho()}:${dias}`;
   if (relatorio.id !== 'negociacao' || chave === estado.chaveNegociacao) return;
   estado.chaveNegociacao = chave;
   const geracao = ++estado.geracaoNegociacao;

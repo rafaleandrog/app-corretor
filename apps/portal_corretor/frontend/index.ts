@@ -14,12 +14,12 @@ import { aoAbrirPagina, renderPagina } from './telas/pagina.js';
 import './telas/previa-pagina.js';
 import { renderEstudio } from './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
-import { abrirAssistente, aoMudarAssistente, lembrarTela } from './telas/assistente.js';
+import { abrirAssistente, aoMudarAssistente, contaDoAssistente, lembrarTela } from './telas/assistente.js';
 import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
 import { botaoAssistente, menuCriar } from './criar.js';
 import { instalarAtalhos } from './atalhos.js';
-import { contaAtiva, contasDoUsuario, escolherConta, semConta, soNegociador } from './apoio.js';
+import { contaDeTrabalho, contasDoUsuario, escolherConta, semConta, soNegociador } from './apoio.js';
 import './publico/pagina-publica.js';
 import './publico/link.js';
 import './publico/selecao.js';
@@ -96,16 +96,29 @@ export class AppPortalCorretor extends LitElement {
     // Admin do app vale por todos os papéis (o SDK não os entrega a ele): precisa ver e configurar tudo.
     this.papeis = ctx.nivel === 'admin' ? ['corretor', 'operacao'] : (ctx.roles ?? []);
     this.contas = contasDoUsuario();
-    this.conta = contaAtiva();
     this.semConta = semConta();
+    this.mudarConta();
   };
 
   // Quem atende várias contas escolhe em qual está; a tela é recriada para recarregar daquela conta.
   private aoEscolherConta = (e: CustomEvent) => {
     escolherConta(Number(e.detail.valor));
-    this.conta = contaAtiva();
-    this.avisarTela(this.sub);
+    this.mudarConta();
   };
+
+  /**
+   * A conta de trabalho (`contaDeTrabalho`: a do seletor ou a conta única de escrita) é parte da chave da
+   * tela. Mudou (o seletor, ou o contexto: o operador de conta única que tem a conta trocada, a conta que
+   * sumiu): a tela é recriada pela chave nova, a que guarda dados fora do componente os relê (`aoAbrir`)
+   * e a conversa do Assistente recomeça. Nada da conta anterior fica na página.
+   */
+  private mudarConta() {
+    const conta = contaDeTrabalho();
+    contaDoAssistente(conta);
+    if (conta === this.conta) return;
+    this.conta = conta;
+    this.avisarTela(this.sub);
+  }
 
   /** A tela do endereço que guarda dados fora do componente os relê (`aoAbrir`). */
   private avisarTela(sub: string) {
@@ -195,7 +208,11 @@ export class AppPortalCorretor extends LitElement {
     return tela.papel === 'corretor' && !tela.moldura ? comAssistente(conteudo) : conteudo;
   }
 
-  /** A chave da tela: trocar de endereço, de conta ou navegar de novo recria a tela (`keyed`). */
+  /**
+   * A chave da tela (`sub|conta|visita`): trocar de endereço, de conta (a de trabalho, inclusive a conta
+   * única de escrita) ou navegar de novo recria a tela (`keyed`). O estado é da instância que nasceu com
+   * a chave; continuação assíncrona de uma instância antiga é descartada (cada tela confere a sua).
+   */
   private chaveDaTela = () => `${this.sub}|${this.conta}|${this.visita}`;
 
   /** Criar em toda tela do corretor; o Assistente no cabeçalho só onde ainda não há trilho. */

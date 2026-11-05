@@ -4,7 +4,7 @@ import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { FILTROS_PRONTOS, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
-import { chamarApi, chip, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, opcoes, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, chip, contaDeTrabalho, enviar, filtrosDaUrl, filtrosNaUrl, mensagemDeErro, opcoes, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -18,10 +18,14 @@ const DEFINICAO_TEMPERATURA = 'Quente: proposta, visita marcada ou gostou da vis
 
 // O que o quadro devolveu por último: a coluna da esquerda mostra as contagens dele (funis e
 // temperaturas) sem pedir o quadro de novo.
-let resumo: { funis: Record<string, number>; temperaturas: Record<string, number> } | null = null;
+// O resumo é da conta de trabalho em que o quadro o leu: com a conta trocada, a esquerda não mostra as
+// contagens da anterior enquanto o quadro novo carrega.
+type Resumo = { funis: Record<string, number>; temperaturas: Record<string, number> };
+let publicado: { conta: number | null; resumo: Resumo } | null = null;
+const resumoDaConta = (): Resumo | null => (publicado && publicado.conta === contaDeTrabalho() ? publicado.resumo : null);
 const ouvintes = new Set<() => void>();
-function publicarResumo(r: typeof resumo) {
-  resumo = r;
+function publicarResumo(conta: number | null, r: Resumo) {
+  publicado = { conta, resumo: r };
   ouvintes.forEach((f) => f());
 }
 
@@ -81,6 +85,7 @@ export class PcClientesFunilFiltros extends LitElement {
     const pronto = f.get('pronto');
     const temperatura = f.get('temperatura') ?? '';
     const n = (o: Record<string, number> | undefined, k: string) => (o && k in o ? ` (${o[k]})` : '');
+    const resumo = resumoDaConta();
     return html`<urbi-stack>
       <urbi-prosa papel="secundario">Funis</urbi-prosa>
       <urbi-chips-atalho .opcoes=${Object.entries(NOME_FUNIL).map(([id, rotulo]) => ({ id, rotulo: `${rotulo}${n(resumo?.funis, id)}` }))} ativo=${pipeline}
@@ -129,6 +134,7 @@ export class PcClientesQuadro extends LitElement {
 
   private async carregar() {
     const geracao = ++this.geracao;
+    const conta = contaDeTrabalho();
     this.falha = null;
     try {
       // Só os filtros do quadro: a URL é dividida com a Lista. O filtro pronto vira os mesmos parâmetros da Lista.
@@ -138,9 +144,9 @@ export class PcClientesQuadro extends LitElement {
       const pronto = f.get('pronto');
       if (ehPronto(pronto)) for (const [k, v] of Object.entries(parametrosDoPronto(pronto, await lerDiasParado()))) q.set(k, v);
       const r = await chamarApi(`/funil/quadro?${q}`);
-      if (geracao !== this.geracao || !this.isConnected) return;
+      if (geracao !== this.geracao || !this.isConnected || conta !== contaDeTrabalho()) return;
       this.quadro = r;
-      publicarResumo({ funis: r.funis, temperaturas: r.temperaturas });
+      publicarResumo(conta, { funis: r.funis, temperaturas: r.temperaturas });
     } catch (e) {
       if (geracao === this.geracao && this.isConnected) this.falha = (e as Error).message;
     }

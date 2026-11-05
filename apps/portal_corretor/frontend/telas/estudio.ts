@@ -25,7 +25,7 @@ import {
   acoesComMais,
   avisoCreci,
   chamarApi,
-  contaAtiva,
+  contaDeTrabalho,
   dataHora,
   enviar,
   filtrosDaUrl,
@@ -128,14 +128,7 @@ const cancelado = () => new Error(CANCELADO);
 /** A regra do silêncio, num lugar só: instância encerrada ou operação cancelada não viram erro na tela. */
 const silencioso = (e: unknown) => e instanceof InstanciaEncerrada || (e instanceof Error && e.message === CANCELADO);
 
-/**
- * A conta em que o Estúdio trabalha: a escolhida no seletor (quem atende várias contas) ou a conta única
- * de escrita (`contaEscrita`: com uma conta só, o shell resolve sozinho e `contaAtiva()` é nula, porque
- * não há seletor nem `X-Conta`). O app só chama a tela com o contexto carregado e fora do "sem conta"
- * (`semConta()`); mas `semConta()` é falso quando o contexto já carregou sem o campo `conta`, e aí a
- * tela é chamada e a conta de trabalho é nula, de forma estável (não é uma janela passageira).
- */
-const contaDeTrabalho = (): number | null => contaAtiva() ?? urbiVerso.contexto?.()?.conta?.contaEscrita ?? null;
+// A conta em que o Estúdio trabalha é `contaDeTrabalho` (apoio.ts): a do seletor ou a conta única de escrita.
 
 const opcaoImovel = (i: Record<string, any>) => ({ valor: String(i.id), rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}`, textoBusca: `${i.bairro ?? ''} ${i.cidade ?? ''}` });
 

@@ -1,6 +1,6 @@
 import { html, nothing } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, contaAtiva, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, mensagemDeErro, reais, type Acao, type OpcoesAba } from '../apoio.js';
 import { ABAS_INICIO, APELIDOS_INICIO, type TipoFila } from '../../comum/funil';
 import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, FILA_VISIVEL, iniciarCarga, marcarEntrada, mostrarTudo, precisaCarregar, receberCarga, telaDeHoje, TIPO_NA_FILA, type AcaoFila, type PassoInicial } from '../../comum/hoje';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
@@ -75,7 +75,7 @@ export function aoAbrirHoje() {
 /** Conta diferente da dona dos dados: zera tudo (e a sonda de IA) e deixa a recarga pendente, antes de qualquer desenho. */
 function trocarDeConta() {
   const antes = estado.carga;
-  estado.carga = entrarEmHoje(antes, contaAtiva());
+  estado.carga = entrarEmHoje(antes, contaDeTrabalho());
   if (estado.carga !== antes) estado.ia = null;
 }
 
