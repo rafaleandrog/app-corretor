@@ -427,6 +427,20 @@ async function midiaDoImovel(req: Request, imovelId: number) {
   return m && m.imovel_id === imovelId ? m : null;
 }
 
+/**
+ * Trava de edição simultânea (#143), com o mesmo caminho do F2 (#134): relê a linha DENTRO da
+ * transação com `buscar(…, { travar: true })` e a compara com a que a rota leu antes de validar. A
+ * segunda de duas edições concorrentes espera a trava; ao entrar, vê a linha já gravada pela primeira
+ * (o `atualizado_em` avançou) e recusa, em vez de sobrescrever o que não leu. `null` quando a linha sumiu.
+ */
+async function relerSemMudanca(trx: HelperDados, tabela: string, lida: Record<string, unknown>) {
+  const viva = await trx.buscar(tabela, Number(lida.id), { travar: true });
+  if (!viva) return 'sumiu' as const;
+  const versao = (x: unknown) => (x == null ? '' : new Date(x as string).toISOString());
+  if (versao(viva.atualizado_em) !== versao(lida.atualizado_em) || JSON.stringify(viva) !== JSON.stringify(lida)) return 'mudou' as const;
+  return viva;
+}
+
 imoveisRotas.post(
   '/imoveis/:id/midias',
   assincrono(async (req, res) => {
@@ -523,18 +537,31 @@ imoveisRotas.patch(
       mudar.tipo = corpo.tipo;
     }
     if ('publica' in corpo) mudar.publica = corpo.publica === true;
-    // O documento de uma autorização nunca vira foto nem fica público, por nenhum caminho.
-    if ((mudar.tipo !== undefined && mudar.tipo !== 'documento') || mudar.publica === true) {
-      const usa = await primeiro(req.dados!, 'autorizacoes_venda', { documento_midia_id: midia.id });
-      if (usa) return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização: fica sempre interno.');
-      if (await anexoDeMandatoVigente(req.dados!, imovel!.id, midia.id)) {
-        return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é a autorização do proprietário no mandato de uma negociação em andamento: fica sempre interno.');
-      }
+    if (!Object.keys(mudar).length) {
+      await tentarSincronizar(req, imovel!.id);
+      return res.json(midia);
     }
-    if ((mudar.tipo ?? midia.tipo) === 'documento' && (mudar.publica ?? midia.publica)) mudar.publica = false;
-    const salva = Object.keys(mudar).length ? await req.dados!.atualizar('imovel_midias', midia.id, mudar) : midia;
+    // Confere e grava com a mídia travada (#143, mesmo caminho do F2): a remoção e o PUT do mandato
+    // travam a mesma linha, e uma segunda edição simultânea recusa (409) em vez de sobrescrever.
+    const r = await req.dados!.transaction(async (trx) => {
+      const viva = await relerSemMudanca(trx, 'imovel_midias', midia);
+      if (viva === 'sumiu' || viva === 'mudou') return viva;
+      // O documento de uma autorização nunca vira foto nem fica público, por nenhum caminho.
+      if ((mudar.tipo !== undefined && mudar.tipo !== 'documento') || mudar.publica === true) {
+        if (await primeiro(trx, 'autorizacoes_venda', { documento_midia_id: midia.id })) return 'autorizacao' as const;
+        if (await anexoDeMandatoVigente(trx, imovel!.id, midia.id)) return 'mandato' as const;
+      }
+      if ((mudar.tipo ?? viva.tipo) === 'documento' && (mudar.publica ?? viva.publica)) mudar.publica = false;
+      return { salva: await trx.atualizar('imovel_midias', midia.id, mudar) };
+    });
+    if (r === 'sumiu') return erro(res, 404, 'NAO_ENCONTRADO', 'Arquivo não encontrado.');
+    if (r === 'mudou') return erro(res, 409, 'MIDIA_ALTERADA', 'Este arquivo foi alterado agora por outra tela. Abra de novo.');
+    if (r === 'autorizacao') return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é o documento de uma autorização: fica sempre interno.');
+    if (r === 'mandato') {
+      return erro(res, 409, 'DOCUMENTO_EM_USO', 'Este arquivo é a autorização do proprietário no mandato de uma negociação em andamento: fica sempre interno.');
+    }
     await tentarSincronizar(req, imovel!.id);
-    res.json(salva);
+    res.json(r.salva);
   }),
 );
 
@@ -666,24 +693,36 @@ imoveisRotas.patch(
     const inicio = (mudar.inicio ?? atual.inicio) as string;
     const fim = (mudar.fim ?? atual.fim) as string;
     if (fim < inicio) return erro(res, 422, 'DADOS_INVALIDOS', 'O fim vem depois do início.');
-    if ('documento_midia_id' in (req.body ?? {})) {
-      const mid = id(req.body.documento_midia_id);
-      const doc = mid ? await dados.buscar('imovel_midias', mid) : null;
-      if (req.body.documento_midia_id !== null && (!doc || doc.imovel_id !== atual.imovel_id)) {
-        return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha um arquivo deste imóvel como documento.');
-      }
-      mudar.documento_midia_id = doc ? doc.id : null;
-      // O documento assinado nunca fica público.
-      if (doc && (doc.tipo !== 'documento' || doc.publica)) await dados.atualizar('imovel_midias', doc.id, { tipo: 'documento', publica: false });
+    const trocaDocumento = 'documento_midia_id' in (req.body ?? {});
+    const mid = trocaDocumento ? id(req.body.documento_midia_id) : null;
+    if (trocaDocumento && req.body.documento_midia_id !== null && !mid) {
+      return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha um arquivo deste imóvel como documento.');
     }
+    if (trocaDocumento) mudar.documento_midia_id = mid;
     const situacao = (mudar.situacao ?? atual.situacao) as string;
     const documento = 'documento_midia_id' in mudar ? mudar.documento_midia_id : atual.documento_midia_id;
     if (situacao === 'assinada' && !documento) {
       return erro(res, 422, 'DOCUMENTO_OBRIGATORIO', 'Anexe o documento assinado antes de marcar a autorização como assinada.');
     }
-    const aut = await dados.atualizar('autorizacoes_venda', aid!, mudar);
+    // Confere e grava com a autorização travada (#143, mesmo caminho do F2): uma segunda edição
+    // simultânea recusa (409) em vez de sobrescrever. Ordem de trava: autorização, depois a mídia
+    // do documento (relida travada: a remoção e a edição da mídia travam a mesma linha).
+    const r = await dados.transaction(async (trx) => {
+      const viva = await relerSemMudanca(trx, 'autorizacoes_venda', atual);
+      if (viva === 'sumiu' || viva === 'mudou') return viva;
+      if (mid) {
+        const doc = await trx.buscar('imovel_midias', mid, { travar: true });
+        if (!doc || doc.imovel_id !== atual.imovel_id) return 'documento' as const;
+        // O documento assinado nunca fica público.
+        if (doc.tipo !== 'documento' || doc.publica) await trx.atualizar('imovel_midias', doc.id, { tipo: 'documento', publica: false });
+      }
+      return { aut: await trx.atualizar('autorizacoes_venda', aid!, mudar) };
+    });
+    if (r === 'sumiu') return erro(res, 404, 'NAO_ENCONTRADO', 'Autorização não encontrada.');
+    if (r === 'mudou') return erro(res, 409, 'AUTORIZACAO_ALTERADA', 'Esta autorização foi alterada agora por outra tela. Abra de novo.');
+    if (r === 'documento') return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha um arquivo deste imóvel como documento.');
     await tentarSincronizar(req, atual.imovel_id);
-    res.json(aut);
+    res.json(r.aut);
   }),
 );
 
