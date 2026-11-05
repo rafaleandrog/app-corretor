@@ -5,6 +5,7 @@ import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { secaoDaFalta } from '../../comum/imoveis';
 import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
+import { registrarEdicao, soltarEdicao } from '../atalhos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -71,10 +72,13 @@ export class PcTelaFichaImovel extends LitElement {
     void this.carregar(true);
     void chamarApi('/imoveis/ia').then((r) => (this.ia = r), () => undefined);
     window.addEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
+    // E (11.0.6): o mesmo Editar do cabeçalho, com a ficha carregada.
+    registrarEdicao(this, () => void (this.ficha && this.editar()));
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    soltarEdicao(this);
     window.removeEventListener(EVENTO_RESOLVER_FALTA, this.aoResolver);
   }
 

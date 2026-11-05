@@ -10,6 +10,7 @@ import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
 import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
+import { registrarEdicao, soltarEdicao } from '../atalhos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -160,6 +161,11 @@ export class FichaContato {
 
   private async depois(r: unknown) {
     if (r) await this.carregar();
+  }
+
+  /** E (11.0.6): Editar contato, se a ficha já carregou. */
+  editarPeloAtalho() {
+    if (this.s.ficha) this.editar();
   }
 
   private editar() {
@@ -843,6 +849,12 @@ export class PcFichaContatoFoco extends ColunaDaFicha {
   connectedCallback() {
     super.connectedCallback();
     this.ficha!.entrar();
+    registrarEdicao(this, () => this.ficha?.editarPeloAtalho());
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    soltarEdicao(this);
   }
 
   render() {

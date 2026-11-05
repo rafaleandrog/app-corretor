@@ -152,9 +152,9 @@ test('estrutura da moldura: inbox com trilho, três colunas com respiro, nada de
     const fonte = readFileSync(resolve(process.cwd(), arq), 'utf8');
     assert.doesNotMatch(fonte, /\bcss`|style=|<style|static styles/, arq);
   }
-  // Trilho: o menu do Padrão B na ordem de 11.0.1 e o Assistente no pé, com o item da tela ativo.
+  // Trilho: o menu do Padrão B na ordem de 11.0.1, Buscar (11.7) e o Assistente no pé, com o item da tela ativo.
   const itens = itensDoTrilho('/numeros');
-  assert.deepEqual(itens.map((i) => i.rotulo), ['Hoje', 'Clientes', 'Imóveis', 'Estúdio', 'Página', 'Números', 'Ajustes', 'Assistente']);
+  assert.deepEqual(itens.map((i) => i.rotulo), ['Hoje', 'Clientes', 'Imóveis', 'Estúdio', 'Página', 'Números', 'Ajustes', 'Buscar', 'Assistente']);
   assert.deepEqual(itens.filter((i) => i.ativo).map((i) => i.id), ['/numeros']);
 });
 
