@@ -21,7 +21,9 @@ alguns formatos comuns ("W3 Sul", "Apto 2B"), com o critério de equivalência d
 entra](#quando-o-negociador-entra)); a 0.1.38 deixa esses gatilhos mais robustos (a negociação e a
 tarefa do mandato nascem juntas, e a mesma mensagem não faz o Negociador responder duas vezes). Na
 0.1.39, trocar de conta recria a tela da negociação (ver [Trocar de conta no meio de uma
-negociação](#trocar-de-conta-no-meio-de-uma-negociação)).
+negociação](#trocar-de-conta-no-meio-de-uma-negociação)). Na 0.1.40, o código de unidade que se lê como ordinal, tempo ou
+escala ("apto 6A") passa pela mesma conferência da gêmea que os formatos comuns (ver [Como o
+Negociador IA decide](#como-o-negociador-ia-decide-e-o-que-ele-nunca-faz)).
 
 ### Resumo das garantias
 
@@ -364,7 +366,13 @@ conversa com a IA):
    retém também, qualquer que seja a palavra que fez a gêmea reter. Por isso, num imóvel de 1,5 mi com
    alvo de 1,45 mi, "Fica no bloco C50" e "Por favor, apto K43" retêm: "Fica no bloco 50" e "Por favor,
    apto 43" já retinham (o número depois de "fica" ou de "por" é lido como diferença de um valor
-   público, e 50 mil é a distância do pedido ao alvo). Se a forma com
+   público, e 50 mil é a distância do pedido ao alvo). **Desde a 0.1.40**, a gêmea vale também para o
+   código que se lê como ordinal, tempo ou escala ("apto 6A" como "6ª", "apto 6S" como segundos, "apto
+   24M" como milhões, "6O", "6D", "6X", "6H", "6K"), que antes passava sem conferência: logo depois de
+   "apto", "torre", "bloco" e das outras palavras de endereço, ele retém quando alguma gêmea retém ("Fica
+   no apto 6A" retém, porque "Fica no apto 64" retém) e segue passando quando nenhuma retém ("Apto 6A",
+   "Apto 2A", "Fica no 6º andar"). Na mesma mensagem, até quatro códigos assim são conferidos; do quinto
+   em diante, a mensagem retém sem conferir. Se a forma com
    algarismo já passava, a forma com código passa também e o risco é o mesmo de antes: **risco
    residual, já existente, e não criado pelos formatos comuns**. Hoje esse risco cobre o número curto
    fora do contexto de preço disfarçado assim: número ou ordinal por extenso em outra língua

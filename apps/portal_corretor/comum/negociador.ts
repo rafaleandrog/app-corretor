@@ -766,9 +766,26 @@ const LEITURA_MAX = 160;
 //   não é liberado: o código com letra nunca passa onde o algarismo comum reteria, qualquer que seja a
 //   palavra que fez a gêmea reter (decisão do dono de 05/11, critério de equivalência).
 // Na dúvida, retém: falhou uma das condições, o trecho volta a ser lido como na regra geral (D2b).
+//
+// O código de unidade que a leitura padrão consome (#147): "Apto 6A" (ordinal "6ª"), "Apto 6S" (segundos),
+// "Apto 24M" (milhões), "Apto 6X", "Apto 6O". Antes ele passava sem conferência nenhuma, e a gêmea com
+// algarismo ("Fica no apto 64", "a" = 4) podia reter. Agora, logo depois da palavra de endereço, o código
+// de 1 a 3 algarismos seguidos de 1 a 3 letras confere a gêmea (`codigoLidoRetido`): gêmea retida, o
+// código retém também; gêmea que passa, ele segue passando como antes. Só o lado do critério de
+// equivalência que faltava; nada que passa por outro motivo muda.
 
 /** Palavra de endereço antes do código ("Apto 2B", "Torre B2", "Bloco C1"). */
 const PALAVRA_DE_ENDERECO = String.raw`(?:apto|apartamento|ap|torre|bloco|bl|unidade|casa|sala|loja|conjunto|cj)`;
+/** Logo depois da palavra de endereço (o texto até o começo do código). */
+const DEPOIS_DO_ENDERECO = new RegExp(String.raw`\b${PALAVRA_DE_ENDERECO}\.?\s+$`);
+/** Código que a leitura padrão pode consumir: algarismos e depois letras ("6a", "6s", "24m", "36km"). */
+const CODIGO_LIDO = /^\d{1,3}[a-z]{1,3}$/;
+/**
+ * Quantos códigos lidos por mensagem conferem a gêmea (cada um custa algumas leituras da mensagem
+ * inteira). Do seguinte em diante, o código retém sem conferir: reter a mais, nunca deixar sair, e o
+ * custo fica linear no tamanho da mensagem.
+ */
+const CODIGOS_LIDOS_MAX = 4;
 const COMECO_LIVRE = String.raw`(?<![\p{L}\p{N}.,:\/\-])`;
 /** Número em inglês ou espanhol, que `trechosSemLeitura` não vê como trecho. */
 const NUMERO_EM_OUTRA_LINGUA = String.raw`(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundreds?|thousands?|millions?|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|pairs?|dozens?|half|uno|una|dos|cuatro|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieci\w+|veinte|veinti\w+|treinta|cuarenta|cincuenta|sesenta|ochenta|noventa|cien|ciento|cientos|\w+cient[oa]s|quinient[oa]s|docenas?|decenas?|centenar(?:es)?|primer[oa]?s?|tercer[oa]?s?|cuart[oa]s?|octav[oa]s?|noven[oa]s?|millon\w*)`;
@@ -899,9 +916,10 @@ interface Unidade {
  * que não é separação normal ("1/3/6/0", "1:360:000", "1 ponto 36", "1\n360", em que tirar a quebra
  * junta os dois num número); ou há três algarismos soltos ("um, três, seis, zero").
  */
-function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetida): { ini: number; fim: number }[] {
+function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetida, codigoLidoRetido: GemeaRetida | null): { ini: number; fim: number }[] {
   const principais: Unidade[] = [];
   let coberto = 0;
+  let codigosLidos = 0;
   for (const m of base.matchAll(/[\p{L}\p{N}\p{M}\u{1F51F}]+/gu)) {
     const ini = m.index ?? 0;
     const fim = ini + m[0].length;
@@ -924,7 +942,16 @@ function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetid
       if (k < ini) ler(LEITURAS_PADRAO[LEITURAS_PADRAO.length - 1], k);
       if (/\bas\s$/.test(base.slice(Math.max(0, ini - 4), ini))) ler(HORARIO_POR_EXTENSO, ini);
     }
-    if (melhor >= fim) {
+    // Código de unidade consumido pela leitura padrão ("Apto 6A" como ordinal, #147): só passa como lido se
+    // nenhuma gêmea com algarismo retém (critério de equivalência). Passado o limite, retém sem conferir.
+    const codigoLido =
+      codigoLidoRetido && melhor >= fim && CODIGO_LIDO.test(m[0]) && DEPOIS_DO_ENDERECO.test(base.slice(Math.max(0, ini - 20), ini))
+        ? ++codigosLidos > CODIGOS_LIDOS_MAX || codigoLidoRetido(m[0], ini, fim)
+        : false;
+    if (codigoLido) {
+      principais.push({ ini, fim, ruim: true, algarismo: false, meia: false });
+      coberto = fim;
+    } else if (melhor >= fim) {
       principais.push({ ini, fim: melhor, ruim: false, algarismo: ALGARISMO.test(base.slice(ini, melhor)), meia: false });
       coberto = melhor;
     } else principais.push({ ini, fim, ruim: true, algarismo: false, meia });
@@ -1365,7 +1392,8 @@ function analisarSigilo(
     }
     return false;
   };
-  for (const t of trechosSemLeitura(base, revela, gemeaRetida)) {
+  // Na análise comum (`liberar` falso, a da gêmea), o código lido segue a leitura padrão, como na `main`.
+  for (const t of trechosSemLeitura(base, revela, gemeaRetida, liberar ? gemeaRetida : null)) {
     const lidos = lerValores(prepararTexto(desofuscar(base.slice(t.ini, t.fim)).texto));
     if (!lidos.length || lidos.some((x) => !publico(x.v))) {
       achados.push('escreve número de forma disfarçada');
