@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.29; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.30; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -25,7 +25,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Ajustes** | No desenho novo, em três colunas: as seções à esquerda (Mensageiro, Negociador, Conexões, Conta e marca, Funil e abordagens, Horário de atendimento, Privacidade), o conteúdo no centro e a ajuda à direita — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
 | Corretor | **Clientes › Negociações** | A negociação de cada negócio: a faixa com a ZOPA, a escada de propostas, a sugestão do Negociador IA (Enviar, Fazer agora, Editar, Descartar), o mandato do vendedor (recuo e BATNA mascarados) e o aceite, que é sempre seu; o jeito do Negociador fica em Ajustes › Negociador — ver [Negociação e mandato](negociacao.md) |
 | Negociador humano | **Hoje** e **Negociações** | Só as negociações que o corretor atribuiu a ele: pede sugestão, envia, edita e registra propostas dentro do mandato, sem ver o recuo, o alvo nem a BATNA do vendedor e sem aceitar o acordo final. O corretor convida a pessoa em Ajustes › Negociador (só o e-mail, sem CRECI) e atribui na negociação — ver [Negociador humano](negociacao.md#negociador-humano) |
-| Corretor | **Buscar** e atalhos de teclado | Busca clientes, imóveis e negociações da sua conta de qualquer tela (**Buscar** no trilho ou a tecla `/`); `C` Criar, `A` Assistente, `J`/`K` próximo e anterior na lista, `E` editar — ver [Atalhos e busca](#atalhos-e-busca) |
+| Corretor | **Buscar** e atalhos de teclado | Busca clientes, imóveis e negociações da sua conta (**Buscar** no trilho das telas em colunas, ou a tecla `/` em qualquer tela da área do corretor); `C` Criar, `A` Assistente, `J`/`K` próximo e anterior na lista, `E` editar — ver [Atalhos e busca](#atalhos-e-busca) |
 | Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
 | Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Números e Hoje com o Assistente aberto; `/conta` e `/ajustes/marca` abrem Ajustes › Conta e marca |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
@@ -73,7 +73,7 @@ ver [Assistente do Corretor](assistente.md).
 
 ## Atalhos e busca
 
-**Buscar** fica no trilho, acima do Assistente, e abre também pela tecla `/`. Digite pelo menos 2
+**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas (Hoje, Clientes, Imóveis, Números, Ajustes e Negociações); Estúdio e Página ainda não têm trilho. A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
 letras: aparecem até 5 resultados de cada tipo, só da sua conta.
 
 | Tipo | Busca por | Ao escolher |

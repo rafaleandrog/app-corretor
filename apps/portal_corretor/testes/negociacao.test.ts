@@ -278,6 +278,71 @@ test('anexo do mandato vigente: não é apagado, não vira foto nem fica públic
   assert.equal(banco.linhas('imovel_midias').length, 0);
 });
 
+/**
+ * Corrida de verdade entre o PUT do mandato e a remoção do anexo (F2, #134). `primeira` abre a
+ * transação, pega a trava e PARA no ponto `pausa` (ainda segurando a trava); só então a segunda
+ * começa, e a pausa dura até ela estar na fila da trava da mídia (ou ter terminado, se nada a segurou).
+ * Sem `travar` em qualquer das duas rotas, a segunda passa no meio e o mandato vigente fica apontando
+ * para um documento apagado.
+ */
+async function corridaMandatoRemocao(primeira: 'mandato' | 'remocao') {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const { negocio, imovel } = await base(banco, 100);
+  const doc = await banco.dados(100).criar('imovel_midias', { imovel_id: imovel.id, arquivo: 'a.pdf', tipo: 'documento', legenda: 'Autorização' });
+  const anexo = { ...MANDATO, autonomia: 'faz_sozinho', autorizacao_proprietario: { tipo: 'anexo', arquivo_id: doc.id, data: '2026-10-27' } };
+  let esperou = false;
+  let r: { mandato: { status: number; corpo: any }; remocao: { status: number; corpo: any } } = null!;
+  await comServidor(rotas, ator(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = (await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id })).corpo.id;
+    const chave = `imovel_midias:${doc.id}`;
+    // Remoção: pausa depois de ler as negociações (já com a mídia travada). Mandato: depois de travar a mídia.
+    const pausa = primeira === 'remocao' ? 'negociacoes' : 'imovel_midias:travada';
+    let abrir!: () => void;
+    const portao = new Promise<void>((ok) => (abrir = ok));
+    let segundaTerminou = false;
+    banco.pausaNaTransacao = async (tabela) => {
+      if (tabela !== pausa) return;
+      banco.pausaNaTransacao = null;
+      abrir();
+      while (!segundaTerminou && banco.esperando(chave) === 0) await new Promise((ok) => setTimeout(ok, 1));
+      esperou = banco.esperando(chave) > 0;
+    };
+    const mandato = () => chamar('PUT', `/negociacoes/${nid}/mandato`, anexo);
+    const remocao = () => chamar('PATCH', `/imoveis/${imovel.id}/midias/${doc.id}/remover`);
+    const [a, b] = await Promise.all([
+      // Se a primeira nunca chega à pausa (sem a trava, não há o que segurar), o portão abre ao fim dela.
+      (primeira === 'mandato' ? mandato() : remocao()).finally(() => ((banco.pausaNaTransacao = null), abrir())),
+      portao.then(primeira === 'mandato' ? remocao : mandato).finally(() => (segundaTerminou = true)),
+    ]);
+    r = primeira === 'mandato' ? { mandato: a, remocao: b } : { mandato: b, remocao: a };
+  });
+  assert.ok(esperou, 'a segunda rota esperou a trava da mídia segurada pela primeira');
+  // Em qualquer ordem: nunca um mandato vigente apontando para um documento que não existe mais.
+  const vigente = banco.linhas('negociacoes')[0].mandato_id;
+  const m = banco.linhas('mandatos_negociacao').find((x) => x.id === vigente);
+  const aponta = m ? Number((m.autorizacao_proprietario as { arquivo_id?: number } | null)?.arquivo_id) : null;
+  if (aponta) assert.ok(banco.linhas('imovel_midias').some((x) => x.id === aponta), 'o anexo do mandato vigente existe');
+  return { r, banco, doc };
+}
+
+test('corrida (F2): a remoção trava a mídia primeiro; o mandato espera, relê a mídia apagada e recusa o anexo', async () => {
+  const { r, banco } = await corridaMandatoRemocao('remocao');
+  assert.equal(r.remocao.status, 200, JSON.stringify(r.remocao.corpo));
+  assert.deepEqual([r.mandato.status, r.mandato.corpo.codigo], [422, 'DADOS_INVALIDOS'], JSON.stringify(r.mandato.corpo));
+  assert.equal(banco.linhas('imovel_midias').length, 0);
+  assert.equal(banco.linhas('mandatos_negociacao').length, 0, 'nenhum mandato gravado com o anexo apagado');
+  assert.equal(banco.linhas('negociacoes')[0].mandato_id ?? null, null);
+});
+
+test('corrida (F2): o mandato trava a mídia primeiro; a remoção espera, vê o mandato vigente e recusa (409)', async () => {
+  const { r, banco, doc } = await corridaMandatoRemocao('mandato');
+  assert.equal(r.mandato.status, 200, JSON.stringify(r.mandato.corpo));
+  assert.deepEqual([r.remocao.status, r.remocao.corpo.codigo], [409, 'DOCUMENTO_EM_USO'], JSON.stringify(r.remocao.corpo));
+  assert.match(r.remocao.corpo.mensagem, /mandato de uma negociação em andamento/);
+  assert.ok(banco.linhas('imovel_midias').some((m) => m.id === doc.id), 'o documento segue anexado');
+});
+
 test('isolamento A × B: lista, detalhe, mandato e propostas de outra conta respondem 404', async () => {
   const banco = new BancoFalso(UNICOS);
   const ev = eventosFalsos();
