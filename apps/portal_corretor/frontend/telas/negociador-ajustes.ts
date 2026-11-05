@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ESTILOS, LIMITE_INSTRUCOES } from '../../comum/negociacao';
 import { PROMPT_PARTE_2_PADRAO, REGRAS_FIXAS } from '../../comum/negociador';
-import { contadorInstrucoes, CUSTO_POR_RODADA, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, PERGUNTA_TESTE, ROTULO_GATILHO } from '../../comum/negociador-ajustes';
+import { contadorInstrucoes, CUSTO_POR_RODADA, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, LIMITE_EVENTOS, MENSAGEM_CONVITE, PERGUNTA_TESTE, POLITICA_CONVITE, ROTULO_GATILHO } from '../../comum/negociador-ajustes';
 import { reaisParaCentavos } from '../../comum/crm';
 import { chamarApi, enviar, mensagemDeErro, reais } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
@@ -18,16 +18,6 @@ declare const urbiVerso: UrbiVersoAPI;
 // negociador humano (D7): só o e-mail, sem CRECI (D-94), a lista de convites e quem já aceitou.
 
 type Linha = Record<string, any>;
-
-/**
- * Antes de convidar (F4, #136 b): o app não consegue consultar a política "contas multi-usuário" da
- * instância (pedido ao shell), então explica antes; desligada, o convite é recusado e a tela diz por quê.
- */
-const POLITICA_CONVITE =
-  'Para ter mais de uma pessoa na sua conta, a instância precisa da política "permite contas multi-usuário" ligada pelo administrador. Desligada, o convite é recusado.';
-/** O risco residual dos eventos que nascem no webhook (F4, #136 a): docs/negociacao.md. */
-const LIMITE_EVENTOS =
-  'Quem entra na conta pode ler nome, telefone, e-mail e mensagem de quem pede contato pela sua página, os comentários dos clientes nas seleções de imóveis e as mensagens que eles mandam pelo portal. Convide só quem pode ver isso.';
 
 interface Config {
   ligado: boolean;
@@ -80,7 +70,7 @@ export class PcAjustesNegociador extends LitElement {
   private async convidar() {
     const v = await urbiVerso.formulario({
       titulo: 'Convidar negociador',
-      mensagem: `${POLITICA_CONVITE} A pessoa recebe um convite por e-mail para entrar na sua conta e conduzir as negociações que você atribuir. Não precisa de CRECI. Depois do aceite, o administrador do app atribui o papel negociador a ela.`,
+      mensagem: MENSAGEM_CONVITE,
       campos: [{ nome: 'email', tipo: 'texto', rotulo: 'E-mail', obrigatorio: true, placeholder: 'nome@exemplo.com' }],
       rotuloConfirmar: 'Convidar',
     });
