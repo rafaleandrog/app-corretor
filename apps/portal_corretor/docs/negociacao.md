@@ -274,16 +274,27 @@ conversa com a IA):
    espaço depois de uma palavra de contato ("me liga no (61) 99999 1234", "WhatsApp 61 9 9876-5432",
    "ligue 0800 123 4567"); CEP no padrão exato depois de "CEP" ("CEP 70.000-000"); endereço de
    Brasília ("W3 Sul", "L2 Norte") e código de unidade de até dois algarismos logo depois de "apto",
-   "torre", "bloco", "casa", "sala" ou "loja" ("Apto 2B", "Torre B2"); data com hora sem "às" depois
-   de uma palavra de agenda ("visita dia 28/10 15h"); e número entre parênteses depois do preço,
-   quando é uma quantidade ("R$ 1.460.000 (2 vagas)"). Cada um só passa quando **não pode formar um
-   valor em reais com o resto da mensagem**: depois dele, até o fim da mensagem, só pode haver
-   quantidades com unidade ("3 quartos"), ordinais, horários, datas, telefones ou outro desses
-   formatos; antes dele, na mesma frase, só isso ou um valor completo ("R$ 1.460.000"). Telefone, CEP
-   e data com hora também não passam quando a frase fala de preço, oferta ou aceite. Por isso ainda
-   retêm: endereço com número à direita ("W3 Sul 704", "Torre B2 704"); o formato seguido de qualquer
-   valor, com qualquer separador, até em outra frase ("Torre 1B e 300 mil", "Visita dia 28/10 15h?
-   Levo R$ 1.460.000"); número curto antes dele ("fecho em 1, torre 36B"); e "nº 123/2026",
+   "apartamento", "ap", "torre", "bloco", "bl", "unidade", "casa", "sala", "loja", "conjunto" ou "cj"
+   ("Apto 2B", "Torre B2"); data com hora sem "às" depois de uma palavra de agenda ("visita dia
+   28/10 15h"); e número entre parênteses depois de um preço escrito por inteiro, quando é uma
+   quantidade ("R$ 1.460.000 (2 vagas)"). Cada um só passa quando **não pode revelar nem formar um
+   valor sigiloso**: os próprios algarismos dele, lidos juntos e em qualquer escala, não podem dar o
+   recuo, o alvo ou um valor abaixo do recuo (nem com o "1" de "1 milhão" subentendido); juntos com os
+   algarismos dos vizinhos (outro desses formatos, "3º andar", "1 vaga"), também não; depois dele, até
+   o fim da mensagem, só pode haver quantidades com unidade ("3 quartos"), ordinais, horários, datas,
+   telefones ou outro desses formatos; antes dele, em qualquer frase da mensagem, só isso ou um preço
+   escrito por inteiro ("R$ 1.460.000"); e a mensagem inteira não pode falar de preço, oferta ou
+   aceite ("valor", "R$", "fecho", "aceita", "desce", "vendedor"…; "fica na" de lugar não conta). Por
+   isso retêm: formatos cujos algarismos dão o recuo, o alvo ou valor abaixo do recuo ("CEP
+   01.360-000", "me liga no 13 6000 0000", "ligue 0800 136 0000", "visita dia 13/6 0h", "Apto 1B",
+   "W1 Sul", "Bloco C1", "Torre 36B" quando o recuo é 1.360.000); dois formatos que juntos formam um
+   valor ("Apto 9B e Torre 5B"); endereço com número à direita ("W3 Sul 704", "Torre B2 704"); o
+   formato seguido de qualquer valor, com qualquer separador, até em outra frase ("Torre 1B e 300
+   mil", "Visita dia 28/10 15h? Levo R$ 1.460.000"); número curto ou "um" antes dele, mesmo em outra
+   frase ("fecho em 1. Torre 36B", "fica em um e apto 36B"); qualquer formato numa mensagem que fala
+   de preço ("Até onde ele desce? Ligue 0800 ...", "Posso levar R$ 1.460.000 ao vendedor. Visita dia
+   28/10 15h?"); parêntese depois de número que não é preço por inteiro ("fecho em 1 (360 m²)",
+   "R$ 1 (360 vagas)"); telefone sem palavra de contato ("0800 123 4567"); e "nº 123/2026",
    "12/2027". Juros e rendimento podem reter a mensagem ("juros de 9,33% ao
    ano" é lido como percentual sobre o pedido). A conferência prefere reter a mais: uma
    mensagem retida vai para você decidir e nada sai ao cliente. Uma
