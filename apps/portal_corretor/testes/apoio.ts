@@ -86,7 +86,8 @@ export class BancoFalso {
   }
 
   /**
-   * Pausa opcional DENTRO de uma transação, depois de cada `varrerTudo` (o resultado já lido): o teste
+   * Pausa opcional DENTRO de uma transação, depois de cada `varrerTudo` (recebe a tabela) e de cada
+   * `buscar(…, { travar: true })` (recebe `tabela:travada`), com o resultado já lido: o teste
    * de corrida segura aí a primeira transação, com o que ela travou, enquanto a outra disputa a trava.
    * Sem ela (o padrão), nada muda.
    */
@@ -200,8 +201,11 @@ export class BancoFalso {
         const trx = {
           ...helper,
           async buscar(tabela: string, id: number, op: { travar?: boolean } = {}) {
-            if (op.travar) await banco.travar(`${tabela}:${id}`, minhas);
-            return helper.buscar(tabela, id);
+            if (!op.travar) return helper.buscar(tabela, id);
+            await banco.travar(`${tabela}:${id}`, minhas);
+            const r = await helper.buscar(tabela, id);
+            if (banco.pausaNaTransacao) await banco.pausaNaTransacao(`${tabela}:travada`);
+            return r;
           },
           async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
             const r = await helper.varrerTudo(tabela, op);

@@ -7,6 +7,7 @@ import { chamarApi, contaAtiva, data, dataHora, enviar, filtrosDaUrl, filtrosNaU
 import { moldura } from '../moldura.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import './mandato.js';
+import { registrarLista, soltarLista } from '../atalhos.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -313,6 +314,8 @@ abstract class ColunaDaNegociacao extends LitElement {
 export class PcNegociacoesLista extends LitElement {
   @property({ attribute: false }) selecionado: number | null = null;
   @property({ attribute: false }) aoEscolher: (id: number) => void = () => {};
+  /** A lista da tela Negociações entra no J/K (11.0.6); a da aba Negociação na ficha, não. */
+  @property({ type: Boolean }) atalhos = false;
   @state() private linhas: Linha[] = [];
   @state() private carregando = true;
   @state() private falha: string | null = null;
@@ -321,6 +324,14 @@ export class PcNegociacoesLista extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
+    if (this.atalhos) {
+      registrarLista(this, { ids: () => this.linhas.map((n) => Number(n.id)), atual: () => this.selecionado, escolher: (id) => this.aoEscolher(id) });
+    }
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    soltarLista(this);
   }
 
   private filtro() {
