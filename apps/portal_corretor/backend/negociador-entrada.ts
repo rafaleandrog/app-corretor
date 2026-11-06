@@ -195,11 +195,34 @@ export async function motorNaMensagem(trx: HelperDados, conta: number, negociaca
   return true;
 }
 
-/** Roda o motor sobre a mensagem do cliente, depois do commit (a chamada de IA fica fora da transação). */
+/**
+ * Roda o motor sobre a mensagem do cliente, depois do commit (a chamada de IA fica fora da transação).
+ * Se o motor não chegou a decidir (IA indisponível, falha da IA ou erro), a marca gravada por
+ * `motorNaMensagem` é desfeita: a mesma mensagem entregue de novo nos próximos minutos roda outra vez,
+ * em vez de ficar sem resposta até a janela passar. Só desfaz a marca DESTA mensagem: se outra
+ * mensagem já a trocou, nada muda.
+ */
 export async function rodarMotorNaMensagem(ctx: ContextoListener, conta: number, negociacaoId: number, responsavel: number | null, mensagem: string) {
+  let decidiu = false;
   try {
-    await executarMotor(await meioDoListener(ctx, conta, responsavel), negociacaoId, { mensagem_cliente: mensagem, canal: 'portal' });
+    const r = await executarMotor(await meioDoListener(ctx, conta, responsavel), negociacaoId, { mensagem_cliente: mensagem, canal: 'portal' });
+    decidiu = !('falha_ia' in r) && !('ia_indisponivel' in r);
+    if (!decidiu) console.warn(`[portal_corretor] Negociador sem IA na mensagem do portal (negociação ${negociacaoId}); a marca foi desfeita`);
   } catch (e) {
     console.warn(`[portal_corretor] Negociador não rodou na mensagem do portal (negociação ${negociacaoId}): ${(e as Error).message}`);
+  }
+  if (!decidiu) await desfazerMarca(ctx, conta, negociacaoId, mensagem);
+}
+
+/** Tira a marca da mensagem da negociação, sob a trava, só se ela ainda é a desta mensagem. */
+async function desfazerMarca(ctx: ContextoListener, conta: number, negociacaoId: number, mensagem: string) {
+  try {
+    await ctx.dados!.comConta!(conta, async (trx) => {
+      const viva = await trx.buscar('negociacoes', negociacaoId, { travar: true });
+      if (!viva || Number(viva.conta_id ?? conta) !== conta || viva.motor_mensagem_hash !== marcaDaMensagem(mensagem)) return;
+      await trx.atualizar('negociacoes', negociacaoId, { motor_mensagem_hash: null, motor_mensagem_em: null });
+    });
+  } catch (e) {
+    console.warn(`[portal_corretor] marca da mensagem não desfeita (negociação ${negociacaoId}): ${(e as Error).message}`);
   }
 }

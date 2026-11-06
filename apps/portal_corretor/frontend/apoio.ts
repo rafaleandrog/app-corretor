@@ -218,6 +218,24 @@ async function guardado<T>(pedido: () => Promise<T>): Promise<T> {
 export const chamarApi = (rota: string, opcoes?: RequestInit) => guardado(() => urbiVerso.api(rota, comConta(opcoes)));
 export const chamarFetch = (rota: string, opcoes?: RequestInit) => guardado(() => urbiVerso.fetch(rota, comConta(opcoes)));
 
+/**
+ * A busca de um campo `busca` de diálogo, presa ao gesto que abriu o diálogo (issue #157). Com a conta
+ * trocada enquanto o diálogo está aberto, ela não lista mais nada (nem consulta a conta nova); a resposta
+ * que chega depois da troca também vira lista vazia. Assim o diálogo aberto em A nunca mostra dados de B.
+ */
+export function buscaDoGesto(g: Gesto, rota: string, rotulo: (l: Record<string, any>) => string) {
+  return async (termo: string, signal: AbortSignal): Promise<{ valor: number; rotulo: string }[]> => {
+    if (!g.vivo()) return [];
+    try {
+      const r = await g.esperar(chamarApi(`${rota}?busca=${encodeURIComponent(termo)}`, { signal }));
+      return (r?.dados ?? []).map((l: Record<string, any>) => ({ valor: Number(l.id), rotulo: rotulo(l) }));
+    } catch (e) {
+      if (g.encerrado(e)) return [];
+      throw e;
+    }
+  };
+}
+
 export async function enviar(metodo: 'POST' | 'PUT' | 'PATCH', rota: string, corpo?: unknown) {
   return chamarApi(rota, {
     method: metodo,

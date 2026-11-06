@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { PLAYBOOK_OBJECOES_PADRAO } from '../../comum/negociacao';
 import { reaisParaCentavos } from '../../comum/crm';
-import { chamarApi, contaDeTrabalho, data, dataHora, ehContaTrocada, enviar, seNaoContaTrocada, filtrosDaUrl, filtrosNaUrl, gesto, mensagemDeErro, reais, soNegociador, type Gesto } from '../apoio.js';
+import { buscaDoGesto, chamarApi, contaDeTrabalho, data, dataHora, ehContaTrocada, enviar, seNaoContaTrocada, filtrosDaUrl, filtrosNaUrl, gesto, mensagemDeErro, reais, soNegociador, type Gesto } from '../apoio.js';
 import { moldura } from '../moldura.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import './mandato.js';
@@ -731,11 +731,6 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
 // Criar › Nova proposta: cliente, imóvel e a oferta, que cai sempre numa negociação DO IMÓVEL escolhido.
 // Depois abre a negociação (P15).
 
-const buscar = (rota: string, rotulo: (l: Linha) => string) => async (termo: string, signal: AbortSignal) => {
-  const r = await chamarApi(`${rota}?busca=${encodeURIComponent(termo)}`, { signal });
-  return (r?.dados ?? []).map((l: Linha) => ({ valor: Number(l.id), rotulo: rotulo(l) }));
-};
-
 /**
  * Registra a proposta e devolve o id da negociação, ou `null` (cancelou, falhou, ou a conta mudou no meio:
  * aí em silêncio, sem mais envios, aviso nem a navegação de quem chamou).
@@ -755,8 +750,8 @@ async function novaPropostaNoGesto(g: Gesto, foco?: { id: number; nome: string }
     titulo: 'Nova proposta',
     mensagem: 'Registre a oferta do cliente. A negociação abre em Clientes › Negociações, onde você define o mandato.',
     campos: [
-      { nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, valor: foco?.id ?? null, rotuloValor: foco?.nome, placeholder: 'Nome ou telefone', buscar: buscar('/contatos', (c) => c.nome) },
-      { nome: 'imovel_id', tipo: 'busca', rotulo: 'Imóvel', obrigatorio: true, placeholder: 'Código, bairro ou título', buscar: buscar('/imoveis', (i) => `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`) },
+      { nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, valor: foco?.id ?? null, rotuloValor: foco?.nome, placeholder: 'Nome ou telefone', buscar: buscaDoGesto(g, '/contatos', (c) => c.nome) },
+      { nome: 'imovel_id', tipo: 'busca', rotulo: 'Imóvel', obrigatorio: true, placeholder: 'Código, bairro ou título', buscar: buscaDoGesto(g, '/imoveis', (i) => `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`) },
       { nome: 'valor', tipo: 'texto', rotulo: 'Valor oferecido (R$)', placeholder: '1.320.000', obrigatorio: true },
       { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
     ],

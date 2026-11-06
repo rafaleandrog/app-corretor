@@ -618,5 +618,36 @@ for (const modo of MODOS) {
         assert.deepEqual(r.chamadas.filter((c) => !c.startsWith('GET ')), [], 'nenhuma escrita em B');
       });
     });
+
+    // Controle do caso acima (issue #157): sem troca, o refazer segue como sempre.
+    test(`em voo (${modo}): sem troca, refazer a Página com IA (${falha ? 'falha' : 'sucesso'}) segue como antes (controle)`, async (t) => {
+      await cenario(t, modo, '/pagina', '', async (p) => {
+        await p.evaluate((falhar: boolean) => {
+          const w = window as any;
+          w.RESPOSTA_FORMULARIO = { observacoes: 'Atendo no Lago Sul.' };
+          w.SEGURAR = (m: string, c: string, k: number) => m === 'POST' && c === '/pagina/sugerir-textos' && k === 100;
+          if (falhar) w.FALHAR = w.SEGURAR;
+          w.clicar('urbi-botao', 'Refazer a página com IA');
+        }, falha);
+        await esperar(p, 50);
+        assert.equal(await p.evaluate(() => (window as any).pendentes.length), 1, 'o pedido de textos está em voo');
+        await semTroca(p);
+        await p.evaluate(() => (window as any).liberar());
+        await esperar(p);
+        if (falha) {
+          const r = await depoisDaTroca(p);
+          assert.deepEqual(r.alertas, ['Não foi possível escrever agora']);
+          assert.equal(await p.evaluate(() => (window as any).confirmacoes.length), 0);
+          return;
+        }
+        assert.equal(await p.evaluate(() => (window as any).confirmacoes.length), 1, '"Usar estes textos?" abre em A');
+        await p.evaluate(() => (window as any).confirmar(true));
+        await esperar(p);
+        const r = await depoisDaTroca(p);
+        assert.ok(r.chamadas.some((c) => c.startsWith('PUT /pagina @100')), `os textos são gravados em A: ${JSON.stringify(r.chamadas)}`);
+        assert.ok(!r.chamadas.some((c) => c.includes('@200')), 'nada em B');
+        assert.deepEqual(r.alertas, []);
+      });
+    });
   }
 }

@@ -21,9 +21,11 @@ alguns formatos comuns ("W3 Sul", "Apto 2B"), com o critério de equivalência d
 entra](#quando-o-negociador-entra)); a 0.1.38 deixa esses gatilhos mais robustos (a negociação e a
 tarefa do mandato nascem juntas, e a mesma mensagem não faz o Negociador responder duas vezes). Na
 0.1.39, trocar de conta recria a tela da negociação (ver [Trocar de conta no meio de uma
-negociação](#trocar-de-conta-no-meio-de-uma-negociação)). Na 0.1.40, o código de unidade que se lê como ordinal, tempo ou
-escala ("apto 6A") passa pela mesma conferência da gêmea que os formatos comuns (ver [Como o
-Negociador IA decide](#como-o-negociador-ia-decide-e-o-que-ele-nunca-faz)).
+negociação](#trocar-de-conta-no-meio-de-uma-negociação)). Na 0.1.40, se a IA falha numa mensagem do
+cliente, a mesma mensagem entregue de novo tenta outra vez, e a negociação aberta pela reação ou pela
+mensagem do cliente só vai ao negociador padrão quando o app consegue conferir o acesso dele. Na 0.1.41,
+o código de unidade que se lê como ordinal, tempo ou escala ("apto 6A") passa pela mesma conferência da
+gêmea que os formatos comuns (ver [Como o Negociador IA decide](#como-o-negociador-ia-decide-e-o-que-ele-nunca-faz)).
 
 ### Resumo das garantias
 
@@ -366,7 +368,7 @@ conversa com a IA):
    retém também, qualquer que seja a palavra que fez a gêmea reter. Por isso, num imóvel de 1,5 mi com
    alvo de 1,45 mi, "Fica no bloco C50" e "Por favor, apto K43" retêm: "Fica no bloco 50" e "Por favor,
    apto 43" já retinham (o número depois de "fica" ou de "por" é lido como diferença de um valor
-   público, e 50 mil é a distância do pedido ao alvo). **Desde a 0.1.40**, a gêmea vale também para
+   público, e 50 mil é a distância do pedido ao alvo). **Desde a 0.1.41**, a gêmea vale também para
    todo código com algarismo e letra que a conferência lê como número comum, de qualquer tamanho: ordinal
    ("apto 6A" como "6ª"), tempo ("apto 6S", "apto 13600s"), escala ("apto 24M", "apto 1360mi"),
    quantidade ("apto 1360km") e horário ("apto 7h15", cuja gêmea é "apto 715"; "apto 7h15min"), que antes
@@ -387,7 +389,13 @@ conversa com a IA):
    "men.", "menoz", "bxa", "g a p", "o-f-f"); caractere invisível que parte a palavra ("menos" partido em dois) ou
    caractere de tag colado ao código; traço longo ou hífen seguido de pontuação ("Apto 5B—", "Apto
    5B-."); e "d" lido como 0 ("Torre D5"). Em todos, "bloco 6", "apto 5" ou "torre 5" com o mesmo
-   disfarce já passavam. Por isso a conferência não é a única barreira: no "só sugere" e no
+   disfarce já passavam. Fica também no risco residual o **número colado em unidade**: "Fica no apto
+   1.360km" e "Fica no apto 1.360x" passam pela conferência, porque o número grudado em "km" ou em "x"
+   é lido do jeito comum, como distância ou como parcelas, e essa leitura não confere a gêmea (a
+   conferência da 0.1.41 pega o código sem ponto, como "apto 1360km"). Era assim antes da 0.1.41 e
+   continua igual depois: não é piora desta versão. Conferir a gêmea de toda leitura comum mexeria
+   também em horário, distância e parcelas em qualquer frase, o que pede outro desenho; o caso ficou
+   registrado em issue própria. Por isso a conferência não é a única barreira: no "só sugere" e no
    "pergunta antes", você lê a mensagem antes de ela sair.
 6. **Validade:** o mandato está vigente; "faz sozinho" só com a autorização do proprietário.
 7. **Canal:** portal ou Fazer agora; "faz sozinho" só pelo portal.
@@ -506,7 +514,7 @@ destes momentos cria para você a tarefa "O Negociador entrou na NG-0001: defina
 | Momento | O que acontece |
 |---|---|
 | **O negócio chega à etapa Proposta** | Ao mover um negócio de compra para a etapa Proposta (no Funil ou na ficha do cliente), a negociação nasce, se o negócio tem imóvel e ainda não tem negociação em andamento. Vale também para o negócio que você cria e que já nasce na Proposta (quando ela é a primeira etapa em andamento ativa do seu funil); ao registrar uma oferta para um imóvel sem negócio, a oferta entra na negociação que nasceu assim. A tela avisa: "A negociação NG-0001 foi aberta e quem conduz é o Negociador IA". Sem imóvel no negócio, nada nasce: abra a negociação à mão quando escolher o imóvel. A negociação e a tarefa do mandato nascem juntas; se algo falhar ao abri-la, o negócio muda de etapa do mesmo jeito e você abre a negociação à mão. Os negócios que chegam pelo formulário da sua página não abrem negociação sozinhos |
-| **O cliente pede desconto ou fala de preço** | Numa mensagem do portal ("tem desconto à vista?", "achei caro", "aceita proposta?", "qual o valor?"). A mensagem continua chegando a você, com a tarefa "Responder a mensagem do portal". Mandada da seção de uma negociação, ela vale para aquela negociação; mandada de outro lugar, para a única negociação em andamento do cliente ou, sem nenhuma, para o único negócio de compra em aberto dele com imóvel. Se o **Negociador IA** conduz e há mandato vigente, ele prepara a resposta a essa mensagem, com as mesmas 7 garantias de sempre: no "pergunta antes", a sugestão espera a sua aprovação; no "faz sozinho", só uma contraproposta montada pelo código sai pelo portal. Conduzida por você ou pelo negociador humano, o Negociador IA não responde por vocês. A mesma mensagem entregue de novo em até 10 minutos (inclusive duas vezes ao mesmo tempo) não faz o Negociador responder duas vezes. Uma negociação indicada que não é deste cliente (de outro cliente seu ou de outra conta) é ignorada: fica só a tarefa. O WhatsApp do app ainda não existe: quando existir, a conversa de lá também passa por este momento |
+| **O cliente pede desconto ou fala de preço** | Numa mensagem do portal ("tem desconto à vista?", "achei caro", "aceita proposta?", "qual o valor?"). A mensagem continua chegando a você, com a tarefa "Responder a mensagem do portal". Mandada da seção de uma negociação, ela vale para aquela negociação; mandada de outro lugar, para a única negociação em andamento do cliente ou, sem nenhuma, para o único negócio de compra em aberto dele com imóvel. Se o **Negociador IA** conduz e há mandato vigente, ele prepara a resposta a essa mensagem, com as mesmas 7 garantias de sempre: no "pergunta antes", a sugestão espera a sua aprovação; no "faz sozinho", só uma contraproposta montada pelo código sai pelo portal. Conduzida por você ou pelo negociador humano, o Negociador IA não responde por vocês. A mesma mensagem entregue de novo em até 10 minutos (inclusive duas vezes ao mesmo tempo) não faz o Negociador responder duas vezes; se a IA falhou ou estava fora do ar naquela mensagem, a entrega repetida dela tenta de novo. Uma negociação indicada que não é deste cliente (de outro cliente seu ou de outra conta) é ignorada: fica só a tarefa. O WhatsApp do app ainda não existe: quando existir, a conversa de lá também passa por este momento |
 | **O cliente reage "Conversar sobre o preço"** | Na seleção ou no portal. Vira a tarefa "Conversar sobre o preço: IM-0001 · título" e o Negociador entra na negociação daquele imóvel (ou a abre, no negócio de compra do cliente com aquele imóvel) |
 | **Uma oferta é registrada ou feita no portal** | Como antes: o Negociador IA roda sobre a oferta (ver [No Portal do Cliente](#no-portal-do-cliente)) |
 
@@ -566,8 +574,8 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
    **pronto**. Se a pessoa perder o papel, perder o acesso ao app ou sair da conta, as negociações
    novas voltam a nascer com o Negociador IA, sem atribuição nem aviso. Isso vale para as que o
    app cria numa ação sua (como mover o negócio para Proposta) e também para as abertas pelas
-   reações e mensagens do cliente, quando a plataforma deixa o app conferir ali; sem como
-   conferir, vale a pessoa gravada, e a guarda da negociação barra quem perdeu o papel. Escolher
+   reações e mensagens do cliente: ali o app confere ao menos o papel e o acesso da pessoa, e,
+   sem como conferir o acesso, a negociação nasce com o Negociador IA. Escolher
    **Negociador IA (padrão)** tira a pessoa.
 
 Quando o convite não sai, a tela diz por quê. Os casos mais comuns:

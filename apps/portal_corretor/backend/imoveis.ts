@@ -28,6 +28,7 @@ import { normalizarPapeis } from '../comum/crm';
 import { ENCERRADOS } from '../comum/negociacao';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { contaDoRequest, tentarSincronizar } from './vitrine';
+import schema from '../schema.json';
 
 // Imóveis (anúncios), mídias, autorizações de venda e empreendimentos (bloco 3). Tabelas
 // segregadas por conta; arquivos servidos só por URL assinada gerada aqui (tabela `restrito`).
@@ -427,17 +428,35 @@ async function midiaDoImovel(req: Request, imovelId: number) {
   return m && m.imovel_id === imovelId ? m : null;
 }
 
+/** Um valor comparável: data em ISO, objeto ou lista em JSON com as chaves em ordem, o resto como texto. */
+function comparavel(x: unknown): string {
+  if (x == null) return '';
+  if (x instanceof Date) return x.toISOString();
+  if (typeof x === 'object') {
+    const ordenar = (v: unknown): unknown =>
+      Array.isArray(v) ? v.map(ordenar) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, ordenar((v as Record<string, unknown>)[k])])) : v;
+    return JSON.stringify(ordenar(x));
+  }
+  return String(x);
+}
+
 /**
  * Trava de edição simultânea (#143), com o mesmo caminho do F2 (#134): relê a linha DENTRO da
  * transação com `buscar(…, { travar: true })` e a compara com a que a rota leu antes de validar. A
  * segunda de duas edições concorrentes espera a trava; ao entrar, vê a linha já gravada pela primeira
  * (o `atualizado_em` avançou) e recusa, em vez de sobrescrever o que não leu. `null` quando a linha sumiu.
+ *
+ * A comparação é por campo: o `atualizado_em` e cada coluna declarada no `schema.json` da tabela. O que
+ * a leitura acrescenta (os `campos_incluir`, a ordem das chaves) não conta: só muda o que foi gravado
+ * (issue #157: a comparação da linha inteira por JSON podia dar 409 falso).
  */
-async function relerSemMudanca(trx: HelperDados, tabela: string, lida: Record<string, unknown>) {
+export async function relerSemMudanca(trx: HelperDados, tabela: string, lida: Record<string, unknown>) {
   const viva = await trx.buscar(tabela, Number(lida.id), { travar: true });
   if (!viva) return 'sumiu' as const;
   const versao = (x: unknown) => (x == null ? '' : new Date(x as string).toISOString());
-  if (versao(viva.atualizado_em) !== versao(lida.atualizado_em) || JSON.stringify(viva) !== JSON.stringify(lida)) return 'mudou' as const;
+  if (versao(viva.atualizado_em) !== versao(lida.atualizado_em)) return 'mudou' as const;
+  const colunas = Object.keys((schema.tabelas as Record<string, { colunas: Record<string, unknown> }>)[tabela]?.colunas ?? {});
+  if (colunas.some((c) => comparavel(viva[c]) !== comparavel(lida[c]))) return 'mudou' as const;
   return viva;
 }
 
@@ -537,7 +556,10 @@ imoveisRotas.patch(
       mudar.tipo = corpo.tipo;
     }
     if ('publica' in corpo) mudar.publica = corpo.publica === true;
-    if (!Object.keys(mudar).length) {
+    // Documento público de antes da regra (legado): qualquer PATCH, inclusive a vazia, o repara para
+    // interno, pelo mesmo caminho travado (issue #157).
+    const legado = midia.tipo === 'documento' && midia.publica === true;
+    if (!Object.keys(mudar).length && !legado) {
       await tentarSincronizar(req, imovel!.id);
       return res.json(midia);
     }
@@ -552,6 +574,7 @@ imoveisRotas.patch(
         if (await anexoDeMandatoVigente(trx, imovel!.id, midia.id)) return 'mandato' as const;
       }
       if ((mudar.tipo ?? viva.tipo) === 'documento' && (mudar.publica ?? viva.publica)) mudar.publica = false;
+      if (!Object.keys(mudar).length) return { salva: viva };
       return { salva: await trx.atualizar('imovel_midias', midia.id, mudar) };
     });
     if (r === 'sumiu') return erro(res, 404, 'NAO_ENCONTRADO', 'Arquivo não encontrado.');

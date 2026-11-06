@@ -14,8 +14,9 @@ export const POR_TIPO = 5;
  */
 export function cortarTermo(q: string): string {
   const t = q.trim();
-  if (t.length <= BUSCA_MAX) return t;
-  let fim = BUSCA_MAX;
+  let fim = Math.min(t.length, BUSCA_MAX);
+  // Metade alta de um par no fim (cortada pelo limite, ou solta no próprio texto) sai: com ela, o
+  // `encodeURIComponent` lança (issue #157: o alto solto no fim, abaixo do limite, também).
   const ultimo = t.charCodeAt(fim - 1);
   if (ultimo >= 0xd800 && ultimo <= 0xdbff) fim -= 1;
   return t.slice(0, fim);

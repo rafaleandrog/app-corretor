@@ -58,21 +58,32 @@ export const shellConfereNegociadores = (shell: Shell | null | undefined): shell
 
 /**
  * Quem conduz a negociação nova desta conta (D-94). Com o padrão `humano`, a pessoa só recebe se ainda
- * é negociador desta conta com o papel: quando o shell confere e ela saiu (ou a conferência falha), a
- * negociação nasce com o Negociador IA, o padrão. Sem como conferir (listener sem os convites), vale a
- * pessoa gravada, que foi conferida ao ser escolhida em Ajustes › Negociador; a guarda da negociação
- * (`guardarNegociacao`) continua barrando quem perdeu o papel.
+ * é negociador desta conta com o papel e com acesso ao app (nível efetivo diferente de `nenhuma`):
+ * - o shell confere tudo (convites, papel e nível): a pessoa tem de estar na lista da conta;
+ * - sem os convites (o listener pode não tê-los), o papel e o nível efetivo ainda são conferidos — a
+ *   conta da pessoa foi conferida ao ser escolhida em Ajustes › Negociador;
+ * - sem como conferir o nível (nem o papel), ou com a conferência falhando, a negociação nasce com o
+ *   Negociador IA, o padrão (issue #157: o humano gravado não vale sem o nível efetivo).
  */
 export async function conducaoNova(shell: Shell | null | undefined, conta: number, config: ConfigEntrada): Promise<Conducao> {
   const c = conducaoPadrao(config);
-  if (c.conduzida_por !== 'humano' || !shellConfereNegociadores(shell)) return c;
+  if (c.conduzida_por !== 'humano') return c;
+  const ia: Conducao = { conduzida_por: 'ia', negociador_usuario_id: null };
   try {
-    const pessoa = (await negociadoresDaConta(shell, conta)).find((n) => n.usuario_id === c.negociador_usuario_id);
-    if (pessoa?.tem_papel) return c;
+    if (shellConfereNegociadores(shell)) {
+      const pessoa = (await negociadoresDaConta(shell, conta)).find((n) => n.usuario_id === c.negociador_usuario_id);
+      return pessoa?.tem_papel ? c : ia;
+    }
+    // O tipo promete os dois helpers; o objeto em tempo de execução pode não tê-los (sem eles, a IA).
+    const s = shell as Partial<NonNullable<Shell>> | null | undefined;
+    if (!s || typeof s.listarUsuariosPorRole !== 'function' || typeof s.nivelEfetivoUsuario !== 'function') return ia;
+    const uid = Number(c.negociador_usuario_id);
+    const comPapel = (await s.listarUsuariosPorRole('negociador')).map(Number);
+    return comPapel.includes(uid) && (await temAcesso(s as NonNullable<Shell>, uid)) ? c : ia;
   } catch (e) {
     console.warn(`[portal_corretor] negociador padrão não conferido: ${(e as Error).message}`);
+    return ia;
   }
-  return { conduzida_por: 'ia', negociador_usuario_id: null };
 }
 
 /**
