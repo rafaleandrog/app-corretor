@@ -309,7 +309,8 @@ function direita(d: DadosHoje, atualizar: () => void) {
     ${s
       ? html`<urbi-card titulo="Sua semana" icone="fa-solid fa-chart-simple">
           <urbi-stack>
-            <urbi-grid min="64px">
+            <!-- 140px é o piso do urbi-kpi no contrato; a grade decide quantos cabem por linha. -->
+            <urbi-grid min="140px">
               <urbi-kpi rotulo="Contatos novos" .valor=${s.novos_contatos ?? 0}></urbi-kpi>
               <urbi-kpi rotulo="Leads" .valor=${s.leads ?? 0}></urbi-kpi>
               <urbi-kpi rotulo="Visitas feitas" .valor=${s.visitas ?? 0}></urbi-kpi>

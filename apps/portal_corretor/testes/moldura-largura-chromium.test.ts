@@ -77,7 +77,9 @@ css.textContent = \`
   urbi-card { display: block; border: 1px solid #ccc; padding: 16px; overflow: auto; min-width: 0; }
   urbi-card > .pc-titulo { font-weight: 600; margin-bottom: 8px; }
   urbi-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(var(--urbi-grid-min, 240px), 100%), 1fr)); }
-  urbi-kpi { display: block; min-width: 0; overflow: hidden; }
+  /* Piso documentado do urbi-kpi: 140px de largura externa (border-box) no desktop; em <=900px a pílula compacta não tem piso. */
+  urbi-kpi { display: block; box-sizing: border-box; min-width: 140px; padding: 8px 12px; border: 1px solid #ccc; overflow: hidden; }
+  @media (max-width: 900px) { urbi-kpi { min-width: 0; padding: 4px 8px; } }
   urbi-kpi > .pc-rotulo { display: block; font-size: 12px; }
   urbi-kpi > .pc-valor { display: block; font-size: 24px; font-weight: 700; white-space: nowrap; }
   urbi-botao { display: inline-flex; white-space: nowrap; overflow: hidden; padding: 4px 10px; border: 1px solid #999; }
@@ -227,7 +229,12 @@ test('moldura no desktop: usa a área do app, centro cresce, nada rola na horizo
     assert.equal(Object.fromEntries(minimo.colunas).direita, 300);
     assert.deepEqual(minimo.transbordam, [], 'lateral em 300px: contêiner com rolagem horizontal');
     assert.deepEqual(minimo.kpisQuebrados, [], 'lateral em 300px: KPI quebrado ou cortado');
-    assert.equal(minimo.linhasDaSemana, 1, 'lateral em 300px: os três contadores da semana numa linha');
+    // Com o `min` de 140px do contrato, a grade decide: a lateral não comporta dois pisos lado a lado (uma linha por contador).
+    assert.equal(minimo.linhasDaSemana, 3, 'lateral em 300px: a grade põe um contador por linha');
+
+    // Na lateral de partida (340 px) o miolo do cartão (~274 px) também não comporta dois pisos de 140px mais a folga.
+    const partida = await abrir(1280, true);
+    assert.equal(partida.linhasDaSemana, 3, 'lateral em 340px: a grade põe um contador por linha');
 
     // O defeito relatado, reproduzido: com o teto de 1200 px, em 1920 a moldura fica com ~60% da área.
     const antes = await abrir(1920, false);

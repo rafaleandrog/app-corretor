@@ -157,7 +157,8 @@ tiver abordagem). Fila vazia mostra "Nada urgente agora" e o botão **Cadastrar 
 - **Agenda de hoje**: o que está pendente hoje, por horário, até 20 compromissos. **Ver agenda** troca o centro pela lista
   dos próximos 14 dias (ver [Clientes, negócios e agenda](clientes-e-agenda.md#agenda)), e **Voltar
   para a fila** desfaz. O endereço `/agenda` abre Hoje direto na agenda.
-- **Sua semana**: contatos novos, leads e visitas feitas nos últimos 7 dias, lado a lado, e embaixo, numa
+- **Sua semana**: contatos novos, leads e visitas feitas nos últimos 7 dias, num grupo de cartões em que cada um tem pelo menos 140 px
+  de largura (a tela decide quantos cabem por linha; na lateral estreita, um por linha), e embaixo, numa
   linha só, a comissão prevista.
 - **Dica do Assistente**: uma sugestão a partir do que está na tela (os quentes sem resposta, as
   abordagens atrasadas ou o primeiro passo ainda não feito dos Primeiros passos; sem nada disso, a dica é "Nada urgente agora…"), com **Perguntar ao Assistente**. Quando a IA não
