@@ -1,17 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { ABAS_AJUSTES, abaDoEndereco } from '../comum/ajustes';
 import { TELAS_APP, telaBase } from '../comum/assistente';
 import { MENU, resolverEndereco } from '../frontend/enderecos';
 
-const manifesto = JSON.parse(readFileSync(resolve(process.cwd(), 'manifesto.json'), 'utf8'));
-
-test('menu do corretor com os nomes do Padrão B (D-103), sem o Assistente; Equipe da plataforma continua', () => {
-  const nav = manifesto.nav as { titulo: string; rota?: string; icone?: string; itens?: { rota: string }[] }[];
+test('menu do corretor com os nomes do Padrão B (D-103), sem o Assistente (o trilho; o `nav` em menu.test.ts)', () => {
   assert.deepEqual(
-    nav.slice(0, 7).map((i) => [i.titulo, i.rota]),
+    MENU.map((i) => [i.titulo, i.rota]),
     [
       ['Hoje', '/'],
       ['Clientes', '/clientes'],
@@ -22,11 +17,6 @@ test('menu do corretor com os nomes do Padrão B (D-103), sem o Assistente; Equi
       ['Ajustes', '/ajustes'],
     ],
   );
-  // O trilho da moldura usa o mesmo menu, com os mesmos ícones.
-  assert.deepEqual(nav.slice(0, 7), MENU);
-  assert.equal(nav.length, 8);
-  assert.equal(nav[7].titulo, 'Equipe da plataforma');
-  assert.deepEqual(nav[7].itens?.map((i) => i.rota), ['/corretores']);
 });
 
 test('Ajustes (B8): sete seções na ordem de 11.1, `?aba=` em /ajustes e Conta e marca quando não há seção', () => {

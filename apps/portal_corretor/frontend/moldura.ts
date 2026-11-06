@@ -19,10 +19,10 @@ declare const urbiVerso: UrbiVersoAPI;
 // fill e o scroll por dentro. Um elemento próprio em volta precisaria estender `UrbiPainelBase` para
 // manter esse contrato no celular, e a app não importa valor de `@urbiverso/ui` (KIT.md).
 //
-// Trilho: o externo (o corretor) não abre o menu de navegação da app na topbar reduzida (gap
-// documentado em permissoes.md § Usuário externo), e a app não sabe o tipo de quem está vendo. Então
-// o trilho mostra os itens do menu, sempre, mais o Assistente; quem também vê o menu do shell o tem
-// duas vezes até o gap fechar. O Criar fica no cabeçalho da página (`menuCriar`): o trilho só emite
+// Trilho: é o menu das telas do corretor, sempre, mais Buscar e o Assistente. O externo (o corretor)
+// não abre o menu de navegação da app na topbar reduzida (gap documentado em permissoes.md § Usuário
+// externo), então o `nav` do manifesto não repete estes itens (D-113, #166): lá fica só o que não
+// tem outro caminho (Corretores). O Criar fica no cabeçalho da página (`menuCriar`): o trilho só emite
 // clique, não ancora o `urbi-dropdown`.
 
 export interface OpcoesMoldura {

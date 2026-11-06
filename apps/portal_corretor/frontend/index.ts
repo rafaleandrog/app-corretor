@@ -193,9 +193,10 @@ export class AppPortalCorretor extends LitElement {
     if (!this.carregado) return html`<urbi-loading></urbi-loading>`;
     if (!tela) {
       // O endereço recebido fica visível de propósito: é o diagnóstico do retorno de redirecionamento
-      // (P-36, roteiro R.6). A query não volta por subRota() (overview.md).
+      // (P-36, roteiro R.6). A query não volta por subRota() (overview.md). O menu do app não tem as
+      // telas do corretor (D-113) e o externo nem o abre: o caminho é o início do app, que tem o trilho.
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-compass" mensagem="Página não encontrada"
-        submensagem="Endereço recebido: ${this.sub}${window.location.search}. Use o menu do app para escolher uma tela."></urbi-estado-vazio>`;
+        submensagem="Endereço recebido: ${this.sub}${window.location.search}. Abra o início do app (${urbiVerso.href('/')}) e escolha a tela no trilho, à esquerda."></urbi-estado-vazio>`;
     }
     if (!this.liberada(tela)) {
       const quem = tela.papel === 'corretor' ? 'corretor' : 'equipe da plataforma (operacao)';

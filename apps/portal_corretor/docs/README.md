@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.41; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.43; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -28,14 +28,14 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Buscar** e atalhos de teclado | Busca clientes, imóveis e negociações da sua conta (**Buscar** no trilho das telas em colunas, ou a tecla `/` em qualquer tela da área do corretor); `C` Criar, `A` Assistente, `J`/`K` próximo e anterior na lista, `E` editar — ver [Atalhos e busca](#atalhos-e-busca) |
 | Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
 | Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/minha-pagina`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Página, Números e Hoje com o Assistente aberto; `/conta` e `/ajustes/marca` abrem Ajustes › Conta e marca |
-| Equipe da plataforma | **Equipe da plataforma › Corretores** | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
+| Equipe da plataforma | **Equipe da plataforma › Corretores** (no menu do app, no alto da página) | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
 Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, na ficha do cliente (Resumir e Mensagem sugerida), nos imóveis (descrição e leitura de fotos), na Página e no Estúdio (textos),
 quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na versão em que chegar.
 
 ## Como as telas se organizam
 
-O menu tem, nesta ordem: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. Todas
+O menu das telas é o trilho: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. Todas
 as telas do corretor estão num desenho só, em colunas (o "Padrão B"): Hoje, Clientes (Lista, Funil,
 Negociações e Importar), Imóveis (e Novo imóvel), Estúdio, Página, Números e Ajustes. A tela
 **Corretores**, da equipe da plataforma, fica fora desse desenho.
@@ -72,6 +72,7 @@ as colunas viram abas, como antes.
 | Parte | Onde fica | O que faz |
 |---|---|---|
 | **Trilho** | Faixa estreita à esquerda | Os itens do menu, com o da tela aberta destacado, e os botões **Buscar** e **Assistente** no fim. No celular, o botão **Menu** no alto mostra o trilho |
+| **Menu do app** | Nome do app no alto da página (**Portal do Corretor ▾**) | Não repete o trilho (desde a 0.1.43): traz só os itens da plataforma (Home e, para o administrador do app, Configurações) e **Equipe da plataforma › Corretores**, a tela da equipe da plataforma (papel `operacao`). Quem só tem `operacao` chega a ela pela raiz do app; para o administrador do app, este menu é o caminho de navegação (a raiz abre Hoje e o trilho não tem Corretores; o endereço direto `/corretores` também abre). O corretor, que é usuário externo, não abre esse menu: ele navega pelo trilho. Nas tabelas acima, "Menu ›" quer dizer o trilho |
 | **Lista** | Coluna da esquerda | O que existe naquela tela (em Números, os relatórios; em Página, os blocos). O item escolhido fica no endereço (`?item=`; em Números, `?relatorio=`): recarregar ou abrir o link guardado reabre o mesmo |
 | **Foco** | Coluna do meio, a mais larga | O que você está fazendo: o item aberto e as ações principais |
 | **Contexto** | Coluna da direita | O que ajuda a decidir sobre o item aberto. O Assistente, quando aberto, ocupa esta coluna |
