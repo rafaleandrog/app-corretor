@@ -181,7 +181,8 @@ window.medir = () => {
   const caixas = [...document.querySelectorAll('urbi-3-colunas *')].filter((e) => e.getClientRects().length)
     .map((e) => { const r = e.getBoundingClientRect(); return [e.localName, Math.round(r.x), Math.round(r.width)].join(':'); });
   const linhasDaSemana = new Set([...document.querySelectorAll('urbi-grid > urbi-kpi')].map((k) => Math.round(k.getBoundingClientRect().top))).size;
-  return { area, inbox, fracao: inbox / area, colunas, transbordam, kpisQuebrados, caixas, linhasDaSemana };
+  const minDaSemana = [...new Set([...document.querySelectorAll('urbi-grid > urbi-kpi')].map((k) => k.parentElement.getAttribute('min')))];
+  return { area, inbox, fracao: inbox / area, colunas, transbordam, kpisQuebrados, caixas, linhasDaSemana, minDaSemana };
 };
 `;
 
@@ -231,6 +232,7 @@ test('moldura no desktop: usa a área do app, centro cresce, nada rola na horizo
     assert.deepEqual(minimo.kpisQuebrados, [], 'lateral em 300px: KPI quebrado ou cortado');
     // Com o `min` de 140px do contrato, a grade decide: a lateral não comporta dois pisos lado a lado (uma linha por contador).
     assert.equal(minimo.linhasDaSemana, 3, 'lateral em 300px: a grade põe um contador por linha');
+    assert.deepEqual(minimo.minDaSemana, ['140px'], 'o urbi-grid de "Sua semana" usa o min do contrato do urbi-kpi');
 
     // Na lateral de partida (340 px) o miolo do cartão (~274 px) também não comporta dois pisos de 140px mais a folga.
     const partida = await abrir(1280, true);
