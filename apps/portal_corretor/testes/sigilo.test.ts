@@ -1062,8 +1062,63 @@ test('#147 (revisão do PR #162): com qualquer separador entre a palavra de ende
     assert.deepEqual(vazamentos(f, MOTOR, PERMITIDOS), [], f);
   }
   // "Torre B2" retém nas três escadas, também na `main` (B = 8 ou 6); código com a letra antes não muda aqui.
+  for (const [mandato, publicos] of [[MOTOR, PUBLICOS_120], [MOTOR, PERMITIDOS], [MOTOR_BAIXO, PUBLICOS_BAIXO]] as [MandatoMotor, number[]][]) {
+    assert.ok(vazamentos('Torre B2', mandato, publicos).length > 0, 'Torre B2');
+  }
   for (const f of ['W3 Sul', 'Apto 2B', 'Apto 6A', 'Apto 2A', 'Visita dia 28/10', 'Fica no 6º andar.']) {
     assert.deepEqual(vazamentos(f, MOTOR_BAIXO, PUBLICOS_BAIXO), [], f);
+  }
+});
+
+// Revisão do PR #162, B3: o trecho com algarismo e letra que a leitura padrão consome inteiro confere a gêmea
+// qualquer que seja a forma e o número de algarismos (antes, só até 3 algarismos e 3 letras, ou "NhMM").
+// Uma forma por padrão da leitura padrão que consome um trecho assim: horário ("7h15min", "13hs"),
+// escala ("mi", "mm", "kk", "k", "m"), quantidade ("x", "km", "cm", "kg", "min", "d", "s") e ordinal ("a", "o").
+const PARES_B3: [disfarce: string, gemeas: string[]][] = [
+  ['7h15min', ['715', '7151']],
+  ['0h36min', ['036', '0361']],
+  ['13hs', ['13', '135']],
+  ['1360km', ['1360']],
+  ['1360m', ['1360']],
+  ['1360mi', ['1360', '13601']],
+  ['1360mm', ['1360']],
+  ['1360kk', ['1360']],
+  ['1360k', ['1360']],
+  ['1360x', ['1360']],
+  ['1360cm', ['1360']],
+  ['1360kg', ['1360', '13606', '13609']],
+  ['1360min', ['1360', '13601']],
+  ['1360d', ['1360']],
+  ['13600s', ['13600', '136005']],
+  ['1360a', ['1360', '13604']],
+  ['1360o', ['1360', '13600']],
+];
+
+test('#147 (revisão do PR #162, B3): trecho lido inteiro com algarismo e letra, de qualquer forma e tamanho, retém quando a gêmea retém', () => {
+  const escadas: [MandatoMotor, number[]][] = [[MOTOR, PUBLICOS_120], [MOTOR, PERMITIDOS], [MOTOR_BAIXO, PUBLICOS_BAIXO]];
+  let conferidas = 0;
+  for (const [mandato, publicos] of escadas)
+    for (const sep of [' ', ', ', ': ', '\n'])
+      for (const [codigo, gemeas] of PARES_B3) {
+        assert.deepEqual([...gemeas].sort(), gemeasDoCodigo(codigo).sort(), codigo);
+        if (!gemeas.some((g) => vazamentos(`Fica no apto${sep}${g}`, mandato, publicos).length > 0)) continue;
+        conferidas++;
+        const disfarce = `Fica no apto${sep}${codigo}`;
+        assert.ok(vazamentos(disfarce, mandato, publicos).length > 0, `gêmea retida e disfarce passou: ${JSON.stringify(disfarce)}`);
+      }
+  assert.ok(conferidas > 0);
+  // Os casos da revisão, na escada de 1,5 mi: a gêmea retém, o disfarce também.
+  for (const publicos of [PUBLICOS_120, PERMITIDOS])
+    for (const f of ['Fica no apto 7h15min', 'Fica no apto 0h36min', 'Fica no apto 1360km', 'Fica no apto 1360m', 'Fica no apto 1360x', 'Fica no apto 1360mi', 'Fica no apto 1360mm', 'Fica no apto 13600s', 'Fica no apto, 1360km', 'Fica no apto: 13600s', 'Fica no apto\n7h15min'])
+      assert.ok(vazamentos(f, MOTOR, publicos).length > 0, JSON.stringify(f));
+  // Frases comuns seguem passando; telefone, CEP e data com ano ou hora seguem retidos.
+  for (const f of ['Apto 6A', 'Apto 2A', 'Fica no 6º andar.', 'Visita dia 28/10', 'Casa, 10min do metrô', 'Lote (360m)', 'Sala - 2º andar']) {
+    assert.deepEqual(vazamentos(f, MOTOR, PUBLICOS_120), [], f);
+    assert.deepEqual(vazamentos(f, MOTOR_BAIXO, PUBLICOS_BAIXO), [], f);
+  }
+  for (const f of ['W3 Sul', 'Apto 2B']) assert.deepEqual(vazamentos(f, MOTOR_BAIXO, PUBLICOS_BAIXO), [], f);
+  for (const f of ['Me liga no 61 3333 1251', 'CEP 70.000-136', 'Vistoria 28/10/2026', 'Visita dia 28/10/1360 15h']) {
+    assert.ok(vazamentos(f, MOTOR, PUBLICOS_120).length > 0, f);
   }
 });
 

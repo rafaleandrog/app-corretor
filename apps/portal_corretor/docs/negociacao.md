@@ -366,10 +366,12 @@ conversa com a IA):
    retém também, qualquer que seja a palavra que fez a gêmea reter. Por isso, num imóvel de 1,5 mi com
    alvo de 1,45 mi, "Fica no bloco C50" e "Por favor, apto K43" retêm: "Fica no bloco 50" e "Por favor,
    apto 43" já retinham (o número depois de "fica" ou de "por" é lido como diferença de um valor
-   público, e 50 mil é a distância do pedido ao alvo). **Desde a 0.1.40**, a gêmea vale também para o
-   código que se lê como ordinal, tempo ou escala ("apto 6A" como "6ª", "apto 6S" como segundos, "apto
-   24M" como milhões, "6O", "6D", "6X", "6H", "6K") e para o horário com minutos ("apto 7h15", cuja
-   gêmea é "apto 715"), que antes passavam sem conferência: logo depois de "apto", "torre", "bloco" e das
+   público, e 50 mil é a distância do pedido ao alvo). **Desde a 0.1.40**, a gêmea vale também para
+   todo código com algarismo e letra que a conferência lê como número comum, de qualquer tamanho: ordinal
+   ("apto 6A" como "6ª"), tempo ("apto 6S", "apto 13600s"), escala ("apto 24M", "apto 1360mi"),
+   quantidade ("apto 1360km") e horário ("apto 7h15", cuja gêmea é "apto 715"; "apto 7h15min"), que antes
+   passavam sem conferência. Se o código tiver letras demais para conferir todas as leituras, ele retém
+   sem conferir. Logo depois de "apto", "torre", "bloco" e das
    outras palavras de endereço (também "apt", "quadra", "lote", "nº"), com qualquer separador entre a
    palavra e o código (espaço, vírgula, ponto e vírgula, dois-pontos, barra, hífen, parêntese ou "nº":
    "apto, 6A" é conferido igual a "apto 6A"; "6ª" conta como "6A"), ele retém quando alguma gêmea

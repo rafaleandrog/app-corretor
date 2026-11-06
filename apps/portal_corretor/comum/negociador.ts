@@ -770,9 +770,11 @@ const LEITURA_MAX = 160;
 // O código de unidade que a leitura padrão consome (#147): "Apto 6A" (ordinal "6ª"), "Apto 6S" (segundos),
 // "Apto 24M" (milhões), "Apto 6X", "Apto 6O". Antes ele passava sem conferência nenhuma, e a gêmea com
 // algarismo ("Fica no apto 64", "a" = 4) podia reter. Agora, logo depois da palavra de endereço (com
-// espaço, vírgula ou outro sinal entre os dois: `DEPOIS_DO_ENDERECO`), o código de 1 a 3 algarismos seguidos
-// de 1 a 3 letras, ou de "h" e dois algarismos ("Apto 7h15", horário), confere a gêmea (`codigoLidoRetido`,
-// `CODIGO_LIDO`): gêmea retida, o
+// espaço, vírgula ou outro sinal entre os dois: `DEPOIS_DO_ENDERECO`), todo trecho com algarismo e letra que
+// a leitura padrão consome inteiro confere a gêmea (`codigoLidoRetido`), qualquer que seja a forma e o número
+// de algarismos: ordinal, tempo, escala, quantidade ("Apto 1360km", "Apto 13600s", "Apto 1360mi") e horário
+// ("Apto 7h15", "Apto 7h15min"). Fora de `CODIGO_LIDO` ou com leituras demais (`LEITURAS_DO_CODIGO_MAX`),
+// retém sem conferir. Gêmea retida, o
 // código retém também; gêmea que passa, ele segue passando como antes. Só o lado do critério de
 // equivalência que faltava, e só retém a mais: o código retido retém a mensagem inteira, e nela nenhum outro
 // formato é liberado (`liberarFormatosComuns` devolve os trechos como a regra geral os leu); mensagem sem
@@ -797,12 +799,24 @@ const DEPOIS_DO_ENDERECO = new RegExp(
 /** O recorte antes do código em que `DEPOIS_DO_ENDERECO` é procurada. */
 const ANTES_DO_CODIGO = 40;
 /**
- * Código que a leitura padrão pode consumir: algarismos e depois letras ("6a", "6s", "24m", "36km"), ou
- * horário com minutos ("7h15", "13h36", "0h30": as gêmeas são "715", "1336" e "030", o "h" some), conferido
- * na forma de compatibilidade (NFKC): o indicador de ordinal "ª" e "º" vira "a" e "o" ("6ª" é "6a", e a
- * gêmea é também "64").
+ * Código que a leitura padrão consome inteiro e que tem algarismo e letra: qualquer mistura de algarismos e
+ * letras ASCII ("6a", "6s", "24m", "36km", "1360mi", "13600s", "7h15", "7h15min": as gêmeas de "7h15" são
+ * "715", o "h" some), na forma de compatibilidade (NFKC): o indicador de ordinal "ª" e "º" vira "a" e "o"
+ * ("6ª" é "6a", e a gêmea é também "64"). Só ASCII: o código entra sem escape na expressão da gêmea
+ * (`gemeaRetida`). Trecho com algarismo e letra fora disso (não acontece com as leituras de hoje) retém sem
+ * conferir.
  */
-const CODIGO_LIDO = /^\d{1,3}(?:[a-z]{1,3}|h\d{2})$/;
+const CODIGO_LIDO = /^[0-9a-z]+$/;
+/** Trecho com algarismo e letra (o que `CODIGO_LIDO` confere, ou retém). */
+const ALGARISMO_E_LETRA = /^(?=.*\p{N})(?=.*\p{L})/u;
+/** Leituras de um código lido que a conferência aceita (3 letras de até 3 opções); acima disso, retém sem conferir. */
+const LEITURAS_DO_CODIGO_MAX = 27;
+/** Quantas leituras `leiturasDoCodigo` daria ao código, sem montá-las. */
+function quantasLeituras(codigo: string): number {
+  let n = 1;
+  for (const ch of codigo) if (!/\d/.test(ch)) n *= 1 + (LETRA_COMO_ALGARISMO[ch]?.length ?? 0);
+  return n;
+}
 /**
  * Quantos códigos lidos por mensagem conferem a gêmea (cada um custa algumas leituras da mensagem
  * inteira). Do seguinte em diante, o código retém sem conferir: reter a mais, nunca deixar sair, e o
@@ -979,9 +993,14 @@ function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetid
     // nenhuma gêmea com algarismo retém (critério de equivalência). Passado o limite, retém sem conferir.
     let codigoLido = false;
     const codigo = m[0].normalize('NFKC');
-    if (codigoLidoRetido && melhor >= fim && CODIGO_LIDO.test(codigo) && depoisDoEndereco(base, ini)) {
+    if (codigoLidoRetido && melhor >= fim && ALGARISMO_E_LETRA.test(codigo) && depoisDoEndereco(base, ini)) {
       codigosLidos++;
-      codigoLido = codigosLidos > CODIGOS_LIDOS_MAX || codigoLidoRetido(codigo, ini, fim);
+      // Fora da forma conferível, com leituras demais ou passado o limite: retém sem conferir (reter a mais).
+      codigoLido =
+        codigosLidos > CODIGOS_LIDOS_MAX ||
+        !CODIGO_LIDO.test(codigo) ||
+        quantasLeituras(codigo) > LEITURAS_DO_CODIGO_MAX ||
+        codigoLidoRetido(codigo, ini, fim);
     }
     if (codigoLido) {
       principais.push({ ini, fim, ruim: true, algarismo: false, meia: false, retida: true });
@@ -1412,8 +1431,9 @@ function analisarSigilo(
    * achado ali, sem diferença de maiúscula, como palavra inteira), para que nada da leitura do texto
    * original (`desofuscar`) fique de fora. Custo, cada forma uma leitura linear: no formato liberado (no
    * máximo 2 algarismos e uma letra), no máximo 3 leituras × 2 formas, só no código que já passou nas outras
-   * condições; no código lido (`CODIGO_LIDO`, até 3 letras, cada uma sumindo ou virando até 2 algarismos),
-   * no máximo 3³ = 27 leituras × 2 formas, em no máximo `CODIGOS_LIDOS_MAX` códigos por mensagem.
+   * condições; no código lido (`CODIGO_LIDO`, até `LEITURAS_DO_CODIGO_MAX` = 27 leituras, o código de mais
+   * leituras retém sem conferir), no máximo 27 leituras × 2 formas, em no máximo `CODIGOS_LIDOS_MAX` códigos
+   * por mensagem. O código lido tem no máximo `LEITURA_MAX` caracteres (é consumido por uma leitura).
    */
   const gemeas = new Map<string, boolean>();
   const gemeaRetida: GemeaRetida = (codigo, ini, fim) => {
