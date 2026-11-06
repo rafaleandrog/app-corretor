@@ -766,9 +766,63 @@ const LEITURA_MAX = 160;
 //   não é liberado: o código com letra nunca passa onde o algarismo comum reteria, qualquer que seja a
 //   palavra que fez a gêmea reter (decisão do dono de 05/11, critério de equivalência).
 // Na dúvida, retém: falhou uma das condições, o trecho volta a ser lido como na regra geral (D2b).
+//
+// O código de unidade que a leitura padrão consome (#147): "Apto 6A" (ordinal "6ª"), "Apto 6S" (segundos),
+// "Apto 24M" (milhões), "Apto 6X", "Apto 6O". Antes ele passava sem conferência nenhuma, e a gêmea com
+// algarismo ("Fica no apto 64", "a" = 4) podia reter. Agora, logo depois da palavra de endereço (com
+// espaço, vírgula ou outro sinal entre os dois: `DEPOIS_DO_ENDERECO`), todo trecho com algarismo e letra que
+// a leitura padrão consome inteiro confere a gêmea (`codigoLidoRetido`), qualquer que seja a forma e o número
+// de algarismos: ordinal, tempo, escala, quantidade ("Apto 1360km", "Apto 13600s", "Apto 1360mi") e horário
+// ("Apto 7h15", "Apto 7h15min"). Fora de `CODIGO_LIDO` ou com leituras demais (`LEITURAS_DO_CODIGO_MAX`),
+// retém sem conferir. Gêmea retida, o
+// código retém também; gêmea que passa, ele segue passando como antes. Só o lado do critério de
+// equivalência que faltava, e só retém a mais: o código retido retém a mensagem inteira, e nela nenhum outro
+// formato é liberado (`liberarFormatosComuns` devolve os trechos como a regra geral os leu); mensagem sem
+// código retido segue exatamente como antes.
 
 /** Palavra de endereço antes do código ("Apto 2B", "Torre B2", "Bloco C1"). */
 const PALAVRA_DE_ENDERECO = String.raw`(?:apto|apartamento|ap|torre|bloco|bl|unidade|casa|sala|loja|conjunto|cj)`;
+/**
+ * Logo depois de uma palavra de endereço (o texto até o começo do código), só para conferir a gêmea do
+ * código lido (#147): as de `PALAVRA_DE_ENDERECO` e também "apt", "quadra"/"qd", "lote"/"lt", "número"/"nº"/
+ * "n.". Entre a palavra e o código, qualquer sequência de espaço, quebra de linha e sinal (nada de letra nem
+ * algarismo, salvo "º"/"°"), com um "nº"/"n."/"no"/"número" no meio ou não: "apto 6A", "apto, 6A", "apto;
+ * 6A", "apto: 6A", "apto / 6A", "apto (6A", "apto - 6A", "apto nº 6A", "apto, nº 6A", "quadra 6A". O
+ * separador não muda a gêmea: com vírgula ou com espaço, o código confere a mesma mensagem com algarismo no
+ * lugar dele. Mais largo que o formato liberado de propósito: aqui só se retém a mais, nunca se libera.
+ */
+const SEPARADOR_DO_ENDERECO = String.raw`(?:[^\p{L}\p{N}]|[º°])`;
+const DEPOIS_DO_ENDERECO = new RegExp(
+  String.raw`(?<![\p{L}\p{N}])(?:${PALAVRA_DE_ENDERECO}|apt|quadra|qd|lote|lt|numero|num|n)(?:${SEPARADOR_DO_ENDERECO}*(?:n[º°o.]?|numero|num)(?![\p{L}\p{N}]))?${SEPARADOR_DO_ENDERECO}*$`,
+  'u',
+);
+/** O recorte antes do código em que `DEPOIS_DO_ENDERECO` é procurada. */
+const ANTES_DO_CODIGO = 40;
+/**
+ * Código que a leitura padrão consome inteiro e que tem algarismo e letra: qualquer mistura de algarismos e
+ * letras ASCII ("6a", "6s", "24m", "36km", "1360mi", "13600s", "7h15", "7h15min": as gêmeas de "7h15" são
+ * "715", o "h" some), na forma de compatibilidade (NFKC): o indicador de ordinal "ª" e "º" vira "a" e "o"
+ * ("6ª" é "6a", e a gêmea é também "64"). Só ASCII: o código entra sem escape na expressão da gêmea
+ * (`gemeaRetida`). Trecho com algarismo e letra fora disso (não acontece com as leituras de hoje) retém sem
+ * conferir.
+ */
+const CODIGO_LIDO = /^[0-9a-z]+$/;
+/** Trecho com algarismo e letra (o que `CODIGO_LIDO` confere, ou retém). */
+const ALGARISMO_E_LETRA = /^(?=.*\p{N})(?=.*\p{L})/u;
+/** Leituras de um código lido que a conferência aceita (3 letras de até 3 opções); acima disso, retém sem conferir. */
+const LEITURAS_DO_CODIGO_MAX = 27;
+/** Quantas leituras `leiturasDoCodigo` daria ao código, sem montá-las. */
+function quantasLeituras(codigo: string): number {
+  let n = 1;
+  for (const ch of codigo) if (!/\d/.test(ch)) n *= 1 + (LETRA_COMO_ALGARISMO[ch]?.length ?? 0);
+  return n;
+}
+/**
+ * Quantos códigos lidos por mensagem conferem a gêmea (cada um custa algumas leituras da mensagem
+ * inteira). Do seguinte em diante, o código retém sem conferir: reter a mais, nunca deixar sair, e o
+ * custo fica linear no tamanho da mensagem.
+ */
+const CODIGOS_LIDOS_MAX = 4;
 const COMECO_LIVRE = String.raw`(?<![\p{L}\p{N}.,:\/\-])`;
 /** Número em inglês ou espanhol, que `trechosSemLeitura` não vê como trecho. */
 const NUMERO_EM_OUTRA_LINGUA = String.raw`(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\w+teen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundreds?|thousands?|millions?|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|pairs?|dozens?|half|uno|una|dos|cuatro|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieci\w+|veinte|veinti\w+|treinta|cuarenta|cincuenta|sesenta|ochenta|noventa|cien|ciento|cientos|\w+cient[oa]s|quinient[oa]s|docenas?|decenas?|centenar(?:es)?|primer[oa]?s?|tercer[oa]?s?|cuart[oa]s?|octav[oa]s?|noven[oa]s?|millon\w*)`;
@@ -886,6 +940,16 @@ interface Unidade {
   ruim: boolean;
   algarismo: boolean;
   meia: boolean;
+  /** Código lido cuja gêmea retém, ou passado o limite (#147): retém, qualquer que seja o valor lido. */
+  retida?: boolean;
+}
+
+/** O código em `ini` vem logo depois de uma palavra de endereço (`DEPOIS_DO_ENDERECO`), começada numa palavra inteira? */
+function depoisDoEndereco(base: string, ini: number): boolean {
+  const de = Math.max(0, ini - ANTES_DO_CODIGO);
+  const m = DEPOIS_DO_ENDERECO.exec(base.slice(de, ini));
+  // A palavra de endereço não pode ser o fim de outra cortada pelo recorte ("xxapto 6A").
+  return !!m && (de + m.index === 0 || !/[\p{L}\p{N}]/u.test(base[de + m.index - 1]));
 }
 
 /**
@@ -899,9 +963,10 @@ interface Unidade {
  * que não é separação normal ("1/3/6/0", "1:360:000", "1 ponto 36", "1\n360", em que tirar a quebra
  * junta os dois num número); ou há três algarismos soltos ("um, três, seis, zero").
  */
-function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetida): { ini: number; fim: number }[] {
+function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetida, codigoLidoRetido: GemeaRetida | null): { ini: number; fim: number; retida: boolean }[] {
   const principais: Unidade[] = [];
   let coberto = 0;
+  let codigosLidos = 0;
   for (const m of base.matchAll(/[\p{L}\p{N}\p{M}\u{1F51F}]+/gu)) {
     const ini = m.index ?? 0;
     const fim = ini + m[0].length;
@@ -924,13 +989,29 @@ function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetid
       if (k < ini) ler(LEITURAS_PADRAO[LEITURAS_PADRAO.length - 1], k);
       if (/\bas\s$/.test(base.slice(Math.max(0, ini - 4), ini))) ler(HORARIO_POR_EXTENSO, ini);
     }
-    if (melhor >= fim) {
+    // Código de unidade consumido pela leitura padrão ("Apto 6A" como ordinal, #147): só passa como lido se
+    // nenhuma gêmea com algarismo retém (critério de equivalência). Passado o limite, retém sem conferir.
+    let codigoLido = false;
+    const codigo = m[0].normalize('NFKC');
+    if (codigoLidoRetido && melhor >= fim && ALGARISMO_E_LETRA.test(codigo) && depoisDoEndereco(base, ini)) {
+      codigosLidos++;
+      // Fora da forma conferível, com leituras demais ou passado o limite: retém sem conferir (reter a mais).
+      codigoLido =
+        codigosLidos > CODIGOS_LIDOS_MAX ||
+        !CODIGO_LIDO.test(codigo) ||
+        quantasLeituras(codigo) > LEITURAS_DO_CODIGO_MAX ||
+        codigoLidoRetido(codigo, ini, fim);
+    }
+    if (codigoLido) {
+      principais.push({ ini, fim, ruim: true, algarismo: false, meia: false, retida: true });
+      coberto = fim;
+    } else if (melhor >= fim) {
       principais.push({ ini, fim: melhor, ruim: false, algarismo: ALGARISMO.test(base.slice(ini, melhor)), meia: false });
       coberto = melhor;
     } else principais.push({ ini, fim, ruim: true, algarismo: false, meia });
   }
   const unidades = liberarFormatosComuns(base, principais, revela, gemeaRetida);
-  const saida: { ini: number; fim: number }[] = [];
+  const saida: { ini: number; fim: number; retida: boolean }[] = [];
   let i = 0;
   while (i < unidades.length) {
     // Um grupo: unidades seguidas ligadas só por sinais e conectores.
@@ -952,7 +1033,8 @@ function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetid
         ruim = !!a && !!b && DIGITOS_INTEIROS.test(a + b);
       } else ruim = !SEPARACAO_NORMAL.test(entre);
     }
-    if (ruim) saida.push({ ini: grupo[0].ini, fim: grupo[grupo.length - 1].fim });
+    const retida = grupo.some((u) => u.retida);
+    if (ruim || retida) saida.push({ ini: grupo[0].ini, fim: grupo[grupo.length - 1].fim, retida });
     i = j + 1;
   }
   return saida;
@@ -966,7 +1048,8 @@ function trechosSemLeitura(base: string, revela: Revela, gemeaRetida: GemeaRetid
  * isso, os trechos ficam como a regra geral os leu (e retêm).
  */
 function liberarFormatosComuns(base: string, principais: Unidade[], revela: Revela, gemeaRetida: GemeaRetida): Unidade[] {
-  if (!principais.length || naMensagem(PRECO_NA_MENSAGEM, base) || naMensagem(OUTRO_NUMERO, base)) return principais;
+  // Código lido com a gêmea retida (#147) nunca é liberado.
+  if (!principais.length || principais.some((u) => u.retida) || naMensagem(PRECO_NA_MENSAGEM, base) || naMensagem(OUTRO_NUMERO, base)) return principais;
   const primeiro = principais[0].ini;
   const ultimo = principais[principais.length - 1].fim;
   for (const f of FORMATOS_COMUNS) {
@@ -1346,8 +1429,11 @@ function analisarSigilo(
    * "56"), lida pela análise comum (`liberar` falso). Se alguma gêmea retém, o código não é liberado. Duas
    * formas da gêmea: no texto preparado (a troca no lugar exato do código) e no texto original (o código
    * achado ali, sem diferença de maiúscula, como palavra inteira), para que nada da leitura do texto
-   * original (`desofuscar`) fique de fora. Custo: no máximo 3 leituras × 2 formas, cada uma linear; só no
-   * código que já passou nas outras condições.
+   * original (`desofuscar`) fique de fora. Custo, cada forma uma leitura linear: no formato liberado (no
+   * máximo 2 algarismos e uma letra), no máximo 3 leituras × 2 formas, só no código que já passou nas outras
+   * condições; no código lido (`CODIGO_LIDO`, até `LEITURAS_DO_CODIGO_MAX` = 27 leituras, o código de mais
+   * leituras retém sem conferir), no máximo 27 leituras × 2 formas, em no máximo `CODIGOS_LIDOS_MAX` códigos
+   * por mensagem. O código lido tem no máximo `LEITURA_MAX` caracteres (é consumido por uma leitura).
    */
   const gemeas = new Map<string, boolean>();
   const gemeaRetida: GemeaRetida = (codigo, ini, fim) => {
@@ -1365,9 +1451,11 @@ function analisarSigilo(
     }
     return false;
   };
-  for (const t of trechosSemLeitura(base, revela, gemeaRetida)) {
+  // Na análise comum (`liberar` falso, a da gêmea), o código lido segue a leitura padrão, como na `main`.
+  for (const t of trechosSemLeitura(base, revela, gemeaRetida, liberar ? gemeaRetida : null)) {
     const lidos = lerValores(prepararTexto(desofuscar(base.slice(t.ini, t.fim)).texto));
-    if (!lidos.length || lidos.some((x) => !publico(x.v))) {
+    // O código lido com a gêmea retida (#147) retém mesmo que o valor lido dele seja público.
+    if (t.retida || !lidos.length || lidos.some((x) => !publico(x.v))) {
       achados.push('escreve número de forma disfarçada');
       break;
     }

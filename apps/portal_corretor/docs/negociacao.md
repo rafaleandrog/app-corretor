@@ -23,7 +23,9 @@ tarefa do mandato nascem juntas, e a mesma mensagem não faz o Negociador respon
 0.1.39, trocar de conta recria a tela da negociação (ver [Trocar de conta no meio de uma
 negociação](#trocar-de-conta-no-meio-de-uma-negociação)). Na 0.1.40, se a IA falha numa mensagem do
 cliente, a mesma mensagem entregue de novo tenta outra vez, e a negociação aberta pela reação ou pela
-mensagem do cliente só vai ao negociador padrão quando o app consegue conferir o acesso dele.
+mensagem do cliente só vai ao negociador padrão quando o app consegue conferir o acesso dele. Na 0.1.41,
+o código de unidade que se lê como ordinal, tempo ou escala ("apto 6A") passa pela mesma conferência da
+gêmea que os formatos comuns (ver [Como o Negociador IA decide](#como-o-negociador-ia-decide-e-o-que-ele-nunca-faz)).
 
 ### Resumo das garantias
 
@@ -366,7 +368,19 @@ conversa com a IA):
    retém também, qualquer que seja a palavra que fez a gêmea reter. Por isso, num imóvel de 1,5 mi com
    alvo de 1,45 mi, "Fica no bloco C50" e "Por favor, apto K43" retêm: "Fica no bloco 50" e "Por favor,
    apto 43" já retinham (o número depois de "fica" ou de "por" é lido como diferença de um valor
-   público, e 50 mil é a distância do pedido ao alvo). Se a forma com
+   público, e 50 mil é a distância do pedido ao alvo). **Desde a 0.1.41**, a gêmea vale também para
+   todo código com algarismo e letra que a conferência lê como número comum, de qualquer tamanho: ordinal
+   ("apto 6A" como "6ª"), tempo ("apto 6S", "apto 13600s"), escala ("apto 24M", "apto 1360mi"),
+   quantidade ("apto 1360km") e horário ("apto 7h15", cuja gêmea é "apto 715"; "apto 7h15min"), que antes
+   passavam sem conferência. Se o código tiver letras demais para conferir todas as leituras, ele retém
+   sem conferir. Logo depois de "apto", "torre", "bloco" e das
+   outras palavras de endereço (também "apt", "quadra", "lote", "nº"), com qualquer separador entre a
+   palavra e o código (espaço, vírgula, ponto e vírgula, dois-pontos, barra, hífen, parêntese ou "nº":
+   "apto, 6A" é conferido igual a "apto 6A"; "6ª" conta como "6A"), ele retém quando alguma gêmea
+   retém, mesmo que o valor lido do código seja público ("Fica no apto 6A" e "Fica no apto, 6A" retêm,
+   porque "Fica no apto 64" e "Fica no apto, 64" retêm; "Fica no apto 7h15" retém, porque "Fica no
+   apto 715" retém) e segue passando quando nenhuma retém ("Apto 6A", "Apto 2A", "Fica no 6º andar"). Na mesma mensagem, até quatro códigos assim são conferidos; do quinto
+   em diante, a mensagem retém sem conferir. Se a forma com
    algarismo já passava, a forma com código passa também e o risco é o mesmo de antes: **risco
    residual, já existente, e não criado pelos formatos comuns**. Hoje esse risco cobre o número curto
    fora do contexto de preço disfarçado assim: número ou ordinal por extenso em outra língua
@@ -375,7 +389,13 @@ conversa com a IA):
    "men.", "menoz", "bxa", "g a p", "o-f-f"); caractere invisível que parte a palavra ("menos" partido em dois) ou
    caractere de tag colado ao código; traço longo ou hífen seguido de pontuação ("Apto 5B—", "Apto
    5B-."); e "d" lido como 0 ("Torre D5"). Em todos, "bloco 6", "apto 5" ou "torre 5" com o mesmo
-   disfarce já passavam. Por isso a conferência não é a única barreira: no "só sugere" e no
+   disfarce já passavam. Fica também no risco residual o **número colado em unidade**: "Fica no apto
+   1.360km" e "Fica no apto 1.360x" passam pela conferência, porque o número grudado em "km" ou em "x"
+   é lido do jeito comum, como distância ou como parcelas, e essa leitura não confere a gêmea (a
+   conferência da 0.1.41 pega o código sem ponto, como "apto 1360km"). Era assim antes da 0.1.41 e
+   continua igual depois: não é piora desta versão. Conferir a gêmea de toda leitura comum mexeria
+   também em horário, distância e parcelas em qualquer frase, o que pede outro desenho; o caso ficou
+   registrado em issue própria. Por isso a conferência não é a única barreira: no "só sugere" e no
    "pergunta antes", você lê a mensagem antes de ela sair.
 6. **Validade:** o mandato está vigente; "faz sozinho" só com a autorização do proprietário.
 7. **Canal:** portal ou Fazer agora; "faz sozinho" só pelo portal.
