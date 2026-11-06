@@ -94,7 +94,7 @@ test('moldura no Chromium: árvore de primitivos, trilho ligado, Assistente na d
     assert.deepEqual(arvore.inbox, ['0px', '0px', 'Menu']);
     assert.equal(arvore.detalheVisivel, true);
     assert.deepEqual(arvore.trilho, ['Hoje', 'Clientes', 'Imóveis', 'Estúdio', 'Página', 'Números*', 'Ajustes', 'Buscar', 'Assistente']);
-    assert.deepEqual(arvore.colunas, ['360px', '320px', 'centro']);
+    assert.deepEqual(arvore.colunas, ['360px', '340px', 'centro']);
     assert.deepEqual(arvore.flags, [true, true, true]);
     assert.deepEqual(arvore.conteudo, ['LISTA', 'CENTRO', 'CONTEXTO']);
     assert.equal(arvore.estilos, 0, 'nenhum <style> nem style= na moldura');

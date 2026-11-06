@@ -40,6 +40,12 @@ as telas do corretor estão num desenho só, em colunas (o "Padrão B"): Hoje, C
 Negociações e Importar), Imóveis (e Novo imóvel), Estúdio, Página, Números e Ajustes. A tela
 **Corretores**, da equipe da plataforma, fica fora desse desenho.
 
+Em telas largas, as colunas usam a largura inteira da área do app. Nas telas de três colunas, as
+laterais começam com uma largura fixa (a lista com 360 px e a coluna da direita com 340 px, ou 400 px
+com o Assistente aberto), que dá para ajustar arrastando a borda, e a coluna do meio fica com todo o
+resto, então cresce em monitores grandes. Em telas estreitas (até 900 px, como celular e tablet em pé),
+as colunas viram abas, como antes.
+
 ### Mapa das telas
 
 | Tela | Como chegar | Endereço | Onde está explicada |

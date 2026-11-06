@@ -206,7 +206,7 @@ function esquerda(d: DadosHoje, atualizar: () => void) {
           .render_item=${(x: { p?: Passagem; q?: ItemFila }) =>
             x.p
               ? html`<urbi-linha justificar="entre">
-                  <urbi-stack>
+                  <urbi-stack expandir>
                     <urbi-prosa>${x.p.contato_nome}${x.p.codigo ? ` · ${x.p.codigo}` : ''}</urbi-prosa>
                     <urbi-prosa papel="secundario">${x.p.motivo}</urbi-prosa>
                   </urbi-stack>
@@ -215,7 +215,7 @@ function esquerda(d: DadosHoje, atualizar: () => void) {
                     : nothing}
                 </urbi-linha>`
               : html`<urbi-linha justificar="entre">
-                  <urbi-stack>
+                  <urbi-stack expandir>
                     <urbi-prosa>${x.q!.contato_nome}</urbi-prosa>
                     <urbi-prosa papel="secundario">${x.q!.texto}</urbi-prosa>
                   </urbi-stack>
@@ -308,12 +308,15 @@ function direita(d: DadosHoje, atualizar: () => void) {
     </urbi-card>
     ${s
       ? html`<urbi-card titulo="Sua semana" icone="fa-solid fa-chart-simple">
-          <urbi-grid min="120px">
-            <urbi-kpi rotulo="Contatos novos" .valor=${s.novos_contatos ?? 0}></urbi-kpi>
-            <urbi-kpi rotulo="Leads" .valor=${s.leads ?? 0}></urbi-kpi>
-            <urbi-kpi rotulo="Visitas feitas" .valor=${s.visitas ?? 0}></urbi-kpi>
+          <urbi-stack>
+            <urbi-grid min="64px">
+              <urbi-kpi rotulo="Contatos novos" .valor=${s.novos_contatos ?? 0}></urbi-kpi>
+              <urbi-kpi rotulo="Leads" .valor=${s.leads ?? 0}></urbi-kpi>
+              <urbi-kpi rotulo="Visitas feitas" .valor=${s.visitas ?? 0}></urbi-kpi>
+            </urbi-grid>
+            <!-- Valor em reais na linha inteira do cartão: numa célula da grade ele quebrava ou rolava (#164). -->
             <urbi-kpi rotulo="Comissão prevista" formato="texto" .valor=${s.previsao_c === null || s.previsao_c === undefined ? '—' : reais(s.previsao_c)}></urbi-kpi>
-          </urbi-grid>
+          </urbi-stack>
         </urbi-card>`
       : nothing}
     <urbi-card titulo="Dica do Assistente" icone="fa-solid fa-wand-magic-sparkles">
