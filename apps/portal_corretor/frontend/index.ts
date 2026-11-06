@@ -198,13 +198,13 @@ export class AppPortalCorretor extends LitElement {
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-compass" mensagem="Página não encontrada"
         submensagem="Endereço recebido: ${this.sub}${window.location.search}. Abra o início do app (${urbiVerso.href('/')}) e escolha a tela no trilho, à esquerda."></urbi-estado-vazio>`;
     }
-    if (![tela.papel, ...(tela.tambem ?? [])].some((p) => this.papeis.includes(p))) {
+    if (!this.liberada(tela)) {
       const quem = tela.papel === 'corretor' ? 'corretor' : 'equipe da plataforma (operacao)';
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-lock" mensagem="Esta área não está liberada para você"
         submensagem="Ela é do papel ${quem}. Peça ao administrador do app para atribuir o papel em Configurações › Usuários."></urbi-estado-vazio>`;
     }
     // Sem conta não há carteira para mostrar: explica o que fazer em vez de cada tela dar erro.
-    if (tela.papel !== 'operacao' && this.semConta) {
+    if (this.faltaConta(tela)) {
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-building-user" mensagem="Você ainda não está em nenhuma conta"
         submensagem="As telas do corretor trabalham sempre dentro de uma conta. Associe seu usuário a uma conta em Admin › Acesso › Contas (ou peça a quem cuida das contas da plataforma) e recarregue a página."></urbi-estado-vazio>`;
     }
@@ -213,6 +213,17 @@ export class AppPortalCorretor extends LitElement {
     // Telas fora da moldura (migram nos itens B2 a B9) dividem a página com o Assistente quando ele abre.
     return tela.papel === 'corretor' && !tela.moldura ? comAssistente(conteudo) : conteudo;
   }
+
+  private liberada = (tela: Tela) => [tela.papel, ...(tela.tambem ?? [])].some((p) => this.papeis.includes(p));
+  private faltaConta = (tela: Tela) => tela.papel !== 'operacao' && this.semConta;
+
+  /**
+   * A página mostra a moldura de fato (e não o carregando, a falta de papel ou de conta, que `conteudo`
+   * desenha no lugar). Só aí ela vai sem o teto de 1200 px do `urbi-shell-page` (prop `dashboard`,
+   * ui-componentes-layout.md), para as colunas usarem a área do app inteira (#164); o respiro continua
+   * o do `.container` da página. Estados de página inteira e telas fora da moldura seguem com o teto.
+   */
+  private naMoldura = (tela: Tela | undefined) => !!tela?.moldura && this.carregado && this.liberada(tela) && !this.faltaConta(tela);
 
   /**
    * A chave da tela (`sub|conta|visita`): trocar de endereço, de conta (a de trabalho, inclusive a conta
@@ -233,6 +244,6 @@ export class AppPortalCorretor extends LitElement {
     const soEquipe = !this.papeis.includes('corretor') && this.papeis.includes('operacao');
     const { chave, param } = this.sub === '/' && soEquipe ? { chave: 'corretores' as const, param: undefined } : resolverEndereco(this.sub);
     const tela = chave ? TELAS[chave] : undefined;
-    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'}>${this.acoes(tela)}${this.seletorDeConta()}${this.conteudo(tela, param)}</urbi-shell-page>`;
+    return html`<urbi-shell-page titulo=${tela?.titulo ?? 'Portal do Corretor'} ?dashboard=${this.naMoldura(tela)}>${this.acoes(tela)}${this.seletorDeConta()}${this.conteudo(tela, param)}</urbi-shell-page>`;
   }
 }

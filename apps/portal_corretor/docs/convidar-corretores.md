@@ -7,9 +7,10 @@ descricao: Como a equipe da plataforma convida um corretor e libera o app para e
 
 Tela **Equipe da plataforma › Corretores**, para quem tem o papel `operacao` — que o administrador
 do app atribui em **Configurações › Usuários**, seção **Equipe**. Para quem só tem esse papel, o
-Início do app abre direto nesta tela. Quem também é corretor (ou administrador do app) chega a ela pelo
-menu do app, no nome do app no alto da página: é o único item do app ali, porque as telas do corretor
-ficam no trilho à esquerda de cada tela.
+Início do app abre direto nesta tela. O administrador do app, que o próprio app trata como corretor
+e equipe ao mesmo tempo (por isso o Início abre Hoje para ele), chega a ela pelo menu do app, no nome
+do app no alto da página: é o único item do app ali, porque as telas do corretor ficam no trilho à
+esquerda de cada tela.
 
 ## Passo a passo
 

@@ -102,11 +102,15 @@ function colunas(op: OpcoesMoldura): TemplateResult {
     </urbi-2x1>`;
   }
   // Larguras do guia (telas_padrao_b.md §2): lista 340–380, contexto 300–360, Assistente 380–440.
+  // As laterais são fixas e o centro fica com o resto: com a página sem teto (`dashboard`, index.ts), é
+  // o centro que cresce no desktop largo (#164). O contexto parte de 340 e não encolhe abaixo de 300 no
+  // arrasto: é o que os cartões da direita (Sua semana, Agenda, Dica) precisam sem cortar nem rolar. O
+  // Assistente aberto não encolhe abaixo de 380, o piso do guia.
   // Sem contexto (o Funil de Clientes), a direita fica recolhida e o centro ganha a largura.
   return html`<urbi-3-colunas slot="detalhe" redimensionavel colapsavel-esquerda colapsavel-direita
     ?colapsada-direita=${!aberto && op.contexto === undefined}
-    largura-esquerda="360px" largura-direita=${aberto ? '400px' : '320px'}
-    largura-min-esquerda="260px" largura-max-esquerda="40%" largura-min-direita="280px" largura-max-direita="45%"
+    largura-esquerda="360px" largura-direita=${aberto ? '400px' : '340px'}
+    largura-min-esquerda="260px" largura-max-esquerda="40%" largura-min-direita=${aberto ? '380px' : '300px'} largura-max-direita="45%"
     label-esquerda=${r.lista ?? 'Lista'} label-centro=${r.centro ?? 'Foco'} label-direita=${aberto ? 'Assistente' : (r.contexto ?? 'Contexto')}
     painel-ativo=${aberto ? 'direita' : (op.painel ?? 'centro')}>
     ${coluna('esquerda', op.lista)}
