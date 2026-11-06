@@ -91,6 +91,8 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Até lá:** trilho com os itens do menu e o Assistente.
 
+**Atualização (#166, 0.1.43, D-113):** a duplicação foi resolvida do lado do app, sem depender deste pedido: o `nav` do manifesto deixou de repetir as sete telas do trilho e ficou só com Equipe da plataforma › Corretores. O trilho é o menu das telas para todo mundo. O pedido continua valendo só se um dia o trilho tiver que encolher onde o menu do shell aparece (a regra antiga de 11.0.1).
+
 **Proposta mínima:** fechar o gap (o externo abre o menu da app) ou expor em `urbiVerso.contexto()` um booleano "o menu da app está visível".
 
 ## 16. Evento segregado lido por todo membro da conta, e `wh` sem `req.dados` segregado (F4, #136)

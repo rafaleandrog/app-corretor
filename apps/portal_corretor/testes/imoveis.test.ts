@@ -17,16 +17,16 @@ import {
   validarImovel,
 } from '../comum/imoveis';
 import { TELAS_APP, telaBase } from '../comum/assistente';
-import { resolverEndereco } from '../frontend/enderecos';
+import { MENU, resolverEndereco } from '../frontend/enderecos';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const raiz = (arquivo: string) => readFileSync(resolve(process.cwd(), arquivo), 'utf8');
 
 test('Imóveis: abas Carteira e Empreendimentos, nesta ordem; Carteira é a primeira (D-84)', () => {
   assert.deepEqual(ABAS_IMOVEIS.map((a) => a.id), ['carteira', 'empreendimentos']);
-  const manifesto = JSON.parse(raiz('manifesto.json'));
-  assert.ok(manifesto.nav.some((n: { rota: string }) => n.rota === '/imoveis'));
-  assert.ok(!manifesto.nav.some((n: { rota: string }) => n.rota === '/empreendimentos'), 'Empreendimentos fora do menu');
+  // Imóveis está no trilho; Empreendimentos é aba, não item (o `nav` em menu.test.ts).
+  assert.ok(MENU.some((n) => n.rota === '/imoveis'));
+  assert.ok(!MENU.some((n) => n.rota === '/empreendimentos'), 'Empreendimentos fora do menu');
 });
 
 test('/empreendimentos é apelido de Imóveis na aba Empreendimentos (D-84)', () => {

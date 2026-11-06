@@ -129,8 +129,9 @@ export function fichaCanonica(sub: string, busca = ''): string | null {
 }
 
 /**
- * Menu do corretor com os nomes do Padrão B (D-103), na ordem de 11.0.1. É o mesmo do `nav` do
- * manifesto (o teste confere) e o do trilho da moldura.
+ * Menu do corretor com os nomes do Padrão B (D-103), na ordem de 11.0.1: é o trilho da moldura. Fica
+ * fora do `nav` do manifesto (D-113, #166): o menu do app no cabeçalho do shell não repete o trilho e
+ * traz só Equipe da plataforma › Corretores, que não tem outro caminho (o teste confere).
  */
 export const MENU: { titulo: string; rota: string; icone: string }[] = [
   { titulo: 'Hoje', rota: '/', icone: 'fa-solid fa-house' },
