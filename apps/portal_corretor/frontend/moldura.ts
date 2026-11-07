@@ -41,6 +41,14 @@ export interface OpcoesMoldura {
   centroSolto?: boolean;
   /** Direita, "o que eu preciso saber para decidir". O Assistente aberto ocupa o lugar dela. */
   contexto?: unknown;
+  /**
+   * A direita começa recolhida (o trilho fino com o rótulo), e o centro fica com a largura dela. Para o
+   * contexto que é só uma dica enquanto nada foi escolhido: a coluna existe e abre num clique, mas não
+   * rouba espaço do centro. Sem contexto (`undefined` ou `nothing`) ela já começa recolhida.
+   */
+  recolherContexto?: boolean;
+  /** Lista mais estreita (280 px), para quando o centro é largo por natureza (o quadro do Funil). */
+  listaEstreita?: boolean;
   /** Rótulos das abas do celular. */
   rotulos?: { lista?: string; centro?: string; contexto?: string };
   /** Coluna aberta no celular (padrão: o centro). Clientes sem cliente escolhido abre na lista. */
@@ -106,11 +114,13 @@ function colunas(op: OpcoesMoldura): TemplateResult {
   // o centro que cresce no desktop largo (#164). O contexto parte de 340 e não encolhe abaixo de 300 no
   // arrasto: é o que os cartões da direita (Sua semana, Agenda, Dica) precisam sem cortar nem rolar. O
   // Assistente aberto não encolhe abaixo de 380, o piso do guia.
-  // Sem contexto (o Funil de Clientes), a direita fica recolhida e o centro ganha a largura.
+  // Sem contexto, ou com o contexto que é só dica (nada escolhido ainda), a direita começa recolhida e o
+  // centro ganha a largura dela: coluna vazia de 340 px apertava o centro (o quadro do Funil, a ficha).
+  const recolher = !aberto && (op.recolherContexto || op.contexto === undefined || op.contexto === nothing);
   return html`<urbi-3-colunas slot="detalhe" redimensionavel colapsavel-esquerda colapsavel-direita
-    ?colapsada-direita=${!aberto && op.contexto === undefined}
-    largura-esquerda="360px" largura-direita=${aberto ? '400px' : '340px'}
-    largura-min-esquerda="260px" largura-max-esquerda="40%" largura-min-direita=${aberto ? '380px' : '300px'} largura-max-direita="45%"
+    ?colapsada-direita=${recolher}
+    largura-esquerda=${op.listaEstreita ? '280px' : '360px'} largura-direita=${aberto ? '400px' : '340px'}
+    largura-min-esquerda=${op.listaEstreita ? '240px' : '260px'} largura-max-esquerda="40%" largura-min-direita=${aberto ? '380px' : '300px'} largura-max-direita="45%"
     label-esquerda=${r.lista ?? 'Lista'} label-centro=${r.centro ?? 'Foco'} label-direita=${aberto ? 'Assistente' : (r.contexto ?? 'Contexto')}
     painel-ativo=${aberto ? 'direita' : (op.painel ?? 'centro')}>
     ${coluna('esquerda', op.lista)}

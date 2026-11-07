@@ -11,6 +11,11 @@ O funil é a visão **Funil** de **Clientes** (o botão **Funil**, ao lado de **
 da coluna da esquerda). O endereço é `/clientes?visao=funil`; os endereços antigos `/funil` e
 `/clientes?visao=quadro` continuam abrindo a visão Funil. A tela tem três colunas:
 
+O quadro é a parte que precisa de espaço, então os filtros ficam numa coluna mais estreita (280 px) e
+a coluna da direita começa **recolhida**, como um trilho fino com o rótulo "Cliente", enquanto nenhum
+cartão foi escolhido. Ao tocar num cartão, ela abre com o cliente. Recolher e abrir as colunas também
+dá pela setinha no topo delas.
+
 **Esquerda: o que mostrar.**
 
 - **Funis**: "Compra" e "Venda e captação", cada um com quantos negócios estão em andamento.
