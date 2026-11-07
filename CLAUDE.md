@@ -20,6 +20,7 @@ specs/plano_de_implementacao.md    a ordem: blocos, status, registro de sessões
 specs/pedidos_ao_shell.md          ajustes necessários no shell do UrbiVerso
 specs/telas_padrao_b.md            guia visual do Padrão B: moldura, componentes, wireframe de cada tela, dados de exemplo
 specs/telas/                       mockups HTML estáticos de cada tela (abrir index.html no navegador; só referência visual)
+specs/layout/                      referência visual oficial: README.md (contrato de layout), png/ (25 imagens, 1440 px e 390 × 844) e 25 .layout.json (medidas); ver regra abaixo
 specs/stack_funcional.md           intenção de produto sem amarras de plataforma (consulta)
 specs/referencias_principais.md    as 5 referências principais (D-80): o que copiar de cada uma (consulta de tela e comportamento)
 specs/referencias.md               catálogo amplo de produtos de mercado (consulta)
@@ -32,7 +33,7 @@ specs/urbiverso-frameworks-resumo.md  resumo dos frameworks da plataforma (consu
 1. **Contrato da plataforma:** docs do `@urbiverso/sdk` instalado (bundle publicado, nunca o `main` do monorepo).
 2. **Produto:** `specs/portal_corretor.md`.
 3. **Ordem e status:** `specs/plano_de_implementacao.md`.
-4. **Forma das telas:** `specs/telas_padrao_b.md` e os mockups em `specs/telas/` (referência visual; o comportamento está na spec 11, e onde divergem vale a spec — nota no topo do guia).
+4. **Forma das telas:** `specs/layout/` (contrato de layout: PNG e `.layout.json` de cada tela, normativos em estrutura e medidas), depois `specs/telas_padrao_b.md` e os mockups em `specs/telas/` (referência visual; o comportamento está na spec 11, e onde divergem vale a spec — nota no topo do guia).
 5. Consulta: resumo dos frameworks, referências principais, stack funcional, catálogo de referências, horizonte.
 
 Se a spec pedir algo que o SDK não permite, **não contorne**: registre o conflito no plano, proponha alternativa e pergunte ao dono.
@@ -59,7 +60,9 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 - **Cliente** vê só o que está em `itens_cliente` com o `usuario.id` dele.
 - **Negociador:** nenhuma contraproposta sai sem passar pelas validações de código da spec 10.9.7 (piso, passo, rodadas, concessões, sigilo, validade, canal). O ponto de recuo, o alvo e a BATNA do vendedor nunca chegam a rota pública, vitrine, evento, exportação ou tela do cliente. Aceite final é sempre do corretor. No MVP, sem WhatsApp: portal (token) e "Fazer agora" (D-107).
 - **Negociador humano** (role `negociador`) vê só as negociações em `atribuicoes_negociacao` com o `usuario.id` dele; só existe com a política "permite contas multi-usuário" ligada na instância (D-108).
-- **CRECI é opcional e nunca bloqueia** (D-93): sem CRECI, aviso discreto com atalho para o perfil; nunca erro.
+- **Referência visual:** `specs/layout/` é a referência visual oficial do app. Nunca apague nem substitua imagens de referência sem autorização do dono. Toda tela nova ou alterada precisa ter PNG e `.layout.json` de referência aprovados antes de ser implementada, e o PR da tela precisa da conferência visual da seção 6 de `specs/layout/README.md`.
+- **CRECI é dado básico e opcional e nunca bloqueia nada** (D-93, decisão do dono): sem CRECI, no lugar do bloqueio entra um aviso discreto com atalho para o perfil; nunca erro.
+- **Negociador não precisa de CRECI** (decisão do dono): nem o Negociador IA nem o negociador humano exigem CRECI para existir ou agir. **O padrão é o Negociador IA**; o negociador humano é a alternativa que o corretor escolhe.
 - **Sem SQL cru**, sem pool, sem importar código do shell ou de outra app.
 - **UI só com primitivos `urbi-*` e tokens**, na moldura do Padrão B (spec 11.0); lacunas como exceção nomeada no mesmo PR (spec 11.9). Páginas públicas têm CSS próprio.
 - **Menos é mais (spec 2.6, princípios 13 e 14; 15.9):** sete telas no menu (Conversas entra com o WhatsApp, D-103), uma ação principal por item e menu "mais" para o resto; IA como botão na tela certa; nenhuma configuração sem uso na versão corrente aparece na tela. Antes de acrescentar tela, botão ou ajuste, confira se não cabe numa aba ou num menu existente.
