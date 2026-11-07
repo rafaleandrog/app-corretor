@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.43; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.44; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -43,7 +43,9 @@ Negociações e Importar), Imóveis (e Novo imóvel), Estúdio, Página, Número
 Em telas largas, as colunas usam a largura inteira da área do app. Nas telas de três colunas, as
 laterais começam com uma largura fixa (a lista com 360 px e a coluna da direita com 340 px, ou 400 px
 com o Assistente aberto), que dá para ajustar arrastando a borda, e a coluna do meio fica com todo o
-resto, então cresce em monitores grandes. Em telas estreitas (até 900 px de largura, como celular e tablets menores em pé),
+resto, então cresce em monitores grandes. Quando a coluna da direita não tem nada a mostrar ainda (em Clientes,
+Negociações e Imóveis sem nenhum item escolhido, e no Funil sem cartão escolhido), ela começa
+recolhida, num trilho fino, e o meio fica com a largura dela; ao escolher um item, ela abre. Em telas estreitas (até 900 px de largura, como celular e tablets menores em pé),
 as colunas viram abas, como antes.
 
 ### Mapa das telas

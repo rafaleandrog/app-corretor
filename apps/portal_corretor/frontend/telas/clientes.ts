@@ -126,7 +126,9 @@ export function renderClientes(atualizar: () => void) {
       ? keyed(chaveDaDireita(item), html`<pc-ficha-contato-funil .contatoId=${item}></pc-ficha-contato-funil>`)
       : html`<urbi-prosa papel="dica">Clique num cartão para ver o cliente aqui: por que está quente ou frio, a próxima abordagem e o que ele abriu.</urbi-prosa>`;
     return moldura(
-      { menu: '/clientes', lista: esquerda, centro, contexto, rotulos: { lista: 'Filtros', centro: 'Funil', contexto: 'Cliente' }, painel: item ? 'direita' : 'centro' },
+      { menu: '/clientes', lista: esquerda, centro, contexto, rotulos: { lista: 'Filtros', centro: 'Funil', contexto: 'Cliente' }, painel: item ? 'direita' : 'centro',
+        // O quadro precisa de largura: filtros numa coluna estreita e a direita recolhida até escolher um cartão.
+        listaEstreita: true, recolherContexto: !item },
       atualizar,
     );
   }
@@ -143,7 +145,7 @@ export function renderClientes(atualizar: () => void) {
     ? keyed(id, html`<pc-ficha-contato-contexto .contatoId=${id}></pc-ficha-contato-contexto>`)
     : html`<urbi-prosa papel="dica">Com um cliente aberto, aqui ficam o perfil de busca, o portal do cliente e a privacidade.</urbi-prosa>`;
   return moldura(
-    { menu: '/clientes', lista, centro, contexto, rotulos: { lista: 'Clientes', centro: 'Ficha', contexto: 'Portal' }, painel: id ? 'centro' : 'esquerda' },
+    { menu: '/clientes', lista, centro, contexto, rotulos: { lista: 'Clientes', centro: 'Ficha', contexto: 'Portal' }, painel: id ? 'centro' : 'esquerda', recolherContexto: !id },
     atualizar,
   );
 }
@@ -173,7 +175,7 @@ function molduraNegociacoes(atualizar: () => void, topo: unknown, menu: string) 
     ? keyed(item, html`<pc-negociacao-contexto .negociacaoId=${item}></pc-negociacao-contexto>`)
     : html`<urbi-prosa papel="dica">Com uma negociação aberta, aqui ficam o mandato, a leitura do comprador e o próximo movimento.</urbi-prosa>`;
   return moldura(
-    { menu, lista: esquerda, centro, contexto, rotulos: { lista: 'Negociações', centro: 'Negociação', contexto: 'Mandato' }, painel: item ? 'centro' : 'esquerda' },
+    { menu, lista: esquerda, centro, contexto, rotulos: { lista: 'Negociações', centro: 'Negociação', contexto: 'Mandato' }, painel: item ? 'centro' : 'esquerda', recolherContexto: !item },
     atualizar,
   );
 }
