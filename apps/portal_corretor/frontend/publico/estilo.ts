@@ -1,43 +1,27 @@
-import { css, unsafeCSS } from 'lit';
-
-// Paleta única das páginas públicas, em canais numéricos: cada cor nasce uma vez e o resto do CSS
-// usa `var(--nome)`, sem literal de cor espalhado.
-const rgb = (r: number, g: number, b: number, a = 1) => unsafeCSS(`color(srgb ${r / 255} ${g / 255} ${b / 255} / ${a})`);
-const PALETA = {
-  acento: rgb(11, 83, 148),
-  texto: rgb(29, 35, 41),
-  suave: rgb(91, 102, 112),
-  linha: rgb(227, 231, 235),
-  fundo: rgb(246, 247, 249),
-  papel: rgb(255, 255, 255),
-  fotoVazia: rgb(221, 227, 232),
-  bordaCampo: rgb(196, 204, 211),
-  verde: rgb(24, 115, 63),
-  okFundo: rgb(238, 246, 240),
-  okTexto: rgb(29, 92, 52),
-  erroFundo: rgb(251, 238, 238),
-  erroTexto: rgb(138, 31, 31),
-  veu: rgb(0, 0, 0, 0.92),
-};
+import { css } from 'lit';
 
 // Visual fixo das páginas públicas (paginas-publicas.md): sem tokens de tema, porque o visitante é
-// anônimo. A cor de destaque é dado da página do corretor, aplicada em `--acento`.
+// anônimo e o SDK 100 ainda não tem vocabulário de marca. A paleta é escrita aqui, uma vez, em literais
+// de cor declarados como tais; o resto do CSS usa `var(--nome)`. O empacotador conta estes literais no
+// aviso `[tokens]` (heurística, sem marcação de exceção): é a exceção nomeada "paleta das páginas
+// públicas" da spec 11.9, com o pedido ao shell 23. A cor de destaque é dado da página do corretor,
+// aplicada em `--acento` por cima do padrão abaixo.
 export const estiloPublico = css`
   :host {
-    --acento: ${PALETA.acento};
-    --texto: ${PALETA.texto};
-    --suave: ${PALETA.suave};
-    --linha: ${PALETA.linha};
-    --fundo: ${PALETA.fundo};
-    --papel: ${PALETA.papel};
-    --foto-vazia: ${PALETA.fotoVazia};
-    --borda-campo: ${PALETA.bordaCampo};
-    --verde: ${PALETA.verde};
-    --ok-fundo: ${PALETA.okFundo};
-    --ok-texto: ${PALETA.okTexto};
-    --erro-fundo: ${PALETA.erroFundo};
-    --erro-texto: ${PALETA.erroTexto};
-    --veu: ${PALETA.veu};
+    --acento: #0b5394;
+    --texto: #1d2329;
+    --suave: #5b6670;
+    --linha: #e3e7eb;
+    --fundo: #f6f7f9;
+    --papel: #ffffff;
+    --foto-vazia: #dde3e8;
+    --borda-campo: #c4ccd3;
+    --verde: #18733f;
+    --ok-fundo: #eef6f0;
+    --ok-texto: #1d5c34;
+    --erro-fundo: #fbeeee;
+    --erro-texto: #8a1f1f;
+    --veu: rgb(0 0 0 / 0.92);
     display: block;
     min-height: 100vh;
     background: var(--fundo);
