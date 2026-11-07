@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.44; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.45; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -177,6 +177,11 @@ conexões com a Meta, quando elas chegarem.
 - **Páginas públicas e webhooks:** a página do corretor, a ficha do imóvel, o formulário e o link
   rastreado — ver [Página, ficha pública e link rastreado](minha-pagina.md#para-o-administrador-da-instância);
   a seleção e o portal do cliente — ver [Seleções e Portal do Cliente](selecoes-e-portal.md#para-o-administrador-da-instância).
+
+- **Aviso de cores na instalação:** instalar ou atualizar o app mostra o aviso `[tokens] 14 literais
+  de cor fora de token no bundle — frontend/index.js`. É esperado: são as cores fixas das páginas
+  públicas, que por regra da plataforma não usam o tema (o visitante não está logado). O aviso não
+  impede a instalação e não indica problema nas telas do corretor.
 
 - **Instagram:** o app da Meta, os parâmetros `meta_app_id` e `meta_app_secret` e as contas de
   teste — ver [Conexões (Instagram)](conexoes.md#para-a-equipe-da-plataforma-antes-do-primeiro-corretor).

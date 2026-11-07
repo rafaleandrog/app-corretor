@@ -159,6 +159,14 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima (qualquer uma fecha):** (a) um evento `urbi:conta-ativa` no `window`, com `{ appId, conta }` no `detail`, disparado quando a conta de trabalho da app muda (inclusive a troca feita pela plataforma); ou (b) uma leitura `urbiVerso.contaAtiva(): number | null` com o mesmo significado do `req.contexto.contaEscrita` do backend, mais a garantia documentada de que o `urbi:contexto-app` dispara quando ela muda. Com (a) ou (b), o seletor de conta poderia também ser do shell, e o app deixaria de guardar a escolha no navegador.
 
+## 23. Cor fixa de página pública × aviso `[tokens]` do empacotador (#168)
+
+**Por quê:** `paginas-publicas.md` manda a página pública **não** adotar tokens de tema (visitante anônimo) e ter "HTML nativo com visual fixo" até existir vocabulário de marca, no mesmo bundle da app ("sem bundle separado"). Visual fixo é cor literal. Mas o empacotador (e a instalação) varre todo `frontend/**` com extensão `.js`, `.css` ou `.html` (pulando pastas com ponto e `node_modules`) atrás de literal de cor e avisa `[tokens] N literais de cor fora de token no bundle`, sem distinguir página pública de tela autenticada e sem marcação de exceção (só ignora comentário de bloco). O `"ui": false` do manifesto não resolve: essa auditoria roda sem olhar esse campo, e o `ui.md` diz que a página pública é ortogonal a ele. Resultado: toda instalação do app sai com aviso, e o aviso não tem conserto legítimo do lado da app. O registro de exceções do `ui.md` também não tem linha para página pública.
+
+**Até lá:** exceção nomeada "paleta das páginas públicas" (spec 11.9): as 14 cores escritas uma vez, como literais, em `frontend/publico/estilo.ts`; o aviso fica (14 literais) e é esperado. Até a 0.1.44 a paleta era montada por uma função (`color(srgb …)` a partir de canais), que fazia a heurística contar 1 em vez de 14 — disfarce desfeito na 0.1.45.
+
+**Proposta mínima (qualquer uma fecha):** (a) o vocabulário de marca para páginas públicas (tokens próprios, não de tema), que tiraria os literais; ou (b) a auditoria `[tokens]` ignorar o CSS dos componentes declarados em `paginas_publicas` do manifesto (ou um arquivo/pasta convencionado para eles), mais uma linha "Página pública: paleta fixa" no registro de exceções do `ui.md`.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.
