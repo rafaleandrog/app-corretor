@@ -204,8 +204,9 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
   });
   // Eventos do catálogo (13.1), depois da gravação e pela LINHA gravada (se o corretor marcou "publiquei por
   // fora" no meio, a rota dele é quem avisa): o que saiu e o que falhou; recusa do Instagram é erro da integração.
-  if (amb.publicar && fim && fim.estado !== 'publicando' && fim.publicada_por !== 'fora') {
-    await amb.publicar(fim.estado === 'publicada' ? 'publicacao_feita' : 'publicacao_falhou', { peca_id: Number(p.id) });
+  if (amb.publicar) {
+    if (fim && fim.estado !== 'publicando' && fim.publicada_por !== 'fora') await amb.publicar(fim.estado === 'publicada' ? 'publicacao_feita' : 'publicacao_falhou', { peca_id: Number(p.id) });
+    // A recusa do Instagram é fato da integração, independente do que a linha da peça virou.
     if (recusouInstagram) await amb.publicar('integracao_erro', { canal_id: Number(canal.id), rede: 'instagram' });
   }
   return fim;
@@ -458,8 +459,9 @@ export async function renovarTokensInstagram(ctx: ContextoListener) {
     // Vencido não renova mais: avisa uma vez e espera o corretor reconectar, sem falhar a rotina todo dia.
     if (c.token_expira_em && new Date(c.token_expira_em as string).getTime() < Date.now()) {
       if (!c.ultimo_erro) {
-        await ctx.dados.comConta(conta, (trx) => trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'O acesso venceu: reconecte o Instagram.' })).catch((e: Error) => falhas.push(`conta ${conta}: ${e.message}`));
-        await publicarDoSistema(ctx, conta, 'integracao_erro', { canal_id: Number(c.id), rede: 'instagram' }); // uma vez, junto com o aviso na tela
+        // O aviso sai uma vez, junto com a marca na tela: marca que não gravou não avisa (senão repetiria todo dia).
+        const marcado = await ctx.dados.comConta(conta, (trx) => trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'O acesso venceu: reconecte o Instagram.' })).catch((e: Error) => (falhas.push(`conta ${conta}: ${e.message}`), null));
+        if (marcado) await publicarDoSistema(ctx, conta, 'integracao_erro', { canal_id: Number(c.id), rede: 'instagram' });
       }
       continue;
     }

@@ -21,8 +21,9 @@ export async function publicarEvento(req: Request, tipo: string, payload: Payloa
  * se o evento saiu, para quem precisa condicionar uma marca a isso (a rotina das autorizações).
  */
 export async function publicarDoSistema(ctx: Pick<ContextoListener, 'eventos'>, conta: number, tipo: string, payload: Payload): Promise<boolean> {
+  if (!ctx.eventos) return false;
   try {
-    await ctx.eventos?.publicar(tipo, payload, { conta_id: conta });
+    await ctx.eventos.publicar(tipo, payload, { conta_id: conta });
     return true;
   } catch (e) {
     console.warn(`[portal_corretor] evento ${tipo} não publicado (conta ${conta}):`, (e as Error).message);

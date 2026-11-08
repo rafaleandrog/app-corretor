@@ -249,11 +249,18 @@ test('busca por imóvel e aviso de limite da caixa', async () => {
     const d = banco.dados(100);
     for (let i = 0; i < antes.limite; i++) {
       const c = await d.criar('contatos', { nome: `C${i}`, telefone: `+55619${String(100000 + i)}` });
-      await d.criar('conversas', { contato_id: c.id, canal: 'registro', atendido_por: 'humano', estado: 'aberta', nao_entendidas: 0, nao_lidas: 0, ultima_mensagem_em: new Date(Date.now() - i * 1000).toISOString() });
+      await d.criar('conversas', { contato_id: c.id, canal: 'registro', atendido_por: 'humano', estado: 'aberta', nao_entendidas: 0, nao_lidas: 0, ultima_mensagem_em: new Date(Date.now() + (i + 1) * 1000).toISOString() });
     }
     const depois = (await chamar('GET', '/conversas')).corpo;
     assert.equal(depois.limite_atingido, true);
     assert.equal(depois.dados.length, depois.limite);
+    assert.ok(!depois.dados.some((c: { contato_nome: string }) => c.contato_nome === 'Ana'), 'Ana ficou fora da janela');
+    // A busca vai ao banco: acha a Ana pelo nome e pela casa enviada mesmo fora da janela, da mais recente para a mais antiga.
+    const foraDaJanela = (await chamar('GET', '/conversas?q=ana')).corpo;
+    assert.deepEqual(foraDaJanela.dados.map((c: { contato_nome: string }) => c.contato_nome), ['Ana']);
+    assert.equal((await chamar('GET', '/conversas?q=lago')).corpo.total, 1);
+    const ordem = (await chamar('GET', '/conversas?q=C1')).corpo.dados.map((c: { ultima_mensagem_em: string }) => c.ultima_mensagem_em);
+    assert.deepEqual(ordem, [...ordem].sort().reverse(), 'ordenada da mais recente para a mais antiga');
   });
 });
 

@@ -28,9 +28,10 @@ Até lá, "Reativar Mensageiro", a janela de 24 horas e os modelos de mensagem f
 | Direita | **Próxima abordagem** com "Usar mensagem pronta"; **Enviado para o cliente** com o que ele clicou ou abriu; **Também combinam** (imóveis ativos que batem com o perfil de busca, com **Enviar**); os chips do perfil de busca e **Abrir ficha completa** |
 
 A conversa aberta fica no endereço (`?item=`); os filtros ficam em `?filtro=` e `?q=`. Abrir uma conversa
-marca as mensagens dela como lidas. A busca acha pelo nome, pelo telefone, pela última mensagem e pelo
-imóvel enviado ao cliente (código ou título), e alcança qualquer conversa da conta. A caixa carrega as 200
-conversas mais recentes; acima disso uma faixa avisa, e os filtros e as contagens valem sobre essas 200.
+marca as mensagens dela como lidas. A busca acha pelo nome, pelo telefone e pelo imóvel enviado ao
+cliente (código ou título) em toda a conta (até 200 clientes e 100 imóveis que casem com o termo), e pela
+última mensagem nas conversas da caixa. A caixa carrega as 200 conversas mais recentes; acima disso uma
+faixa avisa, e os filtros e as contagens valem sobre essas 200.
 
 ## O que cada ação faz
 

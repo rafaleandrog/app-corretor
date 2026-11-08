@@ -64,6 +64,8 @@ export async function conversaDoContato(dados: HelperDados, contatoId: number, c
       estado: 'aberta',
       nao_entendidas: 0,
       nao_lidas: 0,
+      // Nunca nula: a caixa ordena por ela em ordem decrescente, e nulo iria para a frente (PostgreSQL).
+      ultima_mensagem_em: agora(),
     });
   } catch (e) {
     // Corrida do ler-e-criar (banco-de-dados.md § criarOuAtualizar): duas chamadas acharam "não existe" e
@@ -205,6 +207,8 @@ conversasRotas.get(
       const vistas = new Set(janela.map((c) => Number(c.id)));
       const extras = await dados.listar('conversas', { filtros: { contato_id: [...contatosDaBusca].join(',') }, ordenar: 'ultima_mensagem_em', ordem: 'desc', por_pagina: LIMITE_CAIXA });
       for (const c of extras.dados as Linha[]) if (!vistas.has(Number(c.id))) todas.push(c);
+      // A lista continua da mais recente para a mais antiga, com as de fora da janela no lugar delas.
+      todas.sort((a, b) => String(b.ultima_mensagem_em ?? '').localeCompare(String(a.ultima_mensagem_em ?? '')));
     }
     // O contato de cada conversa da caixa (nome, telefone, temperatura e a origem para o chip): só os
     // referenciados, por id (a lista inteira de contatos cortaria em quem tem mais de uma página).
@@ -218,9 +222,12 @@ conversasRotas.get(
     }
     const contatoDe = (c: Linha): Linha => contatos.get(Number(c.contato_id)) ?? {};
     const origemDe = (c: Linha): string | null => contatoDe(c).origem_canal ?? origens.get(Number(contatoDe(c).origem_id)) ?? null;
-    // A busca casa pelo contato (no banco: nome, telefone, imóvel enviado) ou pela última mensagem da janela.
+    // A busca casa pelo contato (no banco: nome, telefone, imóvel enviado; acima dos tetos, ainda pelo nome e
+    // telefone lidos aqui, para a janela não perder ninguém) ou pela última mensagem.
     const casaBusca = (c: Linha) =>
-      !q || (contatosDaBusca?.has(Number(c.contato_id)) ?? false) || String(c.ultima_mensagem ?? '').toLowerCase().includes(q);
+      !q ||
+      (contatosDaBusca?.has(Number(c.contato_id)) ?? false) ||
+      [contatoDe(c).nome, contatoDe(c).telefone, c.ultima_mensagem].some((v) => String(v ?? '').toLowerCase().includes(q));
     const lista = todas.filter((c) => passaNoFiltro(c, filtro) && casaBusca(c)).map((c) => ({
       id: c.id,
       contato_id: c.contato_id,
