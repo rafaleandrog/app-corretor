@@ -2163,6 +2163,7 @@ Direção do dono: melhorar funcionalidade e visual sem aumentar a complexidade;
 | P-40 | ~~O negociador humano convidado precisa de CRECI?~~ — **encerrada por D-94:** não precisa (pendência do insumo de 27/10) | — |
 | P-41 | Forma de registrar a autorização do proprietário para "faz sozinho" (anexo assinado, mensagem registrada, aceite no portal na fase 3) (era a P-38 do insumo de 27/10) | MVP, arco 1.2 (D2/D3) |
 | P-42 | Estilo padrão do Negociador (cooperativo) e textos finais do Apêndice D revisados por um especialista em vendas imobiliárias (era a P-39 do insumo de 27/10) | Fase 2 |
+| P-43 | Conferência visual do grupo 1 (`specs/prints/conferencia-p02-0.1.46/`): (a) a área da app no shell 0.56.37 tem 1392 px em 1440 (a referência v2 desenhou 1289) e a diferença cai toda no centro, flexível por D-114: manter? (b) o chip "Todas" nos filtros da P02, que a referência não tem e o `urbi-chips-atalho` usa para limpar o filtro: manter? (c) o botão Assistente sai 48 × 29 no `urbi-botao` só ícone (pedido ao shell 24): aceitar até o shell atender? | Dono |
 
 **Pendência do insumo de 27/10 resolvida sem número:** a P-37 do insumo ("o frontend recebe eventos em tempo real ou atualiza periodicamente?") fecha pelo stream SSE do barramento (`barramento.md`, § Stream SSE); a P-37 desta spec continua sendo a da prévia de link.
 
