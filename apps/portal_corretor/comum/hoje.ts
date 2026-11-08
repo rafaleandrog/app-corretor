@@ -92,12 +92,6 @@ export interface AcaoDaDica {
 }
 
 /**
- * Dica do Assistente (P01, direita): uma sugestão concreta a partir do que a tela já tem e, quando há
- * algo a fazer, UMA ação proposta (criar um lembrete, agendar a peça), que a rota valida por
- * `validarAcao` e a tela executa só depois da confirmação do corretor. Sem ação, o botão abre o
- * Assistente com a pergunta pronta.
- */
-/**
  * Instante (ISO) de `hora`:00 do dia `deslocamentoDias` depois de hoje, NO FUSO da conta (e não no do
  * processo: o backend roda em UTC). Sem biblioteca: lê o deslocamento do fuso pelo `Intl` naquele dia e
  * confere de novo no instante achado (troca de horário de verão no meio do caminho).
@@ -117,6 +111,12 @@ export function horaLocalNoFuso(agora: Date, fuso: string, deslocamentoDias: num
   return instante.toISOString();
 }
 
+/**
+ * Dica do Assistente (P01, direita): uma sugestão concreta a partir do que a tela já tem e, quando há
+ * algo a fazer, UMA ação proposta (criar um lembrete, agendar a peça), que a rota valida por
+ * `validarAcao` e a tela executa só depois da confirmação do corretor. Sem ação, o botão abre o
+ * Assistente com a pergunta pronta.
+ */
 export function dicaDoAssistente(fila: ItemDaFila[] | { tipo: TipoFila }[], passos: PassoInicial[], agora = new Date(), fuso = 'America/Sao_Paulo'): { texto: string; acao: AcaoDaDica | null } {
   const itens = fila as ItemDaFila[];
   const daqui = (horas: number) => new Date(agora.getTime() + horas * 3600e3).toISOString();

@@ -63,8 +63,10 @@ seguinte (envio, linha do tempo, portal, cartão na conversa, limpeza) vira erro
 `conversa_id` nulo quando o cartão não entrou. Sem URL pública na instância o `link` vem como caminho e a tela completa a
 mensagem com a origem dela antes de abrir o WhatsApp. Agendar visita é uma chamada só, `POST /atividades` (`tipo: visita`,
 `imovel_id`, `confirmacao` com o texto ao cliente): a rota cria a visita e o lembrete e registra a confirmação na conversa do
-contato; a resposta traz `confirmacao: { link, conversa_id }` (`conversa_id` nulo quando a confirmação não entrou, o que fica
-no log e não desfaz a visita). "Abrir conversa" em outras telas é `POST /conversas` com o `contato_id`.
+contato (o da visita ou, quando ela vem só com `negocio_id`, o do negócio); a resposta traz `confirmacao: { link, conversa_id }`
+(`conversa_id` nulo quando a confirmação não entrou). `confirmacao` só vale para `tipo: visita`: em outro tipo a rota recusa
+com 422 `DADOS_INVALIDOS`. Gravada a visita, nenhum passo seguinte (lembrete, eventos, mensagem, linha do tempo, último
+contato, temperatura, portal) vira erro: cada um falha sozinho, vai ao log com o id da atividade, e a resposta é 201. "Abrir conversa" em outras telas é `POST /conversas` com o `contato_id`.
 Eventos: `mensagem_recebida` (listener do portal), `mensagem_enviada` (compositor, "Fazer agora", envios,
 link do portal, seleção, confirmação da visita), `envio_criado` (envios e seleção), `visita_agendada`, `conversa_assumida`,
 `conversa_devolvida`; só ids, nunca o texto nem o canal.

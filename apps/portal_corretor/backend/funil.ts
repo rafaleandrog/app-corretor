@@ -342,8 +342,10 @@ async function pecasAguardando(dados: HelperDados, fuso: string): Promise<ItemFi
 }
 
 /**
- * Autorizações de venda assinadas que vencem nos próximos 30 dias, o 30º incluído (P01): a mesma janela
- * da rotina `autorizacao_vencendo` (`fim` de hoje até antes de hoje + 31), para o aviso e a fila baterem.
+ * Autorizações de venda assinadas que vencem nos próximos 30 dias, o 30º incluído (P01): a mesma largura
+ * de janela da rotina `autorizacao_vencendo` (`fim` de hoje até antes de hoje + 31). A rotina conta os
+ * dias em `America/Sao_Paulo` fixo e a fila no fuso da conta; numa conta de outro fuso, perto da
+ * meia-noite, as duas janelas podem diferir de um dia.
  */
 async function autorizacoesVencendo(dados: HelperDados, fuso: string): Promise<ItemFila[]> {
   const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: fuso });

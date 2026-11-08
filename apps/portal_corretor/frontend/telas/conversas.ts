@@ -236,7 +236,7 @@ export class PcConversasLista extends LitElement {
     const origem = c.origem_canal ? ROTULO_ORIGEM_CHIP[c.origem_canal] ?? null : null;
     return html`<urbi-linha alinhar="inicio">
       <urbi-avatar nome=${c.contato_nome} tamanho="36"></urbi-avatar>
-      <urbi-stack expandir gap="2px">
+      <urbi-stack expandir>
         <urbi-linha justificar="entre">
           <urbi-prosa papel=${c.nao_lidas ? 'corpo' : 'secundario'}><strong>${c.contato_nome}</strong></urbi-prosa>
           <urbi-prosa papel="fraco">${haQuanto(c.ultima_mensagem_em)}</urbi-prosa>
@@ -374,7 +374,7 @@ export class PcConversaTopo extends ParteDaConversa {
       <urbi-linha alinhar="inicio" justificar="entre" quebrar>
         <urbi-linha alinhar="inicio">
           <urbi-avatar nome=${c.nome} tamanho="36"></urbi-avatar>
-          <urbi-stack gap="4px">
+          <urbi-stack>
             <urbi-prosa><strong>${c.nome}</strong></urbi-prosa>
             <urbi-linha quebrar gap="6px">
               ${temp ? html`<urbi-badge cor=${temp.cor}>${temp.rotulo}</urbi-badge>` : nothing}
@@ -417,7 +417,7 @@ export class PcConversaMensagens extends ParteDaConversa {
   private cartaoImovel(m: Linha) {
     const dados = (m.dados ?? {}) as Linha;
     return html`<urbi-card>
-      <urbi-stack gap="4px">
+      <urbi-stack>
         <urbi-prosa><strong>${dados.titulo ?? dados.codigo ?? 'Imóvel'}</strong></urbi-prosa>
         <urbi-prosa papel="secundario">${[dados.codigo, dados.bairro].filter(Boolean).join(' · ')}</urbi-prosa>
         ${dados.preco_c ? html`<urbi-prosa><strong>${reais(dados.preco_c)}</strong></urbi-prosa>` : nothing}
@@ -449,7 +449,7 @@ export class PcConversaMensagens extends ParteDaConversa {
             : html`<urbi-prosa pre>${m.conteudo}</urbi-prosa>`;
     return html`<urbi-linha justificar=${minha ? 'fim' : 'inicio'}>
       <urbi-card>
-        <urbi-stack gap="4px">
+        <urbi-stack>
           ${rotulo ? html`<urbi-prosa papel="dica">${rotulo}${canal ? ` · ${canal}` : ''}</urbi-prosa>` : nothing}
           ${corpo}
           <urbi-prosa papel="fraco">${hora(m.em)}</urbi-prosa>
@@ -621,13 +621,15 @@ export class PcConversaCompositor extends ParteDaConversa {
       return;
     }
     await this.agir('Não foi possível criar a seleção', async () => {
-      const r = (await this.vida.esperar(enviar('POST', '/selecoes', { contato_id: d.contato.id, titulo: this.tituloSelecao.trim() || 'Imóveis para você', imovel_ids: ids }))) as { mensagem?: string | null; link?: string | null };
+      const r = (await this.vida.esperar(enviar('POST', '/selecoes', { contato_id: d.contato.id, titulo: this.tituloSelecao.trim() || 'Imóveis para você', imovel_ids: ids }))) as { mensagem?: string | null; link?: string | null; conversa_id?: number | null };
       this.modal = null;
       // Sem URL pública na instância o backend devolve o caminho (`/portal_corretor/s?t=…`): a mensagem leva o link completo, como na ficha.
       const link = r.link ?? '';
       const mensagem = r.mensagem && link.startsWith('/') ? r.mensagem.split(link).join(`${window.location.origin}${link}`) : r.mensagem;
       if (mensagem) await abrirWhatsapp(d.contato.telefone, mensagem);
-      urbiVerso.notificar('Seleção criada e registrada na conversa.', 'sucesso');
+      // `conversa_id` nulo: a seleção existe e foi enviada, mas o cartão não entrou na conversa.
+      if (r.conversa_id) urbiVerso.notificar('Seleção criada e registrada na conversa.', 'sucesso');
+      else urbiVerso.notificar('Seleção criada e enviada; o cartão não ficou registrado na conversa.', 'info');
     });
   }
 
@@ -828,7 +830,7 @@ export class PcConversaContexto extends ParteDaConversa {
       <urbi-card titulo="Também combinam" icone="fa-solid fa-house-circle-check">
         ${this.combinam.length
           ? html`<urbi-lista separador .itens=${this.combinam} .render_item=${(im: Linha) => html`<urbi-linha justificar="entre">
-              <urbi-stack gap="2px" expandir>
+              <urbi-stack expandir>
                 <urbi-prosa truncar><strong>${im.titulo ?? im.codigo}</strong></urbi-prosa>
                 <urbi-prosa papel="secundario">${[im.bairro, im.preco_c ? reais(im.preco_c) : null].filter(Boolean).join(' · ')}</urbi-prosa>
               </urbi-stack>

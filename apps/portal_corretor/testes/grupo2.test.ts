@@ -298,6 +298,71 @@ test('Agendar visita (P02): uma chamada cria a visita, o lembrete e a confirmaç
   });
 });
 
+test('Agendar visita (P02): gravada a visita, nenhum passo seguinte vira erro; cada passo da confirmação falha sozinho', async () => {
+  const banco = new BancoFalso(UNICOS);
+  let ana = 0;
+  let imovelId = 0;
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    ana = (await chamar('POST', '/contatos', { nome: 'Ana Ribeiro', telefone: '61911110001' })).corpo.id;
+    imovelId = (await chamar('POST', '/imoveis', { tipo: 'casa', titulo: 'Casa do Lago', bairro: 'Lago Sul', cidade: 'Brasília' })).corpo.id;
+  });
+  // A linha do tempo cai depois da visita gravada: 201, uma visita, uma confirmação; a falha fica no log.
+  falhandoAoCriar(banco, ['linha_do_tempo']);
+  const avisos: string[] = [];
+  const warn = console.warn;
+  console.warn = (...a: unknown[]) => void avisos.push(a.join(' '));
+  try {
+    await comServidor(rotas, A, banco, {}, async (chamar) => {
+      const r = await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita', quando: '2026-12-01T13:00:00Z', contato_id: ana, imovel_id: imovelId, confirmacao: 'Ana, visita marcada.' });
+      assert.equal(r.status, 201, JSON.stringify(r.corpo));
+      assert.ok(r.corpo.confirmacao.conversa_id > 0);
+    });
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(banco.linhas('atividades').length, 1, 'uma atividade só');
+  assert.equal(banco.linhas('visitas').length, 1, 'uma visita só');
+  assert.equal(banco.linhas('mensagens').length, 1, 'uma confirmação só');
+  assert.ok(banco.linhas('contatos').find((c) => c.id === ana)?.ultimo_contato_em, 'o último contato não depende da linha do tempo');
+  assert.ok(avisos.some((a) => /atividade \d+: linha do tempo não concluído: fora do ar/.test(a)), avisos.join('\n'));
+
+  // O evento mensagem_enviada falha: a linha do tempo e o último contato da confirmação acontecem assim mesmo.
+  const banco2 = new BancoFalso(UNICOS);
+  const falhaEvento: Ator = { ...A, extras: { eventos: { publicar: async (tipo: string) => { if (tipo === 'mensagem_enviada') throw new Error('barramento fora do ar'); } } } };
+  let bia = 0;
+  console.warn = () => {};
+  try {
+    await comServidor(rotas, falhaEvento, banco2, {}, async (chamar) => {
+      bia = (await chamar('POST', '/contatos', { nome: 'Bia Souza', telefone: '61911110002' })).corpo.id;
+      const r = await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita', quando: '2026-12-01T13:00:00Z', contato_id: bia, confirmacao: 'Bia, visita marcada.' });
+      assert.equal(r.status, 201, JSON.stringify(r.corpo));
+      assert.ok(r.corpo.confirmacao.conversa_id > 0);
+    });
+  } finally {
+    console.warn = warn;
+  }
+  const abordagem = banco2.linhas('linha_do_tempo').find((l) => l.tipo === 'abordagem.feita');
+  assert.ok(abordagem, 'a linha do tempo da confirmação entrou');
+  assert.ok(banco2.linhas('contatos').find((c) => c.id === bia)?.ultimo_contato_em, 'o último contato entrou');
+
+  // `confirmacao` só vale na visita; a visita marcada só pelo negócio confirma ao contato do negócio.
+  await comServidor(rotas, A, banco2, {}, async (chamar) => {
+    const ligacao = await chamar('POST', '/atividades', { tipo: 'ligacao', titulo: 'Ligar', quando: '2026-12-02T13:00:00Z', contato_id: bia, confirmacao: 'Bia, te ligo.' });
+    assert.equal(ligacao.status, 422, JSON.stringify(ligacao.corpo));
+    assert.equal(ligacao.corpo.codigo, 'DADOS_INVALIDOS');
+    const negocio = (await chamar('POST', '/negocios', { contato_id: bia })).corpo;
+    const texto = 'Bia, visita pelo negócio marcada.';
+    const r = await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita do negócio', quando: '2026-12-05T13:00:00Z', negocio_id: negocio.id, confirmacao: texto });
+    assert.equal(r.status, 201, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.contato_id, bia);
+    assert.ok(r.corpo.confirmacao.conversa_id > 0, 'a confirmação entrou na conversa do contato do negócio');
+    const d = (await chamar('GET', `/conversas/${r.corpo.confirmacao.conversa_id}`)).corpo;
+    assert.equal(d.mensagens[d.mensagens.length - 1].conteudo, texto);
+  });
+  assert.equal(banco2.linhas('atividades').filter((a) => a.tipo === 'ligacao').length, 0, 'a ligação recusada não foi gravada');
+  assert.deepEqual([...new Set(banco2.linhas('conversas').map((c) => c.contato_id))], [bia], 'as confirmações estão na conversa da Bia');
+});
+
 test('telas do grupo 2: sem CSS próprio, sem `pequeno`, sem chamada direta; chip "Todas" primeiro (D-122) e o cabeçalho comum (D-128)', () => {
   for (const arq of ['frontend/telas/inicio.ts', 'frontend/telas/clientes.ts', 'frontend/telas/clientes-quadro.ts', 'frontend/telas/ficha-contato.ts', 'frontend/telas/selecoes-cliente.ts', 'frontend/telas/agenda.ts', 'frontend/moldura.ts']) {
     const fonte = raiz(arq);

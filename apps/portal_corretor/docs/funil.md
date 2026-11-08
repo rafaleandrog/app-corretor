@@ -58,7 +58,7 @@ temperatura e o aviso de **abordagem atrasada**.
   [Próxima abordagem](#próxima-abordagem)), **Fazer agora** (abre o WhatsApp do celular com ela e
   registra a abordagem) e **Virar tarefa**.
 - **Registrar proposta**: registra a oferta do cliente (imóvel e valor) e abre a negociação em
-  Clientes › Negociações — ver [Negociação e mandato](negociacao.md#nova-proposta-e-o-cartão-negociações).
+  Clientes › Negociações — ver [Negociação e mandato](negociacao.md#nova-proposta-e-o-cartão-negociação).
 - **Resumir** (quando a IA está liberada), **Criar tarefa** (a abordagem vira tarefa no prazo do
   playbook; sem abordagem, o formulário de agendar), **Abrir conversa** (a conversa do cliente em
   [Conversas](conversas.md)) e **Abrir ficha**.
@@ -187,15 +187,15 @@ tiver abordagem). Fila vazia mostra "Nada urgente agora" e o botão **Cadastrar 
 - **Sua semana**: contatos novos, leads e visitas feitas nos últimos 7 dias, em três números que se arrumam lado a lado
   conforme a largura que sobra no cartão (quando sobra pouco, ficam um embaixo do outro), e embaixo, numa
   linha só, a comissão prevista.
-- **Dica do Assistente**: uma sugestão a partir do que está na tela, com uma **ação** quando há o que
-  fazer: com um quente sem resposta, **Criar o lembrete** (uma ligação daqui a 1 hora para
+- **Dica do Assistente**: uma sugestão a partir do que está na tela e um botão só: com uma **ação**
+  quando há o que fazer, o botão da ação; sem ação, **Perguntar ao Assistente**. Com ação: com um quente sem resposta, **Criar o lembrete** (uma ligação daqui a 1 hora para
   responder a ele); com uma abordagem atrasada, um retorno daqui a 2 horas; com uma peça aprovada
   sem data, **Agendar a peça** (amanhã às 18 h no fuso da conta, a mesma hora do resumo que você confirma). O botão pede confirmação ("Posso fazer isto?") e só
   então executa, pela mesma rota de sempre (a atividade entra na agenda; a peça é agendada). Sem
   ação (o primeiro passo ainda não feito, ou "nada urgente"), **Perguntar ao Assistente** abre o
-  Assistente já com a dica como pergunta. Quando a IA não está liberada, o botão de perguntar fica
-  desligado com "IA indisponível agora" (a ação da dica continua funcionando, porque não usa IA), e
-  uma faixa no alto do centro avisa; o resto de Hoje funciona.
+  Assistente já com a dica como pergunta; quando a IA não está liberada, esse botão fica desligado,
+  com a nota "IA indisponível agora" embaixo. O botão de uma ação não usa IA e funciona igual com a
+  IA fora do ar. Sem IA, uma faixa no alto do centro avisa; o resto de Hoje funciona.
 
 Tudo vem numa chamada só (`GET /inicio`), relida a cada vez que você entra em Hoje ou troca de conta. Ao trocar de conta, Hoje mostra
 "carregando" até chegarem os dados da conta nova (nada da conta anterior fica na tela); se a

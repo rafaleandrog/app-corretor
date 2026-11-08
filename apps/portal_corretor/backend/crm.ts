@@ -636,6 +636,11 @@ crmRotas.post(
     // Visita a um imóvel ganha o detalhe em `visitas` (retorno do cliente, compartilhar com o proprietário).
     const iid = v.dados.tipo === 'visita' ? id(req.body?.imovel_id) : null;
     if (iid && !(await dados.buscar('imoveis', iid))) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
+    // `confirmacao` (o texto que vai ao cliente) só existe na visita: em outro tipo é recusada, nunca ignorada.
+    const textoConfirmacao = typeof req.body?.confirmacao === 'string' ? req.body.confirmacao.trim().slice(0, 4000) : '';
+    if (req.body?.confirmacao != null && v.dados.tipo !== 'visita') return erro(res, 422, 'DADOS_INVALIDOS', 'A confirmação ao cliente só vale para a visita.');
+    // Visita marcada só pelo negócio: a confirmação vai ao contato do negócio (lido pela conta ativa).
+    const contatoDaConfirmacao = textoConfirmacao ? (contato ?? (negocio?.contato_id ? await dados.buscar('contatos', Number(negocio.contato_id)) : null)) : null;
     const atividade = await dados.transaction(async (trx) => {
       const a = await trx.criar('atividades', {
         status: 'pendente',
@@ -647,37 +652,49 @@ crmRotas.post(
       if (iid) await trx.criar('visitas', { atividade_id: a.id, imovel_id: iid });
       return a;
     });
-    await programarLembreteVisita(req, atividade);
-    await publicarEvento(req, 'atividade_criada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, tipo: String(atividade.tipo) });
-    if (atividade.tipo === 'visita') await publicarEvento(req, 'visita_agendada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, quando: atividade.quando ? new Date(atividade.quando as string).toISOString() : null });
-    // Agendar visita da Conversa (P02, D-127): `confirmacao` é o texto que vai ao cliente; ele entra na conversa
-    // do contato nesta mesma chamada, como consequência da visita criada. A visita já existe: uma falha aqui
-    // fica no log e não vira erro (a repetição criaria outra visita e outro lembrete).
-    const textoConfirmacao = typeof req.body?.confirmacao === 'string' ? req.body.confirmacao.trim().slice(0, 4000) : '';
-    let confirmacao: { link: string | null; conversa_id: number | null } | undefined;
-    if (textoConfirmacao && atividade.contato_id && contato) {
-      const link = linkWhatsapp(contato.telefone, textoConfirmacao);
-      confirmacao = { link, conversa_id: null };
+    // Daqui em diante a atividade (e a visita) já está gravada: nenhum passo seguinte vira erro para o corretor,
+    // senão a gaveta ficaria aberta e a repetição criaria outra visita, outro lembrete e outra confirmação.
+    // Cada passo falha sozinho e vai ao log com o id da atividade.
+    const semErro = async <T>(nome: string, fn: () => Promise<T>): Promise<T | null> => {
       try {
-        const canal = link ? 'wa_me' : 'registro';
-        const r = await registrarMensagem(dados, { contato_id: Number(contato.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu(req), canal, tipo: 'texto', conteudo: textoConfirmacao });
-        confirmacao.conversa_id = Number(r.conversa.id);
-        await req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(r));
-        await registrar(dados, req, {
-          tipo: 'abordagem.feita', alvo_tipo: 'contato', alvo_id: Number(contato.id), contato_id: Number(contato.id),
-          resumo: `Mensagem ${link ? 'pelo WhatsApp' : 'registrada'}: ${textoConfirmacao.slice(0, 200)}`, dados: { canal: link ? 'whatsapp' : 'registro', conversa_id: confirmacao.conversa_id },
-        });
-        await dados.atualizar('contatos', Number(contato.id), { ultimo_contato_em: agora(), abordagem_adiada_em: null });
+        return await fn();
       } catch (e) {
-        console.warn(`[portal_corretor] visita ${atividade.id}: confirmação na conversa não concluída: ${(e as Error).message}`);
+        console.warn(`[portal_corretor] atividade ${atividade.id}: ${nome} não concluído: ${(e as Error).message}`);
+        return null;
       }
+    };
+    await semErro('lembrete da visita', () => programarLembreteVisita(req, atividade));
+    await semErro('evento atividade_criada', () => publicarEvento(req, 'atividade_criada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, tipo: String(atividade.tipo) }));
+    if (atividade.tipo === 'visita') await semErro('evento visita_agendada', () => publicarEvento(req, 'visita_agendada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, quando: atividade.quando ? new Date(atividade.quando as string).toISOString() : null }));
+    // Agendar visita da Conversa (P02, D-127): `confirmacao` entra na conversa do contato nesta mesma chamada,
+    // como consequência da visita criada; `conversa_id` nulo na resposta quando a mensagem não entrou.
+    let confirmacao: { link: string | null; conversa_id: number | null } | undefined;
+    if (textoConfirmacao && contatoDaConfirmacao) {
+      const cont = contatoDaConfirmacao;
+      const link = linkWhatsapp(cont.telefone, textoConfirmacao);
+      confirmacao = { link, conversa_id: null };
+      const r = await semErro('confirmação na conversa', () =>
+        registrarMensagem(dados, { contato_id: Number(cont.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu(req), canal: link ? 'wa_me' : 'registro', tipo: 'texto', conteudo: textoConfirmacao }),
+      );
+      if (r) {
+        confirmacao.conversa_id = Number(r.conversa.id);
+        await semErro('evento mensagem_enviada', async () => req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(r)));
+      }
+      await semErro('linha do tempo da confirmação', () =>
+        registrar(dados, req, {
+          tipo: 'abordagem.feita', alvo_tipo: 'contato', alvo_id: Number(cont.id), contato_id: Number(cont.id),
+          resumo: `Mensagem ${link ? 'pelo WhatsApp' : 'registrada'}: ${textoConfirmacao.slice(0, 200)}`, dados: { canal: link ? 'whatsapp' : 'registro', conversa_id: confirmacao!.conversa_id },
+        }),
+      );
+      await semErro('último contato', () => dados.atualizar('contatos', Number(cont.id), { ultimo_contato_em: agora(), abordagem_adiada_em: null }));
     }
     if (atividade.contato_id) {
-      await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `${atividade.status === 'feita' ? 'Registrado' : 'Agendado'}: ${atividade.titulo}` });
+      const cidAtividade = Number(atividade.contato_id);
+      await semErro('linha do tempo', () => registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: cidAtividade, resumo: `${atividade.status === 'feita' ? 'Registrado' : 'Agendado'}: ${atividade.titulo}` }));
       if (atividade.tipo === 'visita') {
-        await reclassificar(dados, atividade.contato_id);
+        await semErro('reclassificação', () => reclassificar(dados, cidAtividade));
         // A agenda do portal do cliente mostra as visitas marcadas (bloco 5b).
-        await tentarPortal(dados, req.contexto?.contaEscrita, atividade.contato_id);
+        await semErro('portal do cliente', () => tentarPortal(dados, req.contexto?.contaEscrita, cidAtividade));
       }
     }
     res.status(201).json(confirmacao ? { ...atividade, confirmacao } : atividade);
