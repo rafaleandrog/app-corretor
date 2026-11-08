@@ -178,17 +178,123 @@ test('POST /selecoes: o cartão da seleção entra na conversa, com os eventos e
   // O cliente age pelo portal (mensagem): o listener marca o último acesso na conta certa.
   const ctx = { ...banco.ctxSistema([{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }]), eventos: { publicar: async () => {} } };
   const payload = { contato_id: ana, tipo: 'mensagem', texto: 'Gostei da varanda', visita: null, tarefa: null, negociacao: null, proposta: null, valor_c: null };
+  const acesso = banco.linhas('acessos_cliente').find((l) => Number(l.contato_id) === ana && l.conta_id === 100)!;
+  assert.equal(acesso.ultimo_acesso_em ?? null, null, 'antes do evento, sem último acesso');
+  // Na conta B o mesmo evento não marca nada (o contato não é dela): o valor de A fica igual.
+  const MARCA = '2020-01-01T00:00:00.000Z';
+  acesso.ultimo_acesso_em = MARCA;
+  await reagir.acao_cliente_recebida({ payload, conta_id: 200 } as never, ctx);
+  assert.equal(acesso.ultimo_acesso_em, MARCA, 'o evento da conta B não altera o último acesso de A');
+  // Na conta A o evento altera.
   await reagir.acao_cliente_recebida({ payload, conta_id: 100 } as never, ctx);
+  assert.notEqual(acesso.ultimo_acesso_em, MARCA, 'o evento da conta A altera o último acesso');
   await comServidor(rotas, A, banco, shellFalso(), async (chamar) => {
     const p = (await chamar('GET', `/contatos/${ana}/portal`)).corpo;
     assert.ok(p.ultimo_acesso_em, 'último acesso marcado');
     assert.ok(new Date(p.ultimo_acesso_em).getTime() > Date.now() - 60_000);
   });
-  // Na conta B o mesmo evento não marca nada (o contato não é dela) e B não vê o portal de A.
-  await reagir.acao_cliente_recebida({ payload, conta_id: 200 } as never, ctx);
-  assert.equal(banco.linhas('acessos_cliente').length, 1);
   await comServidor(rotas, B, banco, shellFalso(), async (chamar) => {
     assert.equal((await chamar('GET', `/contatos/${ana}/portal`)).status, 404);
+  });
+});
+
+/** Banco cujas escritas em `tabela` lançam (banco fora do ar no meio da rota). */
+function falhandoAoCriar(banco: BancoFalso, tabelas: string[]) {
+  const original = banco.dados.bind(banco);
+  banco.dados = (conta: number | null, global = false) => {
+    const h = original(conta, global);
+    const criar = h.criar;
+    const atualizar = h.atualizar;
+    h.criar = async (tabela: string, d: Record<string, unknown>) => {
+      if (tabelas.includes(tabela)) throw new Error('fora do ar');
+      return criar(tabela, d);
+    };
+    h.atualizar = async (tabela: string, i: number, d: Record<string, unknown>) => {
+      if (tabelas.includes(tabela)) throw new Error('fora do ar');
+      return atualizar(tabela, i, d);
+    };
+    return h;
+  };
+}
+
+test('POST /selecoes: com a seleção no ar, a falha ao registrar o cartão na conversa não vira erro nem convida a repetir', async () => {
+  const banco = new BancoFalso(UNICOS);
+  let ana = 0;
+  let imovelId = 0;
+  await comServidor(rotas, A, banco, shellFalso(), async (chamar) => {
+    imovelId = (await imovelAnunciado(chamar, 'Apto com varanda', '61944440001')).id;
+    ana = (await chamar('POST', '/contatos', { nome: 'Ana Ribeiro', telefone: '61911110001' })).corpo.id;
+  });
+  falhandoAoCriar(banco, ['mensagens', 'conversas']);
+  const avisos: string[] = [];
+  const warn = console.warn;
+  console.warn = (...a: unknown[]) => void avisos.push(a.join(' '));
+  try {
+    await comServidor(rotas, A, banco, shellFalso(), async (chamar) => {
+      const r = await chamar('POST', '/selecoes', { contato_id: ana, titulo: 'Casas no Noroeste', imovel_ids: [imovelId] });
+      assert.equal(r.status, 201, JSON.stringify(r.corpo));
+      assert.match(r.corpo.link, /\/portal_corretor\/s\?t=/);
+      assert.match(r.corpo.mensagem, new RegExp(r.corpo.link.replace(/[?.]/g, '\\$&')));
+      assert.match(r.corpo.link_whatsapp, /^https:\/\/wa\.me\//);
+      assert.equal(r.corpo.conversa_id, null, 'o cartão não entrou na conversa');
+    });
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(banco.linhas('selecoes').length, 1, 'uma seleção só');
+  assert.equal(banco.linhas('mensagens').length, 0);
+  assert.ok(avisos.some((a) => /cartão na conversa não concluído: fora do ar/.test(a)), avisos.join('\n'));
+});
+
+test('Agendar visita (P02): uma chamada cria a visita, o lembrete e a confirmação; a falha da confirmação não cria outra visita', async () => {
+  const banco = new BancoFalso(UNICOS);
+  evA.publicados.length = 0;
+  let ana = 0;
+  let imovelId = 0;
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    ana = (await chamar('POST', '/contatos', { nome: 'Ana Ribeiro', telefone: '61911110001' })).corpo.id;
+    imovelId = (await chamar('POST', '/imoveis', { tipo: 'casa', titulo: 'Casa do Lago', bairro: 'Lago Sul', cidade: 'Brasília' })).corpo.id;
+    const confirmacao = 'Ana, visita marcada ao Casa do Lago (Lago Sul): terça, às 10:00. Qualquer imprevisto, me avise por aqui.';
+    const r = await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita', quando: '2026-12-01T13:00:00Z', contato_id: ana, imovel_id: imovelId, confirmacao });
+    assert.equal(r.status, 201, JSON.stringify(r.corpo));
+    assert.match(r.corpo.confirmacao.link, /^https:\/\/wa\.me\/5561911110001\?text=/);
+    assert.ok(r.corpo.confirmacao.conversa_id > 0);
+    const d = (await chamar('GET', `/conversas/${r.corpo.confirmacao.conversa_id}`)).corpo;
+    const m = d.mensagens[d.mensagens.length - 1];
+    assert.deepEqual([m.tipo, m.direcao, m.canal, m.conteudo], ['texto', 'saida', 'wa_me', confirmacao]);
+    // Sem `confirmacao`, a resposta é a atividade como antes.
+    const sem = await chamar('POST', '/atividades', { tipo: 'ligacao', titulo: 'Ligar', quando: '2026-12-02T13:00:00Z', contato_id: ana });
+    assert.equal(sem.status, 201);
+    assert.equal(sem.corpo.confirmacao, undefined);
+  });
+  const tipos = evA.publicados.map((p) => p.tipo);
+  assert.ok(tipos.includes('visita_agendada') && tipos.includes('mensagem_enviada'), tipos.join(','));
+  for (const p of evA.publicados) assert.ok(!/visita marcada|Ana/.test(JSON.stringify(p.payload)), `evento ${p.tipo} sem texto nem nome`);
+
+  // A confirmação falha (banco fora do ar nas mensagens): a visita existe uma vez só e a resposta é coerente.
+  falhandoAoCriar(banco, ['mensagens']);
+  const visitasAntes = banco.linhas('atividades').filter((a) => a.tipo === 'visita').length;
+  const mensagensAntes = banco.linhas('mensagens').length;
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    await comServidor(rotas, A, banco, {}, async (chamar) => {
+      const r = await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita 2', quando: '2026-12-03T13:00:00Z', contato_id: ana, imovel_id: imovelId, confirmacao: 'Ana, outra visita.' });
+      assert.equal(r.status, 201, JSON.stringify(r.corpo));
+      assert.equal(r.corpo.tipo, 'visita');
+      assert.equal(r.corpo.confirmacao.conversa_id, null, 'a confirmação não entrou e a resposta diz isso');
+      assert.match(r.corpo.confirmacao.link, /^https:\/\/wa\.me\//);
+    });
+  } finally {
+    console.warn = warn;
+  }
+  assert.equal(banco.linhas('atividades').filter((a) => a.tipo === 'visita').length, visitasAntes + 1, 'uma visita só');
+  assert.equal(banco.linhas('visitas').length, visitasAntes + 1);
+  assert.equal(banco.linhas('mensagens').length, mensagensAntes);
+
+  // B não registra confirmação no contato de A: o contato não é dela.
+  await comServidor(rotas, B, banco, {}, async (chamar) => {
+    assert.equal((await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'V', quando: '2026-12-04T13:00:00Z', contato_id: ana, confirmacao: 'x' })).status, 422);
   });
 });
 
@@ -217,5 +323,7 @@ test('telas do grupo 2: sem CSS próprio, sem `pequeno`, sem chamada direta; chi
   assert.match(conversas, /<urbi-modal title="Seleção de imóveis"/);
   assert.match(conversas, /<urbi-modal title="Agendar visita"/);
   assert.match(conversas, /enviar\('POST', '\/selecoes'/);
-  assert.match(conversas, /enviar\('POST', '\/atividades', \{ tipo: 'visita'/);
+  assert.match(conversas, /enviar\('POST', '\/atividades', \{ tipo: 'visita'[^}]*confirmacao \}/, 'a visita e a confirmação numa chamada só');
+  assert.doesNotMatch(conversas, /\/conversas\/\$\{this\.conversaId\}\/mensagens`, \{ texto \}\)\)\) as \{ link/, 'sem a segunda chamada da visita');
+  assert.match(conversas, /window\.location\.origin/, 'a Seleção completa o link relativo');
 });

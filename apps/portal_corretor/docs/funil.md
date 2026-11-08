@@ -58,7 +58,7 @@ temperatura e o aviso de **abordagem atrasada**.
   [Próxima abordagem](#próxima-abordagem)), **Fazer agora** (abre o WhatsApp do celular com ela e
   registra a abordagem) e **Virar tarefa**.
 - **Registrar proposta**: registra a oferta do cliente (imóvel e valor) e abre a negociação em
-  Clientes › Negociações — ver [Negociação e mandato](negociacao.md#nova-proposta-e-a-aba-negociação).
+  Clientes › Negociações — ver [Negociação e mandato](negociacao.md#nova-proposta-e-o-cartão-negociações).
 - **Resumir** (quando a IA está liberada), **Criar tarefa** (a abordagem vira tarefa no prazo do
   playbook; sem abordagem, o formulário de agendar), **Abrir conversa** (a conversa do cliente em
   [Conversas](conversas.md)) e **Abrir ficha**.
@@ -155,12 +155,15 @@ numa só rolagem). O endereço `/hoje` também abre a tela.
 4. **Propostas recebidas**: a última proposta da negociação é do comprador e ainda não foi respondida.
 5. **Próximos passos vencidos** (retorno vencido).
 6. **Peças aguardando**: peças do Estúdio aprovadas e ainda sem data para publicar.
-7. **Autorizações vencendo**: autorizações de venda assinadas que vencem nos próximos 30 dias.
+7. **Autorizações vencendo**: autorizações de venda assinadas que vencem nos próximos 30 dias (a mesma
+   janela do aviso de autorização vencendo).
 
 Cada cartão traz o chip do **motivo** (Sem resposta, Abordagem atrasada, Visita hoje ou amanhã,
 Proposta recebida, Retorno vencido, Peça aguardando, Autorização vencendo), a temperatura do cliente
 (quando há), o nome, o motivo em uma linha, **um** botão principal, um secundário e o "Mais", onde
-**Agora não** adia a abordagem (o prazo recomeça a contar de agora):
+**Agora não** tira o cliente da fila pelo resto do dia (no fuso da conta), em qualquer motivo com
+cliente, e o prazo da abordagem recomeça a contar de agora. No dia seguinte ele volta normalmente;
+**Fiz** desfaz o adiamento. Peças, autorizações e "Precisa de você" não são afetados:
 
 | Motivo | Botão | Secundário | No "Mais" |
 |---|---|---|---|
@@ -187,7 +190,7 @@ tiver abordagem). Fila vazia mostra "Nada urgente agora" e o botão **Cadastrar 
 - **Dica do Assistente**: uma sugestão a partir do que está na tela, com uma **ação** quando há o que
   fazer: com um quente sem resposta, **Criar o lembrete** (uma ligação daqui a 1 hora para
   responder a ele); com uma abordagem atrasada, um retorno daqui a 2 horas; com uma peça aprovada
-  sem data, **Agendar a peça** (amanhã às 18 h). O botão pede confirmação ("Posso fazer isto?") e só
+  sem data, **Agendar a peça** (amanhã às 18 h no fuso da conta, a mesma hora do resumo que você confirma). O botão pede confirmação ("Posso fazer isto?") e só
   então executa, pela mesma rota de sempre (a atividade entra na agenda; a peça é agendada). Sem
   ação (o primeiro passo ainda não feito, ou "nada urgente"), **Perguntar ao Assistente** abre o
   Assistente já com a dica como pergunta. Quando a IA não está liberada, o botão de perguntar fica

@@ -86,6 +86,8 @@ const estado = {
   assumindo: null as number | null,
   /** A ação da Dica em voo. */
   fazendoDica: false,
+  /** "Fiz", "Visita feita" ou "Agora não" em voo (a chave do botão), para o registro não sair duas vezes. */
+  registrando: null as string | null,
 };
 
 /** O app avisa que o corretor entrou em Hoje (ou trocou de conta): os dados são relidos. */
@@ -123,19 +125,27 @@ async function carregar(atualizar: () => void) {
 /**
  * "Fiz", "Visita feita" e "Agora não": envio → aviso → recarga, num gesto da conta em que o cartão foi
  * clicado. Trocada a conta com o envio em voo, termina em silêncio (nem aviso, nem alerta, nem recarga de lá).
+ * Com um registro em voo, outro clique não envia de novo (como o Assumir e a Dica).
  */
-function registrar(caminho: () => Promise<unknown>, atualizar: () => void, aviso = 'Registrado.') {
+function registrar(chave: string, caminho: () => Promise<unknown>, atualizar: () => void, aviso = 'Registrado.') {
   return noGesto(async (g) => {
-    if (!g.vivo()) return;
+    if (estado.registrando !== null || !g.vivo()) return;
+    estado.registrando = chave;
+    atualizar();
     try {
-      await g.esperar(caminho());
-    } catch (e) {
-      if (g.encerrado(e)) throw e;
-      await g.esperar(urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
-      return;
+      try {
+        await g.esperar(caminho());
+      } catch (e) {
+        if (g.encerrado(e)) throw e;
+        await g.esperar(urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
+        return;
+      }
+      urbiVerso.notificar(aviso, 'sucesso');
+      await carregar(atualizar);
+    } finally {
+      estado.registrando = null;
+      atualizar();
     }
-    urbiVerso.notificar(aviso, 'sucesso');
-    await carregar(atualizar);
   });
 }
 
@@ -231,6 +241,8 @@ interface Botao {
   /** Link para sub-rota da app. */
   sub?: string;
   aoEscolher?: () => void;
+  /** O registro deste botão está em voo. */
+  carregando?: boolean;
 }
 
 const primeiroNome = (nome: string) => nome.split(' ')[0] || nome;
@@ -242,10 +254,14 @@ function acaoDe(nome: AcaoFila, i: ItemFila, atualizar: () => void): Botao {
     // Fazer agora leva à ficha já com a mensagem sugerida (`?sugerir=1`); o WhatsApp abre de lá, no clique do corretor.
     case 'fazer_agora':
       return { rotulo: 'Fazer agora', icone: 'fa-solid fa-paper-plane', sub: `${ficha}?sugerir=1` };
-    case 'fiz':
-      return { rotulo: 'Fiz', icone: 'fa-solid fa-check', aoEscolher: () => registrar(() => enviar('POST', `/abordagens/${i.contato_id}/feita`, { texto: i.texto }), atualizar) };
-    case 'visita_feita':
-      return { rotulo: 'Visita feita', icone: 'fa-solid fa-check', aoEscolher: () => registrar(() => enviar('PATCH', `/atividades/${i.atividade_id}`, { status: 'feita' }), atualizar) };
+    case 'fiz': {
+      const chave = `fiz:${i.contato_id}`;
+      return { rotulo: 'Fiz', icone: 'fa-solid fa-check', carregando: estado.registrando === chave, aoEscolher: () => registrar(chave, () => enviar('POST', `/abordagens/${i.contato_id}/feita`, { texto: i.texto }), atualizar) };
+    }
+    case 'visita_feita': {
+      const chave = `visita:${i.atividade_id}`;
+      return { rotulo: 'Visita feita', icone: 'fa-solid fa-check', carregando: estado.registrando === chave, aoEscolher: () => registrar(chave, () => enviar('PATCH', `/atividades/${i.atividade_id}`, { status: 'feita' }), atualizar) };
+    }
     // "Falar com Ana": a conversa do contato (P02).
     case 'falar':
       return { rotulo: `Falar com ${primeiroNome(i.contato_nome)}`, icone: 'fa-regular fa-comments', aoEscolher: () => void abrirConversaDoContato(i.contato_id!) };
@@ -268,13 +284,13 @@ function acaoDe(nome: AcaoFila, i: ItemFila, atualizar: () => void): Botao {
 const agoraNao = (i: ItemFila, atualizar: () => void): Botao => ({
   rotulo: 'Agora não',
   icone: 'fa-solid fa-clock-rotate-left',
-  aoEscolher: () => registrar(() => enviar('POST', `/abordagens/${i.contato_id}/adiar`, {}), atualizar, 'Deixado para depois.'),
+  aoEscolher: () => registrar(`adiar:${i.contato_id}`, () => enviar('POST', `/abordagens/${i.contato_id}/adiar`, {}), atualizar, 'Deixado para depois.'),
 });
 
 const botao = (b: Botao, variante?: string) =>
   b.sub
     ? html`<urbi-botao variante=${variante ?? nothing} icone=${b.icone ?? nothing} href=${urbiVerso.href(b.sub)}>${b.rotulo}</urbi-botao>`
-    : html`<urbi-botao variante=${variante ?? nothing} icone=${b.icone ?? nothing} @click=${() => b.aoEscolher?.()}>${b.rotulo}</urbi-botao>`;
+    : html`<urbi-botao variante=${variante ?? nothing} icone=${b.icone ?? nothing} ?carregando=${!!b.carregando} @click=${() => b.aoEscolher?.()}>${b.rotulo}</urbi-botao>`;
 
 /** As ações do cartão (princípio 14): um principal, um secundário visível e o resto no "Mais" (com "Agora não"). */
 function acoesDoItem(i: ItemFila, atualizar: () => void) {
@@ -491,14 +507,14 @@ function direita(d: DadosHoje, atualizar: () => void) {
     <urbi-card titulo="Dica do Assistente" icone="fa-solid fa-wand-magic-sparkles">
       <urbi-stack>
         <urbi-prosa>${dica.texto}</urbi-prosa>
+        <!-- Com ação, o botão dela (confirma e executa, P01); sem ação, a dica vira pergunta ao Assistente. -->
         <urbi-linha quebrar>
           ${dica.acao
             ? html`<urbi-botao icone="fa-solid fa-check" ?carregando=${estado.fazendoDica} @click=${() => void fazerDica(dica.acao!, atualizar)}>${ROTULO_ACAO_DICA[dica.acao.tipo] ?? 'Fazer isto'}</urbi-botao>`
-            : nothing}
-          <urbi-botao variante=${dica.acao ? 'secundario' : nothing} icone="fa-solid fa-comments" ?desabilitado=${semIa} title=${semIa ? DICA_IA_INDISPONIVEL : nothing}
-            @click=${() => abrirAssistenteCom(dica.texto)}>Perguntar ao Assistente</urbi-botao>
+            : html`<urbi-botao icone="fa-solid fa-comments" ?desabilitado=${semIa} title=${semIa ? DICA_IA_INDISPONIVEL : nothing}
+                @click=${() => abrirAssistenteCom(dica.texto)}>Perguntar ao Assistente</urbi-botao>`}
         </urbi-linha>
-        ${semIa ? html`<urbi-prosa papel="fraco">${DICA_IA_INDISPONIVEL}${dica.acao ? ': a ação da dica continua funcionando.' : '.'}</urbi-prosa>` : nothing}
+        ${semIa && !dica.acao ? html`<urbi-prosa papel="fraco">${DICA_IA_INDISPONIVEL}.</urbi-prosa>` : nothing}
       </urbi-stack>
     </urbi-card>
   </urbi-stack>`;

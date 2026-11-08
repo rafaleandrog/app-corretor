@@ -375,6 +375,12 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     await esperar();
     assert.equal(await sugestoes(), 1, '(a) primeira abertura com sugerir sugere uma vez');
     assert.equal(await pagina.evaluate(() => location.search), '?item=7', 'o ?sugerir=1 sai do endereço');
+    // "Fazer agora" de Hoje chega sem `?secao=`: a ficha abre no Resumo, com o Próximo passo e a mensagem à vista.
+    assert.equal(await aba(), 'resumo', '(a) com sugerir e sem secao, a aba Resumo abre com o próximo passo');
+    const centro = await pagina.evaluate(() => (window as any).profundo(document.querySelector('pc-ficha-contato-foco')));
+    assert.match(centro, /Próximo passo/);
+    assert.match(centro, /Oi, Ana!/, '(a) a mensagem sugerida aparece sem clicar em nada');
+    assert.match(centro, /Fazer agora/, '(a) com o botão que abre o WhatsApp');
     await pagina.evaluate(() => {
       const w = window as any;
       w.achar(document.querySelector('pc-ficha-contato-foco'), 'urbi-abas').dispatchEvent(new CustomEvent('urbi:aba-selecionar', { detail: { id: 'enviados' }, bubbles: true, composed: true }));

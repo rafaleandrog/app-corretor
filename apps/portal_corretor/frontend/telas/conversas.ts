@@ -621,9 +621,12 @@ export class PcConversaCompositor extends ParteDaConversa {
       return;
     }
     await this.agir('Não foi possível criar a seleção', async () => {
-      const r = (await this.vida.esperar(enviar('POST', '/selecoes', { contato_id: d.contato.id, titulo: this.tituloSelecao.trim() || 'Imóveis para você', imovel_ids: ids }))) as { mensagem?: string | null };
+      const r = (await this.vida.esperar(enviar('POST', '/selecoes', { contato_id: d.contato.id, titulo: this.tituloSelecao.trim() || 'Imóveis para você', imovel_ids: ids }))) as { mensagem?: string | null; link?: string | null };
       this.modal = null;
-      if (r.mensagem) await abrirWhatsapp(d.contato.telefone, r.mensagem);
+      // Sem URL pública na instância o backend devolve o caminho (`/portal_corretor/s?t=…`): a mensagem leva o link completo, como na ficha.
+      const link = r.link ?? '';
+      const mensagem = r.mensagem && link.startsWith('/') ? r.mensagem.split(link).join(`${window.location.origin}${link}`) : r.mensagem;
+      if (mensagem) await abrirWhatsapp(d.contato.telefone, mensagem);
       urbiVerso.notificar('Seleção criada e registrada na conversa.', 'sucesso');
     });
   }
@@ -631,8 +634,8 @@ export class PcConversaCompositor extends ParteDaConversa {
   /**
    * Agendar visita (D-127): a gaveta com o imóvel (os da carteira anunciáveis; pré-escolhido o último
    * enviado) e os horários livres dos próximos dias, sem choque com as atividades pendentes. Confirmar
-   * cria a visita (`POST /atividades`, que programa o lembrete e publica `visita_agendada`) e registra a
-   * confirmação na conversa (`POST /conversas/:id/mensagens`, que abre o WhatsApp do celular).
+   * cria a visita numa chamada só (`POST /atividades` com `confirmacao`: programa o lembrete, publica
+   * `visita_agendada` e registra a confirmação na conversa); a tela abre o WhatsApp do celular com ela.
    */
   private async abrirVisita() {
     const d = this.d!;
@@ -669,12 +672,15 @@ export class PcConversaCompositor extends ParteDaConversa {
     }
     await this.agir('Não foi possível marcar a visita', async () => {
       const titulo = imovel ? `Visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`.slice(0, 200) : 'Visita';
-      await this.vida.esperar(enviar('POST', '/atividades', { tipo: 'visita', titulo, quando: this.horario, contato_id: d.contato.id, imovel_id: imovel ? Number(imovel.id) : undefined, local: imovel?.bairro ?? undefined }));
-      const texto = mensagemDaVisita(String(d.contato.nome), this.horario, imovel ? { codigo: imovel.codigo, titulo: imovel.titulo, bairro: imovel.bairro } : null);
-      const r = (await this.vida.esperar(enviar('POST', `/conversas/${this.conversaId}/mensagens`, { texto }))) as { link: string | null };
+      const confirmacao = mensagemDaVisita(String(d.contato.nome), this.horario, imovel ? { codigo: imovel.codigo, titulo: imovel.titulo, bairro: imovel.bairro } : null);
+      // Uma chamada só: a visita, o lembrete e a confirmação na conversa (consequência da visita criada).
+      const r = (await this.vida.esperar(
+        enviar('POST', '/atividades', { tipo: 'visita', titulo, quando: this.horario, contato_id: d.contato.id, imovel_id: imovel ? Number(imovel.id) : undefined, local: imovel?.bairro ?? undefined, confirmacao }),
+      )) as { confirmacao?: { link: string | null; conversa_id: number | null } };
       this.modal = null;
-      if (r.link) window.open(r.link, '_blank', 'noopener');
-      urbiVerso.notificar('Visita marcada, lembrete programado e confirmação registrada na conversa.', 'sucesso');
+      if (r.confirmacao?.link) window.open(r.confirmacao.link, '_blank', 'noopener');
+      if (r.confirmacao?.conversa_id) urbiVerso.notificar('Visita marcada, lembrete programado e confirmação registrada na conversa.', 'sucesso');
+      else urbiVerso.notificar('Visita marcada e lembrete programado; a confirmação não ficou registrada na conversa.', 'info');
     });
   }
 

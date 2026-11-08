@@ -129,8 +129,9 @@ ficha abre na **Linha do tempo**; a aba aberta fica no endereço (`?secao=`) e v
   conta) e **Remover cliente** (o contato sai das listas, mas não é apagado). Contato com negócio em
   andamento não pode ser removido: encerre o negócio antes.
 
-Vindo do **Fazer agora** de Hoje, a ficha abre já com a **Mensagem sugerida** carregada (o
-endereço traz `?sugerir=1`), e o **Fazer agora** dela abre o WhatsApp. No Funil, tocar num cartão
+Vindo do **Fazer agora** de Hoje, a ficha abre na aba **Resumo**, com o cartão **Próximo passo** e a
+**Mensagem sugerida** já carregada (o endereço traz `?sugerir=1`), e o **Fazer agora** dela abre o
+WhatsApp (por outro caminho vale a regra de sempre: a **Linha do tempo**, ou a aba do endereço). No Funil, tocar num cartão
 com **Abordagem atrasada** abre o cliente na coluna da direita, sem sair do Funil, também com a
 **Mensagem sugerida** pronta. Sem abordagem, ou abrindo o cliente por outro caminho, nada é gerado
 sozinho.

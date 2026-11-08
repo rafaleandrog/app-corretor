@@ -41,7 +41,8 @@ const STATUS_ATIVIDADE: Record<string, string> = { pendente: 'Pendente', feita: 
 
 /**
  * Abas da ficha no centro (P04, D-117): Resumo · Linha do tempo · Enviados · Negócios; a ficha abre na
- * Linha do tempo. As negociações do cliente (D3, P15) ficam na aba Negócios; `?secao=negociacao` é apelido.
+ * Linha do tempo (com `?sugerir=1` e sem `?secao=`, no Resumo, para a mensagem sugerida aparecer). As
+ * negociações do cliente (D3, P15) ficam na aba Negócios; `?secao=negociacao` é apelido.
  */
 export const ABAS_FICHA = [
   { id: 'resumo', label: 'Resumo' },
@@ -99,7 +100,10 @@ export class FichaContato {
     const avisar = () => this.ouvintes.forEach((f) => f());
     const inicial: EstadoFicha = {
       ficha: null, envios: [], etapas: [], falha: null, ia: { resumo: false, mensagem: false }, iaSondada: false,
-      resumo: null, resumindo: false, sugestao: null, sugerindo: false, criandoTarefa: false, aba: secaoDaFicha(),
+      resumo: null, resumindo: false, sugestao: null, sugerindo: false, criandoTarefa: false,
+      // Chegada por `?sugerir=1` (Fazer agora de Hoje) sem `?secao=`: abre no Resumo, onde fica o cartão
+      // Próximo passo com a mensagem sugerida. Fora disso vale a aba do endereço ou a padrão (D-117).
+      aba: this.sugerirDaUrl && !filtrosDaUrl().has('secao') ? 'resumo' : secaoDaFicha(),
     };
     this.s = new Proxy(inicial, {
       set(alvo, chave, valor) {

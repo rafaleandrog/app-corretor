@@ -290,10 +290,16 @@ export async function filaDoDia(dados: HelperDados, fuso: string): Promise<ItemF
   for (const c of passos.dados) {
     itens.push({ tipo: 'proximo_passo', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: c.proximo_passo_em, texto: c.proximo_passo ?? 'Próximo passo combinado' });
   }
-  itens.push(...(await propostasRecebidas(dados, porId)), ...(await pecasAguardando(dados)), ...(await autorizacoesVencendo(dados, fuso)));
+  itens.push(...(await propostasRecebidas(dados, porId)), ...(await pecasAguardando(dados, fuso)), ...(await autorizacoesVencendo(dados, fuso)));
+  // "Agora não" (`POST /abordagens/:contato/adiar`) tira o contato da fila pelo resto do dia, no fuso da
+  // conta, em todo motivo com contato; amanhã ele volta. "Fiz" (`/feita`) zera a marca. Peça e
+  // autorização não têm contato e não são afetadas.
+  const adiados = new Set(
+    (await dados.varrerTudo('contatos', { filtros: { 'abordagem_adiada_em[gte]': hoje.inicio, 'abordagem_adiada_em[lt]': hoje.fim }, maximo: 5000 })).map((c) => Number(c.id)),
+  );
   // Um contato aparece uma vez, no motivo mais urgente; os itens sem cliente (peça, autorização) ficam todos.
   const vistos = new Set<number>();
-  const fila = ordenarFila(itens).filter((i) => (i.contato_id === null ? true : vistos.has(i.contato_id) ? false : (vistos.add(i.contato_id), true)));
+  const fila = ordenarFila(itens.filter((i) => i.contato_id === null || !adiados.has(Number(i.contato_id)))).filter((i) => (i.contato_id === null ? true : vistos.has(i.contato_id) ? false : (vistos.add(i.contato_id), true)));
   return fila;
 }
 
@@ -327,18 +333,21 @@ async function propostasRecebidas(dados: HelperDados, contatos: Map<number, Linh
 const reaisPt = (c: number) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
 /** Peças do Estúdio aprovadas e ainda sem agendamento (P01): aprovar sem agendar é o que mais some da vista. */
-async function pecasAguardando(dados: HelperDados): Promise<ItemFila[]> {
+async function pecasAguardando(dados: HelperDados, fuso: string): Promise<ItemFila[]> {
   const r = await dados.listar('pecas', { filtros: { estado: 'aprovada', 'agendada_para[nulo]': 'true' }, ordenar: 'aprovada_em', ordem: 'asc', por_pagina: 20 });
   return (r.dados as Linha[]).map((p) => ({
     tipo: 'peca_aguardando', contato_id: null, contato_nome: String(p.titulo ?? `Peça ${p.id}`), temperatura: null, quando: iso(p.aprovada_em),
-    texto: `Aprovada${p.aprovada_em ? ` em ${new Date(iso(p.aprovada_em)!).toLocaleDateString('pt-BR')}` : ''} e sem data para publicar`, peca_id: Number(p.id), imovel_id: p.imovel_id ? Number(p.imovel_id) : undefined,
+    texto: `Aprovada${p.aprovada_em ? ` em ${new Date(iso(p.aprovada_em)!).toLocaleDateString('pt-BR', { timeZone: fuso })}` : ''} e sem data para publicar`, peca_id: Number(p.id), imovel_id: p.imovel_id ? Number(p.imovel_id) : undefined,
   }));
 }
 
-/** Autorizações de venda assinadas que vencem nos próximos 30 dias (P01, a mesma regra do evento `autorizacao_vencendo`). */
+/**
+ * Autorizações de venda assinadas que vencem nos próximos 30 dias, o 30º incluído (P01): a mesma janela
+ * da rotina `autorizacao_vencendo` (`fim` de hoje até antes de hoje + 31), para o aviso e a fila baterem.
+ */
 async function autorizacoesVencendo(dados: HelperDados, fuso: string): Promise<ItemFila[]> {
   const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: fuso });
-  const limite = new Date(Date.now() + 30 * DIA).toLocaleDateString('sv-SE', { timeZone: fuso });
+  const limite = new Date(Date.now() + 31 * DIA).toLocaleDateString('sv-SE', { timeZone: fuso });
   const r = await dados.listar('autorizacoes_venda', { filtros: { situacao: 'assinada', 'fim[gte]': hoje, 'fim[lt]': limite }, ordenar: 'fim', ordem: 'asc', por_pagina: 20 });
   if (!r.dados.length) return [];
   const imoveis = await dados.varrerTudo('imoveis', { filtros: { id: [...new Set((r.dados as Linha[]).map((a) => a.imovel_id))].join(',') }, maximo: 100 });
@@ -457,7 +466,7 @@ funilRotas.get(
  */
 function dicaValidada(fila: ItemFila[], passos: ReturnType<typeof primeirosPassos>, fuso: string) {
   const agora = new Date();
-  const { texto, acao } = dicaDoAssistente(fila, passos, agora);
+  const { texto, acao } = dicaDoAssistente(fila, passos, agora, fuso);
   const contatos = new Map<number, string>(fila.filter((i) => i.contato_id).map((i) => [i.contato_id!, i.contato_nome]));
   const pecas = new Map<number, { titulo: string; estado: string }>(fila.filter((i) => i.peca_id).map((i) => [i.peca_id!, { titulo: i.contato_nome, estado: 'aprovada' }]));
   return { texto, acao: acao ? validarAcao(acao, { contatos, pecas, agora, fuso }) : null };

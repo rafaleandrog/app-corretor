@@ -22,6 +22,8 @@ import { iso, MARCO_PADRAO } from '../comum/funil';
 import { entrarPelaEtapaProposta } from './negociador-entrada';
 import { marcoMaisAvancado } from '../comum/numeros';
 import { programarLembreteVisita } from './lembretes';
+import { payloadDaMensagem, registrarMensagem } from './conversas';
+import { linkWhatsapp } from '../comum/pagina';
 
 const marcoDe = (e: Record<string, any> | null | undefined): string | null => (e ? (e.marco ?? MARCO_PADRAO[e.nome] ?? null) : null);
 
@@ -648,6 +650,28 @@ crmRotas.post(
     await programarLembreteVisita(req, atividade);
     await publicarEvento(req, 'atividade_criada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, tipo: String(atividade.tipo) });
     if (atividade.tipo === 'visita') await publicarEvento(req, 'visita_agendada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, quando: atividade.quando ? new Date(atividade.quando as string).toISOString() : null });
+    // Agendar visita da Conversa (P02, D-127): `confirmacao` é o texto que vai ao cliente; ele entra na conversa
+    // do contato nesta mesma chamada, como consequência da visita criada. A visita já existe: uma falha aqui
+    // fica no log e não vira erro (a repetição criaria outra visita e outro lembrete).
+    const textoConfirmacao = typeof req.body?.confirmacao === 'string' ? req.body.confirmacao.trim().slice(0, 4000) : '';
+    let confirmacao: { link: string | null; conversa_id: number | null } | undefined;
+    if (textoConfirmacao && atividade.contato_id && contato) {
+      const link = linkWhatsapp(contato.telefone, textoConfirmacao);
+      confirmacao = { link, conversa_id: null };
+      try {
+        const canal = link ? 'wa_me' : 'registro';
+        const r = await registrarMensagem(dados, { contato_id: Number(contato.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu(req), canal, tipo: 'texto', conteudo: textoConfirmacao });
+        confirmacao.conversa_id = Number(r.conversa.id);
+        await req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(r));
+        await registrar(dados, req, {
+          tipo: 'abordagem.feita', alvo_tipo: 'contato', alvo_id: Number(contato.id), contato_id: Number(contato.id),
+          resumo: `Mensagem ${link ? 'pelo WhatsApp' : 'registrada'}: ${textoConfirmacao.slice(0, 200)}`, dados: { canal: link ? 'whatsapp' : 'registro', conversa_id: confirmacao.conversa_id },
+        });
+        await dados.atualizar('contatos', Number(contato.id), { ultimo_contato_em: agora(), abordagem_adiada_em: null });
+      } catch (e) {
+        console.warn(`[portal_corretor] visita ${atividade.id}: confirmação na conversa não concluída: ${(e as Error).message}`);
+      }
+    }
     if (atividade.contato_id) {
       await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `${atividade.status === 'feita' ? 'Registrado' : 'Agendado'}: ${atividade.titulo}` });
       if (atividade.tipo === 'visita') {
@@ -656,7 +680,7 @@ crmRotas.post(
         await tentarPortal(dados, req.contexto?.contaEscrita, atividade.contato_id);
       }
     }
-    res.status(201).json(atividade);
+    res.status(201).json(confirmacao ? { ...atividade, confirmacao } : atividade);
   }),
 );
 

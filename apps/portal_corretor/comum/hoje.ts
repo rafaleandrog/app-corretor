@@ -97,7 +97,27 @@ export interface AcaoDaDica {
  * `validarAcao` e a tela executa só depois da confirmação do corretor. Sem ação, o botão abre o
  * Assistente com a pergunta pronta.
  */
-export function dicaDoAssistente(fila: ItemDaFila[] | { tipo: TipoFila }[], passos: PassoInicial[], agora = new Date()): { texto: string; acao: AcaoDaDica | null } {
+/**
+ * Instante (ISO) de `hora`:00 do dia `deslocamentoDias` depois de hoje, NO FUSO da conta (e não no do
+ * processo: o backend roda em UTC). Sem biblioteca: lê o deslocamento do fuso pelo `Intl` naquele dia e
+ * confere de novo no instante achado (troca de horário de verão no meio do caminho).
+ */
+export function horaLocalNoFuso(agora: Date, fuso: string, deslocamentoDias: number, hora: number): string {
+  const hoje = agora.toLocaleDateString('sv-SE', { timeZone: fuso });
+  const [a, m, d] = hoje.split('-').map(Number);
+  const alvo = new Date(Date.UTC(a, m - 1, d + deslocamentoDias, hora));
+  // Diferença do relógio do fuso para o UTC no instante dado (ex.: -3 h em Brasília).
+  const desvio = (t: Date) => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: fuso, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(t).map((x) => [x.type, x.value]));
+    return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second)) - Math.floor(t.getTime() / 1000) * 1000;
+  };
+  let instante = new Date(alvo.getTime() - desvio(alvo));
+  const ajuste = desvio(instante);
+  if (alvo.getTime() - ajuste !== instante.getTime()) instante = new Date(alvo.getTime() - ajuste);
+  return instante.toISOString();
+}
+
+export function dicaDoAssistente(fila: ItemDaFila[] | { tipo: TipoFila }[], passos: PassoInicial[], agora = new Date(), fuso = 'America/Sao_Paulo'): { texto: string; acao: AcaoDaDica | null } {
   const itens = fila as ItemDaFila[];
   const daqui = (horas: number) => new Date(agora.getTime() + horas * 3600e3).toISOString();
   const quentes = itens.filter((i) => i.tipo === 'quente_sem_resposta');
@@ -119,10 +139,10 @@ export function dicaDoAssistente(fila: ItemDaFila[] | { tipo: TipoFila }[], pass
   }
   const peca = itens.find((i) => i.tipo === 'peca_aguardando' && i.peca_id);
   if (peca) {
-    // Amanhã às 18 h (horário em que os contatos chegam mais), em ISO: a rota valida a janela de 5 min a 90 dias.
-    const amanha = new Date(agora.getTime() + 86400e3);
-    amanha.setHours(18, 0, 0, 0);
-    return { texto: `A peça "${peca.texto}" está aprovada e sem data. Posso agendar para amanhã às 18 h.`, acao: { tipo: 'agendar_peca', peca_id: peca.peca_id!, quando: amanha.toISOString() } };
+    // Amanhã às 18 h no fuso da conta (horário em que os contatos chegam mais), em ISO: a rota valida a
+    // janela de 5 min a 90 dias e escreve o resumo no mesmo fuso. O título da peça vem em `contato_nome`
+    // (o item da peça não tem contato); `texto` é o motivo ("Aprovada em … e sem data para publicar").
+    return { texto: `A peça "${peca.contato_nome}" está aprovada e sem data. Posso agendar para amanhã às 18 h.`, acao: { tipo: 'agendar_peca', peca_id: peca.peca_id!, quando: horaLocalNoFuso(agora, fuso, 1, 18) } };
   }
   const falta = passos.find((p) => !p.feito);
   if (falta) return { texto: `Próximo passo para deixar a conta pronta: ${falta.rotulo.toLowerCase()}. O Assistente explica como.`, acao: null };

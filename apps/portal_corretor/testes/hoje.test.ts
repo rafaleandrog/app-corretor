@@ -63,14 +63,32 @@ test('Dica do Assistente: concreta, a partir do que a tela tem, com a ação que
   const d2 = dicaDoAssistente([{ tipo: 'abordagem_vencida', contato_id: 9, contato_nome: 'Caio', texto: 'x' }], passos, agora);
   assert.match(d2.texto, /uma abordagem atrasada/);
   assert.equal(d2.acao?.tipo_atividade, 'retorno');
-  const d3 = dicaDoAssistente([{ tipo: 'peca_aguardando', contato_id: null, contato_nome: 'Lançamento', texto: 'x', peca_id: 3 }], passos, agora);
+  // O item da peça como `pecasAguardando` o devolve: título em `contato_nome`, motivo em `texto`.
+  const d3 = dicaDoAssistente([{ tipo: 'peca_aguardando', contato_id: null, contato_nome: 'Lançamento Jardim Botânico', texto: 'Aprovada em 07/11/2026 e sem data para publicar', peca_id: 3 }], passos, agora);
   assert.deepEqual([d3.acao?.tipo, d3.acao?.peca_id], ['agendar_peca', 3]);
+  assert.match(d3.texto, /A peça "Lançamento Jardim Botânico" está aprovada/, 'a dica cita o título da peça');
+  assert.doesNotMatch(d3.texto, /Aprovada em/, 'nunca o motivo no lugar do título');
   assert.ok(validarAcao(d3.acao, { contatos: new Map(), pecas: new Map([[3, { titulo: 'Lançamento', estado: 'aprovada' }]]), agora }), 'peça aprovada agenda');
   assert.equal(validarAcao(d3.acao, { contatos: new Map(), pecas: new Map([[3, { titulo: 'Lançamento', estado: 'rascunho' }]]), agora }), null, 'rascunho não agenda');
   const d4 = dicaDoAssistente([], passos, agora);
   assert.match(d4.texto, /conectar o instagram/);
   assert.equal(d4.acao, null, 'sem ação: o botão abre o Assistente');
   assert.match(dicaDoAssistente([], primeirosPassos({ conta: true, telefone: true, instagram: true, imovel: true, pagina: true }), agora).texto, /Nada urgente/);
+});
+
+test('Dica da peça: "amanhã às 18 h" é 18:00 no fuso da conta, e o resumo de confirmação mostra a mesma hora', () => {
+  const passos = primeirosPassos({ conta: true, telefone: true, instagram: true, imovel: true, pagina: true });
+  const peca = { tipo: 'peca_aguardando' as const, contato_id: null, contato_nome: 'Lançamento', texto: 'Aprovada e sem data para publicar', peca_id: 3 };
+  // 8/11 às 12:00 UTC (9:00 em Brasília): amanhã às 18 h em Brasília é 9/11 21:00 UTC, seja qual for o fuso do processo.
+  const agora = new Date('2026-11-08T12:00:00Z');
+  const sp = dicaDoAssistente([peca], passos, agora, 'America/Sao_Paulo');
+  assert.equal(sp.acao?.quando, '2026-11-09T21:00:00.000Z');
+  const resumo = validarAcao(sp.acao, { contatos: new Map(), pecas: new Map([[3, { titulo: 'Lançamento', estado: 'aprovada' }]]), agora, fuso: 'America/Sao_Paulo' });
+  assert.match(resumo!.resumo, /09\/11.*18:00/, 'o resumo que o corretor confirma diz 18:00');
+  // Perto da meia-noite: 8/11 às 02:30 UTC ainda é 7/11 em Brasília; "amanhã" é 8/11, 18:00 local.
+  assert.equal(dicaDoAssistente([peca], passos, new Date('2026-11-08T02:30:00Z'), 'America/Sao_Paulo').acao?.quando, '2026-11-08T21:00:00.000Z');
+  // Outro fuso, com horário de verão (Nova York, EST em novembro: UTC-5).
+  assert.equal(dicaDoAssistente([peca], passos, agora, 'America/New_York').acao?.quando, '2026-11-09T23:00:00.000Z');
 });
 
 test('Hoje entra na moldura do Padrão B e relê os dados a cada entrada', () => {
@@ -347,5 +365,38 @@ test('GET /inicio: a fila traz proposta recebida, peça aprovada sem data e auto
     // B vê só o que é da conta B: a negociação 13 (a proposta dela) e a peça 32; nada de A.
     assert.deepEqual(r.fila.map((i: any) => [i.tipo, i.negociacao_id ?? i.peca_id]), [['proposta_recebida', 13], ['peca_aguardando', 32]]);
     assert.deepEqual(r.passagens, []);
+  });
+});
+
+test('GET /inicio: "Agora não" tira o contato da fila hoje em todo motivo com contato; amanhã ele volta; os outros ficam', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const doisDias = new Date(Date.now() - 2 * 86400e3).toISOString();
+  const ontem = new Date(Date.now() - 30 * HORA).toISOString();
+  banco.linhas('contatos').push(
+    // Quentes sem resposta: Ana será adiada, Bia não, Eva foi adiada há mais de um dia (volta normal).
+    { id: 1, conta_id: 100, nome: 'Ana', telefone: '61900000001', temperatura: 'quente', ultimo_contato_em: doisDias, abordagem_adiada_em: null },
+    { id: 2, conta_id: 100, nome: 'Bia', telefone: '61900000002', temperatura: 'quente', ultimo_contato_em: doisDias, abordagem_adiada_em: null },
+    { id: 5, conta_id: 100, nome: 'Eva', telefone: '61900000005', temperatura: 'quente', ultimo_contato_em: doisDias, abordagem_adiada_em: ontem },
+    // Visitas: Caio será adiado, Duda não.
+    { id: 3, conta_id: 100, nome: 'Caio', telefone: '61900000003', temperatura: 'morno', ultimo_contato_em: new Date().toISOString(), abordagem_adiada_em: null },
+    { id: 4, conta_id: 100, nome: 'Duda', telefone: '61900000004', temperatura: 'morno', ultimo_contato_em: new Date().toISOString(), abordagem_adiada_em: null },
+  );
+  const daqui = new Date(Date.now() + 60e3).toISOString();
+  banco.linhas('atividades').push(
+    { id: 70, conta_id: 100, tipo: 'visita', status: 'pendente', titulo: 'Visita Caio', quando: daqui, contato_id: 3 },
+    { id: 71, conta_id: 100, tipo: 'visita', status: 'pendente', titulo: 'Visita Duda', quando: daqui, contato_id: 4 },
+  );
+  banco.linhas('pecas').push({ id: 30, conta_id: 100, titulo: 'Lançamento', estado: 'aprovada', agendada_para: null, aprovada_em: new Date().toISOString() });
+  const naFila = (r: any) => r.fila.map((i: any) => [i.tipo, i.contato_id ?? i.peca_id]).sort();
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const antes = (await chamar('GET', '/inicio')).corpo;
+    assert.deepEqual(naFila(antes), [['peca_aguardando', 30], ['quente_sem_resposta', 1], ['quente_sem_resposta', 2], ['quente_sem_resposta', 5], ['visita', 3], ['visita', 4]].sort());
+    assert.equal((await chamar('POST', '/abordagens/1/adiar')).status, 200);
+    assert.equal((await chamar('POST', '/abordagens/3/adiar')).status, 200);
+    const depois = (await chamar('GET', '/inicio')).corpo;
+    assert.deepEqual(naFila(depois), [['peca_aguardando', 30], ['quente_sem_resposta', 2], ['quente_sem_resposta', 5], ['visita', 4]].sort(), 'Ana e Caio saem; Bia, Eva, Duda e a peça ficam');
+    // Amanhã: o adiamento de ontem não vale mais e eles voltam.
+    for (const c of banco.linhas('contatos')) if (c.id === 1 || c.id === 3) c.abordagem_adiada_em = ontem;
+    assert.deepEqual(naFila((await chamar('GET', '/inicio')).corpo), naFila(antes));
   });
 });

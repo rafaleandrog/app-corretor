@@ -19,7 +19,9 @@ mesma montagem com os imóveis que combinam com o perfil de busca já marcados, 
    autorização de venda vigente**. Não precisam estar marcados para a Página.
 3. **Criar e enviar** copia a mensagem com o link, pronta para colar no WhatsApp.
 
-O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>`. Vale pelo prazo de
+O link tem a forma `https://<instância>/portal_corretor/s?t=<chave>` (sem endereço público configurado na instância,
+a ficha e a Conversa completam o link com o endereço em que você está). Criada a seleção, ela vale mesmo que um
+passo seguinte (o registro na conversa, por exemplo) falhe: o link volta para você do mesmo jeito, sem criar outra. Vale pelo prazo de
 "validade da seleção enviada" de Ajustes › Horário de atendimento (14 dias, se você não mudar).
 
 No topo, o cliente vê o seu nome, o CRECI (só se cadastrado), o botão de WhatsApp e a sua
