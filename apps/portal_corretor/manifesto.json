@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.46",
+  "versao": "0.1.47",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -111,6 +111,11 @@
     "renovar_tokens_instagram": {
       "titulo": "Conexões do Instagram",
       "descricao": "Renova o acesso ao Instagram das contas antes de vencer (60 dias)",
+      "frequencia": "diaria"
+    },
+    "avisar_autorizacoes_vencendo": {
+      "titulo": "Autorizações de venda vencendo",
+      "descricao": "Avisa uma vez cada autorização de venda que vence em até 30 dias",
       "frequencia": "diaria"
     }
   },
@@ -532,6 +537,280 @@
       "api": "conversas/{conversa_id}",
       "rota": "conversas?item={conversa_id}",
       "segregado_por_conta": true
+    },
+    "acesso_cliente_convidado": {
+      "descricao": "O corretor gerou o link do Portal do Cliente para um cliente.",
+      "campos": [
+        "contato_id",
+        "acesso_id"
+      ],
+      "conteudo": "Portal do cliente criado",
+      "api": "contatos/{contato_id}/portal",
+      "rota": "clientes?item={contato_id}&secao=portal",
+      "segregado_por_conta": true
+    },
+    "atividade_criada": {
+      "descricao": "Uma atividade (tarefa, ligação, visita, reunião, retorno) entrou na agenda.",
+      "campos": [
+        "atividade_id",
+        "contato_id",
+        "negocio_id",
+        "tipo"
+      ],
+      "conteudo": "Nova atividade na agenda",
+      "api": "atividades/{atividade_id}",
+      "rota": "?aba=agenda",
+      "segregado_por_conta": true
+    },
+    "visita_agendada": {
+      "descricao": "Uma visita foi marcada com o cliente.",
+      "campos": [
+        "atividade_id",
+        "contato_id",
+        "negocio_id",
+        "quando"
+      ],
+      "conteudo": "Visita marcada",
+      "api": "atividades/{atividade_id}",
+      "rota": "?aba=agenda",
+      "segregado_por_conta": true
+    },
+    "visita_feedback": {
+      "descricao": "O corretor registrou o retorno do cliente sobre uma visita.",
+      "campos": [
+        "atividade_id",
+        "contato_id",
+        "visita_id"
+      ],
+      "conteudo": "Retorno de visita registrado",
+      "api": "atividades/{atividade_id}",
+      "rota": "clientes?item={contato_id}&secao=historico",
+      "segregado_por_conta": true
+    },
+    "visita_pedida": {
+      "descricao": "O cliente pediu para visitar um imóvel pela seleção ou pelo portal.",
+      "campos": [
+        "contato_id",
+        "selecao_id",
+        "imovel_id"
+      ],
+      "conteudo": "Um cliente quer visitar um imóvel",
+      "api": "contatos/{contato_id}",
+      "rota": "clientes?item={contato_id}",
+      "segregado_por_conta": true
+    },
+    "contatos_importados": {
+      "descricao": "Uma planilha de contatos foi importada.",
+      "campos": [
+        "total",
+        "novos",
+        "atualizados",
+        "ignorados"
+      ],
+      "conteudo": "Importação de contatos concluída",
+      "api": "contatos",
+      "rota": "clientes",
+      "segregado_por_conta": true
+    },
+    "negocio_etapa_mudou": {
+      "descricao": "Um negócio mudou de etapa no funil.",
+      "campos": [
+        "negocio_id",
+        "contato_id",
+        "etapa_id"
+      ],
+      "conteudo": "Negócio mudou de etapa",
+      "api": "negocios/{negocio_id}",
+      "rota": "clientes?visao=funil&item={contato_id}",
+      "segregado_por_conta": true
+    },
+    "negocio_ganho": {
+      "descricao": "Um negócio foi ganho.",
+      "campos": [
+        "negocio_id",
+        "contato_id"
+      ],
+      "conteudo": "Negócio ganho",
+      "api": "negocios/{negocio_id}",
+      "rota": "clientes?visao=funil&item={contato_id}",
+      "segregado_por_conta": true
+    },
+    "negocio_perdido": {
+      "descricao": "Um negócio foi perdido.",
+      "campos": [
+        "negocio_id",
+        "contato_id",
+        "motivo_perda"
+      ],
+      "conteudo": "Negócio perdido",
+      "api": "negocios/{negocio_id}",
+      "rota": "clientes?visao=funil&item={contato_id}",
+      "segregado_por_conta": true
+    },
+    "imovel_criado": {
+      "descricao": "Um imóvel entrou na carteira.",
+      "campos": [
+        "imovel_id"
+      ],
+      "conteudo": "Imóvel cadastrado",
+      "api": "imoveis/{imovel_id}",
+      "rota": "imoveis?item={imovel_id}",
+      "segregado_por_conta": true
+    },
+    "imovel_ativado": {
+      "descricao": "Um imóvel passou a ativo (anunciado).",
+      "campos": [
+        "imovel_id"
+      ],
+      "conteudo": "Imóvel anunciado",
+      "api": "imoveis/{imovel_id}",
+      "rota": "imoveis?item={imovel_id}",
+      "segregado_por_conta": true
+    },
+    "imovel_preco_reduzido": {
+      "descricao": "O preço de um imóvel baixou.",
+      "campos": [
+        "imovel_id",
+        "valor_c"
+      ],
+      "conteudo": "Preço de imóvel reduzido",
+      "api": "imoveis/{imovel_id}",
+      "rota": "imoveis?item={imovel_id}",
+      "segregado_por_conta": true
+    },
+    "imovel_vendido": {
+      "descricao": "Um imóvel foi marcado como vendido.",
+      "campos": [
+        "imovel_id"
+      ],
+      "conteudo": "Imóvel vendido",
+      "api": "imoveis/{imovel_id}",
+      "rota": "imoveis?item={imovel_id}",
+      "segregado_por_conta": true
+    },
+    "imovel_visibilidade_mudou": {
+      "descricao": "Mudou onde o imóvel aparece: na sua página, na rede ou o endereço mostrado.",
+      "campos": [
+        "imovel_id"
+      ],
+      "conteudo": "Visibilidade de imóvel alterada",
+      "api": "imoveis/{imovel_id}",
+      "rota": "imoveis?item={imovel_id}",
+      "segregado_por_conta": true
+    },
+    "autorizacao_vencendo": {
+      "descricao": "Uma autorização de venda vence em até 30 dias.",
+      "campos": [
+        "autorizacao_id",
+        "imovel_id",
+        "quando"
+      ],
+      "conteudo": "Autorização de venda vencendo",
+      "api": "imoveis/{imovel_id}",
+      "rota": "imoveis?item={imovel_id}&secao=autorizacao",
+      "segregado_por_conta": true
+    },
+    "pagina_publicada": {
+      "descricao": "A página do corretor foi publicada ou republicada.",
+      "campos": [
+        "pagina_id"
+      ],
+      "conteudo": "Página publicada",
+      "api": "pagina",
+      "rota": "pagina",
+      "segregado_por_conta": true
+    },
+    "peca_pronta": {
+      "descricao": "Uma peça do Estúdio foi aprovada e está pronta para publicar.",
+      "campos": [
+        "peca_id",
+        "imovel_id"
+      ],
+      "conteudo": "Peça pronta para publicar",
+      "api": "estudio/pecas/{peca_id}",
+      "rota": "estudio?item={peca_id}",
+      "segregado_por_conta": true
+    },
+    "publicacao_feita": {
+      "descricao": "Uma peça foi publicada no Instagram (pelo app ou marcada como publicada por fora).",
+      "campos": [
+        "peca_id"
+      ],
+      "conteudo": "Peça publicada no Instagram",
+      "api": "estudio/pecas/{peca_id}",
+      "rota": "estudio?item={peca_id}",
+      "segregado_por_conta": true
+    },
+    "publicacao_falhou": {
+      "descricao": "A publicação de uma peça no Instagram falhou.",
+      "campos": [
+        "peca_id"
+      ],
+      "conteudo": "Publicação no Instagram falhou",
+      "api": "estudio/pecas/{peca_id}",
+      "rota": "estudio?item={peca_id}",
+      "segregado_por_conta": true
+    },
+    "integracao_erro": {
+      "descricao": "Uma integração (Instagram) falhou: acesso recusado, vencido ou fora do ar.",
+      "campos": [
+        "canal_id",
+        "rede"
+      ],
+      "conteudo": "Problema na conexão com o {rede}",
+      "api": "conexoes",
+      "rota": "ajustes/conexoes",
+      "segregado_por_conta": true
+    },
+    "canal_conectado": {
+      "descricao": "Um canal (Instagram) foi conectado à conta.",
+      "campos": [
+        "canal_id",
+        "rede",
+        "ator_id",
+        "ator_nome"
+      ],
+      "conteudo": "{rede} conectado por {ator_nome}",
+      "api": "conexoes",
+      "rota": "ajustes/conexoes",
+      "segregado_por_conta": true,
+      "auditavel": {
+        "categoria": "configuracao",
+        "ator": {
+          "id": "ator_id",
+          "desc": "ator_nome"
+        },
+        "alvo": {
+          "tipo": "canal",
+          "id": "canal_id",
+          "desc": "rede"
+        }
+      }
+    },
+    "canal_desconectado": {
+      "descricao": "Um canal (Instagram) foi desconectado da conta.",
+      "campos": [
+        "canal_id",
+        "rede",
+        "ator_id",
+        "ator_nome"
+      ],
+      "conteudo": "{rede} desconectado por {ator_nome}",
+      "api": "conexoes",
+      "rota": "ajustes/conexoes",
+      "segregado_por_conta": true,
+      "auditavel": {
+        "categoria": "configuracao",
+        "ator": {
+          "id": "ator_id",
+          "desc": "ator_nome"
+        },
+        "alvo": {
+          "tipo": "canal",
+          "id": "canal_id",
+          "desc": "rede"
+        }
+      }
     }
   },
   "parametros": {

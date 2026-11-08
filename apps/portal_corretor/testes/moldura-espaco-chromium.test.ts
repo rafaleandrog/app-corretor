@@ -4,8 +4,8 @@ import { createRequire } from 'node:module';
 import { build } from 'esbuild';
 
 // Espaço do centro na moldura v2 (D-114, specs/layout/README.md § 3): as laterais são fixas (lista 360 px,
-// contexto 340 px) em toda tela, com ou sem item escolhido, e o centro fica com o resto. `listaEstreita` e
-// `recolherContexto`, que as telas ainda passam, não mudam nada. Mede em 1280, 1440 e 1920 px, com a moldura
+// contexto 340 px) em toda tela, com ou sem item escolhido, e o centro fica com o resto (as antigas
+// `listaEstreita` e `recolherContexto` saíram da moldura na etapa 4). Mede em 1280, 1440 e 1920 px, com a moldura
 // de verdade (`moldura()`) e substitutos dos primitivos só com a geometria dos docs do bundle. O respiro
 // (24 px) é modelo, como em moldura-largura. Sem Playwright instalado, pula.
 
@@ -55,8 +55,8 @@ window.urbiVerso = {
 const CASOS = {
   // O Funil antes: filtros em 360 px e a dica do cliente aberta em 340 px.
   funilAntes: { menu: '/clientes', lista: html\`filtros\`, centro: html\`quadro\`, contexto: html\`dica\` },
-  funil: { menu: '/clientes', lista: html\`filtros\`, centro: html\`quadro\`, contexto: html\`dica\`, listaEstreita: true, recolherContexto: true },
-  funilComCliente: { menu: '/clientes', lista: html\`filtros\`, centro: html\`quadro\`, contexto: html\`cliente\`, listaEstreita: true, recolherContexto: false },
+  funil: { menu: '/clientes', lista: html\`filtros\`, centro: html\`quadro\`, contexto: html\`dica\` },
+  funilComCliente: { menu: '/clientes', lista: html\`filtros\`, centro: html\`quadro\`, contexto: html\`cliente\` },
   semContexto: { menu: '/imoveis', lista: html\`lista\`, centro: html\`vazio\`, contexto: nothing },
 };
 window.desenhar = (caso) => {

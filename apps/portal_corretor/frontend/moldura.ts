@@ -31,14 +31,6 @@ export interface OpcoesMoldura {
   centroSolto?: boolean;
   /** Direita, "o que eu preciso saber para decidir". O Assistente aberto ocupa o lugar dela. */
   contexto?: unknown;
-  /**
-   * Mantido por compatibilidade com as telas que o passam: na moldura v2 a direita é fixa (340 px) e
-   * não começa recolhida (D-114, referência com as três colunas abertas). Sem `contexto`, a coluna
-   * mostra a dica de nada escolhido.
-   */
-  recolherContexto?: boolean;
-  /** Mantido por compatibilidade: na moldura v2 a lista é sempre 360 px (D-114). */
-  listaEstreita?: boolean;
   /** Rótulos das abas do celular. */
   rotulos?: { lista?: string; centro?: string; contexto?: string };
   /** Coluna aberta no celular (padrão: o centro). Clientes sem cliente escolhido abre na lista. */

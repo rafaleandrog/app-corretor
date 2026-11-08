@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import schema from '../schema.json';
-import { rotas, webhooks, reagir } from '../backend/rotas';
+import { rotas, rotinas, webhooks, reagir } from '../backend/rotas';
 import { limparLimites } from '../backend/publico';
 import { http, publicar as publicarNoInstagram } from '../backend/instagram';
 import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
@@ -26,7 +26,13 @@ const eventos = manifesto.eventos as Record<string, { campos: string[]; segregad
 /** Campos que são identificadores (número de registro da conta). */
 const eh_id = (c: string) => c.endsWith('_id') || ['negociacao', 'proposta', 'visita', 'tarefa'].includes(c);
 /** Campos que não identificam pessoa: códigos do app, rótulos fechados, datas e o valor da oferta. */
-const NAO_PESSOAIS = new Set(['codigo', 'imovel_codigo', 'reacao', 'tipo', 'origem', 'agendada_para', 'quando', 'valor_c']);
+const NAO_PESSOAIS = new Set(['codigo', 'imovel_codigo', 'reacao', 'tipo', 'origem', 'agendada_para', 'quando', 'valor_c', 'rede', 'total', 'novos', 'atualizados', 'ignorados', 'motivo_perda']);
+/**
+ * Tipo auditável (auditoria.md): a trilha da plataforma exige `ator.desc` não vazio, então o nome de quem agiu vai no
+ * payload desses tipos e só deles. É o corretor (ator), não o cliente; o teste confere que o tipo declara `auditavel`.
+ */
+const CAMPOS_DE_AUDITORIA = new Set(['ator_id', 'ator_nome']);
+const auditavel = (tipo: string) => !!(manifesto.eventos as Record<string, { auditavel?: unknown }>)[tipo]?.auditavel;
 /**
  * Risco residual (nasce num handler de `wh`, sem como gravar antes de publicar). Mudar esta lista
  * exige mudar a doc da app e o pedido ao shell, que o teste confere.
@@ -134,8 +140,9 @@ test('todo evento do manifesto é segregado e cada campo é id, código ou resid
     assert.equal(def.segregado_por_conta, true, `${tipo}: evento do app é da conta`);
     for (const campo of def.campos) {
       const residual = RESIDUAL[tipo]?.includes(campo);
-      if (PESSOAIS.test(campo)) assert.ok(residual, `${tipo}.${campo}: dado pessoal no payload (só ids; o listener busca o resto no banco)`);
-      assert.ok(eh_id(campo) || NAO_PESSOAIS.has(campo) || residual, `${tipo}.${campo}: campo sem classificação; é dado pessoal?`);
+      const deAuditoria = CAMPOS_DE_AUDITORIA.has(campo) && auditavel(tipo);
+      if (PESSOAIS.test(campo)) assert.ok(residual || deAuditoria, `${tipo}.${campo}: dado pessoal no payload (só ids; o listener busca o resto no banco)`);
+      assert.ok(eh_id(campo) || NAO_PESSOAIS.has(campo) || residual || deAuditoria, `${tipo}.${campo}: campo sem classificação; é dado pessoal?`);
     }
   }
   for (const [tipo, campos] of Object.entries(RESIDUAL)) {
@@ -153,6 +160,7 @@ test('todo evento do manifesto é segregado e cada campo é id, código ou resid
  */
 const TIPO_EM_VARIAVEL: Record<string, string[]> = {
   'conversas.ts': ['evento', 'tipo'],
+  'eventos.ts': ['tipo', 'tipo'],
   'negociacao.ts': ['tipo'],
   'negociador.ts': ['evento', 'tipo'],
   'negociador-entrada.ts': ['tipo'],
@@ -399,6 +407,11 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     const d = banco.dados(100);
     const im1 = await d.criar('imoveis', { codigo: 'IM-9901', titulo: 'Apto Asa Sul', preco_c: MANDATO.preco_pedido_c });
     const ng1 = await d.criar('negocios', { contato_id: ids.zu, titulo: `Compra ${zu.nome}`, pipeline: 'compra', etapa_id: 1, responsavel_id: 1 });
+    // visita_agendada, atividade_criada e visita_feedback (bloco de eventos, D-118): visita ao imóvel, com o retorno do cliente.
+    const vis = await ok(chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita ao apto', quando: new Date(Date.now() + 86400e3).toISOString(), contato_id: ids.zu, imovel_id: im1.id, local: 'Asa Sul' }), 'visita ao imóvel');
+    await ok(chamar('POST', `/visitas/${vis.id}/feedback`, { nota: 5, texto: fala(zu) }), 'retorno da visita');
+    // contatos_importados: uma planilha com uma pessoa nova (dado pessoal entra, só números saem).
+    await ok(chamar('POST', '/contatos/importar', { linhas: [{ nome: her.nome, telefone: '+5561977770001', email: 'h2@exemplo.com' }], modo: 'pular' }), 'importação');
     n1 = (await ok(chamar('POST', '/negociacoes', { negocio_id: ng1.id, imovel_id: im1.id }), 'negociação 1')).id; // negociacao_iniciada
     await ok(chamar('PUT', `/negociacoes/${n1}/mandato`, MANDATO), 'mandato 1'); // mandato_alterado
     const oferta = await ok(chamar('POST', `/negociacoes/${n1}/propostas`, { direcao: 'comprador', valor_c: 140_000_000, condicoes: fala(zu) }), 'oferta'); // proposta_recebida
@@ -442,12 +455,32 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     await ok(chamar('POST', `/imoveis/${im.id}/midias`, { upload_id: 1, tipo: 'foto' }), 'foto');
     const doc = await ok(chamar('POST', `/imoveis/${im.id}/midias`, { upload_id: 2, tipo: 'documento' }), 'documento');
     await ok(chamar('PATCH', `/autorizacoes/${aut.id}`, { documento_midia_id: doc.id, situacao: 'assinada' }), 'assinada');
-    await ok(chamar('PATCH', `/imoveis/${im.id}`, { situacao: 'ativo' }), 'anunciado');
-    const peca = (await ok(chamar('POST', '/estudio/pedido', { imovel_id: im.id, objetivo: 'novo_imovel', formatos: ['post_1x1'] }), 'pedido')).pecas[0];
+    await ok(chamar('PATCH', `/imoveis/${im.id}`, { situacao: 'ativo' }), 'anunciado'); // imovel_ativado
+    await ok(chamar('PATCH', `/imoveis/${im.id}`, { preco: 2400000 }), 'preço menor'); // imovel_preco_reduzido
+    await ok(chamar('PATCH', `/imoveis/${im.id}`, { endereco_publico: 'regiao' }), 'endereço mostrado'); // imovel_visibilidade_mudou
+    // pagina_publicada: a página do corretor no ar (o formulário e o clique ganham ingressos do shell falso).
+    const pg = await ok(chamar('GET', '/pagina'), 'página');
+    await ok(chamar('PUT', '/pagina', { ...pg.pagina, endereco: 'corretora-teste', nome_exibicao: her.nome }), 'salvar página');
+    await ok(chamar('POST', '/pagina/publicar'), 'publicar página');
+    const pecas = (await ok(chamar('POST', '/estudio/pedido', { imovel_id: im.id, objetivo: 'novo_imovel', formatos: ['post_1x1', 'story'] }), 'pedido')).pecas;
+    const peca = pecas[0];
     await ok(chamar('PUT', `/estudio/pecas/${peca.id}/arquivos`, { upload_ids: [11], motor: 'canva_ia' }), 'arte');
-    await ok(chamar('POST', `/estudio/pecas/${peca.id}/aprovar`), 'aprovar peça');
-    await ok(chamar('POST', '/conexoes/instagram/retorno', { code: 'x' }), 'instagram');
+    await ok(chamar('POST', `/estudio/pecas/${peca.id}/aprovar`), 'aprovar peça'); // peca_pronta
+    await ok(chamar('POST', '/conexoes/instagram/retorno', { code: 'x' }), 'instagram'); // canal_conectado (auditável)
     await ok(chamar('POST', `/estudio/pecas/${peca.id}/agendar`, { quando: new Date(Date.now() + 2 * 3600e3).toISOString() }), 'agendar');
+    // publicacao_feita: a segunda peça foi publicada por fora do app.
+    await ok(chamar('POST', `/estudio/pecas/${pecas[1].id}/publicada-fora`, {}), 'publicada por fora');
+    // publicacao_falhou e integracao_erro: na hora marcada, o Instagram falso recusa a publicação.
+    const agendada = banco.linhas('pecas').find((x) => x.id === peca.id)!;
+    await reagir.publicacao_programada({ payload: { peca_id: peca.id, agendada_para: new Date(agendada.agendada_para as string).toISOString() }, conta_id: 100 } as never, ctx);
+    await ok(chamar('POST', '/conexoes/instagram/desconectar'), 'desconectar'); // canal_desconectado (auditável)
+    await ok(chamar('PATCH', `/imoveis/${im.id}`, { situacao: 'vendido' }), 'vendido'); // imovel_vendido
+    // autorizacao_vencendo: a rotina avisa a autorização que vence em 10 dias, uma vez só.
+    await banco.dados(100).criar('autorizacoes_venda', { imovel_id: im.id, proprietario_id: dono.id, inicio: HOJE, fim: dia(10), comissao_pct: '5', preco_autorizado_c: 240000000, situacao: 'assinada' });
+    const r1 = await rotinas.avisar_autorizacoes_vencendo(ctx);
+    assert.equal(r1.ok, true, JSON.stringify(r1));
+    const r2 = await rotinas.avisar_autorizacoes_vencendo(ctx);
+    assert.equal(r2.resultado.resumo, '0 autorização(ões) avisada(s)', 'de novo não avisa');
   });
 
   // Pelo portal (webhook → listener): nova oferta, o motor responde sozinho (proposta_recebida e
@@ -467,6 +500,17 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
   const selecao = await d.criar('selecoes', { contato_id: ids.zu, titulo: 'Para você', expira_em: new Date(Date.now() + 86400e3).toISOString() });
   await d.criar('selecao_itens', { selecao_id: selecao.id, imovel_id: im4.id, ordem: 0 });
   await webhook('reacao_selecao', { conta_id: 100, selecao_id: selecao.id }, { imovel_codigo: 'IM-9800', reacao: 'conversar_preco', comentario: fala(zu) }, '10.9.0.4');
+  await webhook('reacao_selecao', { conta_id: 100, selecao_id: selecao.id }, { imovel_codigo: 'IM-9800', reacao: 'quero_visitar', comentario: null }, '10.9.0.7'); // visita_pedida
+
+  // negocio_etapa_mudou, negocio_ganho e negocio_perdido: dois negócios mudam de etapa no funil.
+  const ganha = await d.criar('etapas_funil', { pipeline: 'compra', nome: 'Fechado', tipo: 'ganha', ordem: 8, ativa: true, marco: 'proposta', probabilidade: 1 });
+  const perdida = await d.criar('etapas_funil', { pipeline: 'compra', nome: 'Perdido', tipo: 'perdida', ordem: 9, ativa: true, marco: 'novo', probabilidade: 0 });
+  await comServidor(rotas, A, banco, shell, async (chamar: Chamar) => {
+    const g = await d.criar('negocios', { contato_id: ids.zu, titulo: 'Compra ganha', pipeline: 'compra', etapa_id: aberta.id, responsavel_id: 1 });
+    const p = await d.criar('negocios', { contato_id: ids.zu, titulo: 'Compra perdida', pipeline: 'compra', etapa_id: aberta.id, responsavel_id: 1 });
+    await ok(chamar('PATCH', `/negocios/${g.id}`, { etapa_id: ganha.id }), 'negócio ganho');
+    await ok(chamar('PATCH', `/negocios/${p.id}`, { etapa_id: perdida.id, motivo_perda: 'preco' }), 'negócio perdido');
+  });
 
   // Página do corretor: contato pelo formulário e clique no link.
   await webhook('formulario_lead', { conta_id: 100 }, { nome: her.nome, telefone: her.telefone, email: her.email, mensagem: fala(her), imovel_codigo: 'IM-9901', consentimento: true }, '10.9.0.5');
@@ -489,6 +533,7 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     for (const [campo, valor] of Object.entries(payload)) {
       if (RESIDUAL[tipo]?.includes(campo)) continue;
       assert.ok(!pessoal(valor), `${tipo}.${campo}: dado pessoal fora dos residuais (${JSON.stringify(valor)})`);
+      if (CAMPOS_DE_AUDITORIA.has(campo) && auditavel(tipo)) continue; // o nome do corretor que agiu, exigido pela trilha
       assert.ok(valor === null || typeof valor === 'number' || (NAO_PESSOAIS.has(campo) && typeof valor === 'string'), `${tipo}.${campo}: só id, número ou código (${JSON.stringify(valor)})`);
     }
   }

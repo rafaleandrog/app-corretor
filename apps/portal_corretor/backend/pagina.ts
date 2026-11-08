@@ -3,6 +3,7 @@ import { Router, type Request } from 'express';
 import { blocosPadrao, FORMATO_ENDERECO, sugerirEndereco, validarPagina } from '../comum/pagina';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { cartoesDaPrevia, conteudoPagina, contaDoRequest, despublicarTudo, origemPublica, paginaDaConta, sincronizarTudo } from './vitrine';
+import { publicarEvento } from './eventos';
 
 // Minha Página (bloco 5, spec 6.15 `paginas_corretor`, 11.3): o corretor monta a página por blocos,
 // escolhe o endereço e publica. Publicar gera os endereços de entrada (wh) do formulário e dos
@@ -181,6 +182,7 @@ paginaRotas.post(
       });
       return erro(res, 409, 'ENDERECO_EM_USO', 'Este endereço acabou de ser escolhido por outra página. Escolha outro.');
     }
+    await publicarEvento(req, 'pagina_publicada', { pagina_id: Number(p.id) });
     res.json({ ...(await visao(req)), imoveis_publicados: r.imoveis });
   }),
 );

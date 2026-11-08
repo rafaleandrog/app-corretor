@@ -75,6 +75,15 @@ async function carregarDetalhe(id: number, vida: Gesto): Promise<Detalhe | null>
   const d = (await vida.esperar(chamarApi(`/conversas/${id}`))) as Detalhe;
   loja.detalhes.set(id, d);
   avisar();
+  // Abrir a conversa marca como lida e alinha quem atende (é escrita: `PATCH .../lida`, não o `GET`).
+  const lida = (await vida.esperar(enviar('PATCH', `/conversas/${id}/lida`))) as { conversa: Detalhe['conversa'] };
+  if (lida?.conversa) {
+    const antes = d.conversa;
+    d.conversa = lida.conversa;
+    loja.detalhes.set(id, d);
+    if (Number(antes.nao_lidas ?? 0) > 0 || antes.atendido_por !== lida.conversa.atendido_por) listaMudou();
+    else avisar();
+  }
   return d;
 }
 
@@ -118,6 +127,7 @@ export class PcConversasLista extends LitElement {
   @property({ attribute: false }) aoEscolher: (id: number) => void = () => {};
   @state() private itens: ItemLista[] = [];
   @state() private contadores: Partial<Record<FiltroConversa, number>> = {};
+  @state() private limite: { atingido: boolean; quantas: number } = { atingido: false, quantas: 0 };
   @state() private carregando = true;
   @state() private falha: unknown = null;
   @state() private filtro: FiltroConversa | '' = (filtrosDaUrl().get('filtro') as FiltroConversa) || '';
@@ -153,9 +163,10 @@ export class PcConversasLista extends LitElement {
       const q = new URLSearchParams();
       if (this.filtro) q.set('filtro', this.filtro);
       if (this.busca.trim()) q.set('q', this.busca.trim());
-      const r = (await this.vida.esperar(chamarApi(`/conversas${q.toString() ? `?${q}` : ''}`))) as { dados: ItemLista[]; contadores: Record<FiltroConversa, number> };
+      const r = (await this.vida.esperar(chamarApi(`/conversas${q.toString() ? `?${q}` : ''}`))) as { dados: ItemLista[]; contadores: Record<FiltroConversa, number>; limite?: number; limite_atingido?: boolean };
       this.itens = r.dados;
       this.contadores = r.contadores;
+      this.limite = { atingido: !!r.limite_atingido, quantas: Number(r.limite ?? 0) };
     } catch (e) {
       if (this.vida.encerrado(e)) return;
       this.falha = e;
@@ -220,6 +231,9 @@ export class PcConversasLista extends LitElement {
       <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Buscar nome, telefone ou imóvel" valor=${this.busca}
         @urbi:input-change=${(e: CustomEvent) => this.filtrar({ q: e.detail.valor })}></urbi-input>
       <urbi-chips-atalho .opcoes=${opcoes} ativo=${this.filtro} @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ filtro: e.detail.id })}></urbi-chips-atalho>
+      ${this.limite.atingido
+        ? html`<urbi-banner variante="info" icone="fa-solid fa-inbox">A caixa mostra as ${this.limite.quantas} conversas mais recentes. Para achar outra, use a busca ou um filtro.</urbi-banner>`
+        : nothing}
       ${this.falha
         ? estadoTela('erro', { aoTentar: () => void this.carregar() })
         : html`<urbi-lista clicavel separador .itens=${this.itens} ?carregando=${this.carregando}

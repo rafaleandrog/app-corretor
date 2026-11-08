@@ -26,6 +26,7 @@ import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { uploadRecusado } from './imoveis';
 import { contaDoRequest, ressincronizarMarca } from './vitrine';
+import { publicarEvento } from './eventos';
 
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74): marca, pedido → textos (IA com JSON Schema,
 // ou modelo quando a IA não está disponível) e a instrução para a ferramenta; a arte é feita no Canva
@@ -404,6 +405,7 @@ estudioRotas.post(
     const checagem = checarPeca({ ...campos(p, arquivos.total), legenda: comCreci.legenda || null }, { creci: meuCreci, imovel: !!p.imovel_id, autorizacaoVigente: !!imovel?.vigente });
     if (!checagem.ok) return erro(res, 422, 'CHECAGEM_PENDENTE', 'Antes de aprovar, resolva:', checagem.pendencias);
     const aprovada = await req.dados!.atualizar('pecas', p.id, { estado: 'aprovada', legenda: comCreci.legenda || null, aprovada_em: new Date().toISOString(), aprovada_por_id: req.contexto!.usuario.id });
+    await publicarEvento(req, 'peca_pronta', { peca_id: Number(p.id), imovel_id: p.imovel_id ? Number(p.imovel_id) : null });
     res.json({ ...aprovada, avisos: comCreci.aviso ? [...checagem.avisos, comCreci.aviso] : checagem.avisos });
   }),
 );

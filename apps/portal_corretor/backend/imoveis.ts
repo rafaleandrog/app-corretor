@@ -1,6 +1,6 @@
 import '@urbiverso/sdk/express';
 import { Router, type Request, type Response } from 'express';
-import type { HelperDados } from '@urbiverso/sdk';
+import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import {
   AMBIENTES,
   autorizacaoVigente,
@@ -28,6 +28,7 @@ import { normalizarPapeis } from '../comum/crm';
 import { ENCERRADOS } from '../comum/negociacao';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { contaDoRequest, tentarSincronizar } from './vitrine';
+import { publicarDoSistema, publicarEvento } from './eventos';
 import schema from '../schema.json';
 
 // Imóveis (anúncios), mídias, autorizações de venda e empreendimentos (bloco 3). Tabelas
@@ -188,6 +189,7 @@ imoveisRotas.post(
         proprio ?? proximoCodigo((await dados.listar('imoveis', { filtros: { 'codigo[busca]': 'IM-' }, ordenar: 'id', ordem: 'desc', por_pagina: 200 })).dados.map((i) => i.codigo));
       try {
         const imovel = await dados.criar('imoveis', { ...v.dados, codigo, situacao: 'rascunho', publicado_pagina: false });
+        await publicarEvento(req, 'imovel_criado', { imovel_id: Number(imovel.id) });
         return res.status(201).json(imovel);
       } catch (e) {
         if (!violouUnico(e)) throw e;
@@ -393,6 +395,12 @@ imoveisRotas.patch(
       await marcarProprietario(dados, novoProprietario);
       // A vitrine pública acompanha o anúncio (bloco 5).
       await tentarSincronizar(req, imovel.id);
+      // Eventos do catálogo (13.1): o que mudou de fato, lido do antes e do depois.
+      const iid_ = Number(imovel.id);
+      if (mudar.situacao === 'ativo' && atual.situacao !== 'ativo') await publicarEvento(req, 'imovel_ativado', { imovel_id: iid_ });
+      if (mudar.situacao === 'vendido' && atual.situacao !== 'vendido') await publicarEvento(req, 'imovel_vendido', { imovel_id: iid_ });
+      if (typeof mudar.preco_c === 'number' && typeof atual.preco_c === 'number' && mudar.preco_c < atual.preco_c) await publicarEvento(req, 'imovel_preco_reduzido', { imovel_id: iid_, valor_c: mudar.preco_c });
+      if (['publicado_pagina', 'compartilhado_rede', 'endereco_publico'].some((c) => c in mudar && mudar[c] !== atual[c])) await publicarEvento(req, 'imovel_visibilidade_mudou', { imovel_id: iid_ });
       res.json(imovel);
     } catch (e) {
       if (violouUnico(e)) return erro(res, 409, 'CODIGO_REPETIDO', 'Já existe um imóvel com este código.');
@@ -861,3 +869,31 @@ imoveisRotas.patch(
     res.json({ ok: true });
   }),
 );
+
+/**
+ * Rotina diária (13.1 `autorizacao_vencendo`): avisa UMA vez cada autorização assinada que vence em até
+ * 30 dias; a marca `aviso_vencimento_em` é o que torna a rotina idempotente. A conta vai explícita no
+ * evento (contexto sem usuário).
+ */
+export async function avisarAutorizacoesVencendo(ctx: ContextoListener) {
+  if (!ctx.dados?.comConta) return { ok: true, resultado: { resumo: 'sem dados' } };
+  const hojeSp = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const limite = new Date(Date.now() + 31 * 86400e3).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+  const vencendo = await ctx.dados.varrerTudo('autorizacoes_venda', { filtros: { situacao: 'assinada', 'aviso_vencimento_em[nulo]': 'true', 'fim[gte]': hojeSp, 'fim[lt]': limite }, maximo: 5000 });
+  const ativas = new Set((ctx.contas ? await ctx.contas.listarAtivas() : []).map((c) => c.id));
+  let avisadas = 0;
+  const falhas: string[] = [];
+  for (const a of vencendo) {
+    const conta = Number(a.conta_id);
+    if (!ativas.has(conta)) continue;
+    try {
+      await ctx.dados.comConta(conta, (trx) => trx.atualizar('autorizacoes_venda', a.id, { aviso_vencimento_em: new Date().toISOString() }));
+      await publicarDoSistema(ctx, conta, 'autorizacao_vencendo', { autorizacao_id: Number(a.id), imovel_id: Number(a.imovel_id), quando: String(a.fim).slice(0, 10) });
+      avisadas++;
+    } catch (e) {
+      falhas.push(`conta ${conta}: ${(e as Error).message}`);
+    }
+  }
+  const resumo = `${avisadas} autorização(ões) avisada(s)${falhas.length ? `, ${falhas.length} com falha` : ''}`;
+  return falhas.length ? { ok: false, resultado: { resumo }, erro: falhas.join('; ').slice(0, 1000) } : { ok: true, resultado: { resumo } };
+}
