@@ -18,11 +18,13 @@ página ou abrir o link guardado reabre o mesmo cliente. O endereço antigo de u
 (`/clientes/<número>`) continua funcionando e abre o mesmo cliente na lista. No celular aparece uma
 coluna por vez, com abas (Clientes · Ficha · Portal); sem cliente escolhido, abre na lista.
 
-No alto da lista: **Importar** (planilha), **Novo** (cadastro rápido) e **Exportar** (a planilha dos
-contatos), e as três visões (Funil · Lista · Negociações):
+No alto da lista, o cabeçalho comum das telas: **Importar** (planilha), **Novo** (cadastro rápido),
+**Buscar** e o Assistente; abaixo, as três visões (Funil · Lista · Negociações). A planilha dos
+contatos sai pelo **Exportar dados** da ficha (cartão Privacidade).
 
-- **Lista** (a que abre): os contatos da conta, 50 por página, em ordem alfabética, cada um com a
-  temperatura, a origem e o próximo passo (ou o telefone).
+- **Lista** (a que abre): os contatos da conta, 50 de cada vez e em ordem alfabética, cada um com
+  a temperatura, a etapa do negócio em andamento, a origem e o próximo passo (ou o telefone, no
+  formato "(61) 99000-0101"). **Mostrar mais** traz os 50 seguintes.
 - **Funil**: os filtros à esquerda, o quadro por etapa no meio (arrastar muda a etapa) e, à
   direita, o cliente do cartão escolhido — ver [Funil, temperatura e fila do dia](funil.md). Os
   endereços antigos `/funil` e `/clientes?visao=quadro` abrem esta visão. **Abrir ficha**, na
@@ -35,7 +37,7 @@ A visão escolhida fica no endereço (`/clientes?visao=funil`, `?visao=negociaco
 
 Na **Lista**:
 
-- **Busca** por nome, telefone ou e-mail.
+- **Busca** por nome ou telefone (o e-mail também encontra).
 - **Filtros prontos**, um de cada vez:
 
   | Filtro | Quem aparece |
@@ -45,13 +47,17 @@ Na **Lista**:
   | Quentes | Temperatura quente (escolher uma temperatura no filtro tira este, e vice-versa) |
   | Retorno vencido | O próximo passo combinado já passou da data |
 
-  **Todos** desliga o filtro pronto.
-- **Papel:** Todos · Compradores · Proprietários. E os filtros de **temperatura** e **origem** (por
-  onde o contato chegou). Tudo combina com a busca e com o filtro pronto.
+  **Todas** desliga o filtro pronto.
+- **Papel:** Todas · Compradores · Proprietários. O botão **Filtros** abre a **temperatura** e a
+  **origem** (por onde o contato chegou) e mostra quantos estão ligados. Tudo combina com a busca e
+  com o filtro pronto.
 - A busca e os filtros ficam no endereço da página: dá para voltar ou guardar o link.
 - **Novo:** nome, telefone ou e-mail, papel (comprador ou proprietário) e por onde chegou. Sem papel
   informado, o contato entra como comprador. O telefone é guardado no formato internacional
-  (`+55…`); sem o `+`, o app assume Brasil. Salvo, a ficha do contato novo abre.
+  (`+55…`); sem o `+`, o app assume Brasil. Salvo, a ficha do contato novo abre. Se o app recusar
+  (telefone inválido, nome em branco), o formulário reabre com o que você digitou e a mensagem no
+  alto; se o telefone já for de outro contato, **Abrir <nome>** abre a ficha dele (ou **Corrigir**
+  volta ao formulário).
 - **Papéis de rede** (investidor, parceiro, fornecedor) não se escolhem no filtro nem no cadastro;
   quem já os tem (por planilha ou edição na ficha) continua com eles, e a lista os mostra.
 
@@ -69,14 +75,16 @@ A ficha ocupa o meio e a direita da tela (no desenho da ficha de pessoa do Follo
 e o papel; os chips de **temperatura** (passe o mouse para ver o motivo), **etapa** do negócio em
 andamento e **origem**; uma linha com o motivo da temperatura e o último contato; e os botões:
 
-- **Conversa:** abre o WhatsApp do contato numa aba nova (sem telefone, fica desligado).
+- **Conversa:** abre a conversa do cliente em [Conversas](conversas.md) (criada na hora, se ainda não
+  existir).
 - **Resumir:** a IA resume o histórico em até três frases, logo abaixo; o resumo não fica gravado.
   Sem a IA do Assistente liberada, o botão fica desligado com "IA indisponível agora".
-- **Ligar** e **E-mail** (os ícones), quando há telefone e e-mail.
+- **WhatsApp**, **Ligar** e **E-mail** (os ícones), quando há telefone e e-mail.
 - **Mais:** Editar contato, Perguntar ao Assistente (abre o Assistente na coluna da direita, já sobre
   este cliente), Remover contato e, com abordagem, Registrar abordagem feita e Pular a abordagem.
 
-Embaixo, quatro abas. A aba aberta fica no endereço (`?secao=`) e volta ao recarregar.
+Embaixo, quatro abas: **Resumo · Linha do tempo · Enviados N · Negócios N** (N é a contagem). A
+ficha abre na **Linha do tempo**; a aba aberta fica no endereço (`?secao=`) e volta ao recarregar.
 
 - **Resumo:**
   - **Próximo passo:** a próxima abordagem do playbook (o que fazer, por onde, até quando e a
@@ -104,20 +112,22 @@ Embaixo, quatro abas. A aba aberta fica no endereço (`?secao=`) e volta ao reca
     comparecimento ficam na seta do cartão.
   - **Seleções:** as seleções de imóveis enviadas, com as reações; o **+** monta uma seleção nova
     (ver [Seleções e Portal do Cliente](selecoes-e-portal.md)).
-
-  - **Negociação:** as negociações do cliente, com a última oferta e o estado; tocar numa delas
+  - **Negociações:** as negociações do cliente, com a última oferta e o estado; tocar numa delas
     abre Clientes › Negociações. **Nova proposta** registra uma oferta.
 
 **À direita, o contexto:**
 
 - **Perfil de busca:** o que o cliente procura, em etiquetas (finalidade, tipos, regiões, faixa de
-  preço, quartos, vagas, área). Sem perfil ainda, uma dica.
-- **Portal do cliente:** se há link ativo e quando foi gerado, **Reenviar link** (copia a mensagem com
-  o link de novo), **Revogar**, ou **Gerar link do portal**. A seta do cartão abre **o que falta do
-  cliente** (botão **Pedir ao cliente**). Ver [Seleções e Portal do Cliente](selecoes-e-portal.md#portal-do-cliente).
-- **Privacidade:** **Exportar** (a planilha dos contatos da conta) e **Remover** (o contato sai das
-  listas, mas não é apagado). Contato com negócio em andamento não pode ser removido: encerre o
-  negócio antes.
+  preço, quartos, vagas, área). **Editar perfil** abre o formulário; é o perfil que decide os imóveis
+  que combinam em Conversas e os marcados numa seleção nova.
+- **Portal do cliente:** se há link ativo, quando foi gerado e o **último acesso** (a última vez que
+  o cliente agiu pelo portal: mensagem, pedido de remarcar, pendência feita ou oferta; abrir a página
+  sem agir não conta). **Liberar item** monta uma seleção nova, que entra no portal; **Reenviar link**
+  copia a mensagem com o mesmo link; **Revogar**; ou **Gerar link do portal**. A seta do cartão abre
+  **o que falta do cliente** (botão **Pedir ao cliente**). Ver [Seleções e Portal do Cliente](selecoes-e-portal.md#portal-do-cliente).
+- **Privacidade:** o consentimento em uma linha, **Exportar dados** (a planilha dos contatos da
+  conta) e **Remover cliente** (o contato sai das listas, mas não é apagado). Contato com negócio em
+  andamento não pode ser removido: encerre o negócio antes.
 
 Vindo do **Fazer agora** de Hoje, a ficha abre já com a **Mensagem sugerida** carregada (o
 endereço traz `?sugerir=1`), e o **Fazer agora** dela abre o WhatsApp. No Funil, tocar num cartão
@@ -163,7 +173,11 @@ passando disso, um aviso pede para resolver as atrasadas. Cada atividade tem o b
 com o cliente; feita, cancelada e "não compareceu" vão para a linha do tempo. Sem nada pendente, o
 botão **Abrir Clientes** leva à lista para agendar pela ficha.
 
-O detalhe da visita (imóvel visitado e retorno do cliente) fica na ficha do imóvel.
+Cada linha mostra o cliente e, nas visitas, o código do imóvel. O detalhe da visita (retorno do
+cliente) fica na ficha do imóvel.
+
+**Para quem desenvolve:** `GET /atividades?status=&de=&ate=&contato_id=` devolve cada atividade com
+`contato_nome` e, na visita, `imovel_id` e `imovel_codigo`; `contato_id` que não é um id responde 422.
 
 **Lembrete de visita:** um dia antes de cada visita pendente (ou no prazo escolhido em Ajustes ›
 Atendimento), você recebe uma notificação na plataforma com a visita, a hora, o
@@ -221,7 +235,7 @@ disso, a tela avisa o tamanho antes de importar; divida a planilha. Contatos imp
 
 ## Exportar
 
-**Exportar** baixa todos os contatos ativos da conta em CSV para o Excel (separador `;`, acentos
-preservados): nome, telefone, e-mail, papéis, temperatura, origem, campanha, próximo passo (o quê e quando) e
+**Exportar dados** (no cartão Privacidade da ficha) baixa todos os contatos ativos da conta em CSV para o Excel (separador `;`, acentos
+preservados): nome, telefone, e-mail, papéis, temperatura, origem e campanha (por onde cada um chegou), próximo passo (o quê e quando) e
 data de cadastro. Células que começam como fórmula (`=`, `@`, ou `+`/`-` seguidos de texto) ganham um
 apóstrofo para o Excel não executá-las; telefones e números com sinal saem como estão.

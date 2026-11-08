@@ -39,10 +39,10 @@ faixa avisa, e os filtros e as contagens valem sobre essas 200.
 |---|---|
 | Escrever e enviar | A mensagem é gravada como enviada e o WhatsApp do seu celular abre com ela (cliente sem WhatsApp cadastrado: fica só registrada). Conta como abordagem feita na linha do tempo do cliente |
 | Imóvel | Escolhe um imóvel da carteira; registra o envio (com o link rastreado quando o imóvel está na sua página), abre o WhatsApp com a mensagem pronta e põe o cartão na conversa |
-| Seleção | Leva à ficha do cliente, aba Negócios, onde a seleção é montada e enviada |
+| Seleção | Abre a janela com os imóveis da carteira que podem ir ao cliente (ativos ou reservados, com autorização vigente), **já marcados os que combinam com o perfil de busca** dele; dê o título e **Criar e enviar**: a seleção é criada, o cartão dela (título, quantos imóveis, link) entra na conversa, o portal do cliente a recebe e o WhatsApp do seu celular abre com a mensagem pronta |
 | Arquivo | Registra na conversa um arquivo que você mandou pelo seu WhatsApp (o arquivo em si não fica no app) |
 | Localização | Escolhe o imóvel; registra o envio e abre o WhatsApp com a localização |
-| Agendar visita | O mesmo formulário de **Criar › Nova visita**, com o cliente já escolhido |
+| Agendar visita | Abre a janela com o imóvel (os da carteira que podem ir ao cliente; o último enviado vem escolhido) e os **horários livres** dos próximos dias (das 9 h às 18 h, de hora em hora, sem domingo e sem bater com as atividades pendentes da sua agenda); **Marcar e confirmar** cria a visita (com o lembrete programado), registra a confirmação na conversa e abre o WhatsApp do seu celular com ela |
 | Portal do cliente | Gera (ou reenvia) o link do Portal do Cliente e abre o WhatsApp com ele; o link entra na conversa |
 | Proposta | **Criar › Nova proposta** com o cliente já escolhido; abre a negociação em Clientes › Negociações |
 | Assumir / Devolver ao Negociador | Trocam quem atende. Com uma negociação aberta conduzida pelo Negociador IA, a tela muda a negociação primeiro (as regras são as de [Negociação e mandato](negociacao.md)) e a conversa depois |
@@ -57,5 +57,9 @@ Tabelas `conversas` (uma por contato; `canal` `portal`, `registro` ou `wa_me`; `
 `dados` com o cartão). Rotas: `GET /conversas?filtro=&q=` (`limite` e `limite_atingido` na resposta), `POST /conversas` (`contato_id`),
 `GET /conversas/:id` (só leitura), `PATCH /conversas/:id/lida` (marca como lida e alinha quem atende), `POST /conversas/:id/mensagens` (`texto`; devolve o link `wa.me`),
 `POST /conversas/:id/assumir`, `POST /conversas/:id/devolver`, `PATCH /conversas/:id` (`arquivada`).
+A Seleção é `POST /selecoes` (que registra a mensagem `selecao` com `dados` `{ selecao_id, titulo, quantidade, link }`
+e devolve `mensagem` e `link_whatsapp`); Agendar visita é `POST /atividades` (`tipo: visita`, `imovel_id`) seguido de
+`POST /conversas/:id/mensagens` com a confirmação. "Abrir conversa" em outras telas é `POST /conversas` com o `contato_id`.
 Eventos: `mensagem_recebida` (listener do portal), `mensagem_enviada` (compositor, "Fazer agora", envios,
-link do portal), `envio_criado`, `conversa_assumida`, `conversa_devolvida`; só ids, nunca o texto nem o canal.
+link do portal, seleção, confirmação da visita), `envio_criado` (envios e seleção), `visita_agendada`, `conversa_assumida`,
+`conversa_devolvida`; só ids, nunca o texto nem o canal.

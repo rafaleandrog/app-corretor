@@ -10,7 +10,9 @@ O corretor pode revogar o link quando quiser. Seleção e portal são pensados p
 
 ## Seleção de imóveis
 
-Na ficha do cliente, na aba **Negócios**, o cartão **Seleções** tem o botão **+** (Nova seleção), que abre a montagem:
+Na ficha do cliente, na aba **Negócios**, o cartão **Seleções** tem o botão **+** (Nova seleção), que abre a montagem
+(o mesmo que **Liberar item**, no cartão Portal do cliente). Em [Conversas](conversas.md), o botão **Seleção** abre a
+mesma montagem com os imóveis que combinam com o perfil de busca já marcados, envia o link na conversa e abre o WhatsApp:
 
 1. Dê um título e, se quiser, uma mensagem.
 2. Escolha de 1 a 12 imóveis da carteira. Só aparecem imóveis **ativos ou reservados com
@@ -63,15 +65,19 @@ com o corretor.
 seleção sai do portal. A ficha mostra cada seleção como válida (com a data limite), vencida ou
 revogada.
 
-O envio da seleção entra em **Enviados ao cliente** e no histórico.
+O envio da seleção entra em **Enviados ao cliente**, no histórico e na conversa do cliente (o cartão
+da seleção, com o link).
 
 ## Portal do Cliente
 
-Na ficha do cliente, à direita, o cartão **Portal do cliente** mostra se há link ativo e quando
-foi gerado. **Gerar link do portal** cria o link do cliente (`…/portal_corretor/c?t=<chave>`) e
+Na ficha do cliente, à direita, o cartão **Portal do cliente** mostra se há link ativo, quando
+foi gerado e o **último acesso**: a última vez que o cliente agiu pelo portal (mensagem, pedido de
+remarcar, pendência feita, oferta ou aceite); abrir a página sem agir não conta, porque a página
+pública não grava nada. **Gerar link do portal** cria o link do cliente (`…/portal_corretor/c?t=<chave>`) e
 copia uma mensagem pronta. Há **um link por cliente**: **Reenviar link** copia de novo a mensagem
-com o mesmo link. O link não vence. **Revogar** faz ele parar de abrir, e um novo pode ser gerado
-depois. O portal abre por link, sem login.
+com o mesmo link. **Liberar item** monta uma seleção nova, que o cliente vê no portal. O link não
+vence. **Revogar** faz ele parar de abrir, e um novo pode ser gerado depois. O portal abre por link,
+sem login.
 
 O portal se chama **Meu atendimento** e é curado por você (o modelo do Compass One). No topo
 ficam o nome do corretor (o da Página, se houver), a foto (sem foto, as iniciais), o CRECI
