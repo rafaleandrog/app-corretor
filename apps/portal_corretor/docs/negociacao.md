@@ -49,14 +49,22 @@ no centro.
 
 **Esquerda: a lista.** Filtros: Em andamento (o que abre), Aguardando você, Negociador (as que o
 Negociador conduz), Cliente, Proprietário e Encerradas. Cada linha mostra o cliente, o imóvel, a
-última oferta do comprador e a diferença para o preço pedido ("R$ 1.320.000 · −9%"), o estado e
-quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo).
+última oferta do comprador contra o preço pedido ("R$ 1,32 mi × R$ 1,45 mi · −9%"), o estado, quem
+conduz e o tempo desde a última rodada ("há 2 dias"). **Nova proposta**, no alto, abre o registro de
+proposta (ver abaixo). Sem uma negociação no endereço, a tela abre na primeira da lista (no celular,
+a lista vem primeiro). Depois de qualquer ação (oferta, envio, decisão, assumir, devolver, mandato,
+encerrar), a lista relê e mostra o que mudou.
 
 **Centro: a negociação.**
 
-- **Cabeçalho:** o cliente e o imóvel, o estado, a rodada ("Rodada 2 de 4"), quem conduz e a
-  autonomia ("Negociador IA · pergunta antes") e até quando vale o mandato. **Assumir** passa a
-  negociação para você; **Devolver ao Negociador** a devolve (só com o Negociador ligado nos ajustes).
+- **Cabeçalho:** "Ana Ribeiro · Casa 4 quartos, Jardim Botânico", com o código e "rodada 4 de 4"
+  embaixo; o estado, quem conduz e a autonomia ("Negociador IA · pergunta antes") e até quando vale o
+  mandato. **Assumir** passa a negociação para você; **Devolver ao Negociador** a devolve (só com o
+  Negociador ligado nos ajustes). No **Mais**, **Encerrar como ganha** (pede o valor final) e
+  **Encerrar como perdida** (pede o motivo).
+- **Nova contraproposta** (abaixo da sugestão): a sua contraproposta, sem depender do Negociador
+  (ver [Nova contraproposta](#nova-contraproposta-a-sua-sem-depender-de-sugestão)). Sem mandato, fica
+  desligada.
 - **Faixa da negociação:** as marcas em ordem de valor — oferta do comprador, ponto de recuo
   (sempre mascarado, "•••• (sigiloso)"), teto estimado do comprador, alvo e preço pedido — e a
   **ZOPA estimada** (a zona de possível acordo, entre o seu ponto de recuo e o teto estimado do
@@ -77,8 +85,9 @@ quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo
   você o ajusta e envia como seu. Sugestão bloqueada pelas regras só sai
   editada. Sem sugestão, **Pedir sugestão** chama o Negociador (com a IA fora do ar, o botão
   desliga e você segue à mão).
-- **Escada de propostas:** cada proposta numa linha — rodada, quem, valor, condições, concessão,
-  contrapartida, canal e quando. **Registrar oferta do cliente**, no pé do cartão, acrescenta uma oferta.
+- **Escada de propostas:** uma lista compacta, uma proposta por item — "R2 · Comprador" e o valor
+  na linha de cima; condições, concessão ↔ contrapartida, canal e quando embaixo. Cabe na coluna
+  em qualquer largura. **Registrar oferta do cliente**, no pé do cartão, acrescenta uma oferta.
 - **Última fala do cliente:** o que você colou ao pedir a sugestão.
 
 **Direita: o mandato e o próximo movimento.**
@@ -91,7 +100,13 @@ quem conduz. **Nova proposta**, no alto, abre o registro de proposta (ver abaixo
 - **Próximo movimento:** a contraproposta sugerida, com **Usar sugestão** (envia pelo portal), e
   **Passar ao proprietário**: o aceite da última oferta do comprador, que pede confirmação e é
   sempre seu (o Negociador nunca fecha o acordo). Depois disso, nada sai para o cliente até a
-  decisão do proprietário.
+  decisão do proprietário, que você registra ali mesmo: **Aceita**, **Recusa** ou **Contraproposta
+  do proprietário** (ver [Decisão do proprietário](#decisão-do-proprietário-e-encerramento)).
+
+**No celular (M8)**, a negociação abre em uma coluna: o cabeçalho com voltar, a faixa, a última
+oferta, o cartão "Negociador sugere" com **Enviar · Editar · Assumir** no fim dele e a escada em
+lista. Os botões ficam no fim do cartão, não presos ao rodapé: o componente da plataforma ainda não
+fixa ações no rodapé.
 
 ### O formulário do mandato
 
@@ -103,12 +118,15 @@ Abre por **Editar mandato** (ou **Definir mandato**, quando ainda não há). Qua
    vem aberto.
 2. **Concessões e contrapartidas:** cada linha é "o que se concede, até onde, e o que se pede em
    troca"; mais o passo máximo por rodada (40% é o padrão) e o número máximo de rodadas.
-3. **Prazo:** até quando o mandato vale.
-4. **Quem negocia e autonomia:** **Quem negocia** é o Negociador IA ou você (corretor); a troca vale
-   na hora, sem salvar (é o mesmo Assumir e Devolver do cabeçalho; devolver ao Negociador pede o
-   Negociador ligado nos ajustes, senão a tela avisa e você segue negociando). Uma pessoa da sua
-   equipe como negociador só existe em contas com vários usuários. Autonomia: só sugere ou pergunta
-   antes; **faz sozinho dentro da faixa** só aparece com a autorização do proprietário registrada:
+3. **Prazo:** até quando o mandato vale e quanto vale **cada contraproposta** (em horas; 48 no
+   primeiro mandato). A validade de cada contraproposta vale quando ela não traz a sua; em branco,
+   sem prazo.
+4. **Quem negocia e autonomia:** **Quem negocia** é o Negociador IA, um **negociador humano** da sua
+   equipe (só quando a instância permite contas com várias pessoas e a pessoa já aceitou o convite e
+   tem o papel) ou você (corretor); a troca vale na hora, sem salvar (é o mesmo Assumir e Devolver do
+   cabeçalho; devolver ao Negociador pede o Negociador ligado nos ajustes, senão a tela avisa e você
+   segue negociando). A autonomia é um seletor de três posições: **Só sugere · Pergunta antes · Faz
+   sozinho dentro da faixa**; faz sozinho fica desligado até a autorização do proprietário ser registrada:
    **Anexar documento** (escolhe um dos documentos já anexados ao imóvel, com a data; o cartão mostra
    "Autorizado por documento <nome> em <data>") ou **Registrar por mensagem** (com a data). Sem
    documento no imóvel, o botão explica que o documento entra pela ficha do imóvel (Imóveis › ficha ›
@@ -570,9 +588,10 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
   conta), a pessoa recebe uma notificação da plataforma só para ela: "Você recebeu a negociação
   NG-0001 no Portal do Corretor", com o link para a negociação. O aviso não traz o nome do cliente,
   telefone nem valores. Atribuir de novo a mesma pessoa não repete o aviso.
-- **Menu:** só **Hoje** (as negociações atribuídas a ele) e **Negociações**. Conversas entra quando
-  houver WhatsApp. Ele não vê clientes, imóveis, Estúdio, Página, Números nem Ajustes: essas telas
-  mostram "Esta área não está liberada para você", e a API responde `403 SEM_PAPEL`.
+- **Abre direto nas Negociações** atribuídas a ele, e qualquer outro endereço da app leva para lá (o
+  link de uma notificação de negociação abre a mesma negociação). O menu ao lado tem só
+  **Negociações**; o menu da plataforma não filtra por papel (pedido à plataforma). Ele não vê
+  clientes, imóveis, Estúdio, Página, Números nem Ajustes, e a API responde `403 SEM_PAPEL`.
 - **Só as negociações atribuídas a ele.** As outras da conta não aparecem na lista e, pelo endereço,
   respondem "não encontrado" (`404`), como a negociação de outra conta. Retirada a atribuição, ele
   deixa de ver a negociação na hora.

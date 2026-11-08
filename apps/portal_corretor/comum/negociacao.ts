@@ -339,6 +339,8 @@ export interface FormularioMandato {
   passo_pct: string;
   rodadas: string;
   validade: string;
+  /** Validade padrão de cada contraproposta, em horas (P16 bloco 3); vazio = sem prazo. */
+  validade_cp?: string;
   autonomia: string;
   autorizacao: AutorizacaoProprietario | null;
 }
@@ -364,6 +366,7 @@ export function corpoDoFormularioMandato(f: FormularioMandato): Record<string, u
     passo_max_pct: Number.isFinite(passo) ? passo / 100 : NaN,
     rodadas_max: Number(f.rodadas),
     validade: f.validade,
+    validade_contraproposta_horas: String(f.validade_cp ?? '').trim() ? Number(String(f.validade_cp).trim()) : null,
     autonomia: f.autonomia,
     autorizacao_proprietario: f.autorizacao,
   };

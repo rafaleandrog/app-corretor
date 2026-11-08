@@ -148,11 +148,23 @@ export const MENU: { titulo: string; rota: string; icone: string }[] = [
 ];
 
 /**
- * Menu do negociador humano (papel `negociador`, D7, spec 5.1 e 11.6): só Hoje e as negociações
- * atribuídas a ele. Conversas entra quando houver WhatsApp. O `nav` do manifesto não tem item por papel;
- * o externo navega pelo trilho da moldura, que usa este menu.
+ * Menu do negociador humano (papel `negociador`, D7, spec 5.1 e 11.6; D-125): só as negociações
+ * atribuídas a ele. A app abre direto nelas e qualquer outra rota redireciona para lá
+ * (`destinoDoNegociador`). O `nav` do manifesto não filtra por papel (pedido ao shell 25).
  */
 export const MENU_NEGOCIADOR: { titulo: string; rota: string; icone: string }[] = [
-  { titulo: 'Hoje', rota: '/', icone: 'fa-solid fa-house' },
   { titulo: 'Negociações', rota: '/negociacoes', icone: 'fa-solid fa-handshake' },
 ];
+
+/**
+ * D-125: para quem tem só o papel `negociador`, toda rota da app que não é a das Negociações vai para
+ * ela. O link de uma notificação de negociação (`/clientes?visao=negociacoes&item=<id>`) chega na mesma
+ * negociação (`/negociacoes?item=<id>`); o resto abre a lista. `null` = já está nas Negociações.
+ */
+export function destinoDoNegociador(sub: string, busca: string): string | null {
+  if (sub === '/negociacoes') return null;
+  const q = new URLSearchParams(busca);
+  const item = Number(q.get('item'));
+  const daNegociacao = (sub === '/clientes' && q.get('visao') === 'negociacoes') || sub.startsWith('/negociacoes');
+  return `/negociacoes${daNegociacao && Number.isInteger(item) && item > 0 ? `?item=${item}` : ''}`;
+}
