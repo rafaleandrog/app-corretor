@@ -3,6 +3,7 @@ import { Router, type Request } from 'express';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { registrar } from './crm';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
+import { publicarEvento } from './eventos';
 import { reclassificar } from './inteligencia';
 import { apagarVitrine, corretorDaConta, limparSelecoesVencidas, publicarSelecao, revogarIngresso, selecaoValida, sincronizarPortal, tentarPortal } from './portal';
 import { contaDoRequest, origemPublica, publicavel } from './vitrine';
@@ -169,8 +170,9 @@ clienteRotas.post(
     }
     const g = await req.shell!.gerarIngressoWh({ webhook: 'acao_cliente', contexto: { conta_id: conta, contato_id: contato.id } });
     const link = `${origemPublica(g.url)}/portal_corretor/c?t=${g.token}`;
+    let acesso;
     try {
-      await dados.criar('acessos_cliente', { contato_id: contato.id, perfil: 'comprador', ingresso_id: g.ingresso_id, url_acoes: g.url, link, criado_por_id: eu(req) });
+      acesso = await dados.criar('acessos_cliente', { contato_id: contato.id, perfil: 'comprador', ingresso_id: g.ingresso_id, url_acoes: g.url, link, criado_por_id: eu(req) });
     } catch (e) {
       // Dois cliques ao mesmo tempo: fica o link que entrou primeiro, e este ingresso é revogado.
       if ((e as { code?: string })?.code !== '23505') throw e;
@@ -179,6 +181,7 @@ clienteRotas.post(
       return res.json({ ativo: true, link: venceu?.link ?? null, novo: false });
     }
     await sincronizarPortal(dados, conta, contato.id, await corretor(req));
+    await publicarEvento(req, 'acesso_cliente_convidado', { contato_id: Number(contato.id), acesso_id: Number(acesso.id) });
     await dados.criar('envios', { contato_id: contato.id, tipo: 'link_portal', canal: 'whatsapp', autor_tipo: 'humano', descricao: 'Link do portal do cliente', enviado_em: new Date().toISOString(), cliques: 0 });
     await registrar(dados, req, { tipo: 'portal.criado', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: 'Link do portal do cliente gerado' });
     // O link entra na conversa (P02, D-116): o cliente recebe pelo WhatsApp do corretor.

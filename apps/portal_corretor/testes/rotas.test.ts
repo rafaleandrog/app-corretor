@@ -31,12 +31,18 @@ test('manifesto e backend andam juntos: rotas públicas, webhooks, eventos e pá
     assert.ok(pilha.some((p: string) => p === caminho || p.startsWith(`${caminho}/`)), `rota pública ${caminho} sem GET`);
   }
   assert.deepEqual(Object.keys(backend.webhooks).sort(), Object.keys(m.webhooks).sort(), 'um handler por webhook declarado');
+  assert.deepEqual(Object.keys(backend.rotinas).sort(), Object.keys(m.rotinas).sort(), 'uma função por rotina declarada');
   // Os eventos da negociação (D1, D2 e D5) só notificam: nenhum listener do app reage a eles.
   const soNotificam = [
     'negociacao_iniciada', 'proposta_recebida', 'proposta_aceite_cliente', 'proposta_registrada', 'mandato_alterado', 'negociacao_encerrada', 'negociacao_limite_atingido',
     'objecao_detectada', 'contraproposta_sugerida', 'contraproposta_enviada', 'negociacao_acordo_proposto', 'negociacao_assumida', 'negociacao_devolvida',
     // Conversas (P02, D-116, D-118): avisam; nenhum listener até o Mensageiro.
     'mensagem_recebida', 'mensagem_enviada', 'envio_criado', 'conversa_assumida', 'conversa_devolvida',
+    // Bloco de eventos (13.1, D-118, etapa 4): avisos e trilha; os gatilhos de agente assinam, não há listener na app.
+    'acesso_cliente_convidado', 'atividade_criada', 'visita_agendada', 'visita_feedback', 'visita_pedida', 'contatos_importados',
+    'negocio_etapa_mudou', 'negocio_ganho', 'negocio_perdido', 'imovel_criado', 'imovel_ativado', 'imovel_preco_reduzido', 'imovel_vendido',
+    'imovel_visibilidade_mudou', 'autorizacao_vencendo', 'pagina_publicada', 'peca_pronta', 'publicacao_feita', 'publicacao_falhou',
+    'integracao_erro', 'canal_conectado', 'canal_desconectado',
   ];
   for (const e of soNotificam) assert.ok(m.eventos[e], `evento ${e} declarado`);
   const comListener = Object.keys(m.eventos).filter((e) => !soNotificam.includes(e));

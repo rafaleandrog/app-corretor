@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.45; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.47; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -28,6 +28,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Buscar** e atalhos de teclado | Busca clientes, imóveis e negociações da sua conta (a tecla `/` em qualquer tela da área do corretor); `C` Criar, `A` Assistente, `J`/`K` próximo e anterior na lista, `E` editar — ver [Atalhos e busca](#atalhos-e-busca) |
 | Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
 | Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/minha-pagina`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Página, Números e Hoje com o Assistente aberto; `/conta` e `/ajustes/marca` abrem Ajustes › Conta e marca |
+| Corretor | **Avisos e eventos** (sininho e Preferências de notificação) | O que o app avisa (contatos, visitas, negócios, imóveis, página, Estúdio, Instagram) e o que fica na trilha de auditoria — ver [Avisos e eventos](eventos.md) |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** (no menu do app, no alto da página) | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
 
 Integração disponível: Instagram (publicar e agendar pelo Estúdio). O WhatsApp e o Mensageiro (o assistente que conversa com os clientes) chegam numa versão seguinte: dependem de recursos que a plataforma ainda não oferece. A IA aparece no Assistente, na ficha do cliente (Resumir e Mensagem sugerida), nos imóveis (descrição e leitura de fotos), na Página e no Estúdio (textos),

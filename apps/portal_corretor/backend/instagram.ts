@@ -6,6 +6,7 @@ import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
 import { iso } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { contaDoRequest } from './vitrine';
+import { publicarDoSistema, publicarEvento } from './eventos';
 
 // Instagram (bloco 8b, spec 9.2): conexão pelo login do Instagram (Instagram API com login do
 // Instagram), publicar agora, agendar no app (`req.eventos.agendar`) e marcar o que foi publicado
@@ -115,6 +116,8 @@ interface Ambiente {
   abrir: Abrir;
   arquivos?: { url(id: number, ttl: number): Promise<string> };
   shell: { urlApp(sub: string): string };
+  /** Publica os eventos da publicação (13.1): na rota pela conta do request, no listener pela conta do evento. */
+  publicar?: (tipo: string, payload: Record<string, unknown>) => Promise<unknown>;
 }
 
 async function creciDaConta(dados: HelperDados, conta: number, usuario: number | null): Promise<string | null> {
@@ -170,10 +173,14 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
     return { p, canal, token, urls, texto: [legenda, p.hashtags ?? ''].filter(Boolean).join('\n\n') };
   });
   if (!prep) return null;
-  if ('fim' in prep) return prep.fim;
+  if ('fim' in prep) {
+    if (amb.publicar) await amb.publicar('publicacao_falhou', { peca_id: pecaId });
+    return prep.fim;
+  }
   const { p, canal, token, urls, texto } = prep;
   let resultado: Record<string, unknown>;
   let tokenInvalido = false;
+  let recusouInstagram = false;
   try {
     const r = await publicar({ formato: p.formato, legenda: texto }, urls, canal.conta_externa_id, token);
     const agora = new Date().toISOString();
@@ -187,13 +194,22 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
       throw e;
     }
     tokenInvalido = e.codigo === 'TOKEN_INVALIDO';
+    recusouInstagram = true;
     resultado = falha(e.message);
   }
-  return amb.abrir(async (dados) => {
+  const fim = await amb.abrir(async (dados) => {
     if (tokenInvalido) await dados.atualizar('canais_sociais', canal.id, { ultimo_erro: 'Acesso vencido ou revogado: reconecte.' });
     // Condicionada: se o corretor marcou "Publiquei por fora" (ou destravou) no meio, a marca dele fica.
     return (await dados.atualizarSe('pecas', p.id, resultado, { estado: 'publicando' })) ?? (await dados.buscar('pecas', p.id));
   });
+  // Eventos do catálogo (13.1), depois da gravação e pela LINHA gravada (se o corretor marcou "publiquei por
+  // fora" no meio, a rota dele é quem avisa): o que saiu e o que falhou; recusa do Instagram é erro da integração.
+  if (amb.publicar) {
+    if (fim && fim.estado !== 'publicando' && fim.publicada_por !== 'fora') await amb.publicar(fim.estado === 'publicada' ? 'publicacao_feita' : 'publicacao_falhou', { peca_id: Number(p.id) });
+    // A recusa do Instagram é fato da integração, independente do que a linha da peça virou.
+    if (recusouInstagram) await amb.publicar('integracao_erro', { canal_id: Number(canal.id), rede: 'instagram' });
+  }
+  return fim;
 }
 
 // ---------- Rotas do corretor ----------
@@ -256,11 +272,13 @@ instagramRotas.post(
       const agora = new Date().toISOString();
       const anterior = await conexao(dados, conta);
       if (anterior) await dados.atualizar('canais_sociais', anterior.id, { desconectado_em: agora, token: null });
-      await dados.criar('canais_sociais', {
+      const canal = await dados.criar('canais_sociais', {
         rede: 'instagram', conta_externa_id: String(eu.user_id ?? eu.id ?? curto.user_id), usuario: eu.username ?? null, tipo_conta: tipo || null,
         token: longo.access_token, token_expira_em: new Date(Date.now() + Number(longo.expires_in ?? 60 * 86400) * 1000).toISOString(),
         conectado_em: agora, conectado_por_id: req.contexto!.usuario.id,
       });
+      // Auditável (13.1): quem conectou fica na trilha da plataforma (ator e alvo mapeados no manifesto).
+      await publicarEvento(req, 'canal_conectado', { canal_id: Number(canal.id), rede: 'instagram', ator_id: req.contexto!.usuario.id, ator_nome: nomeDoAtor(req) });
       res.json({ ok: true, usuario: eu.username ?? null, tipo_conta: tipo || null, aviso: tipo === 'BUSINESS' ? null : 'Stories pela API pedem conta Comercial: posts e carrosséis funcionam.' });
     } catch (e) {
       if (e instanceof ErroInstagram) return erro(res, 502, e.codigo, e.message);
@@ -274,10 +292,16 @@ instagramRotas.post(
   assincrono(async (req, res) => {
     const dados = req.dados!;
     const c = await conexao(dados, contaDoRequest(req));
-    if (c) await dados.atualizar('canais_sociais', c.id, { desconectado_em: new Date().toISOString(), token: null });
+    if (c) {
+      await dados.atualizar('canais_sociais', c.id, { desconectado_em: new Date().toISOString(), token: null });
+      await publicarEvento(req, 'canal_desconectado', { canal_id: Number(c.id), rede: 'instagram', ator_id: req.contexto!.usuario.id, ator_nome: nomeDoAtor(req) });
+    }
     res.json({ ok: true });
   }),
 );
+
+/** `ator.desc` da trilha de auditoria é obrigatório e não vazio (auditoria.md): nome, ou "Usuário {id}". */
+const nomeDoAtor = (req: Request) => (req.contexto!.usuario.nome ?? '').trim() || `Usuário ${req.contexto!.usuario.id}`;
 
 async function pecaDaConta(req: Request) {
   const pid = Number(req.params.id);
@@ -296,7 +320,7 @@ instagramRotas.post(
     if (!(p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em))) return erro(res, 409, 'ESTADO_INVALIDO', 'Aprove a peça antes de publicar.');
     const dados = req.dados!;
     // Cada fase numa transação: falha depois da reserva a desfaz, e a peça não fica presa em "publicando".
-    const r = await publicarPeca({ abrir: (fn) => dados.transaction(fn), arquivos: req.arquivos, shell: req.shell! }, contaDoRequest(req), p.id, req.contexto!.usuario.id, { estado: p.estado });
+    const r = await publicarPeca({ abrir: (fn) => dados.transaction(fn), arquivos: req.arquivos, shell: req.shell!, publicar: (tipo, payload) => publicarEvento(req, tipo, payload) }, contaDoRequest(req), p.id, req.contexto!.usuario.id, { estado: p.estado });
     if (!r) return erro(res, 409, 'PECA_MUDOU', 'A peça mudou ou já está sendo publicada. Atualize a tela.');
     if (r.estado !== 'publicada') return erro(res, 422, 'NAO_PUBLICADA', r.erro ?? 'Não foi possível publicar.');
     res.json(r);
@@ -384,6 +408,7 @@ instagramRotas.post(
     const marcada = await dados.atualizarSe('pecas', p.id, { estado: 'publicada', publicada_em: new Date().toISOString(), permalink: link.slice(0, 300) || null, publicada_por: 'fora', agendamento_id: null, erro: null }, { estado: p.estado });
     if (!marcada) return erro(res, 409, 'PECA_MUDOU', 'A peça mudou. Atualize a tela.');
     if (p.agendamento_id) await req.eventos!.cancelarAgendamento(p.agendamento_id).catch(() => undefined);
+    await publicarEvento(req, 'publicacao_feita', { peca_id: Number(p.id) });
     res.json(marcada);
   }),
 );
@@ -416,7 +441,7 @@ export async function aoPublicacaoProgramada(evento: EventoConta, ctx: ContextoL
     await comConta(conta, (trx) => trx.atualizarSe('pecas', p.id, { estado: 'erro', erro: 'Não publicada na hora marcada (o sistema estava fora do ar). Publique agora ou agende de novo.', agendamento_id: null, agendada_para: null }, { estado: 'agendada', agendamento_id: p.agendamento_id }));
     return;
   }
-  await publicarPeca({ abrir: (fn) => comConta(conta, fn), arquivos: ctx.arquivos, shell: ctx.shell }, conta, p.id, null, { estado: 'agendada', agendamento_id: Number(p.agendamento_id) });
+  await publicarPeca({ abrir: (fn) => comConta(conta, fn), arquivos: ctx.arquivos, shell: ctx.shell, publicar: (tipo, payload) => publicarDoSistema(ctx, conta, tipo, payload) }, conta, p.id, null, { estado: 'agendada', agendamento_id: Number(p.agendamento_id) });
 }
 
 /** Renova os tokens que vencem em até 10 dias (o de longa duração vale 60 e renova enquanto válido). */
@@ -434,10 +459,13 @@ export async function renovarTokensInstagram(ctx: ContextoListener) {
     // Vencido não renova mais: avisa uma vez e espera o corretor reconectar, sem falhar a rotina todo dia.
     if (c.token_expira_em && new Date(c.token_expira_em as string).getTime() < Date.now()) {
       if (!c.ultimo_erro) {
-        await ctx.dados.comConta(conta, (trx) => trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'O acesso venceu: reconecte o Instagram.' })).catch((e: Error) => falhas.push(`conta ${conta}: ${e.message}`));
+        // O aviso sai uma vez, junto com a marca na tela: marca que não gravou não avisa (senão repetiria todo dia).
+        const marcado = await ctx.dados.comConta(conta, (trx) => trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'O acesso venceu: reconecte o Instagram.' })).catch((e: Error) => (falhas.push(`conta ${conta}: ${e.message}`), null));
+        if (marcado) await publicarDoSistema(ctx, conta, 'integracao_erro', { canal_id: Number(c.id), rede: 'instagram' });
       }
       continue;
     }
+    let falhouEste = false;
     try {
       await ctx.dados.comConta(conta, async (trx) => {
         const token = await trx.revelar('canais_sociais', c.id, 'token');
@@ -450,11 +478,15 @@ export async function renovarTokensInstagram(ctx: ContextoListener) {
           if (!(e instanceof ErroInstagram)) throw e;
           await trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'Não foi possível renovar o acesso: reconecte o Instagram.' });
           falhas.push(`conta ${c.conta_id}: ${e.message}`);
+          falhouEste = true;
         }
       });
     } catch (e) {
       falhas.push(`conta ${c.conta_id}: ${(e as Error).message}`);
+      falhouEste = true;
     }
+    // Por canal, não pela conta: um canal que falhou não faz outro da mesma conta avisar.
+    if (falhouEste) await publicarDoSistema(ctx, conta, 'integracao_erro', { canal_id: Number(c.id), rede: 'instagram' });
   }
   const resumo = `${renovados} conexão(ões) renovada(s)${falhas.length ? `, ${falhas.length} com falha` : ''}`;
   return falhas.length ? { ok: false, resultado: { resumo }, erro: falhas.join('; ').slice(0, 1000) } : { ok: true, resultado: { resumo } };

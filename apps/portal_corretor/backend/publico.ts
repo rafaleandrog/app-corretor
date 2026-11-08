@@ -16,6 +16,7 @@ import { falaDePreco } from '../comum/negociador-gatilhos';
 import { aoPublicacaoProgramada } from './instagram';
 import { aoLembreteVisita } from './lembretes';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
+import { publicarDoSistema } from './eventos';
 
 // Superfícies públicas do bloco 5 (paginas-publicas.md, wh.md, D-55):
 // - rotas GET anônimas que leem só a vitrine pública (a página, a ficha do imóvel, o link);
@@ -465,8 +466,10 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
   if (!conta || !ctx.dados?.comConta) return;
   const p = evento.payload;
   let entrada: Entrada | null = null;
+  let pediuVisita: { contato_id: number; selecao_id: number; imovel_id: number } | null = null;
   await comContaRepetindo(ctx, conta, async (trx) => {
     entrada = null;
+    pediuVisita = null;
     const selecao = (await trx.varrerTudo('selecoes', { filtros: { conta_id: conta, id: p.selecao_id }, maximo: 1 }))[0];
     if (!selecao || !selecaoValida(selecao)) return;
     const imovel = (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, codigo: p.imovel_codigo }, maximo: 1 }))[0];
@@ -480,6 +483,8 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
       await linhaDoTempo(trx, contato.id, 'selecao.reacao', `${ROTULO_REACAO[p.reacao]} ${imovel.codigo}${p.comentario ? `: ${p.comentario}` : ''} (seleção "${selecao.titulo}")`, { selecao_id: selecao.id, imovel_codigo: imovel.codigo, reacao: p.reacao });
       // A reação (só quando muda) entra na conversa (P02) como aviso vindo do cliente: "Quero visitar · IM-0001".
       await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'sistema', conteudo: `${ROTULO_REACAO[p.reacao] ?? p.reacao}: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}${p.comentario ? ` — ${String(p.comentario).slice(0, 200)}` : ''}`, dados: { selecao_id: Number(selecao.id), imovel_id: Number(imovel.id), reacao: p.reacao } });
+      // O aviso `visita_pedida` só quando a reação (ou o comentário) muda: reentrega e clique idêntico não publicam de novo.
+      if (p.reacao === 'quero_visitar') pediuVisita = { contato_id: Number(contato.id), selecao_id: Number(selecao.id), imovel_id: Number(imovel.id) };
     }
     if (p.reacao === 'quero_visitar') await tarefa(trx, conta, contato, `Marcar visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
     // "Conversar sobre o preço" (F3, 10.9.4): a tarefa avisa o corretor e, com o gatilho `reacao_preco`
@@ -493,6 +498,8 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
     await publicarSelecao(trx, conta, selecao);
     await sincronizarPortal(trx, conta, contato.id);
   });
+  // Depois da gravação (o evento é aviso): "quero visitar" avisa o corretor pelo barramento (13.1).
+  if (pediuVisita) await publicarDoSistema(ctx, Number(conta), 'visita_pedida', pediuVisita);
   await depoisDeEntrarNoListener(ctx, conta, entrada);
 }
 

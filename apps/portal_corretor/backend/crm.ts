@@ -45,6 +45,7 @@ const LIMITE_IMPORTACAO = 2000;
 /** Linhas aceitas na prévia da importação (`simular`): a tela manda 10. */
 const LIMITE_PREVIA = 50;
 const eu = (req: Request) => req.contexto!.usuario.id;
+import { publicarEvento } from './eventos';
 const id = (v: unknown) => {
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : null;
@@ -283,6 +284,7 @@ crmRotas.post(
         rejeitar('Já existe um contato com este telefone.');
       }
     }
+    await publicarEvento(req, 'contatos_importados', { total: linhas.length, novos: relatorio.criados, atualizados: relatorio.unidos, ignorados: relatorio.pulados + relatorio.rejeitados.length });
     res.json(relatorio);
   }),
 );
@@ -518,6 +520,9 @@ crmRotas.patch(
       });
       await dados.atualizar('contatos', atual.contato_id, { ultimo_contato_em: agora() });
       await reclassificar(dados, atual.contato_id);
+      await publicarEvento(req, 'negocio_etapa_mudou', { negocio_id: nid!, contato_id: Number(atual.contato_id), etapa_id: etapaId });
+      if (etapa?.tipo === 'ganha') await publicarEvento(req, 'negocio_ganho', { negocio_id: nid!, contato_id: Number(atual.contato_id) });
+      if (etapa?.tipo === 'perdida') await publicarEvento(req, 'negocio_perdido', { negocio_id: nid!, contato_id: Number(atual.contato_id), motivo_perda: (mudar.motivo_perda as string | null) ?? null });
       // Gatilho `etapa_proposta` (F3, 10.9.4): chegou à Proposta, o Negociador entra. A tela avisa.
       const entrou = await entrarPelaEtapaProposta(req, negocio, etapa);
       if (entrou) return res.json({ ...negocio, negociador_entrou: entrou });
@@ -585,6 +590,8 @@ crmRotas.post(
       return a;
     });
     await programarLembreteVisita(req, atividade);
+    await publicarEvento(req, 'atividade_criada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, tipo: String(atividade.tipo) });
+    if (atividade.tipo === 'visita') await publicarEvento(req, 'visita_agendada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, quando: atividade.quando ? new Date(atividade.quando as string).toISOString() : null });
     if (atividade.contato_id) {
       await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `${atividade.status === 'feita' ? 'Registrado' : 'Agendado'}: ${atividade.titulo}` });
       if (atividade.tipo === 'visita') {
@@ -664,6 +671,7 @@ crmRotas.post(
       await reclassificar(dados, atividade.contato_id);
       await tentarPortal(dados, req.contexto?.contaEscrita, atividade.contato_id);
     }
+    await publicarEvento(req, 'visita_feedback', { atividade_id: aid!, contato_id: atividade.contato_id ?? null, visita_id: Number(visita.id) });
     res.json(salva);
   }),
 );

@@ -55,15 +55,30 @@ export async function conversaDoContato(dados: HelperDados, contatoId: number, c
     ? (await dados.varrerTudo('conversas', { filtros: { conta_id: conta, contato_id: contatoId, 'removido_em[nulo]': 'true' }, maximo: 1 }))[0] ?? null
     : await primeiro(dados, 'conversas', { contato_id: contatoId });
   if (existente) return existente;
-  return dados.criar('conversas', {
-    contato_id: contatoId,
-    canal: canal === 'sistema' ? 'portal' : canal,
-    responsavel_id: responsavelId,
-    atendido_por: 'humano',
-    estado: 'aberta',
-    nao_entendidas: 0,
-    nao_lidas: 0,
-  });
+  try {
+    return await dados.criar('conversas', {
+      contato_id: contatoId,
+      canal: canal === 'sistema' ? 'portal' : canal,
+      responsavel_id: responsavelId,
+      atendido_por: 'humano',
+      estado: 'aberta',
+      nao_entendidas: 0,
+      nao_lidas: 0,
+      // Nunca nula: a caixa ordena por ela em ordem decrescente, e nulo iria para a frente (PostgreSQL).
+      ultima_mensagem_em: agora(),
+    });
+  } catch (e) {
+    // Corrida do ler-e-criar (banco-de-dados.md § criarOuAtualizar): duas chamadas acharam "não existe" e
+    // a segunda bateu no único `contato_id`; vale a que entrou primeiro. (Pedido ao shell 24.7: o verbo
+    // `criarOuAtualizar` sobre único parcial em tabela segregada substituiria os dois passos.)
+    if ((e as { code?: string }).code !== '23505') throw e;
+    // No listener (`conta`) o `dados` é a transação do `comConta`, que o PostgreSQL já abortou: nada se lê
+    // nela; o erro sobe e o `comContaRepetindo` refaz o bloco inteiro. Na rota (fora de transação) relê.
+    if (conta) throw e;
+    const vencedora = await primeiro(dados, 'conversas', { contato_id: contatoId });
+    if (!vencedora) throw e;
+    return vencedora;
+  }
 }
 
 /**
@@ -149,6 +164,29 @@ function atendimentoDe(negociacao: Linha | null): { atendido_por: 'humano' | 'ag
   return negociacao?.conduzida_por === 'ia' ? { atendido_por: 'agente', agente: 'negociador' } : { atendido_por: 'humano', agente: null };
 }
 
+/** Quantas conversas a caixa carrega de uma vez (as mais recentes). */
+export const LIMITE_CAIXA = 200;
+
+/** Tetos da busca (uma consulta por tabela, sem lançar): contatos e imóveis que casam, envios desses imóveis. */
+const TETO_BUSCA = { contatos: 200, imoveis: 100, envios: 500 } as const;
+
+/**
+ * Contatos que casam com o termo no banco (não só na janela da caixa): pelo nome ou telefone, ou por terem
+ * recebido um imóvel cujo código ou título contém o termo (`envios.imovel_id`). `busca_ou` faz uma consulta
+ * só por tabela (banco-de-dados.md § busca_ou); acima dos tetos a busca é parcial, o que a tela não promete além do
+ * que mostra.
+ */
+async function contatosQueCasam(dados: HelperDados, q: string): Promise<Set<number>> {
+  const ids = new Set<number>();
+  for (const c of (await dados.listar('contatos', { busca_ou: { colunas: ['nome', 'telefone'], termo: q }, por_pagina: TETO_BUSCA.contatos })).dados as Linha[]) ids.add(Number(c.id));
+  const imoveis = (await dados.listar('imoveis', { busca_ou: { colunas: ['codigo', 'titulo'], termo: q }, por_pagina: TETO_BUSCA.imoveis })).dados as Linha[];
+  if (imoveis.length) {
+    const envios = await dados.listar('envios', { filtros: { imovel_id: imoveis.map((im) => Number(im.id)).join(',') }, ordenar: 'enviado_em', ordem: 'desc', por_pagina: TETO_BUSCA.envios });
+    for (const e of envios.dados as Linha[]) ids.add(Number(e.contato_id));
+  }
+  return ids;
+}
+
 // ---------- Lista ----------
 
 conversasRotas.get(
@@ -157,18 +195,39 @@ conversasRotas.get(
     const dados = req.dados!;
     const filtro = (FILTROS_CONVERSA as readonly string[]).includes(String(req.query.filtro)) ? (String(req.query.filtro) as FiltroConversa) : null;
     const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : '';
-    const r = await dados.listar('conversas', { ordenar: 'ultima_mensagem_em', ordem: 'desc', por_pagina: 200 });
-    const todas: Linha[] = r.dados;
-    // O contato de cada conversa, lido daqui (nome, telefone, temperatura e a origem para o chip).
+    // A caixa mostra as LIMITE_CAIXA conversas mais recentes; acima disso a resposta avisa (`limite_atingido`),
+    // os filtros e as contagens valem sobre essa janela, e a BUSCA vai ao banco: uma conversa antiga entra
+    // pelo contato (nome, telefone, imóvel enviado) mesmo fora da janela.
+    const r = await dados.listar('conversas', { ordenar: 'ultima_mensagem_em', ordem: 'desc', por_pagina: LIMITE_CAIXA });
+    const janela: Linha[] = r.dados;
+    const limiteAtingido = r.total > janela.length;
+    const contatosDaBusca = q ? await contatosQueCasam(dados, q) : null;
+    const todas: Linha[] = [...janela];
+    if (contatosDaBusca?.size) {
+      const vistas = new Set(janela.map((c) => Number(c.id)));
+      const extras = await dados.listar('conversas', { filtros: { contato_id: [...contatosDaBusca].join(',') }, ordenar: 'ultima_mensagem_em', ordem: 'desc', por_pagina: LIMITE_CAIXA });
+      for (const c of extras.dados as Linha[]) if (!vistas.has(Number(c.id))) todas.push(c);
+      // A lista continua da mais recente para a mais antiga, com as de fora da janela no lugar delas.
+      todas.sort((a, b) => String(b.ultima_mensagem_em ?? '').localeCompare(String(a.ultima_mensagem_em ?? '')));
+    }
+    // O contato de cada conversa da caixa (nome, telefone, temperatura e a origem para o chip): só os
+    // referenciados, por id (a lista inteira de contatos cortaria em quem tem mais de uma página).
     const contatos = new Map<number, Linha>();
     const origens = new Map<number, string>();
-    if (todas.length) {
-      for (const c of (await dados.listar('contatos', { por_pagina: 500 })).dados as Linha[]) contatos.set(Number(c.id), c);
-      for (const o of (await dados.listar('origens', { por_pagina: 200 })).dados as Linha[]) origens.set(Number(o.id), String(o.canal));
+    const idsContatos = [...new Set(todas.map((c) => Number(c.contato_id)))];
+    if (idsContatos.length) {
+      for (const c of await dados.varrerTudo('contatos', { filtros: { id: idsContatos.join(',') }, maximo: idsContatos.length })) contatos.set(Number(c.id), c);
+      const idsOrigens = [...new Set([...contatos.values()].map((c) => Number(c.origem_id)).filter((n) => n > 0))];
+      if (idsOrigens.length) for (const o of await dados.varrerTudo('origens', { filtros: { id: idsOrigens.join(',') }, maximo: idsOrigens.length })) origens.set(Number(o.id), String(o.canal));
     }
     const contatoDe = (c: Linha): Linha => contatos.get(Number(c.contato_id)) ?? {};
     const origemDe = (c: Linha): string | null => contatoDe(c).origem_canal ?? origens.get(Number(contatoDe(c).origem_id)) ?? null;
-    const casaBusca = (c: Linha) => !q || [contatoDe(c).nome, contatoDe(c).telefone, c.ultima_mensagem].some((v) => String(v ?? '').toLowerCase().includes(q));
+    // A busca casa pelo contato (no banco: nome, telefone, imóvel enviado; acima dos tetos, ainda pelo nome e
+    // telefone lidos aqui, para a janela não perder ninguém) ou pela última mensagem.
+    const casaBusca = (c: Linha) =>
+      !q ||
+      (contatosDaBusca?.has(Number(c.contato_id)) ?? false) ||
+      [contatoDe(c).nome, contatoDe(c).telefone, c.ultima_mensagem].some((v) => String(v ?? '').toLowerCase().includes(q));
     const lista = todas.filter((c) => passaNoFiltro(c, filtro) && casaBusca(c)).map((c) => ({
       id: c.id,
       contato_id: c.contato_id,
@@ -185,7 +244,7 @@ conversasRotas.get(
       ultimo_tipo: c.ultimo_tipo ?? null,
       arquivada: !!c.arquivada_em,
     }));
-    res.json({ dados: lista, total: lista.length, contadores: contarFiltros(todas) });
+    res.json({ dados: lista, total: lista.length, contadores: contarFiltros(janela), limite: LIMITE_CAIXA, limite_atingido: limiteAtingido });
   }),
 );
 
@@ -219,15 +278,10 @@ conversasRotas.get(
       negociacaoAtiva(dados, Number(conversa.contato_id)),
     ]);
     if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Conversa não encontrada.');
-    // Abrir a conversa marca as mensagens como lidas (o filtro "Não lidas" é o que o corretor ainda não abriu).
-    const atendimento = atendimentoDe(negociacao);
-    const mudanca: Linha = {};
-    if (Number(conversa.nao_lidas ?? 0) > 0) mudanca.nao_lidas = 0;
-    if (conversa.atendido_por !== atendimento.atendido_por || (conversa.agente ?? null) !== atendimento.agente) Object.assign(mudanca, atendimento);
-    const atual = Object.keys(mudanca).length ? await dados.atualizar('conversas', cid!, mudanca) : conversa;
-    if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', 'Conversa não encontrada.');
+    // Leitura não grava (permissoes.md, método → nível): marcar como lida e sincronizar quem atende é o
+    // `PATCH /conversas/:id/lida`, que a tela chama ao abrir a conversa.
     res.json({
-      conversa: { ...atual, ultima_mensagem_em: iso(atual.ultima_mensagem_em) },
+      conversa: { ...conversa, ultima_mensagem_em: iso(conversa.ultima_mensagem_em), ...atendimentoDe(negociacao) },
       contato: {
         id: contato.id, nome: contato.nome, telefone: contato.telefone ?? null, temperatura: contato.temperatura ?? null,
         temperatura_motivo: contato.temperatura_motivo ?? null, perfil_busca: contato.perfil_busca ?? null,
@@ -238,6 +292,27 @@ conversasRotas.get(
       negociacao: negociacao ? { id: negociacao.id, estado: negociacao.estado, conduzida_por: negociacao.conduzida_por, codigo: negociacao.codigo ?? null } : null,
       whatsapp: { conectado: false },
     });
+  }),
+);
+
+/**
+ * Abrir a conversa marca as mensagens como lidas (o filtro "Não lidas" é o que o corretor ainda não abriu)
+ * e alinha quem atende com a negociação ativa (10.9.4). É escrita, por isso é `PATCH` e não o `GET`.
+ */
+conversasRotas.patch(
+  '/conversas/:id/lida',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const cid = id(req.params.id);
+    const conversa = cid ? await dados.buscar('conversas', cid) : null;
+    if (!conversa) return erro(res, 404, 'NAO_ENCONTRADO', 'Conversa não encontrada.');
+    const atendimento = atendimentoDe(await negociacaoAtiva(dados, Number(conversa.contato_id)));
+    const mudanca: Linha = {};
+    if (Number(conversa.nao_lidas ?? 0) > 0) mudanca.nao_lidas = 0;
+    if (conversa.atendido_por !== atendimento.atendido_por || (conversa.agente ?? null) !== atendimento.agente) Object.assign(mudanca, atendimento);
+    const atual = Object.keys(mudanca).length ? await dados.atualizar('conversas', cid!, mudanca) : conversa;
+    if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', 'Conversa não encontrada.');
+    res.json({ conversa: { ...atual, ultima_mensagem_em: iso(atual.ultima_mensagem_em) } });
   }),
 );
 

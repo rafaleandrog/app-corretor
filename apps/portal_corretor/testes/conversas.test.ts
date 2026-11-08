@@ -89,13 +89,11 @@ test('corretor: nova conversa, texto pelo WhatsApp do celular, envio de imóvel 
   });
   // Eventos: só ids e o canal, nunca o texto da mensagem.
   const tipos = evA.publicados.map((p) => p.tipo);
-  assert.deepEqual(tipos, ['mensagem_enviada', 'envio_criado', 'mensagem_enviada', 'conversa_assumida']);
-  for (const p of evA.publicados) {
-    const texto = JSON.stringify(p.payload);
-    assert.ok(!/Oi, Ana|Casa 4 quartos/.test(texto), `evento ${p.tipo} sem texto: ${texto}`);
-    assert.ok('contato_id' in p.payload);
-  }
-  assert.deepEqual(Object.keys(evA.publicados[0].payload).sort(), ['contato_id', 'conversa_id']);
+  assert.deepEqual(tipos, ['imovel_criado', 'mensagem_enviada', 'envio_criado', 'mensagem_enviada', 'conversa_assumida']);
+  const daConversa = evA.publicados.filter((p) => p.tipo !== 'imovel_criado');
+  for (const p of evA.publicados) assert.ok(!/Oi, Ana|Casa 4 quartos/.test(JSON.stringify(p.payload)), `evento ${p.tipo} sem texto`);
+  for (const p of daConversa) assert.ok('contato_id' in p.payload);
+  assert.deepEqual(Object.keys(daConversa[0].payload).sort(), ['contato_id', 'conversa_id']);
   for (const p of evA.publicados) for (const v of Object.values(p.payload)) assert.ok(v === null || typeof v === 'number', `${p.tipo}: só ids`);
 });
 
@@ -127,11 +125,16 @@ test('portal: a mensagem do cliente entra na conversa como não lida e publica m
     assert.deepEqual([lista.dados[0].nao_lidas, lista.dados[0].estado, lista.dados[0].ultima_mensagem], [1, 'aguardando_corretor', 'Posso levar minha mãe na visita?']);
     assert.deepEqual([lista.contadores.minha_vez, lista.contadores.nao_lidas], [1, 1]);
     assert.deepEqual(chipDeStatus(lista.dados[0]), { rotulo: 'Sua vez', cor: 'alerta' });
-    // Abrir a conversa marca como lida.
+    // Ler não grava: o GET devolve a conversa como está; marcar como lida é o PATCH .../lida (que a tela chama ao abrir).
     const d = (await chamar('GET', `/conversas/${lista.dados[0].id}`)).corpo;
     assert.deepEqual([d.mensagens[0].direcao, d.mensagens[0].autor_tipo, d.mensagens[0].canal], ['entrada', 'contato', 'portal']);
-    assert.equal(d.conversa.nao_lidas, 0);
+    assert.equal(d.conversa.nao_lidas, 1, 'o GET não marca como lida');
+    assert.equal((await chamar('GET', '/conversas?filtro=nao_lidas')).corpo.total, 1);
+    const lida = await chamar('PATCH', `/conversas/${lista.dados[0].id}/lida`);
+    assert.equal(lida.status, 200);
+    assert.equal(lida.corpo.conversa.nao_lidas, 0);
     assert.equal((await chamar('GET', '/conversas?filtro=nao_lidas')).corpo.total, 0);
+    assert.equal((await chamar('PATCH', '/conversas/999/lida')).status, 404);
   });
 
   // Mensagem da conta B para um contato que é da conta A: nada é gravado (o contato não existe em B).
@@ -153,6 +156,7 @@ test('isolamento: o corretor B não vê nem escreve na conversa do corretor A', 
     assert.equal((await chamar('POST', `/conversas/${cid}/mensagens`, { texto: 'invasão' })).status, 404);
     assert.equal((await chamar('POST', `/conversas/${cid}/assumir`)).status, 404);
     assert.equal((await chamar('POST', `/conversas/${cid}/devolver`)).status, 404);
+    assert.equal((await chamar('PATCH', `/conversas/${cid}/lida`)).status, 404);
     assert.equal((await chamar('PATCH', `/conversas/${cid}`, { arquivada: true })).status, 404);
     // Abrir conversa com o contato de A pelo id: "não encontrado" (D-40).
     const contatoDeA = banco.linhas('contatos')[0].id;
@@ -183,4 +187,93 @@ test('regras puras: filtros, contagem, resumo e hora relativa', () => {
   assert.equal(haQuanto('2026-11-07T10:00:00Z', agora), 'ontem');
   assert.equal(haQuanto('2026-10-30T10:00:00Z', agora), 'há 9 dias');
   assert.equal(haQuanto(null), '');
+});
+
+test('devolver ao Negociador: 409 com negociação conduzida pelo corretor; com a IA conduzindo, a conversa passa ao agente e o GET lê quem atende', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, semShell, async (chamar) => {
+    const ana = (await chamar('POST', '/contatos', { nome: 'Ana', telefone: '+5561999990001' })).corpo;
+    const cid = (await chamar('POST', '/conversas', { contato_id: ana.id })).corpo.conversa.id;
+    const d = banco.dados(100);
+    const negocio = await d.criar('negocios', { contato_id: ana.id, titulo: 'Compra', pipeline: 'compra', etapa_id: 1, responsavel_id: 1 });
+    const neg = await d.criar('negociacoes', { negocio_id: negocio.id, contato_id: ana.id, estado: 'aberta', conduzida_por: 'corretor' });
+    const r = await chamar('POST', `/conversas/${cid}/devolver`);
+    assert.equal(r.status, 409);
+    assert.equal(r.corpo.codigo, 'NEGOCIACAO_COM_CORRETOR');
+    await d.atualizar('negociacoes', neg.id, { conduzida_por: 'ia' });
+    // Com a IA conduzindo, abrir a conversa já mostra o Negociador atendendo (o PATCH lida alinha a linha).
+    assert.equal((await chamar('GET', `/conversas/${cid}`)).corpo.conversa.atendido_por, 'agente');
+    assert.equal((await chamar('PATCH', `/conversas/${cid}/lida`)).corpo.conversa.agente, 'negociador');
+    assert.equal((await chamar('POST', `/conversas/${cid}/assumir`)).corpo.conversa.atendido_por, 'humano');
+    const dev = await chamar('POST', `/conversas/${cid}/devolver`);
+    assert.equal(dev.status, 200);
+    assert.deepEqual([dev.corpo.conversa.atendido_por, dev.corpo.conversa.agente, dev.corpo.conversa.estado], ['agente', 'negociador', 'aberta']);
+    const avisos = banco.linhas('mensagens').filter((m) => m.conversa_id === cid && m.autor_tipo === 'sistema').map((m) => m.conteudo);
+    assert.ok(avisos.some((t) => String(t).includes('devolveu a conversa ao Negociador')), 'aviso de sistema na conversa');
+    assert.ok(evA.publicados.some((p) => p.tipo === 'conversa_devolvida'));
+  });
+});
+
+test('ganchos: "Fazer agora" com texto e canal e o link do portal entram na conversa como saída', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, { gerarIngressoWh: async () => ({ url: 'https://x/api/wh/portal_corretor/t1', token: 't1', ingresso_id: 1, expira_em: null }), urlApp: (s: string) => `https://x/portal_corretor${s}` }, async (chamar) => {
+    const ana = (await chamar('POST', '/contatos', { nome: 'Ana', telefone: '+5561999990001' })).corpo;
+    assert.equal((await chamar('POST', `/abordagens/${ana.id}/feita`, { texto: 'Oi, Ana!', canal: 'whatsapp' })).status, 201);
+    assert.equal((await chamar('POST', `/abordagens/${ana.id}/feita`, {})).status, 201, 'sem texto não entra na conversa');
+    const portal = await chamar('POST', `/contatos/${ana.id}/portal`);
+    assert.equal(portal.status, 201, JSON.stringify(portal.corpo));
+    const msgs = banco.linhas('mensagens').filter((m) => m.contato_id === ana.id).map((m) => [m.tipo, m.direcao, m.canal]);
+    assert.deepEqual(msgs, [['texto', 'saida', 'wa_me'], ['link_portal', 'saida', 'wa_me']]);
+    assert.equal(banco.linhas('conversas').length, 1, 'uma conversa só');
+    assert.equal(evA.publicados.filter((p) => p.tipo === 'mensagem_enviada').length >= 2, true);
+  });
+});
+
+test('busca por imóvel e aviso de limite da caixa', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, semShell, async (chamar) => {
+    const ana = (await chamar('POST', '/contatos', { nome: 'Ana', telefone: '+5561999990001' })).corpo;
+    const bia = (await chamar('POST', '/contatos', { nome: 'Bia', telefone: '+5561999990002' })).corpo;
+    const im = (await chamar('POST', '/imoveis', { tipo: 'casa', titulo: 'Casa do Lago', bairro: 'Lago Sul', cidade: 'Brasília', preco_c: 145000000 })).corpo;
+    await chamar('POST', '/conversas', { contato_id: ana.id });
+    await chamar('POST', '/conversas', { contato_id: bia.id });
+    await chamar('POST', '/envios', { contato_id: ana.id, tipo: 'imovel', imovel_id: im.id, canal: 'whatsapp' });
+    const porTitulo = (await chamar('GET', '/conversas?q=lago')).corpo;
+    assert.deepEqual(porTitulo.dados.map((c: { contato_nome: string }) => c.contato_nome), ['Ana'], 'acha pela casa enviada');
+    const porCodigo = (await chamar('GET', `/conversas?q=${encodeURIComponent(im.codigo)}`)).corpo;
+    assert.equal(porCodigo.total, 1);
+    assert.equal((await chamar('GET', '/conversas?q=xyz')).corpo.total, 0);
+    const antes = (await chamar('GET', '/conversas')).corpo;
+    assert.equal(antes.limite_atingido, false);
+    // Acima do limite: a resposta avisa, e a caixa traz as mais recentes.
+    const d = banco.dados(100);
+    for (let i = 0; i < antes.limite; i++) {
+      const c = await d.criar('contatos', { nome: `C${i}`, telefone: `+55619${String(100000 + i)}` });
+      await d.criar('conversas', { contato_id: c.id, canal: 'registro', atendido_por: 'humano', estado: 'aberta', nao_entendidas: 0, nao_lidas: 0, ultima_mensagem_em: new Date(Date.now() + (i + 1) * 1000).toISOString() });
+    }
+    const depois = (await chamar('GET', '/conversas')).corpo;
+    assert.equal(depois.limite_atingido, true);
+    assert.equal(depois.dados.length, depois.limite);
+    assert.ok(!depois.dados.some((c: { contato_nome: string }) => c.contato_nome === 'Ana'), 'Ana ficou fora da janela');
+    // A busca vai ao banco: acha a Ana pelo nome e pela casa enviada mesmo fora da janela, da mais recente para a mais antiga.
+    const foraDaJanela = (await chamar('GET', '/conversas?q=ana')).corpo;
+    assert.deepEqual(foraDaJanela.dados.map((c: { contato_nome: string }) => c.contato_nome), ['Ana']);
+    assert.equal((await chamar('GET', '/conversas?q=lago')).corpo.total, 1);
+    const ordem = (await chamar('GET', '/conversas?q=C1')).corpo.dados.map((c: { ultima_mensagem_em: string }) => c.ultima_mensagem_em);
+    assert.deepEqual(ordem, [...ordem].sort().reverse(), 'ordenada da mais recente para a mais antiga');
+  });
+});
+
+test('corrida do ler-e-criar: a segunda chamada que bate no único devolve a conversa que entrou primeiro', async () => {
+  const { conversaDoContato } = await import('../backend/conversas');
+  const banco = new BancoFalso(UNICOS);
+  const d = banco.dados(100);
+  const ana = await d.criar('contatos', { nome: 'Ana', telefone: '+5561999990001' });
+  // Leitura "atrasada": a primeira `listar` não vê a conversa que outro request acabou de criar.
+  let leituras = 0;
+  const atrasado = new Proxy(d, { get: (alvo, k) => (k === 'listar' ? async (...a: unknown[]) => (leituras++ === 0 ? { dados: [], total: 0 } : (alvo as any).listar(...a)) : (alvo as any)[k]) });
+  const primeira = await conversaDoContato(d as any, Number(ana.id), 'registro');
+  const segunda = await conversaDoContato(atrasado as any, Number(ana.id), 'registro');
+  assert.equal(segunda.id, primeira.id);
+  assert.equal(banco.linhas('conversas').length, 1);
 });

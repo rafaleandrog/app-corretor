@@ -4,7 +4,7 @@ import manifesto from '../manifesto.json';
 import { contaRotas } from './conta';
 import { crmRotas } from './crm';
 import { equipeRotas } from './equipe';
-import { imoveisRotas } from './imoveis';
+import { avisarAutorizacoesVencendo, imoveisRotas } from './imoveis';
 import { funilRotas, reclassificarContatos } from './funil';
 import { numerosRotas } from './numeros';
 import { numerosNegociacaoRotas } from './numeros-negociacao';
@@ -31,6 +31,7 @@ export { rotasPublicas, webhooks, reagir } from './publico';
 export const rotinas = {
   reclassificar_contatos: reclassificarContatos,
   renovar_tokens_instagram: renovarTokensInstagram,
+  avisar_autorizacoes_vencendo: avisarAutorizacoesVencendo,
 };
 
 export const rotas: Router = Router();

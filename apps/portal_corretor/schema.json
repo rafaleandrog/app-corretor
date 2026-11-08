@@ -980,6 +980,9 @@
             "vencida",
             "revogada"
           ]
+        },
+        "aviso_vencimento_em": {
+          "tipo": "datahora"
         }
       },
       "indices": [

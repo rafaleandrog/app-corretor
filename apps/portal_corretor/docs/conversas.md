@@ -28,7 +28,10 @@ Até lá, "Reativar Mensageiro", a janela de 24 horas e os modelos de mensagem f
 | Direita | **Próxima abordagem** com "Usar mensagem pronta"; **Enviado para o cliente** com o que ele clicou ou abriu; **Também combinam** (imóveis ativos que batem com o perfil de busca, com **Enviar**); os chips do perfil de busca e **Abrir ficha completa** |
 
 A conversa aberta fica no endereço (`?item=`); os filtros ficam em `?filtro=` e `?q=`. Abrir uma conversa
-marca as mensagens dela como lidas.
+marca as mensagens dela como lidas. A busca acha pelo nome, pelo telefone e pelo imóvel enviado ao
+cliente (código ou título) em toda a conta (até 200 clientes e 100 imóveis que casem com o termo), e pela
+última mensagem nas conversas da caixa. A caixa carrega as 200 conversas mais recentes; acima disso uma
+faixa avisa, e os filtros e as contagens valem sobre essas 200.
 
 ## O que cada ação faz
 
@@ -51,8 +54,8 @@ marca as mensagens dela como lidas.
 Tabelas `conversas` (uma por contato; `canal` `portal`, `registro` ou `wa_me`; `atendido_por`, `agente`,
 `estado`, `nao_lidas`, `arquivada_em`, resumo da última mensagem) e `mensagens` (`direcao`, `autor_tipo`,
 `canal`, `tipo` `texto`/`imovel`/`selecao`/`arquivo`/`localizacao`/`link_portal`/`sistema`, `conteudo`,
-`dados` com o cartão). Rotas: `GET /conversas?filtro=&q=`, `POST /conversas` (`contato_id`),
-`GET /conversas/:id` (marca como lida), `POST /conversas/:id/mensagens` (`texto`; devolve o link `wa.me`),
+`dados` com o cartão). Rotas: `GET /conversas?filtro=&q=` (`limite` e `limite_atingido` na resposta), `POST /conversas` (`contato_id`),
+`GET /conversas/:id` (só leitura), `PATCH /conversas/:id/lida` (marca como lida e alinha quem atende), `POST /conversas/:id/mensagens` (`texto`; devolve o link `wa.me`),
 `POST /conversas/:id/assumir`, `POST /conversas/:id/devolver`, `PATCH /conversas/:id` (`arquivada`).
 Eventos: `mensagem_recebida` (listener do portal), `mensagem_enviada` (compositor, "Fazer agora", envios,
 link do portal), `envio_criado`, `conversa_assumida`, `conversa_devolvida`; só ids, nunca o texto nem o canal.
