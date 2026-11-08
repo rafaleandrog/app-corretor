@@ -24,7 +24,9 @@ const [nome, saida, filtro] = process.argv.slice(2);
 if (!nome || !saida) { console.error('uso: capturar.mjs <instância> <pasta de saída> [telas separadas por vírgula]'); process.exit(2); }
 const inst = JSON.parse(process.env.URBIVERSO_INSTANCIAS ?? '[]').find((x) => x.nome === nome);
 if (!inst) { console.error(`instância "${nome}" não está em URBIVERSO_INSTANCIAS`); process.exit(2); }
-const H = { Authorization: `Bearer ${inst.token}` };
+// CONTA=<id> escolhe a conta de trabalho para quem atende várias (X-Conta nas chamadas e a escolha da tela).
+const CONTA = process.env.CONTA ? Number(process.env.CONTA) : null;
+const H = { Authorization: `Bearer ${inst.token}`, ...(CONTA ? { 'X-Conta': String(CONTA) } : {}) };
 mkdirSync(saida, { recursive: true });
 
 // Dados de apoio, só leitura: um cliente com link do portal ativo e um imóvel da carteira.
@@ -75,6 +77,7 @@ async function contexto(vp) {
   delete eu.credencial;
   await ctx.route(/\/api\/shell\/auth\/(eu-sistema|eu)$/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(eu) }));
   await ctx.route(/fonts\.googleapis\.com|fonts\.gstatic\.com/, (r) => r.abort()); // a fonte do tema vem de fora; sem rede, cai na fonte do sistema
+  if (CONTA) await ctx.addInitScript((c) => { try { localStorage.setItem('portal_corretor:conta', String(c)); } catch {} }, CONTA);
   return ctx;
 }
 const ctx0 = await contexto({ width: 1440, height: 1000 });
