@@ -38,7 +38,7 @@ import {
   type Acao,
 } from '../apoio.js';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
-import { moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -895,7 +895,7 @@ export class Estudio {
     const ig = this.instagram();
     return html`<urbi-stack>
       <urbi-stack>
-        <urbi-prosa papel="titulo">Estúdio</urbi-prosa>
+        ${cabecalhoColuna('Estúdio')}
         <urbi-linha>${ig.conectado ? html`<urbi-icone icone="instagram" familia="brands"></urbi-icone>` : nothing}<urbi-prosa papel=${ig.conectado ? 'fraco' : 'secundario'}>${ig.texto}</urbi-prosa></urbi-linha>
       </urbi-stack>
       <urbi-prosa papel="secao">Criar rápido</urbi-prosa>

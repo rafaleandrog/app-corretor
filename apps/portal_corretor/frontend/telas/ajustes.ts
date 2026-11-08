@@ -5,7 +5,7 @@ import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ABAS_AJUSTES, ABA_PADRAO, abaDoEndereco, ehAbaAjustes, type AbaAjustes } from '../../comum/ajustes';
 import { avisoCreci, chamarApi, chamarFetch, gesto } from '../apoio.js';
 import { estadoTela } from '../estados.js';
-import { moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
 import './conta.js';
 import './marca.js';
@@ -92,7 +92,7 @@ export function renderAjustes(atualizar: () => void) {
     atualizar();
   };
   const lista = html`<urbi-stack>
-    <urbi-prosa papel="titulo">Ajustes</urbi-prosa>
+    ${cabecalhoColuna('Ajustes')}
     <urbi-lista clicavel separador .itens=${ABAS_AJUSTES}
       .itemAtivo=${(s: (typeof ABAS_AJUSTES)[number]) => s.id === aba}
       .indicador=${(s: (typeof ABAS_AJUSTES)[number]) => (s.id === aba ? 'var(--cor-primaria)' : '')}

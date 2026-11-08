@@ -1,32 +1,22 @@
 import { html, nothing, type TemplateResult } from 'lit';
-import type { UrbiAtalhoTrilho, UrbiVersoAPI } from '@urbiverso/sdk';
-import { MENU, MENU_NEGOCIADOR } from './enderecos.js';
 import { soNegociador } from './apoio.js';
 import { alternarAssistente, assistenteAberto, painelAssistente } from './telas/assistente.js';
-import { abrirBusca } from './atalhos.js';
 
-declare const urbiVerso: UrbiVersoAPI;
-
-// Moldura do Padrão B (spec 11.0.1 a 11.0.3, 11.9): trilho · lista · foco · contexto, montada só com
-// primitivos e sem CSS estrutural (ui-componentes-layout.md):
+// Moldura do Padrão B na página do shell (spec 11.0.1 a 11.0.3, D-114; `specs/layout/README.md` v2):
 //
-//   urbi-inbox                         raiz; sidebar sem largura, só o trilho à esquerda
-//     urbi-trilho-atalhos              slot="sidebar-trilho": o menu, Buscar e o Assistente
-//     urbi-3-colunas (slot="detalhe")  lista · foco · contexto, redimensionáveis e colapsáveis,
-//                                      abas no celular; `urbi-2x1` quando a tela tem só foco e contexto
+//   urbi-shell-page (index.ts, modo dashboard)   barra e cabeçalho do shell, com o Criar; o menu é o
+//                                                `nav` do manifesto — a app NÃO desenha trilho próprio
+//     urbi-3-colunas                             lista (360 px fixos) · foco (flexível) · contexto (340 px
+//                                                fixos); abas no celular; `urbi-2x1` quando a tela tem
+//                                                só foco e contexto
 //
-// É função, não elemento: o `urbi-inbox` vai direto no body do `urbi-shell-page` e auto-declara o
-// fill e o scroll por dentro. Um elemento próprio em volta precisaria estender `UrbiPainelBase` para
-// manter esse contrato no celular, e a app não importa valor de `@urbiverso/ui` (KIT.md).
-//
-// Trilho: é o menu das telas do corretor, sempre, mais Buscar e o Assistente. O externo (o corretor)
-// não abre o menu de navegação da app na topbar reduzida (gap documentado em permissoes.md § Usuário
-// externo), então o `nav` do manifesto não repete estes itens (D-113, #166): lá fica só o que não
-// tem outro caminho (Corretores). O Criar fica no cabeçalho da página (`menuCriar`): o trilho só emite
-// clique, não ancora o `urbi-dropdown`.
+// O botão Assistente fica no fim do cabeçalho da coluna esquerda de toda tela (`botaoAssistenteColuna`,
+// D-114); aberto, o Assistente ocupa a coluna de contexto (D-109). Só primitivos, sem CSS estrutural:
+// as larguras são atributos do `urbi-3-colunas`, e os tamanhos (botão 34 px, campo 36 px, raio 12) são
+// os dos primitivos (D-115).
 
 export interface OpcoesMoldura {
-  /** Item do menu ativo no trilho (a rota do `MENU`). */
+  /** Item do menu ativo (a rota do `MENU`); hoje só identifica a tela para o estado do celular. */
   menu: string;
   /** Coluna esquerda, "o que existe". Sem ela, só foco e contexto. */
   lista?: unknown;
@@ -34,20 +24,20 @@ export interface OpcoesMoldura {
   centro: unknown;
   /**
    * O `centro` já vem com `slot="centro"` em cada filho e a moldura não o embrulha num `urbi-hospedeiro`.
-   * Para o par `urbi-feed` + `urbi-redator`: o fill do feed só se mantém no filho DIRETO do container
-   * com altura (ui-componentes-conteudo.md § Onde pôr o par feed + redator). Só vale com `lista`
+   * Para o par lista de mensagens + compositor: o fill só se mantém no filho DIRETO do container com
+   * altura (ui-componentes-conteudo.md § Onde pôr o par feed + redator). Só vale com `lista`
    * (`urbi-3-colunas`); no `urbi-2x1` o centro segue embrulhado.
    */
   centroSolto?: boolean;
   /** Direita, "o que eu preciso saber para decidir". O Assistente aberto ocupa o lugar dela. */
   contexto?: unknown;
   /**
-   * A direita começa recolhida (o trilho fino com o rótulo), e o centro fica com a largura dela. Para o
-   * contexto que é só uma dica enquanto nada foi escolhido: a coluna existe e abre num clique, mas não
-   * rouba espaço do centro. Sem contexto (`undefined` ou `nothing`) ela já começa recolhida.
+   * Mantido por compatibilidade com as telas que o passam: na moldura v2 a direita é fixa (340 px) e
+   * não começa recolhida (D-114, referência com as três colunas abertas). Sem `contexto`, a coluna
+   * mostra a dica de nada escolhido.
    */
   recolherContexto?: boolean;
-  /** Lista mais estreita (280 px), para quando o centro é largo por natureza (o quadro do Funil). */
+  /** Mantido por compatibilidade: na moldura v2 a lista é sempre 360 px (D-114). */
   listaEstreita?: boolean;
   /** Rótulos das abas do celular. */
   rotulos?: { lista?: string; centro?: string; contexto?: string };
@@ -55,34 +45,29 @@ export interface OpcoesMoldura {
   painel?: 'esquerda' | 'centro' | 'direita';
 }
 
-/** No celular o inbox mostra um painel por vez: o trilho ("Menu") ou as colunas. */
-const estado = { menuNoCelular: false, ultimoMenu: null as string | null };
+/** Larguras da moldura v2 (`specs/layout/README.md` § 3): lista e contexto fixos, o centro fica com o resto. */
+export const LARGURAS = { lista: '360px', contexto: '340px', assistente: '380px' } as const;
 
 /**
- * Itens do trilho: o menu do corretor (D-103), Buscar (11.7) e o Assistente (D-109). O negociador humano (D7) vê só
- * Hoje e Negociações, sem Buscar nem o Assistente (que são da área do corretor).
+ * O botão Assistente do cabeçalho da coluna esquerda (D-114): 34 × 34, só ícone, fundo da IA quando
+ * aberto. A tela o põe no fim da linha do título. O negociador humano (D7) não tem Assistente.
  */
-export function itensDoTrilho(menu: string): UrbiAtalhoTrilho[] {
-  if (soNegociador()) return MENU_NEGOCIADOR.map((m) => ({ id: m.rota, icone: m.icone, rotulo: m.titulo, ativo: m.rota === menu }));
-  return [
-    ...MENU.map((m) => ({ id: m.rota, icone: m.icone, rotulo: m.titulo, ativo: !assistenteAberto() && m.rota === menu })),
-    // Busca global (11.7, B10): também pelo atalho `/`.
-    { id: 'buscar', icone: 'fa-solid fa-magnifying-glass', rotulo: 'Buscar' },
-    { id: 'assistente', icone: 'fa-solid fa-comments', rotulo: 'Assistente', ativo: assistenteAberto() },
-  ];
+export function botaoAssistenteColuna(): TemplateResult | typeof nothing {
+  if (soNegociador()) return nothing;
+  const aberto = assistenteAberto();
+  return html`<urbi-botao pequeno variante=${aberto ? 'primario' : 'secundario'} icone="fa-solid fa-wand-magic-sparkles"
+    ariaLabel=${aberto ? 'Fechar o Assistente' : 'Abrir o Assistente'} title="Assistente (A)" @click=${() => alternarAssistente()}></urbi-botao>`;
 }
 
-function aoAtalho(e: CustomEvent, atualizar: () => void) {
-  const id = String(e.detail?.id ?? '');
-  estado.menuNoCelular = false;
-  if (id === 'assistente') {
-    if (!soNegociador()) alternarAssistente();
-  }
-  else if (id === 'buscar') {
-    if (!soNegociador()) void abrirBusca();
-  }
-  else if (id) urbiVerso.navegarSub(id);
-  atualizar();
+/**
+ * Cabeçalho da coluna esquerda: o título à esquerda e, à direita, as ações da tela e o Assistente
+ * (referência P02: "Conversas · [Nova] [✦]"). Toda tela da moldura usa isto na primeira linha da lista.
+ */
+export function cabecalhoColuna(titulo: unknown, acoes?: unknown): TemplateResult {
+  return html`<urbi-linha justificar="entre" alinhar="centro">
+    <urbi-prosa papel="titulo">${titulo}</urbi-prosa>
+    <urbi-linha>${acoes ?? nothing}${botaoAssistenteColuna()}</urbi-linha>
+  </urbi-linha>`;
 }
 
 /** Coluna com respiro, que enche e rola por dentro (o `urbi-hospedeiro` é o dono do respiro). */
@@ -100,52 +85,37 @@ function direitaAssistente(slotTopo: 'direita-topo' | 'direita') {
   return html`<urbi-hospedeiro slot=${slotTopo}>${topo}</urbi-hospedeiro>${chat}`;
 }
 
+/** A direita sem nada escolhido: a coluna existe (D-114) e diz o que a preenche. */
+const contextoVazio = () => html`<urbi-estado-vazio expandir icone="fa-regular fa-hand-pointer" mensagem="Escolha um item" submensagem="O contexto dele aparece aqui."></urbi-estado-vazio>`;
+
 function colunas(op: OpcoesMoldura): TemplateResult {
   const aberto = assistenteAberto() && !soNegociador();
   const r = op.rotulos ?? {};
   if (op.lista === undefined) {
-    return html`<urbi-2x1 slot="detalhe">
+    return html`<urbi-2x1>
       ${coluna('esquerda', op.centro)}
       ${aberto ? direitaAssistente('direita-topo') : op.contexto === undefined ? nothing : coluna('direita', op.contexto)}
     </urbi-2x1>`;
   }
-  // Larguras do guia (telas_padrao_b.md §2): lista 340–380, contexto 300–360, Assistente 380–440.
-  // As laterais são fixas e o centro fica com o resto: com a página sem teto (`dashboard`, index.ts), é
-  // o centro que cresce no desktop largo (#164). O contexto parte de 340 e não encolhe abaixo de 300 no
-  // arrasto: é o que os cartões da direita (Sua semana, Agenda, Dica) precisam sem cortar nem rolar. O
-  // Assistente aberto não encolhe abaixo de 380, o piso do guia.
-  // Sem contexto, ou com o contexto que é só dica (nada escolhido ainda), a direita começa recolhida e o
-  // centro ganha a largura dela: coluna vazia de 340 px apertava o centro (o quadro do Funil, a ficha).
-  const recolher = !aberto && (op.recolherContexto || op.contexto === undefined || op.contexto === nothing);
-  return html`<urbi-3-colunas slot="detalhe" redimensionavel colapsavel-esquerda colapsavel-direita
-    ?colapsada-direita=${recolher}
-    largura-esquerda=${op.listaEstreita ? '280px' : '360px'} largura-direita=${aberto ? '400px' : '340px'}
-    largura-min-esquerda=${op.listaEstreita ? '240px' : '260px'} largura-max-esquerda="40%" largura-min-direita=${aberto ? '380px' : '300px'} largura-max-direita="45%"
+  const contexto = op.contexto === undefined || op.contexto === nothing ? contextoVazio() : op.contexto;
+  return html`<urbi-3-colunas
+    largura-esquerda=${LARGURAS.lista} largura-direita=${aberto ? LARGURAS.assistente : LARGURAS.contexto}
     label-esquerda=${r.lista ?? 'Lista'} label-centro=${r.centro ?? 'Foco'} label-direita=${aberto ? 'Assistente' : (r.contexto ?? 'Contexto')}
     painel-ativo=${aberto ? 'direita' : (op.painel ?? 'centro')}>
     ${coluna('esquerda', op.lista)}
     ${op.centroSolto ? op.centro : coluna('centro', op.centro)}
-    ${aberto ? direitaAssistente('direita') : coluna('direita', op.contexto ?? nothing)}
+    ${aberto ? direitaAssistente('direita') : coluna('direita', contexto)}
   </urbi-3-colunas>`;
 }
 
-/** A moldura de uma tela do corretor. `atualizar` redesenha o app (trilho, Assistente, celular). */
-export function moldura(op: OpcoesMoldura, atualizar: () => void): TemplateResult {
-  // Tela diferente da última desenhada (Criar, link, botão do navegador): o celular volta às colunas.
-  if (estado.ultimoMenu !== op.menu) estado.menuNoCelular = false;
-  estado.ultimoMenu = op.menu;
-  return html`<urbi-inbox largura-sidebar="0px" largura-min-sidebar="0px" sem-redimensionar texto-voltar="Menu"
-    ?detalhe-visivel=${!estado.menuNoCelular}
-    @urbi:inbox-voltar=${() => ((estado.menuNoCelular = true), atualizar())}>
-    <urbi-trilho-atalhos slot="sidebar-trilho" rotulo="Menu do Portal do Corretor" .itens=${itensDoTrilho(op.menu)}
-      @urbi:atalho-click=${(e: CustomEvent) => aoAtalho(e, atualizar)}></urbi-trilho-atalhos>
-    ${colunas(op)}
-  </urbi-inbox>`;
+/** A moldura de uma tela do corretor. `atualizar` redesenha o app (Assistente, celular). */
+export function moldura(op: OpcoesMoldura, _atualizar: () => void): TemplateResult {
+  return colunas(op);
 }
 
 /**
- * Tela que ainda não está na moldura (migram nos itens B2 a B9): o Assistente aberto divide a página
- * com ela, foco à esquerda e Assistente à direita. Fechado, a tela segue como sempre foi.
+ * Tela que ainda não está na moldura: o Assistente aberto divide a página com ela, foco à esquerda e
+ * Assistente à direita. Fechado, a tela segue como sempre foi.
  */
 export function comAssistente(tela: unknown): unknown {
   if (!assistenteAberto() || soNegociador()) return tela;

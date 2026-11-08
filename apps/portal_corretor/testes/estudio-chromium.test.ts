@@ -205,7 +205,6 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
         return { id: m.id, autor: m.autorNome, principais: w.principais(div).length, texto: w.profundo(div) };
       });
       return {
-        trilhoAtivo: ((window as any).$q('urbi-trilho-atalhos') as any)?.itens.find((i: any) => i.ativo)?.id,
         esquerda: w.profundo(col('esquerda')),
         rapidos: [...col('esquerda')!.querySelectorAll('urbi-grid > urbi-botao')].map((b) => w.profundo(b)),
         pedidos: lista.itens.map((x: any) => x.id),
@@ -222,7 +221,6 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
         chamadas: w.chamadas.slice(),
       };
     });
-    assert.equal(r.trilhoAtivo, '/estudio');
     assert.match(r.esquerda, /Estúdio @rafael\.imoveis conectado/);
     assert.ok(!r.esquerda.includes('◎'), 'o ícone é o urbi-icone, não um glifo no texto');
     assert.deepEqual(r.rapidos, ['Lançamento', 'Baixou o preço', 'Vendido', 'Visita aberta']);
@@ -343,7 +341,7 @@ test('Estúdio no Chromium: troca de conta com carga em voo descarta a resposta 
       pagina.evaluate(() => {
         const w = window as any;
         const lista = (window as any).$q('urbi-lista') as any;
-        return { texto: w.profundo((window as any).$q('urbi-inbox')), pedidos: (lista?.itens ?? []).map((x: any) => x.id), pendentes: w.pendentes.map((p: any) => p.conta), chamadas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length };
+        return { texto: w.profundo((window as any).$q('urbi-2x1, urbi-3-colunas')), pedidos: (lista?.itens ?? []).map((x: any) => x.id), pendentes: w.pendentes.map((p: any) => p.conta), chamadas: w.chamadas.filter((c: string) => c === 'GET /estudio/pecas').length };
       });
     let r: any = await lido();
     assert.deepEqual(r.pendentes, [100]);

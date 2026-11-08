@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { nothing } from 'lit';
 import { ENDERECOS, resolverEndereco, contatoDoEndereco } from '../frontend/enderecos';
 import { ESTADOS, estadoDaFalha, estadoTela, type EstadoTela } from '../frontend/estados';
-import { comAssistente, itensDoTrilho, moldura } from '../frontend/moldura';
+import { botaoAssistenteColuna, cabecalhoColuna, comAssistente, LARGURAS, moldura } from '../frontend/moldura';
 import { destinoDeCriar, OPCOES_CRIAR } from '../frontend/criar';
 import { abrirAssistente, abrirAssistenteSobre, assistenteAberto, fecharAssistente, lembrarContato, lembrarTela } from '../frontend/telas/assistente';
 import { itemDaUrl, itemNaUrl, pedidoDeCriar } from '../frontend/visual';
@@ -123,19 +123,16 @@ test('cada endereço antigo abre a tela nova certa (spec 11.0.5, D-103)', () => 
   assert.equal(contatoDoEndereco('/clientes'), null);
 });
 
-test('estrutura da moldura: inbox com trilho, três colunas com respiro, nada de CSS próprio', () => {
+test('estrutura da moldura (D-114): três colunas fixas na página do shell, sem trilho, sem CSS próprio', () => {
   navegador('/portal_corretor/numeros');
   fecharAssistente();
   const h = texto(moldura({ menu: '/numeros', lista: 'LISTA', centro: 'CENTRO', contexto: 'CONTEXTO' }, () => {}));
   const ordem = [
-    /<urbi-inbox largura-sidebar="0px" largura-min-sidebar="0px" sem-redimensionar texto-voltar="Menu"/,
-    /<urbi-trilho-atalhos slot="sidebar-trilho"/,
-    /<urbi-3-colunas slot="detalhe" redimensionavel colapsavel-esquerda colapsavel-direita/,
+    /<urbi-3-colunas\s+largura-esquerda="360px" largura-direita="340px"/,
     /<urbi-hospedeiro slot="esquerda" expandir>LISTA<\/urbi-hospedeiro>/,
     /<urbi-hospedeiro slot="centro" expandir>CENTRO<\/urbi-hospedeiro>/,
     /<urbi-hospedeiro slot="direita" expandir>CONTEXTO<\/urbi-hospedeiro>/,
     /<\/urbi-3-colunas>/,
-    /<\/urbi-inbox>/,
   ];
   let desde = 0;
   for (const r of ordem) {
@@ -143,19 +140,25 @@ test('estrutura da moldura: inbox com trilho, três colunas com respiro, nada de
     assert.ok(m, `fora de ordem ou ausente: ${r}`);
     desde += m!.index! + m![0].length;
   }
+  // Sem trilho, sem inbox, sem resize nem colapso: as larguras são fixas (specs/layout/README.md § 3).
+  for (const proibido of ['urbi-inbox', 'urbi-trilho-atalhos', 'redimensionavel', 'colapsavel', 'colapsada']) assert.ok(!h.includes(proibido), proibido);
+  assert.deepEqual(LARGURAS, { lista: '360px', contexto: '340px', assistente: '380px' });
+  // Sem contexto, a direita existe e diz o que a preenche (a referência tem as três colunas abertas).
+  const semContexto = texto(moldura({ menu: '/numeros', lista: 'LISTA', centro: 'CENTRO' }, () => {}));
+  assert.match(semContexto, /slot="direita" expandir><urbi-estado-vazio expandir/);
   // Sem lista: só foco e contexto, no `urbi-2x1`.
   const dois = texto(moldura({ menu: '/', centro: 'CENTRO', contexto: 'CONTEXTO' }, () => {}));
-  assert.match(dois, /<urbi-2x1 slot="detalhe">\s*<urbi-hospedeiro slot="esquerda" expandir>CENTRO<\/urbi-hospedeiro>\s*<urbi-hospedeiro slot="direita" expandir>CONTEXTO/);
+  assert.match(dois, /<urbi-2x1>\s*<urbi-hospedeiro slot="esquerda" expandir>CENTRO<\/urbi-hospedeiro>\s*<urbi-hospedeiro slot="direita" expandir>CONTEXTO/);
   assert.doesNotMatch(dois, /urbi-3-colunas/);
   // Nenhum CSS estrutural nos arquivos da moldura (spec 11.0.1: as larguras são as do primitivo).
   for (const arq of ['frontend/moldura.ts', 'frontend/estados.ts', 'frontend/criar.ts', 'frontend/enderecos.ts']) {
     const fonte = readFileSync(resolve(process.cwd(), arq), 'utf8');
     assert.doesNotMatch(fonte, /\bcss`|style=|<style|static styles/, arq);
   }
-  // Trilho: o menu do Padrão B na ordem de 11.0.1, Buscar (11.7) e o Assistente no pé, com o item da tela ativo.
-  const itens = itensDoTrilho('/numeros');
-  assert.deepEqual(itens.map((i) => i.rotulo), ['Hoje', 'Clientes', 'Imóveis', 'Estúdio', 'Página', 'Números', 'Ajustes', 'Buscar', 'Assistente']);
-  assert.deepEqual(itens.filter((i) => i.ativo).map((i) => i.id), ['/numeros']);
+  // O cabeçalho da coluna esquerda: título à esquerda, ações e o Assistente (34 px, só ícone) à direita.
+  const cab = texto(cabecalhoColuna('Conversas', 'ACOES'));
+  assert.match(cab, /<urbi-linha justificar="entre" alinhar="centro">\s*<urbi-prosa papel="titulo">Conversas<\/urbi-prosa>\s*<urbi-linha>ACOES<urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles"/);
+  assert.match(texto(botaoAssistenteColuna()), /ariaLabel="Abrir o Assistente"/);
 });
 
 test('o Assistente abre e fecha na coluna de contexto e leva o contato em foco (D-109)', async () => {
@@ -181,7 +184,7 @@ test('o Assistente abre e fecha na coluna de contexto e leva o contato em foco (
   assert.match(h, /Sobre: Ana Souza/, 'leva o contato da ficha aberta');
   assert.match(h, /IA indisponível agora/, 'slot desligado: o Assistente avisa e segue pela ajuda');
   assert.match(h, /painel-ativo="direita"/, 'no celular, a aba do Assistente');
-  assert.deepEqual(itensDoTrilho('/clientes').filter((i) => i.ativo).map((i) => i.id), ['assistente']);
+  assert.match(texto(botaoAssistenteColuna()), /variante="primario"[^>]*ariaLabel="Fechar o Assistente"/, 'o botão do cabeçalho mostra o Assistente aberto');
 
   // Fechar devolve o contexto da tela.
   fecharAssistente();
@@ -197,7 +200,7 @@ test('o Assistente abre e fecha na coluna de contexto e leva o contato em foco (
   chatSolto(solta);
   // `urbi-2x1` da moldura (sem lista): o mesmo desenho, topo na zona fixa e chat solto em `direita`.
   const dois = texto(moldura({ menu: '/', centro: 'CENTRO', contexto: 'CONTEXTO' }, () => {}));
-  assert.match(dois, /<urbi-2x1 slot="detalhe">[\s\S]*<urbi-hospedeiro slot="direita-topo">[\s\S]*Sobre: Bruno/);
+  assert.match(dois, /<urbi-2x1>[\s\S]*<urbi-hospedeiro slot="direita-topo">[\s\S]*Sobre: Bruno/);
   chatSolto(dois);
   fecharAssistente();
 });
@@ -229,26 +232,6 @@ test('cada abertura do Assistente sonda de novo e a resposta antiga não vence a
   await new Promise((r) => setTimeout(r, 0));
   assert.doesNotMatch(texto(moldura(op, () => {})), /IA indisponível/);
   fecharAssistente();
-});
-
-test('no celular, trocar de tela por fora do trilho devolve as colunas', () => {
-  navegador('/portal_corretor/numeros');
-  fecharAssistente();
-  let atualizacoes = 0;
-  const voltar = (h: unknown) => {
-    const m = (h as { values: unknown[] }).values.find((v) => typeof v === 'function' && (v as () => void).length === 0);
-    assert.ok(m, 'o Voltar do inbox está ligado');
-    (m as () => void)();
-  };
-  const op = (menu: string) => ({ menu, centro: 'CENTRO', contexto: 'CONTEXTO' });
-  // O primeiro valor do template da moldura é o `?detalhe-visivel`.
-  const visivel = (h: unknown) => (h as { values: unknown[] }).values[0];
-  const a = moldura(op('/numeros'), () => atualizacoes++);
-  assert.equal(visivel(a), true, 'colunas à vista');
-  voltar(a); // o Voltar mostra o trilho
-  assert.equal(visivel(moldura(op('/numeros'), () => {})), false, 'mesma tela: segue no trilho');
-  assert.equal(visivel(moldura(op('/clientes'), () => {})), true, 'outra tela: volta às colunas');
-  assert.equal(atualizacoes, 1);
 });
 
 test('`?item=` guarda o item selecionado e sobrevive a recarregar', () => {

@@ -3,17 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { MENU, MENU_NEGOCIADOR, resolverEndereco, type ChaveTela } from '../frontend/enderecos';
-import { itensDoTrilho, moldura } from '../frontend/moldura';
 import { irPara } from '../frontend/atalhos';
 
-// Menu do app no cabeçalho do shell (D-113, #166): o `nav` do manifesto não repete as sete telas do
-// trilho. Cada uma continua abrindo pelo trilho, pelo endereço direto e (as que têm registro) pela
-// busca; a equipe da plataforma continua chegando a Corretores, que só tem o menu como caminho.
+// Menu do app pelo shell (D-114, que revê D-113 e o #166): o `nav` do manifesto traz as telas do
+// corretor na ordem de 11.0.1, mais Equipe da plataforma › Corretores; a app não desenha trilho. Cada
+// tela abre pelo endereço direto, e os registros pela busca.
 
 const manifesto = JSON.parse(readFileSync(resolve(process.cwd(), 'manifesto.json'), 'utf8'));
 
-const SETE: [string, string, ChaveTela][] = [
+const OITO: [string, string, ChaveTela][] = [
   ['Hoje', '/', 'hoje'],
+  ['Conversas', '/conversas', 'conversas'],
   ['Clientes', '/clientes', 'clientes'],
   ['Imóveis', '/imoveis', 'imoveis'],
   ['Estúdio', '/estudio', 'estudio'],
@@ -54,49 +54,21 @@ function navegador(roles: string[] = ['corretor']) {
   return { url, sub };
 }
 
-/** O handler de `@urbi:atalho-click` do trilho, achado dentro do template da moldura. */
-function cliqueDoTrilho(v: unknown): ((e: CustomEvent) => void) | undefined {
-  const t = v as { strings?: readonly string[]; values?: unknown[] };
-  if (Array.isArray(v)) return v.map(cliqueDoTrilho).find(Boolean);
-  if (!t || !t.strings || !t.values) return undefined;
-  for (let i = 0; i < t.values.length; i++) {
-    if (/@urbi:atalho-click=$/.test(t.strings[i]) && typeof t.values[i] === 'function') return t.values[i] as (e: CustomEvent) => void;
-    const dentro = cliqueDoTrilho(t.values[i]);
-    if (dentro) return dentro;
-  }
-  return undefined;
-}
-
-test('menu do app (nav): nenhuma das sete telas do trilho; só Equipe da plataforma › Corretores', () => {
-  const rotas = rotasDoNav(manifesto.nav);
-  for (const [, rota] of SETE) assert.ok(!rotas.includes(rota), `${rota} fora do menu do app`);
-  assert.deepEqual(rotas, ['/corretores']);
-  // O trilho do corretor é o menu das sete, e o do negociador humano também fica fora do `nav`.
-  assert.deepEqual(MENU.map((m) => m.rota), SETE.map(([, r]) => r));
-  for (const m of MENU_NEGOCIADOR) assert.ok(!rotas.includes(m.rota));
+test('menu do app (nav, D-114): as oito telas do corretor na ordem de 11.0.1 e Equipe da plataforma › Corretores', () => {
+  const folhas = manifesto.nav.filter((n: { rota?: string }) => n.rota).map((n: { titulo: string; rota: string }) => [n.titulo, n.rota]);
+  assert.deepEqual(folhas, OITO.map(([t, r]) => [t, r]));
+  assert.deepEqual(rotasDoNav(manifesto.nav), [...OITO.map(([, r]) => r), '/corretores']);
+  // O `MENU` da app (busca, Criar, celular) é o mesmo do `nav`; o negociador humano vê só Hoje e Negociações.
+  assert.deepEqual(MENU.map((m) => [m.titulo, m.rota]), OITO.map(([t, r]) => [t, r]));
+  assert.deepEqual(MENU_NEGOCIADOR.map((m) => m.rota), ['/', '/negociacoes']);
+  // Nenhum item do nav aponta para uma tela que não existe.
+  for (const rota of rotasDoNav(manifesto.nav)) assert.ok(resolverEndereco(rota).chave, `${rota} abre uma tela`);
 });
 
-test('cada tela do trilho abre por endereço direto', () => {
-  for (const [, rota, chave] of SETE) assert.equal(resolverEndereco(rota).chave, chave, rota);
+test('cada tela do menu abre por endereço direto', () => {
+  for (const [, rota, chave] of OITO) assert.equal(resolverEndereco(rota).chave, chave, rota);
   // Com barra no fim também (link colado à mão).
-  for (const [, rota, chave] of SETE.slice(1)) assert.equal(resolverEndereco(`${rota}/`).chave, chave, `${rota}/`);
-});
-
-test('cada tela do trilho abre pelo clique no trilho, de qualquer tela', () => {
-  const { sub } = navegador();
-  for (const [titulo, rota, chave] of SETE) {
-    // Começa de uma tela diferente da de destino.
-    const de = rota === '/numeros' ? '/clientes' : '/numeros';
-    const itens = itensDoTrilho(de);
-    const item = itens.find((i) => i.rotulo === titulo);
-    assert.ok(item, `${titulo} está no trilho`);
-    assert.equal(item.id, rota);
-    const clique = cliqueDoTrilho(moldura({ menu: de, centro: 'x' }, () => {}));
-    assert.ok(clique, 'o trilho tem o handler de clique');
-    clique({ detail: { id: item.id } } as CustomEvent);
-    assert.equal(sub(), rota, `${titulo}: o clique leva a ${rota}`);
-    assert.equal(resolverEndereco(sub()).chave, chave, `${titulo}: ${rota} abre a tela`);
-  }
+  for (const [, rota, chave] of OITO.slice(1)) assert.equal(resolverEndereco(`${rota}/`).chave, chave, `${rota}/`);
 });
 
 // A busca leva a registros, não a telas: cada resultado abre na tela dele. O diálogo (`abrirBusca`) é do
@@ -119,7 +91,5 @@ test('a equipe da plataforma continua chegando a Corretores pelo menu do app', (
   assert.ok(grupo, 'grupo Equipe da plataforma no menu');
   assert.deepEqual(grupo.itens, [{ titulo: 'Corretores', rota: '/corretores' }]);
   assert.equal(resolverEndereco('/corretores').chave, 'corretores');
-  // Corretores não está em nenhum trilho (nem é tela da moldura): para quem tem corretor e operacao,
-  // a raiz abre Hoje (index.ts) e o menu do app é o único caminho até ela. Por isso ela fica no `nav`.
   assert.ok(![...MENU, ...MENU_NEGOCIADOR].some((m) => m.rota === '/corretores'));
 });

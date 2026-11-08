@@ -108,7 +108,7 @@ Toda sessão que termina registra aqui o que deixou pendente (regra do `CLAUDE.m
 
 | Pendência | O que fazer | Origem |
 |---|---|---|
-| Diagnóstico visual e de comandos (`specs/diagnostico_visual.md`, seção 6) sem decisão do dono | Decidir: moldura (página do shell × página cheia; regenerar os PNG se ficar o shell), primitivos (botão 34, campo 32–36), forma do piloto P02 sem WhatsApp, P04 (spec × PNG), conta "(demo)" na homologação com boot da app, bloco de eventos do manifesto (17 eventos da spec 13.1 não declarados), PNG das telas com decisão antiga (Estúdio, Página, Mandato, faixa) | sessão de 07/11 (diagnóstico, etapa 2) |
+| Pendências da etapa 3 | Bloco de eventos (D-118) antes do grupo 2; pedido ao shell sobre a navegação do usuário externo pelo `nav` se o teste com o corretor demo mostrar o gap de `permissoes.md`; Instagram na homologação (#30) antes do grupo 4 | sessão de 08/11 (etapa 3) |
 | Falsos positivos do detector de sigilo (#124) | **Em parte resolvida no F1 (#142, 0.1.35):** "W3 Sul" e "Apto 2B"/"Torre B2" passam. Ficam retidos **por decisão** (opção (b) da revisão do #142): telefone com espaço, CEP "70.000-000", data com ano, "28/10 15h" sem "às" e número entre parênteses depois do preço (vai ao corretor; nada vaza). Cada grupo de algarismos deles é um canal livre, e conferir grupo a grupo não convergiu em 3 rodadas; liberá-los pede outro desenho (opção (a), cada grupo lido como número próprio, ou (c), risco declarado), que é decisão do dono | sessão do D2c (#126) → F1 (#142) |
 | Corrida entre salvar o mandato e apagar o documento anexado | O `PUT /negociacoes/:id/mandato` confere a mídia fora da transação e o `PATCH .../midias/:midia/remover` confere e apaga sem trava: numa corrida, o mandato vigente pode apontar para um documento apagado (não expõe dado). Observação 20 da revisão do #123. **Resolvida no F2 (#134, versão 0.1.29):** o PUT relê a mídia dentro da transação, com a negociação e a mídia travadas; a remoção trava a mídia e recusa com `409 DOCUMENTO_EM_USO` o anexo do mandato vigente | sessão do D3 → F2 |
 | Gatilhos e números do Negociador que o D4 deixou de fora | **Em parte resolvida:** os gatilhos "etapa Proposta", "pedido de desconto" e "reação de preço" voltaram a Ajustes › Negociador ligados ao backend no F3 (#135, 0.1.36; robustez no F5, 0.1.38); "acordos" e "desconto médio" estão em Números › Negociação (D6, 0.1.34), e P17 mostra rodadas e aprovadas sem edição do mês com o atalho para lá. Falta, se o dono quiser, acordos e desconto médio também no P17 (R.8.1) | sessão do D4 (#130) → F3, F5, D6 |
@@ -156,6 +156,21 @@ O que ficou aberto no caminho, para decisão do dono ou para um arco seguinte. N
 
 ---
 
+## Fase 1.7 — Referências visuais versão 2 e correção por grupos (etapa 3, 08/11/2026)
+
+Insumo do dono: `specs/decisoes_etapa3.md` (respostas às 7 decisões do diagnóstico, D-114 a D-120) e `specs/layout/` versão 2 (moldura do shell, primitivos da plataforma). **O dono aprovou em 08/11/2026 as referências versão 2 de todas as 25 telas** (`specs/layout/png/*.png` e `*.layout.json`), o que atende à regra "Referência visual" do `CLAUDE.md` para todos os grupos. Ordem dos grupos: a do `specs/diagnostico_visual.md` seção 5. Cada grupo: PR com a conferência visual da seção 6 de `specs/layout/README.md` (capturas lado a lado, tabela "diferença · causa · decisão") e o teste de isolamento passando.
+
+| Grupo | Telas | Status |
+|---|---|---|
+| 1 · Piloto | **Moldura do shell (D-114)** + **P02 Conversas completa sem WhatsApp (D-116)**: schema de conversas e mensagens, rotas, eventos usados (D-118), tela, faixa do WhatsApp; Assistente no cabeçalho da coluna esquerda de toda tela; colunas 360 · flexível · 340 | [ ] em andamento (esta sessão, 0.1.46) |
+| Eventos | Bloco próprio: declarar todos os eventos da spec 13.1 no manifesto (D-118) | [ ] depois do grupo 1 |
+| 2 · Núcleo do dia | P01 Hoje + M1, P03 Funil, P04 Cliente (D-117) | [ ] |
+| 3 · Imóveis e negociação | P06, P07 + M3, P15 + P16 + M8 (D-120: Nova contraproposta e Editar) | [ ] |
+| 4 · Público e conteúdo | P08 (prévias e créditos, D-119), P09 (arrastar, D-119), M6, M4 + M5 | [ ] |
+| 5 · Ajustes e números | P10, P12 (3 passos do WhatsApp, D-119), P13, P14, P17, P05 | [ ] |
+
+**Ambiente (08/11/2026):** contas "Corretor A (demo)" (id 7) e "Corretor B (demo)" (id 8) na homologação, cada uma com um usuário externo `corretor` (`rafael.gualberto+demo-a@up.bsb.br`, `+demo-b`); o usuário da sessão é membro das duas, para capturar com o token. A semente do guia entra no boot da app (instalação do pacote do grupo 1 na homologação).
+
 ## Fase 2 — Validação com corretores reais (spec 15.2)
 
 | # | Bloco | Pronto quando | Status |
@@ -190,6 +205,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
+| 08/11/2026 | Fase 1.7 · grupo 1 | Referências v2 e decisões D-114 a D-120 na spec; contas demo na homologação; moldura do shell (nav no manifesto, sem trilho, Assistente no cabeçalho da coluna esquerda, 360 · flexível · 340) e P02 Conversas sem WhatsApp (schema `conversas` e `mensagens`, rotas, eventos, tela, faixa), 0.1.46; conferência visual da P02 por captura | (este PR) | Bloco de eventos (D-118); depois grupo 2 |
 | 07/11/2026 | Layout · diagnóstico (etapa 2) | `specs/diagnostico_visual.md`: diagnóstico, sem correção, da app 0.1.44 contra `specs/layout/` (20 telas capturadas na homologação, conta de QA; sem conta "(demo)") e contra os comandos da spec 11 (conferidos pelo código: tela → rota → handler → evento → teste, em quatro frentes paralelas). Tabela por tela (tipo · diferença · onde no código · proposta), moldura comum, telas inexistentes (P02, P11, M2, M7), ordem em 5 grupos com P02 piloto e 7 dúvidas para o dono (moldura, primitivos, P02 sem WhatsApp, P04 spec × PNG, conta demo, eventos do manifesto, PNG de decisões antigas) | (este PR) | Dono responde a seção 6 do diagnóstico; etapa 3 começa pelo grupo 1 (moldura + P02) |
 | 07/11/2026 | Layout · referência visual e conferência por captura | `specs/layout/` (25 PNG + 25 `.layout.json` + contrato) virou a referência visual oficial (#174, regra no `CLAUDE.md`, decisões do dono sobre CRECI e Negociador IA). Depois, primeira conferência da seção 6 do contrato com **capturas da app real** (0.1.44 na homologação), sem senha: `scripts/conferencia-visual/capturar.mjs` injeta o token da API e responde à rota de identidade do shell; `comparar.py` gera o lado a lado e as medidas. 19 telas comparadas; relatório e imagens em `specs/prints/conferencia-layout-0.1.44/` e resumo em R.8.3. Sem código de tela | #174, (este PR) | Dono decide a moldura (shell × página cheia) e as diferenças de primitivo; conta "(demo)" na instância para P15, P16, M5 e M8 |
 | 07/11/2026 | Instalação · #168 | Aviso `[tokens]` "1 literal de cor" no `frontend/index.js`, 0.1.45 (só frontend e specs; sem schema nem rota). Origem: a paleta das páginas públicas (`frontend/publico/estilo.ts`), montada por uma função `color(srgb …)` que fazia a heurística contar 1 em vez de 14. O SDK 100 não dá caminho (página pública sem token de tema, mesmo bundle, auditoria sem marcação de exceção): paleta reescrita como 14 literais declarados, num lugar só, sem mudar nenhuma cor (captura no Chromium idêntica byte a byte); exceção nomeada na 11.9 e pedido ao shell 23. O aviso passa de 1 para 14 literais e fica, esperado | PR de #168 | Revisão do PR; pedido 23 ao time da plataforma |

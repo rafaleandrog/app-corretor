@@ -4,6 +4,7 @@
 
 export type ChaveTela =
   | 'hoje'
+  | 'conversas'
   | 'clientes'
   | 'importar'
   | 'cliente'
@@ -24,6 +25,8 @@ export const ENDERECOS: Record<string, ChaveTela> = {
   '/agenda': 'hoje',
   // Apelido: o Assistente saiu do menu e abre na coluna de contexto (D-109); `/assistente` abre Hoje com ele aberto.
   '/assistente': 'hoje',
+  // Conversas (P02, D-116): a caixa de conversas, sem WhatsApp até o bloco 6.
+  '/conversas': 'conversas',
   '/clientes': 'clientes',
   // Apelido: o Funil virou a visão Funil de Clientes (D-83).
   '/funil': 'clientes',
@@ -135,6 +138,7 @@ export function fichaCanonica(sub: string, busca = ''): string | null {
  */
 export const MENU: { titulo: string; rota: string; icone: string }[] = [
   { titulo: 'Hoje', rota: '/', icone: 'fa-solid fa-house' },
+  { titulo: 'Conversas', rota: '/conversas', icone: 'fa-regular fa-comments' },
   { titulo: 'Clientes', rota: '/clientes', icone: 'fa-solid fa-address-book' },
   { titulo: 'Imóveis', rota: '/imoveis', icone: 'fa-solid fa-building' },
   { titulo: 'Estúdio', rota: '/estudio', icone: 'fa-solid fa-wand-magic-sparkles' },

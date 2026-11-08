@@ -3,14 +3,11 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
 
-// Espaço do centro na moldura: o quadro do Funil (e a ficha de Clientes, Negociações e Imóveis sem
-// nada escolhido) ficava espremido entre duas laterais fixas, a da direita só com uma dica ou vazia.
-// Agora a direita sem conteúdo começa recolhida (o trilho fino do `urbi-3-colunas`) e, no Funil, os
-// filtros ficam numa coluna estreita. Mede o centro em 1280, 1440 e 1920 px, com a moldura de verdade
-// (`moldura()`) e substitutos dos primitivos só com a geometria dos docs do bundle
-// (ui-componentes-layout.md § urbi-3-colunas: laterais nas larguras dadas, trilho de 34 px quando
-// colapsada). O respiro (24 px) e o trilho do inbox (64 px) são modelo, como em moldura-largura.
-// Sem Playwright instalado, pula.
+// Espaço do centro na moldura v2 (D-114, specs/layout/README.md § 3): as laterais são fixas (lista 360 px,
+// contexto 340 px) em toda tela, com ou sem item escolhido, e o centro fica com o resto. `listaEstreita` e
+// `recolherContexto`, que as telas ainda passam, não mudam nada. Mede em 1280, 1440 e 1920 px, com a moldura
+// de verdade (`moldura()`) e substitutos dos primitivos só com a geometria dos docs do bundle. O respiro
+// (24 px) é modelo, como em moldura-largura. Sem Playwright instalado, pula.
 
 function playwright(): any {
   try {
@@ -28,7 +25,6 @@ const css = document.createElement('style');
 css.textContent = \`
   html, body { margin: 0; height: 100%; font: 14px/1.4 sans-serif; }
   #raiz { height: 100%; display: flex; flex-direction: column; padding: 24px; box-sizing: border-box; }
-  urbi-inbox { flex: 1; display: grid; grid-template-columns: 64px minmax(0, 1fr); min-height: 0; }
   urbi-3-colunas { display: grid; grid-template-columns: var(--e) minmax(0, 1fr) var(--d); min-height: 0; min-width: 0; }
   urbi-3-colunas > * { min-width: 0; min-height: 0; overflow: hidden; }
   urbi-hospedeiro { display: block; padding: 16px; box-sizing: border-box; }
@@ -72,7 +68,7 @@ window.desenhar = (caso) => {
 };
 `;
 
-test('moldura: a direita sem conteúdo recolhe e o quadro do Funil ganha a largura', async (t) => {
+test('moldura v2: laterais fixas de 360 e 340 px em toda tela; o centro fica com o resto', async (t) => {
   const pw = playwright();
   if (!pw) return t.skip('Playwright não instalado neste ambiente');
   const pacote = await build({
@@ -90,20 +86,14 @@ test('moldura: a direita sem conteúdo recolhe e o quadro do Funil ganha a largu
       return m;
     };
     for (const largura of [1280, 1440, 1920]) {
-      const antes = await medir(largura, 'funilAntes');
-      const funil = await medir(largura, 'funil');
-      assert.equal(funil.esquerda, 280, `${largura}px: filtros do Funil na coluna estreita`);
-      assert.ok(funil.recolhida && funil.direita === 34, `${largura}px: sem cartão escolhido, a direita é só o trilho (${funil.direita})`);
-      // 80 px da lista + 306 px da direita voltam para o quadro.
-      assert.equal(funil.centro - antes.centro, 80 + 340 - 34, `${largura}px: o quadro ganha a largura das laterais`);
-      // Em 1280 px o quadro passa de ~470 px para mais de 850 px.
-      if (largura === 1280) assert.ok(antes.centro < 500 && funil.centro > 850, `1280px: ${antes.centro} → ${funil.centro}`);
-
-      const comCliente = await medir(largura, 'funilComCliente');
-      assert.ok(!comCliente.recolhida && comCliente.direita === 340, `${largura}px: com o cartão escolhido, o cliente abre à direita`);
-
-      const vazio = await medir(largura, 'semContexto');
-      assert.ok(vazio.recolhida && vazio.direita === 34, `${largura}px: contexto vazio (nothing) não ocupa 340 px`);
+      for (const caso of ['funilAntes', 'funil', 'funilComCliente', 'semContexto']) {
+        const m = await medir(largura, caso);
+        assert.equal(m.esquerda, 360, `${largura}px ${caso}: lista com 360 px`);
+        assert.equal(m.direita, 340, `${largura}px ${caso}: contexto com 340 px`);
+        assert.equal(m.recolhida, false, `${largura}px ${caso}: nada recolhe`);
+        // O centro é o que sobra da área do app (a página tem 24 px de respiro de cada lado).
+        assert.equal(m.centro, largura - 48 - 360 - 340, `${largura}px ${caso}: o centro fica com o resto`);
+      }
     }
   } finally {
     await navegador.close();

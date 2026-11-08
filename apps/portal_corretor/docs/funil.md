@@ -12,7 +12,7 @@ da coluna da esquerda). O endereço é `/clientes?visao=funil`; os endereços an
 `/clientes?visao=quadro` continuam abrindo a visão Funil. A tela tem três colunas:
 
 O quadro é a parte que precisa de espaço, então os filtros ficam numa coluna mais estreita (280 px) e
-a coluna da direita começa **recolhida**, como um trilho fino com o rótulo "Cliente", enquanto nenhum
+a coluna da direita mostra "Escolha um item" enquanto nenhum
 cartão foi escolhido. Ao tocar num cartão, ela abre com o cliente. Recolher e abrir as colunas também
 dá pela setinha no topo delas.
 

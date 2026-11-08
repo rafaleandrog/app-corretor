@@ -15,6 +15,7 @@ import { depoisDeEntrarNoListener, entrarPeloCliente, meioDoListener, motorNaMen
 import { falaDePreco } from '../comum/negociador-gatilhos';
 import { aoPublicacaoProgramada } from './instagram';
 import { aoLembreteVisita } from './lembretes';
+import { payloadDaMensagem, registrarMensagem } from './conversas';
 
 // Superfícies públicas do bloco 5 (paginas-publicas.md, wh.md, D-55):
 // - rotas GET anônimas que leem só a vitrine pública (a página, a ficha do imóvel, o link);
@@ -478,6 +479,8 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
       await trx.atualizar('selecao_itens', item.id, { reacao: p.reacao, reacao_em: agora, ...(p.comentario ? { comentario: p.comentario } : {}) });
       await linhaDoTempo(trx, contato.id, 'selecao.reacao', `${ROTULO_REACAO[p.reacao]} ${imovel.codigo}${p.comentario ? `: ${p.comentario}` : ''} (seleção "${selecao.titulo}")`, { selecao_id: selecao.id, imovel_codigo: imovel.codigo, reacao: p.reacao });
     }
+    // A reação entra na conversa (P02) como aviso vindo do cliente: "Quero visitar · IM-0001".
+    await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'sistema', conteudo: `${ROTULO_REACAO[p.reacao] ?? p.reacao}: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}${p.comentario ? ` — ${String(p.comentario).slice(0, 200)}` : ''}`, dados: { selecao_id: Number(selecao.id), imovel_id: Number(imovel.id), reacao: p.reacao } });
     if (p.reacao === 'quero_visitar') await tarefa(trx, conta, contato, `Marcar visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
     // "Conversar sobre o preço" (F3, 10.9.4): a tarefa avisa o corretor e, com o gatilho `reacao_preco`
     // ligado, o Negociador entra na negociação daquele imóvel (ou a abre, no negócio de compra dele).
@@ -630,9 +633,11 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
   if (p.tipo === 'proposta_nova' || p.tipo === 'proposta_aceite') return aoPropostaDoPortal(conta, p, ctx);
   let entrada: Entrada | null = null;
   let motor: { nid: number; responsavel: number | null } | null = null;
+  let naConversa: Awaited<ReturnType<typeof registrarMensagem>> | null = null;
   await comContaRepetindo(ctx, conta, async (trx) => {
     entrada = null;
     motor = null;
+    naConversa = null;
     const contato = (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, id: p.contato_id }, maximo: 1 }))[0];
     if (!contato) return;
     if (p.tipo === 'tarefa_feita') {
@@ -645,6 +650,8 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
     if (p.tipo === 'mensagem') {
       await linhaDoTempo(trx, contato.id, 'portal.mensagem', `Mensagem pelo portal: ${String(p.texto ?? '').slice(0, 250)}`, { texto: p.texto }, conta);
       await tarefa(trx, conta, contato, 'Responder a mensagem do portal');
+      // A mensagem entra na conversa do cliente (P02, D-116): de entrada, pelo portal.
+      naConversa = await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'texto', conteudo: String(p.texto ?? ''), dados: idDe(p.negociacao) ? { negociacao_id: idDe(p.negociacao) } : null });
       // Pedido de desconto ou fala de preço (F3, 10.9.4, gatilho `pedido_desconto`): o Negociador entra na
       // negociação (a da seção de onde a mensagem saiu, ou a única do cliente) e, conduzindo com mandato
       // vigente, prepara a resposta pelo motor do D2. A tarefa acima continua: a mensagem é do corretor.
@@ -664,6 +671,14 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
     await trx.atualizar('contatos', contato.id, { ultimo_contato_em: new Date().toISOString() });
     await reclassificar(trx, contato.id);
   });
+  const gravada = naConversa as Awaited<ReturnType<typeof registrarMensagem>> | null;
+  if (gravada) {
+    try {
+      await ctx.eventos?.publicar('mensagem_recebida', payloadDaMensagem(gravada));
+    } catch (e) {
+      console.warn('[portal_corretor] evento mensagem_recebida não publicado:', (e as Error).message);
+    }
+  }
   await depoisDeEntrarNoListener(ctx, conta, entrada);
   const m = motor as { nid: number; responsavel: number | null } | null;
   if (m) {

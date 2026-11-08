@@ -2,6 +2,7 @@ import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { registrar } from './crm';
+import { payloadDaMensagem, registrarMensagem } from './conversas';
 import { reclassificar } from './inteligencia';
 import { apagarVitrine, corretorDaConta, limparSelecoesVencidas, publicarSelecao, revogarIngresso, selecaoValida, sincronizarPortal, tentarPortal } from './portal';
 import { contaDoRequest, origemPublica, publicavel } from './vitrine';
@@ -180,6 +181,13 @@ clienteRotas.post(
     await sincronizarPortal(dados, conta, contato.id, await corretor(req));
     await dados.criar('envios', { contato_id: contato.id, tipo: 'link_portal', canal: 'whatsapp', autor_tipo: 'humano', descricao: 'Link do portal do cliente', enviado_em: new Date().toISOString(), cliques: 0 });
     await registrar(dados, req, { tipo: 'portal.criado', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: 'Link do portal do cliente gerado' });
+    // O link entra na conversa (P02, D-116): o cliente recebe pelo WhatsApp do corretor.
+    const naConversa = await registrarMensagem(dados, { contato_id: Number(contato.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu(req), canal: 'wa_me', tipo: 'link_portal', dados: { link } });
+    try {
+      await req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(naConversa));
+    } catch (e) {
+      console.warn('[portal_corretor] evento mensagem_enviada não publicado:', (e as Error).message);
+    }
     res.status(201).json({ ativo: true, link, novo: true });
   }),
 );

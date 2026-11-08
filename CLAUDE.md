@@ -8,7 +8,7 @@ Instruções permanentes para toda sessão de implementação neste repositório
 
 ## O que é
 
-App `portal_corretor` da plataforma **UrbiVerso**: escritório digital do corretor de imóveis (CRM e funil com IA, WhatsApp pelo app com o Mensageiro, Estúdio de conteúdo para Instagram com Canva, Minha Página, Portal do Cliente, Assistente do Corretor, Negociador). Corretor e negociadores humanos são usuários externos da conta do corretor (o cliente, no MVP, entra por link com token); **nenhum corretor vê nada de outro corretor**. Todas as telas seguem o **Padrão B** (spec 11.0: moldura com trilho e três colunas — lista, foco e contexto).
+App `portal_corretor` da plataforma **UrbiVerso**: escritório digital do corretor de imóveis (CRM e funil com IA, WhatsApp pelo app com o Mensageiro, Estúdio de conteúdo para Instagram com Canva, Minha Página, Portal do Cliente, Assistente do Corretor, Negociador). Corretor e negociadores humanos são usuários externos da conta do corretor (o cliente, no MVP, entra por link com token); **nenhum corretor vê nada de outro corretor**. Todas as telas seguem o **Padrão B** (spec 11.0: página do shell com o menu no `nav`, Criar no cabeçalho, Assistente no cabeçalho da coluna esquerda e três colunas de 360 · flexível · 340 — lista, foco e contexto; D-114).
 
 ## Mapa do repositório
 
@@ -20,7 +20,8 @@ specs/plano_de_implementacao.md    a ordem: blocos, status, registro de sessões
 specs/pedidos_ao_shell.md          ajustes necessários no shell do UrbiVerso
 specs/telas_padrao_b.md            guia visual do Padrão B: moldura, componentes, wireframe de cada tela, dados de exemplo
 specs/telas/                       mockups HTML estáticos de cada tela (abrir index.html no navegador; só referência visual)
-specs/layout/                      referência visual oficial: README.md (contrato de layout), png/ (25 imagens, 1440 px e 390 × 844) e 25 .layout.json (medidas); ver regra abaixo
+specs/layout/                      referência visual oficial, versão 2 (moldura do shell): README.md (contrato), png/ (25 imagens, área da app 1289 px e 390 × 844) e 25 .layout.json (medidas); ver regra abaixo
+specs/decisoes_etapa3.md           respostas do dono às decisões da etapa 3 (D-114 a D-120) e o grupo 1 fechado
 specs/stack_funcional.md           intenção de produto sem amarras de plataforma (consulta)
 specs/referencias_principais.md    as 5 referências principais (D-80): o que copiar de cada uma (consulta de tela e comportamento)
 specs/referencias.md               catálogo amplo de produtos de mercado (consulta)

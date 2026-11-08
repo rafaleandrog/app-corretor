@@ -28,7 +28,7 @@ import {
 } from '../apoio.js';
 import { buscaDaVisao, contatoDoItem } from '../enderecos.js';
 import { estadoTela } from '../estados.js';
-import { moldura } from '../moldura.js';
+import { botaoAssistenteColuna, cabecalhoColuna, moldura } from '../moldura.js';
 import { chaveDoQuadro, contatoDoFunil } from './clientes-quadro.js';
 import { novaProposta } from './negociacoes.js';
 import './ficha-contato.js';
@@ -182,7 +182,7 @@ function molduraNegociacoes(atualizar: () => void, topo: unknown, menu: string) 
 
 /** O endereço `/negociacoes` (menu do negociador humano, D7): só a visão Negociações, sem o resto de Clientes. */
 export function renderNegociacoes(atualizar: () => void) {
-  const topo = html`<urbi-prosa papel="titulo">${soNegociador() ? 'Negociações atribuídas a você' : 'Negociações'}</urbi-prosa>`;
+  const topo = cabecalhoColuna(soNegociador() ? 'Negociações atribuídas a você' : 'Negociações');
   return molduraNegociacoes(atualizar, topo, soNegociador() ? '/negociacoes' : '/clientes');
 }
 
@@ -241,6 +241,7 @@ function topoClientes(visao: string, aoTrocarVisao: (v: string) => void, aoNovo:
         <urbi-botao pequeno variante="secundario" icone="fa-solid fa-file-import" href=${urbiVerso.href('/clientes/importar')}>Importar</urbi-botao>
         <urbi-botao pequeno icone="fa-solid fa-user-plus" @click=${aoNovo}>Novo</urbi-botao>
         <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-file-export" ariaLabel="Exportar contatos" title="Exportar contatos" @click=${() => exportarContatos()}></urbi-botao>
+        ${botaoAssistenteColuna()}
       </urbi-linha>
     </urbi-linha>
     <urbi-chips-atalho .opcoes=${VISOES} ativo=${visao} @urbi:chip-atalho:click=${(e: CustomEvent) => aoTrocarVisao(e.detail.id)}></urbi-chips-atalho>`;

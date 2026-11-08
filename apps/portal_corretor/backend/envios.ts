@@ -5,6 +5,7 @@ import { assincrono, erro, guardarCorretor } from './acesso';
 import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
 import { criarLink } from './vitrine';
+import { payloadDaMensagem, registrarMensagem } from './conversas';
 
 // Envios (bloco 4b, spec 6.15): o histórico de tudo que o corretor mandou a cada cliente. Nesta
 // versão o envio é registrado pelo corretor (ele manda pelo próprio WhatsApp). Com a página no ar e
@@ -58,6 +59,21 @@ enviosRotas.post(
     await reclassificar(dados, cid!);
     // Link rastreado só quando o imóvel está na página pública; sem ele, a mensagem segue sem link.
     const link = imovel ? await criarLink(req, codigoLink, imovel.id).catch(() => null) : null;
+    // O envio entra na conversa do cliente (P02, D-116) como mensagem de saída, com o cartão que o cliente vê.
+    const tipoMensagem = tipo === 'mensagem' || tipo === 'simulacao' ? 'texto' : tipo;
+    const cartao = imovel
+      ? { imovel_id: imovel.id, codigo: imovel.codigo, titulo: imovel.titulo ?? null, bairro: imovel.bairro ?? null, preco_c: imovel.preco_c ?? null, link }
+      : { titulo: descricao, link };
+    const naConversa = await registrarMensagem(dados, {
+      contato_id: cid!, direcao: 'saida', autor_tipo: 'humano', autor_id: req.contexto!.usuario.id, canal: canal === 'whatsapp' ? 'wa_me' : 'registro',
+      tipo: tipoMensagem as 'texto' | 'imovel' | 'arquivo' | 'localizacao', conteudo: descricao, dados: cartao, em: agora,
+    });
+    try {
+      await req.eventos?.publicar('envio_criado', { envio_id: Number(envio.id), contato_id: cid!, imovel_id: imovel?.id ?? null });
+      await req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(naConversa));
+    } catch (e) {
+      console.warn('[portal_corretor] evento do envio não publicado:', (e as Error).message);
+    }
     // Texto pronto para o corretor colar no WhatsApp (sem dado do proprietário nem endereço completo).
     const primeiroNome = String(contato.nome).split(' ')[0];
     const mensagem = imovel

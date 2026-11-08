@@ -58,7 +58,7 @@ window.estados = () => ESTADOS.map((t) => {
 desenhar();
 `;
 
-test('moldura no Chromium: árvore de primitivos, trilho ligado, Assistente na direita e sem CSS próprio', async (t) => {
+test('moldura no Chromium (D-114): árvore de primitivos, três colunas fixas, Assistente na direita e sem CSS próprio', async (t) => {
   const pw = playwright();
   if (!pw) return t.skip('Playwright não instalado neste ambiente');
   const pacote = await build({
@@ -78,55 +78,44 @@ test('moldura no Chromium: árvore de primitivos, trilho ligado, Assistente na d
 
     const arvore = await pagina.evaluate(() => {
       const q = (s: string) => document.querySelector(s);
-      const trilho = q('#raiz > urbi-inbox > urbi-trilho-atalhos[slot="sidebar-trilho"]') as any;
-      const colunas = q('#raiz > urbi-inbox > urbi-3-colunas[slot="detalhe"]');
+      const colunas = q('#raiz > urbi-3-colunas');
       const hosp = (slot: string) => q(`urbi-3-colunas > urbi-hospedeiro[slot="${slot}"][expandir]`)?.textContent?.trim();
       return {
-        inbox: ['largura-sidebar', 'largura-min-sidebar', 'texto-voltar'].map((a) => q('#raiz > urbi-inbox')?.getAttribute(a)),
-        detalheVisivel: q('#raiz > urbi-inbox')?.hasAttribute('detalhe-visivel'),
-        trilho: trilho?.itens?.map((i: any) => `${i.rotulo}${i.ativo ? '*' : ''}`),
+        semTrilho: !q('urbi-inbox') && !q('urbi-trilho-atalhos'),
         colunas: ['largura-esquerda', 'largura-direita', 'painel-ativo'].map((a) => colunas?.getAttribute(a)),
         flags: ['redimensionavel', 'colapsavel-esquerda', 'colapsavel-direita'].map((a) => colunas?.hasAttribute(a)),
         conteudo: [hosp('esquerda'), hosp('centro'), hosp('direita')],
         estilos: document.querySelectorAll('style, [style]').length,
       };
     });
-    assert.deepEqual(arvore.inbox, ['0px', '0px', 'Menu']);
-    assert.equal(arvore.detalheVisivel, true);
-    assert.deepEqual(arvore.trilho, ['Hoje', 'Clientes', 'Imóveis', 'Estúdio', 'Página', 'Números*', 'Ajustes', 'Buscar', 'Assistente']);
+    assert.equal(arvore.semTrilho, true, 'sem inbox nem trilho: o menu é o nav do shell');
     assert.deepEqual(arvore.colunas, ['360px', '340px', 'centro']);
-    assert.deepEqual(arvore.flags, [true, true, true]);
+    assert.deepEqual(arvore.flags, [false, false, false], 'larguras fixas: sem resize nem colapso');
     assert.deepEqual(arvore.conteudo, ['LISTA', 'CENTRO', 'CONTEXTO']);
     assert.equal(arvore.estilos, 0, 'nenhum <style> nem style= na moldura');
 
-    // Clique no trilho: navega pelo `navegarSub`; o Assistente abre na coluna da direita.
+    // O Assistente abre na coluna da direita (pelo botão do cabeçalho da coluna esquerda, `abrirAssistente`).
     const depois = await pagina.evaluate(async () => {
-      const trilho = document.querySelector('urbi-trilho-atalhos')!;
-      trilho.dispatchEvent(new CustomEvent('urbi:atalho-click', { detail: { id: '/clientes' }, bubbles: true, composed: true }));
-      trilho.dispatchEvent(new CustomEvent('urbi:atalho-click', { detail: { id: 'assistente' }, bubbles: true, composed: true }));
+      (window as any).abrirAssistente();
       await new Promise((r) => setTimeout(r, 0));
       const direita = document.querySelector('urbi-3-colunas > urbi-hospedeiro[slot="direita"]')!;
       const r = {
-        navegou: (window as any).navegou.slice(),
         // O chat é filho DIRETO da coluna (sem hospedeiro entre eles), com `expandir`; o topo é o hospedeiro irmão.
         chat: !!document.querySelector('urbi-3-colunas > urbi-chat[slot="direita"][expandir]'),
         chatEmHospedeiro: !!document.querySelector('urbi-hospedeiro urbi-chat'),
         contexto: direita.textContent!.includes('CONTEXTO'),
         centro: document.querySelector('urbi-hospedeiro[slot="centro"]')!.textContent!.trim(),
         largura: document.querySelector('urbi-3-colunas')!.getAttribute('largura-direita'),
-        ativo: (document.querySelector('urbi-trilho-atalhos') as any).itens.filter((i: any) => i.ativo).map((i: any) => i.id),
       };
       // Fechar pelo botão do painel devolve o contexto.
       (direita.querySelector('urbi-botao[icone="fa-solid fa-xmark"]') as HTMLElement).click();
       r.contexto = document.querySelector('urbi-hospedeiro[slot="direita"]')!.textContent!.includes('CONTEXTO');
       return r;
     });
-    assert.deepEqual(depois.navegou, ['/clientes']);
     assert.equal(depois.chat, true, 'chat filho direto do slot direita do urbi-3-colunas');
     assert.equal(depois.chatEmHospedeiro, false, 'nenhum hospedeiro em volta do chat');
     assert.equal(depois.centro, 'CENTRO', 'o centro fica');
-    assert.equal(depois.largura, '400px');
-    assert.deepEqual(depois.ativo, ['assistente']);
+    assert.equal(depois.largura, '380px');
     assert.equal(depois.contexto, true, 'fechar devolve o contexto');
 
     // Sem lista (`urbi-2x1`) e tela fora da moldura (`comAssistente`): topo na zona `direita-topo`, chat solto em `direita`.
@@ -151,18 +140,6 @@ test('moldura no Chromium: árvore de primitivos, trilho ligado, Assistente na d
       return { semLista, comAssist };
     });
     for (const [nome, m] of Object.entries(doisLayouts)) assert.deepEqual(m, { chat: true, topo: true, emHospedeiro: false }, nome);
-
-    // Celular: o Voltar mostra o trilho e trocar de tela por fora dele devolve as colunas.
-    const celular = await pagina.evaluate(() => {
-      const w = window as any;
-      w.desenhar();
-      const inbox = () => document.querySelector('#raiz > urbi-inbox')!;
-      inbox().dispatchEvent(new CustomEvent('urbi:inbox-voltar', { bubbles: true, composed: true }));
-      const noTrilho = !inbox().hasAttribute('detalhe-visivel');
-      w.desenharMenu('/clientes');
-      return { noTrilho, depois: inbox().hasAttribute('detalhe-visivel') };
-    });
-    assert.deepEqual(celular, { noTrilho: true, depois: true });
 
     // Os 7 estados no DOM: cada um com o primitivo certo.
     const estados = Object.fromEntries(await pagina.evaluate(() => (window as any).estados()));

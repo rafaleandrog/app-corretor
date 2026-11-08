@@ -25,7 +25,7 @@ e a garantia é do banco de dados da plataforma, não só das telas.
 | Corretor | **Ajustes** | No desenho novo, em três colunas: as seções à esquerda (Mensageiro, Negociador, Conexões, Conta e marca, Funil e abordagens, Horário de atendimento, Privacidade), o conteúdo no centro e a ajuda à direita — ver [Conta e ajustes](conta-e-ajustes.md) e [Conexões (Instagram)](conexoes.md) |
 | Corretor | **Clientes › Negociações** | A negociação de cada negócio: a faixa com a ZOPA, a escada de propostas, a sugestão do Negociador IA (Enviar, Fazer agora, Editar, Descartar), o mandato do vendedor (recuo e BATNA mascarados) e o aceite, que é sempre seu; o jeito do Negociador fica em Ajustes › Negociador — ver [Negociação e mandato](negociacao.md) |
 | Negociador humano | **Hoje** e **Negociações** | Só as negociações que o corretor atribuiu a ele: pede sugestão, envia, edita e registra propostas dentro do mandato, sem ver o recuo, o alvo nem a BATNA do vendedor e sem aceitar o acordo final. O corretor convida a pessoa em Ajustes › Negociador (só o e-mail, sem CRECI) e atribui na negociação — ver [Negociador humano](negociacao.md#negociador-humano) |
-| Corretor | **Buscar** e atalhos de teclado | Busca clientes, imóveis e negociações da sua conta (**Buscar** no trilho das telas em colunas, ou a tecla `/` em qualquer tela da área do corretor); `C` Criar, `A` Assistente, `J`/`K` próximo e anterior na lista, `E` editar — ver [Atalhos e busca](#atalhos-e-busca) |
+| Corretor | **Buscar** e atalhos de teclado | Busca clientes, imóveis e negociações da sua conta (a tecla `/` em qualquer tela da área do corretor, ou **Buscar** no Assistente); `C` Criar, `A` Assistente, `J`/`K` próximo e anterior na lista, `E` editar — ver [Atalhos e busca](#atalhos-e-busca) |
 | Corretor | **Criar** (no alto de toda tela) | Novo cliente, Novo imóvel, Novo post, Nova visita e Nova proposta — ver [Como as telas se organizam](#como-as-telas-se-organizam) |
 | Corretor | Endereços antigos | `/agenda`, `/funil`, `/empreendimentos`, `/minha-pagina`, `/desempenho` e `/assistente` abrem Hoje › Agenda, Clientes › Funil, Imóveis › Empreendimentos, Página, Números e Hoje com o Assistente aberto; `/conta` e `/ajustes/marca` abrem Ajustes › Conta e marca |
 | Equipe da plataforma | **Equipe da plataforma › Corretores** (no menu do app, no alto da página) | Convida corretores e acompanha os convites — ver [Convidar corretores](convidar-corretores.md) |
@@ -35,17 +35,15 @@ quando liberada pelo administrador. Cada funcionalidade passa a constar aqui na 
 
 ## Como as telas se organizam
 
-O menu das telas é o trilho: **Hoje · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. Todas
+O menu das telas é o do shell (**Portal do Corretor ▾**): **Hoje · Conversas · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**. Todas
 as telas do corretor estão num desenho só, em colunas (o "Padrão B"): Hoje, Clientes (Lista, Funil,
 Negociações e Importar), Imóveis (e Novo imóvel), Estúdio, Página, Números e Ajustes. A tela
 **Corretores**, da equipe da plataforma, fica fora desse desenho.
 
 Em telas largas, as colunas usam a largura inteira da área do app. Nas telas de três colunas, as
-laterais começam com uma largura fixa (a lista com 360 px e a coluna da direita com 340 px, ou 400 px
-com o Assistente aberto), que dá para ajustar arrastando a borda, e a coluna do meio fica com todo o
-resto, então cresce em monitores grandes. Quando a coluna da direita não tem nada a mostrar ainda (em Clientes,
-Negociações e Imóveis sem nenhum item escolhido, e no Funil sem cartão escolhido), ela começa
-recolhida, num trilho fino, e o meio fica com a largura dela; ao escolher um item, ela abre. Em telas estreitas (até 900 px de largura, como celular e tablets menores em pé),
+laterais têm largura fixa (a lista com 360 px e a coluna da direita com 340 px, ou 380 px com o
+Assistente aberto) e a coluna do meio fica com todo o resto, então cresce em monitores grandes. Quando a
+coluna da direita não tem nada a mostrar ainda (nenhum item escolhido), ela diz "Escolha um item". Em telas estreitas (até 900 px de largura, como celular e tablets menores em pé),
 as colunas viram abas, como antes.
 
 ### Mapa das telas
@@ -53,6 +51,7 @@ as colunas viram abas, como antes.
 | Tela | Como chegar | Endereço | Onde está explicada |
 |---|---|---|---|
 | Hoje | Menu › **Hoje** | `/` (aba Agenda: `/agenda`) | [Funil, temperatura e fila do dia](funil.md) |
+| Conversas | Menu › **Conversas** | `/conversas?item=<número>` | [Conversas](conversas.md) |
 | Clientes › Lista e ficha | Menu › **Clientes** › escolha um cliente | `/clientes?item=<número>` | [Clientes, negócios e agenda](clientes-e-agenda.md) |
 | Clientes › Funil | Menu › **Clientes** › botão **Funil** | `/clientes?visao=funil` (ou `/funil`) | [Funil, temperatura e fila do dia](funil.md) |
 | Clientes › Negociações | Menu › **Clientes** › botão **Negociações** | `/clientes?visao=negociacoes&item=<número>` (ou `/negociacoes`) | [Negociação e mandato](negociacao.md) |
@@ -67,19 +66,18 @@ as colunas viram abas, como antes.
 | Ajustes › Conexões | Menu › **Ajustes** › Conexões | `/ajustes/conexoes` | [Conexões (Instagram)](conexoes.md) |
 | Ajustes › Negociador | Menu › **Ajustes** › Negociador | `/ajustes/negociador` | [Negociação e mandato](negociacao.md#ajustes-do-negociador) |
 | Ajustes › Funil e abordagens | Menu › **Ajustes** › Funil e abordagens | `/ajustes/funil` | [Funil, temperatura e fila do dia](funil.md) |
-| Assistente | Botão **Assistente** no trilho (ou tecla `A`) | `/assistente` abre Hoje com ele aberto | [Assistente do Corretor](assistente.md) |
+| Assistente | Botão **Assistente** (✦) no cabeçalho da coluna esquerda de toda tela (ou tecla `A`) | `/assistente` abre Hoje com ele aberto | [Assistente do Corretor](assistente.md) |
 | Página pública e ficha do imóvel | Link da Página (sem login) | página pública do app | [Página, ficha pública e link rastreado](minha-pagina.md) |
 | Portal do Cliente e seleção | Link pessoal do cliente (sem login) | página pública do app | [Seleções e Portal do Cliente](selecoes-e-portal.md) |
 
 | Parte | Onde fica | O que faz |
 |---|---|---|
-| **Trilho** | Faixa estreita à esquerda | Os itens do menu, com o da tela aberta destacado, e os botões **Buscar** e **Assistente** no fim. No celular, o botão **Menu** no alto mostra o trilho |
-| **Menu do app** | Nome do app no alto da página (**Portal do Corretor ▾**) | Não repete o trilho (desde a 0.1.43): traz só os itens da plataforma (Home e, para o administrador do app, Configurações) e **Equipe da plataforma › Corretores**, a tela da equipe da plataforma (papel `operacao`). Quem só tem `operacao` chega a ela pela raiz do app; para o administrador do app, este menu é o caminho de navegação (a raiz abre Hoje e o trilho não tem Corretores; o endereço direto `/corretores` também abre). O corretor, que é usuário externo, não abre esse menu: ele navega pelo trilho. Nas tabelas acima, "Menu ›" quer dizer o trilho |
+| **Menu** | Nome do app no alto da página (**Portal do Corretor ▾**) | As telas do corretor na ordem **Hoje · Conversas · Clientes · Imóveis · Estúdio · Página · Números · Ajustes**, mais Equipe da plataforma › Corretores para a equipe (desde a 0.1.46 o menu é o do shell; a app não tem mais o trilho lateral) |
 | **Lista** | Coluna da esquerda | O que existe naquela tela (em Números, os relatórios; em Página, os blocos). O item escolhido fica no endereço (`?item=`; em Números, `?relatorio=`): recarregar ou abrir o link guardado reabre o mesmo |
 | **Foco** | Coluna do meio, a mais larga | O que você está fazendo: o item aberto e as ações principais |
 | **Contexto** | Coluna da direita | O que ajuda a decidir sobre o item aberto. O Assistente, quando aberto, ocupa esta coluna |
 
-- As colunas da esquerda e da direita podem ser alargadas, arrastando a divisa, e recolhidas pela setinha no topo delas.
+- As colunas da esquerda (360 px) e da direita (340 px) têm largura fixa; a do meio fica com o resto. A da direita mostra "Escolha um item" enquanto nada está aberto.
 - No celular, aparece uma coluna por vez, com abas para trocar entre elas.
 
 **Criar**, no alto de toda tela do corretor, abre:
@@ -107,7 +105,7 @@ ver [Assistente do Corretor](assistente.md).
 
 ## Atalhos e busca
 
-**Buscar** fica no trilho, acima do Assistente, nas telas já no desenho em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Estúdio, Página, Números e Ajustes (o negociador humano não o vê). A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
+**Buscar** abre pela tecla `/` nas telas em colunas: Hoje, Negociações, Clientes, Importar contatos, Imóveis, Estúdio, Página, Números e Ajustes (o negociador humano não o vê). A tecla `/` abre a busca em qualquer tela da área do corretor, com ou sem trilho. Digite pelo menos 2
 letras: aparecem até 5 resultados de cada tipo, só da sua conta.
 
 | Tipo | Busca por | Ao escolher |

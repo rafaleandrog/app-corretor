@@ -3,7 +3,7 @@ import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { ROTULO_BLOCO, type Bloco } from '../../comum/pagina';
 import { acoesComMais, avisoCreci, chamarApi, contaDeTrabalho, dataHora, ehContaTrocada, enviar, gesto, itemDaUrl, itemNaUrl, mensagemDeErro, noGesto, type Gesto } from '../apoio';
 import { estadoDaFalha, estadoTela } from '../estados.js';
-import { moldura } from '../moldura.js';
+import { botaoAssistenteColuna, moldura } from '../moldura.js';
 import type { PreviaPagina } from '../publico/pagina-publica.js';
 import { abrirAssistente } from './assistente.js';
 
@@ -323,10 +323,13 @@ function colunaBlocos() {
         <urbi-prosa papel="titulo">Página</urbi-prosa>
         <urbi-prosa papel="secundario">${urlCompleta()}</urbi-prosa>
       </urbi-stack>
-      ${noAr
-        ? nothing
-        : html`<urbi-botao icone="fa-solid fa-rocket" ?carregando=${estado.ocupado} ?desabilitado=${!v.salva}
-            @click=${() => void acao('/pagina/publicar', 'Página publicada.')}>Publicar</urbi-botao>`}
+      <urbi-linha>
+        ${noAr
+          ? nothing
+          : html`<urbi-botao pequeno icone="fa-solid fa-rocket" ?carregando=${estado.ocupado} ?desabilitado=${!v.salva}
+              @click=${() => void acao('/pagina/publicar', 'Página publicada.')}>Publicar</urbi-botao>`}
+        ${botaoAssistenteColuna()}
+      </urbi-linha>
     </urbi-linha>
     <urbi-linha quebrar>
       <urbi-badge cor=${noAr ? 'sucesso' : 'padrao'}>${noAr ? `Publicada desde ${dataHora(p.publicada_em)}` : 'Rascunho'}</urbi-badge>

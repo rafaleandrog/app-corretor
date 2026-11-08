@@ -5,6 +5,7 @@ import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { aoAbrirHoje, renderHoje } from './telas/inicio.js';
 import './telas/corretores.js';
 import { renderClientes, renderNegociacoes } from './telas/clientes.js';
+import { renderConversas } from './telas/conversas.js';
 import { renderHojeNegociador } from './telas/negociacoes.js';
 import { aoAbrirImportar, renderImportar } from './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
@@ -52,6 +53,8 @@ const TELAS: Record<ChaveTela, Tela> = {
   hoje: { titulo: 'Hoje', papel: 'corretor', moldura: true, aoAbrir: aoAbrirHoje, tambem: ['negociador'],
     render: (_p, app) => (soNegociador() ? renderHojeNegociador(() => app?.requestUpdate()) : renderHoje(() => app?.requestUpdate())) },
   negociacoes: { titulo: 'Negociações', papel: 'corretor', tambem: ['negociador'], moldura: true, render: (_p, app) => renderNegociacoes(() => app?.requestUpdate()) },
+  // Conversas (P02, D-116): a caixa de conversas do corretor; o item fica em `?item=`.
+  conversas: { titulo: 'Conversas', papel: 'corretor', moldura: true, render: (_p, app) => renderConversas(() => app?.requestUpdate()) },
   clientes: { titulo: 'Clientes', papel: 'corretor', moldura: true, render: (_p, app) => renderClientes(() => app?.requestUpdate()) },
   importar: { titulo: 'Importar contatos', papel: 'corretor', moldura: true, aoAbrir: aoAbrirImportar, render: (_p, app) => renderImportar(() => app?.requestUpdate()) },
   // `/clientes/:id` é apelido: `chegar` troca o endereço por `/clientes?item=:id` antes de desenhar.
