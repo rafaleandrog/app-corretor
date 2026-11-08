@@ -107,14 +107,18 @@ test('portal: a mensagem do cliente entra na conversa como não lida e publica m
     anaId = (await chamar('POST', '/contatos', { nome: 'Ana Ribeiro', telefone: '+5561999990001' })).corpo.id;
   });
   const publicados: Publicado[] = [];
-  const ctx = { ...banco.ctxSistema([{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }]), eventos: { publicar: async (tipo: string, payload: Record<string, unknown>) => publicados.push({ tipo, payload }) } };
+  // O `publicar` falso exige a conta explícita, como o barramento em contexto sem usuário (barramento.md § Eventos segregados por conta).
+  const ctx = { ...banco.ctxSistema([{ id: 100, nome: 'A' }, { id: 200, nome: 'B' }]), eventos: { publicar: async (tipo: string, payload: Record<string, unknown>, op?: { conta_id?: number }) => {
+    if (op?.conta_id !== 100) throw new Error(`evento ${tipo} publicado pelo listener sem a conta (conta_id=${String(op?.conta_id)})`);
+    publicados.push({ tipo, payload });
+  } } };
   const payload = { contato_id: anaId, tipo: 'mensagem', texto: 'Posso levar minha mãe na visita?', visita: null, tarefa: null, negociacao: null, proposta: null, valor_c: null };
   await reagir.acao_cliente_recebida({ payload, conta_id: 100 } as never, ctx);
   await reagir.acao_cliente_recebida({ payload, conta_id: 100 } as never, ctx);
   assert.equal(banco.linhas('conversas').length, 1, 'uma conversa por cliente');
   assert.equal(banco.linhas('mensagens').length, 1, 'o mesmo evento entregue de novo não duplica');
   assert.equal(banco.linhas('conversas')[0].conta_id, 100);
-  assert.deepEqual(publicados.map((p) => p.tipo), ['mensagem_recebida', 'mensagem_recebida']);
+  assert.deepEqual(publicados.map((p) => p.tipo), ['mensagem_recebida'], 'a reentrega não publica o evento de novo');
   assert.ok(!JSON.stringify(publicados[0].payload).includes('minha mãe'), 'evento sem o texto');
 
   await comServidor(rotas, A, banco, semShell, async (chamar) => {
@@ -148,6 +152,7 @@ test('isolamento: o corretor B não vê nem escreve na conversa do corretor A', 
     assert.equal((await chamar('GET', `/conversas/${cid}`)).status, 404);
     assert.equal((await chamar('POST', `/conversas/${cid}/mensagens`, { texto: 'invasão' })).status, 404);
     assert.equal((await chamar('POST', `/conversas/${cid}/assumir`)).status, 404);
+    assert.equal((await chamar('POST', `/conversas/${cid}/devolver`)).status, 404);
     assert.equal((await chamar('PATCH', `/conversas/${cid}`, { arquivada: true })).status, 404);
     // Abrir conversa com o contato de A pelo id: "não encontrado" (D-40).
     const contatoDeA = banco.linhas('contatos')[0].id;

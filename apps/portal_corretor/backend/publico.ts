@@ -478,9 +478,9 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
     if (item.reacao !== p.reacao || (p.comentario && p.comentario !== item.comentario)) {
       await trx.atualizar('selecao_itens', item.id, { reacao: p.reacao, reacao_em: agora, ...(p.comentario ? { comentario: p.comentario } : {}) });
       await linhaDoTempo(trx, contato.id, 'selecao.reacao', `${ROTULO_REACAO[p.reacao]} ${imovel.codigo}${p.comentario ? `: ${p.comentario}` : ''} (seleção "${selecao.titulo}")`, { selecao_id: selecao.id, imovel_codigo: imovel.codigo, reacao: p.reacao });
+      // A reação (só quando muda) entra na conversa (P02) como aviso vindo do cliente: "Quero visitar · IM-0001".
+      await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'sistema', conteudo: `${ROTULO_REACAO[p.reacao] ?? p.reacao}: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}${p.comentario ? ` — ${String(p.comentario).slice(0, 200)}` : ''}`, dados: { selecao_id: Number(selecao.id), imovel_id: Number(imovel.id), reacao: p.reacao } });
     }
-    // A reação entra na conversa (P02) como aviso vindo do cliente: "Quero visitar · IM-0001".
-    await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'sistema', conteudo: `${ROTULO_REACAO[p.reacao] ?? p.reacao}: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}${p.comentario ? ` — ${String(p.comentario).slice(0, 200)}` : ''}`, dados: { selecao_id: Number(selecao.id), imovel_id: Number(imovel.id), reacao: p.reacao } });
     if (p.reacao === 'quero_visitar') await tarefa(trx, conta, contato, `Marcar visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
     // "Conversar sobre o preço" (F3, 10.9.4): a tarefa avisa o corretor e, com o gatilho `reacao_preco`
     // ligado, o Negociador entra na negociação daquele imóvel (ou a abre, no negócio de compra dele).
@@ -672,9 +672,11 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
     await reclassificar(trx, contato.id);
   });
   const gravada = naConversa as Awaited<ReturnType<typeof registrarMensagem>> | null;
-  if (gravada) {
+  // Em contexto sem usuário a conta é obrigatória e explícita no 3º argumento (barramento.md § Eventos
+  // segregados por conta); a reentrega do mesmo evento não publica de novo.
+  if (gravada && !gravada.repetida) {
     try {
-      await ctx.eventos?.publicar('mensagem_recebida', payloadDaMensagem(gravada));
+      await ctx.eventos?.publicar('mensagem_recebida', payloadDaMensagem(gravada), { conta_id: conta });
     } catch (e) {
       console.warn('[portal_corretor] evento mensagem_recebida não publicado:', (e as Error).message);
     }

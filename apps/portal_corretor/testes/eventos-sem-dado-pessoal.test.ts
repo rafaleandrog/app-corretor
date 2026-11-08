@@ -481,7 +481,7 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
   assert.deepEqual(Object.keys(eventos).filter((t) => !saidos.has(t)), [], 'eventos do manifesto que o cenário não emitiu: acrescente o caminho');
   // Os caminhos do listener (repassadores com o tipo em variável) emitiram, e na conta certa.
   const doListener = bus.emitidos.filter((e) => e.via === 'publicar' && e.conta !== undefined);
-  for (const tipo of ['negociacao_iniciada', 'proposta_recebida', 'proposta_aceite_cliente', 'contraproposta_enviada']) {
+  for (const tipo of ['negociacao_iniciada', 'proposta_recebida', 'proposta_aceite_cliente', 'contraproposta_enviada', 'mensagem_recebida']) {
     assert.ok(doListener.some((e) => e.tipo === tipo && e.conta === 100), `${tipo} pelo listener, na conta 100`);
   }
   // Nenhum valor fora dos campos residuais traz o dado pessoal que entrou, e os que não são residuais são id, código ou valor.

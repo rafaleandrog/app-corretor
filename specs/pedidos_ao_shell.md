@@ -167,7 +167,7 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima (qualquer uma fecha):** (a) o vocabulário de marca para páginas públicas (tokens próprios, não de tema), que tiraria os literais; ou (b) a auditoria `[tokens]` ignorar o CSS dos componentes declarados em `paginas_publicas` do manifesto (ou um arquivo/pasta convencionado para eles), mais uma linha "Página pública: paleta fixa" no registro de exceções do `ui.md`.
 
-## 24. Três primitivos aquém do contrato de layout v2 (fase 1.7, grupo 1)
+## 24. Primitivos e contratos aquém do layout v2 (fase 1.7, grupo 1)
 
 **Por quê:** a referência visual v2 (`specs/layout/README.md` § 3, aprovada pelo dono) fixa botão de 34 px, campo de 36 px e raio 12, e a conferência da P02 (`specs/prints/conferencia-p02-0.1.46/`) mostrou três pontos em que o primitivo não chega lá sem CSS da tela, que a regra 10 de `ui.md` proíbe:
 
@@ -177,7 +177,11 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Até lá:** usar o primitivo e registrar a diferença em cada PR de tela (README § 1).
 
-**Proposta mínima:** (1) `urbi-botao` sem texto vira quadrado da altura do botão (34, ou 25 com `pequeno`); (2) `urbi-lista` pinta o item `aria-current` com o fundo de seleção do tema; (3) `urbi-redator` com uma prop `compacto` (ou `uma-linha`): campo de 36 px que cresce só ao digitar várias linhas e botões só ícone.
+4. **`urbi-feed` com conteúdo livre por mensagem** (balão espelhado por autor, cartão de imóvel, aviso ao centro): hoje a P02 monta os balões com `urbi-linha` + `urbi-card` (exceção nomeada "balões da conversa", spec 11.9) e perde o que o feed dá de graça (abertura no fim, scroll próprio, fill no celular).
+5. **Contrato do `nav` do manifesto no bundle do SDK**: `apps-em-repo-proprio.md` remete a "Arquitetura e Apps", que não vem no bundle; falta dizer itens, níveis, ícone, rota `/`, e se o `nav` é filtrado por papel e mostrado ao usuário externo (o shell 0.56.37 mostra, e `permissoes.md` § Usuário externo ainda diz que não).
+6. **`urbi-stack` com `gap`**: a tela precisa de um empilhamento mais apertado (nome + chips) e o catálogo diz "Props: nenhuma"; ou o stack ganha `gap` documentado (como `urbi-linha`), ou um papel "compacto".
+
+**Proposta mínima:** (1) `urbi-botao` sem texto vira quadrado da altura do botão (34, ou 25 com `pequeno`); (2) `urbi-lista` pinta o item `aria-current` com o fundo de seleção do tema; (3) `urbi-redator` com uma prop `compacto` (ou `uma-linha`): campo de 36 px que cresce só ao digitar várias linhas e botões só ícone; (4) a (6) acima.
 
 ## Se o shell não puder atender 1 e 2 a tempo
 

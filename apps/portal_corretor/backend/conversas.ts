@@ -71,17 +71,24 @@ export async function conversaDoContato(dados: HelperDados, contatoId: number, c
  * estado, primeiras respostas). Serve às rotas (req.dados) e aos listeners (trx do `comConta`): quem
  * chama publica o evento, porque só ele tem o `eventos` certo.
  */
-export async function registrarMensagem(dados: HelperDados, m: NovaMensagem): Promise<{ conversa: Linha; mensagem: Linha }> {
+export async function registrarMensagem(dados: HelperDados, m: NovaMensagem): Promise<{ conversa: Linha; mensagem: Linha; repetida: boolean }> {
   const em = m.em ?? agora();
   const tipo = m.tipo ?? 'texto';
   const conversa = await conversaDoContato(dados, m.contato_id, m.canal, m.autor_tipo === 'humano' ? (m.autor_id ?? null) : null, m.conta);
   if (m.conta) {
     // Listener: o mesmo evento entregue de novo não duplica a mensagem (como a linha do tempo faz).
-    const limite = new Date(Date.now() - 5 * 60_000).toISOString();
-    const repetida = (await dados.varrerTudo('mensagens', { filtros: { conta_id: m.conta, conversa_id: conversa.id, direcao: m.direcao, tipo, 'em[gte]': limite }, maximo: 50 })).find(
-      (x: Linha) => (x.conteudo ?? null) === (m.conteudo ?? null),
-    );
-    if (repetida) return { conversa, mensagem: repetida };
+    // A janela é curta (2 min, o que a reentrega do barramento leva) para não engolir "ok" duas vezes do cliente.
+    const limite = new Date(Date.now() - 2 * 60_000).toISOString();
+    let repetida: Linha | undefined;
+    try {
+      const filtros: Record<string, unknown> = { conta_id: m.conta, conversa_id: conversa.id, direcao: m.direcao, tipo, 'em[gte]': limite };
+      if (m.conteudo) filtros.conteudo = m.conteudo;
+      // `maximo` lança em vez de cortar (banco-de-dados.md § varrerTudo): mais que isso de iguais em 2 min não é reentrega; segue sem dedup.
+      repetida = (await dados.varrerTudo('mensagens', { filtros, maximo: 20 })).find((x: Linha) => (x.conteudo ?? null) === (m.conteudo ?? null));
+    } catch {
+      repetida = undefined;
+    }
+    if (repetida) return { conversa, mensagem: repetida, repetida: true };
   }
   const mensagem = await dados.criar('mensagens', {
     conversa_id: conversa.id,
@@ -100,7 +107,6 @@ export async function registrarMensagem(dados: HelperDados, m: NovaMensagem): Pr
   if (m.autor_tipo === 'sistema') {
     // Aviso de sistema não muda quem espera quem.
   } else if (m.direcao === 'entrada') {
-    mudanca.nao_lidas = Number(conversa.nao_lidas ?? 0) + 1;
     mudanca.estado = conversa.atendido_por === 'agente' ? 'aberta' : 'aguardando_corretor';
     if (!conversa.primeira_entrada_em) mudanca.primeira_entrada_em = em;
     if (conversa.arquivada_em) mudanca.arquivada_em = null; // o cliente voltou a falar: a conversa reabre
@@ -110,8 +116,11 @@ export async function registrarMensagem(dados: HelperDados, m: NovaMensagem): Pr
     if (m.autor_tipo === 'humano' && !conversa.primeira_resposta_humana_em) mudanca.primeira_resposta_humana_em = em;
     if (m.autor_tipo === 'humano' && !conversa.responsavel_id && m.autor_id) mudanca.responsavel_id = m.autor_id;
   }
-  const salva = await dados.atualizar('conversas', conversa.id, mudanca);
-  return { conversa: salva ?? { ...conversa, ...mudanca }, mensagem };
+  let salva = await dados.atualizar('conversas', conversa.id, mudanca);
+  if (!salva) throw Object.assign(new Error('Conversa não encontrada.'), { codigo: 'NAO_ENCONTRADO' });
+  // O contador soma com `incrementar`, nunca ler-somar-gravar (banco-de-dados.md § Contratos): duas entradas juntas somam duas.
+  if (m.autor_tipo !== 'sistema' && m.direcao === 'entrada') salva = (await dados.incrementar('conversas', conversa.id, { nao_lidas: 1 })) ?? salva;
+  return { conversa: salva, mensagem, repetida: false };
 }
 
 /** Payload dos eventos de mensagem (13.1): só ids, nunca o texto nem o canal (#151: o listener lê o resto no banco). */
@@ -217,7 +226,8 @@ conversasRotas.get(
     const mudanca: Linha = {};
     if (Number(conversa.nao_lidas ?? 0) > 0) mudanca.nao_lidas = 0;
     if (conversa.atendido_por !== atendimento.atendido_por || (conversa.agente ?? null) !== atendimento.agente) Object.assign(mudanca, atendimento);
-    const atual = Object.keys(mudanca).length ? ((await dados.atualizar('conversas', cid!, mudanca)) ?? { ...conversa, ...mudanca }) : conversa;
+    const atual = Object.keys(mudanca).length ? await dados.atualizar('conversas', cid!, mudanca) : conversa;
+    if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', 'Conversa não encontrada.');
     res.json({
       conversa: { ...atual, ultima_mensagem_em: iso(atual.ultima_mensagem_em) },
       contato: {
@@ -280,7 +290,8 @@ for (const [rota, para, evento] of [
       if (para === 'agente' && negociacao?.conduzida_por !== 'ia') return erro(res, 409, 'NEGOCIACAO_COM_CORRETOR', 'Devolva a negociação ao Negociador primeiro (Clientes › Negociações).');
       const quem = para === 'agente' ? { atendido_por: 'agente', agente: 'negociador' } : { atendido_por: 'humano', agente: null };
       const nome = req.contexto!.usuario.nome;
-      const salva = (await dados.atualizar('conversas', cid!, { ...quem, estado: para === 'humano' ? 'aguardando_corretor' : 'aberta' })) ?? { ...conversa, ...quem };
+      const salva = await dados.atualizar('conversas', cid!, { ...quem, estado: para === 'humano' ? 'aguardando_corretor' : 'aberta' });
+      if (!salva) return erro(res, 404, 'NAO_ENCONTRADO', 'Conversa não encontrada.');
       await registrarMensagem(dados, {
         contato_id: Number(conversa.contato_id), direcao: 'saida', autor_tipo: 'sistema', canal: 'sistema', tipo: 'sistema',
         conteudo: para === 'humano' ? `${nome} assumiu a conversa` : `${nome} devolveu a conversa ao Negociador`,
@@ -301,6 +312,7 @@ conversasRotas.patch(
     if (!conversa) return erro(res, 404, 'NAO_ENCONTRADO', 'Conversa não encontrada.');
     if (typeof req.body?.arquivada !== 'boolean') return erro(res, 422, 'DADOS_INVALIDOS', 'Nada para mudar.');
     const salva = await dados.atualizar('conversas', cid!, { arquivada_em: req.body.arquivada ? agora() : null });
-    res.json({ conversa: salva ?? conversa });
+    if (!salva) return erro(res, 404, 'NAO_ENCONTRADO', 'Conversa não encontrada.');
+    res.json({ conversa: salva });
   }),
 );

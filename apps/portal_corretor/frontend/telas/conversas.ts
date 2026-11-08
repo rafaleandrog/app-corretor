@@ -1,5 +1,6 @@
 import { html, LitElement, nothing, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { cabecalhoColuna, moldura } from '../moldura.js';
 import { buscaDoGesto, chamarApi, data as dataCurta, enviar, gesto, mensagemDeErro, reais, seNaoContaTrocada, type Gesto } from '../apoio.js';
@@ -131,9 +132,11 @@ export class PcConversasLista extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    this.soltar = (loja.ouvintes.add(() => {
+    const ouvinte = () => {
       if (this.versaoVista !== loja.versaoLista) void this.carregar();
-    }), () => loja.ouvintes.delete(this.soltar as unknown as () => void));
+    };
+    loja.ouvintes.add(ouvinte);
+    this.soltar = () => loja.ouvintes.delete(ouvinte);
     void this.carregar();
   }
 
@@ -293,6 +296,13 @@ export class PcConversaTopo extends ParteDaConversa {
     void this.recarregar();
   }
 
+  /** Arquivar tira a conversa da caixa (filtro Arquivadas); o cliente voltando a falar reabre sozinha. */
+  private arquivar(arquivada: boolean) {
+    void this.agir(arquivada ? 'Não foi possível arquivar' : 'Não foi possível desarquivar', async () => {
+      await this.vida.esperar(enviar('PATCH', `/conversas/${this.conversaId}`, { arquivada }));
+    });
+  }
+
   /** Assumir e Devolver (10.9.4): com negociação, a negociação muda primeiro (as regras moram lá). */
   private conduzir(acao: 'assumir' | 'devolver') {
     const d = this.d!;
@@ -339,6 +349,7 @@ export class PcConversaTopo extends ParteDaConversa {
             : d.negociacao?.conduzida_por === 'ia' || d.negociacao
               ? html`<urbi-botao variante="secundario" icone="fa-solid fa-robot" ?carregando=${this.ocupado} @click=${() => this.conduzir('devolver')}>Devolver ao Negociador</urbi-botao>`
               : html`<urbi-botao variante="secundario" icone="fa-solid fa-robot" desabilitado title="O Mensageiro chega com o WhatsApp">Reativar Mensageiro</urbi-botao>`}
+          <urbi-botao variante="texto" icone=${d.conversa.arquivada_em ? 'fa-solid fa-box-open' : 'fa-solid fa-box-archive'} ?desabilitado=${this.ocupado} @click=${() => this.arquivar(!d.conversa.arquivada_em)}>${d.conversa.arquivada_em ? 'Desarquivar' : 'Arquivar'}</urbi-botao>
         </urbi-linha>
       </urbi-linha>
     </urbi-stack>`;
@@ -648,15 +659,17 @@ export function renderConversas(atualizar: () => void) {
   // de slot do `urbi-hospedeiro` (ui-componentes-layout.md): dentro do hospedeiro `expandir` da coluna,
   // só o filho `expandir` preenche; o hospedeiro aninhado das mensagens zera o próprio respiro e rola.
   // Três hospedeiros irmãos no slot não servem: cada um enche a coluna por igual (conferido no shell 0.56.37).
-  const centro = html`<pc-conversa-topo .conversaId=${item}></pc-conversa-topo>
+  // `keyed` pelo id: trocar de conversa recria as partes, e cada uma carrega a nova no `connectedCallback`
+  // (sem isso o Lit reaproveita os elementos e a conversa nova ficaria em "carregando").
+  const centro = keyed(item, html`<pc-conversa-topo .conversaId=${item}></pc-conversa-topo>
     <urbi-hospedeiro expandir><pc-conversa-mensagens .conversaId=${item}></pc-conversa-mensagens></urbi-hospedeiro>
-    <pc-conversa-compositor .conversaId=${item}></pc-conversa-compositor>`;
+    <pc-conversa-compositor .conversaId=${item}></pc-conversa-compositor>`);
   return moldura(
     {
       menu: '/conversas',
       lista,
       centro,
-      contexto: html`<pc-conversa-contexto .conversaId=${item}></pc-conversa-contexto>`,
+      contexto: keyed(item, html`<pc-conversa-contexto .conversaId=${item}></pc-conversa-contexto>`),
       rotulos: { lista: 'Conversas', centro: 'Conversa', contexto: 'Cliente' },
       painel: 'centro',
     },
