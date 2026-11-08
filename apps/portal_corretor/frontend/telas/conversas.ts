@@ -75,14 +75,20 @@ async function carregarDetalhe(id: number, vida: Gesto): Promise<Detalhe | null>
   const d = (await vida.esperar(chamarApi(`/conversas/${id}`))) as Detalhe;
   loja.detalhes.set(id, d);
   avisar();
-  // Abrir a conversa marca como lida e alinha quem atende (é escrita: `PATCH .../lida`, não o `GET`).
-  const lida = (await vida.esperar(enviar('PATCH', `/conversas/${id}/lida`))) as { conversa: Detalhe['conversa'] };
-  if (lida?.conversa) {
-    const antes = d.conversa;
-    d.conversa = lida.conversa;
-    loja.detalhes.set(id, d);
-    if (Number(antes.nao_lidas ?? 0) > 0 || antes.atendido_por !== lida.conversa.atendido_por) listaMudou();
-    else avisar();
+  // Abrir a conversa marca como lida e alinha quem atende (é escrita: `PATCH .../lida`, não o `GET`). É
+  // refinamento: se falhar, a conversa já está na tela e o contador fica como está até a próxima abertura.
+  try {
+    const lida = (await vida.esperar(enviar('PATCH', `/conversas/${id}/lida`))) as { conversa: Detalhe['conversa'] };
+    if (lida?.conversa) {
+      const antes = d.conversa;
+      d.conversa = lida.conversa;
+      loja.detalhes.set(id, d);
+      if (Number(antes.nao_lidas ?? 0) > 0 || antes.atendido_por !== lida.conversa.atendido_por) listaMudou();
+      else avisar();
+    }
+  } catch (e) {
+    if (vida.encerrado(e)) throw e;
+    console.warn('[portal_corretor] não marcou a conversa como lida:', mensagemDeErro(e));
   }
   return d;
 }
@@ -170,6 +176,7 @@ export class PcConversasLista extends LitElement {
     } catch (e) {
       if (this.vida.encerrado(e)) return;
       this.falha = e;
+      this.limite = { atingido: false, quantas: 0 };
     } finally {
       if (this.vida.vivo()) this.carregando = false;
     }

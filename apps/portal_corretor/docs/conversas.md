@@ -29,8 +29,8 @@ Até lá, "Reativar Mensageiro", a janela de 24 horas e os modelos de mensagem f
 
 A conversa aberta fica no endereço (`?item=`); os filtros ficam em `?filtro=` e `?q=`. Abrir uma conversa
 marca as mensagens dela como lidas. A busca acha pelo nome, pelo telefone, pela última mensagem e pelo
-imóvel enviado ao cliente (código ou título). A caixa carrega as 200 conversas mais recentes; acima disso
-uma faixa avisa e a busca e os filtros encontram as outras.
+imóvel enviado ao cliente (código ou título), e alcança qualquer conversa da conta. A caixa carrega as 200
+conversas mais recentes; acima disso uma faixa avisa, e os filtros e as contagens valem sobre essas 200.
 
 ## O que cada ação faz
 

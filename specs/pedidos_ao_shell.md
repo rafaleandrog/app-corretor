@@ -183,7 +183,11 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 7. **`criarOuAtualizar` sobre único parcial em tabela segregada:** `banco-de-dados.md` não diz se a chave do `ON CONFLICT` inclui `conta_id` quando o `unicos` da tabela é parcial (`onde removido_em nulo`) e a tabela é `segregada_por_conta`. Hoje a P02 lê e depois cria a conversa (uma por contato) e trata o `23505` relendo; com a resposta, o verbo certo substitui os dois passos.
 
-**Proposta mínima:** (1) `urbi-botao` sem texto vira quadrado da altura do botão (34, ou 25 com `pequeno`); (2) `urbi-lista` pinta o item `aria-current` com o fundo de seleção do tema; (3) `urbi-redator` com uma prop `compacto` (ou `uma-linha`): campo de 36 px que cresce só ao digitar várias linhas e botões só ícone; (4) a (7) acima.
+8. **Categoria de auditoria para fato da conta:** `auditoria.md` define as oito categorias pela plataforma (`configuracao` = "mudança de config da plataforma: Slack, domínio de email"); conectar ou desconectar um canal da conta de um corretor (`canal_conectado`/`canal_desconectado`, 13.1) não tem categoria própria e usa `configuracao`. Pedir uma categoria para apps (ou a definição do uso por apps).
+9. **Escopo do `ctx.dados` em listener e rotina de app segregada:** `contas.md` chama o filtro `conta_id` na leitura de "inócuo", mas em contexto SISTEMA (`varrerTudo` em listener e rotina) ele é o que separa as contas; `rotinas.md` não diz o escopo do `ctx.dados` numa app segregada. Documentar.
+10. **Erro de único no `criar`:** `banco-de-dados.md` diz que o erro chega cru com `code` para CHECK (`23514`) e para o `restaurar` (`23505`); para o `criar` a app lê `code === '23505'` por analogia. Confirmar no doc.
+
+**Proposta mínima:** (1) `urbi-botao` sem texto vira quadrado da altura do botão (34, ou 25 com `pequeno`); (2) `urbi-lista` pinta o item `aria-current` com o fundo de seleção do tema; (3) `urbi-redator` com uma prop `compacto` (ou `uma-linha`): campo de 36 px que cresce só ao digitar várias linhas e botões só ícone; (4) a (10) acima.
 
 ## 25. `nav` do manifesto filtrado por papel (D-125)
 

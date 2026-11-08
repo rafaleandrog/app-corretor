@@ -605,6 +605,8 @@ convite, quando ela recusa com `CONVITE_MULTI_USUARIO_BLOQUEADO` (pedido ao shel
 barramento da plataforma, e o barramento não filtra por negociação nem por papel. Isso vale para
 as cinco formas de ler um evento: a lista de eventos, a busca de um evento avulso, o acompanhamento
 ao vivo, o replay de quem reconecta e as notificações por inscrição. As telas e rotas do app só mostram as atribuídas.
+O mesmo vale para os demais eventos da conta (clientes, visitas, negócios, imóveis, página, Estúdio e canais; ver
+[Avisos e eventos](eventos.md)): ele os lê, e eles levam só ids, rótulos fechados e, nos de canal, o nome do corretor que agiu.
 
 - **Eventos de negociação** (`negociacao_iniciada`, `proposta_recebida`, `mandato_alterado` e os
   outros): levam **só ids** (negociação, negócio, proposta, mandato, objeção, execução). Sem nome,

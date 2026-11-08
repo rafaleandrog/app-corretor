@@ -31,6 +31,7 @@ test('manifesto e backend andam juntos: rotas públicas, webhooks, eventos e pá
     assert.ok(pilha.some((p: string) => p === caminho || p.startsWith(`${caminho}/`)), `rota pública ${caminho} sem GET`);
   }
   assert.deepEqual(Object.keys(backend.webhooks).sort(), Object.keys(m.webhooks).sort(), 'um handler por webhook declarado');
+  assert.deepEqual(Object.keys(backend.rotinas).sort(), Object.keys(m.rotinas).sort(), 'uma função por rotina declarada');
   // Os eventos da negociação (D1, D2 e D5) só notificam: nenhum listener do app reage a eles.
   const soNotificam = [
     'negociacao_iniciada', 'proposta_recebida', 'proposta_aceite_cliente', 'proposta_registrada', 'mandato_alterado', 'negociacao_encerrada', 'negociacao_limite_atingido',

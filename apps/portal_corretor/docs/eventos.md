@@ -8,8 +8,9 @@ descricao: O que o app avisa pelo sininho e por e-mail, e o que fica na trilha d
 Tudo o que acontece de importante na sua conta vira um **evento** da plataforma: ele aparece no sininho,
 pode chegar por e-mail ou Slack conforme as suas **Preferências de notificação**, e é o que liga as
 automações (o Negociador IA, os lembretes). Cada evento carrega só os números de registro (do cliente, do
-imóvel, da conversa): nunca o nome, o telefone ou o texto de uma mensagem. Quem abre o aviso vê o resto
-na tela certa.
+imóvel, da conversa), rótulos fechados (o tipo da atividade, o motivo da perda), datas e valores: nunca o
+nome ou o telefone de um cliente, nem o texto de uma mensagem. A única exceção é a trilha de auditoria,
+abaixo, que leva o **seu** nome. Quem abre o aviso vê o resto na tela certa.
 
 Os eventos são sempre da **sua conta**: o corretor de outra conta não recebe nem vê os seus.
 

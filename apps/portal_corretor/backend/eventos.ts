@@ -16,11 +16,16 @@ export async function publicarEvento(req: Request, tipo: string, payload: Payloa
   }
 }
 
-/** Em contexto sem usuário (listener, rotina): a conta é obrigatória e explícita (barramento.md). */
-export async function publicarDoSistema(ctx: Pick<ContextoListener, 'eventos'>, conta: number, tipo: string, payload: Payload): Promise<void> {
+/**
+ * Em contexto sem usuário (listener, rotina): a conta é obrigatória e explícita (barramento.md). Devolve
+ * se o evento saiu, para quem precisa condicionar uma marca a isso (a rotina das autorizações).
+ */
+export async function publicarDoSistema(ctx: Pick<ContextoListener, 'eventos'>, conta: number, tipo: string, payload: Payload): Promise<boolean> {
   try {
     await ctx.eventos?.publicar(tipo, payload, { conta_id: conta });
+    return true;
   } catch (e) {
     console.warn(`[portal_corretor] evento ${tipo} não publicado (conta ${conta}):`, (e as Error).message);
+    return false;
   }
 }

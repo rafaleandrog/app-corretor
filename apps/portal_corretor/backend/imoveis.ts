@@ -880,15 +880,23 @@ export async function avisarAutorizacoesVencendo(ctx: ContextoListener) {
   const hojeSp = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   const limite = new Date(Date.now() + 31 * 86400e3).toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
   const vencendo = await ctx.dados.varrerTudo('autorizacoes_venda', { filtros: { situacao: 'assinada', 'aviso_vencimento_em[nulo]': 'true', 'fim[gte]': hojeSp, 'fim[lt]': limite }, maximo: 5000 });
-  const ativas = new Set((ctx.contas ? await ctx.contas.listarAtivas() : []).map((c) => c.id));
+  // Sem `ctx.contas` não há como saber quem está ativa: o `comConta` recusa conta inativa, e isso vira falha contada.
+  const ativas = ctx.contas ? new Set((await ctx.contas.listarAtivas()).map((c) => c.id)) : null;
   let avisadas = 0;
   const falhas: string[] = [];
   for (const a of vencendo) {
     const conta = Number(a.conta_id);
-    if (!ativas.has(conta)) continue;
+    if (ativas && !ativas.has(conta)) continue;
     try {
-      await ctx.dados.comConta(conta, (trx) => trx.atualizar('autorizacoes_venda', a.id, { aviso_vencimento_em: new Date().toISOString() }));
-      await publicarDoSistema(ctx, conta, 'autorizacao_vencendo', { autorizacao_id: Number(a.id), imovel_id: Number(a.imovel_id), quando: String(a.fim).slice(0, 10) });
+      // O evento sai primeiro e a marca só depois: evento recusado fica sem marca e volta amanhã; marca
+      // que falhar depois do evento repete o aviso no dia seguinte, que é o erro mais barato dos dois.
+      const saiu = await publicarDoSistema(ctx, conta, 'autorizacao_vencendo', { autorizacao_id: Number(a.id), imovel_id: Number(a.imovel_id), quando: String(a.fim).slice(0, 10) });
+      if (!saiu) {
+        falhas.push(`conta ${conta}: evento autorizacao_vencendo recusado (autorização ${a.id})`);
+        continue;
+      }
+      const marcada = await ctx.dados.comConta(conta, (trx) => trx.atualizar('autorizacoes_venda', a.id, { aviso_vencimento_em: new Date().toISOString() }));
+      if (!marcada) throw new Error(`autorização ${a.id} não encontrada ao marcar`);
       avisadas++;
     } catch (e) {
       falhas.push(`conta ${conta}: ${(e as Error).message}`);

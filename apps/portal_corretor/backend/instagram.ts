@@ -117,7 +117,7 @@ interface Ambiente {
   arquivos?: { url(id: number, ttl: number): Promise<string> };
   shell: { urlApp(sub: string): string };
   /** Publica os eventos da publicação (13.1): na rota pela conta do request, no listener pela conta do evento. */
-  publicar?: (tipo: string, payload: Record<string, unknown>) => Promise<void>;
+  publicar?: (tipo: string, payload: Record<string, unknown>) => Promise<unknown>;
 }
 
 async function creciDaConta(dados: HelperDados, conta: number, usuario: number | null): Promise<string | null> {
@@ -180,6 +180,7 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
   const { p, canal, token, urls, texto } = prep;
   let resultado: Record<string, unknown>;
   let tokenInvalido = false;
+  let recusouInstagram = false;
   try {
     const r = await publicar({ formato: p.formato, legenda: texto }, urls, canal.conta_externa_id, token);
     const agora = new Date().toISOString();
@@ -193,6 +194,7 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
       throw e;
     }
     tokenInvalido = e.codigo === 'TOKEN_INVALIDO';
+    recusouInstagram = true;
     resultado = falha(e.message);
   }
   const fim = await amb.abrir(async (dados) => {
@@ -200,10 +202,11 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
     // Condicionada: se o corretor marcou "Publiquei por fora" (ou destravou) no meio, a marca dele fica.
     return (await dados.atualizarSe('pecas', p.id, resultado, { estado: 'publicando' })) ?? (await dados.buscar('pecas', p.id));
   });
-  // Eventos do catálogo (13.1), depois da gravação: o que saiu e o que falhou; recusa do Instagram é erro da integração.
-  if (amb.publicar) {
-    await amb.publicar(resultado.estado === 'publicada' ? 'publicacao_feita' : 'publicacao_falhou', { peca_id: Number(p.id) });
-    if (resultado.estado !== 'publicada') await amb.publicar('integracao_erro', { canal_id: Number(canal.id), rede: 'instagram' });
+  // Eventos do catálogo (13.1), depois da gravação e pela LINHA gravada (se o corretor marcou "publiquei por
+  // fora" no meio, a rota dele é quem avisa): o que saiu e o que falhou; recusa do Instagram é erro da integração.
+  if (amb.publicar && fim && fim.estado !== 'publicando' && fim.publicada_por !== 'fora') {
+    await amb.publicar(fim.estado === 'publicada' ? 'publicacao_feita' : 'publicacao_falhou', { peca_id: Number(p.id) });
+    if (recusouInstagram) await amb.publicar('integracao_erro', { canal_id: Number(canal.id), rede: 'instagram' });
   }
   return fim;
 }
@@ -274,7 +277,7 @@ instagramRotas.post(
         conectado_em: agora, conectado_por_id: req.contexto!.usuario.id,
       });
       // Auditável (13.1): quem conectou fica na trilha da plataforma (ator e alvo mapeados no manifesto).
-      await publicarEvento(req, 'canal_conectado', { canal_id: Number(canal.id), rede: 'instagram', ator_id: req.contexto!.usuario.id, ator_nome: req.contexto!.usuario.nome });
+      await publicarEvento(req, 'canal_conectado', { canal_id: Number(canal.id), rede: 'instagram', ator_id: req.contexto!.usuario.id, ator_nome: nomeDoAtor(req) });
       res.json({ ok: true, usuario: eu.username ?? null, tipo_conta: tipo || null, aviso: tipo === 'BUSINESS' ? null : 'Stories pela API pedem conta Comercial: posts e carrosséis funcionam.' });
     } catch (e) {
       if (e instanceof ErroInstagram) return erro(res, 502, e.codigo, e.message);
@@ -290,11 +293,14 @@ instagramRotas.post(
     const c = await conexao(dados, contaDoRequest(req));
     if (c) {
       await dados.atualizar('canais_sociais', c.id, { desconectado_em: new Date().toISOString(), token: null });
-      await publicarEvento(req, 'canal_desconectado', { canal_id: Number(c.id), rede: 'instagram', ator_id: req.contexto!.usuario.id, ator_nome: req.contexto!.usuario.nome });
+      await publicarEvento(req, 'canal_desconectado', { canal_id: Number(c.id), rede: 'instagram', ator_id: req.contexto!.usuario.id, ator_nome: nomeDoAtor(req) });
     }
     res.json({ ok: true });
   }),
 );
+
+/** `ator.desc` da trilha de auditoria é obrigatório e não vazio (auditoria.md): nome, ou "Usuário {id}". */
+const nomeDoAtor = (req: Request) => (req.contexto!.usuario.nome ?? '').trim() || `Usuário ${req.contexto!.usuario.id}`;
 
 async function pecaDaConta(req: Request) {
   const pid = Number(req.params.id);
@@ -453,9 +459,11 @@ export async function renovarTokensInstagram(ctx: ContextoListener) {
     if (c.token_expira_em && new Date(c.token_expira_em as string).getTime() < Date.now()) {
       if (!c.ultimo_erro) {
         await ctx.dados.comConta(conta, (trx) => trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'O acesso venceu: reconecte o Instagram.' })).catch((e: Error) => falhas.push(`conta ${conta}: ${e.message}`));
+        await publicarDoSistema(ctx, conta, 'integracao_erro', { canal_id: Number(c.id), rede: 'instagram' }); // uma vez, junto com o aviso na tela
       }
       continue;
     }
+    let falhouEste = false;
     try {
       await ctx.dados.comConta(conta, async (trx) => {
         const token = await trx.revelar('canais_sociais', c.id, 'token');
@@ -468,12 +476,15 @@ export async function renovarTokensInstagram(ctx: ContextoListener) {
           if (!(e instanceof ErroInstagram)) throw e;
           await trx.atualizar('canais_sociais', c.id, { ultimo_erro: 'Não foi possível renovar o acesso: reconecte o Instagram.' });
           falhas.push(`conta ${c.conta_id}: ${e.message}`);
+          falhouEste = true;
         }
       });
-      if (falhas.some((f) => f.startsWith(`conta ${c.conta_id}:`))) await publicarDoSistema(ctx, conta, 'integracao_erro', { canal_id: Number(c.id), rede: 'instagram' });
     } catch (e) {
       falhas.push(`conta ${c.conta_id}: ${(e as Error).message}`);
+      falhouEste = true;
     }
+    // Por canal, não pela conta: um canal que falhou não faz outro da mesma conta avisar.
+    if (falhouEste) await publicarDoSistema(ctx, conta, 'integracao_erro', { canal_id: Number(c.id), rede: 'instagram' });
   }
   const resumo = `${renovados} conexão(ões) renovada(s)${falhas.length ? `, ${falhas.length} com falha` : ''}`;
   return falhas.length ? { ok: false, resultado: { resumo }, erro: falhas.join('; ').slice(0, 1000) } : { ok: true, resultado: { resumo } };

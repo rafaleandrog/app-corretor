@@ -458,6 +458,11 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     await ok(chamar('PATCH', `/imoveis/${im.id}`, { situacao: 'ativo' }), 'anunciado'); // imovel_ativado
     await ok(chamar('PATCH', `/imoveis/${im.id}`, { preco: 2400000 }), 'preço menor'); // imovel_preco_reduzido
     await ok(chamar('PATCH', `/imoveis/${im.id}`, { endereco_publico: 'regiao' }), 'endereço mostrado'); // imovel_visibilidade_mudou
+    // Casos negativos: preço maior, mesma visibilidade e mesma situação não avisam de novo.
+    const conta_ = (tipo: string) => bus.emitidos.filter((e) => e.tipo === tipo).length;
+    const [antesPreco, antesVis, antesAtivo] = [conta_('imovel_preco_reduzido'), conta_('imovel_visibilidade_mudou'), conta_('imovel_ativado')];
+    await ok(chamar('PATCH', `/imoveis/${im.id}`, { preco: 2600000, endereco_publico: 'regiao', situacao: 'ativo' }), 'preço maior, nada mais mudou');
+    assert.deepEqual([conta_('imovel_preco_reduzido'), conta_('imovel_visibilidade_mudou'), conta_('imovel_ativado')], [antesPreco, antesVis, antesAtivo], 'sem evento falso');
     // pagina_publicada: a página do corretor no ar (o formulário e o clique ganham ingressos do shell falso).
     const pg = await ok(chamar('GET', '/pagina'), 'página');
     await ok(chamar('PUT', '/pagina', { ...pg.pagina, endereco: 'corretora-teste', nome_exibicao: her.nome }), 'salvar página');
@@ -475,10 +480,19 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     await reagir.publicacao_programada({ payload: { peca_id: peca.id, agendada_para: new Date(agendada.agendada_para as string).toISOString() }, conta_id: 100 } as never, ctx);
     await ok(chamar('POST', '/conexoes/instagram/desconectar'), 'desconectar'); // canal_desconectado (auditável)
     await ok(chamar('PATCH', `/imoveis/${im.id}`, { situacao: 'vendido' }), 'vendido'); // imovel_vendido
-    // autorizacao_vencendo: a rotina avisa a autorização que vence em 10 dias, uma vez só.
-    await banco.dados(100).criar('autorizacoes_venda', { imovel_id: im.id, proprietario_id: dono.id, inicio: HOJE, fim: dia(10), comissao_pct: '5', preco_autorizado_c: 240000000, situacao: 'assinada' });
+    // autorizacao_vencendo: a rotina avisa a autorização que vence em 10 dias, uma vez só, na conta dela.
+    // Não avisa: a não assinada, a fora da janela de 30 dias e a de conta inativa (a 200 não está em `ctxSistema`).
+    const base = { imovel_id: im.id, proprietario_id: dono.id, inicio: HOJE, comissao_pct: '5', preco_autorizado_c: 240000000 };
+    const avisar = await banco.dados(100).criar('autorizacoes_venda', { ...base, fim: dia(10), situacao: 'assinada' });
+    await banco.dados(100).criar('autorizacoes_venda', { ...base, fim: dia(10), situacao: 'rascunho' });
+    await banco.dados(100).criar('autorizacoes_venda', { ...base, fim: dia(45), situacao: 'assinada' });
+    await banco.dados(200).criar('autorizacoes_venda', { ...base, fim: dia(10), situacao: 'assinada' });
+    const antesAvisos = bus.emitidos.length;
     const r1 = await rotinas.avisar_autorizacoes_vencendo(ctx);
     assert.equal(r1.ok, true, JSON.stringify(r1));
+    const avisos = bus.emitidos.slice(antesAvisos).filter((e) => e.tipo === 'autorizacao_vencendo');
+    assert.deepEqual(avisos.map((e) => [e.payload.autorizacao_id, e.conta]), [[avisar.id, 100]], 'só a assinada, na janela e de conta ativa, com a conta explícita');
+    assert.ok(banco.linhas('autorizacoes_venda').find((a) => a.id === avisar.id)!.aviso_vencimento_em, 'marcada depois de avisar');
     const r2 = await rotinas.avisar_autorizacoes_vencendo(ctx);
     assert.equal(r2.resultado.resumo, '0 autorização(ões) avisada(s)', 'de novo não avisa');
   });

@@ -70,9 +70,10 @@ export async function conversaDoContato(dados: HelperDados, contatoId: number, c
     // a segunda bateu no único `contato_id`; vale a que entrou primeiro. (Pedido ao shell 24.7: o verbo
     // `criarOuAtualizar` sobre único parcial em tabela segregada substituiria os dois passos.)
     if ((e as { code?: string }).code !== '23505') throw e;
-    const vencedora = conta
-      ? (await dados.varrerTudo('conversas', { filtros: { conta_id: conta, contato_id: contatoId, 'removido_em[nulo]': 'true' }, maximo: 1 }))[0]
-      : await primeiro(dados, 'conversas', { contato_id: contatoId });
+    // No listener (`conta`) o `dados` é a transação do `comConta`, que o PostgreSQL já abortou: nada se lê
+    // nela; o erro sobe e o `comContaRepetindo` refaz o bloco inteiro. Na rota (fora de transação) relê.
+    if (conta) throw e;
+    const vencedora = await primeiro(dados, 'conversas', { contato_id: contatoId });
     if (!vencedora) throw e;
     return vencedora;
   }
@@ -164,16 +165,24 @@ function atendimentoDe(negociacao: Linha | null): { atendido_por: 'humano' | 'ag
 /** Quantas conversas a caixa carrega de uma vez (as mais recentes). */
 export const LIMITE_CAIXA = 200;
 
-/** Contatos que receberam um imóvel cujo código ou título contém o termo (busca por imóvel, P02). */
-async function contatosQueReceberam(dados: HelperDados, q: string): Promise<Set<number>> {
-  const achados = new Map<number, Linha>();
-  for (const campo of ['codigo', 'titulo']) {
-    for (const im of (await dados.listar('imoveis', { filtros: { [`${campo}[busca]`]: q }, por_pagina: 50 })).dados as Linha[]) achados.set(Number(im.id), im);
+/** Tetos da busca (uma consulta por tabela, sem lançar): contatos e imóveis que casam, envios desses imóveis. */
+const TETO_BUSCA = { contatos: 200, imoveis: 100, envios: 500 } as const;
+
+/**
+ * Contatos que casam com o termo no banco (não só na janela da caixa): pelo nome ou telefone, ou por terem
+ * recebido um imóvel cujo código ou título contém o termo (`envios.imovel_id`). `busca_ou` faz uma consulta
+ * só por tabela (banco-de-dados.md § busca_ou); acima dos tetos a busca é parcial, o que a tela não promete além do
+ * que mostra.
+ */
+async function contatosQueCasam(dados: HelperDados, q: string): Promise<Set<number>> {
+  const ids = new Set<number>();
+  for (const c of (await dados.listar('contatos', { busca_ou: { colunas: ['nome', 'telefone'], termo: q }, por_pagina: TETO_BUSCA.contatos })).dados as Linha[]) ids.add(Number(c.id));
+  const imoveis = (await dados.listar('imoveis', { busca_ou: { colunas: ['codigo', 'titulo'], termo: q }, por_pagina: TETO_BUSCA.imoveis })).dados as Linha[];
+  if (imoveis.length) {
+    const envios = await dados.listar('envios', { filtros: { imovel_id: imoveis.map((im) => Number(im.id)).join(',') }, ordenar: 'enviado_em', ordem: 'desc', por_pagina: TETO_BUSCA.envios });
+    for (const e of envios.dados as Linha[]) ids.add(Number(e.contato_id));
   }
-  if (!achados.size) return new Set();
-  const ids = [...achados.keys()];
-  const envios = await dados.varrerTudo('envios', { filtros: { imovel_id: ids.join(',') }, maximo: 5000 });
-  return new Set(envios.map((e: Linha) => Number(e.contato_id)));
+  return ids;
 }
 
 // ---------- Lista ----------
@@ -184,11 +193,19 @@ conversasRotas.get(
     const dados = req.dados!;
     const filtro = (FILTROS_CONVERSA as readonly string[]).includes(String(req.query.filtro)) ? (String(req.query.filtro) as FiltroConversa) : null;
     const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : '';
-    // A caixa mostra as LIMITE_CAIXA conversas mais recentes; acima disso a resposta avisa (`limite_atingido`)
-    // e a tela pede a busca ou os filtros, em vez de cortar em silêncio.
+    // A caixa mostra as LIMITE_CAIXA conversas mais recentes; acima disso a resposta avisa (`limite_atingido`),
+    // os filtros e as contagens valem sobre essa janela, e a BUSCA vai ao banco: uma conversa antiga entra
+    // pelo contato (nome, telefone, imóvel enviado) mesmo fora da janela.
     const r = await dados.listar('conversas', { ordenar: 'ultima_mensagem_em', ordem: 'desc', por_pagina: LIMITE_CAIXA });
-    const todas: Linha[] = r.dados;
-    const limiteAtingido = r.total > todas.length;
+    const janela: Linha[] = r.dados;
+    const limiteAtingido = r.total > janela.length;
+    const contatosDaBusca = q ? await contatosQueCasam(dados, q) : null;
+    const todas: Linha[] = [...janela];
+    if (contatosDaBusca?.size) {
+      const vistas = new Set(janela.map((c) => Number(c.id)));
+      const extras = await dados.listar('conversas', { filtros: { contato_id: [...contatosDaBusca].join(',') }, ordenar: 'ultima_mensagem_em', ordem: 'desc', por_pagina: LIMITE_CAIXA });
+      for (const c of extras.dados as Linha[]) if (!vistas.has(Number(c.id))) todas.push(c);
+    }
     // O contato de cada conversa da caixa (nome, telefone, temperatura e a origem para o chip): só os
     // referenciados, por id (a lista inteira de contatos cortaria em quem tem mais de uma página).
     const contatos = new Map<number, Linha>();
@@ -201,12 +218,9 @@ conversasRotas.get(
     }
     const contatoDe = (c: Linha): Linha => contatos.get(Number(c.contato_id)) ?? {};
     const origemDe = (c: Linha): string | null => contatoDe(c).origem_canal ?? origens.get(Number(contatoDe(c).origem_id)) ?? null;
-    // Busca por imóvel: código ou título de imóvel enviado ao cliente (`envios.imovel_id`).
-    const contatosComImovel = q ? await contatosQueReceberam(dados, q) : null;
+    // A busca casa pelo contato (no banco: nome, telefone, imóvel enviado) ou pela última mensagem da janela.
     const casaBusca = (c: Linha) =>
-      !q ||
-      [contatoDe(c).nome, contatoDe(c).telefone, c.ultima_mensagem].some((v) => String(v ?? '').toLowerCase().includes(q)) ||
-      (contatosComImovel?.has(Number(c.contato_id)) ?? false);
+      !q || (contatosDaBusca?.has(Number(c.contato_id)) ?? false) || String(c.ultima_mensagem ?? '').toLowerCase().includes(q);
     const lista = todas.filter((c) => passaNoFiltro(c, filtro) && casaBusca(c)).map((c) => ({
       id: c.id,
       contato_id: c.contato_id,
@@ -223,7 +237,7 @@ conversasRotas.get(
       ultimo_tipo: c.ultimo_tipo ?? null,
       arquivada: !!c.arquivada_em,
     }));
-    res.json({ dados: lista, total: lista.length, contadores: contarFiltros(todas), limite: LIMITE_CAIXA, limite_atingido: limiteAtingido });
+    res.json({ dados: lista, total: lista.length, contadores: contarFiltros(janela), limite: LIMITE_CAIXA, limite_atingido: limiteAtingido });
   }),
 );
 

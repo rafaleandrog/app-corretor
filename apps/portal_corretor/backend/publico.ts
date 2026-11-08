@@ -483,11 +483,10 @@ export async function aoReceberReacao(evento: EventoConta, ctx: ContextoListener
       await linhaDoTempo(trx, contato.id, 'selecao.reacao', `${ROTULO_REACAO[p.reacao]} ${imovel.codigo}${p.comentario ? `: ${p.comentario}` : ''} (seleção "${selecao.titulo}")`, { selecao_id: selecao.id, imovel_codigo: imovel.codigo, reacao: p.reacao });
       // A reação (só quando muda) entra na conversa (P02) como aviso vindo do cliente: "Quero visitar · IM-0001".
       await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'sistema', conteudo: `${ROTULO_REACAO[p.reacao] ?? p.reacao}: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}${p.comentario ? ` — ${String(p.comentario).slice(0, 200)}` : ''}`, dados: { selecao_id: Number(selecao.id), imovel_id: Number(imovel.id), reacao: p.reacao } });
+      // O aviso `visita_pedida` também só quando a reação muda: reentrega e clique repetido não publicam de novo.
+      if (p.reacao === 'quero_visitar') pediuVisita = { contato_id: Number(contato.id), selecao_id: Number(selecao.id), imovel_id: Number(imovel.id) };
     }
-    if (p.reacao === 'quero_visitar') {
-      await tarefa(trx, conta, contato, `Marcar visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
-      pediuVisita = { contato_id: Number(contato.id), selecao_id: Number(selecao.id), imovel_id: Number(imovel.id) };
-    }
+    if (p.reacao === 'quero_visitar') await tarefa(trx, conta, contato, `Marcar visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`);
     // "Conversar sobre o preço" (F3, 10.9.4): a tarefa avisa o corretor e, com o gatilho `reacao_preco`
     // ligado, o Negociador entra na negociação daquele imóvel (ou a abre, no negócio de compra dele).
     if (p.reacao === 'conversar_preco') {
