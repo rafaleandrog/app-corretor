@@ -125,15 +125,21 @@ Autorização; senão, Onde aparece). O endereço com o número de um imóvel de
 ### A ficha do imóvel
 
 - No alto, o código e o título, **Editar** (os dados) e **Criar conteúdo** (abre o Estúdio com um
-  post novo). No **Mais**: situação e remover. Num rascunho, também **Continuar cadastro**, que volta
-  ao Novo imóvel em 4 passos.
-- A **galeria**: a capa grande e até 8 miniaturas das outras fotos.
+  post novo e este imóvel já escolhido). No **Mais**: situação e remover. Num rascunho, também
+  **Continuar cadastro**, que volta ao Novo imóvel em 4 passos.
+- **O que falta**, logo abaixo: a nota de 0 a 100 e cada pendência como um atalho para resolvê-la.
+- A **grade de fotos**: a capa e as miniaturas das outras, até 6, e **+N fotos** quando há mais (leva ao
+  cartão de fotos). As miniaturas usam o componente de avatar da plataforma até existir um de galeria.
 - **Dados**, em grade de pares rótulo/valor: situação, qualidade, tipo, preço, condomínio, local, cômodos,
   proprietário, empreendimento e características.
+- **Descrição** (com **Melhorar com IA**) e **Autorização de venda** abertas, nessa ordem.
 - **Quem vê este imóvel**: se ele está na sua página pública, e o botão **Publicar na página** (ou
   **Tirar da página**, se já está marcado).
-- Os cartões de fotos, descrição, autorização, visitas, envios e negócios mostram um resumo; a
-  lista completa abre pela seta do cartão. Sem foto, os arquivos ficam à mostra.
+- Os cartões de fotos, visitas, envios e negócios mostram um resumo; a lista completa abre pela seta
+  do cartão. Sem foto, os arquivos ficam à mostra.
+- À direita, com uma negociação em andamento deste imóvel, o **Mandato** resumido: preço pedido, alvo
+  e o recuo mascarado ("•••• mostrar"), com **Definir mandato** (ou **Editar mandato**), que abre o
+  mesmo formulário de Clientes › Negociações.
 - O formulário de dados pede só o que o corretor usa agora; campos das fases seguintes
   (compartilhamento na rede, origem do estoque, posição no mapa) não aparecem.
 

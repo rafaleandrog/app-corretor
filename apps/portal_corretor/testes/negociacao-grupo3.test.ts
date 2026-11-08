@@ -204,3 +204,16 @@ test('Encerrar como ganha pelo PATCH devolve a comissão prevista e atualiza o v
     assert.equal(banco.linhas('negocios')[0].valor_estimado_c, 140_000_000);
   });
 });
+
+test('D-127: abrir a negociação deixa o aviso de sistema "Negociação aberta" na conversa do cliente', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const b = await base(banco, 100);
+  await comServidor(rotas, corretor(1, 100), banco, {}, async (chamar) => {
+    const nid = await pronta(chamar, b);
+    const msg = banco.linhas('mensagens').find((m) => m.tipo === 'sistema' && /Negociação aberta/.test(String(m.conteudo)))!;
+    assert.ok(msg, 'aviso na conversa');
+    assert.equal(msg.contato_id, b.contato.id);
+    assert.equal(msg.dados.negociacao_id, nid);
+    assert.equal(msg.autor_tipo, 'sistema');
+  });
+});

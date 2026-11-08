@@ -482,19 +482,26 @@ export class PcTelaFichaImovel extends LitElement {
             ? html`<urbi-botao icone="fa-solid fa-list-check" @click=${() => irParaComQuery(`/imoveis/novo?item=${im.id}`)}>Continuar cadastro</urbi-botao>`
             : ''}
           <urbi-botao variante="secundario" icone="fa-solid fa-pen" @click=${() => this.editar()}>Editar</urbi-botao>
-          ${acoesComMais({ rotulo: 'Criar conteúdo', icone: 'fa-solid fa-wand-magic-sparkles', sub: '/estudio?criar=post' }, [
+          ${acoesComMais({ rotulo: 'Criar conteúdo', icone: 'fa-solid fa-wand-magic-sparkles', sub: `/estudio?criar=post&imovel=${im.id}` }, [
             { rotulo: 'Situação', icone: 'fa-solid fa-flag', aoEscolher: () => void this.situacao() },
             { rotulo: 'Remover', icone: 'fa-solid fa-trash', perigo: true, aoEscolher: () => void this.remover() },
           ])}
         </urbi-linha>
       </urbi-linha>
+      ${qualidade.faltas.length
+        ? html`<urbi-card titulo=${`O que falta · ${qualidade.nota} de 100`} icone="fa-solid fa-list-check">
+            <urbi-linha quebrar>
+              ${qualidade.faltas.map((f: string) => html`<urbi-badge interativo cor="alerta" @click=${() => void this.resolver(f)}>${f}</urbi-badge>`)}
+            </urbi-linha>
+          </urbi-card>`
+        : ''}
       ${fotosComUrl.length
-        ? html`<urbi-stack>
-            <urbi-avatar nome=${im.codigo} foto=${fotosComUrl[0].url} tamanho="240"></urbi-avatar>
-            ${fotosComUrl.length > 1
-              ? html`<urbi-linha quebrar>${fotosComUrl.slice(1, 9).map((m) => html`<urbi-avatar nome=${m.legenda ?? im.codigo} foto=${m.url} tamanho="56"></urbi-avatar>`)}</urbi-linha>`
+        ? html`<urbi-grid min="96px" gap="8px">
+            ${fotosComUrl.slice(0, 6).map((m) => html`<urbi-avatar nome=${m.legenda ?? im.codigo} foto=${m.url} tamanho="96"></urbi-avatar>`)}
+            ${fotosComUrl.length > 6
+              ? html`<urbi-badge interativo @click=${() => this.renderRoot.querySelector('#fotos')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>+${fotosComUrl.length - 6} fotos</urbi-badge>`
               : ''}
-          </urbi-stack>`
+          </urbi-grid>`
         : ''}
       <urbi-card titulo="Dados" icone="fa-solid fa-house">
         ${this.acao('Editar dados', 'fa-solid fa-pen', () => this.editar())}
@@ -511,6 +518,38 @@ export class PcTelaFichaImovel extends LitElement {
           ${im.caracteristicas ? par('Características', im.caracteristicas) : ''}
         </urbi-grid>
       </urbi-card>
+      ${keyed(`descricao|aberta|${!!im.descricao}`, html`<urbi-card titulo="Descrição" icone="fa-solid fa-align-left">
+        ${this.acao('Editar descrição', 'fa-solid fa-pen', () => this.editarDescricao())}
+        ${im.descricao
+          ? html`<urbi-prosa pre>${im.descricao}</urbi-prosa>
+              <urbi-prosa papel="fraco">${im.descricao.length} caracteres${im.descricao.length < 400 ? ' (com 400 ou mais o anúncio ganha pontos)' : ''}</urbi-prosa>`
+          : html`<urbi-prosa papel="dica">Sem descrição.</urbi-prosa>`}
+        ${this.ia.conteudo
+          ? html`<urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.escrevendo} @click=${() => this.escreverComIa()}>Melhorar com IA</urbi-botao></urbi-linha>`
+          : ''}
+      </urbi-card>`)}
+      ${keyed(`autorizacao|aberta|${autorizacoes.length > 0}`, html`<urbi-card titulo="Autorização de venda" icone="fa-solid fa-file-signature">
+        ${this.acao('Nova autorização', 'fa-solid fa-plus', () => this.novaAutorizacao())}
+        ${autorizacoes.length
+          ? html`<urbi-prosa papel="secundario">${this.ficha.autorizacao_vigente ? 'Assinada e vigente.' : 'Nenhuma assinada e vigente.'} ${autorizacoes.length} registrada(s).</urbi-prosa>
+              <urbi-stack>
+                <urbi-lista separador .itens=${autorizacoes} .render_item=${(a: Linha) => {
+                  const sa = SITUACAO_AUTORIZACAO[a.situacao_efetiva] ?? { rotulo: a.situacao_efetiva, cor: 'padrao' };
+                  return html`<urbi-linha justificar="entre" quebrar>
+                    <urbi-stack>
+                      <urbi-prosa>${data(a.inicio)} a ${data(a.fim)} · ${a.exclusiva ? 'exclusiva' : 'sem exclusividade'} · ${Number(a.comissao_pct)}% · ${reais(a.preco_autorizado_c)}</urbi-prosa>
+                      <urbi-prosa papel="fraco">${a.proprietario_nome ?? ''}${a.permite_parceria ? ' · aceita parceria' : ''}${a.permite_portais ? ' · portais' : ''}${a.permite_placa ? ' · placa' : ''}</urbi-prosa>
+                    </urbi-stack>
+                    <urbi-linha quebrar>
+                      <urbi-badge cor=${sa.cor}>${sa.rotulo}</urbi-badge>
+                      ${['rascunho', 'enviada'].includes(a.situacao) ? html`<urbi-botao variante="texto" pequeno @click=${() => this.assinar(a)}>Marcar assinada</urbi-botao>` : ''}
+                      ${a.situacao !== 'revogada' ? html`<urbi-botao variante="texto" pequeno @click=${() => this.revogar(a)}>Revogar</urbi-botao>` : ''}
+                    </urbi-linha>
+                  </urbi-linha>`;
+                }}></urbi-lista>
+              </urbi-stack>`
+          : html`<urbi-prosa papel="dica">Sem autorização. Para anunciar, registre a autorização e anexe o documento assinado.</urbi-prosa>`}
+      </urbi-card>`)}
       <urbi-card titulo="Quem vê este imóvel" icone="fa-solid fa-eye">
         <urbi-stack>
           <urbi-prosa papel="secundario">${this.ficha.publicavel
@@ -536,38 +575,6 @@ export class PcTelaFichaImovel extends LitElement {
             ? html`<urbi-prosa papel="secundario">${fotos} foto(s), ${this.ficha.fotos_publicas} no anúncio · ${midias.length} arquivo(s) no total</urbi-prosa>
                 <div slot="detalhe">${tabelaMidias}</div>`
             : tabelaMidias}
-      </urbi-card>`)}
-      ${keyed(`descricao|${!!im.descricao}`, html`<urbi-card titulo="Descrição" icone="fa-solid fa-align-left">
-        ${this.acao('Editar descrição', 'fa-solid fa-pen', () => this.editarDescricao())}
-        ${im.descricao
-          ? html`<urbi-prosa papel="secundario">${im.descricao.length} caracteres${im.descricao.length < 400 ? ' (com 400 ou mais o anúncio ganha pontos)' : ''}</urbi-prosa>
-              <div slot="detalhe"><urbi-prosa pre>${im.descricao}</urbi-prosa></div>`
-          : html`<urbi-prosa papel="dica">Sem descrição.</urbi-prosa>`}
-        ${this.ia.conteudo
-          ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.escrevendo} @click=${() => this.escreverComIa()}>Melhorar com IA</urbi-botao></urbi-linha>`
-          : ''}
-      </urbi-card>`)}
-      ${keyed(`autorizacao|${autorizacoes.length > 0}`, html`<urbi-card titulo="Autorização de venda" icone="fa-solid fa-file-signature">
-        ${this.acao('Nova autorização', 'fa-solid fa-plus', () => this.novaAutorizacao())}
-        ${autorizacoes.length
-          ? html`<urbi-prosa papel="secundario">${this.ficha.autorizacao_vigente ? 'Assinada e vigente.' : 'Nenhuma assinada e vigente.'} ${autorizacoes.length} registrada(s).</urbi-prosa>
-              <div slot="detalhe">
-                <urbi-lista separador .itens=${autorizacoes} .render_item=${(a: Linha) => {
-                  const sa = SITUACAO_AUTORIZACAO[a.situacao_efetiva] ?? { rotulo: a.situacao_efetiva, cor: 'padrao' };
-                  return html`<urbi-linha justificar="entre" quebrar>
-                    <urbi-stack>
-                      <urbi-prosa>${data(a.inicio)} a ${data(a.fim)} · ${a.exclusiva ? 'exclusiva' : 'sem exclusividade'} · ${Number(a.comissao_pct)}% · ${reais(a.preco_autorizado_c)}</urbi-prosa>
-                      <urbi-prosa papel="fraco">${a.proprietario_nome ?? ''}${a.permite_parceria ? ' · aceita parceria' : ''}${a.permite_portais ? ' · portais' : ''}${a.permite_placa ? ' · placa' : ''}</urbi-prosa>
-                    </urbi-stack>
-                    <urbi-linha quebrar>
-                      <urbi-badge cor=${sa.cor}>${sa.rotulo}</urbi-badge>
-                      ${['rascunho', 'enviada'].includes(a.situacao) ? html`<urbi-botao variante="texto" pequeno @click=${() => this.assinar(a)}>Marcar assinada</urbi-botao>` : ''}
-                      ${a.situacao !== 'revogada' ? html`<urbi-botao variante="texto" pequeno @click=${() => this.revogar(a)}>Revogar</urbi-botao>` : ''}
-                    </urbi-linha>
-                  </urbi-linha>`;
-                }}></urbi-lista>
-              </div>`
-          : html`<urbi-prosa papel="dica">Sem autorização. Para anunciar, registre a autorização e anexe o documento assinado.</urbi-prosa>`}
       </urbi-card>`)}
       ${keyed(`visitas|${visitas.length > 0}`, html`<urbi-card titulo="Visitas" icone="fa-solid fa-door-open">
         ${visitas.length

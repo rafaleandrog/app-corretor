@@ -44,7 +44,7 @@ faixa avisa, e os filtros e as contagens valem sobre essas 200.
 | Localização | Escolhe o imóvel; registra o envio e abre o WhatsApp com a localização |
 | Agendar visita | O mesmo formulário de **Criar › Nova visita**, com o cliente já escolhido |
 | Portal do cliente | Gera (ou reenvia) o link do Portal do Cliente e abre o WhatsApp com ele; o link entra na conversa |
-| Proposta | **Criar › Nova proposta** com o cliente já escolhido; abre a negociação em Clientes › Negociações |
+| Proposta | O registro de proposta ligado ao negócio do cliente: escolha a negociação em andamento ou um negócio aberto de compra com imóvel (sem negociação, ela é aberta agora) e, se quiser, a oferta que ele fez. A conversa ganha o aviso **Negociação aberta (NG-0001)** e a negociação abre em Clientes › Negociações. Sem negócio com imóvel, cai na **Nova proposta** com o cliente já escolhido |
 | Assumir / Devolver ao Negociador | Trocam quem atende. Com uma negociação aberta conduzida pelo Negociador IA, a tela muda a negociação primeiro (as regras são as de [Negociação e mandato](negociacao.md)) e a conversa depois |
 | Arquivar / Desarquivar | Tira a conversa da caixa (filtro **Arquivadas**); se o cliente voltar a falar, ela reabre sozinha |
 | Nova | Escolhe um cliente e abre a conversa dele (a que já existe, se houver) |

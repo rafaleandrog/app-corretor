@@ -143,7 +143,7 @@ test('P15 no Chromium com as rotas reais: nomes (#178), abre na primeira, escada
   const esperar = () => pagina.waitForTimeout(150);
   try {
     await pagina.goto(`${ORIGEM}/portal_corretor/clientes?visao=negociacoes`);
-    await pagina.evaluate((r) => (window as any).iniciar(r), R);
+    await pagina.evaluate((r: unknown) => (window as any).iniciar(r), R);
     await esperar();
     await pagina.evaluate(() => (window as any).desenhar());
     await esperar();
@@ -208,7 +208,7 @@ test('P15 no Chromium: acordo com o proprietário mostra Aceita · Recusa · Con
   const esperar = () => pagina.waitForTimeout(150);
   try {
     await pagina.goto(`${ORIGEM}/portal_corretor/clientes?visao=negociacoes&item=${R.nid}`);
-    await pagina.evaluate((r) => (window as any).iniciar(r), R);
+    await pagina.evaluate((r: unknown) => (window as any).iniciar(r), R);
     await esperar();
     const direita = await pagina.evaluate(() => (window as any).profundo(document.querySelector('pc-negociacao-contexto')));
     assert.match(direita, /O acordo está com o proprietário/);

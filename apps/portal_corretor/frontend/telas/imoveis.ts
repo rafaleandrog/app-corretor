@@ -33,6 +33,7 @@ import { EVENTO_EMPREENDIMENTO_MUDOU } from './ficha-empreendimento.js';
 import { EVENTO_IMOVEL_MUDOU, EVENTO_RESOLVER_FALTA } from './ficha-imovel.js';
 import './ficha-empreendimento.js';
 import { registrarLista, soltarLista } from '../atalhos.js';
+import './mandato.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -315,6 +316,7 @@ export class PcContextoImovel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
+    void this.lerMandato();
     window.addEventListener(EVENTO_IMOVEL_MUDOU, this.aoMudar);
   }
 
@@ -338,6 +340,55 @@ export class PcContextoImovel extends LitElement {
 
   @state() private enviando: number | null = null;
   @state() private enviados = new Set<number>();
+  /** A negociação em andamento deste imóvel e o mandato vigente dela (P06: o Mandato resumido). */
+  @state() private negociacao: { id: number; conduzida_por: string; negociador_usuario_id: number | null; mandato: Record<string, any> | null } | null = null;
+  @state() private recuoAberto = false;
+  @state() private editandoMandato = false;
+
+  /** Lê a negociação em andamento do imóvel e o mandato dela; sem negociação, o cartão não aparece. */
+  private async lerMandato() {
+    const g = gesto();
+    try {
+      const r = await g.esperar(chamarApi(`/negociacoes?imovel_id=${this.imovelId}&estado=ativa,aguardando_corretor,aguardando_cliente,aguardando_proprietario,pausada&por_pagina=1`));
+      const n = r?.dados?.[0];
+      if (!n) return void (this.negociacao = null);
+      const m = await g.esperar(chamarApi(`/negociacoes/${n.id}/mandato`));
+      this.negociacao = { id: Number(n.id), conduzida_por: n.conduzida_por, negociador_usuario_id: n.negociador_usuario_id ?? null, mandato: m?.vigente ?? null };
+    } catch (e) {
+      if (g.encerrado(e)) return;
+      this.negociacao = null; // o resumo é bônus: sem ele, a coluna segue
+    }
+  }
+
+  /**
+   * Mandato resumido (P06): preço pedido, alvo e o recuo mascarado ("•••• mostrar"), com Definir (ou
+   * Editar) mandato, que abre o P16. Só com uma negociação em andamento deste imóvel.
+   */
+  private cartaoMandato() {
+    const n = this.negociacao;
+    if (!n) return nothing;
+    const m = n.mandato;
+    return html`<urbi-card titulo="Mandato" icone="fa-solid fa-file-shield">
+      ${m
+        ? html`<urbi-stack>
+            <urbi-prosa>Preço pedido ${reaisCurto(m.preco_pedido_c)}</urbi-prosa>
+            <urbi-prosa>Alvo ${reaisCurto(m.alvo_c)}</urbi-prosa>
+            <urbi-linha>
+              <urbi-prosa>Recuo ${this.recuoAberto ? reaisCurto(m.recuo_c) : '••••'}</urbi-prosa>
+              <urbi-botao variante="texto" @click=${() => (this.recuoAberto = !this.recuoAberto)}>${this.recuoAberto ? 'esconder' : 'mostrar'}</urbi-botao>
+            </urbi-linha>
+          </urbi-stack>`
+        : html`<urbi-prosa papel="dica">Há uma negociação deste imóvel sem mandato: sem ele, o Negociador não age.</urbi-prosa>`}
+      <urbi-botao variante=${m ? 'secundario' : 'primario'} icone=${m ? 'fa-solid fa-pen' : 'fa-solid fa-plus'} @click=${() => (this.editandoMandato = true)}>${m ? 'Editar mandato' : 'Definir mandato'}</urbi-botao>
+      ${this.editandoMandato
+        ? html`<pc-mandato-modal .negociacaoId=${n.id} .imovelId=${this.imovelId} .atual=${m} .conduzidaPor=${n.conduzida_por} .negociadorId=${Number(n.negociador_usuario_id) || 0}
+            .aoFechar=${(salvou: boolean) => {
+              this.editandoMandato = false;
+              if (salvou) void this.lerMandato();
+            }}></pc-mandato-modal>`
+        : nothing}
+    </urbi-card>`;
+  }
 
   /**
    * "Enviar" (P06): envia o imóvel de verdade (`POST /envios`), sem sair da tela. A rota registra o
@@ -410,6 +461,7 @@ export class PcContextoImovel extends LitElement {
             </urbi-linha>`}></urbi-lista>`
           : html`<urbi-prosa papel="dica">Nenhum comprador com perfil de busca que combine (tipo, região, preço, quartos, vagas ou área).</urbi-prosa>`}
       </urbi-card>
+      ${this.cartaoMandato()}
     </urbi-stack>`;
   }
 }

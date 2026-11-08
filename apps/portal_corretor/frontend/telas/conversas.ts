@@ -6,7 +6,8 @@ import { cabecalhoColuna, moldura } from '../moldura.js';
 import { buscaDoGesto, chamarApi, data as dataCurta, enviar, gesto, mensagemDeErro, reais, seNaoContaTrocada, type Gesto } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
-import { criar, novaVisita } from '../criar.js';
+import { novaVisita } from '../criar.js';
+import { abrirNegociacao, propostaDoContato } from './negociacoes.js';
 import { lembrarContato } from './assistente.js';
 import { chipsDoPerfilBusca } from '../../comum/crm.js';
 import { combina } from '../../comum/imoveis.js';
@@ -528,6 +529,19 @@ export class PcConversaCompositor extends ParteDaConversa {
     });
   }
 
+  /**
+   * Proposta (D-127): o registro de proposta ligado ao negócio do contato, que cria ou abre a negociação e
+   * a abre em Clientes › Negociações; a conversa ganha o aviso "Negociação aberta".
+   */
+  private async proposta() {
+    const d = this.d!;
+    let nid: number | null = null;
+    await this.agir('Não foi possível abrir a negociação', async () => {
+      nid = await propostaDoContato(this.vida, { id: Number(d.contato.id), nome: String(d.contato.nome) });
+    });
+    if (nid && this.vida.vivo()) abrirNegociacao(nid);
+  }
+
   private comContato<T>(fn: () => T): T {
     const d = this.d!;
     lembrarContato({ id: Number(d.contato.id), nome: String(d.contato.nome) });
@@ -545,7 +559,7 @@ export class PcConversaCompositor extends ParteDaConversa {
       { rotulo: 'Localização', icone: 'fa-solid fa-location-dot', ao: () => void this.envio('localizacao') },
       { rotulo: 'Agendar visita', icone: 'fa-regular fa-calendar', ao: () => this.comContato(() => void novaVisita()) },
       { rotulo: 'Portal do cliente', icone: 'fa-regular fa-user', ao: () => void this.portal() },
-      { rotulo: 'Proposta', icone: 'fa-solid fa-handshake', ao: () => this.comContato(() => criar('proposta')) },
+      { rotulo: 'Proposta', icone: 'fa-solid fa-handshake', ao: () => void this.proposta() },
     ];
     return html`<urbi-stack>
       <urbi-linha quebrar>

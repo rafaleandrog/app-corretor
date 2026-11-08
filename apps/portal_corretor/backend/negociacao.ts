@@ -27,6 +27,7 @@ import { assincrono, ehCorretor, erro, guardarCorretor, guardarNegociacao, id, n
 import { avisarNegociador, conducaoNova, negociadoresDaConta, shellConfereNegociadores } from './negociador-padrao';
 import { linkWhatsapp } from '../comum/pagina';
 import { publicarEvento } from './eventos';
+import { registrarMensagem } from './conversas';
 import { tentarPortal } from './portal';
 import { contaDoRequest } from './vitrine';
 
@@ -273,6 +274,18 @@ negociacaoRotas.post(
  */
 export async function depoisDeCriar(req: Request, negociacao: Linha) {
   await publicar(req, 'negociacao_iniciada', { negociacao_id: Number(negociacao.id), negocio_id: Number(negociacao.negocio_id) });
+  // D-127: a conversa do cliente ganha o aviso de sistema "Negociação aberta" (como "assumiu a conversa").
+  // Falha aqui não desfaz a negociação: a conversa é um registro a mais.
+  if (negociacao.contato_id) {
+    try {
+      await registrarMensagem(req.dados!, {
+        contato_id: Number(negociacao.contato_id), direcao: 'saida', autor_tipo: 'sistema', canal: 'sistema', tipo: 'sistema',
+        conteudo: `Negociação aberta (${negociacao.codigo})`, dados: { negociacao_id: Number(negociacao.id) },
+      });
+    } catch (e) {
+      console.warn(`[portal_corretor] aviso da negociação na conversa não gravado: ${(e as Error).message}`);
+    }
+  }
   await portalDa(req, negociacao);
   if (negociacao.conduzida_por === 'humano' && negociacao.negociador_usuario_id) {
     await avisarNegociador(req.notificacoes, Number(negociacao.negociador_usuario_id), negociacao);

@@ -1024,6 +1024,54 @@ async function novaPropostaNoGesto(g: Gesto, foco?: { id: number; nome: string }
 }
 
 /**
+ * Proposta pela conversa (P02, D-127): o registro de proposta ligado ao negócio do contato, que CRIA ou
+ * ABRE a negociação. Com uma negociação em andamento do cliente, ela é a escolha; com negócios abertos de
+ * compra (com imóvel) sem negociação, cada um vira uma escolha que cria a negociação (`POST /negociacoes`,
+ * evento `negociacao_iniciada` e o aviso "Negociação aberta" na conversa). A oferta é opcional. Sem
+ * nenhuma das duas, cai na Nova proposta (escolha do imóvel pela busca). Devolve o id da negociação.
+ */
+export async function propostaDoContato(g: Gesto, contato: { id: number; nome: string }): Promise<number | null> {
+  const [neg, ficha] = await g.esperar(Promise.all([
+    chamarApi(`/negociacoes?contato_id=${contato.id}&estado=${FILTROS[0].estados}&por_pagina=50`),
+    chamarApi(`/contatos/${contato.id}`),
+  ]));
+  const abertas: Linha[] = neg?.dados ?? [];
+  const ocupados = new Set(abertas.map((n) => Number(n.negocio_id)));
+  const livres: Linha[] = ((ficha?.negocios ?? []) as Linha[]).filter((n) => n.etapa_tipo === 'aberta' && n.pipeline === 'compra' && n.imovel_id && !ocupados.has(Number(n.id)));
+  const escolhas = [
+    ...abertas.map((n) => ({ valor: `neg:${n.id}`, rotulo: `${n.codigo} · ${n.imovel_titulo ?? n.imovel_codigo ?? 'imóvel'} (em andamento)` })),
+    ...livres.map((n) => ({ valor: `negocio:${n.id}:${n.imovel_id}`, rotulo: `${n.titulo ?? 'Negócio'}${n.imovel_codigo ? ` · ${n.imovel_codigo}` : ''} (abrir negociação)` })),
+  ];
+  if (!escolhas.length) return novaProposta(contato);
+  const v = await g.esperar(urbiVerso.formulario({
+    titulo: `Proposta · ${contato.nome}`,
+    mensagem: 'Escolha o negócio. Sem negociação ainda, ela é aberta agora; a oferta é opcional (registre-a se o cliente já disse um valor).',
+    campos: [
+      { nome: 'escolha', tipo: 'selecao', rotulo: 'Negócio e imóvel', obrigatorio: true, valor: escolhas[0].valor, opcoes: escolhas },
+      { nome: 'valor', tipo: 'texto', rotulo: 'Oferta do cliente (R$, opcional)', placeholder: '1.320.000' },
+      { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
+    ],
+    rotuloConfirmar: 'Abrir a negociação',
+  }));
+  if (!v) return null;
+  const digitado = String(v.valor ?? '').trim();
+  const valor_c = digitado ? centavosDigitados(digitado) : null;
+  if (digitado && !valor_c) {
+    await urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.320.000.', tipo: 'alerta' });
+    return null;
+  }
+  const [tipo, a, b] = String(v.escolha).split(':');
+  let nid = Number(a);
+  if (tipo === 'negocio') {
+    const criada = await g.esperar(enviar('POST', '/negociacoes', { negocio_id: Number(a), imovel_id: Number(b) }));
+    nid = Number(criada.id);
+    urbiVerso.notificar(`Negociação ${criada.codigo} aberta.`, 'sucesso');
+  }
+  if (valor_c) await g.esperar(enviar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }));
+  return nid;
+}
+
+/**
  * Abre a negociação em Clientes › Negociações (P15), pela navegação da SPA, como o Criar faz. Com query,
  * o caminho é o de overview.md (pushState + PopStateEvent, o mesmo que o navegarSub faz por dentro):
  * o navegarSub só documenta o path.
