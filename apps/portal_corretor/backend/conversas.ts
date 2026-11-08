@@ -77,17 +77,15 @@ export async function registrarMensagem(dados: HelperDados, m: NovaMensagem): Pr
   const conversa = await conversaDoContato(dados, m.contato_id, m.canal, m.autor_tipo === 'humano' ? (m.autor_id ?? null) : null, m.conta);
   if (m.conta) {
     // Listener: o mesmo evento entregue de novo não duplica a mensagem (como a linha do tempo faz).
-    // A janela é curta (2 min, o que a reentrega do barramento leva) para não engolir "ok" duas vezes do cliente.
+    // O barramento não refaz entrega (barramento.md: idempotência é do listener); a reentrega vem do webhook
+    // do portal, que o navegador do cliente pode repetir. A janela é curta (2 min) para não engolir um "ok"
+    // legítimo repetido mais tarde. O `conteudo` fica fora do filtro (a vírgula no valor vira lista, § filtros
+    // em array) e é comparado aqui; `maximo` lança em vez de cortar, e 200 iguais em 2 min numa conversa é
+    // falha que deve aparecer, não dedup.
     const limite = new Date(Date.now() - 2 * 60_000).toISOString();
-    let repetida: Linha | undefined;
-    try {
-      const filtros: Record<string, unknown> = { conta_id: m.conta, conversa_id: conversa.id, direcao: m.direcao, tipo, 'em[gte]': limite };
-      if (m.conteudo) filtros.conteudo = m.conteudo;
-      // `maximo` lança em vez de cortar (banco-de-dados.md § varrerTudo): mais que isso de iguais em 2 min não é reentrega; segue sem dedup.
-      repetida = (await dados.varrerTudo('mensagens', { filtros, maximo: 20 })).find((x: Linha) => (x.conteudo ?? null) === (m.conteudo ?? null));
-    } catch {
-      repetida = undefined;
-    }
+    const repetida = (await dados.varrerTudo('mensagens', { filtros: { conta_id: m.conta, conversa_id: conversa.id, direcao: m.direcao, tipo, 'em[gte]': limite }, maximo: 200 })).find(
+      (x: Linha) => (x.conteudo ?? null) === (m.conteudo ?? null),
+    );
     if (repetida) return { conversa, mensagem: repetida, repetida: true };
   }
   const mensagem = await dados.criar('mensagens', {

@@ -178,7 +178,7 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 **Até lá:** usar o primitivo e registrar a diferença em cada PR de tela (README § 1).
 
 4. **`urbi-feed` com conteúdo livre por mensagem** (balão espelhado por autor, cartão de imóvel, aviso ao centro): hoje a P02 monta os balões com `urbi-linha` + `urbi-card` (exceção nomeada "balões da conversa", spec 11.9) e perde o que o feed dá de graça (abertura no fim, scroll próprio, fill no celular).
-5. **Contrato do `nav` do manifesto no bundle do SDK**: `apps-em-repo-proprio.md` remete a "Arquitetura e Apps", que não vem no bundle; falta dizer itens, níveis, ícone, rota `/`, e se o `nav` é filtrado por papel e mostrado ao usuário externo (o shell 0.56.37 mostra, e `permissoes.md` § Usuário externo ainda diz que não).
+5. **Contrato do `nav` do manifesto no bundle do SDK**: `apps-em-repo-proprio.md` remete a "Arquitetura e Apps", que não vem no bundle; falta dizer itens, níveis, ícone, rota `/`, e se o `nav` é filtrado por papel e mostrado ao usuário externo (o bundle do shell 0.56.37 sugere que mostra, `_renderExterno` da topbar; a confirmar entrando como o corretor demo; `permissoes.md` § Usuário externo ainda diz que não).
 6. **`urbi-stack` com `gap`**: a tela precisa de um empilhamento mais apertado (nome + chips) e o catálogo diz "Props: nenhuma"; ou o stack ganha `gap` documentado (como `urbi-linha`), ou um papel "compacto".
 
 **Proposta mínima:** (1) `urbi-botao` sem texto vira quadrado da altura do botão (34, ou 25 com `pequeno`); (2) `urbi-lista` pinta o item `aria-current` com o fundo de seleção do tema; (3) `urbi-redator` com uma prop `compacto` (ou `uma-linha`): campo de 36 px que cresce só ao digitar várias linhas e botões só ícone; (4) a (6) acima.

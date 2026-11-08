@@ -659,8 +659,9 @@ export function renderConversas(atualizar: () => void) {
   // de slot do `urbi-hospedeiro` (ui-componentes-layout.md): dentro do hospedeiro `expandir` da coluna,
   // só o filho `expandir` preenche; o hospedeiro aninhado das mensagens zera o próprio respiro e rola.
   // Três hospedeiros irmãos no slot não servem: cada um enche a coluna por igual (conferido no shell 0.56.37).
-  // `keyed` pelo id: trocar de conversa recria as partes, e cada uma carrega a nova no `connectedCallback`
-  // (sem isso o Lit reaproveita os elementos e a conversa nova ficaria em "carregando").
+  // `keyed` pelo id: trocar de conversa recria as partes; o topo carrega a conversa nova na loja no
+  // `connectedCallback`, o compositor pede a sugestão, e mensagens e contexto leem a loja (sem o `keyed`
+  // o Lit reaproveitaria os elementos e a conversa nova ficaria em "carregando").
   const centro = keyed(item, html`<pc-conversa-topo .conversaId=${item}></pc-conversa-topo>
     <urbi-hospedeiro expandir><pc-conversa-mensagens .conversaId=${item}></pc-conversa-mensagens></urbi-hospedeiro>
     <pc-conversa-compositor .conversaId=${item}></pc-conversa-compositor>`);
