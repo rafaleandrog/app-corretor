@@ -40,7 +40,8 @@ async function apoio(ctx) {
   }
   const imovel = (await api('/imoveis?por_pagina=1')).dados?.[0]?.id ?? null;
   const pagina = (await api('/pagina')).pagina?.endereco ?? null;
-  const conversa = (await api('/conversas').catch(() => ({ dados: [] }))).dados?.[0]?.id ?? null;
+  // CONVERSA=<id> escolhe a conversa da P02; sem ela, a mais recente.
+  const conversa = process.env.CONVERSA ? Number(process.env.CONVERSA) : ((await api('/conversas').catch(() => ({ dados: [] }))).dados?.[0]?.id ?? null);
   return { cliente, portal, imovel, pagina, conversa };
 }
 
@@ -112,7 +113,9 @@ const resumo = [];
 for (const [tela, modo, caminho, extra] of TELAS) {
   if (querTela && ![...querTela].some((q) => tela.startsWith(q))) continue;
   if (!caminho) { resumo.push(`${tela}: pulada (sem dado de apoio na conta)`); continue; }
-  const vp = modo === 'desk' ? { width: 1440, height: 1000 } : { width: 390, height: 844 };
+  // Computador: viewport alto o bastante para a área da app mostrar o conteúdo das colunas sem rolar (a referência v2 é a
+  // área inteira, até 1285 px em P02); o que importa é a largura de 1440.
+  const vp = modo === 'desk' ? { width: 1440, height: 1420 } : { width: 390, height: 844 };
   const ctx = await contexto(vp);
   const page = await ctx.newPage();
   const erros = [];

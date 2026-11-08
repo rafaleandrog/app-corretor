@@ -157,7 +157,7 @@ test('estrutura da moldura (D-114): três colunas fixas na página do shell, sem
   }
   // O cabeçalho da coluna esquerda: título à esquerda, ações e o Assistente (34 px, só ícone) à direita.
   const cab = texto(cabecalhoColuna('Conversas', 'ACOES'));
-  assert.match(cab, /<urbi-linha justificar="entre" alinhar="centro">\s*<urbi-prosa papel="titulo">Conversas<\/urbi-prosa>\s*<urbi-linha>ACOES<urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles"/);
+  assert.match(cab, /<urbi-linha justificar="entre" alinhar="centro">\s*<urbi-prosa papel="titulo">Conversas<\/urbi-prosa>\s*<urbi-linha>ACOES<urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles"/);
   assert.match(texto(botaoAssistenteColuna()), /ariaLabel="Abrir o Assistente"/);
 });
 

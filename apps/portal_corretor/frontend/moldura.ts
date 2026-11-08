@@ -49,13 +49,13 @@ export interface OpcoesMoldura {
 export const LARGURAS = { lista: '360px', contexto: '340px', assistente: '380px' } as const;
 
 /**
- * O botão Assistente do cabeçalho da coluna esquerda (D-114): 34 × 34, só ícone, fundo da IA quando
- * aberto. A tela o põe no fim da linha do título. O negociador humano (D7) não tem Assistente.
+ * O botão Assistente do cabeçalho da coluna esquerda (D-114): 34 × 34 (o `urbi-botao` sem `pequeno`, que
+ * tem 25 px; README v2 § 3), só ícone, fundo da IA quando aberto. A tela o põe no fim da linha do título. O negociador humano (D7) não tem Assistente.
  */
 export function botaoAssistenteColuna(): TemplateResult | typeof nothing {
   if (soNegociador()) return nothing;
   const aberto = assistenteAberto();
-  return html`<urbi-botao pequeno variante=${aberto ? 'primario' : 'secundario'} icone="fa-solid fa-wand-magic-sparkles"
+  return html`<urbi-botao variante=${aberto ? 'primario' : 'secundario'} icone="fa-solid fa-wand-magic-sparkles"
     ariaLabel=${aberto ? 'Fechar o Assistente' : 'Abrir o Assistente'} title="Assistente (A)" @click=${() => alternarAssistente()}></urbi-botao>`;
 }
 

@@ -213,7 +213,7 @@ export class PcConversasLista extends LitElement {
   render() {
     const opcoes = [{ id: '', rotulo: 'Todas' }, ...FILTROS_CONVERSA.map((f) => ({ id: f, rotulo: `${ROTULO_FILTRO[f]}${this.contadores[f] ? ` ${this.contadores[f]}` : ''}` }))];
     return html`<urbi-stack>
-      ${cabecalhoColuna('Conversas', html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-plus" @click=${() => void this.nova()}>Nova</urbi-botao>`)}
+      ${cabecalhoColuna('Conversas', html`<urbi-botao variante="secundario" icone="fa-solid fa-plus" @click=${() => void this.nova()}>Nova</urbi-botao>`)}
       <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Buscar nome, telefone ou imóvel" valor=${this.busca}
         @urbi:input-change=${(e: CustomEvent) => this.filtrar({ q: e.detail.valor })}></urbi-input>
       <urbi-chips-atalho .opcoes=${opcoes} ativo=${this.filtro} @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ filtro: e.detail.id })}></urbi-chips-atalho>
@@ -318,7 +318,7 @@ export class PcConversaTopo extends ParteDaConversa {
         ? nothing
         : html`<urbi-banner variante="alerta" icone="fa-brands fa-whatsapp">
             WhatsApp ainda não conectado: o que você escreve sai pelo WhatsApp do seu celular e fica registrado aqui.
-            <urbi-botao slot="acao" pequeno variante="secundario" href=${urbiVerso.href('/ajustes/conexoes')}>Ajustes › Conexões</urbi-botao>
+            <urbi-botao slot="acao" variante="secundario" href=${urbiVerso.href('/ajustes/conexoes')}>Ajustes › Conexões</urbi-botao>
           </urbi-banner>`}
       <urbi-linha alinhar="inicio" justificar="entre" quebrar>
         <urbi-linha alinhar="inicio">
@@ -335,10 +335,10 @@ export class PcConversaTopo extends ParteDaConversa {
         <urbi-linha quebrar justificar="fim">
           <urbi-badge cor=${agente ? 'info' : 'sucesso'}>${quemAtende(d.conversa, eu.split(' ')[0])}</urbi-badge>
           ${agente
-            ? html`<urbi-botao pequeno icone="fa-solid fa-hand" ?carregando=${this.ocupado} @click=${() => this.conduzir('assumir')}>Assumir</urbi-botao>`
+            ? html`<urbi-botao icone="fa-solid fa-hand" ?carregando=${this.ocupado} @click=${() => this.conduzir('assumir')}>Assumir</urbi-botao>`
             : d.negociacao?.conduzida_por === 'ia' || d.negociacao
-              ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-robot" ?carregando=${this.ocupado} @click=${() => this.conduzir('devolver')}>Devolver ao Negociador</urbi-botao>`
-              : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-robot" desabilitado title="O Mensageiro chega com o WhatsApp">Reativar Mensageiro</urbi-botao>`}
+              ? html`<urbi-botao variante="secundario" icone="fa-solid fa-robot" ?carregando=${this.ocupado} @click=${() => this.conduzir('devolver')}>Devolver ao Negociador</urbi-botao>`
+              : html`<urbi-botao variante="secundario" icone="fa-solid fa-robot" desabilitado title="O Mensageiro chega com o WhatsApp">Reativar Mensageiro</urbi-botao>`}
         </urbi-linha>
       </urbi-linha>
     </urbi-stack>`;
@@ -517,12 +517,12 @@ export class PcConversaCompositor extends ParteDaConversa {
       <urbi-linha quebrar>
         ${acoes.map((a) =>
           a.href
-            ? html`<urbi-botao pequeno variante="secundario" icone=${a.icone} href=${urbiVerso.href(a.href)}>${a.rotulo}</urbi-botao>`
-            : html`<urbi-botao pequeno variante="secundario" icone=${a.icone} ?desabilitado=${this.ocupado} @click=${a.ao}>${a.rotulo}</urbi-botao>`,
+            ? html`<urbi-botao variante="secundario" icone=${a.icone} href=${urbiVerso.href(a.href)}>${a.rotulo}</urbi-botao>`
+            : html`<urbi-botao variante="secundario" icone=${a.icone} ?desabilitado=${this.ocupado} @click=${a.ao}>${a.rotulo}</urbi-botao>`,
         )}
       </urbi-linha>
       ${this.sugestao
-        ? html`<urbi-linha><urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" title="Usar a sugestão no compositor" @click=${() => (this.rascunho = this.sugestao!)}>Sugestão: “${this.sugestao.length > 70 ? `${this.sugestao.slice(0, 70)}…` : this.sugestao}”</urbi-botao></urbi-linha>`
+        ? html`<urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles" title="Usar a sugestão no compositor" @click=${() => (this.rascunho = this.sugestao!)}>Sugestão: “${this.sugestao.length > 70 ? `${this.sugestao.slice(0, 70)}…` : this.sugestao}”</urbi-botao></urbi-linha>`
         : this.sugerindo
           ? html`<urbi-prosa papel="dica"><urbi-spinner></urbi-spinner> Pensando numa sugestão…</urbi-prosa>`
           : nothing}
@@ -592,7 +592,7 @@ export class PcConversaContexto extends ParteDaConversa {
         ${abordagem
           ? html`<urbi-stack>
               <urbi-prosa>${abordagem.abordagem}</urbi-prosa>
-              <urbi-linha><urbi-botao pequeno variante="texto" icone="fa-brands fa-whatsapp" @click=${() => void abrirWhatsapp(c.telefone, String(abordagem.abordagem))}>Usar mensagem pronta</urbi-botao></urbi-linha>
+              <urbi-linha><urbi-botao variante="texto" icone="fa-brands fa-whatsapp" @click=${() => void abrirWhatsapp(c.telefone, String(abordagem.abordagem))}>Usar mensagem pronta</urbi-botao></urbi-linha>
             </urbi-stack>`
           : html`<urbi-prosa papel="dica">${this.ficha ? 'Nenhuma abordagem pendente.' : 'Carregando…'}</urbi-prosa>`}
       </urbi-card>
@@ -611,7 +611,7 @@ export class PcConversaContexto extends ParteDaConversa {
                 <urbi-prosa truncar><strong>${im.titulo ?? im.codigo}</strong></urbi-prosa>
                 <urbi-prosa papel="secundario">${[im.bairro, im.preco_c ? reais(im.preco_c) : null].filter(Boolean).join(' · ')}</urbi-prosa>
               </urbi-stack>
-              <urbi-botao pequeno variante="secundario" ?desabilitado=${this.ocupado} @click=${() => void this.enviarImovel(im)}>Enviar</urbi-botao>
+              <urbi-botao variante="secundario" ?desabilitado=${this.ocupado} @click=${() => void this.enviarImovel(im)}>Enviar</urbi-botao>
             </urbi-linha>`}></urbi-lista>`
           : html`<urbi-prosa papel="dica">${perfil.length ? 'Nenhum imóvel da carteira combina com o perfil.' : 'Anote o perfil de busca na ficha para ver os imóveis que combinam.'}</urbi-prosa>`}
       </urbi-card>
@@ -641,17 +641,18 @@ export function renderConversas(atualizar: () => void) {
       atualizar,
     );
   }
-  // O centro solto: topo (faixa e cabeçalho) de altura natural, as mensagens enchendo e rolando, o
-  // compositor fixo embaixo (ui-componentes-conteudo.md § Layout do chat).
-  const centro = html`<urbi-hospedeiro slot="centro"><pc-conversa-topo .conversaId=${item}></pc-conversa-topo></urbi-hospedeiro>
-    <urbi-hospedeiro slot="centro" expandir><pc-conversa-mensagens .conversaId=${item}></pc-conversa-mensagens></urbi-hospedeiro>
-    <urbi-hospedeiro slot="centro"><pc-conversa-compositor .conversaId=${item}></pc-conversa-compositor></urbi-hospedeiro>`;
+  // O centro em fluxo, num hospedeiro só (como a referência mostra a área inteira): faixa e cabeçalho,
+  // as mensagens, as ações rápidas, a sugestão e o compositor, na ordem da spec. O compositor fixo
+  // embaixo com a lista rolando por dentro só existe no `urbi-chat`/`urbi-feed` (papel fill), que não
+  // deixam as ações rápidas entre as mensagens e o compositor: lacuna registrada no PR do grupo 1.
+  const centro = html`<pc-conversa-topo .conversaId=${item}></pc-conversa-topo>
+    <pc-conversa-mensagens .conversaId=${item}></pc-conversa-mensagens>
+    <pc-conversa-compositor .conversaId=${item}></pc-conversa-compositor>`;
   return moldura(
     {
       menu: '/conversas',
       lista,
       centro,
-      centroSolto: true,
       contexto: html`<pc-conversa-contexto .conversaId=${item}></pc-conversa-contexto>`,
       rotulos: { lista: 'Conversas', centro: 'Conversa', contexto: 'Cliente' },
       painel: 'centro',
