@@ -80,3 +80,7 @@
   Na retomada: ler o Codex; passe de fechamento (candidatos triviais: `pequeno` em estados.ts:51; tirar `link_whatsapp` da resposta
   e do doc OU completar no backend — escolher 1 desfecho → é decisão, logo dispensar e registrar; "lembrete programado" condicional
   no aviso da tela, conversas.ts:684-685, ≤5 linhas; demais dispensadas com motivo), comentário do passe, veredito, merge.
+- **Codex no head f268716 (16h14)**: 2 achados P2, nenhum P1: (1) conversas.ts:685 aviso "lembrete programado" sem condição
+  (= observação da S2; lembrete não existe com `lembrete_visita_horas=0`, visita a <24 h ou falha no barramento) — thread 4506878062;
+  (2) publico.ts:658 `ultimo_acesso_em` regravado na reentrega do evento (= observação O3 da rodada 1) — thread 4506878064.
+  As duas threads ainda SEM resposta minha (responder na retomada). RODADA 3 FECHADA SEM BLOQUEANTE.
