@@ -103,7 +103,12 @@ foram enviadas a ele, com condições, concessão, contrapartida e validade. Aba
 - **Aceitar condição** (só na última proposta do vendedor, dentro da validade): pede confirmação
   ("Aceitar R$ 1.460.000?") e avisa que **aceitar não fecha o negócio** — você confirma com ele e
   com o proprietário;
-- **Fazer nova oferta:** o cliente digita o valor em reais (por exemplo, 1.380.000);
+- **Fazer nova oferta:** o cliente digita o valor em reais (por exemplo, 1.380.000). Um valor
+  muito baixo (menos de R$ 10 mil ou de metade do preço pedido) é quase sempre erro de digitação:
+  o portal pergunta "Você quis dizer R$ 1.350.000?" e envia o valor corrigido só se o cliente
+  confirmar. Se um valor assim chegar mesmo assim, o app recusa com a mesma pergunta, **não grava a
+  oferta, não gasta rodada do mandato nem chama o Negociador**; você recebe só um recado na conversa
+  ("Pelo portal, o cliente tentou ofertar R$ 1.350,00; a oferta não foi registrada");
 - **Mensagem ao corretor:** abre um campo de texto ali mesmo, na negociação. A mensagem vai pelo mesmo
   caminho da aba Conversa (e, no app, entra em **Conversas**, ver [Conversas](conversas.md)) e já cita o imóvel ("Sobre a negociação do imóvel …"), então o corretor
   sabe de qual negociação se trata. Se o cliente pede desconto ou fala de preço, o Negociador entra

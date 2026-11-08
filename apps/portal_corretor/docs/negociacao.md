@@ -213,11 +213,43 @@ Outro corretor nunca vê nada da negociação de outra conta: a resposta é "nã
 ## Propostas
 
 Cada proposta registra quem propôs (comprador, vendedor ou proprietário), o valor, as condições, a
-concessão, a contrapartida e a validade. Nesta versão o corretor **registra** as propostas
-(canal "registro"). A contraproposta do vendedor pode ser enviada pelo **Portal do Cliente** ou pelo **Fazer
+concessão, a contrapartida e a validade. O corretor **registra** as propostas que aconteceram fora
+do app (canal "registro"). A contraproposta do vendedor pode ser enviada pelo **Portal do Cliente** ou pelo **Fazer
 agora** (o app monta a mensagem e o link do WhatsApp do celular do corretor, que envia), sempre
 conferida contra o mandato antes de sair — ver a seção seguinte. O WhatsApp do próprio app ainda
 não existe.
+
+### Nova contraproposta (a sua, sem depender de sugestão)
+
+**Nova contraproposta** escreve a sua contraproposta: valor, condições, a concessão (um item do
+mandato) e a contrapartida, e uma mensagem opcional. Ela sai pelo **portal** ou pelo **Fazer
+agora** (`POST /negociacoes/:id/propostas` com `direcao: vendedor` e `canal: portal` ou `wa_me`) e
+passa pelas mesmas garantias de código do Negociador (passo, rodadas, concessões, sigilo, validade e
+canal). Sem validade escrita, vale a **validade padrão de cada contraproposta** do mandato. Enviada,
+a negociação fica "aguardando o cliente". Com o acordo já com o proprietário, nada sai até a decisão
+dele.
+
+**Abaixo do ponto de recuo:** o recuo é seu, então o app não proíbe, mas avisa: "Esta contraproposta
+fica abaixo do ponto de recuo do mandato. Confirme para enviar mesmo assim (fica registrado)." Só
+com a sua confirmação ela sai, e o envio fica na **trilha de auditoria** da plataforma
+(`contraproposta_abaixo_do_recuo`, com o seu nome e o número da negociação). Abaixo do recuo o
+passo máximo (medido até o recuo) também não se aplica; as outras garantias continuam. O
+**negociador humano e o Negociador IA nunca enviam abaixo do recuo**: para eles, o bloqueio é o mesmo
+de sempre.
+
+### Decisão do proprietário e encerramento
+
+Com o acordo levado ao proprietário ("aguardando proprietário"), **Registrar decisão** guarda o que o
+dono decidiu (`PATCH /propostas/:id`, só o corretor):
+- **Aceita:** a negociação se encerra como **ganha** pelo valor da proposta;
+- **Recusa:** a proposta do comprador fica recusada e a negociação volta para você;
+- **Contraproposta do proprietário:** o valor (e as condições) entram na escada como proposta do
+  proprietário, e a negociação volta para você.
+
+Cada decisão avisa `proposta_decidida` (só os números). **Encerrar** (no menu "mais" do cabeçalho)
+fecha a negociação como **ganha**, com o valor final, ou **perdida**, com o motivo. Ganha, o valor
+final passa a ser o valor do negócio e o app devolve a **comissão prevista** (valor × comissão do
+negócio).
 
 ### No Portal do Cliente
 
@@ -236,7 +268,9 @@ fonte dessa estimativa e quem conduz. O app monta o que vai ao portal por uma li
 
 Pelo portal o cliente tem três botões:
 - **Fazer nova oferta:** ela entra na escada como oferta do comprador, pelo canal portal, e você
-  recebe o aviso. Se o Negociador IA conduz a negociação, está ligado, tem mandato vigente e o
+  recebe o aviso. Oferta implausível (menos de R$ 10 mil ou de metade do preço pedido) não entra:
+  não gasta rodada nem chama o Negociador, e chega a você só como recado na conversa (ver
+  [Seleções e Portal do Cliente](selecoes-e-portal.md#propostas)). Se o Negociador IA conduz a negociação, está ligado, tem mandato vigente e o
   gatilho "oferta registrada ou feita no portal" está marcado, ele roda sozinho sobre a oferta, com
   as mesmas 7 garantias: no **faz sozinho**, a contraproposta que passa sai pelo portal com o texto
   montado pelo código; em qualquer outro caso (só sugere, pergunta antes, passagem, IA fora do ar),

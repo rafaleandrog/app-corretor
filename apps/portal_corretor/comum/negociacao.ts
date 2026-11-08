@@ -97,6 +97,8 @@ export interface MandatoValido {
   passo_max_pct: number;
   rodadas_max: number;
   validade: string;
+  /** Validade padrão de cada contraproposta, em horas (P16 bloco 3); null = sem prazo. */
+  validade_contraproposta_horas: number | null;
   autonomia: (typeof AUTONOMIAS)[number];
   autorizacao_proprietario: AutorizacaoProprietario | null;
 }
@@ -139,6 +141,11 @@ export function validarMandato(corpo: Record<string, unknown>): { ok: true; dado
   const rodadas_max = corpo.rodadas_max === undefined || corpo.rodadas_max === null ? RODADAS_MAX_PADRAO : Number(corpo.rodadas_max);
   if (!Number.isInteger(rodadas_max) || rodadas_max < 1 || rodadas_max > 50) erros.push('rodadas_max: use um número inteiro de 1 a 50.');
   if (!dataValida(corpo.validade)) erros.push('validade: informe a data no formato AAAA-MM-DD.');
+  const vch = corpo.validade_contraproposta_horas;
+  const validade_contraproposta_horas = vch === undefined || vch === null || vch === '' ? null : Number(vch);
+  if (validade_contraproposta_horas !== null && !(Number.isInteger(validade_contraproposta_horas) && validade_contraproposta_horas >= 1 && validade_contraproposta_horas <= 720)) {
+    erros.push('validade_contraproposta_horas: use horas inteiras, de 1 a 720 (30 dias).');
+  }
   const autonomia = corpo.autonomia === undefined ? 'pergunta_antes' : corpo.autonomia;
   if (!(AUTONOMIAS as readonly unknown[]).includes(autonomia)) erros.push('autonomia: use sugere, pergunta_antes ou faz_sozinho.');
   if (corpo.batna_vendedor !== undefined && corpo.batna_vendedor !== null && typeof corpo.batna_vendedor !== 'string') erros.push('batna_vendedor: use texto.');
@@ -194,6 +201,7 @@ export function validarMandato(corpo: Record<string, unknown>): { ok: true; dado
       passo_max_pct,
       rodadas_max,
       validade: corpo.validade as string,
+      validade_contraproposta_horas,
       autonomia: autonomia as MandatoValido['autonomia'],
       autorizacao_proprietario,
     },

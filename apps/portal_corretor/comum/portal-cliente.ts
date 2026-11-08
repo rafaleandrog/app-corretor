@@ -146,6 +146,30 @@ export interface NegociacaoPublica {
   /** O cliente pode fazer oferta ou aceitar uma condição (negociação em andamento, sem acordo pendente). */
   pode_agir: boolean;
   propostas: PropostaPublica[];
+  /** Preço anunciado do imóvel (público): a tela confere a oferta antes de enviar (#194). */
+  preco_pedido_c?: number | null;
+}
+
+/** Piso absoluto de uma oferta do portal (#194): R$ 10 mil. */
+export const OFERTA_MINIMA_C = 1_000_000;
+
+/**
+ * Oferta plausível (#194): ao menos R$ 10 mil e ao menos metade do preço pedido. Abaixo disso é
+ * quase sempre erro de digitação ("1.350" querendo dizer R$ 1,35 mi): não vira rodada.
+ */
+export function ofertaPlausivel(valor_c: number, preco_pedido_c: number | null | undefined): boolean {
+  if (!(valor_c >= OFERTA_MINIMA_C)) return false;
+  return !(preco_pedido_c && preco_pedido_c > 0) || valor_c * 2 >= preco_pedido_c;
+}
+
+/**
+ * O valor que o cliente provavelmente quis dizer (#194): multiplica por mil até chegar perto do preço
+ * pedido ("1.350" → R$ 1.350.000). `null` se não há preço ou nenhuma escala serve.
+ */
+export function ofertaProvavel(valor_c: number, preco_pedido_c: number | null | undefined): number | null {
+  if (!preco_pedido_c || !(valor_c > 0)) return null;
+  for (let v = valor_c * 1000; v <= preco_pedido_c * 2; v *= 1000) if (ofertaPlausivel(v, preco_pedido_c)) return v;
+  return null;
 }
 
 const SITUACAO: Record<string, SituacaoNegociacao> = {
@@ -190,9 +214,10 @@ export function propostaPublica(p: Linha): PropostaPublica | null {
 }
 
 /** A negociação como vai ao portal: só o momento, o imóvel do jeito do anúncio e as propostas que saem. */
-export function negociacaoPublica(n: Linha, propostas: Linha[], imovel: NegociacaoPublica['imovel']): NegociacaoPublica {
+export function negociacaoPublica(n: Linha, propostas: Linha[], imovel: NegociacaoPublica['imovel'], preco_pedido_c: number | null = null): NegociacaoPublica {
   return {
     ref: Number(n.id),
+    preco_pedido_c: preco_pedido_c && preco_pedido_c > 0 ? preco_pedido_c : null,
     imovel: imovel ? { codigo: imovel.codigo ?? null, titulo: imovel.titulo ?? null, bairro: imovel.bairro ?? null, cidade: imovel.cidade ?? null } : null,
     situacao: SITUACAO[n.estado] ?? 'com_o_corretor',
     pode_agir: AGE.includes(n.estado),

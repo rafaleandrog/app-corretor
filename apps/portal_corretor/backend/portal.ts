@@ -232,7 +232,7 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
     // "O que falta de você": as pendências que o corretor pediu; a feita sai na sincronização seguinte.
     tarefas: tarefas.filter((t) => !t.feita_em).map((t) => ({ ref: t.id, texto: t.texto })),
     // Nunca o mandato, o teto estimado nem quem conduz: só o que `negociacaoPublica` permite.
-    negociacoes: abertas.map((n) => negociacaoPublica(n, propostas, imovelPublicoDe(imovel.get(n.imovel_id)))),
+    negociacoes: abertas.map((n) => negociacaoPublica(n, propostas, imovelPublicoDe(imovel.get(n.imovel_id)), Number(imovel.get(n.imovel_id)?.preco_c) || null)),
     jornada: {
       desde,
       imoveis_recebidos: new Set(itens.map((i) => i.imovel_id)).size,

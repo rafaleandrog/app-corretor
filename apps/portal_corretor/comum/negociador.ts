@@ -221,6 +221,8 @@ export interface MandatoMotor {
   validade: string;
   autonomia: string;
   autorizacao_proprietario: unknown;
+  /** Validade padrão de cada contraproposta (P16 bloco 3), usada quando o movimento não traz a sua. */
+  validade_contraproposta_horas?: number | null;
 }
 
 export const MAX_MENSAGENS_CONTEXTO = 30;

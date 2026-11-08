@@ -7,9 +7,9 @@ import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
 import { id } from './acesso';
 import { reclassificar } from './inteligencia';
-import { publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
+import { lerVitrine, publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 import { semSigilo } from '../comum/negociacao';
-import { negociacaoPublica, propostaAceitavel } from '../comum/portal-cliente';
+import { negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel } from '../comum/portal-cliente';
 import { configDaConta, encerrada, gravarPropostaTravada, mandatoVigente } from './negociacao';
 import { executarMotor } from './negociador';
 import { depoisDeEntrarNoListener, entrarPeloCliente, meioDoListener, motorNaMensagem, rodarMotorNaMensagem, type Entrada } from './negociador-entrada';
@@ -227,8 +227,10 @@ const ROTULO_REACAO: Record<string, string> = { gostei: 'Gostou do', nao_gostei:
 
 /** O que o cliente faz pelo portal (bloco 9 e D5, M5b). */
 const TIPOS_ACAO = ['mensagem', 'remarcar', 'tarefa_feita', 'proposta_nova', 'proposta_aceite'];
-/** Teto de uma oferta digitada no portal (R$ 1 bilhão): valor acima disso é erro de digitação. */
+/** Teto de uma oferta digitada no portal: o que a coluna guarda (R$ 21,4 mi); acima disso é erro de digitação. */
 const VALOR_MAXIMO_C = CENTAVOS_MAXIMO;
+/** Começo do recado ao corretor quando a oferta do portal é implausível (#194). */
+const AVISO_OFERTA_IMPLAUSIVEL = 'Pelo portal, o cliente';
 
 const contaDoIngresso = (req: Request) => {
   const c = Number((req.wh?.contexto as Linha | null)?.conta_id);
@@ -302,6 +304,30 @@ export const webhooks = {
     }
     if (!dentroDoLimite(`acao:${conta}:${contatoId}:${origem(req)}`, 5)) {
       return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitos envios seguidos. Espere um minuto.' });
+    }
+    // #194: oferta implausível (menos de R$ 10 mil ou de metade do preço pedido) não vira rodada nem
+    // aciona o Negociador. O preço vem do portal publicado (vitrine, não segregada; o handler de `wh`
+    // não lê a conta). Vira só uma mensagem ao corretor na conversa, e o cliente recebe 422.
+    if (tipo === 'proposta_nova') {
+      const portal = await lerVitrine(req.dados!, conta, 'portal', contatoId).catch(() => null);
+      const neg = ((portal?.dados as Linha | undefined)?.negociacoes as Linha[] | undefined)?.find((n) => Number(n.ref) === negociacao);
+      const pedido = Number(neg?.preco_pedido_c) || null;
+      if (!ofertaPlausivel(valor_c!, pedido)) {
+        const provavel = ofertaProvavel(valor_c!, pedido);
+        await req.eventos!.publicar(
+          'acao_cliente_recebida',
+          { contato_id: contatoId, tipo: 'mensagem', texto: `${AVISO_OFERTA_IMPLAUSIVEL} tentou ofertar ${reaisPt(valor_c!)}; a oferta não foi registrada (valor fora do esperado).`, visita: null, tarefa: null, negociacao: null, proposta: null, valor_c: null },
+          { conta_id: conta },
+        );
+        return res.status(422).json({
+          erro: true,
+          codigo: 'OFERTA_IMPLAUSIVEL',
+          mensagem: provavel
+            ? `A oferta de ${reaisPt(valor_c!)} parece incompleta. Você quis dizer ${reaisPt(provavel)}? Confira o valor e envie de novo.`
+            : `A oferta de ${reaisPt(valor_c!)} está muito abaixo do preço pedido. Confira o valor e envie de novo.`,
+          sugerido_c: provavel,
+        });
+      }
     }
     // Payload fechado (barramento): toda chave declarada em `campos` sai, com `null` onde não se aplica.
     // Se a negociação e a proposta são deste cliente e ainda aceitam, quem confere é o listener (sob a trava).
@@ -552,6 +578,11 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
       valor_c = Number(aceite.valor_c);
     } else {
       valor_c = Number(p.valor_c);
+      // #194, segunda trava (sob a trava, com o preço pedido do mandato ou do imóvel): oferta
+      // implausível não grava rodada nem aciona o Negociador.
+      const mandato = await mandatoVigente(trx, viva);
+      const imovel = viva.imovel_id ? (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, id: viva.imovel_id }, maximo: 1 }))[0] : null;
+      if (!ofertaPlausivel(valor_c, Number(mandato?.preco_pedido_c) || Number(imovel?.preco_c) || null)) return null;
       // O mesmo evento entregue de novo: a oferta igual do portal já é a última.
       if (ultima && ultima.direcao === 'comprador' && ultima.canal === 'portal' && Number(ultima.valor_c) === valor_c) return null;
     }
@@ -660,7 +691,8 @@ export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoLis
       // Pedido de desconto ou fala de preço (F3, 10.9.4, gatilho `pedido_desconto`): o Negociador entra na
       // negociação (a da seção de onde a mensagem saiu, ou a única do cliente) e, conduzindo com mandato
       // vigente, prepara a resposta pelo motor do D2. A tarefa acima continua: a mensagem é do corretor.
-      if (falaDePreco(String(p.texto ?? ''))) {
+      // O aviso de oferta implausível (#194) não aciona o Negociador: é só um recado ao corretor.
+      if (falaDePreco(String(p.texto ?? '')) && !String(p.texto ?? '').startsWith(AVISO_OFERTA_IMPLAUSIVEL)) {
         entrada = await entrarPeloCliente(trx, ctx, conta, { gatilho: 'pedido_desconto', contato, negociacaoId: idDe(p.negociacao) });
         if (entrada?.nova) await sincronizarPortal(trx, conta, contato.id);
         motor = entrada && (await motorNaMensagem(trx, conta, entrada.negociacao, String(p.texto))) ? { nid: Number(entrada.negociacao.id), responsavel: Number(contato.responsavel_id) || null } : null;

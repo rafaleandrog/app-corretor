@@ -654,6 +654,8 @@ negociadorRotas.post(
       let proposta: Linha | null = null;
       if (temContraproposta) {
         const cp = movimento.contraproposta!;
+        // Sem validade no movimento, a padrão do mandato (P16 bloco 3).
+        const horas = cp.validade_horas ?? agora.mandato?.validade_contraproposta_horas ?? null;
         const r = await gravarPropostaTravada(trx, nid!, {
           direcao: 'vendedor',
           autor_tipo: editada ? (soNegociador(req) ? 'negociador_humano' : 'corretor') : 'negociador_ia',
@@ -662,7 +664,7 @@ negociadorRotas.post(
           condicoes: cp.condicoes,
           concessao: cp.concessao,
           contrapartida: cp.contrapartida,
-          validade_ate: cp.validade_horas ? new Date(Date.now() + cp.validade_horas * 3600e3) : null,
+          validade_ate: horas ? new Date(Date.now() + horas * 3600e3) : null,
           canal,
           estado: 'enviada',
         });

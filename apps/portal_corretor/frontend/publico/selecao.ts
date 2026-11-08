@@ -6,6 +6,8 @@ import {
   abaDoEndereco,
   abasDoPortal,
   centavosDoValor,
+  ofertaPlausivel,
+  ofertaProvavel,
   propostaAceitavel,
   type NegociacaoPublica,
   type PropostaPublica,
@@ -672,8 +674,23 @@ export class PcPortalCliente extends LitElement {
       this.focar(`#valor-${n.ref}`);
       return;
     }
+    // #194: valor muito abaixo do pedido é quase sempre erro de digitação ("1.350" por R$ 1,35 mi).
+    // A tela pergunta antes; o servidor recusa o que passar daqui sem consumir rodada.
+    let final = valor;
+    if (!ofertaPlausivel(valor, n.preco_pedido_c)) {
+      const provavel = ofertaProvavel(valor, n.preco_pedido_c);
+      if (provavel && window.confirm(`Você quis dizer ${reais(provavel)}? Toque em OK para enviar ${reais(provavel)}, ou em Cancelar para corrigir.`)) final = provavel;
+      else {
+        this.avisoEm = `negociacao-${n.ref}`;
+        this.erroOferta = n.ref;
+        this.aviso = { ok: false, texto: `A oferta de ${reais(valor)} está muito abaixo do preço pedido. Confira o valor, por exemplo 1.380.000.` };
+        this.focar(`#valor-${n.ref}`);
+        return;
+      }
+    }
+    const valorFinal = final;
     this.erroOferta = null;
-    void this.proposta(n.ref, { tipo: 'proposta_nova', valor_c: valor }, `Oferta de ${reais(valor)} enviada. ${primeiroNome(this.portal!.corretor?.nome)} responde por aqui.`);
+    void this.proposta(n.ref, { tipo: 'proposta_nova', valor_c: valorFinal }, `Oferta de ${reais(valorFinal)} enviada. ${primeiroNome(this.portal!.corretor?.nome)} responde por aqui.`);
   }
 
   /** Mensagem ao corretor sobre a negociação: o mesmo webhook da Conversa, citando o imóvel no texto. */
