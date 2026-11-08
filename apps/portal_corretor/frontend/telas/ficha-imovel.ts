@@ -2,7 +2,7 @@ import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { secaoDaFalta } from '../../comum/imoveis';
+import { numeroEmTexto, reaisEmTexto, secaoDaFalta } from '../../comum/imoveis';
 import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, gesto, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 import { irParaComQuery } from '../criar.js';
@@ -267,11 +267,13 @@ export class PcTelaFichaImovel extends LitElement {
         { nome: 'titulo', tipo: 'texto', rotulo: 'Título', valor: im.titulo ?? '' },
         { nome: 'tipo', tipo: 'selecao', rotulo: 'Tipo', valor: im.tipo, opcoes: opcoes(ROTULO_TIPO_IMOVEL) },
         { nome: 'finalidade', tipo: 'selecao', rotulo: 'Finalidade', valor: im.finalidade, opcoes: [{ valor: 'venda', rotulo: 'Venda' }, { valor: 'venda_e_locacao', rotulo: 'Venda e locação' }] },
-        { nome: 'preco', tipo: 'numero', rotulo: 'Preço (R$; vazio = sob consulta)', valor: im.preco_c ? im.preco_c / 100 : null, min: 0 },
-        { nome: 'condominio', tipo: 'numero', rotulo: 'Condomínio (R$/mês)', valor: im.condominio_c ? im.condominio_c / 100 : null, min: 0 },
-        { nome: 'iptu_anual', tipo: 'numero', rotulo: 'IPTU (R$/ano)', valor: im.iptu_anual_c ? im.iptu_anual_c / 100 : null, min: 0 },
-        { nome: 'area_util_m2', tipo: 'numero', rotulo: 'Área útil (m²)', valor: n(im.area_util_m2), min: 0, step: 0.01 },
-        { nome: 'area_total_m2', tipo: 'numero', rotulo: 'Área total (m²)', valor: n(im.area_total_m2), min: 0, step: 0.01 },
+        // Dinheiro e área em texto, no formato brasileiro (#185): o campo numérico perdia o ponto de
+        // milhar ("1.500.000" virava R$ 1,50). A string vai ao backend, que lê "1.450.000" e "120,5".
+        { nome: 'preco', tipo: 'texto', rotulo: 'Preço (R$; vazio = sob consulta)', valor: reaisEmTexto(im.preco_c), placeholder: '1.450.000' },
+        { nome: 'condominio', tipo: 'texto', rotulo: 'Condomínio (R$/mês)', valor: reaisEmTexto(im.condominio_c), placeholder: '1.200' },
+        { nome: 'iptu_anual', tipo: 'texto', rotulo: 'IPTU (R$/ano)', valor: reaisEmTexto(im.iptu_anual_c), placeholder: '4.800' },
+        { nome: 'area_util_m2', tipo: 'texto', rotulo: 'Área útil (m²)', valor: numeroEmTexto(n(im.area_util_m2)), placeholder: '120,5' },
+        { nome: 'area_total_m2', tipo: 'texto', rotulo: 'Área total (m²)', valor: numeroEmTexto(n(im.area_total_m2)), placeholder: '250' },
         { nome: 'quartos', tipo: 'numero', rotulo: 'Quartos', valor: im.quartos, min: 0, max: 99 },
         { nome: 'suites', tipo: 'numero', rotulo: 'Suítes', valor: im.suites, min: 0, max: 99 },
         { nome: 'banheiros', tipo: 'numero', rotulo: 'Banheiros', valor: im.banheiros, min: 0, max: 99 },

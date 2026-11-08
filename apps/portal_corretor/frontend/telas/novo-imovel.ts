@@ -11,8 +11,12 @@ import {
   passoSemRascunho,
   passoValido,
   qualidadeAnuncio,
+  numeroEmTexto,
+  rascunhoSemTipo,
+  reaisEmTexto,
   type PassoNovoImovel,
 } from '../../comum/imoveis';
+import { reaisParaCentavos } from '../../comum/crm';
 import {
   chamarApi,
   corQualidade,
@@ -66,9 +70,10 @@ interface Formulario {
   suites: number | null;
   banheiros: number | null;
   vagas: number | null;
-  area_util_m2: number | null;
-  preco: number | null;
-  condominio: number | null;
+  /** Área e dinheiro em texto, no formato brasileiro ("120,5", "1.450.000"): o backend lê (#185). */
+  area_util_m2: string;
+  preco: string;
+  condominio: string;
   caracteristicas: string;
 }
 
@@ -92,16 +97,17 @@ const VAZIO: Formulario = {
   suites: null,
   banheiros: null,
   vagas: null,
-  area_util_m2: null,
-  preco: null,
-  condominio: null,
+  area_util_m2: '',
+  preco: '',
+  condominio: '',
   caracteristicas: '',
 };
 
 const doImovel = (im: Linha): Formulario => {
   const n = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v));
   return {
-    tipo: im.tipo ?? '',
+    // O rascunho que nasceu pelas fotos guarda o "outro" de reserva: o passo 2 pede o tipo de verdade.
+    tipo: rascunhoSemTipo(im) ? '' : (im.tipo ?? ''),
     codigo: im.codigo ?? '',
     titulo: im.titulo ?? '',
     bairro: im.bairro ?? '',
@@ -111,9 +117,9 @@ const doImovel = (im: Linha): Formulario => {
     suites: n(im.suites),
     banheiros: n(im.banheiros),
     vagas: n(im.vagas),
-    area_util_m2: n(im.area_util_m2),
-    preco: im.preco_c ? im.preco_c / 100 : null,
-    condominio: im.condominio_c ? im.condominio_c / 100 : null,
+    area_util_m2: numeroEmTexto(im.area_util_m2),
+    preco: reaisEmTexto(im.preco_c),
+    condominio: reaisEmTexto(im.condominio_c),
     caracteristicas: im.caracteristicas ?? '',
   };
 };
@@ -142,6 +148,14 @@ class NovoImovel extends EventTarget {
   sujo = false;
   /** Campos que o corretor mexeu nesta visita: a IA não os preenche mais. */
   editados = new Set<string>();
+  /**
+   * O corretor tentou avançar com obrigatórios vazios: só a partir daí, ou depois de mexer no campo, o
+   * "Obrigatório" aparece (#182, item 4). A tela não abre em vermelho.
+   */
+  tentouAvancar = false;
+  /** Campos que a IA preencheu pelo ditado nesta visita ("preenchido pela IA"). */
+  ditados = new Set<string>();
+  ditando = false;
   /**
    * Alguma foto foi lida pela IA nesta visita à tela. Só aí as características das fotos entram no
    * formulário: ao retomar um rascunho, o que o corretor apagou antes não volta sozinho.
@@ -257,6 +271,7 @@ class NovoImovel extends EventTarget {
 
   /** O campo mostra "preenchido pela IA": veio da leitura das fotos e o corretor não mexeu. */
   preenchidoPelaIa(campo: keyof Formulario): boolean {
+    if (this.ditados.has(campo) && !this.editados.has(campo)) return true;
     if (campo !== 'caracteristicas' || this.editados.has(campo)) return false;
     const atuais = this.form.caracteristicas.toLowerCase();
     const sugeridas = this.sugeridasPelasFotos();
@@ -266,8 +281,47 @@ class NovoImovel extends EventTarget {
   editar(campo: keyof Formulario, valor: unknown) {
     this.form = { ...this.form, [campo]: valor } as Formulario;
     this.editados.add(campo);
+    this.ditados.delete(campo);
     this.sujo = true;
     this.mudou();
+  }
+
+  /** O "Obrigatório" do campo aparece só depois de mexer nele ou de tentar avançar (#182, item 4). */
+  mostrarErro(campo: keyof Formulario): boolean {
+    return (this.tentouAvancar || this.editados.has(campo)) && !String(this.form[campo] ?? '').trim();
+  }
+
+  /**
+   * "Ditar o resto" (P07, passo 2): o texto do microfone (ou digitado) vai à IA, que devolve os campos que
+   * ouviu; entram só os que o corretor ainda não mexeu, marcados como "preenchido pela IA".
+   */
+  ditar(texto: string) {
+    return this.semAvisoDeOutraConta(async () => {
+      if (!texto.trim() || this.ditando) return;
+      this.ditando = true;
+      this.mudou();
+      try {
+        const r = await this.esperar(enviar('POST', '/imoveis/ia', { texto }));
+        const campos = (r?.campos ?? {}) as Record<string, string | number>;
+        let n = 0;
+        const novo = { ...this.form } as unknown as Record<string, unknown>;
+        for (const [c, v] of Object.entries(campos)) {
+          if (!(c in novo) || this.editados.has(c)) continue;
+          novo[c] = c === 'caracteristicas' ? juntarCaracteristicas(String(novo[c] ?? ''), String(v).split(', ')) : v;
+          this.ditados.add(c);
+          n++;
+        }
+        this.form = novo as unknown as Formulario;
+        if (n) this.sujo = true;
+        urbiVerso.notificar(n ? `A IA preencheu ${n} campo(s). Confira.` : 'A IA não achou dados do imóvel nessa fala.', n ? 'sucesso' : 'info');
+      } catch (e) {
+        if (this.vida.encerrado(e)) throw e;
+        await urbiVerso.alertar({ titulo: 'Não foi possível ditar agora', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      } finally {
+        this.ditando = false;
+        this.mudou();
+      }
+    });
   }
 
   /** `?item=` e `?passo=` no endereço, sem empilhar histórico: recarregar a página volta aqui. */
@@ -277,9 +331,10 @@ class NovoImovel extends EventTarget {
 
   /** O corpo do PATCH/POST: os campos do formulário, como as rotas recebem. */
   private corpo(): Record<string, unknown> {
-    const { codigo, ...f } = this.form;
-    // O código só vai na criação; depois, é o do imóvel e não muda por aqui.
-    return { ...f, uf: f.uf.trim().toUpperCase(), ...(this.id || !codigo.trim() ? {} : { codigo }) };
+    const { codigo, tipo, ...f } = this.form;
+    // O código só vai na criação; depois, é o do imóvel e não muda por aqui. Tipo vazio (rascunho que
+    // nasceu pelas fotos) não vai: a rota recusaria, e o passo 2 o pede antes de seguir.
+    return { ...f, ...(tipo ? { tipo } : {}), uf: f.uf.trim().toUpperCase(), ...(this.id || !codigo.trim() ? {} : { codigo }) };
   }
 
   /** Faltam os obrigatórios (tipo e cidade), sem os quais o rascunho não é criado nem avança do Dados. */
@@ -287,14 +342,16 @@ class NovoImovel extends EventTarget {
     return obrigatoriosVazios(this.form as unknown as Record<string, unknown>);
   }
 
-  /** O imóvel existe como rascunho (cria na primeira vez que precisa; a rota pede tipo e cidade). */
+  /**
+   * O imóvel existe como rascunho (cria na primeira vez que precisa). Sem tipo e cidade ainda (o cadastro
+   * começa pelas fotos), nasce como rascunho vazio (`rascunho: true`) e os dois vêm no passo 2.
+   */
   async garantirRascunho(): Promise<number> {
     if (this.id) return this.id;
-    const faltam = this.faltamObrigatorios();
-    if (faltam.length) throw new Error(`Para guardar o rascunho, preencha: ${faltam.join(' e ').toLowerCase()}.`);
     // O que se digitar com o POST em voo continua pendente: só o que foi enviado conta como salvo.
     const enviado = this.form;
-    const criado = await this.esperar(enviar('POST', '/imoveis', this.corpo()));
+    const corpo = this.faltamObrigatorios().length ? { ...this.corpo(), rascunho: true } : this.corpo();
+    const criado = await this.esperar(enviar('POST', '/imoveis', corpo));
     this.id = criado.id;
     if (this.form === enviado) this.sujo = false;
     this.naUrl();
@@ -305,7 +362,7 @@ class NovoImovel extends EventTarget {
   /** Salva os dados se houver edição pendente (cada passo salva ao sair dele). */
   async salvarDados() {
     if (!this.id) {
-      if (this.sujo && !this.faltamObrigatorios().length) await this.garantirRascunho();
+      if (this.sujo) await this.garantirRascunho();
       return;
     }
     if (!this.sujo) return;
@@ -353,11 +410,12 @@ class NovoImovel extends EventTarget {
   /** Vai a outro passo salvando o atual. Os passos 3 e 4 precisam do rascunho criado. */
   async irPara(passo: PassoNovoImovel) {
     if (passo === this.passo || !this.vida.vivo()) return;
-    // Autorização e Onde aparece precisam do rascunho, que precisa de tipo e cidade: sem eles, vai a Dados.
-    if (!this.id && indicePasso(passo) >= indicePasso('autorizacao') && this.faltamObrigatorios().length) {
-      urbiVerso.notificar('Antes, preencha tipo e cidade: com eles o rascunho fica guardado.', 'info');
+    // Autorização e Onde aparece pedem tipo e cidade (o rascunho já pode existir pelas fotos): sem eles, vai a Dados.
+    if (indicePasso(passo) >= indicePasso('autorizacao') && this.faltamObrigatorios().length) {
+      urbiVerso.notificar('Antes, preencha tipo e cidade no passo Dados.', 'info');
+      this.tentouAvancar = true;
       passo = 'dados';
-      if (passo === this.passo) return;
+      if (passo === this.passo) return this.mudou();
     }
     const ok = await this.tentar('Salvando…', 'Não foi possível salvar o rascunho', async () => {
       await this.salvarDados();
@@ -374,6 +432,8 @@ class NovoImovel extends EventTarget {
   async proximo() {
     if (!this.vida.vivo()) return;
     if (this.passo === 'dados' && this.faltamObrigatorios().length) {
+      this.tentouAvancar = true;
+      this.mudou();
       urbiVerso.notificar('Preencha os campos destacados para continuar. Para parar agora, salve o rascunho.', 'info');
       return;
     }
@@ -390,9 +450,9 @@ class NovoImovel extends EventTarget {
   /** Salva o que há e vai para a ficha do rascunho na carteira. */
   async salvarRascunho() {
     if (!this.vida.vivo()) return;
-    if (!this.id && this.faltamObrigatorios().length) {
-      urbiVerso.notificar('Para salvar o rascunho, preencha tipo e cidade.', 'info');
-      if (this.passo !== 'fotos') await this.irPara('dados');
+    // Sem nada ainda (nem foto nem dado), não há o que guardar.
+    if (!this.id && !this.sujo) {
+      urbiVerso.notificar('Envie uma foto ou preencha um dado para guardar o rascunho.', 'info');
       return;
     }
     const ok = await this.tentar('Salvando…', 'Não foi possível salvar o rascunho', async () => {
@@ -465,6 +525,21 @@ class NovoImovel extends EventTarget {
     const ok = await this.tentar('Mudando a capa…', 'Não foi possível mudar a capa', () => this.esperar(enviar('PUT', `/imoveis/${this.id}/midias/ordem`, { ids })));
     if (ok) {
       this.capaSugerida = false;
+      await this.recarregar();
+    }
+  }
+
+  /** Move a foto uma posição (setas, como na Página: o primitivo da grade não arrasta). */
+  async moverFoto(m: Linha, delta: -1 | 1) {
+    const ids = this.ficha!.midias.filter((x) => x.tipo === 'foto').map((x) => x.id);
+    const outras = this.ficha!.midias.filter((x) => x.tipo !== 'foto').map((x) => x.id);
+    const i = ids.indexOf(m.id);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    const ok = await this.tentar('Mudando a ordem…', 'Não foi possível mudar a ordem', () => this.esperar(enviar('PUT', `/imoveis/${this.id}/midias/ordem`, { ids: [...ids, ...outras] })));
+    if (ok) {
+      if (i === 0 || j === 0) this.capaSugerida = false;
       await this.recarregar();
     }
   }
@@ -648,40 +723,35 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
     void atual.abrir();
   }
 
-  /** Tipo e cidade: obrigatórios, destacados enquanto vazios (no passo Fotos sem rascunho e no Dados). */
+  /** Tipo e cidade: obrigatórios; o "Obrigatório" só depois de mexer no campo ou de tentar avançar (#182, item 4). */
   private campoTipo() {
     const e = this.estado;
-    return html`<urbi-select label="Tipo" obrigatorio valor=${e.form.tipo} placeholder="Escolha" erro=${e.form.tipo ? '' : 'Obrigatório'}
+    return html`<urbi-select label="Tipo" obrigatorio valor=${e.form.tipo} placeholder="Escolha" erro=${e.mostrarErro('tipo') ? 'Obrigatório' : ''}
       .opcoes=${opcoes(ROTULO_TIPO_IMOVEL)} @urbi:select-change=${(ev: CustomEvent) => e.editar('tipo', ev.detail.valor)}></urbi-select>`;
   }
 
   private campoCidade() {
     const e = this.estado;
-    return html`<urbi-input label="Cidade" obrigatorio valor=${e.form.cidade} erro=${e.form.cidade.trim() ? '' : 'Obrigatório'}
+    return html`<urbi-input label="Cidade" obrigatorio valor=${e.form.cidade} erro=${e.mostrarErro('cidade') ? 'Obrigatório' : ''}
       @urbi:input-change=${(ev: CustomEvent) => e.editar('cidade', ev.detail.valor)}></urbi-input>`;
   }
 
   private fotos() {
     const e = this.estado;
     const fotos = e.fotos();
-    // Sem rascunho, as fotos precisam de onde ficar: a rota cria o imóvel com tipo e cidade.
-    const semRascunho = !e.id;
-    const travado = semRascunho && e.faltamObrigatorios().length > 0;
+    const lidas = fotos.filter((m) => m.ia_ambiente);
+    // O cadastro começa pelas fotos (P07 e M3): o rascunho nasce com a primeira, sem pedir tipo nem
+    // cidade (que vêm no passo 2). O botão grande vem no topo.
     return html`<urbi-stack>
-      ${semRascunho
-        ? html`<urbi-prosa papel="secundario">Para começar, o tipo e a cidade. Com eles o rascunho fica guardado desde a primeira foto.</urbi-prosa>
-            <urbi-grid min="180px" gap="12px">
-              ${this.campoTipo()}${this.campoCidade()}
-              <urbi-input label="Seu código (opcional)" valor=${e.form.codigo} placeholder="Em branco: IM-0001, IM-0002…"
-                @urbi:input-change=${(ev: CustomEvent) => e.editar('codigo', ev.detail.valor)}></urbi-input>
-            </urbi-grid>`
-        : nothing}
-      <urbi-prosa papel="secundario">${e.ia.fotos
-        ? 'Envie as fotos de uma vez: a IA lê cada uma, diz o ambiente e põe a melhor de capa. Depois você muda se quiser.'
-        : 'Envie as fotos de uma vez. A primeira é a capa; mude pela opção "Usar como capa".'}</urbi-prosa>
       <urbi-seletor-arquivo drop multiplo variante="primario" icone="fa-solid fa-camera" texto="Tirar fotos ou escolher da galeria"
         accept="image/jpeg,image/png,image/webp" dica="Fotos JPG, PNG ou WEBP, até 25 MB cada. Com 8 ou mais, o anúncio ganha pontos."
-        ?desabilitado=${!!e.ocupado || travado} @urbi:seletor-arquivo-change=${(ev: CustomEvent) => e.enviarFotos((ev.detail.arquivos as File[]) ?? [])}></urbi-seletor-arquivo>
+        ?desabilitado=${!!e.ocupado} @urbi:seletor-arquivo-change=${(ev: CustomEvent) => e.enviarFotos((ev.detail.arquivos as File[]) ?? [])}></urbi-seletor-arquivo>
+      <urbi-prosa papel="secundario">${e.ia.fotos
+        ? 'Envie as fotos de uma vez: a IA lê cada uma, diz o ambiente e põe a melhor de capa. Depois você muda a ordem com as setas.'
+        : 'Envie as fotos de uma vez. A primeira é a capa; mude a ordem com as setas.'}</urbi-prosa>
+      ${lidas.length
+        ? html`<urbi-banner variante="info">A IA já entendeu: ${[...new Set(lidas.map((m) => (ROTULO_AMBIENTE[m.ia_ambiente] ?? m.ia_ambiente).toLowerCase()))].join(', ')}.</urbi-banner>`
+        : nothing}
       ${fotos.length
         ? html`<urbi-grid min="128px" gap="12px">
             ${fotos.map(
@@ -690,17 +760,21 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
                 ${i === 0 ? html`<urbi-badge cor=${e.capaSugerida ? 'info' : 'padrao'}>${e.capaSugerida ? 'Capa sugerida' : 'Capa'}</urbi-badge>` : nothing}
                 <urbi-prosa papel="fraco" truncar>${m.ia_ambiente ? (ROTULO_AMBIENTE[m.ia_ambiente] ?? m.ia_ambiente) : (m.legenda ?? `Foto ${i + 1}`)}</urbi-prosa>
                 <urbi-linha>
-                  ${i > 0
-                    ? html`<urbi-botao variante="fantasma" pequeno icone="fa-solid fa-star" ariaLabel="Usar como capa" title="Usar como capa"
-                        ?desabilitado=${!!e.ocupado} @click=${() => e.usarComoCapa(m)}></urbi-botao>`
-                    : nothing}
-                  <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-trash" ariaLabel="Apagar" title="Apagar" ?desabilitado=${!!e.ocupado}
+                  <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-left" ariaLabel="Mover para antes" title="Mover para antes"
+                    ?desabilitado=${!!e.ocupado || i === 0} @click=${() => e.moverFoto(m, -1)}></urbi-botao>
+                  <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-right" ariaLabel="Mover para depois" title="Mover para depois"
+                    ?desabilitado=${!!e.ocupado || i === fotos.length - 1} @click=${() => e.moverFoto(m, 1)}></urbi-botao>
+                  <urbi-botao variante="fantasma" icone="fa-solid fa-trash" ariaLabel="Apagar" title="Apagar" ?desabilitado=${!!e.ocupado}
                     @click=${() => e.apagarFoto(m)}></urbi-botao>
                 </urbi-linha>
               </urbi-stack>`,
             )}
           </urbi-grid>`
         : html`<urbi-prosa papel="dica">Sem fotos ainda. Pode seguir sem elas e voltar depois: o rascunho guarda o que já foi feito.</urbi-prosa>`}
+      ${e.id
+        ? nothing
+        : html`<urbi-input label="Seu código (opcional)" valor=${e.form.codigo} placeholder="Em branco: IM-0001, IM-0002…"
+            @urbi:input-change=${(ev: CustomEvent) => e.editar('codigo', ev.detail.valor)}></urbi-input>`}
     </urbi-stack>`;
   }
 
@@ -711,6 +785,11 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
     const num = (campo: keyof Formulario, base: string, op: { step?: number; max?: number } = {}) =>
       html`<urbi-input-numero label=${rotulo(campo, base)} .valor=${f[campo] as number | null} .min=${0} .max=${op.max ?? null} .step=${op.step ?? 1}
         @urbi:input-numero-change=${(ev: CustomEvent) => e.editar(campo, ev.detail.valor)}></urbi-input-numero>`;
+    // Dinheiro e área em texto, no formato brasileiro (#185): o campo numérico do navegador perdia o
+    // ponto de milhar ("1.450.000" virava R$ 1,45). A string vai como está; o backend lê.
+    const valor = (campo: 'preco' | 'condominio' | 'area_util_m2', base: string, exemplo: string) =>
+      html`<urbi-input label=${rotulo(campo, base)} valor=${f[campo]} placeholder=${exemplo}
+        @urbi:input-change=${(ev: CustomEvent) => e.editar(campo, ev.detail.valor)}></urbi-input>`;
     const texto = (campo: keyof Formulario, base: string, op: { placeholder?: string } = {}) =>
       html`<urbi-input label=${rotulo(campo, base)} valor=${String(f[campo] ?? '')} placeholder=${op.placeholder ?? ''}
         @urbi:input-change=${(ev: CustomEvent) => e.editar(campo, ev.detail.valor)}></urbi-input>`;
@@ -718,6 +797,16 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
       <urbi-prosa papel="secundario">${e.sugeridasPelasFotos().length
         ? 'A IA leu as fotos e preencheu o que elas mostram. Confira e complete o resto.'
         : 'Confira e complete. Só tipo e cidade são obrigatórios; o resto conta para a qualidade do anúncio.'}</urbi-prosa>
+      ${e.ia.conteudo
+        ? html`<urbi-card titulo="Ditar o resto" icone="fa-solid fa-microphone">
+            <urbi-stack>
+              <urbi-prosa papel="fraco">Fale (ou escreva) o que falta: "apartamento de 3 quartos no Sudoeste, 120 metros, um milhão e quatrocentos, condomínio de 1.200". A IA preenche os campos que você ainda não mexeu.</urbi-prosa>
+              <urbi-redator audio placeholder="Toque no microfone ou escreva…" chave-audio="novo-imovel-ditado" ?upload-em-andamento=${e.ditando}
+                @urbi:redator-enviar=${(ev: CustomEvent) => void e.ditar(String(ev.detail.texto ?? ''))}></urbi-redator>
+              ${e.ditando ? html`<urbi-prosa papel="secundario">A IA está preenchendo…</urbi-prosa>` : nothing}
+            </urbi-stack>
+          </urbi-card>`
+        : html`<urbi-prosa papel="dica">Ditar os dados pede a IA de conteúdo, que não está disponível agora: preencha à mão.</urbi-prosa>`}
       <urbi-grid min="180px" gap="12px">
         ${this.campoTipo()}
         ${texto('bairro', 'Bairro')}
@@ -727,9 +816,9 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
         ${num('suites', 'Suítes', { max: 99 })}
         ${num('banheiros', 'Banheiros', { max: 99 })}
         ${num('vagas', 'Vagas', { max: 99 })}
-        ${num('area_util_m2', 'Área útil (m²)', { step: 0.01 })}
-        ${num('preco', 'Preço (R$)', { step: 0.01 })}
-        ${num('condominio', 'Condomínio (R$)', { step: 0.01 })}
+        ${valor('area_util_m2', 'Área útil (m²)', '120,5')}
+        ${valor('preco', 'Preço (R$)', '1.450.000')}
+        ${valor('condominio', 'Condomínio (R$)', '1.200')}
       </urbi-grid>
       ${texto('titulo', 'Título (opcional)', { placeholder: 'Ex.: Casa com piscina no Jardim Botânico' })}
       <urbi-textarea label=${rotulo('caracteristicas', 'Características (separe por vírgula)')} valor=${f.caracteristicas}
@@ -836,8 +925,8 @@ export class PcNovoImovelQualidade extends ColunaNovoImovel {
       {
         tipo: f.tipo,
         descricao: im.descricao ?? null,
-        preco_c: f.preco ? Math.round(f.preco * 100) : null,
-        area_util_m2: f.area_util_m2,
+        preco_c: reaisParaCentavos(f.preco) || null,
+        area_util_m2: Number(String(f.area_util_m2).replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.')) || null,
         area_total_m2: im.area_total_m2 ?? null,
         quartos: f.quartos,
         banheiros: f.banheiros,
@@ -860,8 +949,13 @@ export class PcNovoImovelQualidade extends ColunaNovoImovel {
       frases.push(`Li ${lidas.length} foto(s): ${ambientes.join(', ').toLowerCase()}.`);
       if (sugeridas.length) frases.push(`Pus nas características o que as fotos mostram: ${sugeridas.join(', ')}.`);
     } else frases.push('Envie as fotos: eu digo o ambiente de cada uma e sugiro a capa.');
-    if (e.combinam) frases.push(`${e.combinam} cliente(s) da sua carteira combinam com este imóvel; envie pela ficha depois de salvar.`);
-    if (e.ia.conteudo) frases.push('Depois de salvar, "Melhorar com IA" na ficha escreve a descrição com os dados que você conferiu.');
+    // P07: o que a IA faz depois de salvar, numa frase só.
+    const depois = [
+      ...(e.ia.conteudo ? ['escrever a descrição'] : []),
+      'montar o pacote de lançamento no Estúdio',
+      ...(e.combinam ? [`avisar ${e.combinam} cliente(s) que combinam`] : []),
+    ];
+    frases.push(`Depois de salvar posso: ${depois.join(', ')}.`);
     return frases;
   }
 
@@ -884,7 +978,12 @@ export class PcNovoImovelQualidade extends ColunaNovoImovel {
         </urbi-stack>
       </urbi-card>
       <urbi-card titulo="A IA" icone="fa-solid fa-wand-magic-sparkles">
-        <urbi-stack>${this.ia().map((f) => html`<urbi-prosa papel="secundario">${f}</urbi-prosa>`)}</urbi-stack>
+        <urbi-stack>
+          ${this.ia().map((f) => html`<urbi-prosa papel="secundario">${f}</urbi-prosa>`)}
+          <urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?desabilitado=${!this.estado.id}
+            title=${this.estado.id ? 'Abre o Estúdio com este imóvel' : 'Envie uma foto ou salve o rascunho antes'}
+            @click=${() => irParaComQuery(`/estudio?criar=post&imovel=${this.estado.id}`)}>Pacote de lançamento</urbi-botao>
+        </urbi-stack>
       </urbi-card>
     </urbi-stack>`;
   }

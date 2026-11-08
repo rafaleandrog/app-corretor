@@ -12,6 +12,9 @@ import {
   proximoCodigo,
   qualidadeAnuncio,
   SCHEMA_DESCRICAO,
+  SCHEMA_DITADO,
+  INSTRUCAO_DITADO,
+  camposDoDitado,
   SCHEMA_FOTO,
   SITUACOES_ANUNCIADAS,
   SITUACOES_IMOVEL,
@@ -149,6 +152,8 @@ imoveisRotas.get(
     const eid = id(req.query.empreendimento_id);
     if (eid) filtros.empreendimento_id = eid;
     if (req.query.publicado_pagina === 'true') filtros.publicado_pagina = true;
+    // Chip "Privados" (P06): só os que não estão na página.
+    if (req.query.publicado_pagina === 'false') filtros.publicado_pagina = false;
     const busca = typeof req.query.busca === 'string' ? req.query.busca.trim().slice(0, 100) : '';
     const pagina = Math.min(Math.max(Math.trunc(Number(req.query.pagina)) || 1, 1), 1000);
     const r = await req.dados!.listar('imoveis', {
@@ -175,8 +180,12 @@ imoveisRotas.get(
 imoveisRotas.post(
   '/imoveis',
   assincrono(async (req, res) => {
-    const v = validarImovel(req.body ?? {});
+    // Rascunho vazio (P07 e M3: o cadastro começa pelas fotos): sem tipo nem cidade, que vêm no passo 2.
+    // O tipo é obrigatório na coluna: o rascunho nasce "outro" e a tela o pede de novo no passo 2.
+    const vazio = req.body?.rascunho === true;
+    const v = validarImovel(req.body ?? {}, vazio);
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira o imóvel.', v.erros);
+    if (vazio && !v.dados.tipo) v.dados.tipo = 'outro';
     const dados = req.dados!;
     // Código do corretor, ou o próximo `IM-nnnn`. Código repetido entre os vivos: 409 ou próximo número.
     const proprio = v.dados.codigo;
@@ -211,6 +220,25 @@ imoveisRotas.get(
       }
     };
     res.json({ fotos: await estado('fotos'), conteudo: await estado('conteudo') });
+  }),
+);
+
+// "Ditar o resto" (P07, passo 2): o texto que o microfone do `urbi-redator` transcreveu vira os campos
+// do cadastro. Sugestão: não grava; a tela preenche só o que o corretor ainda não mexeu.
+imoveisRotas.post(
+  '/imoveis/ia',
+  assincrono(async (req, res) => {
+    const texto = typeof req.body?.texto === 'string' ? req.body.texto.trim().slice(0, 4000) : '';
+    if (!texto) return erro(res, 422, 'DADOS_INVALIDOS', 'Dite ou escreva os dados do imóvel.');
+    const estado = await sondar(req, 'conteudo');
+    if (!estado?.efetivo) return erro(res, 503, 'IA_INDISPONIVEL', 'A IA não está disponível agora. Preencha os campos à mão.');
+    let r;
+    try {
+      r = await req.ia!.consultar({ contexto: `Fala do corretor: ${texto}`, schema: SCHEMA_DITADO, slot: 'conteudo', instrucoes_sistema: INSTRUCAO_DITADO });
+    } catch (e) {
+      return falhaIa(res, e, 'A IA não entendeu agora. Tente de novo ou preencha à mão.');
+    }
+    res.json({ campos: camposDoDitado((r.dados ?? {}) as Record<string, unknown>) });
   }),
 );
 

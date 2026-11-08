@@ -324,6 +324,52 @@ export const SCHEMA_DESCRICAO = {
   },
 };
 
+/** "Ditar o resto" (P07): a fala do corretor vira os campos do passo 2. Só o que ele disse. */
+export const SCHEMA_DITADO = {
+  type: 'object',
+  properties: {
+    tipo: { type: 'string', enum: [...TIPOS_IMOVEL, ''], default: '' },
+    bairro: { type: 'string', default: '' },
+    cidade: { type: 'string', default: '' },
+    uf: { type: 'string', default: '' },
+    quartos: { type: ['integer', 'null'], default: null },
+    suites: { type: ['integer', 'null'], default: null },
+    banheiros: { type: ['integer', 'null'], default: null },
+    vagas: { type: ['integer', 'null'], default: null },
+    area_util_m2: { type: ['number', 'null'], default: null },
+    preco_reais: { type: ['number', 'null'], default: null },
+    condominio_reais: { type: ['number', 'null'], default: null },
+    caracteristicas: { type: 'array', items: { type: 'string' }, default: [] },
+  },
+};
+
+export const INSTRUCAO_DITADO =
+  'O corretor ditou, em português do Brasil, dados de um imóvel que está cadastrando. Extraia só o que ele disse, sem inventar: ' +
+  'tipo (casa, apartamento, lote, sala, loja, galpao, rural ou outro; vazio se não disse), bairro, cidade, UF (sigla), quartos, suítes, ' +
+  'banheiros, vagas, área útil em m², preço e condomínio em reais (número, "um milhão e quatrocentos" = 1400000) e características ' +
+  '(itens curtos: piscina, churrasqueira). O que ele não disse fica vazio ou nulo. Ignore nomes de pessoas, telefones e endereços completos.';
+
+/** A resposta da IA ao ditado, saneada: só campos conhecidos, nos limites do cadastro. Dinheiro em texto brasileiro. */
+export function camposDoDitado(r: Record<string, unknown>): Record<string, string | number> {
+  const saida: Record<string, string | number> = {};
+  const t = (v: unknown, n: number) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+  const inteiro = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 99 ? v : null);
+  if ((TIPOS_IMOVEL as readonly string[]).includes(t(r.tipo, 12))) saida.tipo = t(r.tipo, 12);
+  for (const [c, n] of [['bairro', 80], ['cidade', 80]] as const) if (t(r[c], n)) saida[c] = t(r[c], n);
+  if (/^[A-Za-z]{2}$/.test(t(r.uf, 10))) saida.uf = t(r.uf, 2).toUpperCase();
+  for (const c of ['quartos', 'suites', 'banheiros', 'vagas']) if (inteiro(r[c]) !== null) saida[c] = inteiro(r[c])!;
+  const num = (v: unknown, max: number) => (typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= max ? v : null);
+  const area = num(r.area_util_m2, 1_000_000);
+  if (area) saida.area_util_m2 = area.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  const preco = num(r.preco_reais, 21_474_836);
+  if (preco) saida.preco = preco.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  const cond = num(r.condominio_reais, 1_000_000);
+  if (cond) saida.condominio = cond.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+  const car = listaDeCaracteristicas(Array.isArray(r.caracteristicas) ? r.caracteristicas : [], 20);
+  if (car.length) saida.caracteristicas = car.join(', ');
+  return saida;
+}
+
 export const INSTRUCAO_DESCRICAO =
   'Você escreve descrições de anúncio de imóvel para um corretor no Brasil, em português do Brasil. Use só os dados informados: ' +
   'não invente metragem, cômodos, itens, vizinhança nem valores. Não cite endereço além do bairro e da cidade, nem nome do proprietário. ' +
@@ -406,6 +452,26 @@ export function combina(perfil: unknown, im: Record<string, any>): string[] | nu
 // ---------- Novo imóvel em 4 passos (P07, M3; B5 parte 2) ----------
 
 /** Os passos do Novo imóvel, nesta ordem. Nenhum exige CRECI (D-93); a autorização é opcional para o rascunho. */
+/** Centavos no formato brasileiro de um campo de texto (#185): 145000000 → "1.450.000", 12345 → "123,45". */
+export function reaisEmTexto(c: unknown): string {
+  const n = Number(c);
+  if (c === null || c === undefined || c === '' || !Number.isFinite(n) || n <= 0) return '';
+  return (n / 100).toLocaleString('pt-BR', { minimumFractionDigits: n % 100 ? 2 : 0, maximumFractionDigits: 2 });
+}
+
+/** Número no formato brasileiro de um campo de texto (#185): 120.5 → "120,5". */
+export function numeroEmTexto(v: unknown): string {
+  const n = Number(v);
+  if (v === null || v === undefined || v === '' || !Number.isFinite(n)) return '';
+  return n.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+}
+
+/**
+ * Rascunho que nasceu pelas fotos, sem tipo nem cidade (P07 e M3): o tipo gravado é o "outro" de
+ * reserva da coluna, e a tela o pede de novo no passo 2.
+ */
+export const rascunhoSemTipo = (im: Record<string, unknown>) => im.situacao === 'rascunho' && im.tipo === 'outro' && !String(im.cidade ?? '').trim();
+
 export const PASSOS_NOVO_IMOVEL = [
   { id: 'fotos', rotulo: 'Fotos' },
   { id: 'dados', rotulo: 'Dados' },

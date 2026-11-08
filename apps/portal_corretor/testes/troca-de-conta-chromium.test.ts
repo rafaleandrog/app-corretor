@@ -320,11 +320,12 @@ test('Novo imóvel: o rascunho digitado na conta A não segue para a conta B', a
     await pagina.goto(`${ORIGEM}/portal_corretor/imoveis/novo`);
     await esperar(pagina);
     await pagina.evaluate(() =>
-      (window as any).achar('pc-novo-imovel-passo urbi-input[label="Cidade"], urbi-input[label="Cidade"]')
-        .dispatchEvent(new CustomEvent('urbi:input-change', { detail: { valor: 'Cidade CONTA 100' } })),
+      // O passo 1 começa pelas fotos (P07): o campo digitável dele é o código próprio do imóvel.
+      (window as any).achar('pc-novo-imovel-passo urbi-input[label="Seu código (opcional)"], urbi-input[label="Seu código (opcional)"]')
+        .dispatchEvent(new CustomEvent('urbi:input-change', { detail: { valor: 'CONTA 100' } })),
     );
     await esperar(pagina);
-    assert.match(await tudo(pagina), /Cidade CONTA 100/, 'o rascunho está na tela de A');
+    assert.match(await tudo(pagina), /CONTA 100/, 'o rascunho está na tela de A');
     await pagina.evaluate(() => (window as any).trocarConta(200));
     await esperar(pagina);
     assert.doesNotMatch(await tudo(pagina), /CONTA 100/, 'B começa um Novo imóvel vazio');

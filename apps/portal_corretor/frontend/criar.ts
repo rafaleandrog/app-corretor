@@ -1,6 +1,7 @@
 import { html, type TemplateResult } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { buscaDoGesto, formularioEnviar, gesto, juntarDataHora } from './apoio.js';
+import { fecharMenu } from './visual.js';
 import { alternarAssistente, assistenteAberto, contatoEmFoco } from './telas/assistente.js';
 import { abrirNegociacao, novaProposta } from './telas/negociacoes.js';
 
@@ -84,13 +85,18 @@ export function criar(opcao: OpcaoCriar) {
   else void novaVisita();
 }
 
+function escolher(ev: Event, opcao: OpcaoCriar) {
+  fecharMenu(ev);
+  criar(opcao);
+}
+
 /** O botão Criar com o menu, para o slot `actions` do `urbi-shell-page`. */
 export function menuCriar(): TemplateResult {
   return html`<urbi-dropdown slot="actions" flutuante>
     <urbi-botao slot="trigger" pequeno icone="fa-solid fa-plus">Criar</urbi-botao>
     <div slot="menu">
       ${OPCOES_CRIAR.map(
-        (o) => html`<urbi-dropdown-item icone=${o.icone} @urbi:dropdown-select=${() => criar(o.id)}>${o.rotulo}</urbi-dropdown-item>`,
+        (o) => html`<urbi-dropdown-item icone=${o.icone} @urbi:dropdown-select=${(ev: Event) => escolher(ev, o.id)}>${o.rotulo}</urbi-dropdown-item>`,
       )}
     </div>
   </urbi-dropdown>`;

@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ABAS_IMOVEIS, APELIDOS_IMOVEIS } from '../../comum/imoveis';
+import { reaisCurto } from '../../comum/estudio';
 import {
   abaDaUrl,
   abaNaUrl,
@@ -10,20 +11,21 @@ import {
   chamarApi,
   chip,
   corQualidade,
+  enviar,
   filtrosDaUrl,
   filtrosNaUrl,
   gesto,
   itemDaUrl,
   itemNaUrl,
+  mensagemDeErro,
   pedidoDeCriar,
-  reais,
   ROTULO_TIPO_IMOVEL,
   SITUACAO_IMOVEL,
   type ImovelCartao,
   type OpcoesAba,
 } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
-import { botaoAssistenteColuna, moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 import { irParaComQuery } from '../criar.js';
 import { contextoEmpreendimento } from './empreendimentos.js';
 import './empreendimentos.js';
@@ -48,10 +50,17 @@ export const abaImoveis = () => abaDaUrl(ABAS.map((a) => a.id), OPCOES_ABA);
 
 /** Chips da carteira (P06): uma situação de cada vez; "Todos" tira o filtro. */
 export const CHIPS_SITUACAO = [
-  { valor: '', rotulo: 'Todos' },
+  { valor: '', rotulo: 'Todas' },
   { valor: 'ativo', rotulo: 'Ativos' },
   { valor: 'rascunho', rotulo: 'Rascunhos' },
   { valor: 'vendido', rotulo: 'Vendidos' },
+] as const;
+
+/** Visibilidade (P06): "Todas" primeiro (D-122), depois quem está na página e quem não está. */
+export const CHIPS_VISIBILIDADE = [
+  { valor: '', rotulo: 'Todas' },
+  { valor: 'true', rotulo: 'Públicos' },
+  { valor: 'false', rotulo: 'Privados' },
 ] as const;
 
 /** Item escolhido: o do caminho (`/imoveis/7`) vale mais que o `?item=`. */
@@ -173,6 +182,8 @@ export class PcListaImoveis extends LitElement {
   private consulta() {
     const q = new URLSearchParams();
     for (const k of ['busca', 'situacao']) if (this.filtros.get(k)) q.set(k, this.filtros.get(k)!);
+    const vis = this.filtros.get('visibilidade');
+    if (vis === 'true' || vis === 'false') q.set('publicado_pagina', vis);
     return q;
   }
 
@@ -213,12 +224,14 @@ export class PcListaImoveis extends LitElement {
 
   private item(i: Imovel) {
     const s = SITUACAO_IMOVEL[i.situacao] ?? { rotulo: i.situacao, cor: 'padrao' };
-    const local = [i.bairro, i.cidade].filter(Boolean).join(', ');
-    return html`<urbi-linha>
+    // Título curto na primeira linha; bairro (ou cidade) e preço embaixo, como a referência P06. O código
+    // fica no `title`. Tudo `truncar`: nada rola para o lado na coluna de 360 (#180).
+    const local = i.bairro || i.cidade || '';
+    return html`<urbi-linha title=${i.codigo}>
       <urbi-avatar nome=${i.codigo} foto=${i.capa_url ?? ''} icone=${i.capa_url ? '' : 'fa-solid fa-image'} tamanho="48"></urbi-avatar>
       <urbi-stack>
-        <urbi-prosa truncar>${i.codigo} · ${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</urbi-prosa>
-        <urbi-prosa papel="fraco" truncar>${[i.preco_c ? reais(i.preco_c) : null, local].filter(Boolean).join(' · ')}</urbi-prosa>
+        <urbi-prosa truncar>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</urbi-prosa>
+        <urbi-prosa papel="fraco" truncar>${[local, i.preco_c ? reaisCurto(i.preco_c) : 'Sob consulta'].filter(Boolean).join(' · ')}</urbi-prosa>
         <urbi-linha quebrar>
           <urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>
           <urbi-badge cor=${corQualidade(i.qualidade.nota)} title="Qualidade do anúncio">${i.qualidade.nota}</urbi-badge>
@@ -250,18 +263,14 @@ export class PcListaImoveis extends LitElement {
 
   render() {
     const situacao = this.filtros.get('situacao') ?? '';
+    const visibilidade = this.filtros.get('visibilidade') ?? '';
     const abas = ABAS.map((a) => ({
       ...a,
       label: `${a.label}${a.id === 'carteira' ? (this.carregando && !this.imoveis.length ? '' : ` (${this.total})`) : this.totalEmpreendimentos === null ? '' : ` (${this.totalEmpreendimentos})`}`,
     }));
+    // Cabeçalho comum da moldura (D-128): título, Novo e Assistente, botões de 34 px (sem `pequeno`).
     return html`<urbi-stack>
-      <urbi-linha justificar="entre">
-        <urbi-prosa papel="titulo">Imóveis</urbi-prosa>
-        <urbi-linha>
-          ${this.aba === 'carteira' ? html`<urbi-botao pequeno icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo</urbi-botao>` : nothing}
-          ${botaoAssistenteColuna()}
-        </urbi-linha>
-      </urbi-linha>
+      ${cabecalhoColuna('Imóveis', this.aba === 'carteira' ? html`<urbi-botao icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo</urbi-botao>` : nothing)}
       <urbi-abas .abas=${abas} ativa=${this.aba} @urbi:aba-selecionar=${(e: CustomEvent) => e.detail?.id !== this.aba && this.aoTrocarAba(e.detail?.id)}>
         <urbi-hospedeiro slot=${this.aba}>
           ${this.aba === 'empreendimentos'
@@ -269,11 +278,10 @@ export class PcListaImoveis extends LitElement {
             : html`<urbi-stack>
                 <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Código, título, bairro ou cidade"
                   valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
-                <urbi-linha quebrar>
-                  ${CHIPS_SITUACAO.map(
-                    (c) => html`<urbi-badge interativo cor="info" ?ativo=${situacao === c.valor} @click=${() => this.filtrar({ situacao: c.valor })}>${c.rotulo}</urbi-badge>`,
-                  )}
-                </urbi-linha>
+                <urbi-chips-atalho .opcoes=${CHIPS_SITUACAO.map((c) => ({ id: c.valor || 'todas', rotulo: c.rotulo }))} ativo=${situacao || 'todas'}
+                  @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ situacao: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>
+                <urbi-chips-atalho .opcoes=${CHIPS_VISIBILIDADE.map((c) => ({ id: c.valor || 'todas', rotulo: c.rotulo }))} ativo=${visibilidade || 'todas'}
+                  @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ visibilidade: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>
                 ${this.carteira()}
               </urbi-stack>`}
         </urbi-hospedeiro>
@@ -328,6 +336,30 @@ export class PcContextoImovel extends LitElement {
     }
   }
 
+  @state() private enviando: number | null = null;
+  @state() private enviados = new Set<number>();
+
+  /**
+   * "Enviar" (P06): envia o imóvel de verdade (`POST /envios`), sem sair da tela. A rota registra o
+   * envio, a mensagem na conversa do cliente (com o cartão do imóvel) e o link rastreado.
+   */
+  private async enviar(c: Contexto['combinam'][number]) {
+    if (this.enviando) return;
+    const g = gesto();
+    this.enviando = c.id;
+    try {
+      await g.esperar(enviar('POST', '/envios', { contato_id: c.id, imovel_id: this.imovelId, tipo: 'imovel', canal: 'whatsapp' }));
+      this.enviados = new Set([...this.enviados, c.id]);
+      urbiVerso.notificar(`Imóvel enviado a ${c.nome}. A mensagem pronta está na conversa dele.`, 'sucesso');
+      window.dispatchEvent(new CustomEvent(EVENTO_IMOVEL_MUDOU, { detail: { id: this.imovelId } }));
+    } catch (e) {
+      if (g.encerrado(e)) return;
+      await urbiVerso.alertar({ titulo: 'Não foi possível enviar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      this.enviando = null;
+    }
+  }
+
   private resolver(falta: string) {
     window.dispatchEvent(new CustomEvent(EVENTO_RESOLVER_FALTA, { detail: { id: this.imovelId, falta } }));
   }
@@ -355,12 +387,13 @@ export class PcContextoImovel extends LitElement {
         </urbi-stack>
       </urbi-card>
       <urbi-card titulo="Últimos 30 dias" icone="fa-solid fa-chart-simple">
-        <urbi-grid min="110px">
+        <!-- Uma coluna de KPIs: a grade de 2 colunas cortava rótulo e cartão nos 340 px (#180). -->
+        <urbi-stack>
           <urbi-kpi rotulo="Visitas" .valor=${numeros.visitas}></urbi-kpi>
           <urbi-kpi rotulo="Enviado a" .valor=${numeros.enviados}></urbi-kpi>
           <urbi-kpi rotulo="Cliques nos envios" .valor=${numeros.cliques}></urbi-kpi>
           <urbi-kpi rotulo="Negócios ligados" .valor=${numeros.negocios}></urbi-kpi>
-        </urbi-grid>
+        </urbi-stack>
       </urbi-card>
       <urbi-card titulo="Clientes que combinam" icone="fa-solid fa-user-check">
         ${combinam.length
@@ -372,7 +405,8 @@ export class PcContextoImovel extends LitElement {
                 </urbi-linha>
                 <urbi-prosa papel="fraco">Combina em ${c.motivos.join(', ')}</urbi-prosa>
               </urbi-stack>
-              <urbi-botao pequeno variante="secundario" icone="fa-solid fa-paper-plane" href=${urbiVerso.href(`/clientes/${c.id}`)}>Enviar</urbi-botao>
+              <urbi-botao variante="secundario" icone="fa-solid fa-paper-plane" ?carregando=${this.enviando === c.id}
+                ?desabilitado=${this.enviados.has(c.id)} @click=${() => this.enviar(c)}>${this.enviados.has(c.id) ? 'Enviado' : 'Enviar'}</urbi-botao>
             </urbi-linha>`}></urbi-lista>`
           : html`<urbi-prosa papel="dica">Nenhum comprador com perfil de busca que combine (tipo, região, preço, quartos, vagas ou área).</urbi-prosa>`}
       </urbi-card>
