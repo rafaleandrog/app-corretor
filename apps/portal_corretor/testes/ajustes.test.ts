@@ -4,11 +4,12 @@ import { ABAS_AJUSTES, abaDoEndereco } from '../comum/ajustes';
 import { TELAS_APP, telaBase } from '../comum/assistente';
 import { MENU, resolverEndereco } from '../frontend/enderecos';
 
-test('menu do corretor com os nomes do Padrão B (D-103), sem o Assistente (o trilho; o `nav` em menu.test.ts)', () => {
+test('menu do corretor com os nomes do Padrão B (D-103), com Conversas (D-116); o `nav` em menu.test.ts', () => {
   assert.deepEqual(
     MENU.map((i) => [i.titulo, i.rota]),
     [
       ['Hoje', '/'],
+      ['Conversas', '/conversas'],
       ['Clientes', '/clientes'],
       ['Imóveis', '/imoveis'],
       ['Estúdio', '/estudio'],

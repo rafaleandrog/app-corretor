@@ -4,6 +4,7 @@ import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { CANAIS_ABORDAGEM, iso, ordenarFila, taxasDePassagem, TEMPERATURAS, type TipoFila } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { etapasDaConta, registrar } from './crm';
+import { payloadDaMensagem, registrarMensagem } from './conversas';
 import { limiteParado } from '../comum/crm';
 import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { numerosDaSemana } from './numeros';
@@ -192,6 +193,15 @@ funilRotas.post(
       resumo: `Abordagem${canal ? ` por ${ROTULO_CANAL[canal]}` : ''}: ${texto || 'feita'}`,
       ...(canal ? { dados: { canal } } : {}),
     });
+    // Com texto e canal, a abordagem entra na conversa do cliente (P02, D-116) como mensagem de saída.
+    if (texto && canal) {
+      const r = await registrarMensagem(dados, { contato_id: cid!, direcao: 'saida', autor_tipo: 'humano', autor_id: req.contexto!.usuario.id, canal: canal === 'whatsapp' ? 'wa_me' : 'registro', tipo: 'texto', conteudo: texto });
+      try {
+        await req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(r));
+      } catch (e) {
+        console.warn('[portal_corretor] evento mensagem_enviada não publicado:', (e as Error).message);
+      }
+    }
     await dados.atualizar('contatos', cid!, { ultimo_contato_em: agora(), abordagem_adiada_em: null });
     await reclassificar(dados, cid!);
     res.status(201).json({ ok: true });

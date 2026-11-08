@@ -30,7 +30,7 @@ import {
 } from '../apoio.js';
 import { irParaComQuery } from '../criar.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
-import { moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 import { autorizacaoAberta, marcarAssinada, registrarAutorizacao, SITUACAO_AUTORIZACAO } from './autorizacao-venda.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -620,7 +620,7 @@ export class PcNovoImovelPassos extends ColunaNovoImovel {
     const passos = PASSOS_NOVO_IMOVEL.map((p, i) => ({ ...p, i }));
     return html`<urbi-stack>
       <urbi-stack>
-        <urbi-prosa papel="titulo">${e.ficha ? `${e.ficha.imovel.codigo} · rascunho` : 'Novo imóvel'}</urbi-prosa>
+        ${cabecalhoColuna(e.ficha ? `${e.ficha.imovel.codigo} · rascunho` : 'Novo imóvel')}
         <urbi-prosa papel="fraco">Leva cerca de 3 minutos. Nenhum passo pede CRECI.</urbi-prosa>
       </urbi-stack>
       <urbi-lista separador clicavel .itens=${passos} .itemAtivo=${(p: (typeof passos)[number]) => p.id === e.passo}

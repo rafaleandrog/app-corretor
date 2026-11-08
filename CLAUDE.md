@@ -8,7 +8,7 @@ Instruções permanentes para toda sessão de implementação neste repositório
 
 ## O que é
 
-App `portal_corretor` da plataforma **UrbiVerso**: escritório digital do corretor de imóveis (CRM e funil com IA, WhatsApp pelo app com o Mensageiro, Estúdio de conteúdo para Instagram com Canva, Minha Página, Portal do Cliente, Assistente do Corretor, Negociador). Corretor e negociadores humanos são usuários externos da conta do corretor (o cliente, no MVP, entra por link com token); **nenhum corretor vê nada de outro corretor**. Todas as telas seguem o **Padrão B** (spec 11.0: moldura com trilho e três colunas — lista, foco e contexto).
+App `portal_corretor` da plataforma **UrbiVerso**: escritório digital do corretor de imóveis (CRM e funil com IA, WhatsApp pelo app com o Mensageiro, Estúdio de conteúdo para Instagram com Canva, Minha Página, Portal do Cliente, Assistente do Corretor, Negociador). Corretor e negociadores humanos são usuários externos da conta do corretor (o cliente, no MVP, entra por link com token); **nenhum corretor vê nada de outro corretor**. Todas as telas seguem o **Padrão B** (spec 11.0: página do shell com o menu no `nav`, Criar no cabeçalho, Assistente no cabeçalho da coluna esquerda e três colunas de 360 · flexível · 340 — lista, foco e contexto; D-114).
 
 ## Mapa do repositório
 
@@ -20,7 +20,8 @@ specs/plano_de_implementacao.md    a ordem: blocos, status, registro de sessões
 specs/pedidos_ao_shell.md          ajustes necessários no shell do UrbiVerso
 specs/telas_padrao_b.md            guia visual do Padrão B: moldura, componentes, wireframe de cada tela, dados de exemplo
 specs/telas/                       mockups HTML estáticos de cada tela (abrir index.html no navegador; só referência visual)
-specs/layout/                      referência visual oficial: README.md (contrato de layout), png/ (25 imagens, 1440 px e 390 × 844) e 25 .layout.json (medidas); ver regra abaixo
+specs/layout/                      referência visual oficial, versão 2 (moldura do shell): README.md (contrato), png/ (25 imagens, área da app 1289 px e 390 × 844) e 25 .layout.json (medidas); ver regra abaixo
+specs/decisoes_etapa3.md           respostas do dono às decisões da etapa 3 (D-114 a D-120) e o grupo 1 fechado
 specs/stack_funcional.md           intenção de produto sem amarras de plataforma (consulta)
 specs/referencias_principais.md    as 5 referências principais (D-80): o que copiar de cada uma (consulta de tela e comportamento)
 specs/referencias.md               catálogo amplo de produtos de mercado (consulta)
@@ -52,7 +53,7 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 - **Mudou algo em `apps/portal_corretor/docs/`?** Rode `pnpm ajuda` na pasta da app e commite `comum/ajuda-gerada.ts`; sem isso o teste da base de ajuda derruba o CI.
 - **Reiniciar a branch depois de um merge:** `git fetch origin main` antes de `git checkout -B <branch> origin/main`, senão a branch nasce sem o PR anterior.
 - **Telas chamam o app por `chamarApi`/`chamarFetch`** (`frontend/apoio.ts`), nunca por `urbiVerso.api`/`fetch` direto: é isso que manda a conta ativa em `X-Conta` para quem atende várias contas (um teste confere).
-- **Conferência visual sem senha:** `apps/portal_corretor/scripts/conferencia-visual/capturar.mjs` abre as telas da app na instância pelo Playwright com o token de `URBIVERSO_INSTANCIAS` (a tela do shell só aceita cookie; o script responde à rota de identidade com a rota equivalente que aceita token) e `comparar.py` monta o lado a lado com `specs/layout/png/` e a tabela de medidas. Exemplo e linha de base: `specs/prints/conferencia-layout-0.1.44/README.md`.
+- **Conferência visual sem senha:** `apps/portal_corretor/scripts/conferencia-visual/capturar.mjs` abre as telas da app na instância pelo Playwright com o token de `URBIVERSO_INSTANCIAS` (a tela do shell só aceita cookie; o script responde à rota de identidade com a rota equivalente que aceita token) e `comparar.py` monta o lado a lado com `specs/layout/png/` e a tabela de medidas. Exemplo e linha de base: `specs/prints/conferencia-layout-0.1.44/README.md` (contrato v1) e `specs/prints/conferencia-p02-0.1.46/README.md` (contrato v2: `CONTA=<id da conta demo>` e `CONVERSA=<id>` escolhem a conta e a conversa; só a área da app).
 - **Rotas leem e gravam só por `req.dados`:** com várias contas ele vem restrito à conta ativa nas tabelas segregadas (`backend/escopo.ts`; tabela não segregada, como `vitrine_publica`, passa sem escopo). Verbos sem escopo possível (`travessia`, `*Varios`, `criarOuAtualizar`, `limpar*`, e sempre `sqlDeclarado` e `comConta`) falham alto com várias contas; não crie outro caminho de leitura.
 
 ## Regras que não se quebram

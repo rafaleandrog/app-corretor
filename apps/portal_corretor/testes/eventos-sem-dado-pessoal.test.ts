@@ -152,6 +152,7 @@ test('todo evento do manifesto é segregado e cada campo é id, código ou resid
  * cenário em execução abaixo e acrescente-a nesta lista.
  */
 const TIPO_EM_VARIAVEL: Record<string, string[]> = {
+  'conversas.ts': ['evento', 'tipo'],
   'negociacao.ts': ['tipo'],
   'negociador.ts': ['evento', 'tipo'],
   'negociador-entrada.ts': ['tipo'],
@@ -387,6 +388,10 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     ids.teo = (await ok(chamar('POST', '/contatos', { nome: teo.nome, telefone: teo.telefone, email: teo.email }), 'contato 2')).id;
     await ok(chamar('PUT', '/conta/meu-perfil', { creci: 'DF-12345-F', telefone: her.telefone }), 'perfil');
 
+    // Conversas (P02, D-116): a conversa do cliente, o texto pelo WhatsApp do celular (mensagem_enviada).
+    const cz = (await ok(chamar('POST', '/conversas', { contato_id: ids.zu }), 'conversa')).conversa.id;
+    await ok(chamar('POST', `/conversas/${cz}/mensagens`, { texto: fala(zu) }), 'mensagem'); // mensagem_enviada
+
     // lembrete_visita (agendar): visita com o cliente.
     await ok(chamar('POST', '/atividades', { tipo: 'visita', titulo: `Visita com ${zu.nome}`, quando: new Date(Date.now() + 3 * 86400e3).toISOString(), contato_id: ids.zu, local: 'Lago Sul' }), 'visita');
 
@@ -404,6 +409,11 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     await ok(chamar('POST', `/negociacoes/${n1}/propostas`, { direcao: 'vendedor', valor_c: 146_000_000, condicoes: fala(her) }), 'registro'); // proposta_registrada
     await ok(chamar('POST', `/negociacoes/${n1}/assumir`), 'assumir'); // negociacao_assumida
     await ok(chamar('POST', `/negociacoes/${n1}/devolver`), 'devolver'); // negociacao_devolvida
+    // A conversa segue a negociação: devolvida ao Negociador, depois assumida (conversa_devolvida, conversa_assumida).
+    await ok(chamar('POST', `/conversas/${cz}/devolver`), 'conversa devolvida');
+    await ok(chamar('POST', `/conversas/${cz}/assumir`), 'conversa assumida');
+    // Envio de imóvel ao cliente: envio_criado e a mensagem na conversa (mensagem_enviada).
+    await ok(chamar('POST', '/envios', { contato_id: ids.zu, tipo: 'imovel', imovel_id: im1.id, canal: 'whatsapp', descricao: fala(zu) }), 'envio');
     await ok(chamar('POST', `/negociacoes/${n1}/decisao`, { acao: 'aceitar_acordo', proposta_id: oferta.id }), 'acordo'); // negociacao_acordo_proposto
     await ok(chamar('PATCH', `/negociacoes/${n1}`, { estado: 'ganha', valor_final_c: 140_000_000 }), 'encerrar'); // negociacao_encerrada
 
@@ -471,7 +481,7 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
   assert.deepEqual(Object.keys(eventos).filter((t) => !saidos.has(t)), [], 'eventos do manifesto que o cenário não emitiu: acrescente o caminho');
   // Os caminhos do listener (repassadores com o tipo em variável) emitiram, e na conta certa.
   const doListener = bus.emitidos.filter((e) => e.via === 'publicar' && e.conta !== undefined);
-  for (const tipo of ['negociacao_iniciada', 'proposta_recebida', 'proposta_aceite_cliente', 'contraproposta_enviada']) {
+  for (const tipo of ['negociacao_iniciada', 'proposta_recebida', 'proposta_aceite_cliente', 'contraproposta_enviada', 'mensagem_recebida']) {
     assert.ok(doListener.some((e) => e.tipo === tipo && e.conta === 100), `${tipo} pelo listener, na conta 100`);
   }
   // Nenhum valor fora dos campos residuais traz o dado pessoal que entrou, e os que não são residuais são id, código ou valor.

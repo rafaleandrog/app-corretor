@@ -1,5 +1,7 @@
 # Telas do Padrão B — guia visual para a implementação
 
+> **Versão 2 (08/11/2026, D-114 e D-115):** os mockups de `specs/telas/` e as referências de `specs/layout/` foram regenerados na **moldura do shell** (menu pelo `nav`, Criar no cabeçalho do shell, Assistente no cabeçalho da coluna esquerda, colunas 360 · flexível · 340, botão 34 px, campo 36 px, raio 12, peso até 700). Onde este guia ainda fala em trilho, vale `specs/layout/README.md`.
+
 > **Divergências com a spec (nota de 27/10/2026, spec 1.2).** Este guia e os mockups vieram do insumo do dono de 27/10, desenhado antes de decisões que a `main` já tinha tomado. **Onde a spec decidiu diferente do mockup, vale a spec** (`specs/portal_corretor.md`, seção 11):
 > - **P04 e M4/M5/M5b — Portal do Cliente com login:** no MVP o portal é página pública por **link com token**, sem login e sem role `cliente`; as ações entram pelo `wh` do portal (D-56, D-73, D-104). Na P04, "Liberar item" vira gerar, reenviar e revogar o link do portal.
 > - **P08 — Estúdio com Canva (preenchimento automático) e aprovação por janela:** a arte é feita **fora do app**, no Canva IA do corretor, a partir da descrição que o Estúdio prepara; sem Canva Enterprise, sem preenchimento automático, **sem aprovação por janela**; peças em listas por etapa (D-86, D-89 a D-91, D-105).

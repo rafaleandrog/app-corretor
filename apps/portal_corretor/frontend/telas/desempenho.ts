@@ -6,7 +6,7 @@ import { linhasCsvNumeros, type RespostaNumeros } from '../../comum/numeros';
 import { rotuloObjecao } from '../../comum/numeros-negociacao';
 import { chamarApi, contaDeTrabalho, filtrosDaUrl, gesto, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
-import { moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -412,7 +412,7 @@ function centro(rel: Relatorio) {
 function lista(rel: Relatorio) {
   return html`<urbi-stack>
     <urbi-stack>
-      <urbi-prosa papel="titulo">Números</urbi-prosa>
+      ${cabecalhoColuna('Números')}
       <urbi-prosa papel="secundario">${PERIODOS.find((p) => p.valor === String(lerFiltros().dias))?.rotulo === '12 meses' ? 'Últimos 12 meses' : `Últimos ${lerFiltros().dias} dias`}</urbi-prosa>
     </urbi-stack>
     <urbi-lista clicavel separador .itens=${RELATORIOS} .itemAtivo=${(r: Relatorio) => r.id === rel.id}

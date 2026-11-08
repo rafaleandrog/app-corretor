@@ -105,7 +105,7 @@ foram enviadas a ele, com condições, concessão, contrapartida e validade. Aba
   com o proprietário;
 - **Fazer nova oferta:** o cliente digita o valor em reais (por exemplo, 1.380.000);
 - **Mensagem ao corretor:** abre um campo de texto ali mesmo, na negociação. A mensagem vai pelo mesmo
-  caminho da aba Conversa e já cita o imóvel ("Sobre a negociação do imóvel …"), então o corretor
+  caminho da aba Conversa (e, no app, entra em **Conversas**, ver [Conversas](conversas.md)) e já cita o imóvel ("Sobre a negociação do imóvel …"), então o corretor
   sabe de qual negociação se trata. Se o cliente pede desconto ou fala de preço, o Negociador entra
   nessa negociação (ver [Quando o Negociador entra](negociacao.md#quando-o-negociador-entra)).
 

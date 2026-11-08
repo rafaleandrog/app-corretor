@@ -255,6 +255,18 @@ export class BancoFalso {
         colide(tabela, { ...alvo, ...comoGravado(d) });
         return comoLido(tabela, Object.assign(alvo, comoGravado(d), { atualizado_em: new Date().toISOString() }));
       },
+      /** Contador atômico (banco-de-dados.md § incrementar): soma na linha, NULL conta como 0; só inteiro sem opções. */
+      async incrementar(tabela: string, id: number, inc: Record<string, number>) {
+        tabelaAtual = tabela;
+        exigirConta();
+        const alvo = gravaveis(tabela).find((l) => l.id === id);
+        if (!alvo) return null;
+        for (const [c, n] of Object.entries(inc)) {
+          if (!Number.isSafeInteger(n)) throw Object.assign(new Error(`incremento inválido em ${tabela}.${c}`), { codigo: 'DADOS_INCREMENTO_INVALIDO' });
+          alvo[c] = Number(alvo[c] ?? 0) + n;
+        }
+        return comoLido(tabela, Object.assign(alvo, { atualizado_em: new Date().toISOString() }));
+      },
       /** Escrita condicionada (banco-de-dados.md): grava só se a linha casa com `condicoes`; senão null. */
       async atualizarSe(tabela: string, id: number, d: Record<string, unknown>, condicoes: Record<string, unknown>) {
         tabelaAtual = tabela;

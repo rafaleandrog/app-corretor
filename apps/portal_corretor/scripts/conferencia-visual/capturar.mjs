@@ -10,6 +10,8 @@
 //
 // Uso (na raiz do repositório, com URBIVERSO_INSTANCIAS no ambiente):
 //   node apps/portal_corretor/scripts/conferencia-visual/capturar.mjs <nome da instância> <pasta de saída> [P01,M4,...]
+// Contrato v2 (specs/layout/README.md): no computador, a imagem e as medidas são só da ÁREA DA APP (a moldura
+// de três colunas dentro da página do shell, 1289 px em viewport de 1440), com x e y a partir do canto dela.
 // Playwright: usa o pré-instalado do ambiente (require.resolve), sem instalar nada.
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -22,7 +24,9 @@ const [nome, saida, filtro] = process.argv.slice(2);
 if (!nome || !saida) { console.error('uso: capturar.mjs <instância> <pasta de saída> [telas separadas por vírgula]'); process.exit(2); }
 const inst = JSON.parse(process.env.URBIVERSO_INSTANCIAS ?? '[]').find((x) => x.nome === nome);
 if (!inst) { console.error(`instância "${nome}" não está em URBIVERSO_INSTANCIAS`); process.exit(2); }
-const H = { Authorization: `Bearer ${inst.token}` };
+// CONTA=<id> escolhe a conta de trabalho para quem atende várias (X-Conta nas chamadas e a escolha da tela).
+const CONTA = process.env.CONTA ? Number(process.env.CONTA) : null;
+const H = { Authorization: `Bearer ${inst.token}`, ...(CONTA ? { 'X-Conta': String(CONTA) } : {}) };
 mkdirSync(saida, { recursive: true });
 
 // Dados de apoio, só leitura: um cliente com link do portal ativo e um imóvel da carteira.
@@ -36,7 +40,9 @@ async function apoio(ctx) {
   }
   const imovel = (await api('/imoveis?por_pagina=1')).dados?.[0]?.id ?? null;
   const pagina = (await api('/pagina')).pagina?.endereco ?? null;
-  return { cliente, portal, imovel, pagina };
+  // CONVERSA=<id> escolhe a conversa da P02; sem ela, a mais recente.
+  const conversa = process.env.CONVERSA ? Number(process.env.CONVERSA) : ((await api('/conversas').catch(() => ({ dados: [] }))).dados?.[0]?.id ?? null);
+  return { cliente, portal, imovel, pagina, conversa };
 }
 
 const EXTRAIR = `(() => {
@@ -72,6 +78,7 @@ async function contexto(vp) {
   delete eu.credencial;
   await ctx.route(/\/api\/shell\/auth\/(eu-sistema|eu)$/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(eu) }));
   await ctx.route(/fonts\.googleapis\.com|fonts\.gstatic\.com/, (r) => r.abort()); // a fonte do tema vem de fora; sem rede, cai na fonte do sistema
+  if (CONTA) await ctx.addInitScript((c) => { try { localStorage.setItem('portal_corretor:conta', String(c)); } catch {} }, CONTA);
   return ctx;
 }
 const ctx0 = await contexto({ width: 1440, height: 1000 });
@@ -80,6 +87,7 @@ await ctx0.close();
 
 const TELAS = [
   ['P01-Hoje', 'desk', '/portal_corretor/'],
+  ['P02-Conversas', 'desk', a.conversa && `/portal_corretor/conversas?item=${a.conversa}`],
   ['P03-Funil', 'desk', '/portal_corretor/clientes?visao=funil'],
   ['P04-Cliente', 'desk', a.cliente && `/portal_corretor/clientes?item=${a.cliente}`],
   ['P05-Assistente', 'desk', '/portal_corretor/assistente'],
@@ -105,7 +113,9 @@ const resumo = [];
 for (const [tela, modo, caminho, extra] of TELAS) {
   if (querTela && ![...querTela].some((q) => tela.startsWith(q))) continue;
   if (!caminho) { resumo.push(`${tela}: pulada (sem dado de apoio na conta)`); continue; }
-  const vp = modo === 'desk' ? { width: 1440, height: 1000 } : { width: 390, height: 844 };
+  // Computador: viewport alto o bastante para a área da app mostrar o conteúdo das colunas sem rolar (a referência v2 é a
+  // área inteira, até 1285 px em P02); o que importa é a largura de 1440.
+  const vp = modo === 'desk' ? { width: 1440, height: 1420 } : { width: 390, height: 844 };
   const ctx = await contexto(vp);
   const page = await ctx.newPage();
   const erros = [];
@@ -118,10 +128,23 @@ for (const [tela, modo, caminho, extra] of TELAS) {
       const aba = page.getByRole('tab', { name: /Im[óo]veis/ }).or(page.getByText(/^Im[óo]veis/)).first();
       if (await aba.count()) { await aba.click(); await page.waitForTimeout(1500); } else erros.push('aba Imóveis não encontrada');
     }
-    await page.screenshot({ path: join(saida, `${tela}.png`), fullPage: true });
-    const nos = await page.evaluate(EXTRAIR);
-    const altura = await page.evaluate(() => document.documentElement.scrollHeight);
-    writeFileSync(join(saida, `${tela}.app.json`), JSON.stringify({ tela, viewport: { largura: vp.width, altura_conteudo: altura }, url: caminho.replace(inst.url, '').replace(/t=wh_[a-f0-9]+/, 't=<chave>'), nos }));
+    // A área da app (v2): a moldura de colunas; sem ela (página pública, celular), a página inteira.
+    const area = modo === 'desk' ? await page.evaluate(() => {
+      const achar = (raiz) => {
+        for (const el of raiz.querySelectorAll('*')) {
+          if (el.localName === 'urbi-3-colunas' || el.localName === 'urbi-2x1') { const r = el.getBoundingClientRect(); return { x: r.x + scrollX, y: r.y + scrollY, w: r.width, h: Math.max(r.height, el.scrollHeight) }; }
+          if (el.shadowRoot) { const r = achar(el.shadowRoot); if (r) return r; }
+        }
+        return null;
+      };
+      return achar(document);
+    }) : null;
+    if (area) await page.screenshot({ path: join(saida, `${tela}.png`), fullPage: true, clip: { x: Math.round(area.x), y: Math.round(area.y), width: Math.round(area.w), height: Math.round(area.h) } });
+    else await page.screenshot({ path: join(saida, `${tela}.png`), fullPage: true });
+    let nos = await page.evaluate(EXTRAIR);
+    if (area) nos = nos.map((n) => ({ ...n, box: { ...n.box, x: n.box.x - Math.round(area.x), y: n.box.y - Math.round(area.y) } }));
+    const altura = area ? Math.round(area.h) : await page.evaluate(() => document.documentElement.scrollHeight);
+    writeFileSync(join(saida, `${tela}.app.json`), JSON.stringify({ tela, viewport: { largura: area ? Math.round(area.w) : vp.width, altura_conteudo: altura }, area, url: caminho.replace(inst.url, '').replace(/t=wh_[a-f0-9]+/, 't=<chave>'), nos }));
     resumo.push(`${tela}: ok (${nos.length} nós, altura ${altura})${erros.length ? ' | ' + erros.join('; ') : ''}`);
   } catch (e) { resumo.push(`${tela}: FALHOU ${e.message.slice(0, 160)}`); }
   await ctx.close();

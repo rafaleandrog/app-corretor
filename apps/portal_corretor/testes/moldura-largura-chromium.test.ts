@@ -167,7 +167,7 @@ window.desenhar = (dashboard) => {
 // Mede: largura da moldura contra a área do app (#raiz), colunas, e todo contêiner que rola na horizontal.
 window.medir = () => {
   const area = raiz.getBoundingClientRect().width;
-  const inbox = document.querySelector('urbi-inbox').getBoundingClientRect().width;
+  const inbox = document.querySelector('urbi-3-colunas').getBoundingClientRect().width;
   const colunas = [...document.querySelectorAll('urbi-3-colunas > [slot]')].map((c) => [c.getAttribute('slot'), Math.round(c.getBoundingClientRect().width)]);
   const nome = (e) => e.localName + (e.getAttribute('slot') ? '[' + e.getAttribute('slot') + ']' : '') + (e.getAttribute('titulo') ? '«' + e.getAttribute('titulo') + '»' : '')
     + (e.localName === 'urbi-botao' || e.localName === 'urbi-kpi' ? '«' + e.textContent.trim().replace(/\\s+/g, ' ') + '»' : '');

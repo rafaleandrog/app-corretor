@@ -189,11 +189,11 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     assert.equal(inicio.travado, true, 'sem tipo e cidade, as fotos não têm onde ficar');
     assert.equal(inicio.estilos, 0, 'sem CSS próprio');
 
-    // Estrutura (moldura.ts:116-128): urbi-inbox > urbi-3-colunas[slot=detalhe] > 3 urbi-hospedeiro[expandir] nos slots
+    // Estrutura (moldura.ts, D-114): urbi-3-colunas > 3 urbi-hospedeiro[expandir] nos slots
     // esquerda, centro e direita, nessa ordem, cada um com a sua coluna; o celular abre no centro (painel-ativo, M3).
     const estrutura = await pagina.evaluate(() => {
       const q = (s: string) => document.querySelector(s);
-      const tres = q('#raiz > urbi-inbox > urbi-3-colunas[slot="detalhe"]') as HTMLElement;
+      const tres = q('#raiz > urbi-3-colunas') as HTMLElement;
       const filhos = [...(tres?.children ?? [])];
       const hosp = (slot: string) => q(`urbi-3-colunas > urbi-hospedeiro[slot="${slot}"][expandir]`) as HTMLElement | null;
       // Medida: os `urbi-*` não estão registrados aqui (inline, sem layout de colunas: o `left` fica igual nos três),

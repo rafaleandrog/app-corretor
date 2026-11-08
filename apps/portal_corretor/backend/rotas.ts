@@ -20,6 +20,7 @@ import { negociacaoRotas } from './negociacao';
 import { negociadorRotas } from './negociador';
 import { negociadorHumanoRotas } from './negociador-humano';
 import { buscaRotas } from './busca';
+import { conversasRotas } from './conversas';
 import { escopoDeConta } from './escopo';
 
 export { aoIniciar } from './semente';
@@ -64,3 +65,4 @@ rotas.use(negociacaoRotas);
 rotas.use(negociadorRotas);
 rotas.use(negociadorHumanoRotas);
 rotas.use(buscaRotas);
+rotas.use(conversasRotas);

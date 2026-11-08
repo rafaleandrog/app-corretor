@@ -3,7 +3,7 @@ import { customElement } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { lerCsv, mapearPorModelo, MODELOS_IMPORTACAO } from '../../comum/csv.js';
 import { ehContaTrocada, enviar, mensagemDeErro } from '../apoio.js';
-import { moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -137,7 +137,7 @@ export class PcImportarFontes extends ColunaImportar {
       <urbi-linha quebrar>
         <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/clientes')}>Clientes</urbi-botao>
       </urbi-linha>
-      <urbi-prosa papel="titulo">Importar</urbi-prosa>
+      ${cabecalhoColuna('Importar')}
       <urbi-lista separador .itens=${fontes}
         .render_item=${(f: (typeof fontes)[number]) => html`<urbi-linha justificar="entre" quebrar>
           <urbi-prosa><urbi-icone classe=${f.icone}></urbi-icone> ${f.rotulo}</urbi-prosa>

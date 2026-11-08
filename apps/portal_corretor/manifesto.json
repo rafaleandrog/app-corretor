@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.45",
+  "versao": "0.1.46",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -51,6 +51,46 @@
     "papel_externo": "corretor"
   },
   "nav": [
+    {
+      "titulo": "Hoje",
+      "rota": "/",
+      "icone": "fa-solid fa-house"
+    },
+    {
+      "titulo": "Conversas",
+      "rota": "/conversas",
+      "icone": "fa-regular fa-comments"
+    },
+    {
+      "titulo": "Clientes",
+      "rota": "/clientes",
+      "icone": "fa-solid fa-address-book"
+    },
+    {
+      "titulo": "Imóveis",
+      "rota": "/imoveis",
+      "icone": "fa-solid fa-building"
+    },
+    {
+      "titulo": "Estúdio",
+      "rota": "/estudio",
+      "icone": "fa-solid fa-wand-magic-sparkles"
+    },
+    {
+      "titulo": "Página",
+      "rota": "/pagina",
+      "icone": "fa-solid fa-globe"
+    },
+    {
+      "titulo": "Números",
+      "rota": "/numeros",
+      "icone": "fa-solid fa-chart-line"
+    },
+    {
+      "titulo": "Ajustes",
+      "rota": "/ajustes",
+      "icone": "fa-solid fa-sliders"
+    },
     {
       "titulo": "Equipe da plataforma",
       "icone": "fa-solid fa-users-gear",
@@ -435,6 +475,62 @@
       "conteudo": "Negociação devolvida ao Negociador",
       "api": "negociacoes/{negociacao_id}",
       "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "mensagem_recebida": {
+      "descricao": "O cliente mandou uma mensagem (pelo Portal do Cliente; pelo WhatsApp quando chegar).",
+      "campos": [
+        "conversa_id",
+        "contato_id"
+      ],
+      "conteudo": "Nova mensagem de um cliente",
+      "api": "conversas/{conversa_id}",
+      "rota": "conversas?item={conversa_id}",
+      "segregado_por_conta": true
+    },
+    "mensagem_enviada": {
+      "descricao": "O corretor (ou o Negociador) mandou uma mensagem ao cliente: texto pelo WhatsApp do celular, imóvel, seleção, arquivo, localização ou link do portal.",
+      "campos": [
+        "conversa_id",
+        "contato_id"
+      ],
+      "conteudo": "Mensagem enviada a um cliente",
+      "api": "conversas/{conversa_id}",
+      "rota": "conversas?item={conversa_id}",
+      "segregado_por_conta": true
+    },
+    "envio_criado": {
+      "descricao": "Um envio ao cliente foi registrado (imóvel, arquivo, localização, link do portal ou seleção).",
+      "campos": [
+        "envio_id",
+        "contato_id",
+        "imovel_id"
+      ],
+      "conteudo": "Envio registrado para um cliente",
+      "api": "envios?contato_id={contato_id}",
+      "rota": "clientes?item={contato_id}&secao=enviados",
+      "segregado_por_conta": true
+    },
+    "conversa_assumida": {
+      "descricao": "O corretor assumiu uma conversa que o Negociador (ou o Mensageiro, quando existir) atendia.",
+      "campos": [
+        "conversa_id",
+        "contato_id"
+      ],
+      "conteudo": "Você assumiu uma conversa",
+      "api": "conversas/{conversa_id}",
+      "rota": "conversas?item={conversa_id}",
+      "segregado_por_conta": true
+    },
+    "conversa_devolvida": {
+      "descricao": "O corretor devolveu uma conversa ao Negociador.",
+      "campos": [
+        "conversa_id",
+        "contato_id"
+      ],
+      "conteudo": "Conversa devolvida ao Negociador",
+      "api": "conversas/{conversa_id}",
+      "rota": "conversas?item={conversa_id}",
       "segregado_por_conta": true
     }
   },

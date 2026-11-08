@@ -4,7 +4,7 @@ import { abaDaUrl, abaNaUrl, acoesComMais, avisoCreci, chamarApi, chip, contaDeT
 import { ABAS_INICIO, APELIDOS_INICIO, type TipoFila } from '../../comum/funil';
 import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, FILA_VISIVEL, iniciarCarga, marcarEntrada, mostrarTudo, precisaCarregar, receberCarga, telaDeHoje, TIPO_NA_FILA, type AcaoFila, type PassoInicial } from '../../comum/hoje';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
-import { moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
 import './agenda.js';
 
@@ -197,7 +197,7 @@ function esquerda(d: DadosHoje, atualizar: () => void) {
   const total = d.primeiros_passos.length;
   return html`<urbi-stack>
     <urbi-stack>
-      <urbi-prosa papel="titulo">Hoje</urbi-prosa>
+      ${cabecalhoColuna('Hoje')}
       <urbi-prosa papel="fraco">${hojeExtenso()} · Mensageiro: ainda não disponível</urbi-prosa>
     </urbi-stack>
     <urbi-prosa papel="secao">Precisa de você · ${precisa}</urbi-prosa>

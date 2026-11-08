@@ -23,7 +23,7 @@ import {
   type OpcoesAba,
 } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
-import { moldura } from '../moldura.js';
+import { botaoAssistenteColuna, moldura } from '../moldura.js';
 import { irParaComQuery } from '../criar.js';
 import { contextoEmpreendimento } from './empreendimentos.js';
 import './empreendimentos.js';
@@ -257,7 +257,10 @@ export class PcListaImoveis extends LitElement {
     return html`<urbi-stack>
       <urbi-linha justificar="entre">
         <urbi-prosa papel="titulo">Imóveis</urbi-prosa>
-        ${this.aba === 'carteira' ? html`<urbi-botao pequeno icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo</urbi-botao>` : nothing}
+        <urbi-linha>
+          ${this.aba === 'carteira' ? html`<urbi-botao pequeno icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo</urbi-botao>` : nothing}
+          ${botaoAssistenteColuna()}
+        </urbi-linha>
       </urbi-linha>
       <urbi-abas .abas=${abas} ativa=${this.aba} @urbi:aba-selecionar=${(e: CustomEvent) => e.detail?.id !== this.aba && this.aoTrocarAba(e.detail?.id)}>
         <urbi-hospedeiro slot=${this.aba}>

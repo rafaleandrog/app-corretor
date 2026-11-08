@@ -2848,6 +2848,270 @@
           "negociacao_id"
         ]
       ]
+    },
+    "conversas": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "soft_delete": true,
+      "id_legivel": "{canal}",
+      "colunas": {
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir",
+          "campos_incluir": [
+            "nome as contato_nome",
+            "telefone as contato_telefone",
+            "temperatura as contato_temperatura",
+            "origem_id as contato_origem_id"
+          ]
+        },
+        "canal": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "portal",
+          "opcoes": [
+            "portal",
+            "registro",
+            "wa_me",
+            "whatsapp"
+          ]
+        },
+        "responsavel_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular",
+          "campos_incluir": [
+            "nome as responsavel_nome"
+          ]
+        },
+        "atendido_por": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "humano",
+          "opcoes": [
+            "humano",
+            "agente"
+          ]
+        },
+        "agente": {
+          "tipo": "texto",
+          "limite": 12,
+          "opcoes": [
+            "mensageiro",
+            "negociador"
+          ]
+        },
+        "estado": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "aberta",
+          "opcoes": [
+            "aberta",
+            "aguardando_cliente",
+            "aguardando_corretor",
+            "encerrada"
+          ]
+        },
+        "janela_ate": {
+          "tipo": "datahora"
+        },
+        "primeira_entrada_em": {
+          "tipo": "datahora"
+        },
+        "primeira_resposta_em": {
+          "tipo": "datahora"
+        },
+        "primeira_resposta_humana_em": {
+          "tipo": "datahora"
+        },
+        "nao_entendidas": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 0,
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "ultima_mensagem_em": {
+          "tipo": "datahora"
+        },
+        "ultima_mensagem": {
+          "tipo": "texto",
+          "limite": 300
+        },
+        "ultimo_tipo": {
+          "tipo": "texto",
+          "limite": 14
+        },
+        "nao_lidas": {
+          "tipo": "inteiro",
+          "obrigatorio": true,
+          "padrao": 0,
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "arquivada_em": {
+          "tipo": "datahora"
+        }
+      },
+      "unicos": [
+        {
+          "colunas": [
+            "contato_id"
+          ],
+          "onde": [
+            {
+              "coluna": "removido_em",
+              "operador": "nulo"
+            }
+          ]
+        }
+      ],
+      "indices": [
+        [
+          "ultima_mensagem_em"
+        ],
+        [
+          "contato_id"
+        ]
+      ]
+    },
+    "mensagens": {
+      "segregada_por_conta": true,
+      "acesso_externo": "restrito",
+      "colunas": {
+        "conversa_id": {
+          "tipo": "referencia",
+          "tabela_ref": "conversas",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "contato_id": {
+          "tipo": "referencia",
+          "tabela_ref": "contatos",
+          "obrigatorio": true,
+          "ao_deletar": "restringir"
+        },
+        "direcao": {
+          "tipo": "texto",
+          "limite": 8,
+          "obrigatorio": true,
+          "opcoes": [
+            "entrada",
+            "saida"
+          ]
+        },
+        "autor_tipo": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "contato",
+            "humano",
+            "agente",
+            "sistema"
+          ]
+        },
+        "autor_id": {
+          "tipo": "referencia",
+          "tabela_ref": "shell.usuarios",
+          "ao_deletar": "anular",
+          "campos_incluir": [
+            "nome as autor_nome"
+          ]
+        },
+        "canal": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "opcoes": [
+            "portal",
+            "registro",
+            "wa_me",
+            "whatsapp",
+            "sistema"
+          ]
+        },
+        "tipo": {
+          "tipo": "texto",
+          "limite": 14,
+          "obrigatorio": true,
+          "padrao": "texto",
+          "opcoes": [
+            "texto",
+            "imovel",
+            "selecao",
+            "arquivo",
+            "localizacao",
+            "link_portal",
+            "sistema"
+          ]
+        },
+        "conteudo": {
+          "tipo": "texto_longo"
+        },
+        "dados": {
+          "tipo": "json"
+        },
+        "midia_id": {
+          "tipo": "inteiro"
+        },
+        "modelo_id": {
+          "tipo": "texto",
+          "limite": 60
+        },
+        "categoria_cobranca": {
+          "tipo": "texto",
+          "limite": 14,
+          "opcoes": [
+            "marketing",
+            "utilidade",
+            "autenticacao",
+            "servico"
+          ]
+        },
+        "id_externo": {
+          "tipo": "texto",
+          "limite": 100
+        },
+        "status": {
+          "tipo": "texto",
+          "limite": 10,
+          "obrigatorio": true,
+          "padrao": "enviada",
+          "opcoes": [
+            "enviada",
+            "entregue",
+            "lida",
+            "falhou"
+          ]
+        },
+        "custo_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0
+          }
+        },
+        "em": {
+          "tipo": "datahora",
+          "obrigatorio": true
+        }
+      },
+      "indices": [
+        [
+          "conversa_id",
+          "em"
+        ],
+        [
+          "contato_id"
+        ]
+      ]
     }
   }
 }
