@@ -1,7 +1,7 @@
 // Negociação (spec 6.16, 10.9): vocabulário, validação do mandato, sigilo e o playbook padrão de
 // objeções (Apêndice D). Sem dependência de backend: o motor do Negociador (D2) e as telas (D3, D4)
 // usam as mesmas regras.
-import { reaisParaCentavos } from './crm';
+import { centavosValidos, reaisParaCentavos } from './crm';
 
 export const ESTADOS_NEGOCIACAO = ['ativa', 'aguardando_cliente', 'aguardando_corretor', 'aguardando_proprietario', 'ganha', 'perdida', 'pausada'] as const;
 export type EstadoNegociacao = (typeof ESTADOS_NEGOCIACAO)[number];
@@ -111,7 +111,7 @@ export interface RecusaMandato {
   detalhes?: string[];
 }
 
-const centavos = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
+const centavos = (v: unknown) => (centavosValidos(v) ? v : null);
 const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
 // `Date.parse` aceita dia que não existe ('2026-02-31' vira 3 de março): a data só vale se voltar igual.
 const dataValida = (v: unknown): v is string => {

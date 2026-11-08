@@ -1,4 +1,5 @@
 import '@urbiverso/sdk/express';
+import { centavosValidos } from '../comum/crm';
 import type { HelperDados } from '@urbiverso/sdk';
 import { Router, type Request, type Response } from 'express';
 import { respostaSegura } from '../comum/assistente';
@@ -25,14 +26,13 @@ import {
   type RespostaNegociador,
 } from '../comum/negociador';
 import { linkWhatsapp } from '../comum/pagina';
-import { assincrono, ehCorretor, erro, guardarNegociacao, primeiro, soNegociador } from './acesso';
+import { assincrono, ehCorretor, erro, guardarNegociacao, id, primeiro, soNegociador } from './acesso';
 import {
   MENSAGEM_ENCERRADA,
   NAO_ENCONTRADA,
   configDaConta,
   encerrada,
   gravarPropostaTravada,
-  id,
   mandatoVigente,
   objecoesDaConta,
   paraMotor,
@@ -570,7 +570,7 @@ negociadorRotas.post(
     if (b.acao === 'editar') {
       const ed = (b.contraproposta && typeof b.contraproposta === 'object' ? b.contraproposta : null) as Record<string, unknown> | null;
       if (b.contraproposta !== undefined && b.contraproposta !== null && !ed) return erro(res, 422, 'DADOS_INVALIDOS', 'contraproposta: use um objeto.');
-      if (ed && !(Number.isInteger(ed.valor_c) && (ed.valor_c as number) > 0)) return erro(res, 422, 'DADOS_INVALIDOS', 'contraproposta.valor_c: informe o valor em centavos.');
+      if (ed && !centavosValidos(ed.valor_c)) return erro(res, 422, 'DADOS_INVALIDOS', 'contraproposta.valor_c: informe o valor em centavos.');
       movimento = {
         ...sugerida,
         movimento: ed ? 'contraproposta' : sugerida.movimento,

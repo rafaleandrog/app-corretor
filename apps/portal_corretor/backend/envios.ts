@@ -1,7 +1,7 @@
 import '@urbiverso/sdk/express';
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
-import { assincrono, erro, guardarCorretor } from './acesso';
+import { assincrono, erro, guardarCorretor, id } from './acesso';
 import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
 import { criarLink } from './vitrine';
@@ -15,10 +15,6 @@ guardarCorretor(enviosRotas, ['/envios']);
 
 const TIPOS = ['imovel', 'arquivo', 'mensagem', 'localizacao', 'simulacao'] as const;
 const CANAIS = ['whatsapp', 'email', 'presencial'] as const;
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const reais = (c: number | null | undefined) => (c ? (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'preço sob consulta');
 
 enviosRotas.post(

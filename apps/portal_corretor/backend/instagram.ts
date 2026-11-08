@@ -4,7 +4,7 @@ import type { ContextoListener, HelperDados, ParametroHelper } from '@urbiverso/
 import { checarPeca, legendaComCreci } from '../comum/estudio';
 import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
 import { iso } from '../comum/funil';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { contaDoRequest } from './vitrine';
 import { publicarDoSistema, publicarEvento } from './eventos';
 
@@ -304,8 +304,8 @@ instagramRotas.post(
 const nomeDoAtor = (req: Request) => (req.contexto!.usuario.nome ?? '').trim() || `Usuário ${req.contexto!.usuario.id}`;
 
 async function pecaDaConta(req: Request) {
-  const pid = Number(req.params.id);
-  if (!Number.isInteger(pid) || pid <= 0) return null;
+  const pid = id(req.params.id);
+  if (!pid) return null;
   const p = await req.dados!.buscar('pecas', pid);
   return p && Number(p.conta_id) === contaDoRequest(req) ? p : null;
 }

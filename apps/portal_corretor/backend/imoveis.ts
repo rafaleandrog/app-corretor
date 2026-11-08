@@ -26,7 +26,7 @@ import {
 } from '../comum/imoveis';
 import { normalizarPapeis } from '../comum/crm';
 import { ENCERRADOS } from '../comum/negociacao';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { contaDoRequest, tentarSincronizar } from './vitrine';
 import { publicarDoSistema, publicarEvento } from './eventos';
 import schema from '../schema.json';
@@ -40,10 +40,6 @@ const POR_PAGINA = 50;
 const TTL_URL = 3600;
 /** Teto de arquivos por imóvel: mantém a listagem (50 imóveis por página) dentro do `maximo` da leitura. */
 const LIMITE_MIDIAS = 80;
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
 /** Hoje no fuso da conta, `AAAA-MM-DD` (as datas da autorização são datas civis). */
 const hoje = (req: Request) => new Date().toLocaleDateString('sv-SE', { timeZone: req.contexto?.fuso || 'America/Sao_Paulo' });

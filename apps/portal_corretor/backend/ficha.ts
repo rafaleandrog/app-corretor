@@ -3,7 +3,7 @@ import { Router, type Request } from 'express';
 import { iso } from '../comum/funil';
 import { mascarar, respostaSegura } from '../comum/assistente';
 import { DESCRICAO_OBJETIVO, ehObjetivo, modeloMensagem, primeiroNome } from '../comum/mensagens';
-import { assincrono, erro, guardarCorretor } from './acesso';
+import { assincrono, erro, guardarCorretor, id } from './acesso';
 import { contextoContato } from './assistente';
 import { etapasPorId, playbookDaConta, proximaAbordagem } from './inteligencia';
 
@@ -15,10 +15,6 @@ import { etapasPorId, playbookDaConta, proximaAbordagem } from './inteligencia';
 export const fichaRotas = Router();
 guardarCorretor(fichaRotas, ['/contatos']);
 
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const texto = (v: unknown, limite: number) => (typeof v === 'string' ? v.trim().slice(0, limite) : '');
 
 /** `estadoSlot` sem custo; falha da sonda conta como indisponível, salvo slot fora do manifesto. */

@@ -2,7 +2,7 @@ import '@urbiverso/sdk/express';
 import type { Request } from 'express';
 import { Router } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
 import { linkWhatsapp } from '../comum/pagina';
@@ -26,10 +26,6 @@ export const conversasRotas: Router = Router();
 guardarCorretor(conversasRotas, ['/conversas']);
 
 type Linha = Record<string, any>;
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const agora = () => new Date().toISOString();
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : typeof v === 'string' ? v : null);
 

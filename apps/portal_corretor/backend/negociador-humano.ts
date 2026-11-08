@@ -3,8 +3,8 @@ import { Router, type Request, type Response } from 'express';
 import type { ConviteApp } from '@urbiverso/sdk';
 import { emailValido } from '../comum/conta';
 import { semSigilo } from '../comum/negociacao';
-import { assincrono, erro, guardarCorretor } from './acesso';
-import { encerrada, id, NAO_ENCONTRADA } from './negociacao';
+import { assincrono, erro, guardarCorretor, id } from './acesso';
+import { encerrada, NAO_ENCONTRADA } from './negociacao';
 import { contaDoRequest } from './vitrine';
 import { avisarNegociador, convitesDaConta, negociadoresDaConta } from './negociador-padrao';
 

@@ -1,4 +1,5 @@
 import '@urbiverso/sdk/express';
+import { centavosValidos } from '../comum/crm';
 import { Router, type Request } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
 import {
@@ -22,7 +23,7 @@ import {
 import { validarMovimento, type MandatoMotor, type PropostaResumo, type ResultadoValidacao } from '../comum/negociador';
 import { inicioDoMes } from '../comum/negociador-ajustes';
 import type { Conducao } from '../comum/negociador-gatilhos';
-import { assincrono, ehCorretor, erro, guardarNegociacao, negociacoesAtribuidas, primeiro, salvarUnico, soNegociador } from './acesso';
+import { assincrono, ehCorretor, erro, guardarNegociacao, id, negociacoesAtribuidas, primeiro, salvarUnico, soNegociador } from './acesso';
 import { avisarNegociador, conducaoNova, negociadoresDaConta, shellConfereNegociadores } from './negociador-padrao';
 import { tentarPortal } from './portal';
 import { contaDoRequest } from './vitrine';
@@ -44,10 +45,6 @@ export const MENSAGEM_SO_O_CORRETOR = 'Só o corretor da conta faz isto: o negoc
 
 type Linha = Record<string, any>;
 
-export const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 export const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
 export const encerrada = (n: Linha) => (ENCERRADOS as readonly string[]).includes(n.estado);
 const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
@@ -377,7 +374,7 @@ negociacaoRotas.patch(
     }
     for (const campo of ['teto_estimado_comprador_c', 'valor_final_c']) {
       if (b[campo] === undefined) continue;
-      if (b[campo] !== null && !(Number.isInteger(b[campo]) && (b[campo] as number) >= 0)) erros.push(`${campo}: use centavos (inteiro).`);
+      if (b[campo] !== null && !(centavosValidos(b[campo]) || b[campo] === 0)) erros.push(`${campo}: use centavos (inteiro, até R$ 21.474.836,47).`);
       else mudancas[campo] = b[campo];
     }
     if (b.fonte_estimativa !== undefined) mudancas.fonte_estimativa = texto(b.fonte_estimativa, 300);
@@ -550,7 +547,7 @@ negociacaoRotas.post(
     const b = (req.body ?? {}) as Record<string, unknown>;
     const erros: string[] = [];
     if (!(DIRECOES as readonly unknown[]).includes(b.direcao)) erros.push('direcao: use comprador, vendedor ou proprietario.');
-    if (!(Number.isInteger(b.valor_c) && (b.valor_c as number) > 0)) erros.push('valor_c: informe o valor em centavos.');
+    if (!centavosValidos(b.valor_c)) erros.push('valor_c: informe o valor em centavos (até R$ 21.474.836,47).');
     let validade_ate: Date | null = null;
     if (b.validade_ate !== undefined && b.validade_ate !== null) {
       const d = typeof b.validade_ate === 'string' ? new Date(b.validade_ate) : null;

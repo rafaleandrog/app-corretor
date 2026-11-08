@@ -109,6 +109,9 @@ Autorização; senão, Onde aparece). O endereço com o número de um imóvel de
   foto de fachada, sala ou vista como capa e as demais na sequência de uma visita.
 - **Editar dados** (no botão de lápis do cartão do imóvel ou em **Mais**): preço (vazio = sob consulta), condomínio, IPTU, áreas, cômodos, endereço,
   características, proprietário e empreendimento.
+- Valores em reais vão até **R$ 21.474.836,47** (o que a coluna guarda). Acima disso o app recusa
+  com "Preço inválido" (ou o nome do campo), em vez de erro interno. O mesmo vale para condomínio,
+  IPTU, preço autorizado e o valor estimado do negócio.
 
 ### A ficha do imóvel
 

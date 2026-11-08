@@ -6,6 +6,19 @@ import type { HelperDados } from '@urbiverso/sdk';
 // da equipe (bloco `roles`). Permissão sempre por `rolesApp`, nunca por tipo de usuário (CLAUDE.md).
 export type Papel = 'corretor' | 'operacao' | 'negociador';
 
+/** Maior id que cabe nas colunas da app (`INTEGER` no banco, banco-de-dados.md § Tipos de coluna). */
+export const ID_MAXIMO = 2_147_483_647;
+
+/**
+ * Id vindo da URL ou do corpo: inteiro positivo que cabe na coluna, senão `null` (a rota responde
+ * 404 ou 422). Único para todo o backend (#38): um id enorme não chega ao banco e não vira 500.
+ */
+export const id = (v: unknown): number | null => {
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
+  const n = Number(v);
+  return Number.isInteger(n) && n > 0 && n <= ID_MAXIMO ? n : null;
+};
+
 export function erro(res: Response, status: number, codigo: string, mensagem: string, detalhes?: string[]) {
   return res.status(status).json({ erro: true, codigo, mensagem, ...(detalhes ? { detalhes } : {}) });
 }
@@ -80,12 +93,12 @@ export function guardarNegociacao(router: {
   );
   router.use('/negociacoes/:id', (req, res, next) => {
     if (!soNegociador(req)) return next();
-    const nid = Number(req.params.id);
+    const nid = id(req.params.id) ?? 0;
     const usuario = req.contexto?.usuario.id;
     // Os dois routers da negociação montam esta guarda: a segunda passagem não relê.
     const conferida = (req as Request & { negociacaoAtribuida?: number }).negociacaoAtribuida;
     if (conferida !== undefined && conferida === nid) return next();
-    if (!Number.isInteger(nid) || nid <= 0 || !usuario) return erro(res, 404, 'NAO_ENCONTRADO', 'Negociação não encontrada.');
+    if (!nid || !usuario) return erro(res, 404, 'NAO_ENCONTRADO', 'Negociação não encontrada.');
     atribuicaoAtiva(req.dados!, nid, usuario).then(
       (a) => {
         if (!a) return erro(res, 404, 'NAO_ENCONTRADO', 'Negociação não encontrada.');

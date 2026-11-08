@@ -2,9 +2,10 @@ import '@urbiverso/sdk/express';
 import { Router, type Request, type Response } from 'express';
 import { createHash } from 'node:crypto';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
-import { ETAPAS_PADRAO } from '../comum/crm';
+import { CENTAVOS_MAXIMO, ETAPAS_PADRAO } from '../comum/crm';
 import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
+import { id } from './acesso';
 import { reclassificar } from './inteligencia';
 import { publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 import { semSigilo } from '../comum/negociacao';
@@ -134,10 +135,7 @@ async function contextoDoToken(req: Request, webhook: string, token: string): Pr
   }
 }
 
-const idDe = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
+const idDe = id;
 
 /** Topo da seleção e do portal: a foto do corretor sai como URL assinada, nunca como id de arquivo. */
 async function corretorPublico(req: Request, c: Linha | null | undefined) {
@@ -230,7 +228,7 @@ const ROTULO_REACAO: Record<string, string> = { gostei: 'Gostou do', nao_gostei:
 /** O que o cliente faz pelo portal (bloco 9 e D5, M5b). */
 const TIPOS_ACAO = ['mensagem', 'remarcar', 'tarefa_feita', 'proposta_nova', 'proposta_aceite'];
 /** Teto de uma oferta digitada no portal (R$ 1 bilhão): valor acima disso é erro de digitação. */
-const VALOR_MAXIMO_C = 100_000_000_000;
+const VALOR_MAXIMO_C = CENTAVOS_MAXIMO;
 
 const contaDoIngresso = (req: Request) => {
   const c = Number((req.wh?.contexto as Linha | null)?.conta_id);
