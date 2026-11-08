@@ -351,12 +351,14 @@ export class PcConversaMensagens extends ParteDaConversa {
   private ultimaRolada: number | null = null;
 
   updated() {
-    // Nova mensagem: rola para o fim (o container que rola é a coluna, `urbi-hospedeiro`).
+    // Nova mensagem: rola para o fim. Quem rola é o `urbi-hospedeiro` aninhado que embrulha esta lista;
+    // a altura dele só fica pronta depois do layout, então a rolagem espera o próximo quadro (no
+    // `updated` ainda não há o que rolar e o `scrollIntoView` não faz nada).
     const d = this.d;
     const ultima = d?.mensagens.length ? Number(d.mensagens[d.mensagens.length - 1].id) : null;
     if (ultima !== null && ultima !== this.ultimaRolada) {
       this.ultimaRolada = ultima;
-      this.querySelector('[data-fim]')?.scrollIntoView({ block: 'end' });
+      requestAnimationFrame(() => this.querySelector('[data-fim]')?.scrollIntoView({ block: 'end' }));
     }
   }
 
