@@ -7,6 +7,7 @@ import { publicarEvento } from './eventos';
 import { reclassificar } from './inteligencia';
 import { apagarVitrine, corretorDaConta, limparSelecoesVencidas, publicarSelecao, revogarIngresso, selecaoValida, sincronizarPortal, tentarPortal } from './portal';
 import { contaDoRequest, origemPublica, publicavel } from './vitrine';
+import { linkWhatsapp } from '../comum/pagina';
 
 // Seleções com reação e Portal do Cliente (bloco 5b, spec 11.3, D-56): o corretor monta e envia; o
 // cliente abre por link com o token do ingresso `wh` (sem login) e reage pelo mesmo endereço.
@@ -109,14 +110,27 @@ clienteRotas.post(
       });
       throw e;
     }
-    await dados.criar('envios', { contato_id: contato.id, tipo: 'selecao', canal: 'whatsapp', autor_tipo: 'humano', descricao: `${titulo} (${ids.length} imóveis)`.slice(0, 300), enviado_em: agora, cliques: 0 });
+    const envio = await dados.criar('envios', { contato_id: contato.id, tipo: 'selecao', canal: 'whatsapp', autor_tipo: 'humano', descricao: `${titulo} (${ids.length} imóveis)`.slice(0, 300), enviado_em: agora, cliques: 0 });
+    await publicarEvento(req, 'envio_criado', { envio_id: Number(envio.id), contato_id: Number(contato.id), imovel_id: null });
     await registrar(dados, req, { tipo: 'selecao.enviada', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: `Seleção enviada: ${titulo} (${ids.length} imóveis)`, dados: { selecao_id: selecao.id } });
     await dados.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
     await reclassificar(dados, contato.id);
     await tentarPortal(dados, conta, contato.id, await corretor(req));
+    // O link entra na conversa do cliente (P02, D-127) como cartão da seleção: título, quantidade e link;
+    // a mensagem pronta volta à tela, que abre o WhatsApp do celular com ela.
+    const mensagemPronta = `Olá, ${String(contato.nome).split(' ')[0]}! Separei ${ids.length} imóve${ids.length > 1 ? 'is' : 'l'} para você. Abra e me diga o que achou de cada um: ${link}`;
+    const naConversa = await registrarMensagem(dados, {
+      contato_id: Number(contato.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu(req), canal: linkWhatsapp(contato.telefone, '-') ? 'wa_me' : 'registro',
+      tipo: 'selecao', conteudo: titulo, dados: { selecao_id: Number(selecao.id), titulo, quantidade: ids.length, link },
+    });
+    try {
+      await req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(naConversa));
+    } catch (e) {
+      console.warn('[portal_corretor] evento mensagem_enviada não publicado:', (e as Error).message);
+    }
     // Arrumação: a seleção já está no ar, então uma falha aqui não vira erro para o corretor.
     await limparSelecoesVencidas(dados, conta).catch((e) => console.warn(`[portal_corretor] limpeza de seleções vencidas: ${(e as Error).message}`));
-    res.status(201).json({ selecao: salva, link });
+    res.status(201).json({ selecao: salva, link, mensagem: mensagemPronta, link_whatsapp: linkWhatsapp(contato.telefone, mensagemPronta), conversa_id: Number(naConversa.conversa.id) });
   }),
 );
 
@@ -151,7 +165,8 @@ clienteRotas.get(
     const contato = await contatoOu404(req, req.params.id);
     if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     const a = await acessoAtivo(req, contato.id);
-    res.json({ ativo: !!a, link: a?.link ?? null, criado_em: a?.criado_em ?? null });
+    // `ultimo_acesso_em`: a última ação do cliente pelo portal (mensagem, remarcar, pendência, oferta), gravada pelo listener.
+    res.json({ ativo: !!a, link: a?.link ?? null, criado_em: a?.criado_em ?? null, ultimo_acesso_em: a?.ultimo_acesso_em ?? null });
   }),
 );
 

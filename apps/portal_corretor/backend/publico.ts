@@ -632,11 +632,30 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
   });
 }
 
+/**
+ * "Último acesso" do portal (P04, direita): toda ação do cliente pelo portal marca `ultimo_acesso_em` no
+ * acesso ativo dele. O `wh` não grava em tabela segregada (wh.md), então é o listener, na conta, que
+ * marca; a abertura da página sem ação não conta (o portal público não escreve nada). Falha aqui não
+ * impede a ação do cliente de entrar.
+ */
+async function marcarAcessoDoPortal(ctx: ContextoListener, conta: number, contatoId: number | null) {
+  if (!contatoId || !ctx.dados?.comConta) return;
+  try {
+    await ctx.dados.comConta(conta, async (trx) => {
+      const acesso = (await trx.varrerTudo('acessos_cliente', { filtros: { conta_id: conta, contato_id: contatoId, 'revogado_em[nulo]': 'true' }, maximo: 1 }))[0];
+      if (acesso) await trx.atualizar('acessos_cliente', acesso.id, { ultimo_acesso_em: new Date().toISOString() });
+    });
+  } catch (e) {
+    console.warn(`[portal_corretor] último acesso do portal do contato ${contatoId} não marcado: ${(e as Error).message}`);
+  }
+}
+
 /** Mensagem, pedido de remarcar ou pendência feita vindo do portal: linha do tempo (e tarefa para o corretor). */
 export async function aoReceberAcaoCliente(evento: EventoConta, ctx: ContextoListener) {
   const conta = evento.conta_id;
   if (!conta || !ctx.dados?.comConta) return;
   const p = evento.payload;
+  await marcarAcessoDoPortal(ctx, conta, idDe(p.contato_id));
   if (p.tipo === 'proposta_nova' || p.tipo === 'proposta_aceite') return aoPropostaDoPortal(conta, p, ctx);
   let entrada: Entrada | null = null;
   let motor: { nid: number; responsavel: number | null } | null = null;

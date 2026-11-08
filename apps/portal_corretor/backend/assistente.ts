@@ -131,7 +131,7 @@ assistenteRotas.post(
       recentes('rascunho'),
     ]);
     const pecas = { dados: [...aprovadas.dados, ...rascunhos.dados] };
-    const contatos = new Map<number, string>(fila.slice(0, 10).map((i) => [i.contato_id, mascarar(i.contato_nome)]));
+    const contatos = new Map<number, string>(fila.slice(0, 10).filter((i) => i.contato_id).map((i) => [i.contato_id!, mascarar(i.contato_nome)]));
     if (foco && contatoId) contatos.set(contatoId, foco.nome);
     const mapaPecas = new Map(pecas.dados.map((p) => [p.id as number, { titulo: String(p.titulo ?? `Peça ${p.id}`), estado: String(p.estado) }]));
     const agora = new Date();
@@ -140,7 +140,7 @@ assistenteRotas.post(
       `TELA ATUAL: ${TELAS_APP[tela]?.nome ?? 'Hoje'}`,
       `ESTADO DA CONTA:\n${estado}`,
       fila.length
-        ? `FILA DO DIA (mais urgente primeiro):\n${fila.slice(0, 10).map((i) => `- contato #${i.contato_id} ${mascarar(i.contato_nome)} · ${i.tipo} · ${i.temperatura ?? 'sem temperatura'} · ${mascarar(i.texto)}`).join('\n')}`
+        ? `FILA DO DIA (mais urgente primeiro):\n${fila.slice(0, 10).map((i) => `- ${i.contato_id ? `contato #${i.contato_id} ${mascarar(i.contato_nome)}` : mascarar(i.contato_nome)} · ${i.tipo} · ${i.temperatura ?? 'sem temperatura'} · ${mascarar(i.texto)}`).join('\n')}`
         : 'FILA DO DIA: vazia.',
       foco ? `CONTATO EM FOCO:\n${foco.texto}` : null,
       mapaPecas.size ? `PEÇAS DO ESTÚDIO:\n${[...mapaPecas].map(([id, p]) => `- #${id} ${mascarar(p.titulo)} (${p.estado})`).join('\n')}` : null,

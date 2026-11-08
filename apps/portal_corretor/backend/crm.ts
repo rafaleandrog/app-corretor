@@ -108,6 +108,19 @@ export async function etapasDaConta(dados: HelperDados, pipeline?: Pipeline) {
   return r.dados.filter((e) => !pipeline || e.pipeline === pipeline);
 }
 
+/**
+ * Canal e campanha do contato pela `origem_id` (issue #186): o framework junta `origem_canal` e
+ * `origem_campanha` pelo `campos_incluir` nas listas; a ficha e a exportação garantem os dois mesmo
+ * quando a leitura vem sem a junção, como faz `negociosParaNumeros`.
+ */
+async function origensPorId(dados: HelperDados): Promise<Map<number, Record<string, any>>> {
+  return new Map((await dados.varrerTudo('origens', { maximo: 5000 })).map((o) => [Number(o.id), o]));
+}
+const origemDe = (c: Record<string, any>, origens: Map<number, Record<string, any>>) => {
+  const o = c.origem_id ? origens.get(Number(c.origem_id)) : undefined;
+  return { canal: c.origem_canal ?? o?.canal ?? null, campanha: c.origem_campanha ?? o?.campanha ?? null };
+};
+
 // ---------- Contatos ----------
 
 crmRotas.get(
@@ -161,7 +174,16 @@ crmRotas.get(
       pagina,
       por_pagina: POR_PAGINA,
     });
-    res.json(r);
+    // A etapa do negócio em andamento de cada contato da página (P04: lista com etapa, origem e temperatura).
+    const ids = r.dados.map((c) => c.id);
+    const negocios = ids.length ? await req.dados!.listar('negocios', { filtros: { contato_id: ids.join(',') }, ordenar: 'etapa_desde', ordem: 'desc', por_pagina: 500 }) : { dados: [] as Record<string, any>[] };
+    const etapas = await etapasPorId(req.dados!);
+    const etapaDe = new Map<number, string>();
+    for (const n of negocios.dados) {
+      const e = etapas.get(n.etapa_id);
+      if (e?.tipo === 'aberta' && !etapaDe.has(Number(n.contato_id))) etapaDe.set(Number(n.contato_id), String(e.nome));
+    }
+    res.json({ ...r, dados: r.dados.map((c) => ({ ...c, etapa_nome: etapaDe.get(Number(c.id)) ?? null })) });
   }),
 );
 
@@ -195,11 +217,12 @@ crmRotas.post(
 crmRotas.get(
   '/contatos/exportar',
   assincrono(async (req, res) => {
-    const linhas = await req.dados!.varrerTudo('contatos', { ordenar: 'nome', ordem: 'asc', maximo: 50000 });
+    const dados = req.dados!;
+    const [linhas, origens] = await Promise.all([dados.varrerTudo('contatos', { ordenar: 'nome', ordem: 'asc', maximo: 50000 }), origensPorId(dados)]);
     const csv = gerarCsv(
       ['Nome', 'Telefone', 'E-mail', 'Papéis', 'Temperatura', 'Origem', 'Campanha', 'Próximo passo', 'Próximo passo em', 'Cadastrado em'],
       linhas.map((c) => [
-        c.nome, c.telefone, c.email, c.papeis, c.temperatura, c.origem_canal, c.origem_campanha,
+        c.nome, c.telefone, c.email, c.papeis, c.temperatura, origemDe(c, origens).canal, origemDe(c, origens).campanha,
         c.proximo_passo, c.proximo_passo_em ? new Date(c.proximo_passo_em).toLocaleString('pt-BR', { timeZone: req.contexto?.fuso }) : '',
         new Date(c.criado_em).toLocaleDateString('pt-BR', { timeZone: req.contexto?.fuso }),
       ]),
@@ -310,7 +333,9 @@ crmRotas.get(
       dados.listar('classificacoes', { filtros: { contato_id: cid }, ordenar: 'em', ordem: 'desc', por_pagina: 10 }),
     ]);
     const abordagem = proximaAbordagem(contato, negocios.dados, etapas, playbook);
-    res.json({ contato, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, abordagem, classificacoes: classificacoes.dados });
+    const origem = contato.origem_id ? await dados.buscar('origens', Number(contato.origem_id)) : null;
+    const comOrigem = { ...contato, origem_canal: contato.origem_canal ?? origem?.canal ?? null, origem_campanha: contato.origem_campanha ?? origem?.campanha ?? null };
+    res.json({ contato: comOrigem, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, abordagem, classificacoes: classificacoes.dados });
   }),
 );
 
@@ -557,9 +582,40 @@ crmRotas.get(
     if (typeof req.query.status === 'string' && ['pendente', 'feita', 'cancelada', 'nao_compareceu'].includes(req.query.status)) {
       filtros.status = req.query.status;
     }
+    // `?contato_id=` (issue #196): só as atividades daquele contato; valor que não é id é recusado.
+    if (req.query.contato_id !== undefined) {
+      const cid = id(req.query.contato_id);
+      if (!cid) return erro(res, 422, 'DADOS_INVALIDOS', 'contato_id inválido.');
+      filtros.contato_id = cid;
+    }
+    const dados = req.dados!;
     // Literal no backend é obedecido (banco-de-dados.md); a tela avisa quando `total` passa disso.
-    const r = await req.dados!.listar('atividades', { filtros, ordenar: 'quando', ordem: 'asc', por_pagina: 500 });
-    res.json(r);
+    const r = await dados.listar('atividades', { filtros, ordenar: 'quando', ordem: 'asc', por_pagina: 500 });
+    // Nome do contato e código do imóvel da visita junto de cada atividade (issue #196), mesmo quando a
+    // leitura vem sem a junção automática.
+    const idsContato = [...new Set(r.dados.map((a) => a.contato_id).filter(Boolean))];
+    const idsVisita = r.dados.filter((a) => a.tipo === 'visita').map((a) => a.id);
+    const [contatos, visitas] = await Promise.all([
+      idsContato.length ? dados.varrerTudo('contatos', { filtros: { id: idsContato.join(',') }, maximo: 1000 }) : [],
+      idsVisita.length ? dados.listar('visitas', { filtros: { atividade_id: idsVisita.join(',') }, por_pagina: 500 }) : { dados: [] as Record<string, any>[] },
+    ]);
+    const imoveisIds = [...new Set(visitas.dados.map((v) => v.imovel_id).filter(Boolean))];
+    const imoveis = imoveisIds.length ? await dados.varrerTudo('imoveis', { filtros: { id: imoveisIds.join(',') }, maximo: 500 }) : [];
+    const nome = new Map(contatos.map((c) => [Number(c.id), c.nome]));
+    const codigo = new Map(imoveis.map((i) => [Number(i.id), i.codigo]));
+    const visitaDe = new Map(visitas.dados.map((v) => [Number(v.atividade_id), v]));
+    res.json({
+      ...r,
+      dados: r.dados.map((a) => {
+        const v = visitaDe.get(Number(a.id));
+        return {
+          ...a,
+          contato_nome: a.contato_nome ?? (a.contato_id ? (nome.get(Number(a.contato_id)) ?? null) : null),
+          imovel_id: v?.imovel_id ?? null,
+          imovel_codigo: v?.imovel_codigo ?? (v?.imovel_id ? (codigo.get(Number(v.imovel_id)) ?? null) : null),
+        };
+      }),
+    });
   }),
 );
 
