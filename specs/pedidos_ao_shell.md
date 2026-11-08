@@ -181,7 +181,17 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 5. **Contrato do `nav` do manifesto no bundle do SDK**: `apps-em-repo-proprio.md` remete a "Arquitetura e Apps", que não vem no bundle; falta dizer itens, níveis, ícone, rota `/`, e se o `nav` é filtrado por papel e mostrado ao usuário externo (o bundle do shell 0.56.37 sugere que mostra, `_renderExterno` da topbar; a confirmar entrando como o corretor demo; `permissoes.md` § Usuário externo ainda diz que não).
 6. **`urbi-stack` com `gap`**: a tela precisa de um empilhamento mais apertado (nome + chips) e o catálogo diz "Props: nenhuma"; ou o stack ganha `gap` documentado (como `urbi-linha`), ou um papel "compacto".
 
-**Proposta mínima:** (1) `urbi-botao` sem texto vira quadrado da altura do botão (34, ou 25 com `pequeno`); (2) `urbi-lista` pinta o item `aria-current` com o fundo de seleção do tema; (3) `urbi-redator` com uma prop `compacto` (ou `uma-linha`): campo de 36 px que cresce só ao digitar várias linhas e botões só ícone; (4) a (6) acima.
+7. **`criarOuAtualizar` sobre único parcial em tabela segregada:** `banco-de-dados.md` não diz se a chave do `ON CONFLICT` inclui `conta_id` quando o `unicos` da tabela é parcial (`onde removido_em nulo`) e a tabela é `segregada_por_conta`. Hoje a P02 lê e depois cria a conversa (uma por contato) e trata o `23505` relendo; com a resposta, o verbo certo substitui os dois passos.
+
+**Proposta mínima:** (1) `urbi-botao` sem texto vira quadrado da altura do botão (34, ou 25 com `pequeno`); (2) `urbi-lista` pinta o item `aria-current` com o fundo de seleção do tema; (3) `urbi-redator` com uma prop `compacto` (ou `uma-linha`): campo de 36 px que cresce só ao digitar várias linhas e botões só ícone; (4) a (7) acima.
+
+## 25. `nav` do manifesto filtrado por papel (D-125)
+
+**Por quê:** o `nav` é o menu da app para todo usuário que a abre, e a app tem papéis externos com alcance diferente: o `corretor` usa as oito telas; o `negociador` humano só pode ver Clientes › Negociações (as atribuídas a ele). Sem filtro por papel, o negociador vê oito itens que respondem erro ou vazio. Até o grupo 1 da fase 1.7 o trilho da app resolvia isso (`MENU_NEGOCIADOR`); com o menu no `nav` (D-114), não há como.
+
+**Até lá (D-125):** a app abre direto em Clientes › Negociações para quem tem só o papel `negociador` e redireciona qualquer outra rota para lá; o `nav` segue inteiro.
+
+**Proposta mínima:** cada item do `nav` aceitar `papeis: ["corretor"]` (slugs de `roles`/`roles_externos`); sem o campo, o item vale para todos. E o contrato do `nav` (itens, níveis, ícone, rota `/`, visibilidade para o externo) entrar no bundle do SDK (`apps-em-repo-proprio.md`), que hoje remete a um documento que não vem no bundle.
 
 ## Se o shell não puder atender 1 e 2 a tempo
 
