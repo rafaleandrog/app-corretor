@@ -1,4 +1,5 @@
 import { AVISO_CRECI } from './conta';
+import { listaDeCaracteristicas } from './imoveis';
 
 // Estúdio de Conteúdo (bloco 8a, spec 9.4, 10.5, D-74). Puro: formatos, objetivos, a validação da
 // marca, os textos padrão (quando a IA não está disponível), o pedido à IA, a instrução para outra ferramenta
@@ -88,7 +89,7 @@ export function imovelParaArte(im: Record<string, any>): ImovelArte {
     suites: im.suites ?? null,
     vagas: im.vagas ?? null,
     area_m2: im.area_util_m2 ?? im.area_total_m2 ?? null,
-    caracteristicas: Array.isArray(im.caracteristicas) ? im.caracteristicas.map(String).slice(0, 12) : [],
+    caracteristicas: listaDeCaracteristicas(im.caracteristicas, 12),
   };
 }
 

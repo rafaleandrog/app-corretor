@@ -1,7 +1,7 @@
 import '@urbiverso/sdk/express';
 import type { Request } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
-import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
+import { autorizacaoVigente, listaDeCaracteristicas, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
 import { imovelPublico, type Bloco } from '../comum/pagina';
 import { primeiro } from './acesso';
 import { aplicarMarcaNaVitrine, atualizarSelecoesDoImovel, marcaPublica } from './portal';
@@ -191,6 +191,28 @@ export async function ressincronizarMarca(req: Request): Promise<boolean> {
     console.warn(`[portal_corretor] marca: seleções e portais não atualizados: ${(e as Error).message}`);
   }
   return ok;
+}
+
+/**
+ * #179: até a 0.1.48 os imóveis iam à vitrine sem as características (o texto do imóvel não virava
+ * lista). No boot, cada imóvel publicado sem características ganha a lista do imóvel. Idempotente:
+ * a linha que já tem lista, ou cujo imóvel não tem características, não é tocada. Toca só o campo
+ * `caracteristicas` da cópia publicada (o resto do retrato fica como o corretor publicou).
+ */
+export async function caracteristicasNaVitrine(dados: HelperDados, conta: number): Promise<number> {
+  let corrigidas = 0;
+  for (const l of await linhasDaConta(dados, conta, 'imovel')) {
+    const atual = (l.dados ?? {}) as Linha;
+    if (Array.isArray(atual.caracteristicas) && atual.caracteristicas.length) continue;
+    const imovelId = Number(String(l.chave).split(':')[1]);
+    if (!Number.isInteger(imovelId) || imovelId <= 0) continue;
+    const im = (await dados.varrerTudo('imoveis', { filtros: { conta_id: conta, id: imovelId }, maximo: 1 }))[0];
+    const lista = listaDeCaracteristicas(im?.caracteristicas, 40);
+    if (!lista.length) continue;
+    await dados.atualizar('vitrine_publica', l.id, { dados: { ...atual, caracteristicas: lista } });
+    corrigidas++;
+  }
+  return corrigidas;
 }
 
 /** Tira a página e os imóveis da conta da vitrine (os links ficam, e passam a dizer "indisponível"). */

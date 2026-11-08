@@ -124,8 +124,7 @@ export function validarImovel(corpo: Record<string, unknown>, parcial = false): 
     else d.endereco_publico = ep;
   }
   if ('caracteristicas' in corpo) {
-    const lista = Array.isArray(corpo.caracteristicas) ? corpo.caracteristicas : texto(corpo.caracteristicas).split(/[,;\n]/);
-    const itens = [...new Set(lista.map((x) => texto(x).slice(0, 60)).filter(Boolean))].slice(0, 40);
+    const itens = listaDeCaracteristicas(corpo.caracteristicas);
     d.caracteristicas = itens.length ? itens.join(', ') : null;
   }
   if ('descricao' in corpo) d.descricao = typeof corpo.descricao === 'string' ? corpo.descricao.trim().slice(0, 8000) || null : null;
@@ -457,6 +456,15 @@ const CARACTERISTICA_DO_AMBIENTE: Record<string, string> = {
   vista: 'vista',
   garagem: 'garagem',
 };
+
+/**
+ * Características como lista (#179): o imóvel guarda texto separado por vírgula, e quem leva o
+ * imóvel para fora (vitrine, portal, seleção, Estúdio) precisa da lista. Aceita lista ou texto.
+ */
+export function listaDeCaracteristicas(v: unknown, maximo = 40): string[] {
+  const bruta = Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[,;\n]/) : [];
+  return [...new Set(bruta.map((x) => (typeof x === 'string' ? x.trim().slice(0, 60) : '')).filter(Boolean))].slice(0, maximo);
+}
 
 export function caracteristicasDasFotos(ambientes: (string | null | undefined)[]): string[] {
   return [...new Set(ambientes.map((a) => CARACTERISTICA_DO_AMBIENTE[a ?? '']).filter(Boolean))];

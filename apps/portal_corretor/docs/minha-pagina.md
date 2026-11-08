@@ -99,7 +99,9 @@ autorização vence, o imóvel some da página no dia seguinte ao fim, mesmo sem
 
 **O que vai para a internet:** só dados de anúncio. Vão o tipo, o título, o preço, o
 condomínio, o IPTU, as áreas, os cômodos, as características, a descrição e as fotos marcadas
-como públicas. A localização segue a escolha "endereço público" do imóvel:
+como públicas. As características saem como a lista que o corretor escreveu, separada por
+vírgula (também no portal, nas seleções e nos "Diferenciais" do Estúdio); quem já estava publicado
+recebe a lista na próxima atualização do app. A localização segue a escolha "endereço público" do imóvel:
 
 | Escolha | O que aparece |
 |---|---|
