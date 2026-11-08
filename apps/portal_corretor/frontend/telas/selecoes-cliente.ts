@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, data, enviar, gesto, mensagemDeErro } from '../apoio';
+import { chamarApi, data, dataHora, enviar, gesto, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -24,7 +24,7 @@ export class PcSelecoesCliente extends LitElement {
   @property() nome = '';
   @property() parte: 'selecoes' | 'portal' = 'selecoes';
   @state() private selecoes: Linha[] = [];
-  @state() private portal: { ativo: boolean; link: string | null; criado_em?: string | null } | null = null;
+  @state() private portal: { ativo: boolean; link: string | null; criado_em?: string | null; ultimo_acesso_em?: string | null } | null = null;
   @state() private tarefas: Linha[] = [];
   @state() private falha: string | null = null;
   @state() private ocupado = false;
@@ -260,8 +260,8 @@ export class PcSelecoesCliente extends LitElement {
         <urbi-prosa>${s.titulo}</urbi-prosa>
         <urbi-badge cor=${situacao.cor}>${situacao.rotulo}</urbi-badge>
         ${s.valida && s.link
-          ? html`<urbi-botao variante="fantasma" pequeno icone="fa-solid fa-copy" ariaLabel="Copiar mensagem com o link" title="Copiar mensagem com o link" @click=${() => this.copiar(this.mensagemSelecao(s.link, s.itens.length), 'Mensagem copiada.')}></urbi-botao>
-              <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-ban" ariaLabel="Revogar seleção" title="Revogar" @click=${() => this.revogar(s)}></urbi-botao>`
+          ? html`<urbi-botao variante="fantasma" icone="fa-solid fa-copy" ariaLabel="Copiar mensagem com o link" title="Copiar mensagem com o link" @click=${() => this.copiar(this.mensagemSelecao(s.link, s.itens.length), 'Mensagem copiada.')}></urbi-botao>
+              <urbi-botao variante="fantasma" icone="fa-solid fa-ban" ariaLabel="Revogar seleção" title="Revogar" @click=${() => this.revogar(s)}></urbi-botao>`
           : ''}
       </urbi-linha>
       <urbi-prosa papel="fraco">Enviada em ${data(s.enviada_em)}</urbi-prosa>
@@ -276,14 +276,14 @@ export class PcSelecoesCliente extends LitElement {
   }
 
   private falhaNoCartao(titulo: string, icone: string) {
-    return html`<urbi-card titulo=${titulo} icone=${icone}><urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner></urbi-card>`;
+    return html`<urbi-card titulo=${titulo} icone=${icone}><urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner></urbi-card>`;
   }
 
   /** Aba Negócios: as seleções enviadas, com as reações, e a nova seleção (+). */
   private renderSelecoes() {
     if (this.falha) return this.falhaNoCartao('Seleções', 'fa-solid fa-heart');
     return html`<urbi-card titulo="Seleções" icone="fa-solid fa-heart">
-      <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-plus" ariaLabel="Nova seleção" title="Nova seleção" ?carregando=${this.ocupado} @click=${() => this.nova()}></urbi-botao></span>
+      <span slot="acoes"><urbi-botao variante="fantasma" icone="fa-solid fa-plus" ariaLabel="Nova seleção" title="Nova seleção" ?carregando=${this.ocupado} @click=${() => this.nova()}></urbi-botao></span>
       ${this.selecoes.length
         ? this.selecoes.map((s) => this.selecao(s))
         : html`<urbi-prosa papel="dica">Monte uma seleção de imóveis (+): o cliente abre pelo link, sem login, e diz se gostou, não gostou ou quer visitar.</urbi-prosa>`}
@@ -291,36 +291,39 @@ export class PcSelecoesCliente extends LitElement {
   }
 
   /**
-   * Coluna da direita: o portal do cliente por link com token (D-56, D-73, D-104), sem login. "Liberar
-   * item" do mockup é, no MVP, gerar o link, mandar de novo (copiar) e revogar.
+   * Coluna da direita: o portal do cliente por link com token (D-56, D-73, D-104), sem login, com o
+   * último acesso (a última ação do cliente pelo portal). **Liberar item** monta uma seleção nova, que
+   * entra no portal; **Reenviar link** copia a mensagem com o mesmo link; **Revogar** corta o link.
    */
   private renderPortal() {
     if (this.falha) return this.falhaNoCartao('Portal do cliente', 'fa-solid fa-door-open');
+    const acesso = this.portal?.ultimo_acesso_em ? `último acesso em ${dataHora(this.portal.ultimo_acesso_em)}` : 'o cliente ainda não usou o portal';
     return html`<urbi-card titulo="Portal do cliente" icone="fa-solid fa-door-open">
       ${this.portal?.ativo
         ? html`<urbi-linha quebrar>
               <urbi-badge cor="sucesso">link ativo</urbi-badge>
-              ${this.portal.criado_em ? html`<urbi-prosa papel="fraco" inline>gerado em ${data(this.portal.criado_em)}</urbi-prosa>` : ''}
+              <urbi-prosa papel="fraco" inline>${this.portal.criado_em ? `gerado em ${data(this.portal.criado_em)} · ` : ''}${acesso}</urbi-prosa>
             </urbi-linha>
             <urbi-linha quebrar>
-              <urbi-botao pequeno variante="secundario" icone="fa-solid fa-copy" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Reenviar link</urbi-botao>
-              <urbi-botao pequeno variante="texto" @click=${() => this.revogarPortal()}>Revogar</urbi-botao>
+              <urbi-botao variante="secundario" icone="fa-solid fa-plus" ?carregando=${this.ocupado} @click=${() => this.nova()}>Liberar item</urbi-botao>
+              <urbi-botao variante="secundario" icone="fa-solid fa-copy" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Reenviar link</urbi-botao>
+              <urbi-botao variante="texto" @click=${() => this.revogarPortal()}>Revogar</urbi-botao>
             </urbi-linha>`
         : html`<urbi-prosa papel="secundario">Sem link ativo.</urbi-prosa>
-            <urbi-linha><urbi-botao pequeno variante="secundario" icone="fa-solid fa-link" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Gerar link do portal</urbi-botao></urbi-linha>`}
+            <urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-link" ?carregando=${this.ocupado} @click=${() => this.gerarPortal()}>Gerar link do portal</urbi-botao></urbi-linha>`}
       ${this.abertas().length ? html`<urbi-prosa papel="alerta">${this.abertas().length} pendência(s) do cliente: veja em "O que falta do cliente", abaixo.</urbi-prosa>` : ''}
       <div slot="detalhe"><urbi-stack>
       <urbi-prosa papel="dica">O portal mostra ao cliente o próximo passo que você escreveu para ele, as seleções válidas, as visitas marcadas, o que falta dele e um espaço para ele mandar mensagem ou pedir para remarcar.</urbi-prosa>
       <urbi-linha justificar="entre" quebrar>
         <urbi-prosa>O que falta do cliente:</urbi-prosa>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" @click=${() => this.novaTarefa()}>Pedir ao cliente</urbi-botao>
+        <urbi-botao variante="secundario" icone="fa-solid fa-list-check" @click=${() => this.novaTarefa()}>Pedir ao cliente</urbi-botao>
       </urbi-linha>
       ${this.tarefas.length
         ? html`<urbi-lista separador .itens=${this.tarefas} .render_item=${(t: Linha) => html`<urbi-linha justificar="entre" quebrar>
               <urbi-prosa>${t.texto}</urbi-prosa>
               <urbi-linha>
                 ${t.feita_em ? html`<urbi-badge cor="sucesso">feito em ${data(t.feita_em)}</urbi-badge>` : html`<urbi-badge cor="alerta">pendente</urbi-badge>`}
-                <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-trash" ariaLabel="Remover pendência" title="Remover" @click=${() => this.removerTarefa(t)}></urbi-botao>
+                <urbi-botao variante="fantasma" icone="fa-solid fa-trash" ariaLabel="Remover pendência" title="Remover" @click=${() => this.removerTarefa(t)}></urbi-botao>
               </urbi-linha>
             </urbi-linha>`}></urbi-lista>`
         : html`<urbi-prosa papel="fraco">Nada pedido. Ex.: "confirmar a visita", "enviar a documentação".</urbi-prosa>`}

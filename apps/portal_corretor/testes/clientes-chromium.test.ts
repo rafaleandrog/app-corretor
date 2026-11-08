@@ -265,8 +265,10 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     assert.match(f.centro, /Ana Ribeiro/);
     assert.match(f.centro, /Conversa/);
     assert.match(f.centro, /Resumir/);
-    assert.match(f.centro, /Próximo passo/, 'a aba Resumo abre com o próximo passo');
-    assert.deepEqual(f.abas, ['Resumo', 'Linha do tempo', 'Enviados', 'Negócios', 'Negociação']);
+    assert.match(f.centro, /Registrar contato/, 'a ficha abre na Linha do tempo (D-117)');
+    assert.equal(f.ativa, 'linha');
+    assert.deepEqual(f.abas, ['Resumo', 'Linha do tempo', 'Enviados', 'Negócios 1'], 'quatro abas, com a contagem');
+    assert.match(f.direita, /Editar perfil/);
     assert.match(f.direita, /Perfil de busca/);
     assert.match(f.direita, /Moradia/);
     assert.match(f.direita, /Sudoeste/);
@@ -387,7 +389,7 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     assert.equal(await aba(), 'linha', '(c) a aba vem do endereço');
     await chegar('?item=7');
     assert.equal(await sugestoes(), 2, '(d) voltar sem sugerir não sugere');
-    assert.equal(await aba(), 'resumo', '(d) aba padrão');
+    assert.equal(await aba(), 'linha', '(d) aba padrão: a Linha do tempo (D-117)');
   } finally {
     await navegador.close();
   }

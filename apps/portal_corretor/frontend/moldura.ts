@@ -1,5 +1,6 @@
 import { html, nothing, type TemplateResult } from 'lit';
 import { soNegociador } from './apoio.js';
+import { abrirBusca } from './atalhos.js';
 import { alternarAssistente, assistenteAberto, painelAssistente } from './telas/assistente.js';
 
 // Moldura do Padrão B na página do shell (spec 11.0.1 a 11.0.3, D-114; `specs/layout/README.md` v2):
@@ -52,13 +53,24 @@ export function botaoAssistenteColuna(): TemplateResult | typeof nothing {
 }
 
 /**
- * Cabeçalho da coluna esquerda: o título à esquerda e, à direita, as ações da tela e o Assistente
- * (referência P02: "Conversas · [Nova] [✦]"). Toda tela da moldura usa isto na primeira linha da lista.
+ * O botão Buscar do cabeçalho da coluna esquerda (D-126): só ícone, antes do Assistente, em toda tela do
+ * corretor (no celular não há a tecla `/`). Abre a busca global (`abrirBusca`, atalhos.ts). O negociador
+ * humano não busca na carteira.
+ */
+export function botaoBuscarColuna(): TemplateResult | typeof nothing {
+  if (soNegociador()) return nothing;
+  return html`<urbi-botao variante="secundario" icone="fa-solid fa-magnifying-glass" ariaLabel="Buscar" title="Buscar (/)" @click=${() => void abrirBusca()}></urbi-botao>`;
+}
+
+/**
+ * Cabeçalho da coluna esquerda: o título à esquerda e, à direita, as ações da tela, o Buscar (D-126) e o
+ * Assistente (referência P02: "Conversas · [Nova] [⌕] [✦]"). Toda tela da moldura usa isto na primeira
+ * linha da lista, no computador e no celular.
  */
 export function cabecalhoColuna(titulo: unknown, acoes?: unknown): TemplateResult {
   return html`<urbi-linha justificar="entre" alinhar="centro">
     <urbi-prosa papel="titulo">${titulo}</urbi-prosa>
-    <urbi-linha>${acoes ?? nothing}${botaoAssistenteColuna()}</urbi-linha>
+    <urbi-linha>${acoes ?? nothing}${botaoBuscarColuna()}${botaoAssistenteColuna()}</urbi-linha>
   </urbi-linha>`;
 }
 

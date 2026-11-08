@@ -10,8 +10,10 @@ import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
 import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, seNaoContaTrocada, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { formatarTelefone } from '../../comum/crm';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { registrarEdicao, soltarEdicao } from '../atalhos.js';
+import { abrirConversaDoContato } from './conversas.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -37,18 +39,25 @@ interface Sugestao {
 const CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 const STATUS_ATIVIDADE: Record<string, string> = { pendente: 'Pendente', feita: 'Feita', cancelada: 'Cancelada', nao_compareceu: 'Não compareceu' };
 
-/** Abas da ficha no centro (P04); a Negociação (D3) mostra as negociações do cliente e leva à P15. */
+/**
+ * Abas da ficha no centro (P04, D-117): Resumo · Linha do tempo · Enviados · Negócios; a ficha abre na
+ * Linha do tempo. As negociações do cliente (D3, P15) ficam na aba Negócios; `?secao=negociacao` é apelido.
+ */
 export const ABAS_FICHA = [
   { id: 'resumo', label: 'Resumo' },
   { id: 'linha', label: 'Linha do tempo' },
   { id: 'enviados', label: 'Enviados' },
   { id: 'negocios', label: 'Negócios' },
-  { id: 'negociacao', label: 'Negociação' },
 ] as const;
 type AbaFicha = (typeof ABAS_FICHA)[number]['id'];
+/** A aba padrão (D-117): a Linha do tempo. */
+export const ABA_PADRAO: AbaFicha = 'linha';
 /** A aba fica em `?secao=` (a `?aba=` é de outras telas), e sobrevive a recarregar. */
 const OPCOES_SECAO = { chave: 'secao' };
-export const secaoDaFicha = (): AbaFicha => abaDaUrl(ABAS_FICHA.map((a) => a.id), OPCOES_SECAO) as AbaFicha;
+export const secaoDaFicha = (): AbaFicha => {
+  const aba = abaDaUrl([ABA_PADRAO, ...ABAS_FICHA.map((a) => a.id).filter((a) => a !== ABA_PADRAO), 'negociacao'], OPCOES_SECAO);
+  return (aba === 'negociacao' ? 'negocios' : aba) as AbaFicha;
+};
 
 interface EstadoFicha {
   ficha: Ficha | null;
@@ -136,8 +145,61 @@ export class FichaContato {
 
   escolherAba(id: string) {
     if (!ABAS_FICHA.some((a) => a.id === id) || id === this.s.aba) return;
-    abaNaUrl(id === 'resumo' ? '' : id, OPCOES_SECAO);
+    abaNaUrl(id === ABA_PADRAO ? '' : id, OPCOES_SECAO);
     this.s.aba = id as AbaFicha;
+  }
+
+  /** As abas com a contagem (Enviados N · Negócios N), como a referência P04. */
+  private abasComContagem() {
+    const n = { enviados: this.s.envios.length, negocios: this.s.ficha?.negocios.length ?? 0 } as Record<string, number>;
+    return ABAS_FICHA.map((a) => ({ id: a.id, label: n[a.id] ? `${a.label} ${n[a.id]}` : a.label }));
+  }
+
+  /** Editar perfil (P04, direita): o que o cliente procura, gravado em `perfil_busca` (`PATCH /contatos/:id`). */
+  private editarPerfil() {
+    const p = (this.s.ficha!.contato.perfil_busca ?? {}) as Record<string, unknown>;
+    const lista = (v: unknown) => (Array.isArray(v) ? v.map(String).join(', ') : typeof v === 'string' ? v : '');
+    const reaisDe = (c: unknown) => (typeof c === 'number' && c > 0 ? Math.round(c / 100) : null);
+    const numero = (v: unknown) => (typeof v === 'number' && v > 0 ? v : null);
+    void formularioEnviar(
+      'Perfil de busca',
+      [
+        { nome: 'finalidade', tipo: 'selecao', rotulo: 'Finalidade', valor: typeof p.finalidade === 'string' ? p.finalidade : null, placeholder: 'Não informada', opcoes: [{ valor: 'moradia', rotulo: 'Moradia' }, { valor: 'investimento', rotulo: 'Investimento' }, { valor: 'veraneio', rotulo: 'Veraneio' }] },
+        { nome: 'tipos', tipo: 'texto', rotulo: 'Tipos (separe por vírgula)', valor: lista(p.tipos), placeholder: 'apartamento, casa' },
+        { nome: 'regioes', tipo: 'texto', rotulo: 'Bairros ou regiões (separe por vírgula)', valor: lista(p.regioes), placeholder: 'Sudoeste, Noroeste' },
+        { nome: 'preco_min', tipo: 'numero', rotulo: 'Preço mínimo (R$)', valor: reaisDe(p.preco_min_c), min: 0 },
+        { nome: 'preco_max', tipo: 'numero', rotulo: 'Preço máximo (R$)', valor: reaisDe(p.preco_max_c), min: 0 },
+        { nome: 'quartos', tipo: 'numero', rotulo: 'Quartos (mínimo)', valor: numero(p.quartos), min: 0, max: 20 },
+        { nome: 'vagas', tipo: 'numero', rotulo: 'Vagas (mínimo)', valor: numero(p.vagas), min: 0, max: 20 },
+        { nome: 'area_min_m2', tipo: 'numero', rotulo: 'Área mínima (m²)', valor: numero(p.area_min_m2), min: 0 },
+      ],
+      'PATCH',
+      `/contatos/${this.contatoId}`,
+      (v) => ({
+        perfil_busca: {
+          finalidade: v.finalidade || null,
+          tipos: String(v.tipos ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+          regioes: String(v.regioes ?? '').split(',').map((t) => t.trim()).filter(Boolean),
+          preco_min_c: typeof v.preco_min === 'number' ? Math.round(v.preco_min * 100) : null,
+          preco_max_c: typeof v.preco_max === 'number' ? Math.round(v.preco_max * 100) : null,
+          quartos: v.quartos ?? null,
+          vagas: v.vagas ?? null,
+          area_min_m2: v.area_min_m2 ?? null,
+        },
+      }),
+      { gesto: this.vida, rotuloConfirmar: 'Salvar perfil' },
+    ).then((r) => this.depois(r));
+  }
+
+  /** Abrir conversa (P02 do contato): a conversa dele abre, criada se não existir. */
+  private abrirConversa() {
+    void abrirConversaDoContato(this.contatoId);
+  }
+
+  /** Criar tarefa (P03): a abordagem do playbook vira tarefa no prazo dele; sem abordagem, o formulário de agendar. */
+  private criarTarefa() {
+    if (this.s.ficha?.abordagem) void this.virarTarefa();
+    else void this.novaAtividade();
   }
 
   async carregar() {
@@ -554,7 +616,7 @@ export class FichaContato {
   }
 
   private acao(rotulo: string, icone: string, fn: () => void) {
-    return html`<span slot="acoes"><urbi-botao variante="fantasma" pequeno icone=${icone} ariaLabel=${rotulo} title=${rotulo} @click=${fn}></urbi-botao></span>`;
+    return html`<span slot="acoes"><urbi-botao variante="fantasma" icone=${icone} ariaLabel=${rotulo} title=${rotulo} @click=${fn}></urbi-botao></span>`;
   }
 
   /** Abre o Assistente sobre este contato (spec 11.1: "perguntar ao Assistente sobre este cliente"). */
@@ -578,7 +640,7 @@ export class FichaContato {
         : []),
     ];
     return html`<urbi-dropdown flutuante>
-      <urbi-botao slot="trigger" variante="secundario" pequeno icone="fa-solid fa-ellipsis">Mais</urbi-botao>
+      <urbi-botao slot="trigger" variante="secundario" icone="fa-solid fa-ellipsis">Mais</urbi-botao>
       <div slot="menu">
         ${itens.map((i) => html`<urbi-dropdown-item icone=${i.icone} @urbi:dropdown-select=${i.fn}>${i.rotulo}</urbi-dropdown-item>`)}
         <urbi-dropdown-item icone="fa-solid fa-trash" perigo @urbi:dropdown-select=${() => void this.remover()}>Remover contato</urbi-dropdown-item>
@@ -606,7 +668,7 @@ export class FichaContato {
           <urbi-avatar nome=${c.nome} tamanho="48"></urbi-avatar>
           <urbi-stack>
             <urbi-prosa papel="titulo">${c.nome}</urbi-prosa>
-            <urbi-prosa papel="secundario">${[c.telefone, c.email, papeis].filter(Boolean).join(' · ') || 'Sem telefone nem e-mail.'}</urbi-prosa>
+            <urbi-prosa papel="secundario">${[formatarTelefone(c.telefone), c.email, papeis].filter(Boolean).join(' · ') || 'Sem telefone nem e-mail.'}</urbi-prosa>
           </urbi-stack>
         </urbi-linha>
         <urbi-linha quebrar>
@@ -616,11 +678,12 @@ export class FichaContato {
         </urbi-linha>
         <urbi-prosa papel="secundario">${this.linhaDoTopo()}</urbi-prosa>
         <urbi-linha quebrar>
-          <urbi-botao pequeno icone="fa-brands fa-whatsapp" ?desabilitado=${!temTelefone} title=${temTelefone ? nothing : 'Sem telefone'} @click=${() => this.abrirWhatsapp()}>Conversa</urbi-botao>
-          <urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.s.resumindo} ?desabilitado=${!this.s.ia.resumo}
+          <urbi-botao icone="fa-regular fa-comments" @click=${() => this.abrirConversa()}>Conversa</urbi-botao>
+          <urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.s.resumindo} ?desabilitado=${!this.s.ia.resumo}
             title=${this.s.iaSondada && !this.s.ia.resumo ? DICA_IA_INDISPONIVEL : nothing} @click=${() => this.resumir()}>Resumir</urbi-botao>
-          ${temTelefone ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-phone" ariaLabel="Ligar" title="Ligar" href=${`tel:${String(c.telefone).replace(/[^\d+]/g, '')}`}></urbi-botao>` : ''}
-          ${c.email ? html`<urbi-botao pequeno variante="fantasma" icone="fa-solid fa-envelope" ariaLabel="E-mail" title="E-mail" href=${`mailto:${c.email}`}></urbi-botao>` : ''}
+          ${temTelefone ? html`<urbi-botao variante="fantasma" icone="fa-brands fa-whatsapp" ariaLabel="WhatsApp" title="Abrir o WhatsApp" @click=${() => this.abrirWhatsapp()}></urbi-botao>` : ''}
+          ${temTelefone ? html`<urbi-botao variante="fantasma" icone="fa-solid fa-phone" ariaLabel="Ligar" title="Ligar" href=${`tel:${String(c.telefone).replace(/[^\d+]/g, '')}`}></urbi-botao>` : ''}
+          ${c.email ? html`<urbi-botao variante="fantasma" icone="fa-solid fa-envelope" ariaLabel="E-mail" title="E-mail" href=${`mailto:${c.email}`}></urbi-botao>` : ''}
           ${this.menuMais()}
         </urbi-linha>
         ${this.s.iaSondada && !this.s.ia.resumo ? html`<urbi-prosa papel="fraco">${DICA_IA_INDISPONIVEL}: Resumir volta quando a IA for liberada; a Mensagem sugerida usa o texto do playbook.</urbi-prosa>` : ''}
@@ -644,15 +707,15 @@ export class FichaContato {
       <urbi-linha quebrar>
         ${consentimento
           ? html`<urbi-prosa>Consentimento registrado em ${dataHora(consentimento.aceito_em)} (${consentimento.canal}).</urbi-prosa>
-              <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(false)}>Revogar</urbi-botao>`
+              <urbi-botao variante="texto" @click=${() => this.consentimento(false)}>Revogar</urbi-botao>`
           : html`<urbi-prosa papel="dica">Sem consentimento: o atendimento automático só usa mensagens-modelo aprovadas.</urbi-prosa>
-              <urbi-botao variante="texto" pequeno @click=${() => this.consentimento(true)}>Registrar</urbi-botao>`}
+              <urbi-botao variante="texto" @click=${() => this.consentimento(true)}>Registrar</urbi-botao>`}
       </urbi-linha>
     </urbi-card>`;
   }
 
   /** O que fazer agora: a abordagem do playbook, o passo combinado e a mensagem sugerida. */
-  private cartaoProximoPasso() {
+  private cartaoProximoPasso(rotuloMensagem = 'Mensagem sugerida') {
     const { contato: c, abordagem: a } = this.s.ficha!;
     const temTelefone = !!linkWhatsapp(c.telefone, '-');
     return html`<urbi-card titulo="Próximo passo" icone="fa-solid fa-forward">
@@ -677,13 +740,13 @@ export class FichaContato {
               ? `Escrita pela IA a partir ${this.s.sugestao.objetivo === 'playbook' ? 'do playbook' : 'do objetivo'} e do histórico: revise antes de enviar.`
               : this.s.sugestao.objetivo === 'playbook' ? 'Texto do playbook (a IA da mensagem sugerida não está liberada).' : 'Modelo pronto (a IA da mensagem sugerida não está liberada): ajuste ao seu jeito.'}</urbi-prosa>
             <urbi-linha quebrar>
-              <urbi-botao pequeno icone=${temTelefone ? 'fa-brands fa-whatsapp' : 'fa-solid fa-copy'} @click=${() => this.fazerAgora()}>${temTelefone ? 'Fazer agora' : 'Copiar texto'}</urbi-botao>
-              ${temTelefone ? html`<urbi-botao pequeno variante="texto" @click=${() => this.copiar(this.s.sugestao!.mensagem)}>Copiar</urbi-botao>` : ''}
-              <urbi-botao pequeno variante="texto" @click=${() => (this.s.sugestao = null)}>Fechar</urbi-botao>
+              <urbi-botao icone=${temTelefone ? 'fa-brands fa-whatsapp' : 'fa-solid fa-copy'} @click=${() => this.fazerAgora()}>${temTelefone ? 'Fazer agora' : 'Copiar texto'}</urbi-botao>
+              ${temTelefone ? html`<urbi-botao variante="texto" @click=${() => this.copiar(this.s.sugestao!.mensagem)}>Copiar</urbi-botao>` : ''}
+              <urbi-botao variante="texto" @click=${() => (this.s.sugestao = null)}>Fechar</urbi-botao>
             </urbi-linha>`
         : html`<urbi-linha quebrar>
-            <urbi-botao pequeno icone="fa-solid fa-message" ?carregando=${this.s.sugerindo} @click=${() => this.sugerir()}>Mensagem sugerida</urbi-botao>
-            ${a ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" ?carregando=${this.s.criandoTarefa} @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>` : ''}
+            <urbi-botao icone="fa-solid fa-message" ?carregando=${this.s.sugerindo} @click=${() => this.sugerir()}>${rotuloMensagem}</urbi-botao>
+            ${a ? html`<urbi-botao variante="secundario" icone="fa-solid fa-list-check" ?carregando=${this.s.criandoTarefa} @click=${() => this.virarTarefa()}>Virar tarefa</urbi-botao>` : ''}
           </urbi-linha>`}
     </urbi-card>`;
   }
@@ -700,7 +763,7 @@ export class FichaContato {
                   ${chip('etapa', n.etapa_nome ? { nome: n.etapa_nome, tipo: n.etapa_tipo } : null)}
                   <urbi-prosa papel="secundario" inline>${reais(n.valor_estimado_c)}${n.imovel_codigo ? ` · ${n.imovel_codigo}` : ''}</urbi-prosa>
                 </urbi-linha>
-                <urbi-botao variante="texto" pequeno @click=${() => this.moverEtapa(n)}>Mudar etapa</urbi-botao>
+                <urbi-botao variante="texto" @click=${() => this.moverEtapa(n)}>Mudar etapa</urbi-botao>
               </urbi-linha>
             </urbi-stack>`}></urbi-lista>`
         : html`<urbi-prosa papel="dica">Nenhum negócio. Abra um (+) quando o cliente quiser comprar ou vender.</urbi-prosa>`}
@@ -718,10 +781,10 @@ export class FichaContato {
       </urbi-stack>
       <urbi-linha>
         ${this.s.ficha!.visitas.some((v: Linha) => v.atividade_id === x.id)
-          ? html`<urbi-botao variante="texto" pequeno @click=${() => this.retornoVisita(x)}>Retorno</urbi-botao>`
+          ? html`<urbi-botao variante="texto" @click=${() => this.retornoVisita(x)}>Retorno</urbi-botao>`
           : ''}
         ${x.status === 'pendente'
-          ? html`<urbi-botao variante="texto" pequeno @click=${() => this.concluir(x)}>Feito</urbi-botao>`
+          ? html`<urbi-botao variante="texto" @click=${() => this.concluir(x)}>Feito</urbi-botao>`
           : html`<urbi-badge>${STATUS_ATIVIDADE[x.status]}</urbi-badge>`}
       </urbi-linha>
     </urbi-linha>`;
@@ -739,8 +802,8 @@ export class FichaContato {
     const linha_do_tempo = this.s.ficha!.linha_do_tempo;
     return html`<urbi-card titulo="Linha do tempo" icone="fa-solid fa-clock-rotate-left">
       <urbi-linha quebrar>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-comment" @click=${() => this.nota()}>Registrar contato</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-paper-plane" @click=${() => void this.registrarEnvio()}>Registrar envio</urbi-botao>
+        <urbi-botao variante="secundario" icone="fa-solid fa-comment" @click=${() => this.nota()}>Registrar contato</urbi-botao>
+        <urbi-botao variante="secundario" icone="fa-solid fa-paper-plane" @click=${() => void this.registrarEnvio()}>Registrar envio</urbi-botao>
       </urbi-linha>
       ${linha_do_tempo.length
         ? html`<urbi-lista separador .itens=${linha_do_tempo} .render_item=${(l: Linha) => html`<urbi-prosa>${l.resumo}</urbi-prosa>
@@ -787,7 +850,7 @@ export class FichaContato {
     return html`<urbi-stack>
       ${aviso}
       ${this.renderCabecalho()}
-      <urbi-abas formato-desktop="abas" .abas=${ABAS_FICHA} ativa=${aba} @urbi:aba-selecionar=${(e: CustomEvent) => this.escolherAba(e.detail?.id)}>
+      <urbi-abas formato-desktop="abas" .abas=${this.abasComContagem()} ativa=${aba} @urbi:aba-selecionar=${(e: CustomEvent) => this.escolherAba(e.detail?.id)}>
         <urbi-stack slot=${aba}>${this.conteudoDaAba(aba)}</urbi-stack>
       </urbi-abas>
     </urbi-stack>`;
@@ -805,9 +868,8 @@ export class FichaContato {
         return this.cartaoEnvios();
       case 'negocios':
         return html`${this.cartaoNegocios()}${this.cartaoAgenda()}
-          <pc-selecoes-cliente parte="selecoes" .contatoId=${c.id} .nome=${c.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>`;
-      case 'negociacao':
-        return html`<pc-negociacoes-do-cliente .contatoId=${c.id} .nome=${c.nome}></pc-negociacoes-do-cliente>`;
+          <pc-selecoes-cliente parte="selecoes" .contatoId=${c.id} .nome=${c.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>
+          <pc-negociacoes-do-cliente .contatoId=${c.id} .nome=${c.nome}></pc-negociacoes-do-cliente>`;
     }
   }
 
@@ -837,15 +899,14 @@ export class FichaContato {
       ${c.temperatura && c.temperatura_motivo
         ? html`<urbi-prosa papel="secundario">Por que ${rotuloChip('temperatura', c.temperatura).rotulo.toLowerCase()}: ${c.temperatura_motivo}.</urbi-prosa>`
         : ''}
-      ${this.cartaoProximoPasso()}
+      ${this.cartaoProximoPasso('Mensagem pronta')}
       <urbi-linha quebrar>
-        <urbi-botao pequeno icone="fa-solid fa-hand-holding-dollar" @click=${() => void this.registrarProposta()}>Registrar proposta</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.s.resumindo} ?desabilitado=${!this.s.ia.resumo}
+        <urbi-botao icone="fa-solid fa-hand-holding-dollar" @click=${() => void this.registrarProposta()}>Registrar proposta</urbi-botao>
+        <urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.s.resumindo} ?desabilitado=${!this.s.ia.resumo}
           title=${this.s.iaSondada && !this.s.ia.resumo ? DICA_IA_INDISPONIVEL : nothing} @click=${() => this.resumir()}>Resumir</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-list-check" @click=${() => void this.novaAtividade()}>Tarefa</urbi-botao>
-        <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${!temTelefone}
-          title=${temTelefone ? nothing : 'Cadastre o telefone para conversar pelo WhatsApp'} @click=${() => this.abrirWhatsapp()}>Conversa</urbi-botao>
-        <urbi-botao pequeno variante="texto" icone="fa-solid fa-address-card" href=${urbiVerso.href(`/clientes?item=${c.id}`)}>Abrir ficha</urbi-botao>
+        <urbi-botao variante="secundario" icone="fa-solid fa-list-check" ?carregando=${this.s.criandoTarefa} @click=${() => this.criarTarefa()}>Criar tarefa</urbi-botao>
+        <urbi-botao variante="secundario" icone="fa-regular fa-comments" @click=${() => this.abrirConversa()}>Abrir conversa</urbi-botao>
+        <urbi-botao variante="texto" icone="fa-solid fa-address-card" href=${urbiVerso.href(`/clientes?item=${c.id}`)}>Abrir ficha</urbi-botao>
       </urbi-linha>
       ${this.s.resumo ? html`<urbi-prosa papel="dica">${this.s.resumo}</urbi-prosa>` : ''}
       <urbi-card titulo="Enviados" icone="fa-solid fa-paper-plane">
@@ -867,14 +928,17 @@ export class FichaContato {
       <urbi-card titulo="Perfil de busca" icone="fa-solid fa-magnifying-glass-location">
         ${perfil.length
           ? html`<urbi-linha quebrar>${perfil.map((p) => html`<urbi-badge>${p}</urbi-badge>`)}</urbi-linha>`
-          : html`<urbi-prosa papel="dica">Ainda sem perfil de busca. Anote o que ele procura nas observações (Editar contato).</urbi-prosa>`}
+          : html`<urbi-prosa papel="dica">Ainda sem perfil de busca: o que ele procura decide os imóveis que combinam e a seleção.</urbi-prosa>`}
+        <urbi-linha>
+          <urbi-botao variante="secundario" icone="fa-solid fa-pen" @click=${() => this.editarPerfil()}>Editar perfil</urbi-botao>
+        </urbi-linha>
       </urbi-card>
       <pc-selecoes-cliente parte="portal" .contatoId=${c.id} .nome=${c.nome} @mudou=${() => this.carregar()}></pc-selecoes-cliente>
       <urbi-card titulo="Privacidade" icone="fa-solid fa-user-shield">
-        <urbi-prosa papel="secundario">Exportar baixa a planilha dos seus contatos. Remover tira este contato da lista; o histórico fica guardado.</urbi-prosa>
+        <urbi-prosa papel="secundario">${ficha.consentimento ? `Consentimento registrado em ${data(ficha.consentimento.aceito_em)} (${ficha.consentimento.canal}).` : 'Sem consentimento registrado (veja Resumo › Cadastro).'} Exportar dados baixa a planilha dos seus contatos; Remover cliente tira este contato da lista, e o histórico fica guardado.</urbi-prosa>
         <urbi-linha quebrar>
-          <urbi-botao pequeno variante="secundario" icone="fa-solid fa-file-export" @click=${() => this.exportar()}>Exportar</urbi-botao>
-          <urbi-botao pequeno variante="texto" icone="fa-solid fa-trash" @click=${() => void this.remover()}>Remover</urbi-botao>
+          <urbi-botao variante="secundario" icone="fa-solid fa-file-export" @click=${() => this.exportar()}>Exportar dados</urbi-botao>
+          <urbi-botao variante="texto" icone="fa-solid fa-trash" @click=${() => void this.remover()}>Remover cliente</urbi-botao>
         </urbi-linha>
       </urbi-card>
     </urbi-stack>`;
