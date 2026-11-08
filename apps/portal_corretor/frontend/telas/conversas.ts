@@ -641,12 +641,13 @@ export function renderConversas(atualizar: () => void) {
       atualizar,
     );
   }
-  // O centro em fluxo, num hospedeiro só (como a referência mostra a área inteira): faixa e cabeçalho,
-  // as mensagens, as ações rápidas, a sugestão e o compositor, na ordem da spec. O compositor fixo
-  // embaixo com a lista rolando por dentro só existe no `urbi-chat`/`urbi-feed` (papel fill), que não
-  // deixam as ações rápidas entre as mensagens e o compositor: lacuna registrada no PR do grupo 1.
+  // O centro como a referência: a faixa e o cabeçalho com altura natural, as mensagens enchendo o que
+  // sobra e rolando por dentro, as ações rápidas, a sugestão e o compositor fixos embaixo. É a política
+  // de slot do `urbi-hospedeiro` (ui-componentes-layout.md): dentro do hospedeiro `expandir` da coluna,
+  // só o filho `expandir` preenche; o hospedeiro aninhado das mensagens zera o próprio respiro e rola.
+  // Três hospedeiros irmãos no slot não servem: cada um enche a coluna por igual (conferido no shell 0.56.37).
   const centro = html`<pc-conversa-topo .conversaId=${item}></pc-conversa-topo>
-    <pc-conversa-mensagens .conversaId=${item}></pc-conversa-mensagens>
+    <urbi-hospedeiro expandir><pc-conversa-mensagens .conversaId=${item}></pc-conversa-mensagens></urbi-hospedeiro>
     <pc-conversa-compositor .conversaId=${item}></pc-conversa-compositor>`;
   return moldura(
     {
