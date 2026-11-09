@@ -1,7 +1,7 @@
 import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
-import { CANAIS_ABORDAGEM, iso, ordenarFila, taxasDePassagem, TEMPERATURAS, type TipoFila } from '../comum/funil';
+import { CANAIS_ABORDAGEM, iso, ordenarFila, taxasDePassagem, TEMPERATURAS, ultimoSinal, type TipoFila } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { etapasDaConta, registrar } from './crm';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
@@ -9,7 +9,9 @@ import { limiteParado } from '../comum/crm';
 import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { numerosDaSemana } from './numeros';
 import { contaDoRequest, paginaDaConta } from './vitrine';
-import { primeirosPassos } from '../comum/hoje';
+import { dicaDoAssistente, primeirosPassos } from '../comum/hoje';
+import { validarAcao } from '../comum/assistente';
+import { encerrada } from './negociacao';
 import type { NegocioNum } from '../comum/numeros';
 import { semSigilo } from '../comum/negociacao';
 
@@ -73,6 +75,20 @@ funilRotas.get(
       : [];
     const porContato = new Map(contatos.map((c) => [c.id, c]));
     const playbook = await playbookDaConta(dados, etapas);
+    // Último sinal de cada cliente do quadro (P03): o item mais recente da linha do tempo e o último
+    // clique num envio. Uma leitura por tabela, pelo `listar` (teto obedecido, sem lançar), da mais recente
+    // para a mais antiga: a primeira linha de cada contato é a que vale.
+    const idsContatos = [...porContato.keys()];
+    const [linhas, enviosAbertos] = idsContatos.length
+      ? await Promise.all([
+          dados.listar('linha_do_tempo', { filtros: { contato_id: idsContatos.join(',') }, ordenar: 'ocorrido_em', ordem: 'desc', por_pagina: 1000 }),
+          dados.listar('envios', { filtros: { contato_id: idsContatos.join(','), 'primeiro_clique_em[nulo]': 'false' }, ordenar: 'primeiro_clique_em', ordem: 'desc', por_pagina: 1000 }),
+        ])
+      : [{ dados: [] as Linha[] }, { dados: [] as Linha[] }];
+    const ultimaLinha = new Map<number, Linha>();
+    for (const l of linhas.dados as Linha[]) if (!ultimaLinha.has(Number(l.contato_id))) ultimaLinha.set(Number(l.contato_id), l);
+    const ultimoEnvio = new Map<number, Linha>();
+    for (const e of enviosAbertos.dados as Linha[]) if (!ultimoEnvio.has(Number(e.contato_id))) ultimoEnvio.set(Number(e.contato_id), e);
     // Contagem por temperatura: clientes (uma vez cada) com negócio aberto neste funil, antes dos filtros.
     const temperaturas = { quente: 0, morno: 0, frio: 0 };
     for (const cid of new Set(visiveis.filter(aberto).map((n) => n.contato_id))) {
@@ -107,6 +123,7 @@ funilRotas.get(
           etapa_desde: n.etapa_desde ?? null,
           abordagem_vencida: !!abordagem?.vencida,
           abordagem: abordagem?.abordagem ?? null,
+          ultimo_sinal: ultimoSinal(ultimaLinha.get(Number(n.contato_id)), ultimoEnvio.get(Number(n.contato_id))),
         };
       })
       .filter((k) => (!temperatura || k.temperatura === temperatura) && (!parado || (iso(k.ultimo_contato_em) ?? '') < parado));
@@ -224,12 +241,16 @@ funilRotas.post(
 
 export interface ItemFila {
   tipo: TipoFila;
-  contato_id: number;
+  /** Nulo nos itens sem cliente (peça aguardando, autorização a vencer). */
+  contato_id: number | null;
   contato_nome: string;
   temperatura: string | null;
   quando: string | null;
   texto: string;
   atividade_id?: number;
+  negociacao_id?: number;
+  peca_id?: number;
+  imovel_id?: number;
 }
 
 /** Fila do dia da Inteligência do Funil (spec 11.1): um item por contato, no motivo mais urgente. */
@@ -269,10 +290,77 @@ export async function filaDoDia(dados: HelperDados, fuso: string): Promise<ItemF
   for (const c of passos.dados) {
     itens.push({ tipo: 'proximo_passo', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: c.proximo_passo_em, texto: c.proximo_passo ?? 'Próximo passo combinado' });
   }
-  // Um contato aparece uma vez, no motivo mais urgente.
+  itens.push(...(await propostasRecebidas(dados, porId)), ...(await pecasAguardando(dados, fuso)), ...(await autorizacoesVencendo(dados, fuso)));
+  // "Agora não" (`POST /abordagens/:contato/adiar`) tira o contato da fila pelo resto do dia, no fuso da
+  // conta, em todo motivo com contato; amanhã ele volta. "Fiz" (`/feita`) zera a marca. Peça e
+  // autorização não têm contato e não são afetadas.
+  const adiados = new Set(
+    (await dados.varrerTudo('contatos', { filtros: { 'abordagem_adiada_em[gte]': hoje.inicio, 'abordagem_adiada_em[lt]': hoje.fim }, maximo: 5000 })).map((c) => Number(c.id)),
+  );
+  // Um contato aparece uma vez, no motivo mais urgente; os itens sem cliente (peça, autorização) ficam todos.
   const vistos = new Set<number>();
-  const fila = ordenarFila(itens).filter((i) => (vistos.has(i.contato_id) ? false : (vistos.add(i.contato_id), true)));
+  const fila = ordenarFila(itens.filter((i) => i.contato_id === null || !adiados.has(Number(i.contato_id)))).filter((i) => (i.contato_id === null ? true : vistos.has(i.contato_id) ? false : (vistos.add(i.contato_id), true)));
   return fila;
+}
+
+/**
+ * Propostas do comprador esperando resposta (P01): a última proposta da negociação é do comprador e
+ * ainda não foi respondida nem aceita. A negociação que já espera o corretor (`aguardando_corretor`)
+ * está em "Precisa de você", não aqui; a pausada, encerrada ou com o acordo no proprietário, nem lá.
+ */
+async function propostasRecebidas(dados: HelperDados, contatos: Map<number, Linha>): Promise<ItemFila[]> {
+  const r = await dados.listar('negociacoes', { filtros: { estado: 'ativa,aguardando_cliente' }, ordenar: 'atualizado_em', ordem: 'desc', por_pagina: 50 });
+  const vivas = (r.dados as Linha[]).filter((n) => !encerrada(n));
+  if (!vivas.length) return [];
+  const propostas = await dados.listar('propostas', { filtros: { negociacao_id: vivas.map((n) => n.id).join(',') }, ordenar: 'id', ordem: 'desc', por_pagina: 1000 });
+  const ultima = new Map<number, Linha>();
+  for (const p of propostas.dados as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
+  const faltam = vivas.map((n) => n.contato_id).filter((cid) => cid && !contatos.has(Number(cid)));
+  if (faltam.length) for (const c of await dados.varrerTudo('contatos', { filtros: { id: [...new Set(faltam)].join(',') }, maximo: 100 })) contatos.set(Number(c.id), c);
+  const itens: ItemFila[] = [];
+  for (const n of vivas) {
+    const p = ultima.get(Number(n.id));
+    if (!p || p.direcao !== 'comprador' || !['registrada', 'enviada'].includes(String(p.estado))) continue;
+    const c = contatos.get(Number(n.contato_id));
+    itens.push({
+      tipo: 'proposta_recebida', contato_id: n.contato_id ?? null, contato_nome: c?.nome ?? 'Cliente', temperatura: c?.temperatura ?? null, quando: iso(p.criado_em),
+      texto: `Ofereceu ${reaisPt(Number(p.valor_c))}${n.codigo ? ` (${n.codigo})` : ''}: responda ou registre a contraproposta`, negociacao_id: Number(n.id),
+    });
+  }
+  return itens;
+}
+
+const reaisPt = (c: number) => (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+/** Peças do Estúdio aprovadas e ainda sem agendamento (P01): aprovar sem agendar é o que mais some da vista. */
+async function pecasAguardando(dados: HelperDados, fuso: string): Promise<ItemFila[]> {
+  const r = await dados.listar('pecas', { filtros: { estado: 'aprovada', 'agendada_para[nulo]': 'true' }, ordenar: 'aprovada_em', ordem: 'asc', por_pagina: 20 });
+  return (r.dados as Linha[]).map((p) => ({
+    tipo: 'peca_aguardando', contato_id: null, contato_nome: String(p.titulo ?? `Peça ${p.id}`), temperatura: null, quando: iso(p.aprovada_em),
+    texto: `Aprovada${p.aprovada_em ? ` em ${new Date(iso(p.aprovada_em)!).toLocaleDateString('pt-BR', { timeZone: fuso })}` : ''} e sem data para publicar`, peca_id: Number(p.id), imovel_id: p.imovel_id ? Number(p.imovel_id) : undefined,
+  }));
+}
+
+/**
+ * Autorizações de venda assinadas que vencem nos próximos 30 dias, o 30º incluído (P01): a mesma largura
+ * de janela da rotina `autorizacao_vencendo` (`fim` de hoje até antes de hoje + 31). A rotina conta os
+ * dias em `America/Sao_Paulo` fixo e a fila no fuso da conta; numa conta de outro fuso, perto da
+ * meia-noite, as duas janelas podem diferir de um dia.
+ */
+async function autorizacoesVencendo(dados: HelperDados, fuso: string): Promise<ItemFila[]> {
+  const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: fuso });
+  const limite = new Date(Date.now() + 31 * DIA).toLocaleDateString('sv-SE', { timeZone: fuso });
+  const r = await dados.listar('autorizacoes_venda', { filtros: { situacao: 'assinada', 'fim[gte]': hoje, 'fim[lt]': limite }, ordenar: 'fim', ordem: 'asc', por_pagina: 20 });
+  if (!r.dados.length) return [];
+  const imoveis = await dados.varrerTudo('imoveis', { filtros: { id: [...new Set((r.dados as Linha[]).map((a) => a.imovel_id))].join(',') }, maximo: 100 });
+  const codigo = new Map(imoveis.map((i) => [Number(i.id), String(i.codigo)]));
+  return (r.dados as Linha[]).map((a) => {
+    const fim = String(a.fim instanceof Date ? a.fim.toISOString() : a.fim).slice(0, 10);
+    return {
+      tipo: 'prazo_autorizacao', contato_id: null, contato_nome: `${codigo.get(Number(a.imovel_id)) ?? 'Imóvel'} · autorização AV-${a.id}`, temperatura: null, quando: `${fim}T12:00:00.000Z`,
+      texto: `A autorização de venda vence em ${fim.split('-').reverse().join('/')}: renove com o proprietário`, imovel_id: Number(a.imovel_id),
+    };
+  });
 }
 
 /**
@@ -282,16 +370,31 @@ export async function filaDoDia(dados: HelperDados, fuso: string): Promise<ItemF
 async function passagens(dados: HelperDados) {
   const r = await dados.listar('negociacoes', { filtros: { estado: 'aguardando_corretor' }, ordenar: 'atualizado_em', ordem: 'asc', por_pagina: 20 });
   const ids = [...new Set(r.dados.map((n) => n.contato_id).filter(Boolean))];
-  const contatos = ids.length ? await dados.varrerTudo('contatos', { filtros: { id: ids.join(',') }, maximo: 100 }) : [];
+  const [contatos, conversas, propostas] = await Promise.all([
+    ids.length ? dados.varrerTudo('contatos', { filtros: { id: ids.join(',') }, maximo: 100 }) : [],
+    // A conversa do cliente que o Negociador atende: Assumir abre a P02 já assumida (spec 11.1 P01).
+    ids.length ? dados.varrerTudo('conversas', { filtros: { contato_id: ids.join(','), atendido_por: 'agente' }, maximo: 100 }) : [],
+    r.dados.length ? dados.listar('propostas', { filtros: { negociacao_id: r.dados.map((n) => n.id).join(',') }, ordenar: 'id', ordem: 'desc', por_pagina: 500 }) : { dados: [] as Linha[] },
+  ]);
   const nome = new Map(contatos.map((c) => [c.id, c.nome]));
+  const conversa = new Map(conversas.map((c) => [Number(c.contato_id), Number(c.id)]));
+  const ultima = new Map<number, Linha>();
+  for (const p of propostas.dados as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
   return semSigilo(
-    r.dados.map((n) => ({
-      negociacao_id: n.id,
-      codigo: n.codigo ?? null,
-      contato_id: n.contato_id ?? null,
-      contato_nome: (n.contato_id && nome.get(n.contato_id)) || 'Cliente',
-      motivo: 'A negociação espera a sua decisão',
-    })),
+    r.dados.map((n) => {
+      const p = ultima.get(Number(n.id));
+      const motivo = n.conduzida_por === 'ia'
+        ? `O Negociador passou a você${p?.direcao === 'comprador' ? `: oferta de ${reaisPt(Number(p.valor_c))}` : ''}`
+        : p?.direcao === 'comprador' ? `Oferta de ${reaisPt(Number(p.valor_c))} esperando a sua resposta` : 'A negociação espera a sua decisão';
+      return {
+        negociacao_id: n.id,
+        codigo: n.codigo ?? null,
+        contato_id: n.contato_id ?? null,
+        contato_nome: (n.contato_id && nome.get(n.contato_id)) || 'Cliente',
+        conversa_id: (n.contato_id && conversa.get(Number(n.contato_id))) || null,
+        motivo,
+      };
+    }),
   );
 }
 
@@ -353,9 +456,23 @@ funilRotas.get(
       sem_creci: conta.sem_creci,
       semana,
       demo_disponivel,
+      dica: dicaValidada(fila, conta.primeiros_passos, fuso),
     });
   }),
 );
+
+/**
+ * Dica do Assistente com a ação já conferida (P01): a regra pura propõe; `validarAcao` (a mesma do
+ * Assistente) só deixa passar contato da fila, peça aprovada e horário dentro da janela, e escreve o
+ * resumo que o corretor confirma. A tela executa a ação confirmada pela rota de sempre.
+ */
+function dicaValidada(fila: ItemFila[], passos: ReturnType<typeof primeirosPassos>, fuso: string) {
+  const agora = new Date();
+  const { texto, acao } = dicaDoAssistente(fila, passos, agora, fuso);
+  const contatos = new Map<number, string>(fila.filter((i) => i.contato_id).map((i) => [i.contato_id!, i.contato_nome]));
+  const pecas = new Map<number, { titulo: string; estado: string }>(fila.filter((i) => i.peca_id).map((i) => [i.peca_id!, { titulo: i.contato_nome, estado: 'aprovada' }]));
+  return { texto, acao: acao ? validarAcao(acao, { contatos, pecas, agora, fuso }) : null };
+}
 
 // ---------- Rotina diária ----------
 

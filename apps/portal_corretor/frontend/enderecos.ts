@@ -21,6 +21,8 @@ export type ChaveTela =
 
 export const ENDERECOS: Record<string, ChaveTela> = {
   '/': 'hoje',
+  // Apelido: a spec chama Hoje de `/hoje` (11.1 P01); a tela mora na raiz.
+  '/hoje': 'hoje',
   // Apelido: a Agenda virou a aba Agenda de Hoje (D-82).
   '/agenda': 'hoje',
   // Apelido: o Assistente saiu do menu e abre na coluna de contexto (D-109); `/assistente` abre Hoje com ele aberto.

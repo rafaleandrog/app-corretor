@@ -135,6 +135,15 @@ export function fecharAssistente() {
 
 export const alternarAssistente = () => (conversa.aberto ? fecharAssistente() : abrirAssistente());
 
+/**
+ * Abre o Assistente já com uma pergunta (a Dica de Hoje sem ação executável, P01): o painel abre e a
+ * pergunta sai como se o corretor a tivesse digitado. Com uma resposta em voo, só abre.
+ */
+export function abrirAssistenteCom(pergunta: string) {
+  abrirAssistente();
+  if (!conversa.pensando) void perguntar(pergunta).catch(() => {});
+}
+
 /** Abre o Assistente sobre um contato (ficha do contato: "perguntar ao Assistente sobre este cliente"). */
 export function abrirAssistenteSobre(contato: { id: number; nome: string }) {
   conversa.contato = contato;

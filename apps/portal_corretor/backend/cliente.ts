@@ -7,6 +7,7 @@ import { publicarEvento } from './eventos';
 import { reclassificar } from './inteligencia';
 import { apagarVitrine, corretorDaConta, limparSelecoesVencidas, publicarSelecao, revogarIngresso, selecaoValida, sincronizarPortal, tentarPortal } from './portal';
 import { contaDoRequest, origemPublica, publicavel } from './vitrine';
+import { linkWhatsapp } from '../comum/pagina';
 
 // Seleções com reação e Portal do Cliente (bloco 5b, spec 11.3, D-56): o corretor monta e envia; o
 // cliente abre por link com o token do ingresso `wh` (sem login) e reage pelo mesmo endereço.
@@ -109,14 +110,39 @@ clienteRotas.post(
       });
       throw e;
     }
-    await dados.criar('envios', { contato_id: contato.id, tipo: 'selecao', canal: 'whatsapp', autor_tipo: 'humano', descricao: `${titulo} (${ids.length} imóveis)`.slice(0, 300), enviado_em: agora, cliques: 0 });
-    await registrar(dados, req, { tipo: 'selecao.enviada', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: `Seleção enviada: ${titulo} (${ids.length} imóveis)`, dados: { selecao_id: selecao.id } });
-    await dados.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
-    await reclassificar(dados, contato.id);
-    await tentarPortal(dados, conta, contato.id, await corretor(req));
+    // Daqui em diante a seleção já está no ar (link, ingresso e vitrine): nenhum passo seguinte vira erro
+    // para o corretor, senão a gaveta ficaria aberta e a repetição criaria outra seleção. A falha fica no log.
+    const semErro = async <T>(nome: string, fn: () => Promise<T>): Promise<T | null> => {
+      try {
+        return await fn();
+      } catch (e) {
+        console.warn(`[portal_corretor] seleção ${selecao.id}: ${nome} não concluído: ${(e as Error).message}`);
+        return null;
+      }
+    };
+    await semErro('registro do envio', async () => {
+      const envio = await dados.criar('envios', { contato_id: contato.id, tipo: 'selecao', canal: 'whatsapp', autor_tipo: 'humano', descricao: `${titulo} (${ids.length} imóveis)`.slice(0, 300), enviado_em: agora, cliques: 0 });
+      await publicarEvento(req, 'envio_criado', { envio_id: Number(envio.id), contato_id: Number(contato.id), imovel_id: null });
+    });
+    await semErro('linha do tempo', () => registrar(dados, req, { tipo: 'selecao.enviada', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: `Seleção enviada: ${titulo} (${ids.length} imóveis)`, dados: { selecao_id: selecao.id } }));
+    await semErro('último contato', async () => {
+      await dados.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
+      await reclassificar(dados, contato.id);
+    });
+    await semErro('portal do cliente', async () => tentarPortal(dados, conta, contato.id, await corretor(req)));
+    // O link entra na conversa do cliente (P02, D-127) como cartão da seleção: título, quantidade e link;
+    // a mensagem pronta volta à tela, que abre o WhatsApp do celular com ela.
+    const mensagemPronta = `Olá, ${String(contato.nome).split(' ')[0]}! Separei ${ids.length} imóve${ids.length > 1 ? 'is' : 'l'} para você. Abra e me diga o que achou de cada um: ${link}`;
+    const naConversa = await semErro('cartão na conversa', () =>
+      registrarMensagem(dados, {
+        contato_id: Number(contato.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu(req), canal: linkWhatsapp(contato.telefone, '-') ? 'wa_me' : 'registro',
+        tipo: 'selecao', conteudo: titulo, dados: { selecao_id: Number(selecao.id), titulo, quantidade: ids.length, link },
+      }),
+    );
+    if (naConversa) await semErro('evento mensagem_enviada', async () => req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(naConversa)));
     // Arrumação: a seleção já está no ar, então uma falha aqui não vira erro para o corretor.
-    await limparSelecoesVencidas(dados, conta).catch((e) => console.warn(`[portal_corretor] limpeza de seleções vencidas: ${(e as Error).message}`));
-    res.status(201).json({ selecao: salva, link });
+    await semErro('limpeza de seleções vencidas', () => limparSelecoesVencidas(dados, conta));
+    res.status(201).json({ selecao: salva, link, mensagem: mensagemPronta, link_whatsapp: linkWhatsapp(contato.telefone, mensagemPronta), conversa_id: naConversa ? Number(naConversa.conversa.id) : null });
   }),
 );
 
@@ -151,7 +177,8 @@ clienteRotas.get(
     const contato = await contatoOu404(req, req.params.id);
     if (!contato) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     const a = await acessoAtivo(req, contato.id);
-    res.json({ ativo: !!a, link: a?.link ?? null, criado_em: a?.criado_em ?? null });
+    // `ultimo_acesso_em`: a última ação do cliente pelo portal (mensagem, remarcar, pendência, oferta), gravada pelo listener.
+    res.json({ ativo: !!a, link: a?.link ?? null, criado_em: a?.criado_em ?? null, ultimo_acesso_em: a?.ultimo_acesso_em ?? null });
   }),
 );
 

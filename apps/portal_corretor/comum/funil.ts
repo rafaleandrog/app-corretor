@@ -156,10 +156,14 @@ export function venceEm(prazoHoras: number, referencias: (string | null | undefi
   return new Date(Math.max(...base) + prazoHoras * 3600e3).toISOString();
 }
 
-export type TipoFila = 'quente_sem_resposta' | 'abordagem_vencida' | 'visita' | 'proximo_passo';
+export type TipoFila = 'quente_sem_resposta' | 'abordagem_vencida' | 'visita' | 'proposta_recebida' | 'proximo_passo' | 'peca_aguardando' | 'prazo_autorizacao';
 
-/** Ordem da fila do dia (10.4): quentes sem resposta, abordagens vencidas, visitas, próximos passos. */
-export const ORDEM_FILA: TipoFila[] = ['quente_sem_resposta', 'abordagem_vencida', 'visita', 'proximo_passo'];
+/**
+ * Ordem da fila do dia (10.4, spec 11.1 P01): quentes sem resposta, abordagens vencidas, visitas de hoje
+ * e amanhã, propostas recebidas, próximos passos vencidos, peças aprovadas esperando o agendamento e
+ * autorizações de venda a vencer. As passagens do Negociador ficam fora da fila, em "Precisa de você".
+ */
+export const ORDEM_FILA: TipoFila[] = ['quente_sem_resposta', 'abordagem_vencida', 'visita', 'proposta_recebida', 'proximo_passo', 'peca_aguardando', 'prazo_autorizacao'];
 
 export function ordenarFila<T extends { tipo: TipoFila; quando: unknown }>(itens: T[]): T[] {
   return [...itens].sort((a, b) => ORDEM_FILA.indexOf(a.tipo) - ORDEM_FILA.indexOf(b.tipo) || (iso(a.quando) ?? '').localeCompare(iso(b.quando) ?? ''));
@@ -218,4 +222,22 @@ export function taxasDePassagem(
     const passaram = ma && mb ? negocios.filter((n) => chegou(n, ma) && chegou(n, mb)).length : 0;
     return { de_etapa_id: de.id, para_etapa_id: para.id, chegaram, passaram, taxa: ma && mb && chegaram ? Math.round((passaram / chegaram) * 1000) / 1000 : null };
   });
+}
+
+/**
+ * O "último sinal" do cartão do Funil (P03): o item mais recente entre a linha do tempo do contato e o
+ * último clique num envio ("Abriu a seleção 2x"). Puro: a rota do quadro junta as duas leituras.
+ */
+export function ultimoSinal(
+  linha: { resumo?: string | null; ocorrido_em?: unknown } | null | undefined,
+  envio: { imovel_titulo?: string | null; imovel_codigo?: string | null; descricao?: string | null; tipo?: string | null; cliques?: number | null; primeiro_clique_em?: unknown } | null | undefined,
+): { texto: string; em: string | null } | null {
+  const l = linha && linha.resumo ? { texto: String(linha.resumo).slice(0, 120), em: iso(linha.ocorrido_em) } : null;
+  const cliques = Number(envio?.cliques ?? 0);
+  const e =
+    envio && cliques > 0
+      ? { texto: `Abriu ${envio.imovel_titulo ?? envio.imovel_codigo ?? envio.descricao ?? (envio.tipo === 'selecao' ? 'a seleção' : 'o envio')}${cliques > 1 ? ` ${cliques}x` : ''}`.slice(0, 120), em: iso(envio.primeiro_clique_em) }
+      : null;
+  if (l && e) return (e.em ?? '') > (l.em ?? '') ? e : l;
+  return l ?? e;
 }

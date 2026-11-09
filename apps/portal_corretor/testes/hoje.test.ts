@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { rotas } from '../backend/rotas';
 import { ORDEM_FILA } from '../comum/funil';
-import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, iniciarCarga, marcarEntrada, mostrarTudo, PASSOS_INICIAIS, precisaCarregar, primeirosPassos, receberCarga, telaDeHoje, TIPO_NA_FILA } from '../comum/hoje';
+import { ACOES_FILA, cargaVazia, dicaDoAssistente, entrarEmHoje, iniciarCarga, marcarEntrada, mostrarTudo, motivoDoItem, MOTIVO_NA_FILA, PASSOS_INICIAIS, precisaCarregar, primeirosPassos, receberCarga, telaDeHoje } from '../comum/hoje';
+import { validarAcao } from '../comum/assistente';
 import { CAMPOS_SIGILOSOS } from '../comum/negociacao';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
@@ -25,31 +26,75 @@ test('Primeiros passos: 5 passos, nenhum é o CRECI (D-93)', () => {
   assert.deepEqual(primeirosPassos({ conta: true, telefone: false, instagram: false, imovel: true, pagina: false }).filter((p) => p.feito).map((p) => p.id), ['conta', 'imovel']);
 });
 
-test('fila: todo tipo tem chip e exatamente um botão principal, no máximo um no "Mais"', () => {
+test('fila: todo tipo tem chip de motivo (nunca a temperatura), um botão principal, no máximo um secundário e o resto no "Mais"', () => {
   assert.deepEqual(Object.keys(ACOES_FILA).sort(), [...ORDEM_FILA].sort());
-  assert.deepEqual(Object.keys(TIPO_NA_FILA).sort(), [...ORDEM_FILA].sort());
+  assert.deepEqual(Object.keys(MOTIVO_NA_FILA).sort(), [...ORDEM_FILA].sort());
   for (const [tipo, a] of Object.entries(ACOES_FILA)) {
     assert.equal(typeof a.principal, 'string', tipo);
     assert.notEqual(a.principal, a.secundaria, `${tipo}: o secundário não repete o principal`);
+    assert.ok(!a.mais.includes(a.principal) && (!a.secundaria || !a.mais.includes(a.secundaria)), `${tipo}: o "Mais" não repete os botões`);
+    assert.doesNotMatch(MOTIVO_NA_FILA[tipo as keyof typeof MOTIVO_NA_FILA], /^(Quente|Morno|Frio)$/, `${tipo}: o chip de motivo não repete a temperatura (#175)`);
   }
-  // A tela usa a regra e o `acoesComMais` (um botão; o resto no "Mais"), sem botão principal solto no cartão.
+  // O chip da visita diz o dia.
+  const agora = new Date('2026-11-08T12:00:00');
+  assert.equal(motivoDoItem({ tipo: 'visita', quando: '2026-11-08T15:00:00' }, agora), 'Visita hoje');
+  assert.equal(motivoDoItem({ tipo: 'visita', quando: '2026-11-09T15:00:00' }, agora), 'Visita amanhã');
+  assert.equal(motivoDoItem({ tipo: 'quente_sem_resposta' }, agora), 'Sem resposta');
+  // A tela usa a regra: o principal, o secundário visível e o "Mais" com "Agora não" (`POST /abordagens/:contato/adiar`).
   const tela = raiz('frontend/telas/inicio.ts');
   assert.match(tela, /ACOES_FILA\[i\.tipo\]/);
-  assert.match(tela, /acoesComMais\(acaoDe\(regra\.principal/);
+  assert.match(tela, /botao\(acaoDe\(regra\.principal/);
+  assert.match(tela, /abordagens\/\$\{i\.contato_id\}\/adiar/);
+  assert.match(tela, /negociacoes\/\$\{p\.negociacao_id\}\/assumir/);
 });
 
-test('Dica do Assistente: concreta, a partir do que a tela tem', () => {
+test('Dica do Assistente: concreta, a partir do que a tela tem, com a ação que `validarAcao` confere', () => {
   const passos = primeirosPassos({ conta: true, telefone: true, instagram: false, imovel: true, pagina: true });
-  assert.match(dicaDoAssistente([{ tipo: 'quente_sem_resposta' }, { tipo: 'quente_sem_resposta' }], passos), /^2 clientes quentes/);
-  assert.match(dicaDoAssistente([{ tipo: 'abordagem_vencida' }], passos), /uma abordagem atrasada/);
-  assert.match(dicaDoAssistente([], passos), /conectar o instagram/);
-  assert.match(dicaDoAssistente([], primeirosPassos({ conta: true, telefone: true, instagram: true, imovel: true, pagina: true })), /Nada urgente/);
+  const agora = new Date('2026-11-08T12:00:00Z');
+  const quente = { tipo: 'quente_sem_resposta' as const, contato_id: 7, contato_nome: 'Ana Ribeiro', texto: 'x' };
+  const d1 = dicaDoAssistente([quente, { ...quente, contato_id: 8, contato_nome: 'Bia' }], passos, agora);
+  assert.match(d1.texto, /^2 clientes quentes/);
+  assert.deepEqual(d1.acao, { tipo: 'criar_atividade', tipo_atividade: 'ligacao', titulo: 'Responder Ana Ribeiro', quando: '2026-11-08T13:00:00.000Z', contato_id: 7 });
+  // A ação passa pelo mesmo `validarAcao` do Assistente: só contato da fila e horário na janela.
+  const v = validarAcao(d1.acao, { contatos: new Map([[7, 'Ana Ribeiro']]), pecas: new Map(), agora });
+  assert.equal(v?.rota, '/atividades');
+  assert.deepEqual(v?.corpo, { tipo: 'ligacao', titulo: 'Responder Ana Ribeiro', quando: '2026-11-08T13:00:00.000Z', contato_id: 7 });
+  assert.equal(validarAcao(d1.acao, { contatos: new Map(), pecas: new Map(), agora })?.corpo.contato_id, undefined, 'contato fora da fila não entra no corpo');
+  const d2 = dicaDoAssistente([{ tipo: 'abordagem_vencida', contato_id: 9, contato_nome: 'Caio', texto: 'x' }], passos, agora);
+  assert.match(d2.texto, /uma abordagem atrasada/);
+  assert.equal(d2.acao?.tipo_atividade, 'retorno');
+  // O item da peça como `pecasAguardando` o devolve: título em `contato_nome`, motivo em `texto`.
+  const d3 = dicaDoAssistente([{ tipo: 'peca_aguardando', contato_id: null, contato_nome: 'Lançamento Jardim Botânico', texto: 'Aprovada em 07/11/2026 e sem data para publicar', peca_id: 3 }], passos, agora);
+  assert.deepEqual([d3.acao?.tipo, d3.acao?.peca_id], ['agendar_peca', 3]);
+  assert.match(d3.texto, /A peça "Lançamento Jardim Botânico" está aprovada/, 'a dica cita o título da peça');
+  assert.doesNotMatch(d3.texto, /Aprovada em/, 'nunca o motivo no lugar do título');
+  assert.ok(validarAcao(d3.acao, { contatos: new Map(), pecas: new Map([[3, { titulo: 'Lançamento', estado: 'aprovada' }]]), agora }), 'peça aprovada agenda');
+  assert.equal(validarAcao(d3.acao, { contatos: new Map(), pecas: new Map([[3, { titulo: 'Lançamento', estado: 'rascunho' }]]), agora }), null, 'rascunho não agenda');
+  const d4 = dicaDoAssistente([], passos, agora);
+  assert.match(d4.texto, /conectar o instagram/);
+  assert.equal(d4.acao, null, 'sem ação: o botão abre o Assistente');
+  assert.match(dicaDoAssistente([], primeirosPassos({ conta: true, telefone: true, instagram: true, imovel: true, pagina: true }), agora).texto, /Nada urgente/);
+});
+
+test('Dica da peça: "amanhã às 18 h" é 18:00 no fuso da conta, e o resumo de confirmação mostra a mesma hora', () => {
+  const passos = primeirosPassos({ conta: true, telefone: true, instagram: true, imovel: true, pagina: true });
+  const peca = { tipo: 'peca_aguardando' as const, contato_id: null, contato_nome: 'Lançamento', texto: 'Aprovada e sem data para publicar', peca_id: 3 };
+  // 8/11 às 12:00 UTC (9:00 em Brasília): amanhã às 18 h em Brasília é 9/11 21:00 UTC, seja qual for o fuso do processo.
+  const agora = new Date('2026-11-08T12:00:00Z');
+  const sp = dicaDoAssistente([peca], passos, agora, 'America/Sao_Paulo');
+  assert.equal(sp.acao?.quando, '2026-11-09T21:00:00.000Z');
+  const resumo = validarAcao(sp.acao, { contatos: new Map(), pecas: new Map([[3, { titulo: 'Lançamento', estado: 'aprovada' }]]), agora, fuso: 'America/Sao_Paulo' });
+  assert.match(resumo!.resumo, /09\/11.*18:00/, 'o resumo que o corretor confirma diz 18:00');
+  // Perto da meia-noite: 8/11 às 02:30 UTC ainda é 7/11 em Brasília; "amanhã" é 8/11, 18:00 local.
+  assert.equal(dicaDoAssistente([peca], passos, new Date('2026-11-08T02:30:00Z'), 'America/Sao_Paulo').acao?.quando, '2026-11-08T21:00:00.000Z');
+  // Outro fuso, com horário de verão (Nova York, EST em novembro: UTC-5).
+  assert.equal(dicaDoAssistente([peca], passos, agora, 'America/New_York').acao?.quando, '2026-11-09T23:00:00.000Z');
 });
 
 test('Hoje entra na moldura do Padrão B e relê os dados a cada entrada', () => {
   const indice = raiz('frontend/index.ts');
   assert.match(indice, /hoje: \{ titulo: 'Hoje', papel: 'corretor', moldura: true, aoAbrir: aoAbrirHoje/);
-  assert.match(raiz('frontend/telas/inicio.ts'), /moldura\(\{ menu: '\/', lista: esquerda/);
+  assert.match(raiz('frontend/telas/inicio.ts'), /moldura\(\s*\{ menu: '\/', lista: esquerda/);
 });
 
 test('GET /inicio: conta nova tem 0 de 5 e o aviso do CRECI; completa sem CRECI fica 5 de 5', async () => {
@@ -91,7 +136,9 @@ test('GET /inicio: passagens sem sigilo, agenda só de hoje, e nada de uma conta
   );
   await comServidor(rotas, A, banco, {}, async (chamar) => {
     const r = (await chamar('GET', '/inicio')).corpo;
-    assert.deepEqual(r.passagens, [{ negociacao_id: 900, codigo: 'NG-0001', contato_id: contatoA, contato_nome: 'Juliana', motivo: 'A negociação espera a sua decisão' }]);
+    assert.deepEqual(r.passagens, [{ negociacao_id: 900, codigo: 'NG-0001', contato_id: contatoA, contato_nome: 'Juliana', conversa_id: null, motivo: 'A negociação espera a sua decisão' }]);
+    // A dica vem pronta da rota, com a ação conferida (sem fila nem passo pendente aqui, só o texto).
+    assert.equal(typeof r.dica.texto, 'string');
     const texto = JSON.stringify(r);
     for (const c of CAMPOS_SIGILOSOS) assert.ok(!texto.includes(`"${c}"`), `${c} não sai de Hoje`);
     // Só a ligação de hoje: a de daqui a 50 h fica para a agenda de 14 dias. (Perto da meia-noite a de
@@ -262,4 +309,94 @@ test('GET /inicio: com leitura sem escopo do banco, o estado de Hoje ainda é s�
   const b = await ver({ usuario: 2, conta: 200, contas: [200], papeis: ['corretor'] });
   assert.equal(b.primeiros_passos.filter((p: any) => p.feito).length, 0);
   assert.equal(b.sem_creci, true);
+});
+
+test('GET /inicio: a fila traz proposta recebida, peça aprovada sem data e autorização a vencer; a passagem leva a conversa do Negociador', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const dia = (d: number) => new Date(Date.now() + d * 86400e3).toISOString().slice(0, 10);
+  let ana = 0;
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    ana = (await chamar('POST', '/contatos', { nome: 'Ana', telefone: '61911110001' })).corpo.id;
+  });
+  banco.linhas('negociacoes').push(
+    // Ativa, com a última proposta do comprador esperando resposta: "Proposta recebida" na fila.
+    { id: 10, conta_id: 100, codigo: 'NG-0010', contato_id: ana, estado: 'ativa', conduzida_por: 'corretor', atualizado_em: new Date().toISOString() },
+    // Passada pelo Negociador: em "Precisa de você", com a conversa que ele atende.
+    { id: 11, conta_id: 100, codigo: 'NG-0011', contato_id: ana, estado: 'aguardando_corretor', conduzida_por: 'ia', atualizado_em: new Date().toISOString() },
+    // Já respondida pelo vendedor: fora da fila. De outra conta: invisível.
+    { id: 12, conta_id: 100, codigo: 'NG-0012', contato_id: ana, estado: 'aguardando_cliente', conduzida_por: 'corretor', atualizado_em: new Date().toISOString() },
+    { id: 13, conta_id: 200, codigo: 'NG-0013', contato_id: ana, estado: 'ativa', conduzida_por: 'corretor', atualizado_em: new Date().toISOString() },
+  );
+  banco.linhas('propostas').push(
+    { id: 1, conta_id: 100, negociacao_id: 10, direcao: 'comprador', valor_c: 92000000, estado: 'registrada', criado_em: new Date().toISOString() },
+    { id: 2, conta_id: 100, negociacao_id: 12, direcao: 'comprador', valor_c: 1, estado: 'registrada', criado_em: new Date().toISOString() },
+    { id: 3, conta_id: 100, negociacao_id: 12, direcao: 'vendedor', valor_c: 2, estado: 'enviada', criado_em: new Date().toISOString() },
+    { id: 4, conta_id: 200, negociacao_id: 13, direcao: 'comprador', valor_c: 3, estado: 'registrada', criado_em: new Date().toISOString() },
+  );
+  banco.linhas('conversas').push({ id: 50, conta_id: 100, contato_id: ana, atendido_por: 'agente', agente: 'negociador', estado: 'aberta', ultima_mensagem_em: new Date().toISOString() });
+  banco.linhas('pecas').push(
+    { id: 30, conta_id: 100, titulo: 'Lançamento', estado: 'aprovada', agendada_para: null, aprovada_em: new Date().toISOString() },
+    { id: 31, conta_id: 100, titulo: 'Agendada', estado: 'aprovada', agendada_para: new Date().toISOString(), aprovada_em: new Date().toISOString() },
+    { id: 32, conta_id: 200, titulo: 'De B', estado: 'aprovada', agendada_para: null, aprovada_em: new Date().toISOString() },
+  );
+  banco.linhas('imoveis').push({ id: 40, conta_id: 100, codigo: 'IM-0040', tipo: 'casa', situacao: 'ativo' });
+  banco.linhas('autorizacoes_venda').push(
+    { id: 60, conta_id: 100, imovel_id: 40, situacao: 'assinada', inicio: dia(-300), fim: dia(10) },
+    { id: 61, conta_id: 100, imovel_id: 40, situacao: 'assinada', inicio: dia(-300), fim: dia(90) },
+    { id: 62, conta_id: 100, imovel_id: 40, situacao: 'revogada', inicio: dia(-300), fim: dia(5) },
+  );
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const r = (await chamar('GET', '/inicio')).corpo;
+    const tipos = r.fila.map((i: any) => [i.tipo, i.negociacao_id ?? i.peca_id ?? i.imovel_id]);
+    assert.deepEqual(tipos, [['proposta_recebida', 10], ['peca_aguardando', 30], ['prazo_autorizacao', 40]]);
+    assert.match(r.fila[0].texto, /R\$\s?920\.000/);
+    assert.equal(r.fila[0].contato_nome, 'Ana');
+    assert.equal(r.fila[1].contato_id, null);
+    assert.match(r.fila[2].contato_nome, /IM-0040/);
+    assert.match(r.fila[2].texto, /vence em \d{2}\/\d{2}\/\d{4}/);
+    assert.deepEqual(r.passagens.map((p: any) => [p.negociacao_id, p.conversa_id, p.motivo]), [[11, 50, 'O Negociador passou a você']]);
+    // A dica: a peça aprovada sem data vira a ação "agendar a peça", já validada.
+    assert.equal(r.dica.acao?.tipo, 'agendar_peca');
+    assert.equal(r.dica.acao?.rota, '/estudio/pecas/30/agendar');
+    for (const c of CAMPOS_SIGILOSOS) assert.ok(!JSON.stringify(r).includes(`"${c}"`), `${c} não sai de Hoje`);
+  });
+  await comServidor(rotas, B, banco, {}, async (chamar) => {
+    const r = (await chamar('GET', '/inicio')).corpo;
+    // B vê só o que é da conta B: a negociação 13 (a proposta dela) e a peça 32; nada de A.
+    assert.deepEqual(r.fila.map((i: any) => [i.tipo, i.negociacao_id ?? i.peca_id]), [['proposta_recebida', 13], ['peca_aguardando', 32]]);
+    assert.deepEqual(r.passagens, []);
+  });
+});
+
+test('GET /inicio: "Agora não" tira o contato da fila hoje em todo motivo com contato; amanhã ele volta; os outros ficam', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const doisDias = new Date(Date.now() - 2 * 86400e3).toISOString();
+  const ontem = new Date(Date.now() - 30 * HORA).toISOString();
+  banco.linhas('contatos').push(
+    // Quentes sem resposta: Ana será adiada, Bia não, Eva foi adiada há mais de um dia (volta normal).
+    { id: 1, conta_id: 100, nome: 'Ana', telefone: '61900000001', temperatura: 'quente', ultimo_contato_em: doisDias, abordagem_adiada_em: null },
+    { id: 2, conta_id: 100, nome: 'Bia', telefone: '61900000002', temperatura: 'quente', ultimo_contato_em: doisDias, abordagem_adiada_em: null },
+    { id: 5, conta_id: 100, nome: 'Eva', telefone: '61900000005', temperatura: 'quente', ultimo_contato_em: doisDias, abordagem_adiada_em: ontem },
+    // Visitas: Caio será adiado, Duda não.
+    { id: 3, conta_id: 100, nome: 'Caio', telefone: '61900000003', temperatura: 'morno', ultimo_contato_em: new Date().toISOString(), abordagem_adiada_em: null },
+    { id: 4, conta_id: 100, nome: 'Duda', telefone: '61900000004', temperatura: 'morno', ultimo_contato_em: new Date().toISOString(), abordagem_adiada_em: null },
+  );
+  const daqui = new Date(Date.now() + 60e3).toISOString();
+  banco.linhas('atividades').push(
+    { id: 70, conta_id: 100, tipo: 'visita', status: 'pendente', titulo: 'Visita Caio', quando: daqui, contato_id: 3 },
+    { id: 71, conta_id: 100, tipo: 'visita', status: 'pendente', titulo: 'Visita Duda', quando: daqui, contato_id: 4 },
+  );
+  banco.linhas('pecas').push({ id: 30, conta_id: 100, titulo: 'Lançamento', estado: 'aprovada', agendada_para: null, aprovada_em: new Date().toISOString() });
+  const naFila = (r: any) => r.fila.map((i: any) => [i.tipo, i.contato_id ?? i.peca_id]).sort();
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const antes = (await chamar('GET', '/inicio')).corpo;
+    assert.deepEqual(naFila(antes), [['peca_aguardando', 30], ['quente_sem_resposta', 1], ['quente_sem_resposta', 2], ['quente_sem_resposta', 5], ['visita', 3], ['visita', 4]].sort());
+    assert.equal((await chamar('POST', '/abordagens/1/adiar')).status, 200);
+    assert.equal((await chamar('POST', '/abordagens/3/adiar')).status, 200);
+    const depois = (await chamar('GET', '/inicio')).corpo;
+    assert.deepEqual(naFila(depois), [['peca_aguardando', 30], ['quente_sem_resposta', 2], ['quente_sem_resposta', 5], ['visita', 4]].sort(), 'Ana e Caio saem; Bia, Eva, Duda e a peça ficam');
+    // Amanhã: o adiamento de ontem não vale mais e eles voltam.
+    for (const c of banco.linhas('contatos')) if (c.id === 1 || c.id === 3) c.abordagem_adiada_em = ontem;
+    assert.deepEqual(naFila((await chamar('GET', '/inicio')).corpo), naFila(antes));
+  });
 });

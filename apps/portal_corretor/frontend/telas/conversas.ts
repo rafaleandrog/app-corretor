@@ -3,10 +3,10 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { cabecalhoColuna, moldura } from '../moldura.js';
-import { buscaDoGesto, chamarApi, data as dataCurta, enviar, gesto, mensagemDeErro, reais, seNaoContaTrocada, type Gesto } from '../apoio.js';
+import { buscaDoGesto, chamarApi, data as dataCurta, enviar, gesto, mensagemDeErro, noGesto, reais, seNaoContaTrocada, type Gesto } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
-import { criar, novaVisita } from '../criar.js';
+import { criar, irParaComQuery } from '../criar.js';
 import { lembrarContato } from './assistente.js';
 import { chipsDoPerfilBusca } from '../../comum/crm.js';
 import { combina } from '../../comum/imoveis.js';
@@ -16,6 +16,9 @@ import {
   FILTROS_CONVERSA,
   type FiltroConversa,
   haQuanto,
+  horariosLivres,
+  type HorarioLivre,
+  mensagemDaVisita,
   quemAtende,
   ROTULO_FILTRO,
   ROTULO_ORIGEM_CHIP,
@@ -94,6 +97,23 @@ async function carregarDetalhe(id: number, vida: Gesto): Promise<Detalhe | null>
 }
 
 const conversaDaUrl = (): number | null => Number(filtrosDaUrl().get('item')) || null;
+
+/**
+ * Abre a conversa de um contato (P02) a partir de outra tela ("Falar com Ana" em Hoje, "Conversa" e
+ * "Abrir conversa" na ficha): `POST /conversas` devolve a que já existe ou cria, e a tela de Conversas
+ * abre nela. Conta trocada com o pedido em voo: nada abre.
+ */
+export function abrirConversaDoContato(contatoId: number) {
+  return noGesto(async (g) => {
+    try {
+      const r = (await g.esperar(enviar('POST', '/conversas', { contato_id: contatoId }))) as { conversa: Linha };
+      irParaComQuery(`/conversas?item=${Number(r.conversa.id)}`);
+    } catch (e) {
+      if (g.encerrado(e)) throw e;
+      await urbiVerso.alertar({ titulo: 'Não foi possível abrir a conversa', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    }
+  });
+}
 
 function escolherConversa(id: number | null, atualizar: () => void) {
   filtrosNaUrl(filtrosDaUrl(), { item: id ?? null });
@@ -216,7 +236,7 @@ export class PcConversasLista extends LitElement {
     const origem = c.origem_canal ? ROTULO_ORIGEM_CHIP[c.origem_canal] ?? null : null;
     return html`<urbi-linha alinhar="inicio">
       <urbi-avatar nome=${c.contato_nome} tamanho="36"></urbi-avatar>
-      <urbi-stack expandir gap="2px">
+      <urbi-stack expandir>
         <urbi-linha justificar="entre">
           <urbi-prosa papel=${c.nao_lidas ? 'corpo' : 'secundario'}><strong>${c.contato_nome}</strong></urbi-prosa>
           <urbi-prosa papel="fraco">${haQuanto(c.ultima_mensagem_em)}</urbi-prosa>
@@ -354,7 +374,7 @@ export class PcConversaTopo extends ParteDaConversa {
       <urbi-linha alinhar="inicio" justificar="entre" quebrar>
         <urbi-linha alinhar="inicio">
           <urbi-avatar nome=${c.nome} tamanho="36"></urbi-avatar>
-          <urbi-stack gap="4px">
+          <urbi-stack>
             <urbi-prosa><strong>${c.nome}</strong></urbi-prosa>
             <urbi-linha quebrar gap="6px">
               ${temp ? html`<urbi-badge cor=${temp.cor}>${temp.rotulo}</urbi-badge>` : nothing}
@@ -397,7 +417,7 @@ export class PcConversaMensagens extends ParteDaConversa {
   private cartaoImovel(m: Linha) {
     const dados = (m.dados ?? {}) as Linha;
     return html`<urbi-card>
-      <urbi-stack gap="4px">
+      <urbi-stack>
         <urbi-prosa><strong>${dados.titulo ?? dados.codigo ?? 'Imóvel'}</strong></urbi-prosa>
         <urbi-prosa papel="secundario">${[dados.codigo, dados.bairro].filter(Boolean).join(' · ')}</urbi-prosa>
         ${dados.preco_c ? html`<urbi-prosa><strong>${reais(dados.preco_c)}</strong></urbi-prosa>` : nothing}
@@ -422,12 +442,14 @@ export class PcConversaMensagens extends ParteDaConversa {
         ? this.cartaoImovel(m)
         : m.tipo === 'link_portal'
           ? html`<urbi-prosa>Link do Portal do Cliente enviado${(m.dados as Linha)?.link ? html` · <a href=${(m.dados as Linha).link} target="_blank" rel="noopener">abrir</a>` : nothing}</urbi-prosa>`
-          : m.tipo === 'selecao' || m.tipo === 'arquivo'
-            ? html`<urbi-prosa>${m.tipo === 'selecao' ? 'Seleção enviada' : 'Arquivo enviado'}${m.conteudo ? `: ${m.conteudo}` : ''}</urbi-prosa>`
+          : m.tipo === 'selecao'
+            ? html`<urbi-prosa>Seleção enviada${m.conteudo ? `: ${m.conteudo}` : ''}${(m.dados as Linha)?.quantidade ? ` · ${(m.dados as Linha).quantidade} imóve${Number((m.dados as Linha).quantidade) > 1 ? 'is' : 'l'}` : ''}${(m.dados as Linha)?.link ? html` · <a href=${(m.dados as Linha).link} target="_blank" rel="noopener">abrir</a>` : nothing}</urbi-prosa>`
+            : m.tipo === 'arquivo'
+            ? html`<urbi-prosa>Arquivo enviado${m.conteudo ? `: ${m.conteudo}` : ''}</urbi-prosa>`
             : html`<urbi-prosa pre>${m.conteudo}</urbi-prosa>`;
     return html`<urbi-linha justificar=${minha ? 'fim' : 'inicio'}>
       <urbi-card>
-        <urbi-stack gap="4px">
+        <urbi-stack>
           ${rotulo ? html`<urbi-prosa papel="dica">${rotulo}${canal ? ` · ${canal}` : ''}</urbi-prosa>` : nothing}
           ${corpo}
           <urbi-prosa papel="fraco">${hora(m.em)}</urbi-prosa>
@@ -454,11 +476,26 @@ export class PcConversaMensagens extends ParteDaConversa {
 }
 
 /** Rodapé do centro: ações rápidas, sugestão da IA, compositor e o estado da janela. */
+/** Um imóvel candidato à seleção (P02 › Seleção): da carteira, anunciável, marcado quando combina com o perfil. */
+interface Candidato {
+  imovel: Linha;
+  marcado: boolean;
+  combina: boolean;
+}
+
 @customElement('pc-conversa-compositor')
 export class PcConversaCompositor extends ParteDaConversa {
   @state() private sugestao: string | null = null;
   @state() private rascunho = '';
   @state() private sugerindo = false;
+  /** A gaveta aberta (o SDK não tem gaveta: `urbi-modal`, spec 11.9). */
+  @state() private modal: 'selecao' | 'visita' | null = null;
+  @state() private candidatos: Candidato[] = [];
+  @state() private tituloSelecao = 'Imóveis para você';
+  @state() private horarios: HorarioLivre[] = [];
+  @state() private horario = '';
+  @state() private imovelVisita = '';
+  @state() private carregandoModal = false;
 
   connectedCallback() {
     super.connectedCallback();
@@ -534,27 +571,179 @@ export class PcConversaCompositor extends ParteDaConversa {
     return fn();
   }
 
+  /** Imóveis da carteira que podem ir ao cliente: ativos ou reservados, com autorização vigente (como a seleção da ficha). */
+  private async anunciaveis(): Promise<Linha[]> {
+    const lista: Linha[] = [];
+    for (const situacao of ['ativo', 'reservado']) {
+      for (let pagina = 1; pagina <= 20; pagina++) {
+        const r = (await this.vida.esperar(chamarApi(`/imoveis?situacao=${situacao}&pagina=${pagina}`))) as { dados?: Linha[]; paginas?: number };
+        lista.push(...(r.dados ?? []).filter((i) => i.autorizacao_vigente));
+        if (pagina >= (r.paginas ?? 1)) break;
+      }
+    }
+    return lista;
+  }
+
+  /**
+   * Seleção (D-127): a gaveta com os imóveis anunciáveis, já marcados os que combinam com o perfil de
+   * busca (a regra de "Também combinam" do contexto). Confirmar cria a seleção (`POST /selecoes`), que
+   * registra o cartão na conversa e devolve a mensagem pronta; o WhatsApp do celular abre com ela.
+   */
+  private async abrirSelecao() {
+    const d = this.d!;
+    this.carregandoModal = true;
+    try {
+      const [imoveis, ficha] = await this.vida.esperar(Promise.all([this.anunciaveis(), chamarApi(`/contatos/${d.contato.id}`) as Promise<Linha>]));
+      const perfil = ficha?.contato?.perfil_busca ?? d.contato.perfil_busca;
+      if (!imoveis.length) {
+        await urbiVerso.alertar({ titulo: 'Nenhum imóvel para enviar', mensagem: 'Só vão na seleção imóveis ativos ou reservados, com autorização de venda vigente.', tipo: 'alerta' });
+        return;
+      }
+      this.candidatos = imoveis.map((imovel) => {
+        const bate = !!perfil && !!combina(perfil, imovel);
+        return { imovel, marcado: bate, combina: bate };
+      });
+      this.tituloSelecao = 'Imóveis para você';
+      this.modal = 'selecao';
+    } catch (e) {
+      if (this.vida.encerrado(e)) return;
+      await urbiVerso.alertar({ titulo: 'Não foi possível carregar os imóveis', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      if (this.vida.vivo()) this.carregandoModal = false;
+    }
+  }
+
+  private async confirmarSelecao() {
+    const d = this.d!;
+    const ids = this.candidatos.filter((c) => c.marcado).map((c) => Number(c.imovel.id));
+    if (!ids.length || ids.length > 12) {
+      await urbiVerso.alertar({ titulo: 'Confira os imóveis', mensagem: 'Escolha de 1 a 12 imóveis.', tipo: 'alerta' });
+      return;
+    }
+    await this.agir('Não foi possível criar a seleção', async () => {
+      const r = (await this.vida.esperar(enviar('POST', '/selecoes', { contato_id: d.contato.id, titulo: this.tituloSelecao.trim() || 'Imóveis para você', imovel_ids: ids }))) as { mensagem?: string | null; link?: string | null; conversa_id?: number | null };
+      this.modal = null;
+      // Sem URL pública na instância o backend devolve o caminho (`/portal_corretor/s?t=…`): a mensagem leva o link completo, como na ficha.
+      const link = r.link ?? '';
+      const mensagem = r.mensagem && link.startsWith('/') ? r.mensagem.split(link).join(`${window.location.origin}${link}`) : r.mensagem;
+      if (mensagem) await abrirWhatsapp(d.contato.telefone, mensagem);
+      // `conversa_id` nulo: a seleção existe e foi enviada, mas o cartão não entrou na conversa.
+      if (r.conversa_id) urbiVerso.notificar('Seleção criada e registrada na conversa.', 'sucesso');
+      else urbiVerso.notificar('Seleção criada e enviada; o cartão não ficou registrado na conversa.', 'info');
+    });
+  }
+
+  /**
+   * Agendar visita (D-127): a gaveta com o imóvel (os da carteira anunciáveis; pré-escolhido o último
+   * enviado) e os horários livres dos próximos dias, sem choque com as atividades pendentes. Confirmar
+   * cria a visita numa chamada só (`POST /atividades` com `confirmacao`: programa o lembrete, publica
+   * `visita_agendada` e registra a confirmação na conversa); a tela abre o WhatsApp do celular com ela.
+   */
+  private async abrirVisita() {
+    const d = this.d!;
+    this.carregandoModal = true;
+    try {
+      const ate = new Date(Date.now() + 7 * 86400e3).toISOString();
+      const [imoveis, pendentes, envios] = await this.vida.esperar(
+        Promise.all([
+          this.anunciaveis(),
+          chamarApi(`/atividades?status=pendente&ate=${encodeURIComponent(ate)}`) as Promise<{ dados: Linha[] }>,
+          chamarApi(`/envios?contato_id=${d.contato.id}`).catch(() => ({ dados: [] })) as Promise<{ dados: Linha[] }>,
+        ]),
+      );
+      this.horarios = horariosLivres(pendentes.dados ?? []);
+      this.horario = this.horarios[0]?.iso ?? '';
+      const ultimoEnviado = (envios.dados ?? []).find((e) => e.imovel_id)?.imovel_id;
+      this.candidatos = imoveis.map((imovel) => ({ imovel, marcado: false, combina: false }));
+      this.imovelVisita = ultimoEnviado && imoveis.some((i) => Number(i.id) === Number(ultimoEnviado)) ? String(ultimoEnviado) : (imoveis[0] ? String(imoveis[0].id) : '');
+      this.modal = 'visita';
+    } catch (e) {
+      if (this.vida.encerrado(e)) return;
+      await urbiVerso.alertar({ titulo: 'Não foi possível preparar a visita', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      if (this.vida.vivo()) this.carregandoModal = false;
+    }
+  }
+
+  private async confirmarVisita() {
+    const d = this.d!;
+    const imovel = this.candidatos.find((c) => String(c.imovel.id) === this.imovelVisita)?.imovel ?? null;
+    if (!this.horario) {
+      await urbiVerso.alertar({ titulo: 'Escolha o horário', mensagem: 'Nenhum horário livre escolhido.', tipo: 'alerta' });
+      return;
+    }
+    await this.agir('Não foi possível marcar a visita', async () => {
+      const titulo = imovel ? `Visita: ${imovel.codigo}${imovel.titulo ? ` · ${imovel.titulo}` : ''}`.slice(0, 200) : 'Visita';
+      const confirmacao = mensagemDaVisita(String(d.contato.nome), this.horario, imovel ? { codigo: imovel.codigo, titulo: imovel.titulo, bairro: imovel.bairro } : null);
+      // Uma chamada só: a visita, o lembrete e a confirmação na conversa (consequência da visita criada).
+      const r = (await this.vida.esperar(
+        enviar('POST', '/atividades', { tipo: 'visita', titulo, quando: this.horario, contato_id: d.contato.id, imovel_id: imovel ? Number(imovel.id) : undefined, local: imovel?.bairro ?? undefined, confirmacao }),
+      )) as { confirmacao?: { link: string | null; conversa_id: number | null } };
+      this.modal = null;
+      if (r.confirmacao?.link) window.open(r.confirmacao.link, '_blank', 'noopener');
+      if (r.confirmacao?.conversa_id) urbiVerso.notificar('Visita marcada e confirmação registrada na conversa.', 'sucesso');
+      else urbiVerso.notificar('Visita marcada; a confirmação não ficou registrada na conversa.', 'info');
+    });
+  }
+
+  /** A gaveta de Seleção: título, os imóveis com a marcação, Criar e enviar. */
+  private modalSelecao() {
+    const marcados = this.candidatos.filter((c) => c.marcado).length;
+    return html`<urbi-modal title="Seleção de imóveis" maxWidth="560px" @urbi-modal:close=${() => (this.modal = null)}>
+      <urbi-stack>
+        <urbi-prosa papel="dica">Os que combinam com o perfil de busca já vêm marcados. O cliente abre pelo link, sem login, e diz o que achou de cada um (até 12).</urbi-prosa>
+        <urbi-input label="Título" valor=${this.tituloSelecao} @urbi:input-change=${(e: CustomEvent) => (this.tituloSelecao = e.detail.valor)}></urbi-input>
+        <urbi-lista separador .itens=${this.candidatos} .render_item=${(c: Candidato) => html`<urbi-linha justificar="entre">
+            <urbi-checkbox label=${`${c.imovel.codigo} · ${c.imovel.titulo ?? c.imovel.tipo}${c.imovel.bairro ? ` · ${c.imovel.bairro}` : ''}${c.imovel.preco_c ? ` · ${reais(c.imovel.preco_c)}` : ''}`} ?marcado=${c.marcado}
+              @urbi:checkbox-change=${(e: CustomEvent) => (this.candidatos = this.candidatos.map((x) => (x === c ? { ...x, marcado: !!e.detail.marcado } : x)))}></urbi-checkbox>
+            ${c.combina ? html`<urbi-badge cor="sucesso">Combina</urbi-badge>` : nothing}
+          </urbi-linha>`}></urbi-lista>
+        <urbi-linha justificar="fim">
+          <urbi-botao variante="secundario" @click=${() => (this.modal = null)}>Cancelar</urbi-botao>
+          <urbi-botao icone="fa-solid fa-paper-plane" ?carregando=${this.ocupado} ?desabilitado=${!marcados} @click=${() => void this.confirmarSelecao()}>Criar e enviar${marcados ? ` (${marcados})` : ''}</urbi-botao>
+        </urbi-linha>
+      </urbi-stack>
+    </urbi-modal>`;
+  }
+
+  /** A gaveta de Agendar visita: o imóvel e os horários livres. */
+  private modalVisita() {
+    return html`<urbi-modal title="Agendar visita" maxWidth="480px" @urbi-modal:close=${() => (this.modal = null)}>
+      <urbi-stack>
+        <urbi-prosa papel="dica">Os horários são os livres na sua agenda nos próximos dias (das 9 h às 18 h). O lembrete é programado e a confirmação vai ao cliente pelo seu WhatsApp.</urbi-prosa>
+        <urbi-select label="Imóvel" valor=${this.imovelVisita} pesquisavel placeholder="Sem imóvel"
+          .opcoes=${this.candidatos.map((c) => ({ valor: String(c.imovel.id), rotulo: `${c.imovel.codigo} · ${c.imovel.titulo ?? c.imovel.bairro ?? ''}` }))}
+          @urbi:select-change=${(e: CustomEvent) => (this.imovelVisita = e.detail.valor)}></urbi-select>
+        ${this.horarios.length
+          ? html`<urbi-select label="Horário livre" valor=${this.horario} .opcoes=${this.horarios.map((h) => ({ valor: h.iso, rotulo: h.rotulo }))}
+              @urbi:select-change=${(e: CustomEvent) => (this.horario = e.detail.valor)}></urbi-select>`
+          : html`<urbi-prosa papel="alerta">Nenhum horário livre nos próximos dias: conclua ou cancele atividades na agenda.</urbi-prosa>`}
+        <urbi-linha justificar="fim">
+          <urbi-botao variante="secundario" @click=${() => (this.modal = null)}>Cancelar</urbi-botao>
+          <urbi-botao icone="fa-regular fa-calendar-check" ?carregando=${this.ocupado} ?desabilitado=${!this.horario} @click=${() => void this.confirmarVisita()}>Marcar e confirmar</urbi-botao>
+        </urbi-linha>
+      </urbi-stack>
+    </urbi-modal>`;
+  }
+
   render() {
     const d = this.d;
     if (!d) return nothing;
     const semZap = !linkWhatsapp(d.contato.telefone, '-');
     const acoes = [
       { rotulo: 'Imóvel', icone: 'fa-solid fa-house', ao: () => void this.envio('imovel') },
-      { rotulo: 'Seleção', icone: 'fa-solid fa-filter', href: `/clientes/${d.contato.id}?secao=negocios` },
+      { rotulo: 'Seleção', icone: 'fa-solid fa-filter', ao: () => void this.abrirSelecao() },
       { rotulo: 'Arquivo', icone: 'fa-regular fa-file', ao: () => void this.envio('arquivo') },
       { rotulo: 'Localização', icone: 'fa-solid fa-location-dot', ao: () => void this.envio('localizacao') },
-      { rotulo: 'Agendar visita', icone: 'fa-regular fa-calendar', ao: () => this.comContato(() => void novaVisita()) },
+      { rotulo: 'Agendar visita', icone: 'fa-regular fa-calendar', ao: () => void this.abrirVisita() },
       { rotulo: 'Portal do cliente', icone: 'fa-regular fa-user', ao: () => void this.portal() },
       { rotulo: 'Proposta', icone: 'fa-solid fa-handshake', ao: () => this.comContato(() => criar('proposta')) },
     ];
     return html`<urbi-stack>
       <urbi-linha quebrar>
-        ${acoes.map((a) =>
-          a.href
-            ? html`<urbi-botao variante="secundario" icone=${a.icone} href=${urbiVerso.href(a.href)}>${a.rotulo}</urbi-botao>`
-            : html`<urbi-botao variante="secundario" icone=${a.icone} ?desabilitado=${this.ocupado} @click=${a.ao}>${a.rotulo}</urbi-botao>`,
-        )}
+        ${acoes.map((a) => html`<urbi-botao variante="secundario" icone=${a.icone} ?desabilitado=${this.ocupado || this.carregandoModal} @click=${a.ao}>${a.rotulo}</urbi-botao>`)}
       </urbi-linha>
+      ${this.modal === 'selecao' ? this.modalSelecao() : this.modal === 'visita' ? this.modalVisita() : nothing}
       ${this.sugestao
         ? html`<urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles" title="Usar a sugestão no compositor" @click=${() => (this.rascunho = this.sugestao!)}>Sugestão: “${this.sugestao.length > 70 ? `${this.sugestao.slice(0, 70)}…` : this.sugestao}”</urbi-botao></urbi-linha>`
         : this.sugerindo
@@ -641,7 +830,7 @@ export class PcConversaContexto extends ParteDaConversa {
       <urbi-card titulo="Também combinam" icone="fa-solid fa-house-circle-check">
         ${this.combinam.length
           ? html`<urbi-lista separador .itens=${this.combinam} .render_item=${(im: Linha) => html`<urbi-linha justificar="entre">
-              <urbi-stack gap="2px" expandir>
+              <urbi-stack expandir>
                 <urbi-prosa truncar><strong>${im.titulo ?? im.codigo}</strong></urbi-prosa>
                 <urbi-prosa papel="secundario">${[im.bairro, im.preco_c ? reais(im.preco_c) : null].filter(Boolean).join(' · ')}</urbi-prosa>
               </urbi-stack>

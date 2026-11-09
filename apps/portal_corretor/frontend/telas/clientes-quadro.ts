@@ -1,11 +1,11 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import type { Gesto } from '../apoio.js';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { FILTROS_PRONTOS, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
-import { chamarApi, chip, contaDeTrabalho, ehContaTrocada, enviar, filtrosDaUrl, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, opcoesParado, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, chip, contaDeTrabalho, ehContaTrocada, enviar, filtrosDaUrl, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -15,7 +15,7 @@ const ROTULO_PRONTO: Record<FiltroPronto, string> = { novos: 'Novos', sem_contat
 const ehPronto = (v: string | null): v is FiltroPronto => (FILTROS_PRONTOS as readonly string[]).includes(v ?? '');
 const NOME_FUNIL: Record<string, string> = { compra: 'Compra', venda_captacao: 'Venda e captação' };
 /** A regra da temperatura em uma linha (spec 10.4; `classificar` em comum/funil.ts). */
-const DEFINICAO_TEMPERATURA = 'Quente: proposta, visita marcada ou gostou da visita. Morno: conversou nos últimos 7 dias. Frio: mais de 7 dias sem contato.';
+const DEFINICAO_TEMPERATURA = 'Quente: proposta, visita marcada ou gostou da visita · Morno: conversou nos últimos 7 dias · Frio: mais de 7 dias sem contato.';
 
 // O que o quadro devolveu por último: a coluna da esquerda mostra as contagens dele (funis e
 // temperaturas) sem pedir o quadro de novo.
@@ -44,7 +44,7 @@ const lerDiasParado = (): Promise<number> =>
 /** Os filtros do Funil no endereço, numa chave estável: a tela recria o quadro quando ela muda. */
 export const chaveDoQuadro = () => {
   const f = filtrosDaUrl();
-  return ['pipeline', 'temperatura', 'parado_dias', 'pronto'].map((k) => f.get(k) ?? '').join('|');
+  return ['pipeline', 'temperatura', 'pronto'].map((k) => f.get(k) ?? '').join('|');
 };
 
 /** Contato do cartão escolhido no Funil (`?item=<contato_id>`). */
@@ -54,8 +54,9 @@ export const contatoDoFunil = (): number | null => {
 };
 
 // Esquerda do Funil (P03): os funis com a contagem de abertos, os filtros prontos (no lugar das
-// listas salvas, que a D-83 tirou do MVP), a contagem por temperatura e o "sem contato há". Cada
-// escolha vai para o endereço e redesenha a tela, que recria o quadro com os filtros novos.
+// listas salvas, que a D-83 tirou do MVP) e a contagem por temperatura com a definição em uma linha,
+// tudo em chips com "Todas" primeiro (D-122). Cada escolha vai para o endereço e redesenha a tela, que
+// recria o quadro com os filtros novos. "Sem contato" é um dos filtros prontos: não há select.
 @customElement('pc-clientes-funil-filtros')
 export class PcClientesFunilFiltros extends LitElement {
   @property({ attribute: false }) aoMudar: () => void = () => {};
@@ -97,9 +98,9 @@ export class PcClientesFunilFiltros extends LitElement {
         @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ pipeline: e.detail.id === 'compra' ? '' : e.detail.id })}></urbi-chips-atalho>
       <urbi-prosa papel="secundario">Filtros prontos</urbi-prosa>
       <urbi-chips-atalho
-        .opcoes=${[{ id: 'todos', rotulo: 'Todos' }, ...FILTROS_PRONTOS.map((id) => ({ id, rotulo: ROTULO_PRONTO[id] }))]}
-        ativo=${ehPronto(pronto) ? pronto : 'todos'}
-        @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ pronto: e.detail.id === 'todos' ? '' : e.detail.id })}></urbi-chips-atalho>
+        .opcoes=${[{ id: 'todas', rotulo: 'Todas' }, ...FILTROS_PRONTOS.map((id) => ({ id, rotulo: ROTULO_PRONTO[id] }))]}
+        ativo=${ehPronto(pronto) ? pronto : 'todas'}
+        @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ pronto: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>
       <urbi-prosa papel="secundario">Por temperatura</urbi-prosa>
       <urbi-chips-atalho
         .opcoes=${[
@@ -111,23 +112,29 @@ export class PcClientesFunilFiltros extends LitElement {
         ativo=${pronto === 'quentes' ? 'quente' : temperatura || 'todas'}
         @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ temperatura: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>
       <urbi-prosa papel="fraco">${DEFINICAO_TEMPERATURA}</urbi-prosa>
-      <urbi-select label="Sem contato há" valor=${f.get('parado_dias') ?? ''} placeholder="Qualquer tempo" .opcoes=${opcoesParado()}
-        @urbi:select-change=${(e: CustomEvent) => this.filtrar({ parado_dias: e.detail.valor })}></urbi-select>
     </urbi-stack>`;
   }
 }
 
 // Centro do Funil (P03): o cabeçalho com o funil, o total aberto e as taxas de passagem entre as
-// etapas; abaixo, o quadro por etapa (arrastar muda a etapa; Perdido pede o motivo). Clicar num
-// cartão escolhe o cliente (`?item=`), que abre à direita. Os filtros vêm do endereço.
+// etapas em quatro números; abaixo, o quadro por etapa, que enche a altura do centro (arrastar muda a
+// etapa; Perdido pede o motivo). Clicar num cartão escolhe o cliente (`?item=`), que abre à direita. Os
+// filtros vêm do endereço. O elemento desenha no light DOM e se declara `papel-fill` (ui.md § Papéis de
+// UI): dentro do hospedeiro da coluna, com `expandir`, ele preenche o centro e o quadro rola por dentro.
 @customElement('pc-clientes-quadro')
 export class PcClientesQuadro extends LitElement {
   @state() private quadro: { etapas: Linha[]; negocios: Linha[]; passagem: Linha[] } | null = null;
   @state() private falha: string | null = null;
   private geracao = 0;
 
+  createRenderRoot() {
+    return this;
+  }
+
   connectedCallback() {
     super.connectedCallback();
+    // Papel de widget que preenche (declarado pelo próprio componente, como a `urbi-tabela`).
+    this.toggleAttribute('papel-fill', true);
     void this.carregar();
   }
 
@@ -147,7 +154,7 @@ export class PcClientesQuadro extends LitElement {
       // Só os filtros do quadro: a URL é dividida com a Lista. O filtro pronto vira os mesmos parâmetros da Lista.
       const f = filtrosDaUrl();
       const q = new URLSearchParams();
-      for (const k of ['pipeline', 'temperatura', 'parado_dias']) if (f.get(k)) q.set(k, f.get(k)!);
+      for (const k of ['pipeline', 'temperatura']) if (f.get(k)) q.set(k, f.get(k)!);
       const pronto = f.get('pronto');
       if (ehPronto(pronto)) for (const [k, v] of Object.entries(parametrosDoPronto(pronto, await g.esperar(lerDiasParado())))) q.set(k, v);
       const r = await g.esperar(chamarApi(`/funil/quadro?${q}`));
@@ -163,6 +170,7 @@ export class PcClientesQuadro extends LitElement {
   /**
    * Arrastar o cartão: diálogo do motivo (se Perdido) → PATCH → aviso → recarga, num gesto só. Trocada a
    * conta em qualquer await, o gesto termina em silêncio: nenhum PATCH, aviso ou alerta na outra conta.
+   * O "desfazer em 8 s" da spec (11.0.6) espera o toast com ação do shell (pedido 24): arrastar de volta desfaz.
    */
   private mover(e: CustomEvent) {
     return noGesto((g) => this.moverNaConta(g, e));
@@ -185,6 +193,7 @@ export class PcClientesQuadro extends LitElement {
     }
     try {
       const r = await g.esperar(enviar('PATCH', `/negocios/${item.id}`, { etapa_id: etapa.id, motivo_perda: motivo }));
+      // Mover para Proposta: com mandato, o Negociador entra conforme a configuração (`entrarPelaEtapaProposta`); a tela avisa.
       const aviso = avisoDeEntrada(r?.negociador_entrou);
       if (aviso) urbiVerso.notificar(aviso, 'info');
     } catch (err) {
@@ -194,13 +203,16 @@ export class PcClientesQuadro extends LitElement {
     await this.carregar();
   }
 
+  /** Cartão do quadro: nome, temperatura, o último sinal ("Abriu a seleção 2x") e o aviso de abordagem atrasada. */
   private cartao(n: Linha) {
+    const sinal = n.ultimo_sinal as { texto: string } | null | undefined;
     return html`<urbi-stack>
       <urbi-prosa>${n.contato_nome}</urbi-prosa>
       <urbi-prosa papel="secundario">${n.titulo}${n.valor_estimado_c ? ` · ${reais(n.valor_estimado_c)}` : ''}</urbi-prosa>
+      ${sinal?.texto ? html`<urbi-prosa papel="fraco" truncar>${sinal.texto}</urbi-prosa>` : nothing}
       <urbi-linha quebrar>
         ${chip('temperatura', n.temperatura, n.temperatura_motivo)}
-        ${n.abordagem_vencida ? html`<urbi-badge cor="alerta">Abordagem atrasada</urbi-badge>` : ''}
+        ${n.abordagem_vencida ? html`<urbi-badge cor="alerta">Abordagem atrasada</urbi-badge>` : nothing}
       </urbi-linha>
     </urbi-stack>`;
   }
@@ -219,21 +231,22 @@ export class PcClientesQuadro extends LitElement {
     return urbiVerso.href(`/clientes?${q}`);
   }
 
-  /** As taxas entre etapas vizinhas, em uma linha: "Novo → Em atendimento 86%". */
+  /** As taxas entre etapas vizinhas em números (P03): "86%" sobre "Novo → Em atendimento". */
   private taxas() {
     const nome = new Map(this.quadro!.etapas.map((e) => [e.id, e.nome]));
     const com = (this.quadro!.passagem ?? []).filter((p) => p.taxa !== null);
-    if (!com.length) return '';
-    return html`<urbi-linha quebrar>
-      ${com.map((p) => html`<urbi-badge title=${`${p.passaram} de ${p.chegaram} negócios`}>${nome.get(p.de_etapa_id)} → ${nome.get(p.para_etapa_id)} ${Math.round(p.taxa * 100)}%</urbi-badge>`)}
-    </urbi-linha>`;
+    if (!com.length) return nothing;
+    // 140px é o piso do urbi-kpi no contrato; no centro cabem quatro lado a lado.
+    return html`<urbi-grid min="140px">
+      ${com.map((p) => html`<urbi-kpi rotulo=${`${nome.get(p.de_etapa_id)} → ${nome.get(p.para_etapa_id)}`} formato="texto" .valor=${`${Math.round(p.taxa * 100)}%`} title=${`${p.passaram} de ${p.chegaram} negócios`}></urbi-kpi>`)}
+    </urbi-grid>`;
   }
 
   render() {
     if (this.falha && !this.quadro) {
       return html`<urbi-banner variante="erro">
         ${this.falha}
-        <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
+        <urbi-botao slot="acao" variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
       </urbi-banner>`;
     }
     if (!this.quadro) return html`<urbi-loading></urbi-loading>`;
@@ -242,18 +255,19 @@ export class PcClientesQuadro extends LitElement {
     const abertos = this.quadro.negocios.filter((n) => this.quadro!.etapas.find((e) => e.id === n.etapa_id)?.tipo === 'aberta').length;
     const listas = this.quadro.etapas.map((e) => ({ id: String(e.id), label: e.nome }));
     const itens = this.quadro.negocios.map((n) => ({ ...n, id: String(n.id), lista: String(n.etapa_id), label: n.contato_nome, variante: n.abordagem_vencida ? 'alerta' : '' }));
-    const filtrado = ['temperatura', 'parado_dias', 'pronto'].some((k) => f.get(k));
-    return html`<urbi-stack>
-      ${this.falha ? html`<urbi-banner variante="erro">${this.falha}</urbi-banner>` : ''}
+    const filtrado = ['temperatura', 'pronto'].some((k) => f.get(k));
+    return html`<urbi-stack expandir>
+      ${this.falha ? html`<urbi-banner variante="erro">${this.falha}</urbi-banner>` : nothing}
       <urbi-linha justificar="entre" quebrar>
-        <urbi-prosa papel="titulo">Funil de ${NOME_FUNIL[pipeline].toLowerCase()} (${abertos} ${abertos === 1 ? 'aberto' : 'abertos'})</urbi-prosa>
+        <urbi-prosa papel="titulo">Funil de ${NOME_FUNIL[pipeline].toLowerCase()}</urbi-prosa>
+        <urbi-badge cor="info">${abertos} ${abertos === 1 ? 'aberto' : 'abertos'}</urbi-badge>
       </urbi-linha>
       ${this.taxas()}
       ${itens.length
-        ? html`<urbi-kanban .listas=${listas} .itens=${itens} .render_item=${(n: Linha) => this.cartao(n)}
+        ? html`<urbi-kanban expandir .listas=${listas} .itens=${itens} .render_item=${(n: Linha) => this.cartao(n)}
             .href_item=${(n: Linha) => this.hrefDo(n)}
             @urbi:kanban-mover=${(e: CustomEvent) => this.mover(e)}></urbi-kanban>`
-        : html`<urbi-estado-vazio icone="fa-solid fa-filter" mensagem=${filtrado ? 'Nenhum negócio com estes filtros' : 'Nenhum negócio neste funil'}
+        : html`<urbi-estado-vazio expandir icone="fa-solid fa-filter" mensagem=${filtrado ? 'Nenhum negócio com estes filtros' : 'Nenhum negócio neste funil'}
             submensagem="Abra negócios pela ficha de cada cliente."></urbi-estado-vazio>`}
     </urbi-stack>`;
   }

@@ -78,6 +78,12 @@ export function chip(tipo: TipoChip, valor: string | { nome: string; tipo: strin
   return html`<urbi-badge cor=${cor} title=${motivo ?? nothing} ?quebra-linha=${livre}>${rotulo}</urbi-badge>`;
 }
 
+/**
+ * A tela está no celular (≤ 900 px, o corte dos primitivos de layout; ui.md § política mobile do fill).
+ * Lido a cada desenho: a tela que muda de forma no celular (M1) pergunta aqui, sem CSS próprio.
+ */
+export const noCelular = (): boolean => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 900px)').matches;
+
 // Estado na URL (overview.md § Navegação SPA): a sub-rota vem de `href(subRota())`, a query é da
 // tela. `replaceState` para filtro não empilhar uma entrada de histórico a cada tecla.
 

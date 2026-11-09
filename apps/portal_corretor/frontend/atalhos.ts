@@ -193,8 +193,11 @@ export function abrirBusca() {
   });
 }
 
-/** Criar pelo teclado: as mesmas opções do botão Criar, num formulário de uma escolha (conta trocada com ele aberto: nada). */
-function criarPeloTeclado() {
+/**
+ * Criar pelo teclado (`C`) e pela linha de atalhos do celular (M1): as mesmas opções do botão Criar, num
+ * formulário de uma escolha (conta trocada com ele aberto: nada).
+ */
+export function abrirCriar() {
   return noGesto(async (g) => {
     const r = await g.esperar(urbiVerso.formulario({
       titulo: 'Criar',
@@ -221,7 +224,7 @@ export function instalarAtalhos(corretor: () => boolean): () => void {
       if (!corretor()) return;
       e.preventDefault();
       if (acao === 'buscar') void abrirBusca();
-      else if (acao === 'criar') void criarPeloTeclado();
+      else if (acao === 'criar') void abrirCriar();
       else alternarAssistente();
       return;
     }

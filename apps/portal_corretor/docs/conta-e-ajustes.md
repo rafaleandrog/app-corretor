@@ -116,6 +116,6 @@ volta junto com o WhatsApp, quando houver mensagem para medir. O valor gravado c
 - **Consentimento:** cada cliente diz se aceita receber mensagens suas e do atendimento automático.
   Você registra ou revoga isso na ficha dele, no cartão **Cadastro** (aba Resumo). A seção tem o
   atalho **Abrir Clientes**.
-- **Exportar contatos:** baixa a planilha com os contatos da sua conta, a mesma do botão Exportar
-  de Clientes. Para tirar um contato da lista, use **Remover** na ficha dele: o histórico fica
-  guardado.
+- **Exportar contatos:** baixa a planilha com os contatos da sua conta, a mesma do botão
+  **Exportar dados** da ficha do cliente (cartão Privacidade). Para tirar um contato da lista, use
+  **Remover cliente** no mesmo cartão: o histórico fica guardado.

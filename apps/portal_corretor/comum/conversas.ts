@@ -138,3 +138,42 @@ export function haQuanto(iso: string | Date | null | undefined, agora = Date.now
   if (d === 1) return 'ontem';
   return `há ${d} dias`;
 }
+
+/** Um horário livre para a visita (P02 › Agendar visita): o instante ISO e o rótulo que o corretor lê. */
+export interface HorarioLivre {
+  iso: string;
+  rotulo: string;
+}
+
+/**
+ * Horários livres dos próximos dias para marcar uma visita (D-127): de hora em hora, das 9 h às 18 h,
+ * nos `dias` seguintes, tirando os que batem com as atividades pendentes do corretor (uma hora de
+ * folga para cada lado de cada atividade). Puro: a tela lê `GET /atividades?status=pendente` e passa.
+ */
+export function horariosLivres(ocupados: { quando?: string | Date | null }[], agora = new Date(), dias = 5): HorarioLivre[] {
+  const livres: HorarioLivre[] = [];
+  const marcados = ocupados.map((a) => (a.quando ? new Date(a.quando).getTime() : NaN)).filter((t) => !Number.isNaN(t));
+  const HORA = 3600e3;
+  const minimo = agora.getTime() + HORA; // nada para "daqui a pouco"
+  for (let d = 0; d <= dias; d++) {
+    const dia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + d);
+    if (dia.getDay() === 0) continue; // domingo
+    for (let h = 9; h <= 18; h++) {
+      const t = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate(), h, 0, 0, 0);
+      if (t.getTime() < minimo) continue;
+      if (marcados.some((m) => Math.abs(m - t.getTime()) < HORA)) continue;
+      const quando = d === 0 ? 'Hoje' : d === 1 ? 'Amanhã' : t.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      livres.push({ iso: t.toISOString(), rotulo: `${quando} · ${String(h).padStart(2, '0')}:00` });
+    }
+  }
+  return livres;
+}
+
+/** Texto da confirmação da visita que vai ao cliente (pelo WhatsApp do celular) e fica na conversa. */
+export function mensagemDaVisita(nomeContato: string, quando: string | Date, imovel: { codigo?: string | null; titulo?: string | null; bairro?: string | null } | null): string {
+  const d = new Date(quando);
+  const dia = d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const onde = imovel ? ` ao ${imovel.titulo ?? imovel.codigo ?? 'imóvel'}${imovel.bairro ? ` (${imovel.bairro})` : ''}` : '';
+  return `${nomeContato.split(' ')[0]}, visita marcada${onde}: ${dia}, às ${hora}. Qualquer imprevisto, me avise por aqui.`;
+}

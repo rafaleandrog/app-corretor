@@ -9,9 +9,9 @@ A partir da versão 0.1.13 o app guarda as **negociações**: a etapa em que o c
 **Negociador**, o assistente de negociação do app) troca propostas com o comprador até um acordo.
 Na versão 0.1.16 chega o **Negociador IA**: ele lê a conversa, sugere o próximo movimento e
 confere cada sugestão contra o mandato antes de qualquer coisa sair. Na versão 0.1.23 chegam as
-telas: **Clientes › Negociações**, o formulário do **mandato** e a aba **Negociação** na ficha do
-cliente (ver [As telas da negociação](#as-telas-da-negociação)). Na versão 0.1.27 chega a seção
-**Ajustes › Negociador** (ver [Ajustes do Negociador](#ajustes-do-negociador)). Na versão 0.1.28
+telas: **Clientes › Negociações**, o formulário do **mandato** e o cartão **Negociação** na aba
+**Negócios** da ficha do cliente (ver [As telas da negociação](#as-telas-da-negociação)). Na
+versão 0.1.27 chega a seção **Ajustes › Negociador** (ver [Ajustes do Negociador](#ajustes-do-negociador)). Na versão 0.1.28
 chega o **negociador humano**: uma pessoa que o corretor convida para conduzir negociações (ver
 [Negociador humano](#negociador-humano)). Na 0.1.35 a conferência de sigilo passa a deixar sair
 alguns formatos comuns ("W3 Sul", "Apto 2B"), com o critério de equivalência decidido pelo dono (ver
@@ -120,7 +120,7 @@ O formulário confere enquanto você digita, com as mesmas regras da gravação 
 pedido, concessão com contrapartida, faz sozinho com a autorização), e **Salvar mandato** só liga
 sem erro. Cada gravação é uma versão nova.
 
-### Nova proposta e a aba Negociação
+### Nova proposta e o cartão Negociação
 
 **Criar › Nova proposta** (e **Registrar proposta**, no cliente escolhido do Funil) pede o cliente,
 o imóvel e o valor oferecido. A oferta cai sempre numa negociação **do imóvel escolhido** (um negócio
@@ -134,8 +134,8 @@ tem uma negociação em andamento por vez):
 
 Depois abre a negociação.
 
-Na ficha do cliente, a aba **Negociação** lista as negociações dele, com a última oferta e o
-estado; tocar numa delas abre Clientes › Negociações. **Nova proposta**, no pé do cartão, abre o
+Na ficha do cliente, aba **Negócios**, o cartão **Negociação** lista as negociações dele, com a
+última oferta e o estado; tocar numa delas abre Clientes › Negociações. **Nova proposta**, no pé do cartão, abre o
 mesmo registro com o cliente já escolhido.
 
 ## Negociação
