@@ -265,8 +265,10 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     assert.match(f.centro, /Ana Ribeiro/);
     assert.match(f.centro, /Conversa/);
     assert.match(f.centro, /Resumir/);
-    assert.match(f.centro, /Próximo passo/, 'a aba Resumo abre com o próximo passo');
-    assert.deepEqual(f.abas, ['Resumo', 'Linha do tempo', 'Enviados', 'Negócios', 'Negociação']);
+    assert.match(f.centro, /Registrar contato/, 'a ficha abre na Linha do tempo (D-117)');
+    assert.equal(f.ativa, 'linha');
+    assert.deepEqual(f.abas, ['Resumo', 'Linha do tempo', 'Enviados', 'Negócios 1'], 'quatro abas, com a contagem');
+    assert.match(f.direita, /Editar perfil/);
     assert.match(f.direita, /Perfil de busca/);
     assert.match(f.direita, /Moradia/);
     assert.match(f.direita, /Sudoeste/);
@@ -373,6 +375,12 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     await esperar();
     assert.equal(await sugestoes(), 1, '(a) primeira abertura com sugerir sugere uma vez');
     assert.equal(await pagina.evaluate(() => location.search), '?item=7', 'o ?sugerir=1 sai do endereço');
+    // "Fazer agora" de Hoje chega sem `?secao=`: a ficha abre no Resumo, com o Próximo passo e a mensagem à vista.
+    assert.equal(await aba(), 'resumo', '(a) com sugerir e sem secao, a aba Resumo abre com o próximo passo');
+    const centro = await pagina.evaluate(() => (window as any).profundo(document.querySelector('pc-ficha-contato-foco')));
+    assert.match(centro, /Próximo passo/);
+    assert.match(centro, /Oi, Ana!/, '(a) a mensagem sugerida aparece sem clicar em nada');
+    assert.match(centro, /Fazer agora/, '(a) com o botão que abre o WhatsApp');
     await pagina.evaluate(() => {
       const w = window as any;
       w.achar(document.querySelector('pc-ficha-contato-foco'), 'urbi-abas').dispatchEvent(new CustomEvent('urbi:aba-selecionar', { detail: { id: 'enviados' }, bubbles: true, composed: true }));
@@ -387,7 +395,7 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
     assert.equal(await aba(), 'linha', '(c) a aba vem do endereço');
     await chegar('?item=7');
     assert.equal(await sugestoes(), 2, '(d) voltar sem sugerir não sugere');
-    assert.equal(await aba(), 'resumo', '(d) aba padrão');
+    assert.equal(await aba(), 'linha', '(d) aba padrão: a Linha do tempo (D-117)');
   } finally {
     await navegador.close();
   }

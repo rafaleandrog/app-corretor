@@ -35,45 +35,118 @@ export function primeirosPassos(estado: EstadoConta): PassoInicial[] {
 }
 
 /**
- * Ação de cada cartão da fila (princípio 14): **um** botão principal e no máximo um secundário, no
- * "Mais". A tela liga cada nome ao que ele faz.
+ * Ação de cada cartão da fila (princípio 14, spec 11.1 P01): **um** botão principal, no máximo um
+ * secundário visível (como "Falar com Ana", que abre a conversa do contato) e o resto no "Mais", onde
+ * "Agora não" (adiar) entra em todo cartão de contato. A tela liga cada nome ao que ele faz.
  */
-export type AcaoFila = 'fazer_agora' | 'abrir' | 'fiz' | 'visita_feita';
+export type AcaoFila = 'fazer_agora' | 'abrir' | 'fiz' | 'visita_feita' | 'falar' | 'responder' | 'registrar_proposta' | 'revisar' | 'abrir_imovel';
 
-export const ACOES_FILA: Record<TipoFila, { principal: AcaoFila; secundaria: AcaoFila | null }> = {
-  quente_sem_resposta: { principal: 'fazer_agora', secundaria: null },
-  abordagem_vencida: { principal: 'fazer_agora', secundaria: 'fiz' },
-  visita: { principal: 'abrir', secundaria: 'visita_feita' },
-  proximo_passo: { principal: 'abrir', secundaria: null },
+export const ACOES_FILA: Record<TipoFila, { principal: AcaoFila; secundaria: AcaoFila | null; mais: AcaoFila[] }> = {
+  quente_sem_resposta: { principal: 'fazer_agora', secundaria: 'falar', mais: [] },
+  abordagem_vencida: { principal: 'fazer_agora', secundaria: 'falar', mais: ['fiz'] },
+  visita: { principal: 'abrir', secundaria: 'falar', mais: ['visita_feita'] },
+  proposta_recebida: { principal: 'responder', secundaria: 'registrar_proposta', mais: [] },
+  proximo_passo: { principal: 'abrir', secundaria: 'falar', mais: [] },
+  peca_aguardando: { principal: 'revisar', secundaria: null, mais: [] },
+  prazo_autorizacao: { principal: 'abrir_imovel', secundaria: null, mais: [] },
 };
 
-/** Chip de tipo do cartão da fila. */
-export const TIPO_NA_FILA: Record<TipoFila, string> = {
-  quente_sem_resposta: 'Quente',
-  abordagem_vencida: 'Atrasada',
+/** Chip de MOTIVO do cartão da fila: diz por que o item está aqui, nunca repete a temperatura (issue #175). */
+export const MOTIVO_NA_FILA: Record<TipoFila, string> = {
+  quente_sem_resposta: 'Sem resposta',
+  abordagem_vencida: 'Abordagem atrasada',
   visita: 'Visita',
-  proximo_passo: 'Próximo passo',
+  proposta_recebida: 'Proposta recebida',
+  proximo_passo: 'Retorno vencido',
+  peca_aguardando: 'Peça aguardando',
+  prazo_autorizacao: 'Autorização vencendo',
 };
+
+/** O chip da visita diz o dia ("Visita hoje", "Visita amanhã"); os demais, o rótulo fixo. */
+export function motivoDoItem(i: { tipo: TipoFila; quando?: string | null }, agora = new Date()): string {
+  if (i.tipo !== 'visita' || !i.quando) return MOTIVO_NA_FILA[i.tipo];
+  const dia = new Date(i.quando);
+  return dia.toDateString() === agora.toDateString() ? 'Visita hoje' : dia.toDateString() === new Date(agora.getTime() + 86400e3).toDateString() ? 'Visita amanhã' : 'Visita';
+}
 
 /** Cartões que aparecem antes do "Mais N para depois". */
 export const FILA_VISIVEL = 8;
 
+/** Um item da fila como a rota o devolve (o que a dica lê). */
+export interface ItemDaFila {
+  tipo: TipoFila;
+  contato_id: number | null;
+  contato_nome: string;
+  texto: string;
+  peca_id?: number | null;
+}
+
+/** A ação que a dica propõe, no formato que `validarAcao` (comum/assistente) confere. */
+export interface AcaoDaDica {
+  tipo: 'criar_atividade' | 'agendar_peca';
+  tipo_atividade?: 'tarefa' | 'ligacao' | 'mensagem' | 'retorno';
+  titulo?: string;
+  quando: string;
+  contato_id?: number;
+  peca_id?: number;
+}
+
 /**
- * Dica do Assistente (P01, direita): uma sugestão concreta a partir do que a tela já tem. O botão
- * abre o Assistente; nada é executado sem o corretor pedir.
+ * Instante (ISO) de `hora`:00 do dia `deslocamentoDias` depois de hoje, NO FUSO da conta (e não no do
+ * processo: o backend roda em UTC). Sem biblioteca: lê o deslocamento do fuso pelo `Intl` naquele dia e
+ * confere de novo no instante achado (troca de horário de verão no meio do caminho).
  */
-export function dicaDoAssistente(fila: { tipo: TipoFila }[], passos: PassoInicial[]): string {
-  const quentes = fila.filter((i) => i.tipo === 'quente_sem_resposta').length;
-  if (quentes) {
-    return quentes === 1
-      ? 'Um cliente quente está sem resposta. Peça ao Assistente uma mensagem para retomar a conversa.'
-      : `${quentes} clientes quentes estão sem resposta. Peça ao Assistente uma mensagem para cada um.`;
+export function horaLocalNoFuso(agora: Date, fuso: string, deslocamentoDias: number, hora: number): string {
+  const hoje = agora.toLocaleDateString('sv-SE', { timeZone: fuso });
+  const [a, m, d] = hoje.split('-').map(Number);
+  const alvo = new Date(Date.UTC(a, m - 1, d + deslocamentoDias, hora));
+  // Diferença do relógio do fuso para o UTC no instante dado (ex.: -3 h em Brasília).
+  const desvio = (t: Date) => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: fuso, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(t).map((x) => [x.type, x.value]));
+    return Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute), Number(p.second)) - Math.floor(t.getTime() / 1000) * 1000;
+  };
+  let instante = new Date(alvo.getTime() - desvio(alvo));
+  const ajuste = desvio(instante);
+  if (alvo.getTime() - ajuste !== instante.getTime()) instante = new Date(alvo.getTime() - ajuste);
+  return instante.toISOString();
+}
+
+/**
+ * Dica do Assistente (P01, direita): uma sugestão concreta a partir do que a tela já tem e, quando há
+ * algo a fazer, UMA ação proposta (criar um lembrete, agendar a peça), que a rota valida por
+ * `validarAcao` e a tela executa só depois da confirmação do corretor. Sem ação, o botão abre o
+ * Assistente com a pergunta pronta.
+ */
+export function dicaDoAssistente(fila: ItemDaFila[] | { tipo: TipoFila }[], passos: PassoInicial[], agora = new Date(), fuso = 'America/Sao_Paulo'): { texto: string; acao: AcaoDaDica | null } {
+  const itens = fila as ItemDaFila[];
+  const daqui = (horas: number) => new Date(agora.getTime() + horas * 3600e3).toISOString();
+  const quentes = itens.filter((i) => i.tipo === 'quente_sem_resposta');
+  if (quentes.length) {
+    const q = quentes[0];
+    const acao: AcaoDaDica | null = q.contato_id ? { tipo: 'criar_atividade', tipo_atividade: 'ligacao', titulo: `Responder ${q.contato_nome}`.slice(0, 120), quando: daqui(1), contato_id: q.contato_id } : null;
+    return {
+      texto: quentes.length === 1
+        ? `${q.contato_nome} está quente e sem resposta. Posso criar um lembrete para responder em 1 hora.`
+        : `${quentes.length} clientes quentes estão sem resposta. Comece por ${q.contato_nome}: posso criar um lembrete para daqui a 1 hora.`,
+      acao,
+    };
   }
-  const atrasadas = fila.filter((i) => i.tipo === 'abordagem_vencida').length;
-  if (atrasadas) return `Há ${atrasadas === 1 ? 'uma abordagem atrasada' : `${atrasadas} abordagens atrasadas`}. Pergunte ao Assistente por onde começar.`;
+  const atrasadas = itens.filter((i) => i.tipo === 'abordagem_vencida');
+  if (atrasadas.length) {
+    const a = atrasadas[0];
+    const acao: AcaoDaDica | null = a.contato_id ? { tipo: 'criar_atividade', tipo_atividade: 'retorno', titulo: `Retomar ${a.contato_nome}`.slice(0, 120), quando: daqui(2), contato_id: a.contato_id } : null;
+    return { texto: `Há ${atrasadas.length === 1 ? 'uma abordagem atrasada' : `${atrasadas.length} abordagens atrasadas`}. Posso criar um retorno para ${a.contato_nome} daqui a 2 horas.`, acao };
+  }
+  const peca = itens.find((i) => i.tipo === 'peca_aguardando' && i.peca_id);
+  if (peca) {
+    // Amanhã às 18 h no fuso da conta (horário em que os contatos chegam mais), em ISO: a rota valida a
+    // janela de 5 min a 90 dias e escreve o resumo no mesmo fuso. O título da peça vem em `contato_nome`
+    // (o item da peça não tem contato); `texto` é o motivo ("Aprovada em … e sem data para publicar").
+    return { texto: `A peça "${peca.contato_nome}" está aprovada e sem data. Posso agendar para amanhã às 18 h.`, acao: { tipo: 'agendar_peca', peca_id: peca.peca_id!, quando: horaLocalNoFuso(agora, fuso, 1, 18) } };
+  }
   const falta = passos.find((p) => !p.feito);
-  if (falta) return `Próximo passo para deixar a conta pronta: ${falta.rotulo.toLowerCase()}. O Assistente explica como.`;
-  return 'Nada urgente agora. Pergunte ao Assistente quais clientes vale a pena retomar esta semana.';
+  if (falta) return { texto: `Próximo passo para deixar a conta pronta: ${falta.rotulo.toLowerCase()}. O Assistente explica como.`, acao: null };
+  return { texto: 'Nada urgente agora. Pergunte ao Assistente quais clientes vale a pena retomar esta semana.', acao: null };
 }
 
 // ---------- Carga de Hoje: de qual conta são os dados que a tela pode desenhar ----------

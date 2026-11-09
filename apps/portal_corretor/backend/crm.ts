@@ -22,6 +22,8 @@ import { iso, MARCO_PADRAO } from '../comum/funil';
 import { entrarPelaEtapaProposta } from './negociador-entrada';
 import { marcoMaisAvancado } from '../comum/numeros';
 import { programarLembreteVisita } from './lembretes';
+import { payloadDaMensagem, registrarMensagem } from './conversas';
+import { linkWhatsapp } from '../comum/pagina';
 
 const marcoDe = (e: Record<string, any> | null | undefined): string | null => (e ? (e.marco ?? MARCO_PADRAO[e.nome] ?? null) : null);
 
@@ -104,6 +106,19 @@ export async function etapasDaConta(dados: HelperDados, pipeline?: Pipeline) {
   return r.dados.filter((e) => !pipeline || e.pipeline === pipeline);
 }
 
+/**
+ * Canal e campanha do contato pela `origem_id` (issue #186): o framework junta `origem_canal` e
+ * `origem_campanha` pelo `campos_incluir` nas listas; a ficha e a exportação garantem os dois mesmo
+ * quando a leitura vem sem a junção, como faz `negociosParaNumeros`.
+ */
+async function origensPorId(dados: HelperDados): Promise<Map<number, Record<string, any>>> {
+  return new Map((await dados.varrerTudo('origens', { maximo: 5000 })).map((o) => [Number(o.id), o]));
+}
+const origemDe = (c: Record<string, any>, origens: Map<number, Record<string, any>>) => {
+  const o = c.origem_id ? origens.get(Number(c.origem_id)) : undefined;
+  return { canal: c.origem_canal ?? o?.canal ?? null, campanha: c.origem_campanha ?? o?.campanha ?? null };
+};
+
 // ---------- Contatos ----------
 
 crmRotas.get(
@@ -157,7 +172,16 @@ crmRotas.get(
       pagina,
       por_pagina: POR_PAGINA,
     });
-    res.json(r);
+    // A etapa do negócio em andamento de cada contato da página (P04: lista com etapa, origem e temperatura).
+    const ids = r.dados.map((c) => c.id);
+    const negocios = ids.length ? await req.dados!.listar('negocios', { filtros: { contato_id: ids.join(',') }, ordenar: 'etapa_desde', ordem: 'desc', por_pagina: 500 }) : { dados: [] as Record<string, any>[] };
+    const etapas = await etapasPorId(req.dados!);
+    const etapaDe = new Map<number, string>();
+    for (const n of negocios.dados) {
+      const e = etapas.get(n.etapa_id);
+      if (e?.tipo === 'aberta' && !etapaDe.has(Number(n.contato_id))) etapaDe.set(Number(n.contato_id), String(e.nome));
+    }
+    res.json({ ...r, dados: r.dados.map((c) => ({ ...c, etapa_nome: etapaDe.get(Number(c.id)) ?? null })) });
   }),
 );
 
@@ -191,11 +215,12 @@ crmRotas.post(
 crmRotas.get(
   '/contatos/exportar',
   assincrono(async (req, res) => {
-    const linhas = await req.dados!.varrerTudo('contatos', { ordenar: 'nome', ordem: 'asc', maximo: 50000 });
+    const dados = req.dados!;
+    const [linhas, origens] = await Promise.all([dados.varrerTudo('contatos', { ordenar: 'nome', ordem: 'asc', maximo: 50000 }), origensPorId(dados)]);
     const csv = gerarCsv(
       ['Nome', 'Telefone', 'E-mail', 'Papéis', 'Temperatura', 'Origem', 'Campanha', 'Próximo passo', 'Próximo passo em', 'Cadastrado em'],
       linhas.map((c) => [
-        c.nome, c.telefone, c.email, c.papeis, c.temperatura, c.origem_canal, c.origem_campanha,
+        c.nome, c.telefone, c.email, c.papeis, c.temperatura, origemDe(c, origens).canal, origemDe(c, origens).campanha,
         c.proximo_passo, c.proximo_passo_em ? new Date(c.proximo_passo_em).toLocaleString('pt-BR', { timeZone: req.contexto?.fuso }) : '',
         new Date(c.criado_em).toLocaleDateString('pt-BR', { timeZone: req.contexto?.fuso }),
       ]),
@@ -306,7 +331,9 @@ crmRotas.get(
       dados.listar('classificacoes', { filtros: { contato_id: cid }, ordenar: 'em', ordem: 'desc', por_pagina: 10 }),
     ]);
     const abordagem = proximaAbordagem(contato, negocios.dados, etapas, playbook);
-    res.json({ contato, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, abordagem, classificacoes: classificacoes.dados });
+    const origem = contato.origem_id ? await dados.buscar('origens', Number(contato.origem_id)) : null;
+    const comOrigem = { ...contato, origem_canal: contato.origem_canal ?? origem?.canal ?? null, origem_campanha: contato.origem_campanha ?? origem?.campanha ?? null };
+    res.json({ contato: comOrigem, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, abordagem, classificacoes: classificacoes.dados });
   }),
 );
 
@@ -553,9 +580,40 @@ crmRotas.get(
     if (typeof req.query.status === 'string' && ['pendente', 'feita', 'cancelada', 'nao_compareceu'].includes(req.query.status)) {
       filtros.status = req.query.status;
     }
+    // `?contato_id=` (issue #196): só as atividades daquele contato; valor que não é id é recusado.
+    if (req.query.contato_id !== undefined) {
+      const cid = id(req.query.contato_id);
+      if (!cid) return erro(res, 422, 'DADOS_INVALIDOS', 'contato_id inválido.');
+      filtros.contato_id = cid;
+    }
+    const dados = req.dados!;
     // Literal no backend é obedecido (banco-de-dados.md); a tela avisa quando `total` passa disso.
-    const r = await req.dados!.listar('atividades', { filtros, ordenar: 'quando', ordem: 'asc', por_pagina: 500 });
-    res.json(r);
+    const r = await dados.listar('atividades', { filtros, ordenar: 'quando', ordem: 'asc', por_pagina: 500 });
+    // Nome do contato e código do imóvel da visita junto de cada atividade (issue #196), mesmo quando a
+    // leitura vem sem a junção automática.
+    const idsContato = [...new Set(r.dados.map((a) => a.contato_id).filter(Boolean))];
+    const idsVisita = r.dados.filter((a) => a.tipo === 'visita').map((a) => a.id);
+    const [contatos, visitas] = await Promise.all([
+      idsContato.length ? dados.varrerTudo('contatos', { filtros: { id: idsContato.join(',') }, maximo: 1000 }) : [],
+      idsVisita.length ? dados.listar('visitas', { filtros: { atividade_id: idsVisita.join(',') }, por_pagina: 500 }) : { dados: [] as Record<string, any>[] },
+    ]);
+    const imoveisIds = [...new Set(visitas.dados.map((v) => v.imovel_id).filter(Boolean))];
+    const imoveis = imoveisIds.length ? await dados.varrerTudo('imoveis', { filtros: { id: imoveisIds.join(',') }, maximo: 500 }) : [];
+    const nome = new Map(contatos.map((c) => [Number(c.id), c.nome]));
+    const codigo = new Map(imoveis.map((i) => [Number(i.id), i.codigo]));
+    const visitaDe = new Map(visitas.dados.map((v) => [Number(v.atividade_id), v]));
+    res.json({
+      ...r,
+      dados: r.dados.map((a) => {
+        const v = visitaDe.get(Number(a.id));
+        return {
+          ...a,
+          contato_nome: a.contato_nome ?? (a.contato_id ? (nome.get(Number(a.contato_id)) ?? null) : null),
+          imovel_id: v?.imovel_id ?? null,
+          imovel_codigo: v?.imovel_codigo ?? (v?.imovel_id ? (codigo.get(Number(v.imovel_id)) ?? null) : null),
+        };
+      }),
+    });
   }),
 );
 
@@ -574,6 +632,11 @@ crmRotas.post(
     // Visita a um imóvel ganha o detalhe em `visitas` (retorno do cliente, compartilhar com o proprietário).
     const iid = v.dados.tipo === 'visita' ? id(req.body?.imovel_id) : null;
     if (iid && !(await dados.buscar('imoveis', iid))) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
+    // `confirmacao` (o texto que vai ao cliente) só existe na visita: em outro tipo é recusada, nunca ignorada.
+    const textoConfirmacao = typeof req.body?.confirmacao === 'string' ? req.body.confirmacao.trim().slice(0, 4000) : '';
+    if (req.body?.confirmacao != null && v.dados.tipo !== 'visita') return erro(res, 422, 'DADOS_INVALIDOS', 'A confirmação ao cliente só vale para a visita.');
+    // Visita marcada só pelo negócio: a confirmação vai ao contato do negócio (lido pela conta ativa).
+    const contatoDaConfirmacao = textoConfirmacao ? (contato ?? (negocio?.contato_id ? await dados.buscar('contatos', Number(negocio.contato_id)) : null)) : null;
     const atividade = await dados.transaction(async (trx) => {
       const a = await trx.criar('atividades', {
         status: 'pendente',
@@ -585,18 +648,52 @@ crmRotas.post(
       if (iid) await trx.criar('visitas', { atividade_id: a.id, imovel_id: iid });
       return a;
     });
-    await programarLembreteVisita(req, atividade);
-    await publicarEvento(req, 'atividade_criada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, tipo: String(atividade.tipo) });
-    if (atividade.tipo === 'visita') await publicarEvento(req, 'visita_agendada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, quando: atividade.quando ? new Date(atividade.quando as string).toISOString() : null });
+    // Daqui em diante a atividade (e a visita) já está gravada: nenhum passo seguinte vira erro para o corretor,
+    // senão a gaveta ficaria aberta e a repetição criaria outra visita, outro lembrete e outra confirmação.
+    // Cada passo falha sozinho e vai ao log com o id da atividade.
+    const semErro = async <T>(nome: string, fn: () => Promise<T>): Promise<T | null> => {
+      try {
+        return await fn();
+      } catch (e) {
+        console.warn(`[portal_corretor] atividade ${atividade.id}: ${nome} não concluído: ${(e as Error).message}`);
+        return null;
+      }
+    };
+    await semErro('lembrete da visita', () => programarLembreteVisita(req, atividade));
+    await semErro('evento atividade_criada', () => publicarEvento(req, 'atividade_criada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, tipo: String(atividade.tipo) }));
+    if (atividade.tipo === 'visita') await semErro('evento visita_agendada', () => publicarEvento(req, 'visita_agendada', { atividade_id: Number(atividade.id), contato_id: atividade.contato_id ?? null, negocio_id: atividade.negocio_id ?? null, quando: atividade.quando ? new Date(atividade.quando as string).toISOString() : null }));
+    // Agendar visita da Conversa (P02, D-127): `confirmacao` entra na conversa do contato nesta mesma chamada,
+    // como consequência da visita criada; `conversa_id` nulo na resposta quando a mensagem não entrou.
+    let confirmacao: { link: string | null; conversa_id: number | null } | undefined;
+    if (textoConfirmacao && contatoDaConfirmacao) {
+      const cont = contatoDaConfirmacao;
+      const link = linkWhatsapp(cont.telefone, textoConfirmacao);
+      confirmacao = { link, conversa_id: null };
+      const r = await semErro('confirmação na conversa', () =>
+        registrarMensagem(dados, { contato_id: Number(cont.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu(req), canal: link ? 'wa_me' : 'registro', tipo: 'texto', conteudo: textoConfirmacao }),
+      );
+      if (r) {
+        confirmacao.conversa_id = Number(r.conversa.id);
+        await semErro('evento mensagem_enviada', async () => req.eventos?.publicar('mensagem_enviada', payloadDaMensagem(r)));
+      }
+      await semErro('linha do tempo da confirmação', () =>
+        registrar(dados, req, {
+          tipo: 'abordagem.feita', alvo_tipo: 'contato', alvo_id: Number(cont.id), contato_id: Number(cont.id),
+          resumo: `Mensagem ${link ? 'pelo WhatsApp' : 'registrada'}: ${textoConfirmacao.slice(0, 200)}`, dados: { canal: link ? 'whatsapp' : 'registro', conversa_id: confirmacao!.conversa_id },
+        }),
+      );
+      await semErro('último contato', () => dados.atualizar('contatos', Number(cont.id), { ultimo_contato_em: agora(), abordagem_adiada_em: null }));
+    }
     if (atividade.contato_id) {
-      await registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: atividade.contato_id, resumo: `${atividade.status === 'feita' ? 'Registrado' : 'Agendado'}: ${atividade.titulo}` });
+      const cidAtividade = Number(atividade.contato_id);
+      await semErro('linha do tempo', () => registrar(dados, req, { tipo: 'atividade.criada', alvo_tipo: 'atividade', alvo_id: atividade.id, contato_id: cidAtividade, resumo: `${atividade.status === 'feita' ? 'Registrado' : 'Agendado'}: ${atividade.titulo}` }));
       if (atividade.tipo === 'visita') {
-        await reclassificar(dados, atividade.contato_id);
+        await semErro('reclassificação', () => reclassificar(dados, cidAtividade));
         // A agenda do portal do cliente mostra as visitas marcadas (bloco 5b).
-        await tentarPortal(dados, req.contexto?.contaEscrita, atividade.contato_id);
+        await semErro('portal do cliente', () => tentarPortal(dados, req.contexto?.contaEscrita, cidAtividade));
       }
     }
-    res.status(201).json(atividade);
+    res.status(201).json(confirmacao ? { ...atividade, confirmacao } : atividade);
   }),
 );
 

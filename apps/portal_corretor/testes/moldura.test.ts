@@ -103,6 +103,7 @@ test('os 7 estados obrigatórios (11.0.4) saem dos primitivos, cada um com a fra
 test('cada endereço antigo abre a tela nova certa (spec 11.0.5, D-103)', () => {
   const esperado: Record<string, string> = {
     '/': 'hoje',
+    '/hoje': 'hoje',
     '/agenda': 'hoje',
     '/assistente': 'hoje',
     '/desempenho': 'numeros',
@@ -156,8 +157,9 @@ test('estrutura da moldura (D-114): três colunas fixas na página do shell, sem
     assert.doesNotMatch(fonte, /\bcss`|style=|<style|static styles/, arq);
   }
   // O cabeçalho da coluna esquerda: título à esquerda, ações e o Assistente (34 px, só ícone) à direita.
+  // O cabeçalho da coluna esquerda: título à esquerda; ações, o Buscar (D-126) e o Assistente (34 px, só ícone) à direita.
   const cab = texto(cabecalhoColuna('Conversas', 'ACOES'));
-  assert.match(cab, /<urbi-linha justificar="entre" alinhar="centro">\s*<urbi-prosa papel="titulo">Conversas<\/urbi-prosa>\s*<urbi-linha>ACOES<urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles"/);
+  assert.match(cab, /<urbi-linha justificar="entre" alinhar="centro">\s*<urbi-prosa papel="titulo">Conversas<\/urbi-prosa>\s*<urbi-linha>ACOES<urbi-botao variante="secundario" icone="fa-solid fa-magnifying-glass" ariaLabel="Buscar" title="Buscar \(\/\)"[^>]*><\/urbi-botao><urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles"/);
   assert.match(texto(botaoAssistenteColuna()), /ariaLabel="Abrir o Assistente"/);
 });
 

@@ -1803,6 +1803,9 @@
         },
         "revogado_em": {
           "tipo": "datahora"
+        },
+        "ultimo_acesso_em": {
+          "tipo": "datahora"
         }
       },
       "unicos": [

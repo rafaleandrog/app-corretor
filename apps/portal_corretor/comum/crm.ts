@@ -116,6 +116,47 @@ export interface DadosContato {
   proximo_passo_em: string | null;
   /** O que o cliente vê no topo do portal (bloco 9); o `proximo_passo` é nota interna e nunca sai. */
   proximo_passo_cliente: string | null;
+  /** Perfil de busca (spec 6.4), editado na ficha (P04 › Editar perfil). */
+  perfil_busca: Record<string, unknown> | null;
+}
+
+const CHAVES_PERFIL = ['finalidade', 'tipos', 'regioes', 'preco_min_c', 'preco_max_c', 'quartos', 'vagas', 'area_min_m2'] as const;
+
+/**
+ * Perfil de busca normalizado (as chaves de `chipsDoPerfilBusca` e `combina`): listas de texto limpas,
+ * números positivos, o resto fora. Vazio vira `null`. Texto inválido (não objeto) também vira `null`.
+ */
+export function normalizarPerfilBusca(v: unknown): Record<string, unknown> | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const p = v as Record<string, unknown>;
+  const lista = (x: unknown) => (Array.isArray(x) ? x : typeof x === 'string' ? x.split(',') : []).map((i) => String(i).trim().slice(0, 60)).filter(Boolean).slice(0, 12);
+  const numero = (x: unknown) => {
+    const n = typeof x === 'number' ? x : typeof x === 'string' && x.trim() ? Number(x.replace(',', '.')) : NaN;
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  };
+  const r: Record<string, unknown> = {};
+  const finalidade = typeof p.finalidade === 'string' ? p.finalidade.trim().slice(0, 40) : '';
+  if (finalidade) r.finalidade = finalidade;
+  for (const k of ['tipos', 'regioes'] as const) {
+    const l = lista(p[k]);
+    if (l.length) r[k] = l;
+  }
+  for (const k of ['preco_min_c', 'preco_max_c', 'quartos', 'vagas', 'area_min_m2'] as const) {
+    const n = numero(p[k]);
+    if (n !== null) r[k] = n;
+  }
+  for (const k of Object.keys(p)) if (!(CHAVES_PERFIL as readonly string[]).includes(k)) delete r[k];
+  return Object.keys(r).length ? r : null;
+}
+
+/** Telefone para a tela: `+5561990000101` vira "(61) 99000-0101" (issue #182); o que não é brasileiro sai como está. */
+export function formatarTelefone(v: string | null | undefined): string {
+  if (!v) return '';
+  const d = String(v).replace(/\D/g, '');
+  const nacional = d.startsWith('55') && (d.length === 12 || d.length === 13) ? d.slice(2) : d;
+  if (nacional.length === 11) return `(${nacional.slice(0, 2)}) ${nacional.slice(2, 7)}-${nacional.slice(7)}`;
+  if (nacional.length === 10) return `(${nacional.slice(0, 2)}) ${nacional.slice(2, 6)}-${nacional.slice(6)}`;
+  return String(v);
 }
 
 function dataHora(v: unknown, campo: string, erros: string[]): string | null {
@@ -169,6 +210,10 @@ export function validarContato(corpo: Record<string, unknown>, parcial = false):
   if (tem('proximo_passo')) dados.proximo_passo = opcional(corpo.proximo_passo, 300);
   if (tem('proximo_passo_em')) dados.proximo_passo_em = dataHora(corpo.proximo_passo_em, 'Próximo passo', erros);
   if (tem('proximo_passo_cliente')) dados.proximo_passo_cliente = opcional(corpo.proximo_passo_cliente, 120);
+  if ('perfil_busca' in corpo) {
+    if (corpo.perfil_busca !== null && (typeof corpo.perfil_busca !== 'object' || Array.isArray(corpo.perfil_busca))) erros.push('Perfil de busca inválido.');
+    else dados.perfil_busca = normalizarPerfilBusca(corpo.perfil_busca);
+  }
   if (!parcial && !dados.telefone && !dados.email) erros.push('Informe telefone ou e-mail para poder falar com o contato.');
   if (erros.length) return { ok: false, erros };
   return { ok: true, dados };

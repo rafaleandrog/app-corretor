@@ -70,7 +70,7 @@ export class PcTelaAgenda extends LitElement {
     return html`<urbi-linha justificar="entre" quebrar>
       <urbi-stack>
         <urbi-prosa>${new Date(a.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · ${ROTULO_TIPO_ATIVIDADE[a.tipo]}: ${a.titulo}</urbi-prosa>
-        <urbi-prosa papel="secundario">${a.contato_nome ?? 'sem cliente'}${a.local ? ` · ${a.local}` : ''}</urbi-prosa>
+        <urbi-prosa papel="secundario">${a.contato_nome ?? 'sem cliente'}${a.imovel_codigo ? ` · ${a.imovel_codigo}` : ''}${a.local ? ` · ${a.local}` : ''}</urbi-prosa>
       </urbi-stack>
       ${this.acoes(a)}
     </urbi-linha>`;
@@ -80,7 +80,7 @@ export class PcTelaAgenda extends LitElement {
     const banner = this.falha
       ? html`<urbi-banner variante="erro">
           ${this.falha}
-          <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
+          <urbi-botao slot="acao" variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
         </urbi-banner>`
       : '';
     // Falha ao recarregar mantém a lista que já estava na tela.
