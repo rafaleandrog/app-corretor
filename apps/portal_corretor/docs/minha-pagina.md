@@ -68,7 +68,7 @@ diz que ela pode estar desatualizada.
 
 - **Refazer a página com IA** sugere a apresentação e o "sobre mim" a partir do que o corretor contar e
   das regiões dos imóveis. A IA não inventa prêmios, anos de experiência nem números. O corretor
-  revisa antes de usar. Usar os textos liga os blocos Apresentação e Sobre mim. Sem a IA liberada, o botão avisa e os textos são escritos à mão.
+  revisa antes de usar. Usar os textos liga os blocos Apresentação e Sobre mim. Sem a IA liberada, o botão avisa e os textos são escritos à mão. Se a IA não responder, o formulário reabre com o que você contou, para tentar de novo (pedir de novo não grava nada).
 - **Publicar** põe a página no ar. **Atualizar agora** refaz a página com o estado atual dos
   imóveis e do perfil. **Tirar do ar** faz a página e as fichas pararem de abrir; o formulário e
   a contagem de cliques param de receber, e os links enviados mostram "Imóvel indisponível".

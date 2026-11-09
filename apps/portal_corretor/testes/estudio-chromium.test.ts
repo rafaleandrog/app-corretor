@@ -87,6 +87,14 @@ window.urbiVerso = {
       return new Promise((resolve) => (window.pendentes ??= []).push({ conta, liberar: (dados) => resolve({ dados, total: dados.length, ia: true }) }));
     }
     if (caminho === '/imoveis') return { dados: [{ id: 5, codigo: 'IM-0005', titulo: 'Casa' }], paginas: 1 };
+    // FALHA_CRIAR (#187): cada criação consome uma falha da fila (um erro, ou uma função que grava e lança).
+    if ((caminho === '/estudio/pedido' || caminho === '/estudio/pacote') && window.FALHA_CRIAR?.length) {
+      const f = window.FALHA_CRIAR.shift();
+      if (typeof f === 'function') f();
+      throw f;
+    }
+    // FALHA_INSTRUCAO (#187): a descrição da peça falha uma vez por item da fila.
+    if (/^\\/estudio\\/pecas\\/\\d+\\/instrucao$/.test(caminho) && window.FALHA_INSTRUCAO?.length) throw window.FALHA_INSTRUCAO.shift();
     // SEGURAR_CRIAR: a criação da conta A fica em voo até o teste liberar.
     if (caminho === '/estudio/pedido' && window.SEGURAR_CRIAR) {
       return new Promise((resolve) => (window.criacoes ??= []).push(() => resolve({ pecas: [{ ...window.PECAS[0], id: 900 }], ia: true })));
@@ -1352,6 +1360,201 @@ test('Estúdio no Chromium: criar em que a instância morre ao fim da carga term
     assert.equal(r.url, '?pedido=901', 'a instância morta não leva a URL ao pedido novo');
     assert.equal(r.avisosDepois, 1, 'só o "peça criada" de antes da carga; nenhum aviso depois da morte');
     assert.deepEqual(r.alertas, []);
+  } finally {
+    await navegador.close();
+  }
+});
+
+// #187 (dívida do #207): os formulários do Estúdio que criam ou preparam não perdem o digitado. Recusado,
+// o formulário reabre com os mesmos valores e a frase do erro; a falha ambígua (rede, 5xx) que já criou
+// as peças não cria de novo. O diálogo responde pela fila `fila` ('MESMO' devolve o que ele mostrou).
+const formularioDeFila = `
+  window.forms = [];
+  window.urbiVerso.formulario = async (f) => {
+    window.forms.push(f);
+    const r = window.fila.shift();
+    return r === 'MESMO' ? Object.fromEntries(f.campos.map((c) => [c.nome, c.valor])) : (r ?? null);
+  };
+`;
+
+test('Estúdio no Chromium (#187): Novo pedido, Criar rápido e Outra ferramenta reabrem com o digitado; a falha ambígua que criou não cria de novo', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(150);
+    const criacoes = () => pagina.evaluate(() => (window as any).chamadas.filter((c: string) => c === 'POST /estudio/pedido').length);
+
+    // Novo pedido recusado (422): reabre com o pedido, o imóvel e os formatos; o reenvio cria uma vez.
+    let r: any = await pagina.evaluate(async (js: string) => {
+      const w = window as any;
+      new Function(js)();
+      w.CRIAR = true;
+      w.avisos = [];
+      w.alertas = [];
+      w.fila = [{ pedido: 'Post da casa', imovel_id: '5', objetivo: 'novo_imovel', f_post_1x1: true, f_story: false }, 'MESMO'];
+      w.FALHA_CRIAR = [Object.assign(new Error('Escolha ao menos um formato.'), { status: 422, codigo: 'DADOS_INVALIDOS' })];
+      await w.estudio.novoPedido('Post da casa');
+      const f = w.forms[1];
+      return { n: w.forms.length, mensagem: f.mensagem, valores: Object.fromEntries(f.campos.map((c: any) => [c.nome, c.valor])), criadas: w.CRIADAS.length, alertas: w.alertas.slice() };
+    }, formularioDeFila);
+    assert.equal(r.n, 2, 'reabriu uma vez');
+    assert.match(r.mensagem, /^Não foi possível salvar: Escolha ao menos um formato\./);
+    assert.equal(r.valores.pedido, 'Post da casa');
+    assert.equal(r.valores.imovel_id, '5');
+    assert.equal(r.valores.f_post_1x1, true);
+    assert.equal(r.criadas, 1, 'uma peça criada, pelo reenvio');
+    assert.deepEqual(r.alertas, [], 'sem alerta solto');
+    assert.equal(await criacoes(), 2);
+
+    // Falha ambígua (rede) depois de o servidor criar: a lista relida traz a peça nova; nada é reenviado.
+    r = await pagina.evaluate(async (js: string) => {
+      const w = window as any;
+      new Function(js)();
+      w.avisos = [];
+      w.fila = [{ pedido: 'Story da casa', imovel_id: '5', objetivo: 'visita_aberta', f_story: true }];
+      // O servidor grava a peça e a resposta se perde (o fetch cai: erro sem status).
+      w.FALHA_CRIAR = [() => {
+        w.CRIADAS.push({ ...w.PECAS[0], id: 950, pedido: 'Story da casa', imovel_id: 5, objetivo: 'visita_aberta', formato: 'story', estado: 'rascunho', arquivos: [], criado_em: new Date().toISOString() });
+        throw new TypeError('Failed to fetch');
+      }];
+      await w.estudio.novoPedido('Story da casa');
+      return { n: w.forms.length, criadas: w.CRIADAS.length, avisos: w.avisos.slice(), url: location.search };
+    }, formularioDeFila);
+    assert.equal(r.n, 1, 'não reabriu: as peças já estavam criadas');
+    assert.equal(r.criadas, 2);
+    assert.match(r.avisos.at(-1), /A resposta demorou, mas 1 peça\(s\) foram criadas/);
+    assert.match(r.url, /pedido=950/);
+    assert.equal(await criacoes(), 3, 'um envio só nesta criação');
+
+    // Criar rápido (Vendido) recusado: reabre com o imóvel e o pedido; Cancelar não envia mais nada.
+    r = await pagina.evaluate(async (js: string) => {
+      const w = window as any;
+      new Function(js)();
+      w.fila = [{ imovel_id: '5', pedido: 'destacar a varanda' }, null];
+      w.FALHA_CRIAR = [Object.assign(new Error('Imóvel não encontrado.'), { status: 422, codigo: 'DADOS_INVALIDOS' })];
+      await w.estudio.criarRapido('vendido');
+      const f = w.forms[1];
+      return { n: w.forms.length, mensagem: f.mensagem, valores: f.campos.map((c: any) => c.valor), criadas: w.CRIADAS.length };
+    }, formularioDeFila);
+    assert.equal(r.n, 2);
+    assert.match(r.mensagem, /Imóvel não encontrado\./);
+    assert.deepEqual(r.valores, ['5', 'destacar a varanda']);
+    assert.equal(r.criadas, 2, 'nada criado');
+    assert.equal(await criacoes(), 4);
+
+    // Outra ferramenta: a descrição (GET) falha; reabre com a ferramenta e as referências escolhidas.
+    r = await pagina.evaluate(async (js: string) => {
+      const w = window as any;
+      new Function(js)();
+      w.alertas = [];
+      w.fila = [{ ferramenta: 'claude_design', r_7: false }, 'MESMO'];
+      w.FALHA_INSTRUCAO = [Object.assign(new Error('Internal Server Error'), { status: 500 })];
+      await w.estudio.outraFerramenta(w.PECAS[0]);
+      const f = w.forms[1];
+      return {
+        n: w.forms.length,
+        mensagem: f.mensagem,
+        valores: f.campos.map((c: any) => c.valor),
+        pedidos: w.chamadas.filter((c: string) => c.startsWith('GET /estudio/pecas/11/instrucao?ferramenta=claude_design')).length,
+        alertas: w.alertas.slice(),
+      };
+    }, formularioDeFila);
+    assert.equal(r.n, 2);
+    assert.match(r.mensagem, /^Não foi possível salvar: Não foi possível concluir agora/);
+    assert.deepEqual(r.valores, ['claude_design', false], 'a ferramenta e a referência desmarcada voltam');
+    assert.equal(r.pedidos, 2, 'a leitura de novo, sem a referência 7');
+    assert.deepEqual(r.alertas, []);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium (#187): falha ambígua (PLATAFORMA_REINICIOU) relê; conjunto completo fecha como criado, parcial reabre avisando', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(150);
+    const nova = (formato: string, id: number) => ({ id, pedido: 'Dois formatos', imovel_id: 5, objetivo: 'novo_imovel', formato, estado: 'rascunho', arquivos: [], criado_em: new Date().toISOString() });
+    // Pediu post e story; o restart perdeu a resposta e só o post existe: não é sucesso, reabre com o aviso.
+    let r: any = await pagina.evaluate(async (js: string) => {
+      const w = window as any;
+      new Function(js)();
+      w.CRIAR = true;
+      w.CRIADAS ??= [];
+      w.avisos = [];
+      w.fila = [{ pedido: 'Dois formatos', imovel_id: '5', objetivo: 'novo_imovel', f_post_1x1: true, f_story: true }, null];
+      w.FALHA_CRIAR = [() => {
+        w.CRIADAS.push({ ...w.PECAS[0], ...{ id: 960, pedido: 'Dois formatos', imovel_id: 5, objetivo: 'novo_imovel', formato: 'post_1x1', estado: 'rascunho', arquivos: [], criado_em: new Date().toISOString() } });
+        throw Object.assign(new Error('A plataforma reiniciou'), { codigo: 'PLATAFORMA_REINICIOU' });
+      }];
+      await w.estudio.novoPedido('Dois formatos').catch((e: Error) => { if (e.message !== 'cancelado') throw e; });
+      return { n: w.forms.length, mensagem: w.forms[1]?.mensagem, avisos: w.avisos.slice() };
+    }, formularioDeFila);
+    assert.equal(r.n, 2, 'reabriu');
+    assert.match(r.mensagem, /Algumas peças já foram criadas; confira em Peças antes de pedir de novo\./);
+    assert.deepEqual(r.avisos, []);
+
+    // Conjunto completo: fecha como criado, sem reenviar.
+    r = await pagina.evaluate(async ({ js, linhas }: { js: string; linhas: any[] }) => {
+      const w = window as any;
+      new Function(js)();
+      w.CRIAR = true;
+      w.CRIADAS ??= [];
+      w.avisos = [];
+      w.fila = [{ pedido: 'Dois formatos', imovel_id: '5', objetivo: 'novo_imovel', f_post_1x1: true, f_story: true }];
+      w.FALHA_CRIAR = [() => {
+        for (const l of linhas) w.CRIADAS.push({ ...w.PECAS[0], ...l });
+        throw Object.assign(new Error('A plataforma reiniciou'), { codigo: 'PLATAFORMA_REINICIOU' });
+      }];
+      await w.estudio.novoPedido('Dois formatos');
+      return { n: w.forms.length, avisos: w.avisos.slice() };
+    }, { js: formularioDeFila, linhas: [nova('post_1x1', 970), nova('story', 971)] });
+    assert.equal(r.n, 1, 'não reabriu');
+    assert.match(r.avisos.at(-1), /A resposta demorou, mas 2 peça\(s\) foram criadas/);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Estúdio no Chromium (#187): Pacote de lançamento (/estudio/pacote) com falha ambígua: parcial reabre avisando, completo fecha sem reenviar', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(150);
+    const nova = (formato: string, id: number) => ({ id, pedido: 'Lançamento', imovel_id: 5, objetivo: 'novo_imovel', formato, estado: 'rascunho', arquivos: [], criado_em: new Date().toISOString() });
+    const rodar = (linhas: any[], fila: any[]) =>
+      pagina.evaluate(async ({ js, linhas, fila }: { js: string; linhas: any[]; fila: any[] }) => {
+        const w = window as any;
+        new Function(js)();
+        w.CRIADAS ??= [];
+        w.avisos = [];
+        w.fila = fila;
+        w.FALHA_CRIAR = [() => {
+          for (const l of linhas) w.CRIADAS.push({ ...w.PECAS[0], ...l });
+          throw new TypeError('Failed to fetch');
+        }];
+        await w.estudio.criarRapido('lancamento').catch((e: Error) => { if (e.message !== 'cancelado') throw e; });
+        return { n: w.forms.length, mensagem: w.forms[1]?.mensagem, avisos: w.avisos.slice(), posts: w.chamadas.filter((c: string) => c === 'POST /estudio/pacote').length };
+      }, { js: formularioDeFila, linhas, fila });
+
+    // Só post e carrossel criados (falta o story): não é sucesso; reabre com a frase de parcial.
+    let r: any = await rodar([nova('post_1x1', 980), nova('carrossel', 981)], [{ imovel_id: '5', pedido: 'Lançamento' }, null]);
+    assert.equal(r.n, 2, 'reabriu');
+    assert.match(r.mensagem, /Algumas peças já foram criadas; confira em Peças antes de pedir de novo\./);
+    assert.deepEqual(r.avisos, [], 'sem aviso de sucesso');
+    assert.equal(r.posts, 1);
+
+    // Os três formatos: fecha como criado, sem reenviar.
+    r = await rodar([nova('post_1x1', 990), nova('carrossel', 991), nova('story', 992)], [{ imovel_id: '5', pedido: 'Lançamento' }]);
+    assert.equal(r.n, 1, 'não reabriu');
+    assert.match(r.avisos.at(-1), /A resposta demorou, mas 3 peça\(s\) foram criadas/);
+    assert.equal(r.posts, 2, 'um envio por criação, nenhum reenvio');
   } finally {
     await navegador.close();
   }

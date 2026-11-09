@@ -648,11 +648,17 @@ for (const modo of MODOS) {
         await esperar(p, 50);
         assert.equal(await p.evaluate(() => (window as any).pendentes.length), 1, 'o pedido de textos está em voo');
         await semTroca(p);
+        // Na falha, o formulário reabre com o que foi contado (#187); aqui o corretor cancela a reabertura.
+        if (falha) await p.evaluate(() => ((window as any).RESPOSTA_FORMULARIO = null));
         await p.evaluate(() => (window as any).liberar());
         await esperar(p);
         if (falha) {
           const r = await depoisDaTroca(p);
-          assert.deepEqual(r.alertas, ['Não foi possível escrever agora']);
+          assert.deepEqual(r.alertas, [], 'sem alerta solto: a falha volta no formulário');
+          const reaberto = JSON.parse(r.formularios.filter((f) => /Refazer a página com IA/.test(f)).at(-1)!);
+          assert.equal(reaberto.campos[0].valor, 'Atendo no Lago Sul.', 'reabre com o que foi contado');
+          assert.match(reaberto.mensagem, /^Não foi possível salvar:/);
+          assert.equal(r.formularios.filter((f) => /Refazer a página com IA/.test(f)).length, 2);
           assert.equal(await p.evaluate(() => (window as any).confirmacoes.length), 0);
           return;
         }

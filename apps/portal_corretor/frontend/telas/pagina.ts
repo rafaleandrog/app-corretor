@@ -249,18 +249,33 @@ const salvarBloco = (i: number) => noGesto(async (g) => {
 
 /** [Refazer a página com IA]: a mesma escrita de `POST /pagina/sugerir-textos`; o corretor revisa antes de usar. */
 const refazerComIa = () => noGesto(async (g) => {
-  const v = await g.esperar(urbiVerso.formulario({
+  // A IA falhou (503 IA_INDISPONIVEL, a rede): o formulário reabre com o que o corretor contou (#187). A
+  // rota só sugere (não grava nada), então pedir de novo não repete efeito nenhum.
+  const r = await formularioQueSalva<{ apresentacao: string; sobre: string }>({
     titulo: 'Refazer a página com IA',
     mensagem: 'A IA escreve a apresentação e o "sobre mim" com o que você contar aqui e com os imóveis da página. Você revisa antes de usar.',
     campos: [{ nome: 'observacoes', tipo: 'texto_longo', rotulo: 'Conte um pouco sobre você (opcional)', placeholder: 'Ex.: atendo famílias que buscam casa no Lago Sul há 8 anos.' }],
     rotuloConfirmar: 'Escrever',
-  }));
-  if (!v) return;
+    gesto: g,
+    aviso: null,
+    salvar: async (v) => {
+      estado.ocupado = true;
+      redesenhar();
+      try {
+        // Os textos são da conta em que foram pedidos: com a conta trocada, não se oferecem nem se gravam na outra.
+        return await g.esperar(enviar('POST', '/pagina/sugerir-textos', { observacoes: v.observacoes, nome_exibicao: estado.visao!.pagina.nome_exibicao }));
+      } finally {
+        if (g.vivo()) {
+          estado.ocupado = false;
+          redesenhar();
+        }
+      }
+    },
+  });
+  if (!r) return;
   estado.ocupado = true;
   redesenhar();
   try {
-    // Os textos são da conta em que foram pedidos: com a conta trocada, não se oferecem nem se gravam na outra.
-    const r = await g.esperar(enviar('POST', '/pagina/sugerir-textos', { observacoes: v.observacoes, nome_exibicao: estado.visao!.pagina.nome_exibicao }));
     const ok = await g.esperar(urbiVerso.confirmar({
       titulo: 'Usar estes textos?',
       mensagem: `Apresentação:\n${r.apresentacao}\n\nSobre mim:\n${r.sobre}`,
