@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { formatarTelefone } from '../../comum/crm';
 import { validarMeuPerfil, validarPerfilConta } from '../../comum/conta';
-import { chamarApi, enviar, gesto, mensagemDeErro } from '../apoio.js';
+import { chamarApi, enviar, formularioQueSalva, gesto, mensagemDeErro } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -89,12 +89,18 @@ export class PcTelaConta extends LitElement {
 
   // Abre o formulário, grava e recarrega. Erro de validação volta com a lista em `detalhes`.
   // `fixos` vão junto sem aparecer no formulário (campo que saiu da tela mas continua no dado).
+  // Recusado (#187): o formulário reabre com o digitado e a frase do erro, até salvar ou cancelar.
   private async editar(titulo: string, rota: string, campos: CampoFormulario[], fixos: Record<string, unknown> = {}) {
     try {
       if (!this.vida.vivo()) return;
-      const valores = await this.vida.esperar(urbiVerso.formulario({ titulo, campos }));
-      if (!valores) return;
-      const r = await this.vida.esperar(chamarApi(rota, { method: 'PUT', body: JSON.stringify({ ...fixos, ...valores }), headers: { 'Content-Type': 'application/json' } }));
+      const r = await formularioQueSalva({
+        titulo,
+        campos,
+        gesto: this.vida,
+        aviso: null,
+        salvar: (valores) => chamarApi(rota, { method: 'PUT', body: JSON.stringify({ ...fixos, ...valores }), headers: { 'Content-Type': 'application/json' } }),
+      });
+      if (!r || !this.vida.vivo()) return;
       // Salvo com aviso (CRECI fora do formato usual, D-93): avisa sem desfazer nada.
       const avisos: string[] = Array.isArray(r?.avisos) ? r.avisos : [];
       urbiVerso.notificar(avisos.length ? `Salvo. ${avisos.join(' ')}` : 'Salvo.', avisos.length ? 'info' : 'sucesso');

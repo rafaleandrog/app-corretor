@@ -1,7 +1,7 @@
 import { html, nothing } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ROTULO_BLOCO, type Bloco } from '../../comum/pagina';
-import { acoesComMais, avisoCreci, chamarApi, contaDeTrabalho, dataHora, ehContaTrocada, enviar, gesto, itemDaUrl, itemNaUrl, mensagemDeErro, noGesto, type Gesto } from '../apoio';
+import { acoesComMais, avisoCreci, chamarApi, contaDeTrabalho, dataHora, ehContaTrocada, enviar, formularioQueSalva, gesto, itemDaUrl, itemNaUrl, mensagemDeErro, noGesto, type Gesto } from '../apoio';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { cabecalhoColuna, moldura } from '../moldura.js';
 import type { PreviaPagina } from '../publico/pagina-publica.js';
@@ -133,9 +133,11 @@ function selecionar(tipo: string) {
  * Grava a página com `mudancas`, no gesto `g` de quem chamou. A conta mudou antes (o gesto já não vive)
  * ou com o PUT em voo: nada é enviado, ou a resposta é descartada, sem aviso e sem tocar em `salvando`.
  */
-async function salvar(g: Gesto, mudancas: Partial<Visao['pagina']>, extra: Record<string, unknown> = {}) {
+async function salvar(g: Gesto, mudancas: Partial<Visao['pagina']>, extra: Record<string, unknown> = {}, opcoes: { lancar?: boolean } = {}) {
   if (!g.vivo() || !estado.visao) return false;
   if (estado.salvando) {
+    // Dentro de um formulário (`lancar`), o aviso volta nele, com o digitado (#187).
+    if (opcoes.lancar) throw new Error('Aguarde: a mudança anterior ainda está sendo salva.');
     urbiVerso.notificar('Aguarde: a mudança anterior ainda está sendo salva.', 'info');
     return false;
   }
@@ -149,6 +151,8 @@ async function salvar(g: Gesto, mudancas: Partial<Visao['pagina']>, extra: Recor
     void carregarPrevia();
     return true;
   } catch (e) {
+    // `lancar`: o erro vai a quem chamou (o formulário reabre com ele; conta trocada, em silêncio).
+    if (opcoes.lancar) throw e;
     if (g.encerrado(e)) return false;
     await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     return false;
@@ -161,16 +165,19 @@ async function salvar(g: Gesto, mudancas: Partial<Visao['pagina']>, extra: Recor
   }
 }
 
+// Recusado (#187: endereço em uso, fora do formato): o formulário reabre com o digitado e a frase do erro.
 const nomeEEndereco = () => noGesto(async (g) => {
   const p = estado.visao!.pagina;
-  const v = await g.esperar(urbiVerso.formulario({
+  await formularioQueSalva({
     titulo: 'Nome e endereço',
     campos: [
       { nome: 'nome_exibicao', tipo: 'texto', rotulo: 'Nome que aparece na página', obrigatorio: true, valor: p.nome_exibicao },
       { nome: 'endereco', tipo: 'texto', rotulo: 'Endereço (letras minúsculas, números e hífen)', obrigatorio: true, valor: p.endereco },
     ],
-  }));
-  if (v) await salvar(g, { nome_exibicao: String(v.nome_exibicao), endereco: String(v.endereco).trim().toLowerCase() });
+    gesto: g,
+    aviso: null,
+    salvar: (v) => salvar(g, { nome_exibicao: String(v.nome_exibicao), endereco: String(v.endereco).trim().toLowerCase() }, {}, { lancar: true }),
+  });
 });
 
 async function mover(i: number, passo: number) {

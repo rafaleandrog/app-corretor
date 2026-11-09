@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { cabecalhoColuna, moldura } from '../moldura.js';
-import { buscaDoGesto, chamarApi, data as dataCurta, enviar, gesto, mensagemDeErro, noGesto, reais, seNaoContaTrocada, type Gesto } from '../apoio.js';
+import { buscaDoGesto, chamarApi, data as dataCurta, enviar, formularioQueSalva, gesto, mensagemDeErro, noGesto, reais, seNaoContaTrocada, type Gesto } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 import { irParaComQuery } from '../criar.js';
@@ -212,23 +212,19 @@ export class PcConversasLista extends LitElement {
   /** Nova conversa: escolhe o cliente e abre (ou reabre) a conversa dele. */
   private async nova() {
     const vida = gesto();
-    try {
-      const v = await vida.esperar(
-        urbiVerso.formulario({
-          titulo: 'Nova conversa',
-          campos: [{ nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, placeholder: 'Nome ou telefone', buscar: buscaDoGesto(vida, '/contatos', (c) => `${c.nome}${c.telefone ? ` · ${c.telefone}` : ''}`) }],
-          mensagem: 'A conversa reúne o que o cliente escreveu pelo portal e o que você mandou a ele.',
-          rotuloConfirmar: 'Abrir conversa',
-        }),
-      );
-      if (!v?.contato_id) return;
-      const r = (await vida.esperar(enviar('POST', '/conversas', { contato_id: v.contato_id }))) as { conversa: Linha };
-      listaMudou();
-      this.aoEscolher(Number(r.conversa.id));
-    } catch (e) {
-      if (vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível abrir a conversa', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    }
+    // Recusado (#187): o formulário reabre com o cliente escolhido e a frase do erro.
+    const r = (await formularioQueSalva({
+      titulo: 'Nova conversa',
+      campos: [{ nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, placeholder: 'Nome ou telefone', buscar: buscaDoGesto(vida, '/contatos', (c) => `${c.nome}${c.telefone ? ` · ${c.telefone}` : ''}`) }],
+      mensagem: 'A conversa reúne o que o cliente escreveu pelo portal e o que você mandou a ele.',
+      rotuloConfirmar: 'Abrir conversa',
+      gesto: vida,
+      aviso: null,
+      salvar: (v) => enviar('POST', '/conversas', { contato_id: v.contato_id }),
+    })) as { conversa?: Linha } | null;
+    if (!r?.conversa || !vida.vivo()) return;
+    listaMudou();
+    this.aoEscolher(Number(r.conversa.id));
   }
 
   private linha(c: ItemLista) {
@@ -538,10 +534,17 @@ export class PcConversaCompositor extends ParteDaConversa {
         ? [{ nome: 'descricao', tipo: 'texto' as const, rotulo: 'Qual arquivo', obrigatorio: true, placeholder: 'Ex.: planta do apartamento, minuta do contrato' }]
         : [{ nome: 'imovel_id', tipo: 'busca' as const, rotulo: 'Imóvel', obrigatorio: true, placeholder: 'Código, bairro ou título', buscar: buscaDoGesto(vida, '/imoveis', (i) => `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`) }];
     const titulo = tipo === 'imovel' ? 'Enviar imóvel' : tipo === 'arquivo' ? 'Registrar arquivo enviado' : 'Enviar localização';
+    // Recusado (#187): o formulário reabre com o imóvel ou o arquivo e a frase do erro.
+    const r = (await formularioQueSalva({
+      titulo,
+      campos,
+      mensagem: tipo === 'arquivo' ? 'O arquivo vai pelo seu WhatsApp; aqui fica o registro na conversa.' : 'A mensagem pronta abre no WhatsApp do seu celular e fica registrada na conversa.',
+      gesto: vida,
+      aviso: null,
+      salvar: (v) => enviar('POST', '/envios', { contato_id: d.contato.id, tipo, canal: 'whatsapp', imovel_id: v.imovel_id, descricao: v.descricao }),
+    })) as { mensagem: string | null; link: string | null; envio: Linha } | null;
+    if (!r || !vida.vivo()) return;
     try {
-      const v = await vida.esperar(urbiVerso.formulario({ titulo, campos, mensagem: tipo === 'arquivo' ? 'O arquivo vai pelo seu WhatsApp; aqui fica o registro na conversa.' : 'A mensagem pronta abre no WhatsApp do seu celular e fica registrada na conversa.' }));
-      if (!v) return;
-      const r = (await vida.esperar(enviar('POST', '/envios', { contato_id: d.contato.id, tipo, canal: 'whatsapp', imovel_id: v.imovel_id, descricao: v.descricao }))) as { mensagem: string | null; link: string | null; envio: Linha };
       if (tipo !== 'arquivo') {
         const im = r.envio;
         const texto = r.mensagem ?? (tipo === 'localizacao' ? `Localização do imóvel ${im.imovel_codigo ?? ''}${r.link ? `: ${r.link}` : ''}` : '');
@@ -551,8 +554,9 @@ export class PcConversaCompositor extends ParteDaConversa {
       await this.recarregar();
       listaMudou();
     } catch (e) {
+      // O envio já foi registrado: a falha aqui é do WhatsApp ou da releitura, e o formulário não volta.
       if (vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível registrar o envio', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      await urbiVerso.alertar({ titulo: 'Não foi possível concluir o envio', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 

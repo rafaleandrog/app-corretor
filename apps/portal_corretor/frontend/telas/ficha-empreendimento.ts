@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, formularioEnviar, gesto, mensagemDeErro, reais, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
+import { chamarApi, enviar, formularioEnviar, formularioQueSalva, gesto, mensagemDeErro, reais, SITUACAO_IMOVEL, subirArquivo } from '../apoio.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 import { FASE, faixa, TIPO_EMPREENDIMENTO } from './empreendimentos.js';
 
@@ -92,24 +92,25 @@ export class PcTelaFichaEmpreendimento extends LitElement {
   private async enviarMaterialNaConta(ev: CustomEvent) {
     const f = ev.detail.arquivo as File | null;
     if (!f || this.enviando) return;
-    const v = await this.vida.esperar(urbiVerso.formulario({
-      titulo: 'Material',
-      campos: [
-        { nome: 'titulo', tipo: 'texto', rotulo: 'Título', obrigatorio: true, valor: f.name.replace(/\.[^.]+$/, '') },
-        { nome: 'tipo', tipo: 'selecao', rotulo: 'Tipo', valor: 'outro', opcoes: Object.entries(TIPO_MATERIAL).map(([valor, rotulo]) => ({ valor, rotulo })) },
-        { nome: 'publico', tipo: 'booleano', rotulo: 'Pode ser enviado ao cliente', valor: true },
-      ],
-    }));
-    if (!v) return;
     this.enviando = true;
     try {
-      const upload_id = await this.vida.esperar(subirArquivo('empreendimento_materiais', 'arquivo', f));
-      await this.vida.esperar(enviar('POST', `/empreendimentos/${this.empreendimentoId}/materiais`, { ...v, upload_id }));
-      urbiVerso.notificar('Material enviado.', 'sucesso');
-      await this.carregar();
-    } catch (e) {
-      if (this.vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível enviar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      // Recusado (#187): o formulário reabre com o título, o tipo e a marcação, e a frase do erro. O arquivo
+      // sobe de novo a cada tentativa, junto com a gravação.
+      const r = await formularioQueSalva({
+        titulo: 'Material',
+        campos: [
+          { nome: 'titulo', tipo: 'texto', rotulo: 'Título', obrigatorio: true, valor: f.name.replace(/\.[^.]+$/, '') },
+          { nome: 'tipo', tipo: 'selecao', rotulo: 'Tipo', valor: 'outro', opcoes: Object.entries(TIPO_MATERIAL).map(([valor, rotulo]) => ({ valor, rotulo })) },
+          { nome: 'publico', tipo: 'booleano', rotulo: 'Pode ser enviado ao cliente', valor: true },
+        ],
+        gesto: this.vida,
+        aviso: 'Material enviado.',
+        salvar: async (v) => {
+          const upload_id = await subirArquivo('empreendimento_materiais', 'arquivo', f);
+          return enviar('POST', `/empreendimentos/${this.empreendimentoId}/materiais`, { ...v, upload_id });
+        },
+      });
+      if (r && this.vida.vivo()) await this.carregar();
     } finally {
       if (this.vida.vivo()) this.enviando = false;
     }

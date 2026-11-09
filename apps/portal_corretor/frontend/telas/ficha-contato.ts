@@ -9,7 +9,7 @@ import { tarefaDaAbordagem } from '../../comum/funil';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
-import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, seNaoContaTrocada, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE, lerPreparandoFunil } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, seNaoContaTrocada, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, formularioQueSalva, duplicataDeContato, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE, lerPreparandoFunil } from '../apoio.js';
 import { formatarTelefone } from '../../comum/crm';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { registrarEdicao, soltarEdicao } from '../atalhos.js';
@@ -287,7 +287,8 @@ export class FichaContato {
         ...v,
         papeis: [...PAPEIS_NA_TELA.filter((p) => ({ comprador: papel_comprador, proprietario: papel_proprietario })[p]), ...outros].join(','),
       }),
-      { gesto: this.vida },
+      // Telefone de outro contato (#187): reabre com o digitado, ou abre a ficha dele.
+      { gesto: this.vida, duplicata: duplicataDeContato((id) => urbiVerso.navegarSub(`/clientes/${id}`)) },
     ).then((r) => this.depois(r));
   }
 
@@ -359,23 +360,21 @@ export class FichaContato {
 
   private async moverEtapaNaConta(negocio: Linha) {
     const etapas = this.s.etapas.filter((e) => e.pipeline === negocio.pipeline && e.ativa);
-    const v = await this.vida.esperar(urbiVerso.formulario({
+    // Recusado (#187): o formulário reabre com a etapa e o motivo escolhidos e a frase do erro.
+    const r = await formularioQueSalva({
       titulo: 'Mudar etapa',
       campos: [
         { nome: 'etapa_id', tipo: 'selecao', rotulo: 'Etapa', valor: String(negocio.etapa_id), opcoes: etapas.map((e) => ({ valor: String(e.id), rotulo: e.nome })) },
         { nome: 'motivo_perda', tipo: 'selecao', rotulo: 'Motivo, se perdido', opcoes: opcoes(ROTULO_MOTIVO_PERDA) },
       ],
-    }));
-    if (!v) return;
-    try {
-      const r = await this.vida.esperar(enviar('PATCH', `/negocios/${negocio.id}`, { etapa_id: Number(v.etapa_id), motivo_perda: v.motivo_perda || undefined }));
-      const aviso = avisoDeEntrada(r?.negociador_entrou);
-      if (aviso) urbiVerso.notificar(aviso, 'info');
-      await this.carregar();
-    } catch (e) {
-      if (this.vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível mudar a etapa', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    }
+      gesto: this.vida,
+      aviso: null,
+      salvar: (v) => enviar('PATCH', `/negocios/${negocio.id}`, { etapa_id: Number(v.etapa_id), motivo_perda: v.motivo_perda || undefined }),
+    });
+    if (!r || !this.vida.vivo()) return;
+    const aviso = avisoDeEntrada(r?.negociador_entrou);
+    if (aviso) urbiVerso.notificar(aviso, 'info');
+    await this.carregar();
   }
 
   private async novaAtividade() {
@@ -469,12 +468,16 @@ export class FichaContato {
   private abordagemFeita() {
     return this.calado(async () => {
       const a = this.s.ficha!.abordagem!;
-      const v = await this.vida.esperar(urbiVerso.formulario({
+      // Recusado (#187): o formulário reabre com o texto e a frase do erro.
+      const r = await formularioQueSalva({
         titulo: 'Registrar abordagem',
         campos: [{ nome: 'texto', tipo: 'texto_longo', rotulo: 'O que você fez', valor: a.abordagem }],
         rotuloConfirmar: 'Registrar',
-      }));
-      if (v) await this.tentar('Não foi possível registrar', () => enviar('POST', `/abordagens/${this.contatoId}/feita`, { texto: v.texto }));
+        gesto: this.vida,
+        aviso: null,
+        salvar: (v) => enviar('POST', `/abordagens/${this.contatoId}/feita`, { texto: v.texto }),
+      });
+      await this.depois(r);
     });
   }
 
@@ -589,7 +592,8 @@ export class FichaContato {
   private async registrarEnvioNaConta() {
     const imoveis = await this.opcoesImoveis();
     if (!this.vida.vivo()) return;
-    const v = await this.vida.esperar(urbiVerso.formulario({
+    // Recusado (#187): o formulário reabre com o que foi escolhido e a frase do erro.
+    const r = await formularioQueSalva<Linha>({
       titulo: 'Registrar envio',
       mensagem: 'Anote o que você mandou ao cliente. Com um imóvel, o app prepara a mensagem para você colar no WhatsApp.',
       campos: [
@@ -599,10 +603,12 @@ export class FichaContato {
         { nome: 'descricao', tipo: 'texto', rotulo: 'Detalhe (opcional)' },
       ],
       rotuloConfirmar: 'Registrar',
-    }));
-    if (!v) return;
+      gesto: this.vida,
+      aviso: null,
+      salvar: (v) => enviar('POST', '/envios', { ...v, contato_id: this.contatoId, imovel_id: v.imovel_id ? Number(v.imovel_id) : null }),
+    });
+    if (!r || !this.vida.vivo()) return;
     try {
-      const r = await this.vida.esperar(enviar('POST', '/envios', { ...v, contato_id: this.contatoId, imovel_id: v.imovel_id ? Number(v.imovel_id) : null }));
       await this.reler();
       if (r.mensagem) {
         const copiada = await this.vida.esperar(navigator.clipboard?.writeText(r.mensagem).then(() => true, () => false));
@@ -610,8 +616,9 @@ export class FichaContato {
         else await urbiVerso.alertar({ titulo: 'Mensagem pronta para colar', mensagem: r.mensagem, tipo: 'sucesso' });
       } else urbiVerso.notificar('Envio registrado.', 'sucesso');
     } catch (e) {
+      // O envio já foi registrado: a falha aqui é da releitura ou da cópia, e o formulário não volta.
       if (this.vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível registrar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      await urbiVerso.alertar({ titulo: 'Não foi possível atualizar a ficha', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 

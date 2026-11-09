@@ -231,6 +231,14 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** (a) o `formulario` e os primitivos de campo ligarem o `rotulo`/`label` ao controle interno (`aria-labelledby` ou `aria-label` no elemento nativo); (b) um `urbi-opcoes` (rádio com rótulo e explicação por opção, evento `{ valor }`); (c) o campo `busca` não mostrar a lista vazia antes de o usuário digitar; (d) para o teclado, um primitivo de escolha única com teclado (o mesmo `urbi-opcoes` do item b, com foco, setas e Enter/Espaço), ou, no mínimo, foco e teclado (`tabindex="0"`, Enter/Espaço) no `urbi-card clicavel` e no `urbi-badge interativo`.
 
+## 30. Formulário que valida no servidor sem fechar (#187)
+
+**Por quê:** o `urbiVerso.formulario` só coleta e fecha ao confirmar; a gravação é da app, depois do `await` (`ui-componentes-conteudo.md` do SDK 100.0.0, "Formulário de vários campos": "erro de servidor exibido dentro do diálogo (o formulário fecha ao confirmar; se a gravação falhar, a app avisa com `notificar`/`alertar` e pode reabrir o formulário com os valores que recebeu)"). Quando o servidor recusa (`422 DADOS_INVALIDOS` "Telefone inválido", `409 DUPLICATA` "Já existe um contato com este telefone"), o diálogo já fechou: o erro não aparece no campo que o causou, o diálogo fecha e reabre e o foco volta ao primeiro campo. No QA de 07/11 (0.1.45), o Novo cliente perdia nome e e-mail depois do aviso "Não foi possível salvar".
+
+**Até lá:** o laço `formularioQueSalva` (`frontend/apoio.ts`), usado pelo `formularioEnviar` e pelas telas que gravam depois de um formulário, reabre o formulário com os mesmos valores e a frase do erro (`fraseDoErro`) no topo (`mensagem`), até salvar ou o corretor cancelar; na `DUPLICATA` com o id do contato, oferece **Abrir <nome>**. Conta trocada no meio termina em silêncio. As negociações (Clientes › Negociações) ainda avisam e fecham (pendência no plano).
+
+**Proposta mínima:** `urbiVerso.formulario({ …, aoEnviar })`: com `aoEnviar(valores) => Promise<void | { erros?: Record<string, string>; mensagem?: string }>`, o diálogo fica aberto com o Salvar ocupado enquanto a Promise corre; resolvida sem erros, fecha e resolve com os valores; com `erros` (por `nome` de campo) ou `mensagem`, mostra cada erro no campo dele (onde já aparece o erro de `min`/`max` do `numero`) e a mensagem no topo, e continua aberto com o digitado; rejeitada, mostra uma mensagem genérica no topo e continua aberto. Opcional: uma ação secundária no diálogo (por exemplo, "Abrir Ana Ribeiro" na duplicata).
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

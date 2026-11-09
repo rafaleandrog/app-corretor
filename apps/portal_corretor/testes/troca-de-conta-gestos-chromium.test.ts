@@ -558,16 +558,23 @@ for (const modo of MODOS) {
         const w = window as any;
         w.marco = w.chamadas.length;
         w.RESPOSTA_FORMULARIO = { nome: 'Ana' };
-        w.FALHAR = (m: string, c: string) => m === 'POST' && c === '/contatos';
-        await w.formularioEnviar('Novo contato', [], 'POST', '/contatos');
+        // Recusado (#187): o formulário reabre com o digitado e o erro; o corretor cancela na reabertura.
+        w.FALHAR = (m: string, c: string) => m === 'POST' && c === '/contatos' && ((w.RESPOSTA_FORMULARIO = null), true);
+        w.antes = w.formularios.length;
+        await w.formularioEnviar('Novo contato', [{ nome: 'nome', tipo: 'texto' }], 'POST', '/contatos');
+        w.reaberto = w.formularios[w.antes + 1];
         w.FALHAR = () => false;
+        w.RESPOSTA_FORMULARIO = { nome: 'Ana' };
         await w.formularioEnviar('Novo contato', [], 'POST', '/contatos');
         w.FORMULARIO_QUEBRA = true;
         void w.formularioEnviar('Novo contato', [], 'POST', '/contatos').then((r: unknown) => (w.resultado = r));
       });
       await esperar(p);
       const r = await depoisDaTroca(p);
-      assert.deepEqual(r.alertas, ['Não foi possível salvar', 'Não foi possível abrir o formulário']);
+      const reaberto = JSON.parse(await p.evaluate(() => (window as any).reaberto));
+      assert.equal(reaberto.campos[0].valor, 'Ana', 'reabre com o digitado');
+      assert.match(reaberto.mensagem, /^Não foi possível salvar: /, 'com a frase do erro');
+      assert.deepEqual(r.alertas, ['Não foi possível abrir o formulário'], 'a recusa não vira alerta solto');
       assert.deepEqual(r.avisos, ['Salvo.']);
       assert.equal(await p.evaluate(() => (window as any).resultado), null);
     });

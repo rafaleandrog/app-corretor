@@ -8,7 +8,7 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.51; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.53; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
@@ -94,6 +94,16 @@ as colunas viram abas, como antes.
 **Assistente:** abre na coluna da direita da tela em que você está, sem sair dela, em todas as telas do
 corretor. **Fechar** devolve o contexto no lugar do Assistente, e a lista e o centro ficam como estavam —
 ver [Assistente do Corretor](assistente.md).
+
+**Quando o app recusa o que você salvou** (telefone inválido, endereço já em uso, horário no passado, ou
+a conexão que caiu): o formulário **reabre com o que você digitou** e a mensagem do erro no alto, para
+corrigir e salvar de novo; **Cancelar** desiste. Vale para os formulários que gravam (Novo cliente,
+Editar contato, Perfil de busca, Próximo passo, Mudar etapa, Registrar envio, os dados do imóvel e a
+situação dele, a autorização de venda, Nova visita, Pedir ao cliente, Nova seleção, Nome e endereço da
+Página, os textos e o agendamento das peças do Estúdio, os convites e as suas respostas às objeções do
+Negociador, entre outros). Se o telefone já é de outro contato, **Abrir <nome>** abre a ficha dele, e
+**Corrigir** volta ao formulário. Os formulários de Clientes › Negociações (oferta, contraproposta,
+encerrar) ainda avisam o erro e fecham: lá, abra de novo e preencha.
 
 **Estados das telas** (são sete, o conjunto comum às telas do corretor; cada tela mostra só os que se aplicam a ela):
 - Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco.

@@ -1,5 +1,5 @@
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, formularioEnviar, gesto, mensagemDeErro, ROTULO_TIPO_MIDIA, type Gesto } from '../apoio.js';
+import { chamarApi, enviar, formularioEnviar, formularioQueSalva, gesto, ROTULO_TIPO_MIDIA, type Gesto } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -93,36 +93,24 @@ export async function marcarAssinada(a: Linha, midias: Linha[], ondeAnexar = 'em
     return false;
   }
   const doc = docs.find((d) => d.tipo === 'documento');
-  let v: Awaited<ReturnType<UrbiVersoAPI['formulario']>>;
-  try {
-    v = await g.esperar(
-      urbiVerso.formulario({
-        titulo: 'Marcar como assinada',
-        mensagem: 'O documento escolhido fica interno: nunca aparece no anúncio.',
-        campos: [
-          {
-            nome: 'documento_midia_id',
-            tipo: 'selecao',
-            rotulo: 'Documento assinado',
-            obrigatorio: true,
-            valor: doc ? String(doc.id) : null,
-            opcoes: docs.map((d) => ({ valor: String(d.id), rotulo: `${ROTULO_TIPO_MIDIA[d.tipo]}: ${d.legenda ?? `arquivo ${d.id}`}` })),
-          },
-        ],
-        rotuloConfirmar: 'Marcar como assinada',
-      }),
-    );
-  } catch (e) {
-    if (g.encerrado(e)) return false;
-    throw e;
-  }
-  if (!v) return false;
-  try {
-    await g.esperar(enviar('PATCH', `/autorizacoes/${a.id}`, { documento_midia_id: Number(v.documento_midia_id), situacao: 'assinada' }));
-    return true;
-  } catch (e) {
-    if (g.encerrado(e)) return false;
-    await urbiVerso.alertar({ titulo: 'Não foi possível marcar como assinada', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    return false;
-  }
+  // Recusado (#187): o formulário reabre com o documento escolhido e a frase do erro.
+  const r = await formularioQueSalva({
+    titulo: 'Marcar como assinada',
+    mensagem: 'O documento escolhido fica interno: nunca aparece no anúncio.',
+    campos: [
+      {
+        nome: 'documento_midia_id',
+        tipo: 'selecao',
+        rotulo: 'Documento assinado',
+        obrigatorio: true,
+        valor: doc ? String(doc.id) : null,
+        opcoes: docs.map((d) => ({ valor: String(d.id), rotulo: `${ROTULO_TIPO_MIDIA[d.tipo]}: ${d.legenda ?? `arquivo ${d.id}`}` })),
+      },
+    ],
+    rotuloConfirmar: 'Marcar como assinada',
+    gesto: g,
+    aviso: null,
+    salvar: (v) => enviar('PATCH', `/autorizacoes/${a.id}`, { documento_midia_id: Number(v.documento_midia_id), situacao: 'assinada' }),
+  });
+  return !!r && g.vivo();
 }

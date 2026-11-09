@@ -268,9 +268,146 @@ export function mensagemDeErro(e: unknown): string {
   return fraseDoErro(e);
 }
 
+// ---------- Formulário que salva sem perder o digitado (issue #187) ----------
+//
+// O `urbiVerso.formulario` só coleta e fecha ao confirmar; a gravação é da app, depois do `await`. Quando o
+// servidor recusa (422 DADOS_INVALIDOS, 409 DUPLICATA, outro código de domínio, ou a rede/5xx), o SDK
+// documenta o caminho: a app avisa e reabre o formulário com os valores que recebeu
+// (ui-componentes-conteudo.md, "Fora do formulário"). É o que este laço faz, para toda tela: reabre com os
+// mesmos valores e a frase do erro (`fraseDoErro`) no `mensagem`, até salvar ou o corretor cancelar. A conta
+// trocada (o gesto encerrado) termina em silêncio. O erro por campo dentro do diálogo é pedido ao shell
+// (specs/pedidos_ao_shell.md, pedido 30).
+
+/** O id do registro que já existe, quando a recusa é `DUPLICATA` com o id em `detalhes[0]`. */
+export function idDaDuplicata(e: unknown): number | null {
+  const falha = (e ?? {}) as { codigo?: string; detalhes?: unknown[] };
+  const id = falha.codigo === 'DUPLICATA' ? Number(falha.detalhes?.[0]) : NaN;
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/** A mensagem do formulário reaberto: o erro primeiro e, embaixo, a explicação que o formulário já tinha. */
+export function mensagemDaRecusa(e: unknown, original?: string): string {
+  const erro = `Não foi possível salvar: ${fraseDoErro(e)} Confira e tente de novo.`;
+  return original ? `${erro}\n\n${original}` : erro;
+}
+
 /**
- * Abre o formulário, envia e avisa. Devolve a resposta, ou `null` se cancelou, falhou (com alerta) ou a
- * conta mudou no meio (aí em silêncio). Nunca rejeita.
+ * Os campos com os valores que o corretor digitou (a chave que veio na resposta). No `busca`, o texto do
+ * valor escolhido vem do que a própria busca mostrou (`rotulos`), para o campo não reabrir com `#<id>`.
+ */
+export function camposComValores(campos: CampoFormulario[], valores: Record<string, unknown>, rotulos: Map<string, Map<number, string>> = new Map()): CampoFormulario[] {
+  return campos.map((c) => {
+    if (!(c.nome in valores)) return c;
+    const valor = valores[c.nome];
+    if (c.tipo === 'busca') {
+      const n = typeof valor === 'number' ? valor : null;
+      const rotuloValor = n === null ? undefined : rotulos.get(c.nome)?.get(n) ?? (n === c.valor ? c.rotuloValor : undefined);
+      return { ...c, valor: n, rotuloValor };
+    }
+    return { ...c, valor } as CampoFormulario;
+  });
+}
+
+/** O `buscar` de cada campo `busca` guarda o texto das opções que mostrou (para reabrir com ele). */
+function lembrandoRotulos(campos: CampoFormulario[], rotulos: Map<string, Map<number, string>>): CampoFormulario[] {
+  return campos.map((c) => {
+    if (c.tipo !== 'busca') return c;
+    const buscar = c.buscar;
+    return {
+      ...c,
+      buscar: async (termo: string, sinal: AbortSignal) => {
+        const r = await buscar(termo, sinal);
+        const m = rotulos.get(c.nome) ?? new Map<number, string>();
+        for (const o of r ?? []) m.set(o.valor, o.rotulo);
+        rotulos.set(c.nome, m);
+        return r;
+      },
+    };
+  });
+}
+
+export interface OpcoesFormularioQueSalva<R> {
+  titulo: string;
+  /** Os campos; como função, recebe o digitado (vazio na primeira vez) e monta os campos com ele. */
+  campos: CampoFormulario[] | ((valores: Record<string, unknown>) => CampoFormulario[]);
+  /** Grava. Rejeitou (inclusive validação local com `throw new Error('frase')`): o formulário reabre. */
+  salvar: (valores: Record<string, any>) => Promise<R> | R;
+  mensagem?: string;
+  rotuloConfirmar?: string;
+  /** O gesto de quem chamou (que pode ter esperado antes de abrir), ou um novo. */
+  gesto?: Gesto;
+  /** Aviso do sucesso (padrão "Salvo."); `null`: quem chamou avisa. */
+  aviso?: string | null;
+  /** Na `DUPLICATA` com o id do existente: oferece abri-lo ("Abrir <nome>") em vez de corrigir. */
+  duplicata?: { titulo: string; pergunta: string; abrir: (id: number) => void };
+}
+
+/**
+ * Abre o formulário, salva e, se o servidor recusar, REABRE com o digitado e a frase do erro, até salvar ou
+ * o corretor cancelar. Devolve o que `salvar` devolveu (ou `{}`), ou `null` se cancelou, abriu o existente
+ * da duplicata, o diálogo quebrou (com alerta) ou a conta mudou no meio (em silêncio). Nunca rejeita.
+ */
+export async function formularioQueSalva<R = any>(o: OpcoesFormularioQueSalva<R>): Promise<R | null> {
+  const g = o.gesto ?? gesto();
+  if (!g.vivo()) return null;
+  const rotulos = new Map<string, Map<number, string>>();
+  let valores: Record<string, unknown> = {};
+  let mensagem = o.mensagem;
+  let reaberto = false;
+  for (;;) {
+    const base = typeof o.campos === 'function' ? o.campos(valores) : o.campos;
+    const campos = lembrandoRotulos(reaberto ? camposComValores(base, valores, rotulos) : base, rotulos);
+    let v: Awaited<ReturnType<UrbiVersoAPI['formulario']>>;
+    // O diálogo tem o próprio aviso: a falha dele não é "não foi possível salvar" (nada foi enviado), e não
+    // volta como rejeição para quem chamou (`void formularioEnviar(...).then(...)` ficaria com rejeição solta).
+    try {
+      v = await g.esperar(urbiVerso.formulario({ titulo: o.titulo, campos, mensagem, ...(o.rotuloConfirmar ? { rotuloConfirmar: o.rotuloConfirmar } : {}) }));
+    } catch (e) {
+      if (g.encerrado(e)) return null;
+      await urbiVerso.alertar({ titulo: 'Não foi possível abrir o formulário', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      return null;
+    }
+    if (!v) return null;
+    valores = v;
+    reaberto = true;
+    try {
+      const r = await g.esperar((async () => o.salvar(v))());
+      if (o.aviso !== null) urbiVerso.notificar(o.aviso ?? 'Salvo.', 'sucesso');
+      return (r ?? {}) as R;
+    } catch (e) {
+      // Conta trocada com o envio em voo: nada é avisado nem reaberto na outra.
+      if (g.encerrado(e)) return null;
+      const existente = o.duplicata ? idDaDuplicata(e) : null;
+      if (existente && o.duplicata) {
+        const texto = e instanceof Error ? e.message : '';
+        const nome = /: ([^:]+)\.$/.exec(texto)?.[1] ?? 'o cadastro';
+        let abrir = false;
+        try {
+          abrir = await g.esperar(urbiVerso.confirmar({ titulo: o.duplicata.titulo, mensagem: `${texto} ${o.duplicata.pergunta}`, rotuloConfirmar: `Abrir ${nome}`, rotuloCancelar: 'Corrigir' }));
+        } catch (erroDoDialogo) {
+          if (g.encerrado(erroDoDialogo)) return null;
+        }
+        if (abrir) {
+          o.duplicata.abrir(existente);
+          return null;
+        }
+      }
+      mensagem = mensagemDaRecusa(e, o.mensagem);
+    }
+  }
+}
+
+/** Telefone de outro contato (`409 DUPLICATA` com o id dele): **Abrir <nome>** ou corrigir (#187). */
+export const duplicataDeContato = (abrir: (id: number) => void): NonNullable<OpcoesFormularioQueSalva<unknown>['duplicata']> => ({
+  titulo: 'Telefone já cadastrado',
+  pergunta: 'Abrir a ficha dele ou corrigir o cadastro?',
+  abrir,
+});
+
+/**
+ * Abre o formulário, envia e avisa; recusado, reabre com o digitado e o erro (`formularioQueSalva`).
+ * Devolve a resposta, ou `null` se cancelou, o diálogo quebrou (com alerta) ou a conta mudou no meio (aí em
+ * silêncio). Nunca rejeita.
  */
 export async function formularioEnviar(
   titulo: string,
@@ -278,34 +415,9 @@ export async function formularioEnviar(
   metodo: 'POST' | 'PUT' | 'PATCH',
   rota: string,
   ajustar: (v: Record<string, unknown>) => unknown = (v) => v,
-  opcoes: { mensagem?: string; rotuloConfirmar?: string; gesto?: Gesto } = {},
-) {
-  // O gesto de quem chamou (que pode ter esperado antes de abrir o formulário), ou um novo.
-  const { gesto: doChamador, ...doFormulario } = opcoes;
-  const g = doChamador ?? gesto();
-  if (!g.vivo()) return null;
-  // O diálogo tem o próprio aviso: a falha dele não é "não foi possível salvar" (nada foi enviado), e não
-  // volta como rejeição para quem chamou (`void formularioEnviar(...).then(...)` ficaria com rejeição solta).
-  // A conta trocada com o formulário aberto termina em silêncio. Esta função nunca rejeita.
-  let valores: Awaited<ReturnType<UrbiVersoAPI['formulario']>>;
-  try {
-    valores = await g.esperar(urbiVerso.formulario({ titulo, campos, ...doFormulario }));
-  } catch (e) {
-    if (g.encerrado(e)) return null;
-    await urbiVerso.alertar({ titulo: 'Não foi possível abrir o formulário', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    return null;
-  }
-  if (!valores) return null;
-  try {
-    const r = await g.esperar(enviar(metodo, rota, ajustar(valores)));
-    urbiVerso.notificar('Salvo.', 'sucesso');
-    return r ?? {};
-  } catch (e) {
-    // Conta trocada com o envio em voo: nada é avisado na outra.
-    if (g.encerrado(e)) return null;
-    await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    return null;
-  }
+  opcoes: { mensagem?: string; rotuloConfirmar?: string; gesto?: Gesto; duplicata?: OpcoesFormularioQueSalva<unknown>['duplicata'] } = {},
+): Promise<any> {
+  return formularioQueSalva({ titulo, campos, ...opcoes, salvar: (v) => enviar(metodo, rota, ajustar(v)) });
 }
 
 export const dataHora = (iso: string | null | undefined) =>
