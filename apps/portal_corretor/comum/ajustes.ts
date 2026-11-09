@@ -34,12 +34,11 @@ export const ehAbaAjustes = (id: string | null | undefined): id is AbaAjustes =>
  * Opções de `abaDaUrl`/`abaNaUrl` (frontend/visual.ts) para Ajustes. O SDK não redireciona, então os
  * endereços antigos seguem vivos como apelidos: `/conta` abre Conta e marca, `/ajustes/<seção>` abre a
  * seção (`/ajustes/marca` abre Conta e marca) e `/ajustes/conexoes` segue sendo o retorno do Instagram
- * cadastrado na Meta. A chave `marca` (sem barra) é o valor antigo de `?aba=marca`. Em `/ajustes`,
- * vale `?aba=`; sem ela, ou com uma desconhecida, Conta e marca.
+ * cadastrado na Meta. Em `/ajustes`, vale `?aba=`; sem ela, ou com uma desconhecida (o
+ * `?aba=marca` de antes inclusive), cai em Conta e marca, a seção padrão.
  */
 export const OPCOES_ABA_AJUSTES: { apelidos: Record<string, string>; rota: string } = {
   apelidos: {
-    marca: 'conta',
     '/conta': 'conta',
     '/ajustes/marca': 'conta',
     ...Object.fromEntries(ABAS_AJUSTES.map((a) => [`/ajustes/${a.id}`, a.id])),

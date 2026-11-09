@@ -68,6 +68,10 @@ test('endereços antigos abrem Ajustes na seção certa; o retorno do Instagram 
   // A Meta devolve em /ajustes/conexoes?code=&state= (URI cadastrada no app da Meta).
   assert.equal(abaDoEndereco('/ajustes/conexoes?code=abc&state=def'), 'conexoes');
   assert.equal(abaDoEndereco('/ajustes/conexoes?error=access_denied'), 'conexoes');
+  // Barra final: o mock de `subRota` não a remove (o SDK não promete), então quem trata é `abaDaUrl`.
+  assert.equal(abaDoEndereco('/conta/'), 'conta');
+  assert.equal(abaDoEndereco('/ajustes/conexoes/'), 'conexoes');
+  assert.equal(abaDoEndereco('/ajustes/conexoes/?code=abc'), 'conexoes');
   assert.equal(abaDoEndereco('/ajustes/outra'), 'conta', 'desconhecido cai em Conta e marca');
   // Cada endereço de seção resolve para a tela Ajustes.
   for (const a of ABAS_AJUSTES) assert.equal(resolverEndereco(`/ajustes/${a.id}`).chave, 'ajustes', a.id);
