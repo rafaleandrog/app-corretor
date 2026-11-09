@@ -43,7 +43,7 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
   await comServidor(rotas, A, banco, {}, async (chamar) => {
     const g = await chamar('POST', '/demo/semear', {});
     assert.equal(g.status, 201);
-    assert.deepEqual(g.corpo, { contatos: 6, negocios: 6, imoveis: 4, negociacoes: 1, completado: ['Casa 4 quartos · Jardim Botânico: dados', 'Apartamento 3 quartos · Sudoeste: dados', 'Lote 450 m² · Reserva do Colorado Q1-03: dados', 'conversa de Ana Ribeiro'], avisos: [] });
+    assert.deepEqual(g.corpo, { contatos: 6, negocios: 6, imoveis: 4, negociacoes: 1, completado: ['Casa 4 quartos · Jardim Botânico: dados', 'Apartamento 3 quartos · Sudoeste: dados', 'Lote 450 m² · Reserva do Colorado Q1-03: dados', 'Estúdio: 2 peças', 'conversa de Ana Ribeiro'], avisos: [] });
     // Idempotente: a segunda vez não grava nada.
     assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
     const contatos = banco.linhas('contatos').filter((c) => c.conta_id === 100);
@@ -158,7 +158,7 @@ function helpers() {
   let ingressos = 0;
   const arquivos = {
     enviar: async (o: { tabela: string; coluna: string; mime: string; buffer: Buffer }) => {
-      assert.equal(o.tabela, 'imovel_midias');
+      assert.ok(['imovel_midias', 'peca_arquivos'].includes(o.tabela));
       assert.ok(o.buffer.length > 100 && ['image/png', 'application/pdf'].includes(o.mime));
       return { upload_id: 9000 + ++uploads, expira_em: new Date(Date.now() + 600e3) };
     },
@@ -310,5 +310,86 @@ test('#189: publicação da página que falha vira aviso: não conta como comple
     assert.equal(g.status, 200);
     assert.deepEqual(g.corpo.completado, ['Casa 4 quartos · Jardim Botânico: autorização assinada']);
     assert.deepEqual(g.corpo.avisos, ['página não publicada: Este endereço já é de outra página. Escolha outro.']);
+  });
+});
+
+test('#189: WhatsApp, destaques da página e peças do Estúdio entram na semente; segunda chamada não duplica', async () => {
+  const banco = await duasContasDemo();
+  const { arquivos, shell } = helpers();
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    const g = await chamar('POST', '/demo/semear', {});
+    assert.equal(g.status, 201);
+    assert.ok(g.corpo.completado.includes('Estúdio: 4 peças'), JSON.stringify(g.corpo.completado));
+    // WhatsApp: o telefone fictício do corretor vai ao perfil e à vitrine da página (a capa lê dele).
+    assert.equal(banco.linhas('perfis_corretor').find((x) => x.conta_id === 100)!.telefone, '+5561990000100');
+    const vitrine = () => banco.linhas('vitrine_publica').find((l) => l.conta === 100 && l.tipo === 'pagina')!;
+    assert.equal(vitrine().dados.telefone, '+5561990000100');
+    // Destaques: a casa e o apartamento, com os códigos reais, na página salva e na vitrine.
+    const codigo = (inicio: string) => banco.linhas('imoveis').find((i) => i.conta_id === 100 && i.titulo.startsWith(inicio))!.codigo;
+    const pagina = banco.linhas('paginas_corretor').find((p) => p.conta_id === 100)!;
+    assert.deepEqual(pagina.blocos.find((b: any) => b.tipo === 'destaques').codigos, [codigo('Casa'), codigo('Apartamento')]);
+    assert.deepEqual(vitrine().dados.blocos.find((b: any) => b.tipo === 'destaques').codigos, [codigo('Casa'), codigo('Apartamento')]);
+    // Estúdio: duas sem arte (falta a arte), uma com arte para aprovar e uma aprovada; nada agendado nem publicado.
+    const pecas = banco.linhas('pecas').filter((x) => x.conta_id === 100);
+    assert.deepEqual(pecas.map((x) => x.estado), ['rascunho', 'rascunho', 'rascunho', 'aprovada']);
+    assert.ok(pecas.every((x) => !x.agendamento_id && !x.publicada_em && !x.permalink));
+    const comArte = new Set(banco.linhas('peca_arquivos').filter((x) => x.conta_id === 100).map((x) => x.peca_id));
+    assert.deepEqual(pecas.map((x) => comArte.has(x.id)), [false, false, true, true]);
+    const aprovada = pecas[3];
+    assert.ok(aprovada.aprovada_em && aprovada.aprovada_por_id === 1);
+    assert.equal(banco.linhas('pecas').filter((x) => x.conta_id === 200).length, 0, 'a outra conta não recebe peças do conjunto principal');
+    // De novo: nada a completar, nada duplicado.
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
+    assert.equal(banco.linhas('pecas').filter((x) => x.conta_id === 100).length, 4);
+    assert.equal(banco.linhas('peca_arquivos').filter((x) => x.conta_id === 100).length, 2);
+  });
+});
+
+test('#189: completar preenche WhatsApp e destaques vazios, mas respeita o que o corretor escolheu', async () => {
+  const banco = await duasContasDemo();
+  const { arquivos, shell } = helpers();
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 201);
+    const perfil = banco.linhas('perfis_corretor').find((x) => x.conta_id === 100)!;
+    const pagina = banco.linhas('paginas_corretor').find((p) => p.conta_id === 100)!;
+    const destaques = () => pagina.blocos.find((b: any) => b.tipo === 'destaques');
+    const lote = banco.linhas('imoveis').find((i) => i.conta_id === 100 && i.titulo.startsWith('Lote'))!.codigo;
+    // O corretor tem o próprio telefone e escolheu só o lote: nada a completar.
+    perfil.telefone = '+5561988887777';
+    destaques().codigos = [lote];
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
+    assert.equal(perfil.telefone, '+5561988887777');
+    assert.deepEqual(destaques().codigos, [lote]);
+    // Conta com telefone e destaques vazios (e a página já no ar): a semente completa e a vitrine acompanha.
+    perfil.telefone = null;
+    destaques().codigos = [];
+    const g = await chamar('POST', '/demo/semear', {});
+    assert.equal(g.status, 200);
+    assert.deepEqual(g.corpo.completado.map((f: string) => f.split(':')[0]), ['WhatsApp do corretor', 'destaques da página']);
+    assert.equal(perfil.telefone, '+5561990000100');
+    assert.equal(destaques().codigos.length, 2);
+    const vit = banco.linhas('vitrine_publica').find((l) => l.conta === 100 && l.tipo === 'pagina')!;
+    assert.equal(vit.dados.telefone, '+5561990000100');
+    assert.equal(vit.dados.blocos.find((b: any) => b.tipo === 'destaques').codigos.length, 2);
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
+  });
+});
+
+test('#189: conta que já tem peça no Estúdio não recebe as da semente', async () => {
+  const banco = await duasContasDemo();
+  const { arquivos, shell } = helpers();
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 201);
+    const tabela = banco.linhas('pecas');
+    const minha = tabela.filter((x) => x.conta_id === 100)[0];
+    for (const x of tabela.filter((x) => x.conta_id === 100 && x !== minha)) tabela.splice(tabela.indexOf(x), 1);
+    // Falta outra coisa (autorização da casa): completa isso e não mexe nas peças.
+    const casa = banco.linhas('imoveis').find((i) => i.conta_id === 100 && i.titulo.startsWith('Casa'))!;
+    const auts = banco.linhas('autorizacoes_venda');
+    for (const a of auts.filter((x) => x.imovel_id === casa.id)) auts.splice(auts.indexOf(a), 1);
+    const g = await chamar('POST', '/demo/semear', {});
+    assert.equal(g.status, 200);
+    assert.ok(!g.corpo.completado.some((f: string) => f.startsWith('Estúdio')), JSON.stringify(g.corpo.completado));
+    assert.equal(banco.linhas('pecas').filter((x) => x.conta_id === 100).length, 1);
   });
 });

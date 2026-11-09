@@ -188,14 +188,24 @@ todas as telas:
   sugerido pelo nome do corretor;
 - a **conversa** da Ana (quatro mensagens de exemplo), uma **seleção** com os três imóveis ativos e
   o **portal do cliente** dela, que entram na conversa como cartões.
+- o **WhatsApp fictício** do corretor no perfil (é dele que sai o "Falar no WhatsApp" da capa da
+  página pública) e os **imóveis em destaque** da página (a casa e o apartamento);
+- no Estúdio, quatro **peças** de exemplo: duas em rascunho sem arte (falta a arte), uma em rascunho
+  com arte (para aprovar) e uma aprovada. Nada é agendado nem publicado no Instagram, e nenhum
+  evento é disparado.
 
 **Rodar de novo completa o que falta e não duplica nada.** Numa conta que já tem contatos, o botão
 (ou `POST /demo/semear`) só acrescenta o que ainda não existe: fotos só em imóvel sem foto,
 autorização só em imóvel sem autorização vigente, dados só nos campos vazios, conversa, seleção e
-portal só se a Ana ainda não tem. Uma página já salva fica com o endereço e os blocos dela; se não
+portal só se a Ana ainda não tem. O WhatsApp só entra se o perfil não tem telefone; os
+destaques, só se o bloco está ligado e vazio (a escolha do corretor fica); as peças, só se a conta
+não tem nenhuma. Uma página já salva fica com o endereço e os blocos dela; se não
 está no ar, é publicada. A escada antiga da negociação (até a versão 0.1.49) é trocada pela do guia
 só quando está exatamente como a semente antiga gravou. A resposta diz o que foi feito
-(`completado`); sem nada a completar, a geração é recusada como antes ("Esta conta já tem
+(`completado`) e o que não deu certo sem mudar nada (`avisos`, uma lista de textos, vazia quando
+tudo correu bem; por exemplo "página não publicada: Este endereço já é de outra página. Escolha
+outro."). Aviso não conta como completado: sem mais nada a fazer, a geração é recusada como antes e
+a mensagem traz o aviso entre parênteses. Sem nada a completar, a geração é recusada como antes ("Esta conta já tem
 contatos").
 
 **Qual conjunto cada conta recebe.** Ao iniciar, o app marca as contas de teste:

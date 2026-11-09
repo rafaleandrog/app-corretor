@@ -3,7 +3,7 @@ import { Router, type Request } from 'express';
 import { MARCO_PADRAO } from '../comum/funil';
 import { autorizacaoVigente, proximoCodigo, type Autorizacao } from '../comum/imoveis';
 import { proximoCodigoNegociacao } from '../comum/negociacao';
-import { blocosPadrao, sugerirEndereco } from '../comum/pagina';
+import { blocosPadrao, sugerirEndereco, type Bloco } from '../comum/pagina';
 import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { etapasDaConta } from './crm';
 import { CORES_AMBIENTE, documentoDeExemplo, fotoDeExemplo } from './demo-arquivos';
@@ -57,8 +57,26 @@ interface Imovel {
   pagina?: boolean;
 }
 
+/** Peça do Estúdio da demonstração (sem Instagram, sem evento): nenhum estado de publicação. */
+interface PecaDemo {
+  titulo: string;
+  /** Chave do imóvel do conjunto. */
+  imovel?: string;
+  formato: 'post_1x1' | 'post_4x5' | 'carrossel' | 'story';
+  objetivo: 'novo_imovel' | 'baixou_preco' | 'visita_aberta' | 'destaque';
+  chamada: string;
+  destaques: string[];
+  legenda: string;
+  hashtags: string;
+  /** Com arte (PNG de exemplo): só criada quando `req.arquivos` existe. `aprovada` pede arte. */
+  arte?: boolean;
+  estado: 'rascunho' | 'aprovada';
+}
+
 interface Conjunto {
   creci: string;
+  /** WhatsApp fictício do corretor: é dele que sai o "Falar no WhatsApp" da página pública. */
+  telefone: string;
   pessoas: Pessoa[];
   imoveis: Imovel[];
   /** A seleção e o portal do cliente (M4, M5): para quem e com quais imóveis. */
@@ -67,6 +85,8 @@ interface Conjunto {
   conversa?: { com: string; mensagens: { direcao: 'entrada' | 'saida'; texto: string; horas: number }[] };
   /** Apresentação da Minha Página e os imóveis em destaque (chaves). */
   pagina?: { apresentacao: string; destaques: string[] };
+  /** Peças do Estúdio (só entram se a conta não tem nenhuma). */
+  estudio?: PecaDemo[];
 }
 
 const DESCRICAO_CASA =
@@ -83,6 +103,7 @@ const DESCRICAO_LOTE =
 /** O conjunto do guia (§5): os KPIs dele são conferidos à mão em docs/desempenho.md. */
 export const CONJUNTO_PRINCIPAL: Conjunto = {
   creci: 'DF-12345-F', // fictício
+  telefone: '+5561990000100', // fictício
   imoveis: [
     // Qualidade (a do cálculo real, de 5 em 5): casa 100, apartamento 80 (descrição curta), lote 70
     // (3 fotos) e cobertura 35 (rascunho sem fotos, descrição nem autorização). O guia diz 92 · 78 · 64 · 41.
@@ -105,6 +126,12 @@ export const CONJUNTO_PRINCIPAL: Conjunto = {
     apresentacao: 'Corretor em Brasília, focado em casas e apartamentos no Jardim Botânico, Sudoeste e Reserva do Colorado. Atendo do primeiro contato à escritura.',
     destaques: ['casa', 'apto'],
   },
+  estudio: [
+    { titulo: 'Lançamento · Casa Jardim Botânico', imovel: 'casa', formato: 'post_1x1', objetivo: 'novo_imovel', chamada: 'Acabou de chegar. Agende sua visita.', destaques: ['320 m²', '4 quartos', '4 vagas'], legenda: 'Novo no Jardim Botânico: casa de 4 quartos, 320 m², piscina e quatro vagas.\nChame no WhatsApp e agende sua visita.\nCRECI DF-12345-F', hashtags: '#casadosonhos #jardimbotanico #imoveisbrasilia', estado: 'rascunho' },
+    { titulo: 'Carrossel · Apartamento Sudoeste', imovel: 'apto', formato: 'carrossel', objetivo: 'destaque', chamada: 'Fale comigo e agende sua visita.', destaques: ['112 m²', '3 quartos', '2 vagas'], legenda: 'Apartamento reformado no Sudoeste, perto do Parque da Cidade.\nDeslize para ver os detalhes.\nCRECI DF-12345-F', hashtags: '#sudoeste #apartamento #imoveisbrasilia', estado: 'rascunho' },
+    { titulo: 'Story · Lote Reserva do Colorado', imovel: 'lote', formato: 'story', objetivo: 'visita_aberta', chamada: 'Venha conhecer: visita aberta.', destaques: ['450 m²', 'Esquina'], legenda: 'Lote de esquina de 450 m² na Reserva do Colorado.\nVisita neste fim de semana.\nCRECI DF-12345-F', hashtags: '#lote #reservadocolorado', arte: true, estado: 'rascunho' },
+    { titulo: 'Post · Casa com piscina', imovel: 'casa', formato: 'post_4x5', objetivo: 'destaque', chamada: 'Fale comigo e agende sua visita.', destaques: ['Piscina', 'Condomínio fechado'], legenda: 'Casa com piscina aquecida e jardim em condomínio fechado.\nAgende sua visita.\nCRECI DF-12345-F', hashtags: '#casacompiscina #jardimbotanico', arte: true, estado: 'aprovada' },
+  ],
   pessoas: [
     { nome: 'Ana Ribeiro', telefone: '+5561990000101', canal: 'instagram', etapa: 'Proposta', valor: 1450000, ultimo_contato_dias: 1, imovel: 'casa', observacoes: 'Veio do anúncio do Instagram. Procura casa de 4 quartos até R$ 1,5 mi; financiamento aprovado.' },
     { nome: 'Juliana Prado', telefone: '+5561990000102', canal: 'portal', etapa: 'Proposta', valor: 920000, ultimo_contato_dias: 1, imovel: 'apto', observacoes: 'Fez proposta de R$ 920 mil no apartamento do Sudoeste.' },
@@ -118,6 +145,7 @@ export const CONJUNTO_PRINCIPAL: Conjunto = {
 /** O conjunto menor do segundo corretor (roteiro de isolamento, spec 4.5). */
 export const CONJUNTO_ISOLAMENTO: Conjunto = {
   creci: 'DF-54321-F', // fictício
+  telefone: '+5561990000200', // fictício
   imoveis: [
     { chave: 'apto', titulo: 'Apartamento 2 quartos · Águas Claras', tipo: 'apartamento', situacao: 'ativo', bairro: 'Águas Claras', preco: 520000, area: 65, quartos: 2, banheiros: 2, vagas: 1, fotos: 2, autorizacao: { exclusiva: false, proprietario: 'Otávio Reis' }, pagina: true },
   ],
@@ -256,7 +284,7 @@ demoRotas.post(
     // O CRECI fictício só entra se o corretor ainda não tem perfil; nada depende dele (D-93), então
     // uma falha aqui não desfaz a demonstração. A temperatura também é extra: a rotina diária recalcula.
     const meuPerfil = await primeiro(dados, 'perfis_corretor', { usuario_id: eu });
-    if (!meuPerfil) await dados.criar('perfis_corretor', { usuario_id: eu, creci: conjunto.creci }).catch(() => null);
+    if (!meuPerfil) await dados.criar('perfis_corretor', { usuario_id: eu, creci: conjunto.creci, telefone: conjunto.telefone }).catch(() => null);
     for (const cid of criados) await reclassificar(dados, cid).catch(() => null);
     const { feito: completado, avisos } = await completarDemo(req, conjunto, new Set(imoveisNovos));
     res.status(201).json({ contatos: criados.length, negocios: conjunto.pessoas.length, imoveis: conjunto.imoveis.length, negociacoes: principal ? 1 : 0, completado, avisos });
@@ -356,6 +384,40 @@ export async function completarDemo(req: Request, conjunto: Conjunto, novos: Set
     }
   }
 
+  // WhatsApp do corretor (a capa da página pública só mostra "Falar no WhatsApp" com ele): só se o
+  // perfil não tem telefone; o que o corretor digitou fica.
+  if (conjunto.telefone) {
+    const perfil = await primeiro(dados, 'perfis_corretor', { usuario_id: eu });
+    if (!perfil) {
+      await dados.criar('perfis_corretor', { usuario_id: eu, creci: conjunto.creci, telefone: conjunto.telefone });
+      feito.push('WhatsApp do corretor: perfil criado');
+    } else if (!perfil.telefone) {
+      await dados.atualizar('perfis_corretor', perfil.id, { telefone: conjunto.telefone });
+      feito.push('WhatsApp do corretor: preenchido');
+    }
+  }
+
+  // Estúdio: um conjunto pequeno de peças, só em conta sem nenhuma. Nada de Instagram nem de evento:
+  // ficam em rascunho (falta a arte, ou arte para aprovar) e aprovada (pronta). As com arte dependem de `req.arquivos`.
+  if (conjunto.estudio && !(await dados.listar('pecas', { filtros: { conta_id: conta }, por_pagina: 1 })).total) {
+    let criadas = 0;
+    for (const [i, d] of conjunto.estudio.entries()) {
+      if (d.arte && typeof req.arquivos?.enviar !== 'function') continue;
+      const peca = await dados.criar('pecas', {
+        imovel_id: d.imovel ? imovelDe.get(d.imovel)?.id ?? null : null, formato: d.formato, objetivo: d.objetivo, titulo: d.titulo, chamada: d.chamada,
+        destaques: d.destaques, legenda: d.legenda, hashtags: d.hashtags, motor: 'canva_ia', estado: d.estado, gerada_por_ia: false,
+        ...(d.estado === 'aprovada' ? { aprovada_em: new Date().toISOString(), aprovada_por_id: eu } : {}),
+      });
+      if (d.arte) {
+        const [topo, base] = CORES_AMBIENTE[(i + 3) % CORES_AMBIENTE.length];
+        const up = await req.arquivos!.enviar({ tabela: 'peca_arquivos', coluna: 'arquivo', nome: `arte-${i + 1}.png`, mime: 'image/png', buffer: fotoDeExemplo(topo, base) });
+        await dados.criar('peca_arquivos', { peca_id: peca.id, arquivo: up.upload_id, ordem: 0 });
+      }
+      criadas++;
+    }
+    if (criadas) feito.push(`Estúdio: ${criadas} peças`);
+  }
+
   // Minha Página: criada se não existe (endereço livre pelo nome); a já salva fica como está (endereço,
   // blocos), e só ganha a publicação, se ainda não está no ar.
   const temShell = typeof req.shell?.gerarIngressoWh === 'function';
@@ -365,11 +427,27 @@ export async function completarDemo(req: Request, conjunto: Conjunto, novos: Set
       const nome = req.contexto!.usuario.nome || 'Corretor';
       const blocos = blocosPadrao().map((b) => {
         if (b.tipo === 'apresentacao' && conjunto.pagina) return { ...b, texto: conjunto.pagina.apresentacao };
-        if (b.tipo === 'destaques' && conjunto.pagina) return { ...b, codigos: conjunto.pagina.destaques.map((k) => imovelDe.get(k)?.codigo).filter(Boolean) as string[] };
         return b;
       });
       pagina = await dados.criar('paginas_corretor', { chave: 'conta', endereco: await enderecoLivre(req, sugerirEndereco(nome)), nome_exibicao: nome, blocos });
       feito.push(`página criada (${pagina.endereco})`);
+    }
+    // Imóveis em destaque: só se o bloco está ligado e vazio (o que o corretor escolheu fica), com os
+    // da demonstração que a vitrine de fato mostra (marcados, anunciados e com autorização vigente).
+    const blocosPagina = (Array.isArray(pagina.blocos) ? pagina.blocos : []) as Bloco[];
+    const vaga = blocosPagina.find((b) => b.tipo === 'destaques');
+    if (conjunto.pagina && vaga && vaga.ativo !== false && !(vaga.codigos ?? []).length) {
+      const codigos: string[] = [];
+      for (const k of conjunto.pagina.destaques) {
+        const im = imovelDe.get(k);
+        if (!im) continue;
+        const auts = await dados.varrerTudo('autorizacoes_venda', { filtros: { conta_id: conta, imovel_id: im.id }, maximo: 200 });
+        if (publicavel(im, auts, dia)) codigos.push(String(im.codigo));
+      }
+      if (codigos.length) {
+        pagina = (await dados.atualizar('paginas_corretor', pagina.id, { blocos: blocosPagina.map((b) => (b === vaga ? { ...b, codigos } : b)) })) ?? pagina;
+        feito.push(`destaques da página: ${codigos.join(', ')}`);
+      }
     }
     if (!pagina.publicada_em) {
       const r = await publicarPagina(req);
