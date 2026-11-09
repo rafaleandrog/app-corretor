@@ -26,7 +26,7 @@ O véu translúcido do `urbi-inbox` (`div.layout` .04, `detail-pane` .05) já n�
 | Menu da app (`nav` do shell, item / título de seção) | 11,83 / 4,91 | 11,58 / 4,94 | shell |
 | Rótulo do trilho | não existe mais (D-114: o menu é o `nav`) | — | — |
 | `urbi-chips-atalho` inativo · **ativo** | 4,50 · **4,05** | 4,68 · 5,39 | shell |
-| `urbi-badge` neutro · **de estado** (Quente, Morno, Frio, Feito, link ativo, Abordagem atrasada) | 4,50 · **3,69 a 4,08** | 4,68 · **3,74** (Quente, Sem resposta) a 7,11 | shell |
+| `urbi-badge` neutro · **de estado** (Quente, Morno, Frio, Feito, link ativo, Abordagem atrasada) | 4,50 · **3,69 a 4,08** (SUBSTITUÍDO pela seção Remedição da revisão: ver abaixo; remedido 3,02–4,15) | 4,68 · **3,74** (Quente, Sem resposta) a 7,11 (SUBSTITUÍDO: remedido 3,30–7,11) | shell |
 | Iniciais do `urbi-avatar` | **3,76 a 4,05** | 4,83 a 5,39 | shell |
 | Rótulo do `urbi-kpi` | **4,47** | 4,69 | shell |
 | Submensagem do `urbi-estado-vazio` | **3,10** | 3,78 | shell |
@@ -36,7 +36,7 @@ Os números são iguais em 1366×657 e 1440×1000: o fundo e a cor não mudam co
 
 ## Correção no app (0.1.58) e prova
 
-As 88 ocorrências de `papel="fraco"` em `frontend/telas/` passaram a `papel="dica"`. O `dica` tem o mesmo tamanho (0,75rem) e usa `--cor-texto-sec`. No `fraco` não sobrou texto desabilitado, único uso que o token prevê. Prova no DOM vivo das cinco telas: o pior caso passou a **4,60** no claro e **4,97** no escuro. A linha ficou 1 px mais baixa (17 → 16 px; 35 → 32 em duas linhas). `testes/contraste.test.ts` impede que o `fraco` volte.
+As 88 ocorrências de `papel="fraco"` em `frontend/telas/` passaram a `papel="dica"`. O `dica` tem o mesmo tamanho (0,75rem) e usa `--cor-texto-sec`. No `fraco` não sobrou texto desabilitado, único uso que o token prevê. Prova no DOM vivo das cinco telas: o pior caso passou a **4,60** no claro e **4,97** no escuro (SUBSTITUÍDO pela seção Remedição da revisão: ver abaixo; 11 telas, pior caso 4,24 no Funil claro). A linha ficou 1 px mais baixa (17 → 16 px; 35 → 32 em duas linhas). `testes/contraste.test.ts` impede que o `fraco` volte.
 
 O que fica abaixo de 4,5 é do shell (pedido 28).
 
@@ -64,6 +64,8 @@ Remedido em 09/11/2026 na "pinguim" (app 0.1.51, `CONTA=7`, 1366×657), só leit
 | neutro (`padrao` ou sem `cor`) | coluna | `rgba(13,27,42,.62)` · `#E2E5E9` · 4,50 | `rgba(255,255,255,.5)` · `#202D3B` · 4,68 |
 | neutro | cartão (ficha, Imóveis) | `#D9DDE1` · **4,36** | `#293643` · **4,37** |
 | `alerta` com texto neutro (faltas da qualidade em Imóveis) | coluna | `#E0E3E7` · 4,47 | `#202D3B` · 4,69 |
+
+Ressalvas: (a) "Em andamento" e "Ponto de recuo" (Negociações) aparecem no array `badges` com 10,97/10,32 (claro) e 12,75/11,67 (escuro), leitura da cor do host, e não entram nas faixas citadas dos selos de estado; (b) `secundario` sobre `variante-alerta` é inferido (mesmo token do `dica`), não medido.
 
 Telas com selo medido: Clientes, ficha, Hoje, Imóveis, Negociações, Funil, Página, Conversas, Importar, Conta e marca (Estúdio não tem selo).
 
