@@ -29,9 +29,9 @@ As prioridades são sugestões deste pacote. Quem decide é o dono. Nenhum pedid
 **O que pedimos:** no tema claro, coluna e cartão brancos sem CSS da tela, e piso de 4,5:1 para o texto que os primitivos pintam, medido sobre a coluna e o cartão em que ele aparece.
 
 **Por que:**
-- **[SDK]** O único fundo de painel documentado é o do trilho em hover do `urbi-3-colunas` (`--urbi-3-colunas-trilho-fundo-hover`, `ui-componentes-layout.md`). O SDK não documenta cor, tamanho nem contraste do papel `dica` nem do que os outros primitivos pintam (o `urbi-abas` tem cores documentadas, `ui-componentes-layout.md`). Ele documenta `--cor-texto-fraco` como cor de meta, placeholder e desabilitado (`ui.md` § Tokens); o valor `rgba(13,27,42,.48)` está no SDK (`dist/tokens.css`), não em `docs/`.
+- **[SDK]** O único fundo de painel documentado é o do trilho em hover do `urbi-3-colunas` (`--urbi-3-colunas-trilho-fundo-hover`, `ui-componentes-layout.md`). O SDK não documenta cor nem contraste do papel `dica` nem dos primitivos medidos (`urbi-card`, `urbi-badge`, `urbi-banner`, `urbi-botao`, `urbi-kanban`); documenta só pisos de contraste de tokens (`ui.md` § Tokens), cores do `urbi-abas` (`ui-componentes-layout.md`) e, em `ui-componentes-conteudo.md`, a garantia qualitativa de que o fundo do `urbi-banner` é a cor de estado a ~10%, sem valor de contraste. Ele documenta `--cor-texto-fraco` como cor de meta, placeholder e desabilitado (`ui.md` § Tokens); o valor `rgba(13,27,42,.48)` está no SDK (`dist/tokens.css`), não em `docs/`.
 - **[medido]** (`issue-176/medidas.md`) O `urbi-3-colunas` e o `urbi-hospedeiro` não pintam nada em repouso. A coluna mostra o `--cor-fundo` do `urbi-shell-page`: `#F2F4F7` no claro e `#0D1B2A` no escuro. O `urbi-card` pinta `--cor-superficie` (`rgba(13,27,42,.04)`) e sai `#E9EBEF`, mais escuro que a coluna. O guia do app pede coluna e cartão `#FFFFFF` sobre `#F4F3EF`.
-- **[medido]** Texto que fica abaixo de 4,5:1 no claro (e, no modal de mandato da 0.1.58, `urbi-banner` de alerta 3,47 e `urbi-botao` "mostrar" 4,33 no claro, `urbi-botao-alternar` 4,94 no escuro, `specs/prints/conferencia-0.1.58/medidas.json`):
+- **[medido]** Texto que fica abaixo de 4,5:1 no claro (e, no modal de mandato da 0.1.58, `urbi-banner` de alerta 3,47 e `urbi-botao` "mostrar" 4,33 no claro, `urbi-botao-alternar` 4,94 no escuro, `specs/prints/conferencia-0.1.58/medidas.json`, campos `Mandato_light.piorGeral`, `Mandato_light.piorProsaQualquer` e `Mandato_dark.piorGeral`; não são pedido novo: são o mesmo contraste do item (b), registrado na conferência da 0.1.58):
   - selos de estado do `urbi-badge`: de 3,02 a 4,15 no claro e de 3,30 a 7,11 no escuro;
   - selo neutro dentro de cartão: 4,36 no claro e 4,37 no escuro (sobre a coluna dá 4,50 e 4,68);
   - `urbi-chips-atalho` ativo: 4,05;
@@ -195,7 +195,7 @@ As prioridades são sugestões deste pacote. Quem decide é o dono. Nenhum pedid
   A referência começa em ~67. No rodapé da janela não há nada.
 
 **O que o app faz até lá** (0.1.56):
-- Hoje vai no `urbi-2x1`, sem abas e com uma rolagem só. Na prova no DOM, o conteúdo começa em y 183 com o seletor (0.1.56) e cerca de 129 sem ele; na conferência da 0.1.58, em y 167 com o seletor.
+- Hoje vai no `urbi-2x1`, sem abas e com uma rolagem só. Na prova no DOM, o conteúdo começa em y 183 com o seletor (0.1.56) e cerca de 129 sem ele (valor derivado: 183 menos a altura do seletor de Conta de 54 px, sem captura; o 183 está em `specs/prints/issue-190/prova.json`); na conferência da 0.1.58, em y 167 com o seletor.
 - Em M3 e M8, as ações ficam no fim da coluna e do cartão, não fixas (D-124).
 - O app escolhe entre `urbi-2x1` e `urbi-3-colunas` com um `matchMedia` próprio e o corte de 900 px copiado como número fixo. O `compatibilidade.md` (entrada v0.53.29) manda apagar esse `matchMedia` quando o shell resolver.
 
@@ -227,7 +227,7 @@ Os pedidos **não declaram** que um depende do outro. O que há é componente em
 
 ## O que NÃO é pedido ao shell (o app já resolveu na etapa 5)
 
-- **Texto de apoio:** o `fraco` virou `dica` em 21 telas (PR #213, 0.1.58), com as exceções abaixo de 4,5:1 listadas no pedido 28. Fica de fora do pedido 28 a escolha do papel; o que continua no 28 é cor do primitivo e do tema.
+- **Texto de apoio:** o `fraco` virou `dica` em 21 arquivos de telas, 20 medidos (a conta demo não tem empreendimentos), 88 ocorrências (PR #213, 0.1.58), com as exceções abaixo de 4,5:1 listadas no pedido 28. Fica de fora do pedido 28 a escolha do papel; o que continua no 28 é cor do primitivo e do tema.
 - **Véu cinza do `urbi-inbox`:** o app não usa mais o `urbi-inbox`. A moldura de três colunas (D-114) é anterior à etapa 5.
 - **Rótulo em todo campo:** o app já passa o rótulo em todos, com dois testes que vigiam isso (PR #212, sem versão nova). O que falta no 29 é só a ligação do rótulo dentro do primitivo.
 - **Formulário que perdia o que foi digitado:** o app reabre o formulário com os valores e o erro (PR #207, 0.1.53). O 30 pede o erro no campo, sem fechar.

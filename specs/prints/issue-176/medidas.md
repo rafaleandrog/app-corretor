@@ -97,7 +97,7 @@ Telas com selo medido: Clientes, ficha, Hoje, Imóveis, Negociações, Funil, P�
 | Importar | 4,74 · 3,10 | 5,18 · 3,78 | coluna |
 | Conta e marca | 4,60 · 3,04 | 4,97 · 3,70 | cartão |
 
-Com as cinco telas da prova anterior (Ajustes na seção padrão), são 12 telas medidas com `dica`. Só o Funil, no claro, fica abaixo de 4,5:1.
+Com as cinco telas da prova anterior (Ajustes na seção padrão), são 12 telas medidas com `dica`. Só o Funil, no claro, fica abaixo de 4,5:1. (SUBSTITUÍDO pela conferência da 0.1.58 e pela seção Remedição: exceções abaixo de 4,5:1 no claro são Funil 4,24, mandato 4,49 e Ajustes 4,47 em um texto `secundario`; ver specs/prints/conferencia-0.1.58/)
 
 ### d) Aviso de IA na ficha
 
@@ -108,7 +108,7 @@ Com a IA disponível, o aviso não aparece. Para medi-lo, a sonda `GET /contatos
 - **DIVERGE** selo de estado no claro: antes "3,69 a 4,08", agora **3,02 a 4,15**. 3,02 é Morno e Abordagem atrasada no cartão do Funil, e 4,15 é Frio na lista. Fora do Funil e de Conta e marca a faixa vai de 3,69 a 4,15.
 - **DIVERGE** selo de estado no escuro: antes "3,74 (Quente) a 7,11", agora **3,30 a 7,11**. 3,30 é Quente no cartão do Funil. Os valores 3,74 e 7,11 se confirmam.
 - **DIVERGE** `urbi-badge` neutro: antes "4,50 · 4,68". Esses valores valem só sobre a coluna. Num cartão o neutro dá **4,36 · 4,37**, abaixo de 4,5.
-- **DIVERGE** pior caso do `dica`: antes "4,60 / 4,97", agora **4,24** no claro (Funil). O escuro se mantém em 4,69, acima de 4,5. Nas outras 10 telas, 4,60 / 4,97 se confirma.
+- **DIVERGE** pior caso do `dica`: antes "4,60 / 4,97", agora **4,24** no claro (Funil). O escuro se mantém em 4,69, acima de 4,5. Nas outras 10 telas, 4,60 / 4,97 se confirma. (SUBSTITUÍDO pela conferência da 0.1.58 e pela seção Remedição: exceções abaixo de 4,5:1 no claro são Funil 4,24, mandato 4,49 e Ajustes 4,47 em um texto `secundario`; ver specs/prints/conferencia-0.1.58/)
 - **DIVERGE** pior caso do `fraco` antes da troca: antes 3,04, agora **2,89** (Funil, claro).
 - Alturas: "17 → 16 px; 35 → 32" eram valores arredondados. Os medidos são 17,39 → 16,19 (−1,20) e 34,78 → 32,38 (**−2,40, não −3**). Numa lista de 5 clientes, a lista fica 6,01 px mais baixa. As listas de Hoje não mudam.
 - O aviso de IA (3,04 / 3,70) se confirma, agora medido.
