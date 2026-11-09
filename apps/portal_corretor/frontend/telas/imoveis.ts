@@ -439,7 +439,7 @@ export class PcContextoImovel extends LitElement {
         </urbi-stack>
       </urbi-card>
       <urbi-card titulo="Últimos 30 dias" icone="fa-solid fa-chart-simple">
-        <!-- Uma coluna de KPIs: a grade de 2 colunas cortava rótulo e cartão nos 340 px (#180). -->
+        <!-- Uma coluna de KPIs: a grade de 2 colunas cortava rótulo e cartão nos 340 px (issue 180). -->
         <urbi-stack>
           <urbi-kpi rotulo="Visitas" .valor=${numeros.visitas}></urbi-kpi>
           <urbi-kpi rotulo="Enviado a" .valor=${numeros.enviados}></urbi-kpi>

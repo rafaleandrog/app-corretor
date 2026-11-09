@@ -4,6 +4,7 @@ import { MARCA_PADRAO } from '../comum/estudio';
 import { TEMAS } from '../comum/pagina';
 import { PLAYBOOK_OBJECOES_PADRAO } from '../comum/negociacao';
 import { caracteristicasNaVitrine } from './vitrine';
+import { etapasPorId, garantirEtapas, garantirPlaybook } from './inteligencia';
 
 // Semente de demonstração (spec 12.2), idempotente: roda a cada boot e só cria o que falta.
 // Alcança apenas as contas cujo nome termina em "(demo)" — as contas de teste da equipe, criadas à
@@ -167,9 +168,34 @@ export async function republicarCaracteristicas(ctx: ContextoListener): Promise<
   return total;
 }
 
+/**
+ * Etapas e abordagens padrão em toda conta ativa que ainda não as tem (issue #32): a semeadura saiu dos
+ * GET. Conta criada depois deste início recebe pelo `POST /funil/preparar` que as telas chamam, ou na
+ * primeira gravação que precisa de etapa (novo negócio, lead da página, demonstração). Idempotente.
+ */
+export async function semearFunis(ctx: ContextoListener): Promise<number> {
+  if (!ctx.dados?.comConta || !ctx.contas) return 0;
+  const contas = await ctx.contas.listarAtivas();
+  const falhas: string[] = [];
+  for (const conta of contas) {
+    try {
+      await ctx.dados.comConta(conta.id, async (trx) => {
+        // Em contexto SISTEMA a leitura enxerga todas as contas: o filtro da conta é obrigatório.
+        const daConta = { conta_id: conta.id };
+        await garantirEtapas(trx, daConta);
+        await garantirPlaybook(trx, await etapasPorId(trx, daConta), daConta);
+      });
+    } catch (e) {
+      falhas.push(`${conta.nome}: ${(e as Error).message}`);
+    }
+  }
+  if (falhas.length) throw new Error(`Funil padrão incompleto — ${falhas.join('; ')}`);
+  return contas.length;
+}
+
 export const aoIniciar: AoIniciarApp = async (ctx) => {
   const falhas: string[] = [];
-  for (const tarefa of [semear, levarTemaParaMarca, semearObjecoes, republicarCaracteristicas]) {
+  for (const tarefa of [semear, semearFunis, levarTemaParaMarca, semearObjecoes, republicarCaracteristicas]) {
     try {
       await tarefa(ctx);
     } catch (e) {

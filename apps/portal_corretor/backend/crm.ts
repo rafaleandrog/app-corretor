@@ -16,7 +16,7 @@ import {
 } from '../comum/crm';
 import { gerarCsv } from '../comum/csv';
 import { assincrono, erro, guardarCorretor, id, MENSAGEM_VARIAS_CONTAS, primeiro } from './acesso';
-import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
+import { classificarManual, etapasPorId, playbookDaConta, prepararFunil, proximaAbordagem, reclassificar } from './inteligencia';
 import { encerrarAcessosDoCliente, tentarPortal } from './portal';
 import { iso, MARCO_PADRAO } from '../comum/funil';
 import { entrarPelaEtapaProposta } from './negociador-entrada';
@@ -90,19 +90,13 @@ async function origem(dados: HelperDados, canal: unknown, campanha: unknown): Pr
   }
 }
 
-/** Etapas da conta; na primeira vez, semeia o padrão (spec 6.2). */
+/**
+ * Etapas da conta, só leitura (issue #32: nenhum GET grava). Conta ainda sem etapas devolve lista
+ * vazia; quem precisa delas para gravar chama `garantirEtapas` antes, e as telas de leitura pedem
+ * `POST /funil/preparar` quando a resposta traz `preparar: true`.
+ */
 export async function etapasDaConta(dados: HelperDados, pipeline?: Pipeline) {
-  let r = await dados.listar('etapas_funil', { por_pagina: 200, ordenar: 'ordem', ordem: 'asc' });
-  if (!r.dados.length) {
-    for (const e of ETAPAS_PADRAO) {
-      try {
-        await dados.criar('etapas_funil', { ...e, ativa: true, marco: MARCO_PADRAO[e.nome] ?? null });
-      } catch (err) {
-        if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
-      }
-    }
-    r = await dados.listar('etapas_funil', { por_pagina: 200, ordenar: 'ordem', ordem: 'asc' });
-  }
+  const r = await dados.listar('etapas_funil', { por_pagina: 200, ordenar: 'ordem', ordem: 'asc' });
   return r.dados.filter((e) => !pipeline || e.pipeline === pipeline);
 }
 
@@ -455,6 +449,7 @@ crmRotas.post(
     const contato = cid ? await dados.buscar('contatos', cid) : null;
     if (!contato) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o contato do negócio.');
     const pipeline = (PIPELINES as readonly string[]).includes(req.body?.pipeline) ? (req.body.pipeline as Pipeline) : 'compra';
+    await prepararFunil(dados);
     const etapas = await etapasDaConta(dados, pipeline);
     const primeira = etapas.find((e) => e.ativa && e.tipo === 'aberta');
     if (!primeira) return erro(res, 409, 'SEM_ETAPA', 'Este funil não tem etapa em andamento ativa. Revise em Ajustes › Funil.');
@@ -779,7 +774,11 @@ crmRotas.get(
   '/funil/etapas',
   assincrono(async (req, res) => {
     const pipeline = (PIPELINES as readonly string[]).includes(req.query.pipeline as string) ? (req.query.pipeline as Pipeline) : undefined;
-    res.json({ etapas: await etapasDaConta(req.dados!, pipeline) });
+    const dados = req.dados!;
+    const etapas = await etapasDaConta(dados, pipeline);
+    // Conta ainda sem etapas ou sem abordagens: a tela pede `POST /funil/preparar` (issue #32).
+    const [algumaEtapa, algumaAbordagem] = await Promise.all([dados.listar('etapas_funil', { por_pagina: 1 }), dados.listar('playbook_funil', { por_pagina: 1 })]);
+    res.json({ etapas, preparar: !algumaEtapa.dados.length || !algumaAbordagem.dados.length });
   }),
 );
 

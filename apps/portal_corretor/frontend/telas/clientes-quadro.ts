@@ -5,7 +5,7 @@ import type { Gesto } from '../apoio.js';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { FILTROS_PRONTOS, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
-import { chamarApi, chip, contaDeTrabalho, ehContaTrocada, enviar, filtrosDaUrl, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA } from '../apoio.js';
+import { chamarApi, chip, contaDeTrabalho, ehContaTrocada, enviar, filtrosDaUrl, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA, lerPreparandoFunil } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -157,13 +157,13 @@ export class PcClientesQuadro extends LitElement {
       for (const k of ['pipeline', 'temperatura']) if (f.get(k)) q.set(k, f.get(k)!);
       const pronto = f.get('pronto');
       if (ehPronto(pronto)) for (const [k, v] of Object.entries(parametrosDoPronto(pronto, await g.esperar(lerDiasParado())))) q.set(k, v);
-      const r = await g.esperar(chamarApi(`/funil/quadro?${q}`));
+      const r = await g.esperar(lerPreparandoFunil(`/funil/quadro?${q}`));
       if (geracao !== this.geracao || !this.isConnected || conta !== contaDeTrabalho()) return;
       this.quadro = r;
       publicarResumo(conta, { funis: r.funis, temperaturas: r.temperaturas });
     } catch (e) {
       if (g.encerrado(e)) return;
-      if (geracao === this.geracao && this.isConnected) this.falha = (e as Error).message;
+      if (geracao === this.geracao && this.isConnected) this.falha = mensagemDeErro(e);
     }
   }
 

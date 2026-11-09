@@ -78,7 +78,7 @@ export class PcSelecoesCliente extends LitElement {
       this.tarefas = t.dados;
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      if (meu === this.pedido) this.falha = (e as Error).message;
+      if (meu === this.pedido) this.falha = mensagemDeErro(e);
     }
   }
 

@@ -79,6 +79,13 @@ const TELAS: Record<ChaveTela, Tela> = {
   corretores: { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
 
+/**
+ * Sem conta (#33): as telas do corretor trabalham dentro de uma conta. Para avaliar o app, a conta certa é
+ * uma de demonstração, para não deixar perfil nem dados de teste na conta de um corretor real.
+ */
+export const MENSAGEM_SEM_CONTA_TELA =
+  'As telas do corretor trabalham sempre dentro de uma conta, e nada é gravado sem ela. Para avaliar o app, associe seu usuário a uma conta de demonstração (nome terminado em “(demo)”) em Admin › Acesso › Contas, ou peça a quem cuida das contas da plataforma, e recarregue a página. Evite usar a conta de um corretor real: o que você salvar fica nela.';
+
 // Tag fixa pela plataforma: `app-` + appId com hífens.
 @customElement('app-portal-corretor')
 export class AppPortalCorretor extends LitElement {
@@ -208,7 +215,7 @@ export class AppPortalCorretor extends LitElement {
     // Sem conta não há carteira para mostrar: explica o que fazer em vez de cada tela dar erro.
     if (this.faltaConta(tela)) {
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-building-user" mensagem="Você ainda não está em nenhuma conta"
-        submensagem="As telas do corretor trabalham sempre dentro de uma conta. Associe seu usuário a uma conta em Admin › Acesso › Contas (ou peça a quem cuida das contas da plataforma) e recarregue a página."></urbi-estado-vazio>`;
+        submensagem=${MENSAGEM_SEM_CONTA_TELA}></urbi-estado-vazio>`;
     }
     // `keyed` pelo endereço e pela navegação: trocar de cliente recria a tela em vez de reaproveitar o estado.
     const conteudo = keyed(this.chaveDaTela(), tela.render(param, this, this.chaveDaTela));

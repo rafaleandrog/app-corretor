@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ABAS_AJUSTES, ABA_PADRAO, abaDoEndereco, ehAbaAjustes, type AbaAjustes } from '../../comum/ajustes';
-import { avisoCreci, chamarApi, chamarFetch, gesto } from '../apoio.js';
+import { avisoCreci, chamarApi, chamarFetch, gesto, mensagemDeErro } from '../apoio.js';
 import { estadoTela } from '../estados.js';
 import { cabecalhoColuna, moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -173,7 +173,7 @@ export class PcAjustesPrivacidade extends LitElement {
       URL.revokeObjectURL(url);
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
+      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.exportando = false;
     }

@@ -343,7 +343,7 @@ export class PcTelaClientes extends LitElement {
       this.pagina = pagina;
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      if (geracao === this.geracao) this.falha = (e as Error).message;
+      if (geracao === this.geracao) this.falha = mensagemDeErro(e);
     } finally {
       if (geracao === this.geracao && this.vida.vivo()) this.carregando = false;
     }

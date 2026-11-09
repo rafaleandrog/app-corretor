@@ -75,7 +75,7 @@ export class PcTelaConexoes extends LitElement {
       this.dados = await this.vida.esperar(chamarApi('/conexoes'));
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 

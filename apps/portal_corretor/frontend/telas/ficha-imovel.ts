@@ -93,7 +93,7 @@ export class PcTelaFichaImovel extends LitElement {
       if (!primeira) window.dispatchEvent(new CustomEvent(EVENTO_IMOVEL_MUDOU, { detail: { id: this.imovelId } }));
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 

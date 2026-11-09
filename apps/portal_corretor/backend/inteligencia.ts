@@ -1,4 +1,5 @@
 import type { HelperDados } from '@urbiverso/sdk';
+import { ETAPAS_PADRAO } from '../comum/crm';
 import { classificar, deveTrocar, iso as instante, MARCO_PADRAO, PLAYBOOK_PADRAO, venceEm, type Classificacao, type Temperatura } from '../comum/funil';
 
 // Inteligência do Funil por regras (bloco 4): reclassifica a temperatura a cada sinal e aponta a
@@ -92,22 +93,54 @@ export async function classificarManual(dados: HelperDados, contatoId: number, t
 }
 
 /** Playbook da conta por (etapa, temperatura); semeia o padrão na primeira leitura (spec 6.15). */
-export async function playbookDaConta(dados: HelperDados, etapas: Map<number, Linha>): Promise<Linha[]> {
-  let r = await dados.listar('playbook_funil', { por_pagina: 1000 });
-  if (!r.dados.length) {
-    for (const e of etapas.values()) {
-      if (!e.ativa || e.tipo !== 'aberta' || !e.marco) continue;
-      for (const a of PLAYBOOK_PADRAO.filter((x) => x.marco === e.marco)) {
-        try {
-          await dados.criar('playbook_funil', { etapa_id: e.id, temperatura: a.temperatura, abordagem: a.abordagem, canal_sugerido: a.canal_sugerido, prazo_horas: a.prazo_horas });
-        } catch (err) {
-          if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
-        }
+/** Playbook da conta, só leitura (issue #32). Vazio até `garantirPlaybook` semear. */
+/**
+ * Semeia as etapas padrão (spec 6.2) na conta que ainda não tem nenhuma. Só em caminho de escrita:
+ * `aoIniciar` (contas que já existem), `POST /funil/preparar`, criar negócio e a demonstração.
+ * Idempotente; duas chamadas juntas caem no único (23505) e seguem.
+ */
+export async function garantirEtapas(dados: HelperDados, filtroConta: Record<string, unknown> = {}) {
+  const existe = await dados.listar('etapas_funil', { filtros: filtroConta, por_pagina: 1 });
+  if (!existe.dados.length) {
+    for (const e of ETAPAS_PADRAO) {
+      try {
+        await dados.criar('etapas_funil', { ...e, ativa: true, marco: MARCO_PADRAO[e.nome] ?? null });
+      } catch (err) {
+        if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
       }
     }
-    r = await dados.listar('playbook_funil', { por_pagina: 1000 });
   }
-  return r.dados;
+}
+
+export async function playbookDaConta(dados: HelperDados, _etapas?: Map<number, Linha>): Promise<Linha[]> {
+  return (await dados.listar('playbook_funil', { por_pagina: 1000 })).dados;
+}
+
+/**
+ * Semeia as abordagens padrão nas etapas em andamento (spec 10.4) quando a conta ainda não tem
+ * nenhuma. Só em caminho de escrita (`aoIniciar`, `POST /funil/preparar`, demonstração).
+ */
+export async function garantirPlaybook(dados: HelperDados, etapas: Map<number, Linha>, filtroConta: Record<string, unknown> = {}) {
+  if ((await dados.listar('playbook_funil', { filtros: filtroConta, por_pagina: 1 })).dados.length) return;
+  for (const e of etapas.values()) {
+    if (!e.ativa || e.tipo !== 'aberta' || !e.marco) continue;
+    for (const a of PLAYBOOK_PADRAO.filter((x) => x.marco === e.marco)) {
+      try {
+        await dados.criar('playbook_funil', { etapa_id: e.id, temperatura: a.temperatura, abordagem: a.abordagem, canal_sugerido: a.canal_sugerido, prazo_horas: a.prazo_horas });
+      } catch (err) {
+        if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
+      }
+    }
+  }
+}
+
+/**
+ * Semeia etapas e abordagens padrão na conta que ainda não as tem. É a escrita que antes acontecia
+ * dentro dos GET: as telas chamam quando a leitura responde `preparar: true`. Idempotente.
+ */
+export async function prepararFunil(dados: HelperDados) {
+  await garantirEtapas(dados);
+  await garantirPlaybook(dados, await etapasPorId(dados));
 }
 
 export interface ProximaAbordagem {

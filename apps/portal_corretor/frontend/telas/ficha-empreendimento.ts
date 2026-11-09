@@ -51,7 +51,7 @@ export class PcTelaFichaEmpreendimento extends LitElement {
       this.ficha = await this.vida.esperar(chamarApi(`/empreendimentos/${this.empreendimentoId}`));
     } catch (e) {
       if (this.vida.encerrado(e)) throw e;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 

@@ -65,7 +65,7 @@ export class PcTelaMarca extends LitElement {
       this.marca = await this.vida.esperar(chamarApi('/estudio/marca'));
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 

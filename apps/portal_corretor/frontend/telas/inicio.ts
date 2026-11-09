@@ -499,7 +499,7 @@ function direita(d: DadosHoje, atualizar: () => void) {
               <urbi-kpi rotulo="Leads" .valor=${s.leads ?? 0}></urbi-kpi>
               <urbi-kpi rotulo="Visitas feitas" .valor=${s.visitas ?? 0}></urbi-kpi>
             </urbi-grid>
-            <!-- Valor em reais na linha inteira do cartão: numa célula da grade ele quebrava ou rolava (#164). -->
+            <!-- Valor em reais na linha inteira do cartão: numa célula da grade ele quebrava ou rolava (issue 164). -->
             <urbi-kpi rotulo="Comissão prevista" formato="texto" .valor=${s.previsao_c === null || s.previsao_c === undefined ? '—' : reais(s.previsao_c)}></urbi-kpi>
           </urbi-stack>
         </urbi-card>`

@@ -44,7 +44,18 @@ test('modelos de importação pré-preenchem o mapeamento; sem modelo, nada muda
 test('etapas do funil nascem com o padrão e a configuração é validada', async () => {
   const banco = new BancoFalso(UNICOS);
   await comServidor(rotas, A, banco, {}, async (chamar) => {
+    // Issue #32: a leitura não grava. Conta nova: lista vazia com `preparar`, e a escrita é o POST.
+    const antes = await chamar('GET', '/funil/etapas?pipeline=compra');
+    assert.deepEqual([antes.corpo.etapas.length, antes.corpo.preparar], [0, true]);
+    assert.equal(banco.linhas('etapas_funil').length, 0, 'GET não semeia');
+    assert.equal((await chamar('GET', '/funil/quadro')).corpo.preparar, true);
+    assert.equal((await chamar('GET', '/funil/playbook')).corpo.preparar, true);
+    assert.equal(banco.linhas('etapas_funil').length + banco.linhas('playbook_funil').length, 0, 'nenhum GET semeia');
+    assert.equal((await chamar('POST', '/funil/preparar', {})).status, 200);
+    assert.equal((await chamar('POST', '/funil/preparar', {})).status, 200, 'idempotente');
+    assert.ok(banco.linhas('playbook_funil').length > 0, 'abordagens padrão');
     const r = await chamar('GET', '/funil/etapas?pipeline=compra');
+    assert.equal(r.corpo.preparar, false);
     assert.equal(r.corpo.etapas.length, 9);
     assert.equal((await chamar('GET', '/funil/etapas')).corpo.etapas.length, 16);
     const semGanho = r.corpo.etapas.filter((e: any) => e.tipo !== 'ganha');

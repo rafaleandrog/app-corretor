@@ -167,6 +167,7 @@ test('taxa de passagem entre etapas: confere com a conta à mão sobre um conjun
 test('quadro: contagens dos funis e das temperaturas, taxas, filtros prontos e Perdido sem motivo não grava', async () => {
   const banco = new BancoFalso(UNICOS);
   await comServidor(rotas, A, banco, {}, async (chamar) => {
+    await chamar('POST', '/funil/preparar', {}); // issue #32: o quadro (GET) não semeia
     const etapas = (await chamar('GET', '/funil/quadro?pipeline=compra')).corpo.etapas;
     const etapa = (nome: string) => etapas.find((e: any) => e.nome === nome).id;
     const novo = async (nome: string, telefone: string) => {

@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, enviar, gesto, mensagemDeErro } from '../apoio.js';
+import { chamarApi, enviar, gesto, mensagemDeErro, lerPreparandoFunil } from '../apoio.js';
 import './playbook.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -42,12 +42,12 @@ export class PcTelaFunilAjustes extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      const r = await this.vida.esperar(chamarApi('/funil/etapas'));
+      const r = await this.vida.esperar(lerPreparandoFunil('/funil/etapas'));
       const ativas = (r.etapas as Etapa[]).filter((e) => e.ativa !== false);
       this.rascunho = Object.fromEntries(PIPELINES.map((p) => [p.id, ativas.filter((e) => e.pipeline === p.id)]));
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 

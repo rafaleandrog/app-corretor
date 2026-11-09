@@ -478,7 +478,8 @@ export async function aoReceberLead(evento: EventoConta, ctx: ContextoListener) 
     });
     const consentimento = await declarar(Number(contato!.id));
     let etapas = await trx.varrerTudo('etapas_funil', { filtros: { conta_id: conta, pipeline: 'compra' }, maximo: 200 });
-    // Conta que nunca abriu o funil: semeia as etapas padrão, como a primeira leitura do app faria.
+    // Conta ainda sem etapas (criada depois do último início do app): semeia as padrão, como
+    // `POST /funil/preparar` faria.
     if (!etapas.length) {
       for (const e of ETAPAS_PADRAO) await trx.criar('etapas_funil', { ...e, ativa: true, marco: MARCO_PADRAO[e.nome] ?? null });
       etapas = await trx.varrerTudo('etapas_funil', { filtros: { conta_id: conta, pipeline: 'compra' }, maximo: 200 });

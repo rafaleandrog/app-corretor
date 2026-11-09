@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, formularioEnviar, gesto, opcoesChip, rotuloChip } from '../apoio.js';
+import { chamarApi, formularioEnviar, gesto, mensagemDeErro, opcoesChip, rotuloChip, lerPreparandoFunil } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -31,10 +31,10 @@ export class PcPlaybook extends LitElement {
   private async carregar() {
     this.falha = null;
     try {
-      this.dados = await this.vida.esperar(chamarApi('/funil/playbook'));
+      this.dados = await this.vida.esperar(lerPreparandoFunil('/funil/playbook'));
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 

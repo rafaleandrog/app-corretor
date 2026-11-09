@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, gesto } from '../apoio.js';
+import { chamarApi, gesto, mensagemDeErro } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -22,6 +22,13 @@ const STATUS: Record<Convite['status'], { cor: string; rotulo: string }> = {
   revogado: { cor: 'padrao', rotulo: 'Revogado' },
 };
 
+/** Frase do estado vazio de quem não tem o papel `operacao` (#173; o mesmo texto em docs/convidar-corretores.md). */
+export const SEM_PAPEL_DE_EQUIPE =
+  'Convidar corretores é tarefa da equipe da plataforma. Peça a quem administra a plataforma para atribuir a você o papel Equipe (operacao) deste app em Configurações › Usuários, seção Equipe, e abra esta tela de novo.';
+
+/** A plataforma recusou por falta do papel `operacao` (o código chega no erro de `urbiVerso.api`). */
+export const semPapelDeEquipe = (e: unknown) => (e as { codigo?: string } | null)?.codigo === 'PROVISIONA_SEM_PAPEL';
+
 const data = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
 
 // Equipe da plataforma › Corretores: convida cada corretor para uma conta nova e acompanha os
@@ -35,6 +42,11 @@ export class PcTelaCorretores extends LitElement {
   @state() private buscandoMais = false;
   @state() private falha: string | null = null;
   @state() private falhaMais: string | null = null;
+  /**
+   * Quem abriu a tela não tem o papel `operacao` (o admin do app sem ele, #173): a plataforma recusa a
+   * lista e o convite com `PROVISIONA_SEM_PAPEL`. A tela explica e esconde "Convidar corretor".
+   */
+  @state() private semPapelDeEquipe = false;
   // Cada carregamento recebe um número; resposta de um carregamento anterior é descartada.
   private geracao = 0;
   /**
@@ -73,7 +85,9 @@ export class PcTelaCorretores extends LitElement {
       this.pagina = 1;
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      if (geracao === this.geracao) this.falha = (e as Error).message;
+      if (geracao !== this.geracao) return;
+      if (semPapelDeEquipe(e)) this.semPapelDeEquipe = true;
+      else this.falha = mensagemDeErro(e);
     } finally {
       if (geracao === this.geracao) this.carregando = false;
     }
@@ -94,7 +108,7 @@ export class PcTelaCorretores extends LitElement {
       this.pagina = pagina;
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      if (geracao === this.geracao) this.falhaMais = (e as Error).message;
+      if (geracao === this.geracao) this.falhaMais = mensagemDeErro(e);
     } finally {
       if (geracao === this.geracao) this.buscandoMais = false;
     }
@@ -119,8 +133,11 @@ export class PcTelaCorretores extends LitElement {
         await this.carregar();
       } catch (e) {
         if (this.vida.encerrado(e)) throw e;
-        const falha = e as Error & { detalhes?: string[] };
-        await urbiVerso.alertar({ titulo: 'Convite não enviado', mensagem: falha.detalhes?.join('\n') || falha.message });
+        if (semPapelDeEquipe(e)) {
+          this.semPapelDeEquipe = true;
+          return;
+        }
+        await urbiVerso.alertar({ titulo: 'Convite não enviado', mensagem: mensagemDeErro(e) });
       }
     });
   }
@@ -134,7 +151,7 @@ export class PcTelaCorretores extends LitElement {
         await this.carregar();
       } catch (e) {
         if (this.vida.encerrado(e)) throw e;
-        await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: (e as Error).message });
+        await urbiVerso.alertar({ titulo: 'Não foi possível revogar', mensagem: mensagemDeErro(e) });
       }
     });
   }
@@ -158,13 +175,19 @@ export class PcTelaCorretores extends LitElement {
         semRotuloMobile: true,
         render: (l) =>
           (l as Convite).status === 'emitido'
-            ? html`<urbi-botao variante="texto" pequeno @click=${() => this.revogar(l as Convite)}>Revogar</urbi-botao>`
+            ? html`<urbi-botao variante="texto" @click=${() => this.revogar(l as Convite)}>Revogar</urbi-botao>`
             : html``,
       },
     ];
   }
 
   render() {
+    if (this.semPapelDeEquipe) {
+      return html`<urbi-stack>
+        <urbi-estado-vazio icone="fa-solid fa-user-lock" mensagem="Para convidar corretores, falta o papel Equipe"
+          submensagem=${SEM_PAPEL_DE_EQUIPE}></urbi-estado-vazio>
+      </urbi-stack>`;
+    }
     const aceitos = this.convites.filter((c) => c.status === 'resgatado').length;
     const faltam = this.total - this.convites.length;
     return html`<urbi-stack>
@@ -181,14 +204,14 @@ export class PcTelaCorretores extends LitElement {
       ${this.falha
         ? html`<urbi-banner variante="erro">
             ${this.falha}
-            <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
+            <urbi-botao slot="acao" variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
           </urbi-banner>`
         : html`<urbi-tabela responsivo="multiline" .colunas=${this.colunas()} .linhas=${this.convites} ?carregando=${this.carregando}
             mensagem-vazio="Nenhum convite enviado ainda. Use “Convidar corretor”."></urbi-tabela>
           ${this.falhaMais
             ? html`<urbi-banner variante="erro">
                 Não foi possível trazer mais convites: ${this.falhaMais}
-                <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.mostrarMais()}>Tentar de novo</urbi-botao>
+                <urbi-botao slot="acao" variante="secundario" @click=${() => this.mostrarMais()}>Tentar de novo</urbi-botao>
               </urbi-banner>`
             : faltam > 0
               ? html`<urbi-botao variante="secundario" bloco ?carregando=${this.buscandoMais} @click=${() => this.mostrarMais()}>

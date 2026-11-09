@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, gesto } from '../apoio.js';
+import { chamarApi, gesto, mensagemDeErro } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -47,7 +47,7 @@ export class PcTelaConta extends LitElement {
       this.dados = await this.vida.esperar(chamarApi('/conta'));
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 
@@ -67,7 +67,7 @@ export class PcTelaConta extends LitElement {
     } catch (e) {
       if (this.vida.encerrado(e)) return;
       const falha = e as Error & { detalhes?: string[] };
-      await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: falha.detalhes?.join('\n') || falha.message });
+      await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(falha) });
     }
   }
 
