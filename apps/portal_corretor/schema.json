@@ -501,13 +501,15 @@
         "preco_min_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         },
         "preco_max_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         }
       },
@@ -662,19 +664,22 @@
         "preco_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         },
         "condominio_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         },
         "iptu_anual_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         },
         "area_util_m2": {
@@ -942,7 +947,8 @@
         "preco_autorizado_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           },
           "obrigatorio": true
         },
@@ -1035,7 +1041,8 @@
         "valor_estimado_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         },
         "comissao_pct": {
@@ -2265,7 +2272,8 @@
         "teto_estimado_comprador_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         },
         "fonte_estimativa": {
@@ -2279,7 +2287,8 @@
         "valor_final_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         },
         "motivo_perda": {
@@ -2362,21 +2371,24 @@
           "tipo": "inteiro",
           "obrigatorio": true,
           "intervalo": {
-            "min": 1
+            "min": 1,
+            "max": 2147483647
           }
         },
         "alvo_c": {
           "tipo": "inteiro",
           "obrigatorio": true,
           "intervalo": {
-            "min": 1
+            "min": 1,
+            "max": 2147483647
           }
         },
         "recuo_c": {
           "tipo": "inteiro",
           "obrigatorio": true,
           "intervalo": {
-            "min": 1
+            "min": 1,
+            "max": 2147483647
           }
         },
         "batna_vendedor": {
@@ -2504,7 +2516,8 @@
           "tipo": "inteiro",
           "obrigatorio": true,
           "intervalo": {
-            "min": 1
+            "min": 1,
+            "max": 2147483647
           }
         },
         "condicoes": {
@@ -3117,7 +3130,8 @@
         "custo_c": {
           "tipo": "inteiro",
           "intervalo": {
-            "min": 0
+            "min": 0,
+            "max": 2147483647
           }
         },
         "em": {
