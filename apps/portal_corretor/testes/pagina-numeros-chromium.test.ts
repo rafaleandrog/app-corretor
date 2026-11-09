@@ -310,11 +310,12 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     const relatorios = await pagina.evaluate(() => {
       const w = window as any;
       const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
-      return lista.itens.map((x: any) => `${x.titulo}${x.emBreve ? ' (em breve)' : ''}`);
+      return lista.itens.map((x: any) => x.titulo);
     });
-    assert.deepEqual(relatorios, ['Resumo', 'Funil e conversão', 'Origem dos contatos', 'Tempo de resposta', 'Conteúdo', 'Mensageiro (em breve)', 'Negociação']);
-    assert.doesNotMatch(r.esquerda, /Créditos/, 'créditos não entram (D-87)');
-    assert.match(r.centro, /Resumo/);
+    // Grupo 5: sem Tempo de resposta nem "Mensageiro · em breve" (#182 item 9); abre em Funil e conversão.
+    assert.deepEqual(relatorios, ['Resumo', 'Funil e conversão', 'Origem dos contatos', 'Conteúdo', 'Negociação']);
+    assert.doesNotMatch(r.esquerda, /Créditos|em breve/, 'créditos não entram (D-87)');
+    assert.match(r.centro, /Funil e conversão/);
     await medirMoldura('Números');
     const origens = await pagina.evaluate(() => {
       const w = window as any;
@@ -322,7 +323,14 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     });
     assert.deepEqual(origens, ['Todas as origens', 'Instagram', 'Minha página'], 'só canais do catálogo com leads');
     assert.match(r.centro, /Comparar/);
-    for (const k of ['Leads', 'Conversão total', 'Vendas', 'Comissão prevista']) assert.match(r.centro, new RegExp(k));
+    for (const k of ['Contatos', 'Contato → visita', 'Visita → proposta', 'Ganhos', 'Até onde os contatos chegaram', 'Contatos por horário', 'Por que perdemos']) assert.match(r.centro, new RegExp(k));
+    assert.match(r.centro, /3 de 6 no período/);
+    const horario = await pagina.evaluate(() => {
+      const w = window as any;
+      const g = w.todos(document, 'urbi-grafico-colunas').find((x: any) => x.categorias.length === 24);
+      return g.series.map((s: any) => [s.rotulo, s.valores.reduce((a: number, b: number) => a + b, 0)]);
+    });
+    assert.deepEqual(horario, [['No horário (8h–19h)', 3], ['Fora do horário', 3]]);
     assert.match(r.direita, /O que melhorar/);
     assert.match(r.direita, /Ver os 2 clientes/);
     assert.match(r.direita, /Melhores origens/);
@@ -338,19 +346,12 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     await pagina.evaluate(() => {
       const w = window as any;
       const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
-      lista.dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: lista.itens[1], indice: 1 } }));
+      lista.dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: lista.itens[0], indice: 0 } }));
     });
     await esperar();
     r = await colunas();
-    assert.match(r.url, /relatorio=funil/);
-    for (const k of ['Contatos', 'Contato → visita', 'Visita → proposta', 'Ganhos', 'Até onde os contatos chegaram', 'Contatos por horário', 'Por que perdemos']) assert.match(r.centro, new RegExp(k));
-    assert.match(r.centro, /3 de 6 no período/);
-    const horario = await pagina.evaluate(() => {
-      const w = window as any;
-      const g = w.todos(document, 'urbi-grafico-colunas').find((x: any) => x.categorias.length === 24);
-      return g.series.map((s: any) => [s.rotulo, s.valores.reduce((a: number, b: number) => a + b, 0)]);
-    });
-    assert.deepEqual(horario, [['No horário (8h–19h)', 3], ['Fora do horário', 3]]);
+    assert.match(r.url, /relatorio=resumo/);
+    for (const k of ['Leads', 'Conversão total', 'Vendas', 'Comissão prevista']) assert.match(r.centro, new RegExp(k));
 
     // Ver os N clientes abre Clientes filtrado pelo motivo e pelo início do período.
     await pagina.evaluate(() => {
@@ -364,7 +365,7 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     await pagina.evaluate(() => {
       const w = window as any;
       const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
-      lista.dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: lista.itens[6], indice: 6 } }));
+      lista.dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: lista.itens[4], indice: 4 } }));
     });
     await esperar();
     r = await colunas();
@@ -437,7 +438,7 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     await pagina.evaluate(() => {
       const w = window as any;
       const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
-      lista.dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: lista.itens[6], indice: 6 } }));
+      lista.dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: lista.itens[4], indice: 4 } }));
     });
     await esperar(); // a leitura de B (presa no portão) ainda não chegou
     r = await colunas();

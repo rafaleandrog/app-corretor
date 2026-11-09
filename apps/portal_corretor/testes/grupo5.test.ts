@@ -154,3 +154,18 @@ test('P05: três perguntas sugeridas por tela, que preenchem o campo; exemplo na
   assert.match(fonte, /Ir para \$\{irPara\.nome\}/);
   assert.doesNotMatch(fonte, /\bpequeno\b/);
 });
+
+test('P10: abre em Funil e conversão; sem "Mensageiro · em breve"; KPI em reais sem centavos acima de mil (#180, #182)', async () => {
+  const { reaisKpi } = await import('../comum/numeros');
+  assert.equal(reaisKpi(10482500).replace(/\s/g, ' '), 'R$ 104.825');
+  assert.equal(reaisKpi(145000000).replace(/\s/g, ' '), 'R$ 1.450.000');
+  assert.equal(reaisKpi(99990).replace(/\s/g, ' '), 'R$ 999,90');
+  assert.equal(reaisKpi(0).replace(/\s/g, ' '), 'R$ 0,00');
+  assert.equal(reaisKpi(null), '—');
+  const fonte = readFileSync(resolve(RAIZ, 'frontend/telas/desempenho.ts'), 'utf8');
+  assert.match(fonte, /RELATORIO_PADRAO: Relatorio = RELATORIOS\[1\]/);
+  assert.match(fonte, /\{ id: 'funil', titulo: 'Funil e conversão'/);
+  assert.doesNotMatch(fonte, /em breve|id: 'mensageiro'|id: 'tempo'/);
+  assert.doesNotMatch(fonte, /\bpequeno\b/);
+  assert.doesNotMatch(fonte, /min="160px"/, 'quatro KPIs numa linha: o piso do urbi-kpi (140 px)');
+});
