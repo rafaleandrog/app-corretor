@@ -106,6 +106,7 @@ export const CODIGOS_DO_APP: ReadonlySet<string> = new Set([
   'OFERTA_IMPLAUSIVEL', 'PAGINA_FORA_DO_AR', 'PAGINA_NAO_SALVA', 'PECA_AGENDADA', 'PECA_MUDOU', 'PECA_TRAVADA',
   'PROPOSTA_INDISPONIVEL', 'PROPOSTA_VENCIDA', 'RECUO_ACIMA_DO_ALVO', 'SEM_ABORDAGEM', 'SEM_ACORDO', 'SEM_AGENTE',
   'SEM_ARTE', 'SEM_AUTORIZACAO', 'SEM_ETAPA', 'SEM_WHATSAPP', 'SO_DEMO', 'SO_O_CORRETOR', 'SUGESTAO_JA_DECIDIDA', 'SUGESTAO_SUPERADA', 'TOKEN_INVALIDO',
+  'UPLOAD_RECUSADO',
 ]);
 
 const RECARREGAR_CONTA = 'Esta conta não está mais disponível para você. Recarregue a página e, se atende mais de uma conta, escolha outra no seletor do alto da tela.';

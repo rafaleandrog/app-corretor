@@ -28,7 +28,7 @@ Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a 
 
 - Título e rota da P15 ("Negociações", `/negociacoes`) × referência ("Clientes" com alternador): pendência (1) do grupo 3 no plano.
 - Menu do usuário externo: pendência (1) do plano, a confirmar entrando como o corretor demo.
-- Grupo 5: D-133, P-47, P-48, D-129 e as diferenças da conferência visual (P05 379 × 340, P17, P10, P13); ver `RETOMADA.md`.
+- Grupo 5: D-133, P-47, P-48, D-129, as diferenças da conferência visual (P05 379 × 340, P17, P10, P13) e as pendências (9) e (10) da revisão do Codex (ressincronizar `vitrine_publica` na mudança de perfil; reconhecer conta demo sem `perfil_conta`); ver `RETOMADA.md`.
 
 ## Arquivos desta pasta
 

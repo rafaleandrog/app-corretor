@@ -11,5 +11,6 @@
 - Título e rota da P15 ("Negociações", `/negociacoes`) × referência ("Clientes" com alternador).
 - Menu do usuário externo (a confirmar entrando como o corretor demo).
 - Diferenças da conferência visual do grupo 5 (`specs/prints/conferencia-grupo5-0.1.51/`): P05, coluna direita 379 px contra 340 da referência (a spec fixa 380); P17, botões em duas linhas; P10, funil em colunas contra barras; P13, blocos Conta e Referências que a referência não tem.
+- Revisão do Codex no #205 (head 91c0ce7): `PUT /conta/meu-perfil` não ressincroniza `vitrine_publica` quando `nome_profissional` muda (decidir se dispara a ressincronização, com o tratamento de falha da marca); conta demo criada depois do boot sem `perfil_conta` é tratada como real pelo bloqueio do #33 até o próximo `aoIniciar` (decidir como reconhecer demo sem a linha). Ver pendências (9) e (10) do grupo 5 no plano.
 
 Issues parciais que seguem abertas: #182, #180, #192, #176, #73, #30.
