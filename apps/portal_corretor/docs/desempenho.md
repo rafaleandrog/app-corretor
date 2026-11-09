@@ -191,13 +191,21 @@ todas as telas:
 - o **WhatsApp fictício** do corretor no perfil (é dele que sai o "Falar no WhatsApp" da capa da
   página pública) e os **imóveis em destaque** da página (a casa e o apartamento);
 - no Estúdio, quatro **peças** de exemplo: duas em rascunho sem arte (falta a arte), uma em rascunho
-  com arte (para aprovar) e uma aprovada. Nada é agendado nem publicado no Instagram, e nenhum
-  evento é disparado.
+  com arte (para aprovar) e uma aprovada. As duas que têm arte (a de rascunho e a aprovada) só são
+  criadas quando o envio de arquivos está disponível na instância; sem ele, entram só as duas sem
+  arte. O mesmo vale para as fotos de exemplo e a autorização com documento. Nada é agendado nem
+  publicado no Instagram, e nenhum evento é disparado.
 
 **Rodar de novo completa o que falta e não duplica nada.** Numa conta que já tem contatos, o botão
 (ou `POST /demo/semear`) só acrescenta o que ainda não existe: fotos só em imóvel sem foto,
 autorização só em imóvel sem autorização vigente, dados só nos campos vazios, conversa, seleção e
-portal só se a Ana ainda não tem. O WhatsApp só entra se o perfil não tem telefone; os
+portal só se a Ana ainda não tem. A conversa da Ana gravada por versões anteriores também é
+corrigida: antes, as mensagens, o cartão da seleção e o link do portal dela eram gravados como
+anotação, e o portal esconde anotação; rodar de novo as transforma em conversa de verdade, e a Ana as
+vê na aba Conversa do portal. Só mudam as mensagens idênticas às da demonstração (o que você
+escreveu na conversa dela fica como está), e a resposta traz "conversa de Ana Ribeiro no portal"
+com o número de mensagens corrigidas. O WhatsApp fictício do corretor só entra se o perfil não tem telefone (sem perfil, o perfil é criado
+já com ele; o número que o corretor digitou fica); os
 destaques, só se o bloco está ligado e vazio (a escolha do corretor fica); as peças, só se a conta
 não tem nenhuma. Uma página já salva fica com o endereço e os blocos dela; se não
 está no ar, é publicada. A escada antiga da negociação (até a versão 0.1.49) é trocada pela do guia
@@ -224,8 +232,10 @@ continua com os clientes e imóveis dela; gerar de novo só completa o que falta
 
 **O corretor.** O nome que aparece é o do usuário na instância (crie o usuário de teste como
 "Rafael Gualberto"). Se o corretor ainda não tem perfil, ganha um CRECI fictício (DF-12345-F; no
-segundo corretor, DF-54321-F). Se já tem perfil, o perfil fica como está, com ou sem CRECI.
-**Nada depende do CRECI.**
+segundo corretor, DF-54321-F) e um WhatsApp fictício (+55 61 99000-0100; no segundo corretor,
++55 61 99000-0200), de onde sai o "Falar no WhatsApp" da página pública. Se já tem perfil, o
+perfil fica como está, com ou sem CRECI; só o telefone entra, e só se estiver vazio. **Nada
+depende do CRECI.**
 
 ### Conjunto do guia (conta principal)
 
