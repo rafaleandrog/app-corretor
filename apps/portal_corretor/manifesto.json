@@ -848,6 +848,31 @@
           "desc": "rede"
         }
       }
+    },
+    "negociador_config_alterada": {
+      "descricao": "Os ajustes do Negociador da conta foram alterados (sem o conteúdo no evento).",
+      "campos": [
+        "config_id",
+        "tipo",
+        "ator_id",
+        "ator_nome"
+      ],
+      "conteudo": "Ajustes do Negociador alterados por {ator_nome}",
+      "api": "negociador/config",
+      "rota": "ajustes?aba=negociador",
+      "segregado_por_conta": true,
+      "auditavel": {
+        "categoria": "configuracao",
+        "ator": {
+          "id": "ator_id",
+          "desc": "ator_nome"
+        },
+        "alvo": {
+          "tipo": "configuracao",
+          "id": "config_id",
+          "desc": "tipo"
+        }
+      }
     }
   },
   "parametros": {

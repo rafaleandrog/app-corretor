@@ -280,3 +280,25 @@ test('#40: importação em lotes que cabem no corpo do shell, com o número da l
   assert.match(fonte, /escolhaUnica\(REPETIDOS/);
   assert.doesNotMatch(fonte, /Em breve|urbi-chips-atalho|\bpequeno\b/);
 });
+
+test('P17: Ligado · Pausar no cabeçalho; estilo em cartões; Testar em bolhas com o selo; auditável ao salvar os ajustes', async () => {
+  const fonte = readFileSync(resolve(RAIZ, 'frontend/telas/negociador-ajustes.ts'), 'utf8');
+  assert.match(fonte, /<urbi-grid min="260px">/);
+  assert.match(fonte, /\{c\.ligado \? 'Pausar' : 'Ligar'\}/);
+  assert.match(fonte, /escolhaUnica\(estilos/);
+  assert.match(fonte, /SELO_SIGILO/);
+  assert.match(fonte, /CONVITE_MULTI_USUARIO_BLOQUEADO/);
+  assert.doesNotMatch(fonte, /urbi-toggle|\bpequeno\b/);
+  const eventos: { tipo: string; payload: any }[] = [];
+  const barramento = { publicar: async (tipo: string, payload: any) => (eventos.push({ tipo, payload }), { id: 1 }) };
+  const banco = new BancoFalso({ ...UNICOS, config_negociador: ['chave'] });
+  await comServidor(rotas, { ...A, extras: { eventos: barramento } }, banco, {}, async (chamar) => {
+    assert.equal((await chamar('PUT', '/negociador/config', { estilo: 'firme' })).status, 200);
+    assert.equal((await chamar('PUT', '/negociador/config', { estilo: 'nenhum' })).status, 422);
+  });
+  const aud = eventos.filter((e) => e.tipo === 'negociador_config_alterada');
+  assert.equal(aud.length, 1, 'só a gravação que deu certo');
+  assert.deepEqual(Object.keys(aud[0].payload).sort(), ['ator_id', 'ator_nome', 'config_id', 'tipo']);
+  assert.equal(aud[0].payload.tipo, 'negociador');
+  assert.ok(Number.isInteger(aud[0].payload.config_id));
+});

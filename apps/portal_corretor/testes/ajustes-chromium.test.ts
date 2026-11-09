@@ -51,7 +51,7 @@ window.urbiVerso = {
     if (caminho === '/negociador/numeros') return { desde: '2026-10-01', rodadas: 12, decididas: 8, aprovadas_sem_edicao: 6 };
     if (caminho === '/negociador/teste') return {
       resposta: { mensagem: 'Entendo. O vendedor propõe R$ 1.420.000.', contraproposta: { valor_c: 142000000 } },
-      validacoes: [{ ok: true, descricao: 'não revelou o recuo, o alvo nem a BATNA do vendedor', frase: '✓ não revelou o recuo, o alvo nem a BATNA do vendedor' }],
+      validacoes: [{ garantia: 'sigilo', ok: true, descricao: 'não revelou o recuo, o alvo nem a BATNA do vendedor', frase: '✓ não revelou o recuo, o alvo nem a BATNA do vendedor' }],
       passagem: false, motivos_passagem: [], zopa: { existe: true, de_c: 136000000, ate_c: 140000000 },
     };
     if (caminho === '/conexoes') return { instagram: null, disponivel: true, retorno: 'https://app.exemplo/portal_corretor/ajustes/conexoes' };
@@ -189,7 +189,12 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.match(r.centro, /0 de 4\.000/);
     assert.doesNotMatch(r.centro, /CRECI/);
     assert.match(r.direita, /7 · Testar/);
-    assert.match(r.direita, /Números do mês/);
+    assert.match(r.direita, /Este mês/);
+    // Grupo 5: interruptor Ligado · Pausar no cabeçalho do centro; estilo em três cartões; duas colunas.
+    assert.match(r.centro, /^Negociador Ligado Pausar/);
+    const grades = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-grid').map((g: any) => g.getAttribute('min')));
+    assert.ok(grades.includes('260px'), JSON.stringify(grades));
+    assert.match(r.centro, /Cooperativo em uso/);
     const marcados = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-checkbox').map((c: any) => c.hasAttribute('marcado')));
     // Os quatro gatilhos de 10.9.4, todos com leitor no backend (F3); desmarcar um grava só ele.
     assert.deepEqual(marcados, [true, true, false, true]);
@@ -208,7 +213,7 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.equal(kpis['Aprovadas sem edição'], '75%');
     await pagina.evaluate(() => {
       const w = window as any;
-      const b = w.todos(document.querySelector('urbi-hospedeiro[slot="direita"]'), 'urbi-botao').find((x: any) => /Testar/.test(x.textContent));
+      const b = w.todos(document.querySelector('urbi-hospedeiro[slot="direita"]'), 'urbi-botao').find((x: any) => x.textContent.trim() === 'Enviar');
       b.click();
     });
     await esperar();
@@ -219,7 +224,9 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.equal(corpo.teto_estimado_c, 140000000);
     assert.equal(corpo.mensagem_cliente, 'Qual o mínimo que o dono aceita?');
     r = await ler();
-    assert.match(r.direita, /não revelou o recuo, o alvo nem a BATNA do vendedor/);
+    // A conversa simulada: a fala do comprador, a resposta do Negociador em bolha e o selo de sigilo.
+    assert.match(r.direita, /Você, como comprador Qual o mínimo que o dono aceita\? Negociador · teste/);
+    assert.match(r.direita, /não revelou o recuo/);
     assert.doesNotMatch(r.direita, /✓/, 'a marca é ícone, não glifo');
     assert.match(r.direita, /Contraproposta: R\$\s?1\.420\.000/);
     assert.match(r.direita, /ZOPA deste teste: de R\$\s?1\.360\.000,00 a R\$\s?1\.400\.000,00/);
@@ -232,7 +239,8 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     await esperar();
     await pagina.evaluate(() => {
       const w = window as any;
-      w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-botao').find((x: any) => x.textContent.trim() === 'Usar').click();
+      const cartao = w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-card').find((x: any) => x.getAttribute('titulo') === 'Firme');
+      cartao.dispatchEvent(new CustomEvent('urbi:card-click', { bubbles: true, composed: true }));
     });
     await esperar();
     const instrucao = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-textarea')[0].getAttribute('valor'));

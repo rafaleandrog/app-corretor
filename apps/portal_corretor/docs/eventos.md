@@ -43,7 +43,9 @@ Conectar ou desconectar um canal (hoje, o Instagram) fica também na **trilha de
 plataforma, que o administrador da instância consulta: `canal_conectado` e `canal_desconectado` guardam
 quem fez (o nome de quem estava logado) e qual canal. A contraproposta que você confirma **abaixo do
 ponto de recuo** (`contraproposta_abaixo_do_recuo`) também fica na trilha, com o seu nome e o número
-da negociação, sem valores. São os únicos casos em que um nome vai no evento, e é o seu, não o de um cliente.
+da negociação, sem valores. Mudar os **ajustes do Negociador** (ligar ou pausar, quem negocia, estilo,
+gatilhos, instruções) também fica na trilha (`negociador_config_alterada`), com o seu nome e o número
+da configuração, sem o conteúdo. São os únicos casos em que um nome vai no evento, e é o seu, não o de um cliente.
 
 ## O que ainda não existe
 

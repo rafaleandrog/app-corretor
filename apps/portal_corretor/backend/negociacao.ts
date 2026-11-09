@@ -895,7 +895,15 @@ negociacaoRotas.put(
     const base = atual.padrao
       ? { ligado: atual.ligado, conduz_padrao: atual.conduz_padrao, gatilhos: atual.gatilhos, estilo: atual.estilo }
       : {};
-    await salvarUnico(dados, 'config_negociador', { chave: 'conta' }, { ...base, ...valores, versao: atual.versao + 1 });
+    const salva = await salvarUnico(dados, 'config_negociador', { chave: 'conta' }, { ...base, ...valores, versao: atual.versao + 1 });
+    // Auditável (13.1, P17): quem mudou os ajustes do Negociador fica na trilha da plataforma. Só ids e o
+    // nome de quem agiu (como `canal_conectado`); o que mudou fica na linha, nunca no evento.
+    await publicarEvento(req, 'negociador_config_alterada', {
+      config_id: Number(salva.id),
+      tipo: 'negociador',
+      ator_id: req.contexto!.usuario.id,
+      ator_nome: (req.contexto!.usuario.nome ?? '').trim() || `Usuário ${req.contexto!.usuario.id}`,
+    });
     res.json(await configDaConta(dados));
   }),
 );
