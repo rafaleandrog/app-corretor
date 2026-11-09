@@ -46,9 +46,12 @@ const REACOES = [
   { valor: 'quero_visitar', rotulo: 'Quero visitar' },
   { valor: 'conversar_preco', rotulo: 'Conversar sobre o preço' },
 ];
-const diaHora = (q: string) => new Date(q).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
-const hora = (q: string) => new Date(q).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-const diaCurto = (q: string) => new Date(q).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+// Fuso da conta do corretor (vem no portal publicado): a hora da visita é a mesma em qualquer navegador.
+let fusoDaConta: string | undefined;
+const tz = () => (fusoDaConta ? { timeZone: fusoDaConta } : {});
+const diaHora = (q: string) => new Date(q).toLocaleString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit', ...tz() });
+const hora = (q: string) => new Date(q).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...tz() });
+const diaCurto = (q: string) => new Date(q).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', ...tz() });
 const token = () => new URLSearchParams(window.location.search).get('t') ?? '';
 const cor = (c: unknown) => (typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null);
 const SITUACAO_TEXTO: Record<SituacaoNegociacao, string> = {
@@ -267,7 +270,7 @@ function itemSelecao(i: Linha, estado: EstadoReacoes, o: OpcoesItem): TemplateRe
 function datasChave(proximaVisita: string | null, valeAte: string | null): TemplateResult | typeof nothing {
   if (!proximaVisita && !valeAte) return nothing;
   return html`<div class="datas">
-    ${proximaVisita ? html`<div><small>Próxima visita</small><strong>${diaHora(proximaVisita)}</strong><small class="falta">${quantoFalta(proximaVisita)}</small></div>` : nothing}
+    ${proximaVisita ? html`<div><small>Próxima visita</small><strong>${diaHora(proximaVisita)}</strong><small class="falta">${quantoFalta(proximaVisita, new Date(), fusoDaConta)}</small></div>` : nothing}
     ${valeAte ? html`<div><small>Seleção vale até</small><strong>${diaCurto(valeAte)}</strong></div>` : nothing}
   </div>`;
 }
@@ -584,7 +587,7 @@ export class PcPortalCliente extends LitElement {
 
   /** Visitas por dia: um dia com várias vira roteiro numerado, com o trajeto todo no mapa. */
   private agenda(agenda: VisitaDoPortal[]) {
-    return roteiroPorDia(agenda).map(({ dia, visitas }) => {
+    return roteiroPorDia(agenda, fusoDaConta).map(({ dia, visitas }) => {
       const varias = visitas.length > 1;
       const mapa = varias ? linkRoteiro(visitas) : null;
       return html`${varias
@@ -608,7 +611,7 @@ export class PcPortalCliente extends LitElement {
       ${eventos.map(
         (e) => html`<li class=${e.tipo}>
           <div>${e.texto}</div>
-          ${e.quando ? html`<div class="suave">${new Date(e.quando).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</div>` : nothing}
+          ${e.quando ? html`<div class="suave">${new Date(e.quando).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', ...tz() })}</div>` : nothing}
         </li>`,
       )}
     </ol>`;
@@ -622,7 +625,7 @@ export class PcPortalCliente extends LitElement {
     if (!q) return '';
     const d = new Date(q);
     const h = hora(q);
-    return d.toDateString() === new Date().toDateString() ? h : `${d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')} ${h}`;
+    return d.toLocaleDateString('sv-SE', tz()) === new Date().toLocaleDateString('sv-SE', tz()) ? h : `${d.toLocaleDateString('pt-BR', { weekday: 'short', ...tz() }).replace('.', '')} ${h}`;
   }
 
   /** Cartão de imóvel na conversa: com a foto e as reações quando o imóvel está numa seleção do cliente. */
@@ -736,7 +739,7 @@ export class PcPortalCliente extends LitElement {
               reagir: (codigo, reacao) => enviarReacao(atual.selecao, codigo, reacao, this.reacoes, atualizar),
               comentar: (codigo, texto) => enviarComentario(atual.selecao, codigo, texto, p.url_acoes ?? null, this.reacoes, atualizar),
               abrirComentario: (codigo) => { this.reacoes.comentando = codigo; atualizar(); },
-              chip: chipDeVisita(atual.imovel.codigo, p.agenda ?? []),
+              chip: chipDeVisita(atual.imovel.codigo, p.agenda ?? [], Date.now(), p.fuso),
               destaque: true,
             })}
           </section>`
@@ -920,11 +923,12 @@ export class PcPortalCliente extends LitElement {
     if (this.estado === 'carregando') return html`<div class="centro suave">Carregando…</div>`;
     if (this.estado !== 'pronto') return telaDeErro(this.estado, 'Seu portal', () => { this.estado = 'carregando'; void this.carregar(); });
     const p = this.portal!;
+    fusoDaConta = typeof p.fuso === 'string' && p.fuso ? p.fuso : undefined;
     const abas = abasDoPortal(p);
     const ids = abas.map((a) => a.id);
     // A aba atual é sempre uma das que existem (o endereço pode pedir `#propostas` sem negociação).
     const atual: AbaPortal = ids.includes(this.aba) ? this.aba : 'conversa';
-    const passo = proximoPassoDoPortal(p);
+    const passo = proximoPassoDoPortal(p, Date.now(), p.fuso);
     const nome = p.corretor?.nome ?? 'Seu corretor';
     const zap = p.corretor ? linkWhatsapp(p.corretor.telefone, 'Olá! Estou no meu portal e queria falar com você.') : null;
     return html`

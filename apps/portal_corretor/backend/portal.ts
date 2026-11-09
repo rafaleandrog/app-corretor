@@ -1,4 +1,5 @@
 import type { HelperDados } from '@urbiverso/sdk';
+import { fusoValido } from '../comum/assistente';
 import { iso } from '../comum/funil';
 import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
 import { MARCA_PADRAO } from '../comum/estudio';
@@ -176,7 +177,7 @@ export function selecaoValida(s: Linha, agora = new Date().toISOString()): boole
  * cliente e a jornada. Nada de nome, telefone ou e-mail do cliente (D-73). Sem acesso ativo, a linha sai.
  * `corretor` ausente (listener) mantém o topo já publicado.
  */
-export async function sincronizarPortal(dados: HelperDados, conta: number, contatoId: number, corretor?: Corretor): Promise<void> {
+export async function sincronizarPortal(dados: HelperDados, conta: number, contatoId: number, corretor?: Corretor, fuso?: string): Promise<void> {
   const acesso = await umaLinha(dados, 'acessos_cliente', { conta_id: conta, contato_id: contatoId, 'revogado_em[nulo]': 'true' });
   if (!acesso) {
     await apagarVitrine(dados, conta, 'portal', contatoId);
@@ -224,6 +225,9 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
   const feitas = atividades.filter((a) => a.status === 'feita');
   await gravarVitrine(dados, conta, 'portal', contatoId, {
     corretor: topo,
+    // Fuso da conta: a página pública roda no navegador do cliente (outro fuso possível), então a hora da
+    // visita é formatada neste. Sem `fuso` (listener), mantém o já publicado; sem nenhum, Brasília.
+    fuso: fusoValido(fuso ?? (atual?.dados as Linha | undefined)?.fuso),
     url_acoes: acesso.url_acoes ?? null,
     // Só o texto escrito para o cliente, e só quando preenchido: o `proximo_passo` interno nunca sai (D-55).
     ...(contato.proximo_passo_cliente ? { proximo_passo: contato.proximo_passo_cliente } : {}),
@@ -359,11 +363,11 @@ export async function tentarPortal(
   conta: number | undefined,
   contatoId: number | null | undefined,
   corretor?: Corretor,
-  opcoes: { emTransacao?: boolean } = {},
+  opcoes: { emTransacao?: boolean; fuso?: string } = {},
 ) {
   if (!conta || !contatoId) return;
   try {
-    await sincronizarPortal(dados, conta, contatoId, corretor);
+    await sincronizarPortal(dados, conta, contatoId, corretor, opcoes.fuso);
   } catch (e) {
     if (opcoes.emTransacao && ehErroDoBanco(e)) throw e;
     console.warn(`[portal_corretor] portal do cliente ${contatoId}: não sincronizado: ${(e as Error).message}`);

@@ -79,8 +79,9 @@ export function destinoDoProximoPasso(p: Linha, agora = Date.now()): AbaPortal {
  * proposta do vendedor esperando a resposta dele; a próxima visita; a seleção que vence em até 3 dias;
  * os imóveis ainda sem reação. `null` quando não há nada a fazer.
  */
-export function proximoPassoDoPortal(p: Linha, agora = Date.now(), fuso?: string): { texto: string; aba: AbaPortal } | null {
-  const tz = fuso ? { timeZone: fuso } : {};
+export function proximoPassoDoPortal(p: Linha, agora = Date.now(), fuso = 'America/Sao_Paulo'): { texto: string; aba: AbaPortal } | null {
+  // Sem fuso informado, Brasília (padrão da conta): nunca o fuso do navegador ou do processo.
+  const tz = { timeZone: fuso };
   if (p.proximo_passo) return { texto: String(p.proximo_passo), aba: destinoDoProximoPasso(p, agora) };
   const negociacoes: NegociacaoPublica[] = p.negociacoes ?? [];
   if (negociacoes.some((n) => propostaAceitavel(n, agora))) return { texto: 'Proposta do vendedor aguardando sua resposta', aba: 'propostas' };
@@ -107,13 +108,13 @@ export function abaDoEndereco(hash: string): AbaPortal {
 }
 
 /** Chip "Visita sáb." do imóvel em destaque: a próxima visita marcada a ele, se houver. */
-export function chipDeVisita(codigo: string, agenda: Linha[], agora = Date.now(), fuso?: string): string | null {
+export function chipDeVisita(codigo: string, agenda: Linha[], agora = Date.now(), fuso = 'America/Sao_Paulo'): string | null {
   const v = visitasFuturas(agenda, agora)
     .filter((x) => x.imovel?.codigo === codigo)
     .sort((a, b) => Date.parse(a.quando) - Date.parse(b.quando))[0];
   if (!v) return null;
   const d = new Date(v.quando);
-  const semana = d.toLocaleDateString('pt-BR', { weekday: 'short', ...(fuso ? { timeZone: fuso } : {}) });
+  const semana = d.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: fuso });
   return `Visita ${semana}`;
 }
 

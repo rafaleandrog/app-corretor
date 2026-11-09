@@ -4,7 +4,7 @@ import schema from '../schema.json';
 import manifesto from '../manifesto.json';
 import { rotas, rotasPublicas, webhooks, reagir } from '../backend/rotas';
 import { limparLimites } from '../backend/publico';
-import { abasDoPortal, centavosDoValor, negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel, propostaPublica } from '../comum/portal-cliente';
+import { abasDoPortal, centavosDoValor, proximoPassoDoPortal, negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel, propostaPublica } from '../comum/portal-cliente';
 import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
 
 // Bloco D5 (#104): propostas no Portal do Cliente (M5b), sempre por token. O cliente vê as rodadas da
@@ -573,5 +573,22 @@ test('#194: ofertaPlausivel com preço conhecido e ofertaProvavel nunca sugere a
   for (const [v, pedido] of [[135_000, 2_000_000_000], [2_000_000, 4_000_000_000], [1_500_000, 3_000_000_000]]) {
     const s = ofertaProvavel(v, pedido);
     assert.ok(s === null || s <= 2_147_483_647, `${v}/${pedido}: ${s}`);
+  }
+});
+
+test('próximo passo do portal: visita às 10 h no fuso da conta aparece "10 h" em qualquer TZ do processo', () => {
+  const agenda = [{ quando: '2026-11-14T13:00:00.000Z', imovel: null }]; // sábado 10 h em Brasília
+  const agora = Date.parse('2026-11-09T12:00:00Z');
+  const tzOriginal = process.env.TZ;
+  try {
+    for (const tz of ['UTC', 'America/Sao_Paulo', 'Asia/Tokyo', 'America/New_York']) {
+      process.env.TZ = tz;
+      assert.equal(proximoPassoDoPortal({ agenda }, agora, 'America/Sao_Paulo')!.texto, 'Visita sábado às 10 h', tz);
+      // Sem fuso informado, cai em Brasília: nunca no do processo/navegador.
+      assert.equal(proximoPassoDoPortal({ agenda }, agora)!.texto, 'Visita sábado às 10 h', tz);
+    }
+  } finally {
+    if (tzOriginal === undefined) delete process.env.TZ;
+    else process.env.TZ = tzOriginal;
   }
 });
