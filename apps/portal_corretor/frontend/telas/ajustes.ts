@@ -2,8 +2,8 @@ import { LitElement, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { ABAS_AJUSTES, ABA_PADRAO, abaDoEndereco, ehAbaAjustes, linhaDeEstado, type AbaAjustes, type EstadoAjustes } from '../../comum/ajustes';
-import { avisoCreci, chamarApi, chamarFetch, contaDeTrabalho, gesto, mensagemDeErro } from '../apoio.js';
+import { ABAS_AJUSTES, ABAS_AJUSTES_IDS, OPCOES_ABA_AJUSTES, ehAbaAjustes, linhaDeEstado, type AbaAjustes, type EstadoAjustes } from '../../comum/ajustes';
+import { abaDaUrl, abaNaUrl, avisoCreci, chamarApi, chamarFetch, contaDeTrabalho, gesto, mensagemDeErro } from '../apoio.js';
 import { estadoTela } from '../estados.js';
 import { cabecalhoColuna, moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -15,11 +15,8 @@ import './negociador-ajustes.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
-/** `/conta/` e `/conta` são o mesmo endereço. */
-const subAtual = () => urbiVerso.subRota().replace(/(.)\/+$/, '$1') || '/';
-
-/** A seção do endereço que está na barra agora (apelido no caminho ou `?aba=`). */
-export const abaAtual = (): AbaAjustes => abaDoEndereco(subAtual(), window.location.search) ?? ABA_PADRAO;
+/** A seção do endereço que está na barra agora: `?aba=` ou o apelido do caminho (`abaDaUrl`, frontend/visual.ts). */
+export const abaAtual = (): AbaAjustes => abaDaUrl(ABAS_AJUSTES_IDS, OPCOES_ABA_AJUSTES) as AbaAjustes;
 
 /** Ajuda curta da coluna da direita, por seção (spec 11.1 P11–P13: "por que conectar aqui"). */
 const AJUDA: Record<AbaAjustes, { titulo: string; texto: string }> = {
@@ -123,7 +120,7 @@ export function renderAjustes(atualizar: () => void) {
   const aba = abaAtual();
   const escolher = (id: string) => {
     if (!ehAbaAjustes(id) || id === aba) return;
-    window.history.replaceState(window.history.state, '', `${urbiVerso.href('/ajustes')}?aba=${id}`);
+    abaNaUrl(id, OPCOES_ABA_AJUSTES);
     atualizar();
   };
   const lista = html`<urbi-stack>

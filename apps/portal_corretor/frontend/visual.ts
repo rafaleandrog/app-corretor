@@ -144,7 +144,8 @@ const subAtual = () => urbiVerso.subRota().replace(/(.)\/+$/, '$1') || '/';
 
 /** Aba do `urbi-abas` lida da query, depois do apelido do caminho; fora da lista, a primeira (pedido ao shell 8). */
 export function abaDaUrl(abas: string[], { chave = 'aba', apelidos = {} }: OpcoesAba = {}) {
-  const aba = filtrosDaUrl().get(chave) ?? apelidos[subAtual()] ?? '';
+  const naQuery = filtrosDaUrl().get(chave);
+  const aba = naQuery ?? apelidos[subAtual()] ?? '';
   return abas.includes(aba) ? aba : abas[0];
 }
 
