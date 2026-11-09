@@ -75,7 +75,7 @@ export async function publicar(req: Request, tipo: string, payload: Record<strin
  * o cliente vê. Sem derrubar a rota: a vitrine se refaz na próxima mudança, se falhar aqui.
  */
 export async function portalDa(req: Request, negociacao: Linha | null | undefined) {
-  if (negociacao?.contato_id) await tentarPortal(req.dados!, contaDoRequest(req), Number(negociacao.contato_id));
+  if (negociacao?.contato_id) await tentarPortal(req.dados!, contaDoRequest(req), Number(negociacao.contato_id), undefined, { fuso: req.contexto?.fuso });
 }
 
 /**

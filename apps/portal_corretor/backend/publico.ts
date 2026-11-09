@@ -1,4 +1,5 @@
 import '@urbiverso/sdk/express';
+import { fusoValido } from '../comum/assistente';
 import { Router, type Request, type Response } from 'express';
 import { createHash } from 'node:crypto';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
@@ -188,6 +189,8 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
         // Já na lista permitida ao publicar (negociacaoPublica); `semSigilo` de novo na saída, por garantia.
         negociacoes: semSigilo(p.negociacoes ?? []),
         conversa: Array.isArray(p.conversa) ? p.conversa : [],
+        // Fuso da conta que publicou: a página formata a hora da visita nele, não no do navegador do cliente.
+        fuso: fusoValido(p.fuso),
       },
     });
   } catch (e) {

@@ -565,7 +565,7 @@ export async function completarDemo(req: Request, conjunto: Conjunto, novos: Set
   // O portal acompanha (agenda, seleção, propostas).
   if (conjunto.selecao) {
     const c = contatoPorNome(conjunto.selecao.para);
-    if (c && feito.length) await sincronizarPortal(dados, conta, Number(c.id), corretor);
+    if (c && feito.length) await sincronizarPortal(dados, conta, Number(c.id), corretor, req.contexto?.fuso);
   }
   return { feito, avisos };
 }

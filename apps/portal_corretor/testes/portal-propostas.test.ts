@@ -592,3 +592,33 @@ test('próximo passo do portal: visita às 10 h no fuso da conta aparece "10 h" 
     else process.env.TZ = tzOriginal;
   }
 });
+
+test('fuso da conta: a rota que sincroniza o portal grava o fuso do contexto na vitrine e a rota pública o devolve', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const base: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: eventosFalsos() } };
+  // Ator com o contexto do request em Manaus (o `req.contexto.fuso` que o shell injeta em toda rota de app).
+  const emManaus: Ator = {
+    ...base,
+    extras: {
+      ...base.extras,
+      contexto: {
+        usuario: { id: 1, nome: 'Usuário 1', tipo: 'nao_informado', natureza: 'nao_informado', avatar_url: null },
+        nivelApp: 'escrita', rolesApp: ['corretor'], permissoesApps: {}, resolucao: 'escopado', contas: [100], contaEscrita: 100, fuso: 'America/Manaus',
+      },
+    },
+  };
+  const { contatoId, link } = await montar(banco, shell, base, MANDATO);
+  assert.equal(banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal')!.dados.fuso, 'America/Sao_Paulo', 'sem fuso no contexto, Brasília');
+  await comServidor(rotas, emManaus, banco, shell, async (chamar: Chamar) => {
+    const r = await chamar('POST', `/contatos/${contatoId}/tarefas-cliente`, { texto: 'Enviar o RG' });
+    assert.ok(r.status === 201, JSON.stringify(r.corpo));
+  });
+  assert.equal(banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal')!.dados.fuso, 'America/Manaus');
+  await comServidor(rotasPublicas, { usuario: 0, conta: null, papeis: [] }, banco, shell, async (chamar: Chamar) => {
+    const r = await chamar('GET', `/vitrine/portal?t=${tokenDe(link)}`);
+    assert.equal(r.status, 200);
+    assert.equal(r.corpo.portal.fuso, 'America/Manaus');
+  });
+});
