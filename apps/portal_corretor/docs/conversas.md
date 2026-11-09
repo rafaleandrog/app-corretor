@@ -42,7 +42,7 @@ faixa avisa, e os filtros e as contagens valem sobre essas 200.
 | Seleção | Abre a janela com os imóveis da carteira que podem ir ao cliente (ativos ou reservados, com autorização vigente), **já marcados os que combinam com o perfil de busca** dele; dê o título e **Criar e enviar**: a seleção é criada, o cartão dela (título, quantos imóveis, link) entra na conversa, o portal do cliente a recebe e o WhatsApp do seu celular abre com a mensagem pronta |
 | Arquivo | Registra na conversa um arquivo que você mandou pelo seu WhatsApp (o arquivo em si não fica no app) |
 | Localização | Escolhe o imóvel; registra o envio e abre o WhatsApp com a localização |
-| Agendar visita | Abre a janela com o imóvel (os da carteira que podem ir ao cliente; o último enviado vem escolhido) e os **horários livres** dos próximos dias (das 9 h às 18 h, de hora em hora, sem domingo e sem bater com as atividades pendentes da sua agenda); **Marcar e confirmar** cria a visita (com o lembrete programado), registra a confirmação na conversa e abre o WhatsApp do seu celular com ela, tudo de uma vez: se a confirmação não entrar na conversa, a visita fica marcada mesmo assim e um aviso diz que só a confirmação faltou (não marque de novo) |
+| Agendar visita | Abre a janela com o imóvel (os da carteira que podem ir ao cliente; o último enviado vem escolhido) e os **horários livres** dos próximos dias (das 9 h às 18 h, de hora em hora, sem domingo e sem bater com as atividades pendentes da sua agenda); **Marcar e confirmar** cria a visita (com o lembrete, quando ele está ligado e a visita ainda está a mais horas do que a antecedência dele), registra a confirmação na conversa e abre o WhatsApp do seu celular com ela, tudo de uma vez: se a confirmação não entrar na conversa, a visita fica marcada mesmo assim e um aviso diz que só a confirmação faltou (não marque de novo) |
 | Portal do cliente | Gera (ou reenvia) o link do Portal do Cliente e abre o WhatsApp com ele; o link entra na conversa |
 | Proposta | **Criar › Nova proposta** com o cliente já escolhido; abre a negociação em Clientes › Negociações |
 | Assumir / Devolver ao Negociador | Trocam quem atende. Com uma negociação aberta conduzida pelo Negociador IA, a tela muda a negociação primeiro (as regras são as de [Negociação e mandato](negociacao.md)) e a conversa depois |
@@ -63,8 +63,8 @@ seguinte (envio, linha do tempo, portal, cartão na conversa, limpeza) vira erro
 `conversa_id` nulo quando o cartão não entrou. Sem URL pública na instância o `link` vem como caminho e a tela completa a
 mensagem com a origem dela antes de abrir o WhatsApp. Agendar visita é uma chamada só, `POST /atividades` (`tipo: visita`,
 `imovel_id`, `confirmacao` com o texto ao cliente): a rota cria a visita e o lembrete e registra a confirmação na conversa do
-contato (o da visita ou, quando ela vem só com `negocio_id`, o do negócio); a resposta traz `confirmacao: { link, conversa_id }`
-(`conversa_id` nulo quando a confirmação não entrou). `confirmacao` só vale para `tipo: visita`: em outro tipo a rota recusa
+contato (o da visita ou, quando ela vem só com `negocio_id`, o do negócio); quando há contato, a resposta traz `confirmacao: { link, conversa_id }`
+(`conversa_id` nulo quando a confirmação não entrou); sem contato resolvível, a visita é criada e a resposta vem sem `confirmacao`. `confirmacao` só vale para `tipo: visita`: em outro tipo a rota recusa
 com 422 `DADOS_INVALIDOS`. Gravada a visita, nenhum passo seguinte (lembrete, eventos, mensagem, linha do tempo, último
 contato, temperatura, portal) vira erro: cada um falha sozinho, vai ao log com o id da atividade, e a resposta é 201. "Abrir conversa" em outras telas é `POST /conversas` com o `contato_id`.
 Eventos: `mensagem_recebida` (listener do portal), `mensagem_enviada` (compositor, "Fazer agora", envios,

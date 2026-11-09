@@ -681,8 +681,8 @@ export class PcConversaCompositor extends ParteDaConversa {
       )) as { confirmacao?: { link: string | null; conversa_id: number | null } };
       this.modal = null;
       if (r.confirmacao?.link) window.open(r.confirmacao.link, '_blank', 'noopener');
-      if (r.confirmacao?.conversa_id) urbiVerso.notificar('Visita marcada, lembrete programado e confirmação registrada na conversa.', 'sucesso');
-      else urbiVerso.notificar('Visita marcada e lembrete programado; a confirmação não ficou registrada na conversa.', 'info');
+      if (r.confirmacao?.conversa_id) urbiVerso.notificar('Visita marcada e confirmação registrada na conversa.', 'sucesso');
+      else urbiVerso.notificar('Visita marcada; a confirmação não ficou registrada na conversa.', 'info');
     });
   }
 
