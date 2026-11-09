@@ -1,6 +1,7 @@
-import { html, nothing } from 'lit';
+import { html, nothing, type ChildPart } from 'lit';
+import { AsyncDirective, directive } from 'lit/async-directive.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { abaDaUrl, abaNaUrl, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, gesto, lerPreparandoFunil, mensagemDeErro, noCelular, noGesto, reais, type OpcoesAba } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, escutarCelular, gesto, lerPreparandoFunil, mensagemDeErro, noCelular, noGesto, reais, type OpcoesAba } from '../apoio.js';
 import { ABAS_INICIO, APELIDOS_INICIO, type TipoFila } from '../../comum/funil';
 import { ACOES_FILA, cargaVazia, entrarEmHoje, FILA_VISIVEL, iniciarCarga, marcarEntrada, mostrarTudo, motivoDoItem, precisaCarregar, receberCarga, telaDeHoje, type AcaoFila, type PassoInicial } from '../../comum/hoje';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
@@ -378,12 +379,19 @@ function precisaDeVoce(d: DadosHoje, atualizar: () => void) {
       : html`<urbi-prosa papel="dica">Nenhuma negociação passada a você agora. Os clientes quentes sem resposta estão na fila.</urbi-prosa>`}`;
 }
 
-function esquerda(d: DadosHoje, atualizar: () => void, celular: boolean) {
+/**
+ * A coluna da esquerda (desktop) ou a rolagem do celular. `atalhos`: a linha de atalhos do dia (celular).
+ * `meio`: o que vem logo abaixo de "Precisa de você" — no celular, a fila compacta ou a Agenda; o cabeçalho,
+ * "Precisa de você" e os demais blocos ficam nos dois modos.
+ */
+function esquerda(d: DadosHoje, atualizar: () => void, atalhos: boolean, meio: unknown = nothing) {
   const feitos = d.primeiros_passos.filter((p) => p.feito).length;
   const total = d.primeiros_passos.length;
   const aba = abaInicio();
+  // A vigia do corte do celular mora aqui: a esquerda é desenhada nas duas formas e com o Assistente aberto.
   return html`<urbi-stack>
-    ${celular ? atalhosDoDia() : nothing}
+    ${vigiaCelular(atualizar)}
+    ${atalhos ? atalhosDoDia() : nothing}
     <urbi-stack>
       ${cabecalhoColuna('Hoje')}
       <urbi-chips-atalho .opcoes=${ABAS_INICIO.map((a) => ({ id: a.id, rotulo: a.label }))} ativo=${aba}
@@ -391,7 +399,7 @@ function esquerda(d: DadosHoje, atualizar: () => void, celular: boolean) {
       <urbi-prosa papel="fraco">${hojeExtenso()} · Mensageiro: ainda não disponível</urbi-prosa>
     </urbi-stack>
     ${precisaDeVoce(d, atualizar)}
-    ${celular ? filaCompacta(d, atualizar) : nothing}
+    ${meio}
     ${feitos < total
       ? html`<urbi-prosa papel="secao">Primeiros passos · ${feitos} de ${total}</urbi-prosa>
           <urbi-bolinhas .estados=${d.primeiros_passos.map((p) => (p.feito ? 'sucesso' : 'vazio'))}></urbi-bolinhas>
@@ -427,18 +435,21 @@ function filaCompacta(d: DadosHoje, atualizar: () => void) {
     ${resto > 0 ? html`<urbi-botao variante="secundario" bloco @click=${() => ((estado.carga = mostrarTudo(estado.carga)), atualizar())}>Mais ${resto} para depois</urbi-botao>` : nothing}`;
 }
 
+/** A Agenda de 14 dias (D-82): no centro (desktop) ou no lugar da fila, no celular. */
+function blocoAgenda(atualizar: () => void) {
+  return html`<urbi-stack>
+    ${estado.ia === false ? estadoTela('ia_indisponivel') : nothing}
+    <urbi-linha justificar="entre">
+      <urbi-prosa papel="secao">Agenda dos próximos 14 dias</urbi-prosa>
+      <urbi-botao variante="secundario" icone="fa-solid fa-list-check" @click=${() => mudarVisao('hoje', atualizar)}>Voltar para a fila</urbi-botao>
+    </urbi-linha>
+    <pc-tela-agenda></pc-tela-agenda>
+  </urbi-stack>`;
+}
+
 function centro(d: DadosHoje, atualizar: () => void) {
+  if (abaInicio() === 'agenda') return blocoAgenda(atualizar);
   const faixaIa = estado.ia === false ? estadoTela('ia_indisponivel') : nothing;
-  if (abaInicio() === 'agenda') {
-    return html`<urbi-stack>
-      ${faixaIa}
-      <urbi-linha justificar="entre">
-        <urbi-prosa papel="secao">Agenda dos próximos 14 dias</urbi-prosa>
-        <urbi-botao variante="secundario" icone="fa-solid fa-list-check" @click=${() => mudarVisao('hoje', atualizar)}>Voltar para a fila</urbi-botao>
-      </urbi-linha>
-      <pc-tela-agenda></pc-tela-agenda>
-    </urbi-stack>`;
-  }
   if (!d.fila.length) {
     // Conta nova (ou dia tranquilo): diz o que aparece aqui e oferece o primeiro passo útil.
     return html`<urbi-stack>
@@ -520,6 +531,60 @@ function direita(d: DadosHoje, atualizar: () => void) {
   </urbi-stack>`;
 }
 
+/** A vigia ligada agora (uma só): a nova desliga a anterior, mesmo a que saiu do DOM sem aviso. */
+let vigiaAtiva: VigiaCelular | null = null;
+
+/**
+ * Religa o desenho de Hoje quando a tela cruza o corte do celular: a estrutura (`urbi-2x1` × `urbi-3-colunas`)
+ * é escolhida no desenho (`noCelular`), e sem isto ficaria velha até o próximo redesenho. O estado (aba da
+ * URL, Assistente, dados) mora fora do componente e sobrevive. Ouve ao conectar e deixa de ouvir ao sair do
+ * DOM (`disconnected`, o `disconnectedCallback` da diretiva, como a do Estúdio). O `keyed` do app não avisa as
+ * diretivas assíncronas na troca de chave (estudio.ts): por isso a vigia confere, ao ser avisada, se o seu
+ * nó ainda está no documento, e só uma fica ligada (`vigiaAtiva`).
+ */
+class VigiaCelular extends AsyncDirective {
+  private atualizar: () => void = () => {};
+  private no: Node | null = null;
+  private desligar: (() => void) | null = null;
+
+  render(_atualizar: () => void) {
+    return nothing;
+  }
+
+  update(parte: ChildPart, [atualizar]: [() => void]) {
+    this.atualizar = atualizar;
+    this.no = parte.startNode ?? parte.parentNode;
+    if (this.isConnected && !this.desligar) this.ligar();
+    return nothing;
+  }
+
+  private ligar() {
+    if (this.desligar) return;
+    if (vigiaAtiva && vigiaAtiva !== this) vigiaAtiva.parar();
+    vigiaAtiva = this;
+    this.desligar = escutarCelular(() => {
+      if (!this.no?.isConnected) return this.parar();
+      this.atualizar();
+    });
+  }
+
+  parar() {
+    this.desligar?.();
+    this.desligar = null;
+    if (vigiaAtiva === this) vigiaAtiva = null;
+  }
+
+  protected disconnected() {
+    this.parar();
+  }
+
+  protected reconnected() {
+    this.ligar();
+  }
+}
+
+const vigiaCelular = directive(VigiaCelular);
+
 /** Hoje na moldura: esquerda · centro · direita (no celular, M1: uma rolagem com "Precisa de você", a fila e o contexto embaixo). */
 export function renderHoje(atualizar: () => void) {
   trocarDeConta();
@@ -537,11 +602,14 @@ export function renderHoje(atualizar: () => void) {
   // contexto, no `urbi-2x1`, que no celular empilha: atalhos, "Precisa de você" e a fila (ou a Agenda), e
   // embaixo a agenda de hoje, a semana e a Dica (11.0.3, "contexto abaixo"). Com o Assistente aberto, volta
   // às três colunas, que o mostram na aba dele (no `urbi-2x1` ele ficaria lá embaixo, fora da vista).
+  // Escolher a Agenda troca só a fila por ela: atalhos, "Precisa de você" e os demais blocos ficam.
+  // Cruzar os 900 px (girar o telefone, redimensionar) redesenha pela `vigiaCelular`, na esquerda.
   if (celular && !assistenteAberto()) {
-    return moldura({ menu: '/', centro: abaInicio() === 'agenda' ? centro(d, atualizar) : esquerda(d, atualizar, true), contexto: direita(d, atualizar) }, atualizar);
+    const meio = abaInicio() === 'agenda' ? blocoAgenda(atualizar) : filaCompacta(d, atualizar);
+    return moldura({ menu: '/', centro: esquerda(d, atualizar, true, meio), contexto: direita(d, atualizar) }, atualizar);
   }
   return moldura(
-    { menu: '/', lista: esquerda(d, atualizar, celular), centro: centro(d, atualizar), contexto: direita(d, atualizar), rotulos, painel: celular ? 'esquerda' : 'centro' },
+    { menu: '/', lista: esquerda(d, atualizar, celular, celular ? filaCompacta(d, atualizar) : nothing), centro: centro(d, atualizar), contexto: direita(d, atualizar), rotulos, painel: celular ? 'esquerda' : 'centro' },
     atualizar,
   );
 }

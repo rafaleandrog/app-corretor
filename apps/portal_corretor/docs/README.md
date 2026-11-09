@@ -45,7 +45,7 @@ Em telas largas, as colunas usam a largura inteira da área do app. Nas telas de
 laterais têm largura fixa (a lista com 360 px e a coluna da direita com 340 px, ou 380 px com o
 Assistente aberto) e a coluna do meio fica com todo o resto, então cresce em monitores grandes. Quando a
 coluna da direita não tem nada a mostrar ainda (nenhum item escolhido), ela diz "Escolha um item". Em telas estreitas (até 900 px de largura, como celular e tablets menores em pé),
-as colunas viram abas, como antes.
+as colunas viram abas, como antes (exceção: Hoje, que tem uma só rolagem e só usa abas com o Assistente aberto).
 
 ### Mapa das telas
 
@@ -79,7 +79,7 @@ as colunas viram abas, como antes.
 | **Contexto** | Coluna da direita | O que ajuda a decidir sobre o item aberto. O Assistente, quando aberto, ocupa esta coluna |
 
 - As colunas da esquerda (360 px) e da direita (340 px) têm largura fixa; a do meio fica com o resto. A da direita mostra "Escolha um item" enquanto nada está aberto.
-- No celular, aparece uma coluna por vez, com abas para trocar entre elas.
+- No celular, aparece uma coluna por vez, com abas para trocar entre elas. Exceção: Hoje, numa só rolagem, com abas só quando o Assistente está aberto.
 
 **Criar**, no alto de toda tela do corretor, abre:
 

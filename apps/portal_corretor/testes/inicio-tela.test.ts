@@ -18,8 +18,9 @@ function playwright(): any {
 const ORIGEM = 'https://app.exemplo';
 
 const ENTRADA = `
-import { render } from 'lit';
+import { render, nothing } from 'lit';
 import { renderHoje } from './frontend/telas/inicio';
+import { aoMudarAssistente, fecharAssistente } from './frontend/telas/assistente';
 const ACAO = { tipo: 'criar_atividade', resumo: 'Criar uma ligação para Ana Ribeiro', rota: '/atividades', corpo: { titulo: 'Responder Ana Ribeiro' } };
 const dados = () => ({
   fila: [{ tipo: 'abordagem_vencida', contato_id: 7, contato_nome: 'Ana Ribeiro', temperatura: 'quente', quando: null, texto: 'Ligar para combinar visita' }],
@@ -53,10 +54,19 @@ window.urbiVerso = {
 const raiz = document.getElementById('raiz');
 const desenhar = () => render(renderHoje(desenhar), raiz);
 window.desenhar = desenhar;
+window.desmontar = () => render(nothing, raiz);
+window.fecharAssistente = fecharAssistente;
+aoMudarAssistente(desenhar);
 desenhar();
 `;
 
 const AJUDA = `
+// Conta os ouvintes 'change' ligados nas consultas de mídia (a vigia do corte do celular).
+window.ouvintes = 0;
+const somar = MediaQueryList.prototype.addEventListener;
+const tirar = MediaQueryList.prototype.removeEventListener;
+MediaQueryList.prototype.addEventListener = function (tipo, f, o) { if (tipo === 'change') window.ouvintes++; return somar.call(this, tipo, f, o); };
+MediaQueryList.prototype.removeEventListener = function (tipo, f, o) { if (tipo === 'change') window.ouvintes--; return tirar.call(this, tipo, f, o); };
 window.profundo = (no) => {
   if (!no) return '';
   const partes = [];
@@ -82,7 +92,7 @@ window.todos = (raiz, seletor) => {
 };
 `;
 
-async function montar(pw: any, dicaComAcao: boolean, viewport = { width: 1440, height: 900 }) {
+async function montar(pw: any, dicaComAcao: boolean, viewport = { width: 1440, height: 900 }, busca = '') {
   const pacote = await build({
     stdin: { contents: ENTRADA, resolveDir: process.cwd(), loader: 'ts' },
     bundle: true,
@@ -96,7 +106,7 @@ async function montar(pw: any, dicaComAcao: boolean, viewport = { width: 1440, h
   const navegador = await pw.chromium.launch();
   const pagina = await navegador.newPage({ viewport });
   await pagina.route(`${ORIGEM}/**`, (r: any) => r.fulfill({ contentType: 'text/html', body: html }));
-  await pagina.goto(`${ORIGEM}/portal_corretor/`);
+  await pagina.goto(`${ORIGEM}/portal_corretor/${busca}`);
   await pagina.waitForTimeout(100);
   return { navegador, pagina };
 }
@@ -170,6 +180,107 @@ test('Hoje no celular (M1, #190): sem as abas das colunas, uma rolagem com atalh
     assert.deepEqual(r.slots, ['esquerda', 'direita']);
     assert.ok(r.ordem.every((i: number, k: number) => i >= 0 && (k === 0 || i > r.ordem[k - 1])), `na ordem: atalhos, Precisa de você, fila, contexto (${r.ordem})`);
     assert.ok(r.agenda.includes('Agenda de hoje'));
+  } finally {
+    await navegador.close();
+  }
+});
+
+/** A forma de Hoje agora: estrutura, slots, textos na ordem e ouvintes ligados. */
+const forma = (pagina: any) =>
+  pagina.evaluate(() => {
+    const w = window as any;
+    const dois = w.todos(document, 'urbi-2x1')[0];
+    const tres = w.todos(document, 'urbi-3-colunas')[0];
+    const texto = w.profundo(dois ?? tres);
+    const pos = (x: string) => texto.indexOf(x);
+    return {
+      estrutura: dois ? '2x1' : tres ? '3-colunas' : '',
+      slots: dois ? [...dois.children].map((c: Element) => c.getAttribute('slot')) : [],
+      botoes: w.todos(dois ?? tres ?? document, 'urbi-botao').map((b: Element) => w.profundo(b)),
+      pos: { atalhos: pos('Conversas'), precisa: pos('Precisa de você'), fila: pos('Fila do dia'), agenda: pos('Agenda dos próximos 14 dias'), contexto: pos('Nada marcado para hoje') },
+      ouvintes: w.ouvintes,
+    };
+  });
+
+const emOrdem = (xs: number[]) => xs.every((i, k) => i >= 0 && (k === 0 || i > xs[k - 1]));
+
+test('Hoje no celular com a Agenda (?aba=agenda): só a fila vira Agenda; atalhos e "Precisa de você" ficam, na ordem', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw, false, { width: 390, height: 844 }, '?aba=agenda');
+  try {
+    const f = await forma(pagina);
+    assert.equal(f.estrutura, '2x1');
+    assert.deepEqual(f.slots, ['esquerda', 'direita']);
+    for (const b of ['Conversas', 'Criar', 'Assistente', 'Voltar para a fila']) assert.ok(f.botoes.includes(b), `botão ${b}`);
+    assert.equal(f.pos.fila, -1, 'a fila sai enquanto a Agenda está escolhida');
+    assert.ok(emOrdem([f.pos.atalhos, f.pos.precisa, f.pos.agenda, f.pos.contexto]), `atalhos → Precisa de você → Agenda → contexto (${JSON.stringify(f.pos)})`);
+    // Voltar para a fila: a fila volta no mesmo lugar, com o resto intacto.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.todos(document, 'urbi-botao').find((b: Element) => w.profundo(b) === 'Voltar para a fila').click();
+    });
+    await pagina.waitForTimeout(50);
+    const g = await forma(pagina);
+    assert.equal(g.pos.agenda, -1);
+    assert.ok(emOrdem([g.pos.atalhos, g.pos.precisa, g.pos.fila, g.pos.contexto]), `atalhos → Precisa de você → fila → contexto (${JSON.stringify(g.pos)})`);
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Hoje cruzando os 900 px (390 → 1280 → 390): redesenha com a estrutura certa, mantém a aba e o ouvinte não duplica nem vaza', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw, false, { width: 390, height: 844 }, '?aba=agenda');
+  try {
+    let f = await forma(pagina);
+    assert.equal(f.estrutura, '2x1');
+    assert.equal(f.ouvintes, 1, 'um ouvinte ao conectar');
+    await pagina.setViewportSize({ width: 1280, height: 800 });
+    await pagina.waitForTimeout(100);
+    f = await forma(pagina);
+    assert.equal(f.estrutura, '3-colunas', 'no desktop, três colunas sem outro desenho do app');
+    assert.ok(f.pos.agenda >= 0, 'a Agenda escolhida na URL continua');
+    assert.equal(f.ouvintes, 1);
+    await pagina.setViewportSize({ width: 390, height: 844 });
+    await pagina.waitForTimeout(100);
+    f = await forma(pagina);
+    assert.equal(f.estrutura, '2x1');
+    assert.ok(f.pos.agenda >= 0 && f.pos.precisa >= 0 && f.pos.atalhos >= 0);
+    assert.equal(f.ouvintes, 1);
+    // Redesenhos na mesma largura não somam ouvinte.
+    await pagina.evaluate(() => ((window as any).desenhar(), (window as any).desenhar()));
+    assert.equal((await forma(pagina)).ouvintes, 1);
+    // Saiu do DOM: deixa de ouvir; voltou: um só de novo.
+    await pagina.evaluate(() => (window as any).desmontar());
+    assert.equal(await pagina.evaluate(() => (window as any).ouvintes), 0, 'ao desconectar, o ouvinte sai');
+    await pagina.evaluate(() => (window as any).desenhar());
+    assert.equal((await forma(pagina)).ouvintes, 1, 'ao reconectar, um só');
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Hoje no celular: o Assistente aberto volta às três colunas e, fechado, ao 2x1', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw, false, { width: 390, height: 844 });
+  try {
+    assert.equal((await forma(pagina)).estrutura, '2x1');
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.todos(document, 'urbi-botao').find((b: Element) => w.profundo(b) === 'Assistente').click();
+    });
+    await pagina.waitForTimeout(100);
+    let f = await forma(pagina);
+    assert.equal(f.estrutura, '3-colunas');
+    assert.equal(f.ouvintes, 1);
+    await pagina.evaluate(() => (window as any).fecharAssistente());
+    await pagina.waitForTimeout(50);
+    f = await forma(pagina);
+    assert.equal(f.estrutura, '2x1');
+    assert.equal(f.ouvintes, 1);
   } finally {
     await navegador.close();
   }
