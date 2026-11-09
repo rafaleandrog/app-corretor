@@ -167,18 +167,19 @@ window.desenhar = (dashboard) => {
 // Mede: largura da moldura contra a área do app (#raiz), colunas, e todo contêiner que rola na horizontal.
 window.medir = () => {
   const area = raiz.getBoundingClientRect().width;
-  const inbox = document.querySelector('urbi-3-colunas').getBoundingClientRect().width;
-  const colunas = [...document.querySelectorAll('urbi-3-colunas > [slot]')].map((c) => [c.getAttribute('slot'), Math.round(c.getBoundingClientRect().width)]);
+  // No celular, Hoje vai no urbi-2x1 (M1 sem as abas das colunas, #190).
+  const inbox = document.querySelector('urbi-3-colunas, urbi-2x1').getBoundingClientRect().width;
+  const colunas = [...document.querySelectorAll(':is(urbi-3-colunas, urbi-2x1) > [slot]')].map((c) => [c.getAttribute('slot'), Math.round(c.getBoundingClientRect().width)]);
   const nome = (e) => e.localName + (e.getAttribute('slot') ? '[' + e.getAttribute('slot') + ']' : '') + (e.getAttribute('titulo') ? '«' + e.getAttribute('titulo') + '»' : '')
     + (e.localName === 'urbi-botao' || e.localName === 'urbi-kpi' ? '«' + e.textContent.trim().replace(/\\s+/g, ' ') + '»' : '');
-  const transbordam = [...document.querySelectorAll('urbi-3-colunas *')]
+  const transbordam = [...document.querySelectorAll(':is(urbi-3-colunas, urbi-2x1) *')]
     .filter((e) => e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1)
     .map(nome);
   // KPI com o valor em mais de uma linha, ou mais largo que a própria caixa: "quebrado"/cortado.
   const kpisQuebrados = [...document.querySelectorAll('urbi-kpi .pc-valor')]
     .filter((v) => v.getClientRects().length > 1 || v.scrollWidth > v.parentElement.clientWidth + 1)
     .map((v) => v.parentElement.getAttribute('rotulo'));
-  const caixas = [...document.querySelectorAll('urbi-3-colunas *')].filter((e) => e.getClientRects().length)
+  const caixas = [...document.querySelectorAll(':is(urbi-3-colunas, urbi-2x1) *')].filter((e) => e.getClientRects().length)
     .map((e) => { const r = e.getBoundingClientRect(); return [e.localName, Math.round(r.x), Math.round(r.width)].join(':'); });
   const linhasDaSemana = new Set([...document.querySelectorAll('urbi-grid > urbi-kpi')].map((k) => Math.round(k.getBoundingClientRect().top))).size;
   const minDaSemana = [...new Set([...document.querySelectorAll('urbi-grid > urbi-kpi')].map((k) => k.parentElement.getAttribute('min')))];

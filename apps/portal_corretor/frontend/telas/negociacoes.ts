@@ -744,14 +744,14 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
         ];
     // "Ana Ribeiro · Casa 4 quartos, Jardim Botânico" (P15) e, no celular (M8), "· rodada 4 de 4".
     const titulo = [d.contato_nome ?? 'Cliente', d.imovel_titulo ?? d.imovel_codigo ?? d.codigo].filter(Boolean).join(' · ');
+    // Título, chips e só depois Assumir · Mais, como a referência P15 (Assumir abaixo dos chips). Com o título
+    // na mesma `urbi-linha` das ações, o stack não encolhia: no celular o título passava 78 px da tela, cortado
+    // sem quebrar (448 px em 390, medido na 0.1.51; #190). Fora da linha, ele quebra na largura da coluna.
     return html`<urbi-stack>
-      <urbi-linha justificar="entre" quebrar>
-        <urbi-stack>
-          <urbi-prosa papel="titulo">${titulo}</urbi-prosa>
-          <urbi-prosa papel="fraco">${d.codigo}${d.imovel_codigo ? ` · ${d.imovel_codigo}` : ''} · rodada ${d.rodadas ?? 0}${resumo?.rodadas_max ? ` de ${resumo.rodadas_max}` : ''}</urbi-prosa>
-        </urbi-stack>
-        ${encerrada ? '' : acoesComMais(principal, mais)}
-      </urbi-linha>
+      <urbi-stack>
+        <urbi-prosa papel="titulo">${titulo}</urbi-prosa>
+        <urbi-prosa papel="fraco">${d.codigo}${d.imovel_codigo ? ` · ${d.imovel_codigo}` : ''} · rodada ${d.rodadas ?? 0}${resumo?.rodadas_max ? ` de ${resumo.rodadas_max}` : ''}</urbi-prosa>
+      </urbi-stack>
       <urbi-linha quebrar>
         <urbi-badge cor=${COR_ESTADO[d.estado] ?? ''}>${ROTULO_ESTADO[d.estado] ?? d.estado}</urbi-badge>
         <urbi-badge>Rodada ${d.rodadas ?? 0}${resumo?.rodadas_max ? ` de ${resumo.rodadas_max}` : ''}</urbi-badge>
@@ -760,6 +760,7 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
           ? html`<urbi-badge>Mandato válido até ${data(`${resumo.validade}T12:00:00`)}</urbi-badge>`
           : html`<urbi-badge cor="alerta">Sem mandato</urbi-badge>`}
       </urbi-linha>
+      ${encerrada ? '' : acoesComMais(principal, mais)}
       ${this.faixa(d, m)}
       ${encerrada ? '' : this.sugestao(d)}
       ${encerrada || d.estado === 'aguardando_proprietario'

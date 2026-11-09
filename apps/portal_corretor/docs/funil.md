@@ -130,10 +130,14 @@ quem atende várias contas abre as telas sem escolher conta antes.
 
 ## Hoje (antes, Início)
 
-**Hoje** responde "o que eu faço agora". Ela vem em três colunas (no celular, uma por vez, em abas:
-**Hoje · Fila · Agenda**; a aba Hoje abre primeiro, com a linha de atalhos do dia **Conversas ·
-Criar · Imóveis · Assistente**, "Precisa de você" e, logo abaixo, a fila do dia em cartões compactos,
-numa só rolagem). O endereço `/hoje` também abre a tela.
+**Hoje** responde "o que eu faço agora". Ela vem em três colunas. No celular, sem abas, tudo numa
+só rolagem: os atalhos do dia (**Conversas · Criar · Imóveis · Assistente**), "Precisa de você", a fila do dia em
+linhas compactas (ou a Agenda dos próximos 14 dias, quando ela está escolhida: a Agenda troca só o
+bloco da fila), os demais blocos da coluna esquerda (Primeiros passos, enquanto houver passo a
+fazer, o aviso de CRECI e o banner da conta de demonstração, quando existem) e, embaixo, o
+contexto: a agenda de hoje, a semana e a Dica do Assistente. Ao girar o aparelho ou redimensionar a
+janela, Hoje se redesenha com a estrutura certa. Com o Assistente aberto no celular, a tela volta
+às três colunas, em abas. O endereço `/hoje` também abre a tela.
 
 **À esquerda:**
 

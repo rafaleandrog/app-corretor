@@ -83,7 +83,23 @@ export function chip(tipo: TipoChip, valor: string | { nome: string; tipo: strin
  * A tela está no celular (≤ 900 px, o corte dos primitivos de layout; ui.md § política mobile do fill).
  * Lido a cada desenho: a tela que muda de forma no celular (M1) pergunta aqui, sem CSS próprio.
  */
-export const noCelular = (): boolean => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 900px)').matches;
+export const noCelular = (): boolean => !!consultaCelular()?.matches;
+
+const consultaCelular = (): MediaQueryList | null =>
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 900px)') : null;
+
+/**
+ * Avisa quando a tela cruza o corte do celular (900 px), num sentido ou no outro (girar o telefone,
+ * redimensionar a janela): a tela que muda de forma redesenha. Devolve quem desliga o aviso. Navegador sem
+ * `matchMedia` ou sem `addEventListener` na consulta: não avisa (a forma se acerta no próximo desenho).
+ */
+export function escutarCelular(aoMudar: () => void): () => void {
+  const consulta = consultaCelular();
+  if (!consulta || typeof consulta.addEventListener !== 'function') return () => {};
+  const ouvinte = () => aoMudar();
+  consulta.addEventListener('change', ouvinte);
+  return () => consulta.removeEventListener('change', ouvinte);
+}
 
 // Estado na URL (overview.md § Navegação SPA): a sub-rota vem de `href(subRota())`, a query é da
 // tela. `replaceState` para filtro não empilhar uma entrada de histórico a cada tecla.
