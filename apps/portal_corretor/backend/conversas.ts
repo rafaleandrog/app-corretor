@@ -131,8 +131,12 @@ export async function registrarMensagem(dados: HelperDados, m: NovaMensagem): Pr
   // O contador soma com `incrementar`, nunca ler-somar-gravar (banco-de-dados.md § Contratos): duas entradas juntas somam duas.
   if (m.autor_tipo !== 'sistema' && m.direcao === 'entrada') salva = (await dados.incrementar('conversas', conversa.id, { nao_lidas: 1 })) ?? salva;
   // O portal do cliente mostra a conversa (M4, #191): a mensagem que o cliente vê vai para lá. Sem
-  // portal ativo, nada acontece; uma falha fica no log e não desfaz a mensagem.
-  if (m.autor_tipo !== 'sistema' && tipo !== 'sistema') await tentarPortal(dados, Number(salva.conta_id ?? m.conta) || undefined, m.contato_id);
+  // portal ativo, nada acontece. Na rota, uma falha fica no log e não desfaz a mensagem; no listener
+  // (`m.conta`: `dados` é a transação do `comConta`), a falha do banco sobe, porque a transação já está
+  // abortada e engoli-la só trocaria o erro pelo do próximo comando (ver `tentarPortal`).
+  if (m.autor_tipo !== 'sistema' && tipo !== 'sistema') {
+    await tentarPortal(dados, Number(salva.conta_id ?? m.conta) || undefined, m.contato_id, undefined, { emTransacao: !!m.conta });
+  }
   return { conversa: salva, mensagem, repetida: false };
 }
 

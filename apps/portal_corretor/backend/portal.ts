@@ -248,16 +248,45 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
 export const MENSAGENS_NO_PORTAL = 40;
 
 /**
- * A conversa do cliente no portal (M4, #191): só o que o cliente pode ver, isto é, as mensagens dele
- * e as que o corretor (ou o atendimento automático) mandou para ele. Avisos internos (`sistema`) e o
- * próprio link do portal ficam de fora; o cartão de imóvel leva só o que já foi ao cliente (código,
- * título, bairro, preço), nunca o link rastreado nem o id interno do imóvel.
+ * Canais em que a mensagem foi de fato escrita entre o cliente e o corretor: o portal, o WhatsApp do
+ * app e o WhatsApp do celular do corretor (`wa_me`, aberto com o texto pronto). `registro` fica de
+ * fora: é o que o corretor anotou sem o app entregar (cliente sem WhatsApp, "só registrar", abordagem
+ * por ligação, visita ou e-mail, envio presencial), e `sistema` são os avisos internos.
+ */
+const CANAIS_ESCRITOS = new Set(['portal', 'whatsapp', 'wa_me']);
+
+/** Marca, em `mensagens.dados.aviso`, do recado interno ao corretor gravado como entrada do cliente (#194). */
+export const MARCA_AVISO_OFERTA = 'oferta_implausivel';
+
+/**
+ * O recado da oferta implausível (#194) sem a marca: o texto que o webhook do portal publica como
+ * mensagem (`publico.ts`, "Pelo portal, o cliente tentou ofertar …"), e as linhas gravadas antes da marca.
+ */
+const TEXTO_AVISO_OFERTA = /^Pelo portal, o cliente tentou ofertar .+; a oferta não foi registrada \(valor fora do esperado\)\.$/s;
+
+/** A mensagem é um aviso interno ao corretor, ainda que gravada como entrada do cliente? */
+export const ehAvisoInterno = (m: Linha) =>
+  ((m.dados ?? {}) as Linha).aviso === MARCA_AVISO_OFERTA || (m.direcao === 'entrada' && TEXTO_AVISO_OFERTA.test(String(m.conteudo ?? '')));
+
+/**
+ * A conversa do cliente no portal (M4, #191; exceção da vitrine decidida na D-132): só o que o cliente
+ * escreveu e o que lhe foi entregue por escrito. Entra a mensagem que é:
+ * - de entrada com autor `contato`, ou de saída (corretor, Negociador ou atendimento automático);
+ * - por um canal escrito (`portal`, `whatsapp`, `wa_me`): o `registro` é anotação do corretor, não entrega;
+ * - sem falha de envio (`status` diferente de `falhou`);
+ * - não é aviso: nem `tipo`/`autor_tipo` `sistema`, nem o recado interno da oferta implausível
+ *   (`ehAvisoInterno`), nem o próprio link do portal (`link_portal`).
+ * Das que passam, as 40 mais recentes, da mais antiga para a mais nova. O cartão de imóvel leva só o
+ * que já foi ao cliente (código, título, bairro, preço), nunca o link rastreado nem o id interno do
+ * imóvel; o da seleção, só título e quantidade.
  */
 export async function conversaDoPortal(dados: HelperDados, conta: number, contatoId: number) {
-  const r = await dados.listar('mensagens', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'em', ordem: 'desc', por_pagina: MENSAGENS_NO_PORTAL * 2 });
+  // Lê mais que 40 porque parte das recentes pode ficar de fora pelo filtro.
+  const r = await dados.listar('mensagens', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'em', ordem: 'desc', por_pagina: MENSAGENS_NO_PORTAL * 3 });
   return r.dados
-    .filter((m) => m.tipo !== 'sistema' && m.tipo !== 'link_portal' && m.autor_tipo !== 'sistema')
-    .filter((m) => (m.direcao === 'entrada' && m.autor_tipo === 'contato') || m.direcao === 'saida')
+    .filter((m) => (m.direcao === 'entrada' && m.autor_tipo === 'contato') || (m.direcao === 'saida' && m.autor_tipo !== 'sistema'))
+    .filter((m) => CANAIS_ESCRITOS.has(String(m.canal)) && m.status !== 'falhou')
+    .filter((m) => m.tipo !== 'sistema' && m.tipo !== 'link_portal' && !ehAvisoInterno(m))
     .slice(0, MENSAGENS_NO_PORTAL)
     .reverse()
     .map((m) => {
@@ -311,12 +340,32 @@ function eventosDaJornada(
   return [...resto.sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, 49), inicio];
 }
 
-/** Para rotas que mudam a agenda ou as seleções: o portal acompanha sem derrubar a rota. */
-export async function tentarPortal(dados: HelperDados, conta: number | undefined, contatoId: number | null | undefined, corretor?: Corretor) {
+/** Erro vindo do PostgreSQL: traz o SQLSTATE (5 caracteres) em `code`, como o `23505` do único. */
+const ehErroDoBanco = (e: unknown) => /^[0-9A-Z]{5}$/.test(String((e as { code?: unknown })?.code ?? ''));
+
+/**
+ * Para rotas que mudam a agenda ou as seleções: o portal acompanha sem derrubar a rota. Na rota cada
+ * comando é a sua própria transação, então a falha fica no log e o resto segue.
+ *
+ * `emTransacao` (o listener, dentro do `comConta`): erro do banco NÃO é engolido. O PostgreSQL aborta a
+ * transação inteira no primeiro comando que falha, e o SDK não abre SAVEPOINT para a app
+ * (banco-de-dados.md: "não dá para abrir um BEGIN aninhado"); engolido, o comando seguinte do listener
+ * quebraria com outro erro ("transação abortada") e o bloco seria desfeito do mesmo jeito, só que com a
+ * causa escondida. Então ele sobe, o `comConta` desfaz tudo e a causa real aparece. Erro que não é do
+ * banco (não aborta a transação) continua só no log.
+ */
+export async function tentarPortal(
+  dados: HelperDados,
+  conta: number | undefined,
+  contatoId: number | null | undefined,
+  corretor?: Corretor,
+  opcoes: { emTransacao?: boolean } = {},
+) {
   if (!conta || !contatoId) return;
   try {
     await sincronizarPortal(dados, conta, contatoId, corretor);
   } catch (e) {
+    if (opcoes.emTransacao && ehErroDoBanco(e)) throw e;
     console.warn(`[portal_corretor] portal do cliente ${contatoId}: não sincronizado: ${(e as Error).message}`);
   }
 }

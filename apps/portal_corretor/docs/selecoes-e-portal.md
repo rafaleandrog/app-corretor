@@ -101,15 +101,29 @@ para o celular:
 
 | Aba | O que tem |
 |---|---|
-| Conversa | A conversa com você, como num aplicativo de mensagens: as mensagens que você (ou o atendimento automático) mandou para o cliente, à esquerda, e as dele, à direita, com a hora. Um imóvel enviado aparece como cartão (foto, título, dados e preço) com **Gostei · Quero visitar** quando ele está numa seleção válida do cliente; a seleção enviada aparece como "Separei 3 imóveis para você" com **Ver imóveis**. Avisos internos (como "Mensageiro passou para você") e o próprio link do portal não aparecem. No pé da tela fica o campo **Escreva para o <seu primeiro nome>**, de uma linha, com o botão de enviar: a mensagem aparece na hora, entra na sua conversa com o cliente em [Conversas](conversas.md), na linha do tempo e vira a tarefa "Responder a mensagem do portal". Mostra as 40 mensagens mais recentes |
+| Conversa | A conversa com você, como num aplicativo de mensagens: as mensagens que você (ou o atendimento automático) mandou para o cliente, à esquerda, e as dele, à direita, com a hora. Um imóvel enviado aparece como cartão (foto, título, dados e preço) com **Gostei · Quero visitar** quando ele está numa seleção válida do cliente; a seleção enviada aparece como "Separei 3 imóveis para você" com **Ver imóveis**. O que o cliente vê e o que nunca vê está logo abaixo da tabela. No pé da tela fica o campo **Escreva para o <seu primeiro nome>**, de uma linha, com o botão de enviar: a mensagem aparece na hora, entra na sua conversa com o cliente em [Conversas](conversas.md), na linha do tempo e vira a tarefa "Responder a mensagem do portal". Mostra as 40 mensagens mais recentes |
 | Imóveis | No alto, **Suas seleções** (**Sua seleção**, se houver só uma): o título e a mensagem que o corretor escreveu em cada seleção válida que tenha um dos dois; seleção sem título nem mensagem não aparece, e a que só repete imóveis de outra aparece se tiver um dos dois. Sem nenhuma, o bloco some. Depois, o imóvel em **destaque**, com o nome da seleção a que pertence (só quando ela tem título), no cartão descrito acima (foto um pouco mais alta), com o selo **Visita sáb.** quando há visita marcada a ele. Embaixo, **Outros imóveis**, cada um com a miniatura, o bairro, o preço e a reação dada ("Gostei", "Sem reação"); um toque põe o imóvel no destaque. Por fim, **O que falta de você**: as pendências que você pediu, cada uma com o botão **Feito** (só aparece se houver alguma). O número da aba conta os imóveis das seleções válidas, sem repetir o mesmo imóvel |
 | Agenda | As visitas marcadas, por dia, com hora e imóvel. Um dia com mais de uma visita vira um **roteiro**: as paradas numeradas na ordem do horário e o link **Ver o roteiro no mapa**, com o trajeto todo. Em cada visita, **Como chegar** (abre o mapa do celular com a rota), **Adicionar ao calendário** (arquivo que abre no calendário do celular) e **Pedir para remarcar**. O mapa só usa o que o imóvel mostra em público: com o endereço publicado, a rota vai até ele; só com o bairro, o botão vira **Ver o bairro no mapa**; publicado só como região, não há mapa. Embaixo, **Sua jornada**: uma linha do tempo, da mais recente para a mais antiga, com cada seleção recebida ("Recebeu 3 imóveis: Casas no Noroeste"), cada visita feita, cada pendência resolvida e, embaixo, o começo. O número da aba, o **Próximo passo** e o selo de visita usam o mesmo critério: visita que ainda vai acontecer ou que começou há até 1 hora (para a visita em andamento não sumir) |
 | Propostas | Ver [Propostas](#propostas), abaixo. O número conta as negociações do cliente, como as outras abas contam os seus itens |
 | Arquivos | Só sem negociação. Ainda sem arquivos (D-73): a aba avisa que, por enquanto, os documentos chegam pelo WhatsApp. O número fica em 0 |
 
-**A conversa no portal.** As mensagens que o cliente pode ver ficam guardadas na versão pública do
-portal dele, que só abre com o link (a chave) do cliente. Remover o cliente ou revogar o link tira
-tudo do ar na hora.
+**O que o cliente vê na Conversa.** Só o que ele mesmo escreveu e o que você mandou **por escrito**
+para ele:
+- as mensagens dele (pelo portal ou pelo WhatsApp);
+- as suas que saíram pelo WhatsApp do celular (o botão de enviar da Conversa, os envios de imóvel,
+  arquivo e localização, a seleção, a confirmação de visita) ou pelo portal, e as do Negociador.
+
+**O que o cliente nunca vê:**
+- o que você só **registrou** (cliente sem WhatsApp cadastrado, "só registrar", abordagem por ligação,
+  visita ou e-mail, envio presencial): é anotação sua, não mensagem entregue;
+- mensagem cujo envio **falhou**;
+- avisos internos: "Mensageiro passou para você", "Negociação aberta", as reações às seleções e o
+  recado da oferta fora do esperado ("Pelo portal, o cliente tentou ofertar…"), que é só para você;
+- o próprio link do portal, o link rastreado e os dados internos do imóvel.
+
+**A conversa no portal.** Essas mensagens ficam guardadas na versão pública do portal do cliente,
+que só abre com o link (a chave) dele: é a única informação pessoal ali, numa exceção decidida pelo
+dono (D-132). Remover o cliente ou revogar o link tira tudo do ar na hora.
 
 ### Propostas
 

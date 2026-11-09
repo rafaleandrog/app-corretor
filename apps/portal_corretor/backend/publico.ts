@@ -7,7 +7,7 @@ import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
 import { id } from './acesso';
 import { reclassificar } from './inteligencia';
-import { lerVitrine, publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
+import { lerVitrine, MARCA_AVISO_OFERTA, publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 import { semSigilo } from '../comum/negociacao';
 import { negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel } from '../comum/portal-cliente';
 import { configDaConta, encerrada, gravarPropostaTravada, mandatoVigente } from './negociacao';
@@ -641,7 +641,9 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
       // grava rodada nem aciona o Negociador, e o corretor recebe um recado na conversa.
       const imovel = viva.imovel_id ? (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, id: viva.imovel_id }, maximo: 1 }))[0] : null;
       if (!ofertaPlausivel(valor_c, Number(imovel?.preco_c) || null)) {
-        await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'texto', conteudo: `${AVISO_OFERTA_IMPLAUSIVEL} tentou ofertar ${reaisPt(valor_c)}; a oferta não foi registrada (valor fora do esperado).`, dados: { negociacao_id: nid } });
+        // Recado ao corretor, não fala do cliente: a marca `aviso` o tira do chat do portal (D-132); a P02 o
+        // mostra como antes (o texto não muda).
+        await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'texto', conteudo: `${AVISO_OFERTA_IMPLAUSIVEL} tentou ofertar ${reaisPt(valor_c)}; a oferta não foi registrada (valor fora do esperado).`, dados: { negociacao_id: nid, aviso: MARCA_AVISO_OFERTA } });
         return null;
       }
       // O mesmo evento entregue de novo: a oferta igual do portal já é a última.
