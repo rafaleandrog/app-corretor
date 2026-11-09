@@ -97,7 +97,7 @@ Telas com selo medido: Clientes, ficha, Hoje, Imóveis, Negociações, Funil, P�
 | Importar | 4,74 · 3,10 | 5,18 · 3,78 | coluna |
 | Conta e marca | 4,60 · 3,04 | 4,97 · 3,70 | cartão |
 
-Com as cinco telas da prova anterior (Ajustes na seção padrão), são 12 telas medidas com `dica`. Só o Funil, no claro, fica abaixo de 4,5:1.
+Com as cinco telas da prova anterior (Ajustes na seção padrão), são 12 telas medidas com `dica`. Só o Funil, no claro, fica abaixo de 4,5:1. (SUBSTITUÍDO pela conferência da 0.1.58 e pela seção Remedição: exceções abaixo de 4,5:1 no claro são Funil 4,24, mandato 4,49 e Ajustes 4,47 em um texto `secundario`; ver specs/prints/conferencia-0.1.58/)
 
 ### d) Aviso de IA na ficha
 
@@ -108,7 +108,7 @@ Com a IA disponível, o aviso não aparece. Para medi-lo, a sonda `GET /contatos
 - **DIVERGE** selo de estado no claro: antes "3,69 a 4,08", agora **3,02 a 4,15**. 3,02 é Morno e Abordagem atrasada no cartão do Funil, e 4,15 é Frio na lista. Fora do Funil e de Conta e marca a faixa vai de 3,69 a 4,15.
 - **DIVERGE** selo de estado no escuro: antes "3,74 (Quente) a 7,11", agora **3,30 a 7,11**. 3,30 é Quente no cartão do Funil. Os valores 3,74 e 7,11 se confirmam.
 - **DIVERGE** `urbi-badge` neutro: antes "4,50 · 4,68". Esses valores valem só sobre a coluna. Num cartão o neutro dá **4,36 · 4,37**, abaixo de 4,5.
-- **DIVERGE** pior caso do `dica`: antes "4,60 / 4,97", agora **4,24** no claro (Funil). O escuro se mantém em 4,69, acima de 4,5. Nas outras 10 telas, 4,60 / 4,97 se confirma.
+- **DIVERGE** pior caso do `dica`: antes "4,60 / 4,97", agora **4,24** no claro (Funil). O escuro se mantém em 4,69, acima de 4,5. Nas outras 10 telas, 4,60 / 4,97 se confirma. (SUBSTITUÍDO pela conferência da 0.1.58 e pela seção Remedição: exceções abaixo de 4,5:1 no claro são Funil 4,24, mandato 4,49 e Ajustes 4,47 em um texto `secundario`; ver specs/prints/conferencia-0.1.58/)
 - **DIVERGE** pior caso do `fraco` antes da troca: antes 3,04, agora **2,89** (Funil, claro).
 - Alturas: "17 → 16 px; 35 → 32" eram valores arredondados. Os medidos são 17,39 → 16,19 (−1,20) e 34,78 → 32,38 (**−2,40, não −3**). Numa lista de 5 clientes, a lista fica 6,01 px mais baixa. As listas de Hoje não mudam.
 - O aviso de IA (3,04 / 3,70) se confirma, agora medido.
@@ -162,8 +162,8 @@ Colunas: elementos trocados; pior contraste claro (`fraco` → `dica`); pior con
 | Novo imóvel (passo Dados) (`novo-imovel.ts`) | 6 (6 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -8,4 / -8,4 | 0/-3/0 · 0/0/0 | 0 / 0 |
 | Novo imóvel (passo Autorização) (`novo-imovel.ts`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
 | Novo imóvel (passo Onde aparece) (`novo-imovel.ts`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
-| Imóveis › ficha › modal Editar mandato (`mandato.ts`) | 32 (18 visíveis) | 2,99 → **4,49** | 3,7 → 4,97 | -25,2 / -25,2 | -4/-6/-9 · 0/-6/-9 | 0 / 0 |
-| Negociações › modal Editar mandato (`mandato.ts, negociacoes.ts`) | 15 (15 visíveis) | 2,99 → **4,49** | 3,7 → 4,97 | -25,2 / -25,2 | 0/-6/-9 · 0/0/-9 | 0 / 0 |
+| Imóveis › ficha › modal Editar mandato (`mandato.ts`) | 32 (18 visíveis) | 2,99 → **4,49** | 3,76 → **5,10** (a linha antiga dizia 3,7 → 4,97: SUBSTITUÍDO; valor da conferência real 0.1.58 e do `medidas.json`) | -25,2 / -25,2 | -4/-6/-9 · 0/-6/-9 | 0 / 0 |
+| Negociações › modal Editar mandato (`mandato.ts, negociacoes.ts`) | 15 (15 visíveis) | 2,99 → **4,49** | 3,76 → **5,10** (a linha antiga dizia 3,7 → 4,97: SUBSTITUÍDO; valor da conferência real 0.1.58 e do `medidas.json`) | -25,2 / -25,2 | 0/-6/-9 · 0/0/-9 | 0 / 0 |
 | Negociações (item aberto) (`negociacoes.ts`) | 10 (10 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -15,6 / -15,6 | 0/-6/-7 · 0/0/0 | 0 / 0 |
 | Clientes › ficha (com seleções e portal) (`ficha-contato.ts, selecoes-cliente.ts`) | 19 (18 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -22,8 / -22,8 | -11/-10/-2 · -11/0/0 | 0 / 0 |
 | Ajustes › Funil (`ajustes.ts (menu)`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
@@ -194,3 +194,7 @@ Os números de contraste são iguais nas duas janelas. Nenhum elemento mudou de 
 ### Resumo
 
 Dos 21 arquivos, 20 têm ao menos uma tela medida com `dica` (nesta rodada ou na remedição anterior); só `empreendimentos.ts` ficou sem medida (conta demo sem empreendimento). Em vários arquivos há estados condicionais (listados acima) que não puderam ser exercitados sem gravar ou sem dado. O que continua abaixo de 4,5:1 com `dica`: Funil no claro (4,24) e o modal de mandato no claro (4,49).
+
+## Conferência real da 0.1.58
+
+Ver `specs/prints/conferencia-0.1.58/` (09/11/2026, só leitura): no shell 0.56.37 com o app 0.1.58 o modal de mandato mede 4,49 (claro) e 5,10 (escuro), o Funil 4,24 e 4,69, e o `secundario` do cartão de tom de Ajustes 4,47 e 4,69.

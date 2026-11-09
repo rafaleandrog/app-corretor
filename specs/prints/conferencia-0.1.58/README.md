@@ -1,0 +1,3 @@
+# Conferência da 0.1.58 real na "pinguim" (09/11/2026)
+
+Conferência SÓ DE LEITURA (nenhuma chamada que grava foi feita). Passaram 6 itens (versão, #190, #171, #180, #182 item 2, #192 na contagem); 1 com divergência (contraste da #176). A divergência nova é uma só: Ajustes, texto `secundario` no cartão de tom (4,47 claro, 4,69 escuro). Funil escuro 4,69 e mandato 4,49 / 5,10 já estavam em `specs/prints/issue-176/medidas.md` e foram confirmados; a expectativa inicial da conferência estava incompleta. Não foi exercido: #39, #187 e "Baixou o preço" (#182 item 15) precisam gravar, e falta o principal de QA. Arquivos: `relatorio.md` e `medidas.json` (sem capturas de tela).
