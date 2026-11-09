@@ -451,7 +451,6 @@ export function combina(perfil: unknown, im: Record<string, any>): string[] | nu
 
 // ---------- Novo imóvel em 4 passos (P07, M3; B5 parte 2) ----------
 
-/** Os passos do Novo imóvel, nesta ordem. Nenhum exige CRECI (D-93); a autorização é opcional para o rascunho. */
 /** Centavos no formato brasileiro de um campo de texto (#185): 145000000 → "1.450.000", 12345 → "123,45". */
 export function reaisEmTexto(c: unknown): string {
   const n = Number(c);
@@ -474,6 +473,7 @@ export function numeroEmTexto(v: unknown): string {
  */
 export const rascunhoSemTipo = (im: Record<string, unknown>) => im.situacao === 'rascunho' && im.tipo === 'outro';
 
+/** Os passos do Novo imóvel, nesta ordem. Nenhum exige CRECI (D-93); a autorização é opcional para o rascunho. */
 export const PASSOS_NOVO_IMOVEL = [
   { id: 'fotos', rotulo: 'Fotos' },
   { id: 'dados', rotulo: 'Dados' },

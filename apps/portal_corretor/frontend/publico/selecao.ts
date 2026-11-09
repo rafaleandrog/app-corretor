@@ -683,7 +683,7 @@ export class PcPortalCliente extends LitElement {
       else {
         this.avisoEm = `negociacao-${n.ref}`;
         this.erroOferta = n.ref;
-        this.aviso = { ok: false, texto: `A oferta de ${reais(valor)} está muito abaixo do preço pedido. Confira o valor, por exemplo 1.380.000.` };
+        this.aviso = { ok: false, texto: `A oferta de ${reais(valor)} está muito abaixo do preço pedido. Confira o valor.` };
         this.focar(`#valor-${n.ref}`);
         return;
       }

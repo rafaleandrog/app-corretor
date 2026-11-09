@@ -35,6 +35,7 @@ enviosRotas.post(
     // O cartão do imóvel que o app monta para o WhatsApp (tipo imóvel + canal whatsapp) só leva o que é anunciável
     // (ativo ou reservado, com autorização vigente). Registro de algo já enviado fora do app (e-mail, presencial,
     // arquivo, simulação) não é barrado: o fato aconteceu e Números não pode perdê-lo.
+  // Só o cartão: localização e mensagem com imovel_id não passam por esta guarda (decisão aberta no plano).
     if (imovel && tipo === 'imovel' && canal === 'whatsapp' && !(await imovelAnunciavel(req, imovel))) return erro(res, 422, 'IMOVEL_NAO_ANUNCIAVEL', 'Este imóvel não pode ser enviado: precisa estar ativo ou reservado, com autorização de venda assinada e vigente.');
     const nid = id(req.body?.negocio_id);
     const negocio = nid ? await dados.buscar('negocios', nid) : null;

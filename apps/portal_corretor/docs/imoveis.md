@@ -46,7 +46,7 @@ a aba Empreendimentos, e `/imoveis/<número>` abre a mesma tela com o imóvel es
 - **Clientes que combinam**: até 10 compradores da conta cujo **perfil de busca** bate com o imóvel,
   com o que bateu (tipo, região, preço, quartos, vagas, área) e o botão **Enviar**, que envia o
   imóvel ali mesmo: registra o envio, põe a mensagem pronta com o cartão do imóvel na conversa do
-  cliente e o link rastreado (se o imóvel está na página); o botão vira **Enviado**. O **Enviar** só aparece (e a rota `POST /envios` só aceita, senão 422 `IMOVEL_NAO_ANUCIAVEL`) quando o imóvel é anunciável: ativo ou reservado, com autorização de venda assinada e vigente (a regra vale para o cartão pelo WhatsApp; registrar um envio já feito por e-mail ou pessoalmente não a exige). Cada critério do perfil precisa bater; o que o
+  cliente e o link rastreado (se o imóvel está na página); o botão vira **Enviado**. O **Enviar** só aparece (e a rota `POST /envios` só aceita, senão 422 `IMOVEL_NAO_ANUNCIAVEL`) quando o imóvel é anunciável: ativo ou reservado, com autorização de venda assinada e vigente (a regra vale para o cartão pelo WhatsApp; registrar um envio já feito por e-mail ou pessoalmente não a exige). Cada critério do perfil precisa bater; o que o
   perfil não diz não conta, e perfil vazio não combina com nada. O perfil de busca vem da
   importação de contatos; ainda não há onde editá-lo na tela. Contatos anonimizados não entram. Em
   conta muito grande a busca olha só os primeiros 10 000 contatos com perfil (em ordem de cadastro) e
