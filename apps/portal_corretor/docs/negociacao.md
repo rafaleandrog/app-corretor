@@ -59,7 +59,7 @@ encerrar), a lista relê e mostra o que mudou.
 
 - **Cabeçalho:** "Ana Ribeiro · Casa 4 quartos, Jardim Botânico", com o código e "rodada 4 de 4"
   embaixo; o estado, quem conduz e a autonomia ("Negociador IA · pergunta antes") e até quando vale o
-  mandato. **Assumir** passa a negociação para você; **Devolver ao Negociador** a devolve (só com o
+  mandato. Abaixo deles, **Assumir** passa a negociação para você; **Devolver ao Negociador** a devolve (só com o
   Negociador ligado nos ajustes). No **Mais**, **Encerrar como ganha** (pede o valor final) e
   **Encerrar como perdida** (pede o motivo).
 - **Nova contraproposta** (abaixo da sugestão): a sua contraproposta, sem depender do Negociador
@@ -103,10 +103,12 @@ encerrar), a lista relê e mostra o que mudou.
   decisão do proprietário, que você registra ali mesmo: **Aceita**, **Recusa** ou **Contraproposta
   do proprietário** (ver [Decisão do proprietário](#decisão-do-proprietário-e-encerramento)).
 
-**No celular (M8)**, a negociação abre em uma coluna: o cabeçalho com voltar, a faixa, a última
-oferta, o cartão "Negociador sugere" com **Enviar · Editar · Assumir** no fim dele e a escada em
-lista. Os botões ficam no fim do cartão, não presos ao rodapé: o componente da plataforma ainda não
-fixa ações no rodapé.
+**No celular (M8)**, aparece uma coluna por vez, em abas (Negociações · Negociação · Mandato), e a
+negociação escolhida abre na do meio: o título (que quebra em duas linhas quando é longo), os selos,
+**Assumir** e **Mais**, a faixa, o cartão "Negociador sugere" com **Enviar** e **Fazer agora** (e
+**Editar** no **Mais** dele), a **Nova contraproposta**, a escada em lista (uma linha por proposta) e
+a última fala do cliente. Os botões ficam no fim do cartão, não presos ao rodapé: o componente da
+plataforma ainda não fixa ações no rodapé.
 
 ### O formulário do mandato
 

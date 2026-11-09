@@ -1,0 +1,1299 @@
+{
+ "Hoje": {
+  "url": "/portal_corretor/",
+  "viewport": {
+   "w": 390,
+   "h": 844,
+   "scrollH": 844
+  },
+  "topbar": [
+   {
+    "tag": "header",
+    "cls": "topo",
+    "box": {
+     "x": 4,
+     "y": 64,
+     "w": 382,
+     "h": 37
+    },
+    "t": "Hoje"
+   }
+  ],
+  "h1": [
+   {
+    "t": "Hoje",
+    "box": {
+     "x": 12,
+     "y": 64,
+     "w": 43,
+     "h": 23
+    }
+   }
+  ],
+  "colunas": [
+   {
+    "tag": "urbi-3-colunas",
+    "box": {
+     "x": 4,
+     "y": 167,
+     "w": 382,
+     "h": 669
+    },
+    "painel": "esquerda"
+   }
+  ],
+  "tabs": [
+   {
+    "t": "Hoje",
+    "box": {
+     "x": 4,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   },
+   {
+    "t": "Fila",
+    "box": {
+     "x": 131,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   },
+   {
+    "t": "Agenda",
+    "box": {
+     "x": 259,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   }
+  ],
+  "botoes": [
+   {
+    "t": "Criar",
+    "box": {
+     "x": 309,
+     "y": 64,
+     "w": 69,
+     "h": 25
+    }
+   },
+   {
+    "t": "Conversas",
+    "box": {
+     "x": 20,
+     "y": 220,
+     "w": 121,
+     "h": 34
+    }
+   },
+   {
+    "t": "Criar",
+    "box": {
+     "x": 149,
+     "y": 220,
+     "w": 85,
+     "h": 34
+    }
+   },
+   {
+    "t": "Imóveis",
+    "box": {
+     "x": 241,
+     "y": 220,
+     "w": 103,
+     "h": 34
+    }
+   },
+   {
+    "t": "Assistente",
+    "box": {
+     "x": 20,
+     "y": 262,
+     "w": 120,
+     "h": 34
+    }
+   },
+   {
+    "t": "Buscar",
+    "box": {
+     "x": 266,
+     "y": 304,
+     "w": 48,
+     "h": 29
+    }
+   },
+   {
+    "t": "Abrir o Assistente",
+    "box": {
+     "x": 322,
+     "y": 304,
+     "w": 48,
+     "h": 29
+    }
+   },
+   {
+    "t": "Assumir",
+    "box": {
+     "x": 264,
+     "y": 448,
+     "w": 106,
+     "h": 34
+    }
+   },
+   {
+    "t": "Fazer agora",
+    "box": {
+     "x": 243,
+     "y": 528,
+     "w": 127,
+     "h": 34
+    }
+   },
+   {
+    "t": "Fazer agora",
+    "box": {
+     "x": 243,
+     "y": 576,
+     "w": 127,
+     "h": 34
+    }
+   },
+   {
+    "t": "Fazer agora",
+    "box": {
+     "x": 243,
+     "y": 625,
+     "w": 127,
+     "h": 34
+    }
+   },
+   {
+    "t": "Fazer agora",
+    "box": {
+     "x": 243,
+     "y": 673,
+     "w": 127,
+     "h": 34
+    }
+   },
+   {
+    "t": "Fazer agora",
+    "box": {
+     "x": 243,
+     "y": 721,
+     "w": 127,
+     "h": 34
+    }
+   },
+   {
+    "t": "Fazer",
+    "box": {
+     "x": 304,
+     "y": 840,
+     "w": 66,
+     "h": 34
+    }
+   },
+   {
+    "t": "Fazer",
+    "box": {
+     "x": 304,
+     "y": 875,
+     "w": 66,
+     "h": 34
+    }
+   }
+  ],
+  "selects": [
+   {
+    "tag": "urbi-select",
+    "label": "Conta",
+    "box": {
+     "x": 4,
+     "y": 113,
+     "w": 382,
+     "h": 54
+    }
+   }
+  ],
+  "prosas": [
+   {
+    "papel": "titulo",
+    "t": "Hoje",
+    "box": {
+     "x": 20,
+     "y": 306,
+     "w": 43,
+     "h": 26
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "Segunda-feira, 9 de novembro · Mensageiro: ainda não disponível",
+    "box": {
+     "x": 20,
+     "y": 373,
+     "w": 350,
+     "h": 35
+    }
+   },
+   {
+    "papel": "secao",
+    "t": "PRECISA DE VOCÊ · 1",
+    "box": {
+     "x": 20,
+     "y": 416,
+     "w": 350,
+     "h": 17
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Ana Ribeiro · NG-0001",
+    "box": {
+     "x": 68,
+     "y": 441,
+     "w": 188,
+     "h": 20
+    }
+   },
+   {
+    "papel": "secundario",
+    "t": "O Negociador passou a você: oferta de R$ 1.320.000",
+    "box": {
+     "x": 68,
+     "y": 470,
+     "w": 188,
+     "h": 19
+    }
+   },
+   {
+    "papel": "secao",
+    "t": "FILA DO DIA · 5",
+    "box": {
+     "x": 20,
+     "y": 496,
+     "w": 350,
+     "h": 17
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Ana Ribeiro",
+    "box": {
+     "x": 68,
+     "y": 522,
+     "w": 167,
+     "h": 20
+    }
+   },
+   {
+    "papel": "secundario",
+    "t": "Sem resposta · Tem negócio em proposta ou documentação",
+    "box": {
+     "x": 68,
+     "y": 550,
+     "w": 167,
+     "h": 19
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Juliana Prado",
+    "box": {
+     "x": 68,
+     "y": 570,
+     "w": 167,
+     "h": 20
+    }
+   },
+   {
+    "papel": "secundario",
+    "t": "Sem resposta · Tem negócio em proposta ou documentação",
+    "box": {
+     "x": 68,
+     "y": 598,
+     "w": 167,
+     "h": 19
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Marcos Teixeira",
+    "box": {
+     "x": 68,
+     "y": 618,
+     "w": 167,
+     "h": 20
+    }
+   },
+   {
+    "papel": "secundario",
+    "t": "Abordagem atrasada · Mandar 2 alternativas que resolvam o que ele não gostou",
+    "box": {
+     "x": 68,
+     "y": 646,
+     "w": 167,
+     "h": 19
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Fernanda Souza",
+    "box": {
+     "x": 68,
+     "y": 666,
+     "w": 167,
+     "h": 20
+    }
+   },
+   {
+    "papel": "secundario",
+    "t": "Abordagem atrasada · Apresentar-se e perguntar o que ele procura",
+    "box": {
+     "x": 68,
+     "y": 695,
+     "w": 167,
+     "h": 19
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Roberto Lima",
+    "box": {
+     "x": 68,
+     "y": 714,
+     "w": 167,
+     "h": 20
+    }
+   },
+   {
+    "papel": "secundario",
+    "t": "Abordagem atrasada · Mandar 3 imóveis compatíveis e perguntar qual chamou mais a",
+    "box": {
+     "x": 68,
+     "y": 743,
+     "w": 167,
+     "h": 19
+    }
+   },
+   {
+    "papel": "secao",
+    "t": "PRIMEIROS PASSOS · 3 DE 5",
+    "box": {
+     "x": 20,
+     "y": 770,
+     "w": 350,
+     "h": 17
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "Dar nome à conta",
+    "box": {
+     "x": 72,
+     "y": 818,
+     "w": 95,
+     "h": 17
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Informar o seu telefone",
+    "box": {
+     "x": 20,
+     "y": 847,
+     "w": 144,
+     "h": 20
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Conectar o Instagram",
+    "box": {
+     "x": 20,
+     "y": 882,
+     "w": 135,
+     "h": 20
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "Cadastrar o primeiro imóvel",
+    "box": {
+     "x": 72,
+     "y": 913,
+     "w": 147,
+     "h": 17
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "Publicar a Página",
+    "box": {
+     "x": 72,
+     "y": 938,
+     "w": 94,
+     "h": 17
+    }
+   }
+  ],
+  "badges": [
+   {
+    "t": "Feito",
+    "box": {
+     "x": 20,
+     "y": 815,
+     "w": 44,
+     "h": 24
+    }
+   },
+   {
+    "t": "Feito",
+    "box": {
+     "x": 20,
+     "y": 910,
+     "w": 44,
+     "h": 24
+    }
+   },
+   {
+    "t": "Feito",
+    "box": {
+     "x": 20,
+     "y": 935,
+     "w": 44,
+     "h": 24
+    }
+   }
+  ],
+  "cards": [],
+  "listas": [
+   {
+    "box": {
+     "x": 20,
+     "y": 441,
+     "w": 350,
+     "h": 47
+    },
+    "itens": [
+     {
+      "box": {
+       "x": 20,
+       "y": 441,
+       "w": 350,
+       "h": 47
+      },
+      "t": "Ana Ribeiro · NG-0001 O Negociador passou a você: oferta de "
+     }
+    ]
+   },
+   {
+    "box": {
+     "x": 20,
+     "y": 522,
+     "w": 350,
+     "h": 240
+    },
+    "itens": [
+     {
+      "box": {
+       "x": 20,
+       "y": 522,
+       "w": 350,
+       "h": 47
+      },
+      "t": "Ana Ribeiro Sem resposta · Tem negócio em proposta ou docume"
+     },
+     {
+      "box": {
+       "x": 20,
+       "y": 569,
+       "w": 350,
+       "h": 48
+      },
+      "t": "Juliana Prado Sem resposta · Tem negócio em proposta ou docu"
+     },
+     {
+      "box": {
+       "x": 20,
+       "y": 617,
+       "w": 350,
+       "h": 48
+      },
+      "t": "Marcos Teixeira Abordagem atrasada · Mandar 2 alternativas q"
+     },
+     {
+      "box": {
+       "x": 20,
+       "y": 665,
+       "w": 350,
+       "h": 48
+      },
+      "t": "Fernanda Souza Abordagem atrasada · Apresentar-se e pergunta"
+     },
+     {
+      "box": {
+       "x": 20,
+       "y": 713,
+       "w": 350,
+       "h": 48
+      },
+      "t": "Roberto Lima Abordagem atrasada · Mandar 3 imóveis compatíve"
+     }
+    ]
+   },
+   {
+    "box": {
+     "x": 20,
+     "y": 815,
+     "w": 350,
+     "h": 143
+    },
+    "itens": [
+     {
+      "box": {
+       "x": 20,
+       "y": 815,
+       "w": 350,
+       "h": 24
+      },
+      "t": "Feito Dar nome à conta"
+     },
+     {
+      "box": {
+       "x": 20,
+       "y": 839,
+       "w": 350,
+       "h": 35
+      },
+      "t": "Informar o seu telefone Fazer"
+     },
+     {
+      "box": {
+       "x": 20,
+       "y": 874,
+       "w": 350,
+       "h": 35
+      },
+      "t": "Conectar o Instagram Fazer"
+     },
+     {
+      "box": {
+       "x": 20,
+       "y": 909,
+       "w": 350,
+       "h": 25
+      },
+      "t": "Feito Cadastrar o primeiro imóvel"
+     },
+     {
+      "box": {
+       "x": 20,
+       "y": 934,
+       "w": 350,
+       "h": 25
+      },
+      "t": "Feito Publicar a Página"
+     }
+    ]
+   }
+  ],
+  "rodape": [
+   {
+    "y": 840,
+    "el": "urbi-shell",
+    "fundo": "div",
+    "t": "Hoje"
+   },
+   {
+    "y": 814,
+    "el": "urbi-shell",
+    "fundo": "div",
+    "t": ""
+   }
+  ]
+ },
+ "Novo-imovel": {
+  "url": "/portal_corretor/imoveis/novo",
+  "viewport": {
+   "w": 390,
+   "h": 844,
+   "scrollH": 844
+  },
+  "topbar": [
+   {
+    "tag": "header",
+    "cls": "topo",
+    "box": {
+     "x": 4,
+     "y": 64,
+     "w": 382,
+     "h": 37
+    },
+    "t": "Novo imóvel"
+   }
+  ],
+  "h1": [
+   {
+    "t": "Novo imóvel",
+    "box": {
+     "x": 12,
+     "y": 64,
+     "w": 119,
+     "h": 23
+    }
+   }
+  ],
+  "colunas": [
+   {
+    "tag": "urbi-3-colunas",
+    "box": {
+     "x": 4,
+     "y": 167,
+     "w": 382,
+     "h": 669
+    },
+    "painel": "centro"
+   }
+  ],
+  "tabs": [
+   {
+    "t": "Passos",
+    "box": {
+     "x": 4,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   },
+   {
+    "t": "Novo imóvel",
+    "box": {
+     "x": 131,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   },
+   {
+    "t": "Qualidade",
+    "box": {
+     "x": 259,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   }
+  ],
+  "botoes": [
+   {
+    "t": "Criar",
+    "box": {
+     "x": 309,
+     "y": 64,
+     "w": 69,
+     "h": 25
+    }
+   },
+   {
+    "t": "Tirar fotos ou escolher da galeria",
+    "box": {
+     "x": 65,
+     "y": 366,
+     "w": 259,
+     "h": 34
+    }
+   },
+   {
+    "t": "Voltar",
+    "box": {
+     "x": 20,
+     "y": 641,
+     "w": 66,
+     "h": 34
+    }
+   },
+   {
+    "t": "Salvar rascunho",
+    "box": {
+     "x": 99,
+     "y": 641,
+     "w": 133,
+     "h": 34
+    }
+   },
+   {
+    "t": "Próximo: dados",
+    "box": {
+     "x": 240,
+     "y": 641,
+     "w": 130,
+     "h": 34
+    }
+   }
+  ],
+  "selects": [
+   {
+    "tag": "urbi-select",
+    "label": "Conta",
+    "box": {
+     "x": 4,
+     "y": 113,
+     "w": 382,
+     "h": 54
+    }
+   },
+   {
+    "tag": "urbi-seletor-arquivo",
+    "label": "Fotos do imóvel",
+    "box": {
+     "x": 20,
+     "y": 254,
+     "w": 350,
+     "h": 215
+    }
+   },
+   {
+    "tag": "urbi-input",
+    "label": "Seu código (opcional)",
+    "box": {
+     "x": 20,
+     "y": 581,
+     "w": 350,
+     "h": 52
+    }
+   }
+  ],
+  "prosas": [
+   {
+    "papel": "titulo",
+    "t": "Fotos",
+    "box": {
+     "x": 20,
+     "y": 220,
+     "w": 54,
+     "h": 26
+    }
+   },
+   {
+    "papel": "secundario",
+    "t": "Envie as fotos de uma vez: a IA lê cada uma, diz o ambiente e põe a melhor de ca",
+    "box": {
+     "x": 20,
+     "y": 477,
+     "w": 350,
+     "h": 57
+    }
+   },
+   {
+    "papel": "dica",
+    "t": "Sem fotos ainda. Pode seguir sem elas e voltar depois: o rascunho guarda o que j",
+    "box": {
+     "x": 20,
+     "y": 541,
+     "w": 350,
+     "h": 32
+    }
+   }
+  ],
+  "badges": [
+   {
+    "t": "Passo 1 de 4",
+    "box": {
+     "x": 285,
+     "y": 221,
+     "w": 85,
+     "h": 24
+    }
+   }
+  ],
+  "cards": [],
+  "listas": [],
+  "rodape": [
+   {
+    "y": 840,
+    "el": "urbi-shell",
+    "fundo": "div",
+    "t": "Novo imóvel"
+   },
+   {
+    "y": 814,
+    "el": "urbi-shell",
+    "fundo": "div",
+    "t": ""
+   }
+  ]
+ },
+ "Negociacao": {
+  "url": "/portal_corretor/negociacoes?item=1",
+  "viewport": {
+   "w": 390,
+   "h": 844,
+   "scrollH": 844
+  },
+  "topbar": [
+   {
+    "tag": "header",
+    "cls": "topo",
+    "box": {
+     "x": 4,
+     "y": 64,
+     "w": 382,
+     "h": 37
+    },
+    "t": "Negociações"
+   }
+  ],
+  "h1": [
+   {
+    "t": "Negociações",
+    "box": {
+     "x": 12,
+     "y": 64,
+     "w": 123,
+     "h": 23
+    }
+   }
+  ],
+  "colunas": [
+   {
+    "tag": "urbi-3-colunas",
+    "box": {
+     "x": 4,
+     "y": 167,
+     "w": 382,
+     "h": 669
+    },
+    "painel": "centro"
+   }
+  ],
+  "tabs": [
+   {
+    "t": "Negociações",
+    "box": {
+     "x": 4,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   },
+   {
+    "t": "Negociação",
+    "box": {
+     "x": 131,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   },
+   {
+    "t": "Mandato",
+    "box": {
+     "x": 259,
+     "y": 167,
+     "w": 127,
+     "h": 37
+    },
+    "sel": null
+   }
+  ],
+  "botoes": [
+   {
+    "t": "Criar",
+    "box": {
+     "x": 309,
+     "y": 64,
+     "w": 69,
+     "h": 25
+    }
+   },
+   {
+    "t": "Assumir",
+    "box": {
+     "x": 20,
+     "y": 279,
+     "w": 106,
+     "h": 34
+    }
+   },
+   {
+    "t": "Mais",
+    "box": {
+     "x": 134,
+     "y": 279,
+     "w": 83,
+     "h": 34
+    }
+   },
+   {
+    "t": "Pedir sugestão",
+    "box": {
+     "x": 20,
+     "y": 645,
+     "w": 147,
+     "h": 34
+    }
+   },
+   {
+    "t": "Nova contraproposta",
+    "box": {
+     "x": 20,
+     "y": 687,
+     "w": 185,
+     "h": 34
+    }
+   },
+   {
+    "t": "Registrar oferta do cliente",
+    "box": {
+     "x": 37,
+     "y": 911,
+     "w": 215,
+     "h": 34
+    }
+   }
+  ],
+  "selects": [
+   {
+    "tag": "urbi-select",
+    "label": "Conta",
+    "box": {
+     "x": 4,
+     "y": 113,
+     "w": 382,
+     "h": 54
+    }
+   }
+  ],
+  "prosas": [
+   {
+    "papel": "titulo",
+    "t": "Ana Ribeiro · Casa 4 quartos · Jardim Botânico",
+    "box": {
+     "x": 20,
+     "y": 220,
+     "w": 448,
+     "h": 26
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "NG-0001 · IM-0001 · rodada 2 de 4",
+    "box": {
+     "x": 20,
+     "y": 254,
+     "w": 448,
+     "h": 17
+    }
+   },
+   {
+    "papel": "secundario",
+    "t": "ZOPA estimada entre o seu ponto de recuo e ~R$ 1.390.000,00 (o teto estimado do ",
+    "box": {
+     "x": 37,
+     "y": 578,
+     "w": 316,
+     "h": 42
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "R1 · Comprador",
+    "box": {
+     "x": 37,
+     "y": 772,
+     "w": 100,
+     "h": 20
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "R$ 1.300.000,00",
+    "box": {
+     "x": 249,
+     "y": 772,
+     "w": 104,
+     "h": 20
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "Registro · 08/11/2026, 01:33",
+    "box": {
+     "x": 37,
+     "y": 801,
+     "w": 316,
+     "h": 17
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "R1 · Negociador IA",
+    "box": {
+     "x": 37,
+     "y": 819,
+     "w": 119,
+     "h": 20
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "R$ 1.400.000,00",
+    "box": {
+     "x": 249,
+     "y": 819,
+     "w": 104,
+     "h": 20
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "Portal · 08/11/2026, 01:33",
+    "box": {
+     "x": 37,
+     "y": 847,
+     "w": 316,
+     "h": 17
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "R2 · Comprador",
+    "box": {
+     "x": 37,
+     "y": 866,
+     "w": 100,
+     "h": 20
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "R$ 1.320.000,00",
+    "box": {
+     "x": 249,
+     "y": 866,
+     "w": 104,
+     "h": 20
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "Portal · 08/11/2026, 01:33",
+    "box": {
+     "x": 37,
+     "y": 894,
+     "w": 316,
+     "h": 17
+    }
+   },
+   {
+    "papel": "corpo",
+    "t": "Sábado 10 h! E o dono aceita proposta?",
+    "box": {
+     "x": 37,
+     "y": 1014,
+     "w": 316,
+     "h": 20
+    }
+   },
+   {
+    "papel": "fraco",
+    "t": "08/11/2026, 01:33",
+    "box": {
+     "x": 37,
+     "y": 1034,
+     "w": 316,
+     "h": 17
+    }
+   }
+  ],
+  "badges": [
+   {
+    "t": "Aguardando você",
+    "box": {
+     "x": 20,
+     "y": 321,
+     "w": 111,
+     "h": 24
+    }
+   },
+   {
+    "t": "Rodada 2 de 4",
+    "box": {
+     "x": 139,
+     "y": 321,
+     "w": 93,
+     "h": 24
+    }
+   },
+   {
+    "t": "Negociador IA · pergunta antes",
+    "box": {
+     "x": 20,
+     "y": 353,
+     "w": 181,
+     "h": 24
+    }
+   },
+   {
+    "t": "Mandato válido até 12/11/2026",
+    "box": {
+     "x": 20,
+     "y": 385,
+     "w": 175,
+     "h": 24
+    }
+   },
+   {
+    "t": "Oferta do comprador: R$ 1.320.000,00",
+    "box": {
+     "x": 37,
+     "y": 459,
+     "w": 216,
+     "h": 24
+    }
+   },
+   {
+    "t": "Ponto de recuo: •••• (sigiloso)",
+    "box": {
+     "x": 37,
+     "y": 491,
+     "w": 172,
+     "h": 24
+    }
+   },
+   {
+    "t": "Teto estimado do comprador: ~R$ 1.390.000,00",
+    "box": {
+     "x": 37,
+     "y": 522,
+     "w": 263,
+     "h": 24
+    }
+   },
+   {
+    "t": "Alvo: R$ 1.400.000,00",
+    "box": {
+     "x": 37,
+     "y": 554,
+     "w": 130,
+     "h": 24
+    }
+   },
+   {
+    "t": "Preço pedido: R$ 1.450.000,00",
+    "box": {
+     "x": 175,
+     "y": 554,
+     "w": 176,
+     "h": 24
+    }
+   },
+   {
+    "t": "ZOPA estimada",
+    "box": {
+     "x": 37,
+     "y": 578,
+     "w": 98,
+     "h": 24
+    }
+   }
+  ],
+  "cards": [
+   {
+    "titulo": "Faixa da negociação",
+    "box": {
+     "x": 20,
+     "y": 416,
+     "w": 350,
+     "h": 221
+    }
+   },
+   {
+    "titulo": "Escada de propostas",
+    "box": {
+     "x": 20,
+     "y": 729,
+     "w": 350,
+     "h": 233
+    }
+   },
+   {
+    "titulo": "Última fala do cliente",
+    "box": {
+     "x": 20,
+     "y": 971,
+     "w": 350,
+     "h": 98
+    }
+   }
+  ],
+  "listas": [
+   {
+    "box": {
+     "x": 37,
+     "y": 772,
+     "w": 316,
+     "h": 139
+    },
+    "itens": [
+     {
+      "box": {
+       "x": 37,
+       "y": 772,
+       "w": 316,
+       "h": 46
+      },
+      "t": "R1 · Comprador R$ 1.300.000,00 Registro · 08/11/2026, 01:33"
+     },
+     {
+      "box": {
+       "x": 37,
+       "y": 818,
+       "w": 316,
+       "h": 47
+      },
+      "t": "R1 · Negociador IA R$ 1.400.000,00 Portal · 08/11/2026, 01:3"
+     },
+     {
+      "box": {
+       "x": 37,
+       "y": 865,
+       "w": 316,
+       "h": 47
+      },
+      "t": "R2 · Comprador R$ 1.320.000,00 Portal · 08/11/2026, 01:33"
+     }
+    ]
+   }
+  ],
+  "rodape": [
+   {
+    "y": 840,
+    "el": "urbi-shell",
+    "fundo": "div",
+    "t": "Negociações"
+   },
+   {
+    "y": 814,
+    "el": "urbi-shell",
+    "fundo": "span",
+    "t": ""
+   }
+  ]
+ },
+ "bloqueadas": []
+}

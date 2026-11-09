@@ -82,7 +82,7 @@ window.todos = (raiz, seletor) => {
 };
 `;
 
-async function montar(pw: any, dicaComAcao: boolean) {
+async function montar(pw: any, dicaComAcao: boolean, viewport = { width: 1440, height: 900 }) {
   const pacote = await build({
     stdin: { contents: ENTRADA, resolveDir: process.cwd(), loader: 'ts' },
     bundle: true,
@@ -94,7 +94,7 @@ async function montar(pw: any, dicaComAcao: boolean) {
   });
   const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><div id="raiz"></div><script>window.dicaComAcao = ${dicaComAcao};${AJUDA}</script><script>${pacote.outputFiles[0].text}</script></body></html>`;
   const navegador = await pw.chromium.launch();
-  const pagina = await navegador.newPage({ viewport: { width: 1440, height: 900 } });
+  const pagina = await navegador.newPage({ viewport });
   await pagina.route(`${ORIGEM}/**`, (r: any) => r.fulfill({ contentType: 'text/html', body: html }));
   await pagina.goto(`${ORIGEM}/portal_corretor/`);
   await pagina.waitForTimeout(100);
@@ -147,5 +147,30 @@ test('Hoje: Dica com ação mostra o botão da ação (sem "Perguntar"); sem aç
     } finally {
       await navegador.close();
     }
+  }
+});
+
+test('Hoje no celular (M1, #190): sem as abas das colunas, uma rolagem com atalhos, "Precisa de você", a fila e o contexto embaixo', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw, false, { width: 390, height: 844 });
+  try {
+    const r = await pagina.evaluate(() => {
+      const w = window as any;
+      const dois = w.todos(document, 'urbi-2x1')[0];
+      const texto = w.profundo(dois);
+      return {
+        tres: w.todos(document, 'urbi-3-colunas').length,
+        slots: dois ? [...dois.children].map((c: Element) => c.getAttribute('slot')) : [],
+        ordem: ['Conversas', 'Precisa de você', 'Fila do dia', 'Nada marcado para hoje'].map((x) => texto.indexOf(x)),
+        agenda: w.todos(dois, 'urbi-card').map((c: Element) => c.getAttribute('titulo')),
+      };
+    });
+    assert.equal(r.tres, 0, 'sem urbi-3-colunas (e sem a barra de abas dele) no celular');
+    assert.deepEqual(r.slots, ['esquerda', 'direita']);
+    assert.ok(r.ordem.every((i: number, k: number) => i >= 0 && (k === 0 || i > r.ordem[k - 1])), `na ordem: atalhos, Precisa de você, fila, contexto (${r.ordem})`);
+    assert.ok(r.agenda.includes('Agenda de hoje'));
+  } finally {
+    await navegador.close();
   }
 });

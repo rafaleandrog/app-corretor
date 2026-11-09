@@ -7,7 +7,7 @@ import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { cabecalhoColuna, moldura } from '../moldura.js';
 import { abrirCriar } from '../atalhos.js';
 import { irParaComQuery } from '../criar.js';
-import { abrirAssistente, abrirAssistenteCom } from './assistente.js';
+import { abrirAssistente, abrirAssistenteCom, assistenteAberto } from './assistente.js';
 import { abrirNegociacao, novaProposta } from './negociacoes.js';
 import { abrirConversaDoContato } from './conversas.js';
 import './agenda.js';
@@ -72,9 +72,9 @@ export const abaInicio = () => abaDaUrl(ABAS, OPCOES_ABA);
 // Hoje (spec 11.1 P01, 11.5 M1) na moldura do Padrão B. Esquerda: o cabeçalho do dia com as abas Hoje ·
 // Agenda (D-82), "Precisa de você" (só as passagens, com Assumir) e os Primeiros passos. Centro: a fila
 // do dia em cartões de ação, na ordem de `filaDoDia`, ou a agenda de 14 dias. Direita: a agenda de
-// hoje, a semana em 4 números e a Dica do Assistente, com a ação proposta. No celular (M1), a coluna
-// da esquerda traz a linha de atalhos do dia e, depois de "Precisa de você", a fila em cartões
-// compactos, numa só rolagem. Os dados vêm de uma chamada só (`GET /inicio`) e ficam fora do
+// hoje, a semana em 4 números e a Dica do Assistente, com a ação proposta. No celular (M1), sem as abas
+// das colunas: a linha de atalhos do dia, "Precisa de você", a fila em linhas compactas e, embaixo, o
+// contexto, numa só rolagem (`renderHoje`). Os dados vêm de uma chamada só (`GET /inicio`) e ficam fora do
 // componente, como os da moldura: as três colunas leem o mesmo estado, e o app pede o redesenho.
 const estado = {
   /** Dados, falha e carga de UMA conta (comum/hoje.ts); só se desenha o que é da conta ativa. */
@@ -520,7 +520,7 @@ function direita(d: DadosHoje, atualizar: () => void) {
   </urbi-stack>`;
 }
 
-/** Hoje na moldura: esquerda · centro · direita (abas no celular, M1: abre em "Precisa de você" seguido da fila). */
+/** Hoje na moldura: esquerda · centro · direita (no celular, M1: uma rolagem com "Precisa de você", a fila e o contexto embaixo). */
 export function renderHoje(atualizar: () => void) {
   trocarDeConta();
   if (precisaCarregar(estado.carga)) void carregar(atualizar);
@@ -532,6 +532,14 @@ export function renderHoje(atualizar: () => void) {
     return moldura({ menu: '/', centro: conteudo }, atualizar);
   }
   const celular = noCelular();
+  // M1 no celular (#190): uma rolagem só, sem a barra de abas do `urbi-3-colunas` (Hoje · Fila · Agenda,
+  // 37 px que a referência não tem, e a aba "Fila" mostrava a Agenda quando ela estava escolhida). Só foco e
+  // contexto, no `urbi-2x1`, que no celular empilha: atalhos, "Precisa de você" e a fila (ou a Agenda), e
+  // embaixo a agenda de hoje, a semana e a Dica (11.0.3, "contexto abaixo"). Com o Assistente aberto, volta
+  // às três colunas, que o mostram na aba dele (no `urbi-2x1` ele ficaria lá embaixo, fora da vista).
+  if (celular && !assistenteAberto()) {
+    return moldura({ menu: '/', centro: abaInicio() === 'agenda' ? centro(d, atualizar) : esquerda(d, atualizar, true), contexto: direita(d, atualizar) }, atualizar);
+  }
   return moldura(
     { menu: '/', lista: esquerda(d, atualizar, celular), centro: centro(d, atualizar), contexto: direita(d, atualizar), rotulos, painel: celular ? 'esquerda' : 'centro' },
     atualizar,
