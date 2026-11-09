@@ -1,0 +1,29 @@
+- dialog "Filtros":
+  - banner:
+    - heading "Filtros" [level=2]
+  - paragraph: Temperatura e origem combinam com a busca, o papel e o filtro pronto.
+  - text: Temperatura
+  - combobox:
+    - option "Todas" [selected]
+    - option "Frio"
+    - option "Morno"
+    - option "Quente"
+  - text: Origem
+  - combobox:
+    - option "Todas" [selected]
+    - option "Minha página"
+    - option "WhatsApp"
+    - option "Instagram"
+    - option "Facebook"
+    - option "TikTok"
+    - option "YouTube"
+    - option "Portal imobiliário"
+    - option "Indicação"
+    - option "Rede"
+    - option "Incorporadora"
+    - option "Placa"
+    - option "Evento"
+    - option "Importação"
+    - option "Outro"
+  - button "Cancelar"
+  - button "Aplicar"

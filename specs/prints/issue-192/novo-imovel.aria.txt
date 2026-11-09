@@ -1,0 +1,36 @@
+- button "Pinguim Homolog":
+  - img "Pinguim Homolog"
+- button "Portal do Corretor"
+- button "Ajuda"
+- text: v0.56.37_a17d0267 · 16/10 18:32
+- link "1 Notificações":
+  - /url: /notificacoes
+- button "Admin"
+- button "Minha conta"
+- status
+- banner:
+  - heading "Novo imóvel" [level=1]
+  - button "Criar"
+- text: Conta
+- combobox:
+  - option "Corretor A (demo)" [selected]
+  - option "Corretor B (demo)"
+  - option "qa-portal-corretor-conta-b"
+- text: Novo imóvel
+- button "Buscar"
+- button "Abrir o Assistente"
+- text: Leva cerca de 3 minutos. Nenhum passo pede CRECI.
+- button "1 Fotos a IA lê e ordena"
+- 'button "2 Dados falta: tipo, cidade"'
+- button "3 Autorização opcional no rascunho"
+- button "4 Onde aparece só você ou público"
+- button "Salvar rascunho"
+- text: Fotos Passo 1 de 4 Fotos do imóvel Arraste arquivos aqui ou
+- button "Tirar fotos ou escolher da galeria"
+- text: "Fotos JPG, PNG ou WEBP, até 25 MB cada. Com 8 ou mais, o anúncio ganha pontos. Envie as fotos de uma vez: a IA lê cada uma, diz o ambiente e põe a melhor de capa. Depois você muda a ordem com as setas. Sem fotos ainda. Pode seguir sem elas e voltar depois: o rascunho guarda o que já foi feito. Seu código (opcional)"
+- 'textbox "Em branco: IM-0001, IM-0002…"'
+- button "Voltar" [disabled]
+- button "Salvar rascunho"
+- 'button "Próximo: dados"'
+- text: "Qualidade agora · 0 0 de 100 Pelo menos 8 fotos públicas (tem 0) Descrição com pelo menos 400 caracteres Preço informado Autorização de venda assinada e vigente Área e cômodos (quartos e banheiros) Localização (bairro e cidade) A IA Envie as fotos: eu digo o ambiente de cada uma e sugiro a capa. Depois de salvar posso: escrever a descrição, montar o pacote de lançamento no Estúdio."
+- button "Pacote de lançamento" [disabled]
