@@ -199,12 +199,12 @@ const RESPOSTA_AUTORIZACAO = {
 
 for (const modo of MODOS) {
   test(`Página (${modo}): editar Destaques com a carga de /imoveis em voo; a conta muda; nada de A no diálogo nem PUT em B`, async (t) => {
-    await cenario(t, modo, '/pagina?item=destaques', '', async (p) => {
+    await cenario(t, modo, '/pagina', '', async (p) => {
+      // Os destaques são escolhidos na própria coluna: escolher o bloco lê os imóveis da conta.
       await p.evaluate(() => {
         const w = window as any;
-        w.RESPOSTA_FORMULARIO = { titulo: 'Destaques escolhidos', 'im_IM-100': true };
         w.SEGURAR = (m: string, c: string, k: number) => m === 'GET' && c === '/imoveis' && k === 100;
-        w.clicar('urbi-botao', 'Editar bloco');
+        w.achar('urbi-arvore').dispatchEvent(new CustomEvent('urbi:arvore-selecao', { detail: { ids: ['destaques'] }, bubbles: true, composed: true }));
       });
       await esperar(p, 50);
       assert.ok((await p.evaluate(() => (window as any).pendentes.length)) > 0, 'a carga dos imóveis de A está em voo');
@@ -213,7 +213,8 @@ for (const modo of MODOS) {
       await p.evaluate(() => (window as any).liberar());
       await esperar(p);
       const r = await depoisDaTroca(p);
-      assert.deepEqual(r.formularios.filter((f) => /IM-100|CONTA 100/.test(f)), [], 'o diálogo não abre com imóvel de A');
+      const caixas = await p.evaluate(() => (window as any).todos().filter((e: Element) => e.localName === 'urbi-checkbox').map((c: Element) => c.getAttribute('label') ?? ''));
+      assert.deepEqual(caixas.filter((f: string) => /IM-100|CONTA 100/.test(f)), [], 'a coluna não mostra imóvel de A');
       assert.deepEqual(r.chamadas.filter((c) => c.startsWith('PUT ')), [], 'nenhum PUT /pagina depois da troca');
       assert.deepEqual(r.avisos, []);
       assert.deepEqual(r.alertas, []);
@@ -309,12 +310,17 @@ for (const modo of MODOS) {
       await p.evaluate(() => {
         const w = window as any;
         w.marco = w.chamadas.length;
-        w.RESPOSTA_FORMULARIO = { titulo: 'Destaques escolhidos', 'im_IM-100': true };
-        w.clicar('urbi-botao', 'Editar bloco');
       });
       await esperar(p);
+      await p.evaluate(() => {
+        const w = window as any;
+        const caixa = w.todos().find((c: Element) => c.localName === 'urbi-checkbox' && /IM-100/.test(c.getAttribute('label') ?? ''));
+        caixa.dispatchEvent(new CustomEvent('urbi:checkbox-change', { detail: { marcado: true }, bubbles: true, composed: true }));
+      });
+      await esperar(p, 50);
+      await p.evaluate(() => (window as any).clicar('urbi-botao', 'Salvar bloco'));
+      await esperar(p);
       const r = await depoisDaTroca(p);
-      assert.ok(r.formularios.some((f) => /IM-100/.test(f)), 'o diálogo abre com os imóveis de A');
       assert.ok(r.chamadas.some((c) => c.startsWith('PUT /pagina @100')), 'o PUT /pagina sai em A');
       assert.deepEqual(r.avisos, ['Salvo.']);
       assert.deepEqual(r.alertas, []);
@@ -572,11 +578,12 @@ for (const modo of MODOS) {
       await cenario(t, modo, '/pagina?item=apresentacao', '', async (p) => {
         await p.evaluate((falhar: boolean) => {
           const w = window as any;
-          w.RESPOSTA_FORMULARIO = { titulo: 'Título novo', texto: 'Texto novo' };
           w.SEGURAR = (m: string, c: string, k: number) => m === 'PUT' && c === '/pagina' && k === 100;
           if (falhar) w.FALHAR = w.SEGURAR;
-          w.clicar('urbi-botao', 'Editar bloco');
+          w.achar('urbi-input[label="Título do bloco"]').dispatchEvent(new CustomEvent('urbi:input-change', { detail: { valor: 'Título novo' } }));
         }, falha);
+        await esperar(p, 50);
+        await p.evaluate(() => (window as any).clicar('urbi-botao', 'Salvar bloco'));
         await esperar(p, 50);
         assert.equal(await p.evaluate(() => (window as any).pendentes.length), 1, 'o PUT /pagina de A está em voo');
         await trocar(p);
@@ -588,7 +595,9 @@ for (const modo of MODOS) {
         assert.deepEqual(r.alertas, []);
         assert.deepEqual(r.chamadas.filter((c) => !c.startsWith('GET ')), [], 'nenhuma escrita em B');
         // A tela de B segue livre (a trava do salvar de A não ficou presa nela): editar em B salva em B.
-        await p.evaluate(() => (window as any).clicar('urbi-botao', 'Editar bloco'));
+        await p.evaluate(() => (window as any).achar('urbi-input[label="Título do bloco"]').dispatchEvent(new CustomEvent('urbi:input-change', { detail: { valor: 'Título de B' } })));
+        await esperar(p, 50);
+        await p.evaluate(() => (window as any).clicar('urbi-botao', 'Salvar bloco'));
         await esperar(p);
         const b = await depoisDaTroca(p);
         assert.ok(b.chamadas.some((c) => c.startsWith('PUT /pagina @200')), 'o salvar de B sai em B');

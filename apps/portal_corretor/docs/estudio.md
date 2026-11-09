@@ -17,9 +17,9 @@ O Estúdio abre em três colunas (no celular, três abas: **Pedidos**, **Pedido*
 
 | Coluna | O que tem |
 |---|---|
-| **Esquerda** | O título **Estúdio** com o estado do Instagram ("@sua.conta conectado", com o ícone do Instagram, ou "Instagram não conectado"); o **Criar rápido** com quatro botões; **Seus pedidos**, em lista, com o pedido aberto marcado, e acima dela as etapas com a quantidade de peças |
+| **Esquerda** | O título **Estúdio** com o estado do Instagram ("@sua.conta conectado", com o ícone do Instagram, ou "Instagram não conectado"); o **Criar rápido** em quatro cartões (dois por linha), cada um com o título e o que sai (**Pacote de lançamento** · post + story + carrossel; **Baixou o preço** · post + story; **Vendido** · post; **Visita aberta** · story); **Seus pedidos**, em lista, com o pedido aberto marcado, e acima dela as etapas com a quantidade de peças |
 | **Centro** | O pedido aberto, como uma conversa: o seu texto e, logo abaixo, uma mensagem do Estúdio por peça (formato, título, legenda e hashtags, a arte quando já enviada e o cartão da peça, com o próximo passo e os botões). Embaixo, a **caixa do pedido** para pedir mais |
-| **Direita** | **Esta semana** (em **Agendadas**, as peças com hora marcada de ontem até daqui a 7 dias, inclusive a que está sendo publicada agora, da mais próxima para a mais distante; em **Publicadas**, as publicadas de 7 dias atrás até daqui a 1 dia, a mais recente primeiro; cada uma com **Abrir**); a **Biblioteca** (o seu logo, a sua foto e as suas referências, para abrir e baixar, e o atalho **Sua marca**); e, só quando falta o CRECI, o aviso discreto de sempre |
+| **Direita** | **Esta semana** (em **Agendadas**, as peças com hora marcada de ontem até daqui a 7 dias, inclusive a que está sendo publicada agora, da mais próxima para a mais distante; em **Publicadas**, as publicadas de 7 dias atrás até daqui a 1 dia, a mais recente primeiro; cada uma com **Abrir**); o cartão **Instagram** (a conta conectada e o atalho Ajustes › Conexões; sem conexão, o botão **Conectar o Instagram** aparece desligado, com o porquê: conectar depende da aprovação do app na Meta, que a instância ainda não tem); a **Biblioteca** (o seu logo, a sua foto e as suas referências, para abrir e baixar, e o atalho **Sua marca**); **Créditos do mês** (ver abaixo); e, só quando falta o CRECI, o aviso discreto de sempre |
 
 **Pedido** é o que você pediu de uma vez: um envio da caixa, um Criar rápido ou um pacote de
 lançamento. Cada um vira uma peça por formato, e a lista junta as peças do mesmo envio. O Estúdio
@@ -55,7 +55,9 @@ você não está em nenhuma conta.
 - **IA indisponível agora**: os textos saem do modelo do app; a descrição da arte e o resto do
   Estúdio funcionam.
 
-O Estúdio não mostra créditos: a tabela de créditos por ação entra junto com o Mensageiro.
+**Créditos do mês.** O cartão mostra "—" nos créditos de IA usados: a plataforma ainda não informa
+ao app o consumo de IA (pedido ao shell 27), e o número aparece quando ela passar a informar. Logo
+abaixo, o que o app sabe: quantas peças a IA escreveu neste mês.
 
 ## Sua marca
 
@@ -88,7 +90,7 @@ Três jeitos de pedir; o pedido novo abre no centro, com a descrição de cada p
 | O quê | O que faz |
 |---|---|
 | **Caixa do pedido** (embaixo do centro) | Escreva o que quer, ou use o **microfone** da caixa para falar (a fala vira texto pela IA da plataforma; o microfone só aparece quando o administrador liberou a transcrição). Ao enviar, abre o **Novo pedido**: confira o texto, escolha o imóvel (ou nenhum, para uma peça institucional), o objetivo e os formatos. Sai uma peça por formato. Cancelar devolve o texto à caixa. O **Novo post** do botão Criar abre o mesmo formulário; o **Criar conteúdo** da ficha do imóvel também (`?criar=post&imovel=<id>`), já com o imóvel escolhido |
-| **Criar rápido › Lançamento** | O pacote de lançamento: post, carrossel e story de um imóvel, de uma vez |
+| **Criar rápido › Pacote de lançamento** | O pacote de lançamento: post, carrossel e story de um imóvel, de uma vez |
 | **Criar rápido › Baixou o preço, Vendido, Visita aberta** | Escolha o imóvel (e, se quiser, um pedido): sai post e story (Baixou o preço), um post (Vendido) ou um story (Visita aberta), com o objetivo já escolhido |
 
 O Criar rápido é para imóvel ativo ou reservado.
@@ -119,7 +121,7 @@ com o plano de Canva que você tiver. O app não se conecta ao Canva (D-74, D-86
 
 Enquanto a peça não tem arte, ela mostra **falta a arte** e os três passos, na própria peça:
 
-1. **Copiar descrição** e **Abrir no Canva** ("O que vamos criar hoje?") numa aba. **Ver descrição e fotos** mostra o texto inteiro na peça. A descrição é curta e sempre na
+1. **Copiar descrição** e **Abrir no Canva** ("O que vamos criar hoje?") numa aba. A descrição e as fotos já aparecem na peça, em blocos (é a prévia da peça enquanto a arte não chega); **Esconder descrição e fotos** recolhe, e **Ver descrição e fotos** mostra de novo. A descrição é curta e sempre na
    mesma ordem, para o Canva não precisar adivinhar. As **instruções vão em inglês**, que as
    ferramentas de IA seguem com mais precisão; o **texto que aparece na arte vai em português**,
    entre aspas, com o pedido de não traduzir nem acrescentar nada:
@@ -157,14 +159,15 @@ outra (com confirmação). As peças antigas, com arte do gerador do app que sai
 Acima de **Seus pedidos**, chips contam as peças pela etapa em que estão: **Todas**, **Falta a
 arte**, **Para aprovar**, **Prontas para publicar** (inclui as que deram erro ao publicar),
 **Agendadas** e **Publicadas**. Escolher uma etapa deixa na lista só os pedidos com ao menos uma
-peça nela (a etapa fica no endereço da página: recarregar ou abrir o link guardado volta a ela). Etapa vazia não aparece. Um pedido novo volta a
+peça nela (a etapa fica no endereço da página: recarregar ou abrir o link guardado volta a ela). As seis etapas ficam sempre à vista, com zero quando vazias, e **Todas** é a primeira (é ela que limpa o filtro). Um pedido novo volta a
 lista para **Todas**. Cada pedido mostra quantas peças tem e em que pé estão ("3 peças · 1 sem arte
 · 1 agendada").
 
 ## Os botões da peça
 
-Cada peça, na conversa, mostra o formato, o título, a legenda, a arte (quando enviada), a
-situação, quem fez a arte e o **próximo passo** (por exemplo "Próximo passo: confira a arte e
+Cada peça, na conversa, mostra o formato, o título, a situação, quem fez a arte, o **próximo
+passo**, a **prévia** (a arte enviada em miniaturas, na ordem dos slides, com **Ver a arte**; sem
+arte, a descrição em blocos) e a legenda (os primeiros 280 caracteres). O próximo passo é escrito (por exemplo "Próximo passo: confira a arte e
 aprove"). Ela tem **um botão principal**, que depende da situação, e o resto no **Mais**:
 
 | Situação | Botão principal |
@@ -181,6 +184,7 @@ No **Mais**, conforme a situação:
 
 | Item | O que faz |
 |---|---|
+| **Baixar (arte e legenda)** | Em todo estado com arte: abre as imagens para salvar e copia a legenda (o pacote para publicar por fora) |
 | **Ver a arte** | Abre cada imagem numa aba, para conferir e salvar |
 | **Textos** | Edita título, chamada, destaques, legenda e hashtags |
 | **Ver a descrição** / **Esconder a descrição** | Mostra de novo a descrição e as fotos, na peça com arte; com a descrição à vista, o item vira **Esconder a descrição** e a recolhe |
@@ -238,7 +242,8 @@ Se não, use **Tentar de novo**.
 conectado", "reconecte o Instagram" ou o que o Instagram respondeu. Resolva e use **Tentar de
 novo**. Se você editar os textos de uma peça com erro, ela volta a rascunho e precisa de nova
 aprovação. Peça com erro e sem aprovação (sobra de versões antigas do app) mostra **Aprovar**:
-resolva e aprove.
+resolva e aprove. Toda peça é aprovada por você: a aprovação automática por prazo saiu de vez na
+versão 0.1.50 (a atualização apaga as duas configurações antigas que ainda a guardavam).
 
 **Agendamento atrasado:** se a plataforma ficar fora do ar e só voltar mais de 6 horas depois da
 hora marcada, a peça não é publicada atrasada: fica com erro, para você decidir.

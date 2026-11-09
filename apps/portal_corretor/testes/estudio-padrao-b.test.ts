@@ -77,7 +77,7 @@ test('uma ação principal por estado (D-86): falta a arte → enviar; rascunho 
 });
 
 test('Criar rápido: 4 atalhos (2×2), todos com objetivo válido; Lançamento é o pacote', () => {
-  assert.deepEqual(CRIAR_RAPIDO.map((a) => a.rotulo), ['Lançamento', 'Baixou o preço', 'Vendido', 'Visita aberta']);
+  assert.deepEqual(CRIAR_RAPIDO.map((a) => a.rotulo), ['Pacote de lançamento', 'Baixou o preço', 'Vendido', 'Visita aberta']);
   assert.equal(CRIAR_RAPIDO[0].formatos, null, 'Lançamento vai por /estudio/pacote');
   assert.ok(CRIAR_RAPIDO.slice(1).every((a) => a.formatos && a.formatos.length));
 });

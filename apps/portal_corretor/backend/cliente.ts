@@ -125,7 +125,7 @@ clienteRotas.post(
       await dados.atualizar('contatos', contato.id, { ultimo_contato_em: agora });
       await reclassificar(dados, contato.id);
     });
-    await semErro('portal do cliente', async () => tentarPortal(dados, conta, contato.id, await corretor(req)));
+    await semErro('portal do cliente', async () => tentarPortal(dados, conta, contato.id, await corretor(req), { fuso: req.contexto?.fuso }));
     // O link entra na conversa do cliente (P02, D-127) como cartão da seleção: título, quantidade e link;
     // a mensagem pronta volta à tela, que abre o WhatsApp do celular com ela.
     const mensagemPronta = `Olá, ${String(contato.nome).split(' ')[0]}! Separei ${ids.length} imóve${ids.length > 1 ? 'is' : 'l'} para você. Abra e me diga o que achou de cada um: ${link}`;
@@ -156,7 +156,7 @@ clienteRotas.patch(
     }
     const conta = contaDoRequest(req);
     await apagarVitrine(dados, conta, 'selecao', s.id);
-    await tentarPortal(dados, conta, s.contato_id);
+    await tentarPortal(dados, conta, s.contato_id, undefined, { fuso: req.contexto?.fuso });
     res.json({ id: s.id, revogada: true });
   }),
 );
@@ -188,7 +188,7 @@ clienteRotas.post(
     const conta = contaDoRequest(req);
     const existente = await acessoAtivo(req, contato.id);
     if (existente) {
-      await sincronizarPortal(dados, conta, contato.id, await corretor(req));
+      await sincronizarPortal(dados, conta, contato.id, await corretor(req), req.contexto?.fuso);
       return res.json({ ativo: true, link: existente.link, novo: false });
     }
     const g = await req.shell!.gerarIngressoWh({ webhook: 'acao_cliente', contexto: { conta_id: conta, contato_id: contato.id } });
@@ -203,7 +203,7 @@ clienteRotas.post(
       const venceu = await acessoAtivo(req, contato.id);
       return res.json({ ativo: true, link: venceu?.link ?? null, novo: false });
     }
-    await sincronizarPortal(dados, conta, contato.id, await corretor(req));
+    await sincronizarPortal(dados, conta, contato.id, await corretor(req), req.contexto?.fuso);
     await publicarEvento(req, 'acesso_cliente_convidado', { contato_id: Number(contato.id), acesso_id: Number(acesso.id) });
     await dados.criar('envios', { contato_id: contato.id, tipo: 'link_portal', canal: 'whatsapp', autor_tipo: 'humano', descricao: 'Link do portal do cliente', enviado_em: new Date().toISOString(), cliques: 0 });
     await registrar(dados, req, { tipo: 'portal.criado', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: 'Link do portal do cliente gerado' });
@@ -264,7 +264,7 @@ clienteRotas.post(
     if (abertas.length >= MAX_TAREFAS_ABERTAS) return erro(res, 422, 'LIMITE', `O cliente já tem ${MAX_TAREFAS_ABERTAS} pendências abertas. Remova alguma antes.`);
     const tarefa = await dados.criar('tarefas_cliente', { contato_id: contato.id, texto: t, criada_por_id: eu(req) });
     await registrar(dados, req, { tipo: 'portal.tarefa_pedida', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: `Pediu ao cliente: ${t}` });
-    await tentarPortal(dados, conta, contato.id, await corretor(req));
+    await tentarPortal(dados, conta, contato.id, await corretor(req), { fuso: req.contexto?.fuso });
     res.status(201).json(tarefa);
   }),
 );
@@ -278,7 +278,7 @@ clienteRotas.patch(
     const conta = contaDoRequest(req);
     if (!lida || Number(lida.conta_id) !== conta) return erro(res, 404, 'NAO_ENCONTRADO', 'Pendência não encontrada.');
     await dados.remover('tarefas_cliente', lida.id, eu(req));
-    await tentarPortal(dados, conta, lida.contato_id);
+    await tentarPortal(dados, conta, lida.contato_id, undefined, { fuso: req.contexto?.fuso });
     res.json({ id: lida.id, removido: true });
   }),
 );

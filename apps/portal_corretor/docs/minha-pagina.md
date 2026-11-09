@@ -14,33 +14,42 @@ login, no celular ou no computador.
 
 A tela fica no desenho em colunas (no celular, uma por vez, com as abas Blocos · Prévia · Ajustes):
 
-- **À esquerda:** o endereço da página e o estado (**Publicada desde …** ou **Rascunho**), com o
-  botão **Publicar** enquanto ela não está no ar e o atalho **Nome e endereço**. Abaixo, os
-  **blocos**, na ordem em que aparecem: cada um com **Mostrar** (aparece ou fica oculto) e as setas
-  para subir e descer. Tocar num bloco o seleciona: ele fica marcado na lista, no endereço
-  (`/pagina?item=destaques`, por exemplo) e na prévia. No fim, **Refazer a página com IA** (a mesma
-  escrita com IA descrita abaixo).
+- **À esquerda:** o cabeçalho **Página** (com **Publicar** enquanto ela não está no ar, Buscar e
+  Assistente), o endereço da página numa linha (longo, termina em "…"; o endereço completo aparece
+  ao passar o mouse e em **Copiar link**), o estado (**Publicada desde …** ou **Rascunho**) e o
+  atalho **Nome e endereço**. Abaixo, os **blocos**, na ordem em que aparecem: **arraste** um bloco
+  para mudar de lugar, e a caixa ao lado de cada um mostra ou oculta o bloco (o oculto leva
+  "(oculto)" no nome). Tocar num bloco o seleciona: ele fica marcado na lista, no endereço
+  (`/pagina?item=destaques`, por exemplo) e na prévia. Logo abaixo, as setas **Subir** e
+  **Descer** movem o bloco selecionado (o mesmo que arrastar, para quem usa teclado ou leitor de
+  tela). No fim, **Refazer a página com IA** (a mesma escrita com IA descrita abaixo).
 - **No centro:** a **pré-visualização**, com a escolha **Celular** ou **Computador**. A prévia é a
   própria página que o visitante vê (a mesma capa, os mesmos cartões e a sua cor), montada com a
-  página salva e os imóveis que estão publicáveis agora; o bloco selecionado aparece contornado. Na
-  prévia nada sai da tela: os links não abrem e o formulário não envia. Bloco oculto não aparece
-  na prévia, e um aviso lembra de ligar o **Mostrar**. Antes de salvar a primeira mudança, a prévia
-  mostra a sugestão de página.
-- **À direita:** os **ajustes do bloco selecionado** (o que ele mostra hoje e **Editar bloco**); a
-  **Marca**, com a sua foto e o atalho **Editar em Ajustes › Conta e marca** (a cor e a foto vêm de
-  lá); **Últimos 30 dias**, com os **contatos** que chegaram pelo formulário da página (as
-  **visitas** à página ainda não são medidas e aparecem como "—"); e, com a página no ar, **Copiar
-  link** e, em **Mais**, Abrir minha página, Atualizar agora e Tirar do ar.
+  página salva e os imóveis que estão publicáveis agora; o bloco selecionado aparece contornado. No
+  Celular, ela fica na largura de um celular (300 px), com borda e cantos arredondados. Na prévia
+  nada sai da tela: os links não abrem e o formulário não envia. Bloco oculto não aparece na
+  prévia, e um aviso lembra de ligar a caixa. Antes de salvar a primeira mudança, a prévia mostra a
+  sugestão de página.
+- **À direita:** os **ajustes do bloco selecionado**, com os campos dele na própria coluna (título,
+  texto, bairros, WhatsApp e Instagram, ou a escolha dos imóveis em destaque, até 6) e **Salvar
+  bloco** (ou **Descartar**); a **Marca**, com a sua foto e o atalho **Editar em Ajustes › Conta e
+  marca** (a cor e a foto vêm de lá); **Últimos 30 dias**, um número embaixo do outro: os
+  **contatos pelo formulário** da página e as **visitas à página**, que ainda não são medidas e
+  aparecem como "—"; e, com a página no ar, **Copiar link** e, em **Mais**, Abrir minha página,
+  Atualizar agora e Tirar do ar.
 
 Se a releitura da página falhar ao voltar à tela, o editor segue com a última leitura e um aviso
 diz que ela pode estar desatualizada.
-
-Arrastar os blocos para ordenar ainda não existe: a ordem muda pelas setas.
 
 ### O que a página tem
 
 - **Nome e endereço:** o nome que aparece e o endereço (`joao-corretor`, por exemplo). O endereço
   é único na plataforma inteira. Se outra pessoa já usa o endereço, o app avisa.
+  **Endereço sugerido:** antes de salvar a primeira vez, o app sugere o endereço a partir do seu
+  nome. Se esse endereço já é de uma página publicada de outra conta (é o caso de quem atende
+  várias contas com o mesmo nome), a sugestão já vem livre, com um sufixo: `joao-corretor-2`,
+  `joao-corretor-3`… **Quem reserva o endereço é a página no ar:** ao despublicar, a página sai
+  da vitrine e o endereço fica livre para outra conta.
 - **Cor:** a página usa a cor principal da sua marca, em [Ajustes › Conta e marca](conta-e-ajustes.md#a-marca).
   Mudar a marca muda a página no ar na hora; se não acompanhar, Ajustes › Conta e marca avisa e tem o botão
   **Atualizar o que está no ar**. Quem tinha escolhido uma cor para a página antes passou a tê-la
@@ -49,13 +58,13 @@ Arrastar os blocos para ordenar ainda não existe: a ordem muda pelas setas.
 
 | Bloco | O que mostra |
 |---|---|
-| Apresentação | A capa: a sua foto (sem foto, as suas iniciais), o nome, o CRECI (só se cadastrado), o título e o texto, e os botões **Falar no WhatsApp** e Instagram |
+| Apresentação | O título e o texto de apresentação, logo abaixo da capa (a capa tem sempre a sua foto, ou as iniciais, o nome, o CRECI só se cadastrado e **Falar no WhatsApp**) |
 | Imóveis em destaque | Até 6 imóveis escolhidos, cada um com o botão **Quero saber mais**, que abre o seu WhatsApp citando o código e o título do imóvel (com o WhatsApp desligado, abre a ficha do imóvel). Numa página nova ele vem ligado, mas sem imóveis escolhidos fica de fora: só aparece com pelo menos um imóvel escolhido e publicado. O título padrão é **Imóveis em destaque**; numa página já salva vale o título gravado, e um título apagado volta a esse nome. Esse bloco não é o que toda página mostra: a página nova traz o bloco **Todos os imóveis** (título padrão **Imóveis à venda**) |
 | Todos os imóveis | Todos os imóveis publicados |
 | Sobre mim | Um texto mais longo |
 | Bairros que atendo | Uma lista de bairros ou regiões |
 | Formulário de contato | Nome, telefone, e-mail, mensagem e a autorização de contato |
-| WhatsApp e Instagram | Liga ou desliga o botão do WhatsApp e informa o Instagram |
+| WhatsApp e Instagram | Liga ou desliga o botão do WhatsApp da capa e informa o Instagram, que aparece no fim da página |
 
 - **Refazer a página com IA** sugere a apresentação e o "sobre mim" a partir do que o corretor contar e
   das regiões dos imóveis. A IA não inventa prêmios, anos de experiência nem números. O corretor
@@ -72,7 +81,19 @@ sua marca ([Ajustes › Conta e marca](conta-e-ajustes.md#a-marca)) e acompanha 
 publicada antes de a capa ter foto mostra as iniciais até o próximo **Atualizar agora**.
 
 O CRECI é opcional (D-93): sem ele, a capa mostra só "Corretor de imóveis", e nada deixa de
-funcionar. Os cartões dos imóveis (na página inteira) também ganham o botão **Quero saber mais**.
+funcionar.
+
+**Como a página aparece para o visitante** (celular primeiro):
+
+- **Capa** compacta: a foto (ou as iniciais), o nome, a linha "Corretor de imóveis · CRECI …" e o
+  botão **Falar no WhatsApp**. A apresentação vem logo abaixo, como primeiro bloco; o Instagram, no
+  fim da página.
+- **Cartões dos imóveis:** foto baixa, o título, a linha de dados ("320 m² · 4 qts · 3 vagas") e,
+  na mesma linha, o preço à esquerda e **Quero saber mais** à direita, que abre o seu WhatsApp
+  citando o imóvel (sem WhatsApp, abre a ficha). No celular cabem dois imóveis na primeira tela. No
+  computador os cartões ficam lado a lado com o botão alinhado.
+- O imóvel em destaque não se repete em "Imóveis à venda", que mostra só os outros (e some quando
+  todos estão em destaque).
 
 O CRECI é opcional: a página publica sem ele, e a apresentação só mostra o CRECI se ele existir.
 Sem o seu CRECI nesta conta e sem o CRECI jurídico dela, o editor mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
@@ -81,8 +102,10 @@ anúncios"*, com o atalho **Ajustes › Conta e marca**.
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**
 copia o endereço completo.
 
-Ainda não há prévia do link no WhatsApp (a foto e o título que aparecem ao colar um link). Isso
-fica para uma versão futura (P-37).
+Ainda não há prévia do link no WhatsApp (a foto e o título que aparecem ao colar um link): quem
+monta a prévia lê só o endereço servido, e a plataforma ainda não deixa a app escrever essas
+informações nele (pedido ao shell 26). A aba do navegador já mostra o seu nome ("Nome · Corretor
+de imóveis") e, na ficha, o título do imóvel.
 
 ## Que imóvel aparece
 
@@ -122,21 +145,32 @@ Quem preenche o formulário vira cliente em **Clientes**:
 
 - **Contato novo:** criado como comprador, com origem "página". O responsável é quem publicou
   a página pela primeira vez; se essa pessoa não for mais corretor ativo da conta, o primeiro
-  corretor ativo.
-- **Telefone já cadastrado** (ou, sem contato com o telefone, o mesmo e-mail): o pedido entra no
-  contato existente.
-- **Negócio:** um negócio de compra na primeira etapa do funil ("Novo"), se o contato ainda não
-  tem um em andamento. Pela ficha de um imóvel, o negócio já fica ligado a ele.
-- **Consentimento:** registrado com a versão do texto (`formulario-v1`), porque a autorização de
-  contato é obrigatória.
-- **Linha do tempo:** registra "Pediu contato pela sua página" (ou "pela ficha do IM-0001"), com a
-  mensagem. A temperatura é recalculada.
+  corretor ativo. Ganha um negócio de compra na primeira etapa do funil ("Novo"); pela ficha de um
+  imóvel, o negócio já fica ligado a ele. A linha do tempo registra "Pediu contato pela sua página"
+  (ou "pela ficha do IM-0001"), com a mensagem, e a temperatura é recalculada.
+- **Telefone já cadastrado** (ou, sem contato com o telefone, o mesmo e-mail): **o cadastro do
+  cliente não muda.** O formulário é aberto e qualquer pessoa pode digitar o telefone de outra, então
+  o app não grava o e-mail enviado, não marca consentimento, não mexe no último contato nem abre
+  negócio. O pedido entra na linha do tempo ("Novo pedido pela sua página") e vira a tarefa
+  **Novo pedido pela página** para o responsável pelo cliente, com a mensagem. Se o nome enviado é
+  outro, o título destaca: "Novo pedido pela página (veio como Fulano)"; o e-mail diferente aparece
+  na tarefa como "não foi gravado". Você confere com o cliente e atualiza o cadastro se for o caso.
+- **Consentimento declarado:** a autorização de contato é obrigatória no formulário, mas é uma
+  **declaração** de quem preencheu, não a prova de que foi o cliente. Ela fica guardada com a data, a
+  versão do texto (`formulario-v1`) e uma versão embaralhada do endereço de internet de quem enviou
+  (não dá para descobrir o endereço a partir dela), ligada ao pedido na linha do tempo. **O cliente
+  só fica com consentimento quando você confirma** na ficha (Cadastro › Confirmar); até lá, a ficha
+  mostra "Declarou consentimento no formulário…" em vez de "consentimento registrado". Isso muda só o
+  que a ficha mostra: hoje nada no app deixa o atendimento automático mais restrito por causa dele.
+  Declarações gravadas pelo formulário antes da versão 0.1.50 não ficaram marcadas como declaradas,
+  então a ficha as mostra como consentimento registrado; confira com o cliente se tiver dúvida.
 - **Envio repetido:** a mesma mensagem enviada de novo em até 5 minutos não duplica nada.
 
 **Proteções:**
 - No máximo 3 envios por minuto vindos de um mesmo endereço de internet, contados em memória em
-  cada servidor do app (com mais de um servidor, o limite vale por servidor). O app usa uma
-  versão embaralhada do endereço e não a grava.
+  cada servidor do app (com mais de um servidor, o limite vale por servidor). Para contar, o app usa
+  uma versão embaralhada do endereço. Essa mesma versão embaralhada (nunca o endereço de verdade)
+  também fica guardada junto com a declaração de consentimento de quem enviou o formulário.
 - Um campo escondido barra robôs: quem o preenche recebe "enviado" e nada é gravado.
 
 Nome, telefone, e-mail e mensagem são marcados para **nunca ficar no registro de chamadas** da

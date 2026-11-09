@@ -669,7 +669,8 @@ O mesmo vale para os demais eventos da conta (clientes, visitas, negócios, imó
 - **Risco residual:** três eventos nascem num webhook público (formulário, seleção e portal), onde a
   plataforma ainda não deixa o app gravar na conta antes de publicar. O dado chega ao app só pelo
   evento, e o negociador também o lê:
-  - `lead_recebido`: nome, telefone, e-mail e mensagem de quem pediu contato pela página;
+  - `lead_recebido`: nome, telefone, e-mail e mensagem de quem pediu contato pela página, e a versão
+    embaralhada do endereço de internet do envio (`ip_hash`);
   - `reacao_recebida`: o comentário do cliente na reação a um imóvel da seleção;
   - `acao_cliente_recebida`: o texto da mensagem que o cliente mandou pelo portal (e o valor de uma
     oferta, que não é dado pessoal).

@@ -39,16 +39,36 @@ const reais = (c: number | null | undefined) => (c ? (c / 100).toLocaleString('p
 const local = (i: { bairro?: string | null; cidade?: string | null }) => [i.bairro, i.cidade].filter(Boolean).join(', ');
 
 const estiloPagina = css`
-  header.topo .capa { display: flex; align-items: center; gap: 16px; }
-  header.topo .foto-corretor { width: 88px; height: 88px; border-radius: 50%; object-fit: cover; flex: none; background: var(--foto-vazia); border: 3px solid var(--papel); }
-  header.topo .iniciais { width: 88px; height: 88px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; background: var(--papel); color: var(--acento); font-weight: 700; font-size: 1.6rem; }
+  /* Capa compacta (M6, #181): avatar de 64 px, nome, a linha do CRECI e o WhatsApp, centrados (~213 px). */
+  header.topo { padding: 24px 18px; text-align: center; }
+  header.topo .conteudo { padding: 0; }
+  header.topo h1 { font-size: 20px; line-height: 27px; margin: 8px 0 0; }
+  header.topo p.linha { margin: 0; font-size: 13px; line-height: 18px; opacity: 0.9; }
+  header.topo .foto-corretor { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto; background: var(--foto-vazia); border: 2px solid var(--papel); }
+  header.topo .iniciais { width: 64px; height: 64px; border-radius: 50%; margin: 0 auto; display: flex; align-items: center; justify-content: center; background: var(--papel); color: var(--acento); font-weight: 700; font-size: 23px; }
+  header.topo .acoes { justify-content: center; margin-top: 14px; }
+  header.topo .acoes .botao { min-height: 34px; padding: 0 20px; border-radius: 12px; font-weight: 700; }
+  .conteudo > section:first-child { margin-top: 16px; }
+  section { margin-top: 20px; }
+  h2 { font-size: 16px; line-height: 22px; margin: 0 0 12px; }
+  .grade { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; align-items: stretch; }
+  /* Cartão do imóvel (M6): foto de 130 px, título, a linha de dados e, embaixo, preço à esquerda e
+     "Quero saber mais" à direita. Coluna flexível: o botão fica alinhado entre cartões no computador. */
+  .cartao { display: flex; flex-direction: column; }
   .cartao .ver { display: block; color: inherit; text-decoration: none; }
-  .cartao .acoes { margin: 0; padding: 0 14px 14px; }
-  .cartao .acoes .botao { width: 100%; }
+  .cartao img, .cartao .sem-foto { aspect-ratio: auto; height: 130px; }
+  .cartao .corpo { padding: 10px 12px 0; }
+  .cartao .titulo { font-size: 16px; line-height: 22px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cartao .dados { font-size: 13px; line-height: 18px; color: var(--suave); }
+  .cartao .rodape { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 12px 10px; }
+  .cartao .rodape .preco { font-size: 16px; }
+  .cartao .rodape .botao { min-height: 34px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 700; white-space: nowrap; }
   :host([previa]) { min-height: 0; }
   .destacado { outline: 3px solid var(--acento); outline-offset: 6px; border-radius: 8px; }
+  @media (min-width: 720px) {
+    header.topo h1 { font-size: 24px; line-height: 32px; }
+  }
 `;
-
 /**
  * Prévia no editor da Página (P09): os dados já montados pela rota autenticada `GET /pagina/previa` e o
  * bloco selecionado, que ganha contorno. Na prévia nada sai da tela: links não navegam e o formulário
@@ -222,60 +242,80 @@ export class PcPaginaPublica extends LitElement {
       : html`<a class="botao" href=${this.urlImovel(i.codigo)}>Quero saber mais</a>`;
   }
 
+  /** "320 m² · 4 qts · 3 vagas" (M6); o bairro entra só se o título ainda não o cita. */
+  private dadosDoCartao(i: Cartao) {
+    const titulo = i.titulo ?? '';
+    return [
+      i.area_util_m2 ? `${i.area_util_m2} m²` : null,
+      i.quartos ? `${i.quartos} qt${i.quartos > 1 ? 's' : ''}` : null,
+      i.vagas ? `${i.vagas} vaga${i.vagas > 1 ? 's' : ''}` : null,
+      i.bairro && !titulo.includes(i.bairro) ? i.bairro : null,
+      i.situacao === 'reservado' ? 'Reservado' : null,
+    ].filter(Boolean).join(' · ');
+  }
+
   private cartao(i: Cartao) {
+    const titulo = i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo;
     return html`<article class="cartao">
       <a class="ver" href=${this.urlImovel(i.codigo)}>
-        ${i.capa ? html`<img src=${i.capa} alt=${i.titulo ?? ''} loading="lazy" />` : html`<div class="sem-foto"></div>`}
+        ${i.capa ? html`<img src=${i.capa} alt=${titulo} loading="lazy" />` : html`<div class="sem-foto"></div>`}
         <div class="corpo">
-          <div class="preco">${reais(i.preco_c)}</div>
-          <div>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</div>
-          <div class="suave">${local(i)}</div>
-          ${iconesImovel(i)}
-          ${i.situacao === 'reservado' ? html`<div class="suave">Reservado</div>` : nothing}
+          <div class="titulo" title=${titulo}>${titulo}</div>
+          <div class="dados">${this.dadosDoCartao(i) || local(i)}</div>
         </div>
       </a>
-      <div class="acoes">${this.querSaberMais(i)}</div>
+      <div class="rodape"><span class="preco">${reais(i.preco_c)}</span>${this.querSaberMais(i)}</div>
     </article>`;
   }
 
-  private topo(chamada?: string | null) {
+  /** Capa (M6): só avatar, nome, a linha do CRECI (quando houver, D-93) e Falar no WhatsApp. */
+  private topo() {
     const p = this.pagina!;
     const contato = this.bloco('contato');
-    const instagram = contato?.instagram && /^[A-Za-z0-9._]{1,30}$/.test(contato.instagram) ? contato.instagram : null;
     const zap = contato?.whatsapp !== false ? linkWhatsapp(p.telefone, this.imovel ? `Olá! Vi o imóvel ${this.imovel.codigo} na sua página.` : 'Olá! Vi sua página e quero falar sobre imóveis.') : null;
-    return html`<header class="topo ${this.destaque('apresentacao', 'contato')}">
+    return html`<header class="topo ${this.destaque('contato')}">
       <div class="conteudo">
-        <div class="capa">
-          ${p.foto_url ? html`<img class="foto-corretor" src=${p.foto_url} alt=${`Foto de ${p.nome}`} />` : html`<span class="iniciais" aria-hidden="true">${iniciais(p.nome)}</span>`}
-          <div>
-            <h1>${p.nome}</h1>
-            <p>Corretor de imóveis${p.creci ? ` · CRECI ${p.creci}` : ''}</p>
-          </div>
-        </div>
-        ${chamada ? html`<p class="texto">${chamada}</p>` : nothing}
-        <div class="acoes">
-          ${zap ? html`<a class="botao verde" href=${zap} target="_blank" rel="noopener">Falar no WhatsApp</a>` : nothing}
-          ${instagram ? html`<a class="botao claro" href="https://instagram.com/${encodeURIComponent(instagram)}" target="_blank" rel="noopener">@${instagram}</a>` : nothing}
-        </div>
+        ${p.foto_url ? html`<img class="foto-corretor" src=${p.foto_url} alt=${`Foto de ${p.nome}`} />` : html`<span class="iniciais" aria-hidden="true">${iniciais(p.nome)}</span>`}
+        <h1>${p.nome}</h1>
+        <p class="linha">Corretor de imóveis${p.creci ? ` · CRECI ${p.creci}` : ''}</p>
+        ${zap ? html`<div class="acoes"><a class="botao claro" href=${zap} target="_blank" rel="noopener">Falar no WhatsApp</a></div>` : nothing}
       </div>
     </header>`;
   }
 
+  /** Instagram (bloco "WhatsApp e Instagram"): fora da capa, no fim da página. */
+  private instagram() {
+    const ig = this.bloco('contato')?.instagram;
+    if (!ig || !/^[A-Za-z0-9._]{1,30}$/.test(ig)) return nothing;
+    return html`<section class=${this.destaque('contato')}><a class="botao claro" href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener">@${ig} no Instagram</a></section>`;
+  }
+
   private renderPagina() {
     const blocos = this.pagina!.blocos;
-    const apresentacao = this.bloco('apresentacao');
+    // Destaques não se repetem em "Imóveis à venda" (#181): a lista geral mostra só os outros.
+    const destaques = blocos.find((b) => b.tipo === 'destaques');
+    const emDestaque = new Set(destaques ? (destaques.codigos ?? []).filter((c) => this.imoveis.some((i) => i.codigo === c)) : []);
+    const demais = this.imoveis.filter((i) => !emDestaque.has(i.codigo));
     return html`
-      ${this.topo(apresentacao ? [apresentacao.titulo, apresentacao.texto].filter(Boolean).join('\n') : null)}
+      ${this.topo()}
       <div class="conteudo">
         ${blocos.map((b) => {
+          // Apresentação: o primeiro bloco abaixo da capa (M6), e não mais dentro dela.
+          if (b.tipo === 'apresentacao') {
+            const texto = [b.titulo, b.texto].filter(Boolean);
+            return texto.length
+              ? html`<section class=${this.destaque('apresentacao')}>${b.titulo ? html`<h2>${b.titulo}</h2>` : nothing}${b.texto ? html`<p class="texto suave">${b.texto}</p>` : nothing}</section>`
+              : nothing;
+          }
           if (b.tipo === 'destaques') {
-            const lista = (b.codigos ?? []).map((c) => this.imoveis.find((i) => i.codigo === c)).filter((i): i is Cartao => !!i);
+            const lista = [...emDestaque].map((c) => this.imoveis.find((i) => i.codigo === c)!);
             return lista.length ? html`<section class=${this.destaque('destaques')}><h2>${b.titulo || 'Imóveis em destaque'}</h2><div class="grade">${lista.map((i) => this.cartao(i))}</div></section>` : nothing;
           }
           if (b.tipo === 'imoveis') {
+            if (!demais.length && emDestaque.size) return nothing;
             return html`<section class=${this.destaque('imoveis')}>
               <h2>${b.titulo || 'Imóveis'}</h2>
-              ${this.imoveis.length ? html`<div class="grade">${this.imoveis.map((i) => this.cartao(i))}</div>` : html`<p class="suave">Novos imóveis em breve.</p>`}
+              ${demais.length ? html`<div class="grade">${demais.map((i) => this.cartao(i))}</div>` : html`<p class="suave">Novos imóveis em breve.</p>`}
             </section>`;
           }
           if (b.tipo === 'sobre' && b.texto) return html`<section class=${this.destaque('sobre')}><h2>${b.titulo || 'Sobre mim'}</h2><div class="caixa texto">${b.texto}</div></section>`;
@@ -283,6 +323,7 @@ export class PcPaginaPublica extends LitElement {
             return html`<section class=${this.destaque('bairros')}><h2>${b.titulo || 'Onde eu atendo'}</h2><ul class="etiquetas">${b.lista.map((x) => html`<li>${x}</li>`)}</ul></section>`;
           }
           if (b.tipo === 'formulario') return this.formulario(b.titulo || 'Fale comigo');
+          if (b.tipo === 'contato') return this.instagram();
           return nothing;
         })}
       </div>

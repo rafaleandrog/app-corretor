@@ -28,7 +28,22 @@ const INSTRUCAO_TEXTOS =
 async function enderecoOcupado(req: Request, endereco: string): Promise<boolean> {
   const conta = contaDoRequest(req);
   const r = await req.dados!.listar('vitrine_publica', { filtros: { tipo: 'pagina', chave: endereco }, por_pagina: 5 });
-  return r.dados.some((l) => l.conta !== conta);
+  return r.dados.some((l) => Number(l.conta) !== conta);
+}
+
+/**
+ * #41: endereço sugerido livre. Quem atende várias contas tem o mesmo nome em todas; se o endereço
+ * do nome já é da página publicada de outra conta, a sugestão ganha um sufixo (`-2`, `-3`…). Só a
+ * página no ar reserva o endereço: a despublicada sai da vitrine e o libera (docs/minha-pagina.md).
+ */
+export async function enderecoLivre(req: Request, base: string): Promise<string> {
+  if (!(await enderecoOcupado(req, base))) return base;
+  for (let n = 2; n < 100; n++) {
+    const sufixo = `-${n}`;
+    const candidato = `${base.slice(0, 40 - sufixo.length).replace(/-+$/g, '')}${sufixo}`;
+    if (!(await enderecoOcupado(req, candidato))) return candidato;
+  }
+  return base;
 }
 
 const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
@@ -54,7 +69,7 @@ async function visao(req: Request) {
     dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaId }, por_pagina: 1 }),
     contatosDaPagina(dados, contaId),
   ]);
-  const pagina = p ?? { endereco: sugerirEndereco(nome), nome_exibicao: nome, blocos: blocosPadrao(), publicada_em: null, gerada_por_ia: false };
+  const pagina = p ?? { endereco: await enderecoLivre(req, sugerirEndereco(nome)), nome_exibicao: nome, blocos: blocosPadrao(), publicada_em: null, gerada_por_ia: false };
   const base = origemPublica(p?.url_formulario);
   return {
     pagina: {
@@ -148,41 +163,50 @@ paginaRotas.put(
   }),
 );
 
+/**
+ * Publica a página salva: endereços de entrada (gerados uma vez), `publicada_em` e a vitrine inteira.
+ * Usada pela rota e pela semente de demonstração (#189). Não publica o evento: quem chama decide.
+ */
+export async function publicarPagina(req: Request): Promise<{ ok: true; imoveis: number; pagina_id: number } | { ok: false; status: number; codigo: string; mensagem: string }> {
+  const dados = req.dados!;
+  const p = await paginaDaConta(dados, contaDoRequest(req));
+  if (!p) return { ok: false, status: 422, codigo: 'PAGINA_NAO_SALVA', mensagem: 'Salve a página antes de publicar.' };
+  if (!FORMATO_ENDERECO.test(p.endereco)) return { ok: false, status: 422, codigo: 'DADOS_INVALIDOS', mensagem: 'Endereço da página inválido.' };
+  if (await enderecoOcupado(req, p.endereco)) return { ok: false, status: 409, codigo: 'ENDERECO_EM_USO', mensagem: 'Este endereço já é de outra página. Escolha outro.' };
+  const conta = contaDoRequest(req);
+  const mudar: Record<string, unknown> = { publicada_em: new Date().toISOString() };
+  // Endereços de entrada da conta (wh recorrente): gerados uma vez e reaproveitados.
+  if (!p.url_formulario) {
+    const g = await req.shell!.gerarIngressoWh({ webhook: 'formulario_lead', contexto: { conta_id: conta } });
+    Object.assign(mudar, { ingresso_formulario_id: g.ingresso_id, url_formulario: g.url });
+  }
+  if (!p.url_clique) {
+    const g = await req.shell!.gerarIngressoWh({ webhook: 'clique_link', contexto: { conta_id: conta } });
+    Object.assign(mudar, { ingresso_clique_id: g.ingresso_id, url_clique: g.url });
+  }
+  await dados.atualizar('paginas_corretor', p.id, mudar);
+  try {
+    const r = await sincronizarTudo(req);
+    return { ok: true, imoveis: r.imoveis, pagina_id: Number(p.id) };
+  } catch (e) {
+    if (!violouUnico(e)) throw e;
+    // Outra conta publicou o mesmo endereço no mesmo instante: esta continua fora do ar.
+    await desfazer(async () => {
+      await dados.atualizar('paginas_corretor', p.id, { publicada_em: p.publicada_em ?? null });
+      // Já estava no ar: a vitrine volta a ser a do endereço gravado; senão, fica vazia.
+      if (p.publicada_em) await sincronizarTudo(req);
+      else await despublicarTudo(dados, conta);
+    });
+    return { ok: false, status: 409, codigo: 'ENDERECO_EM_USO', mensagem: 'Este endereço acabou de ser escolhido por outra página. Escolha outro.' };
+  }
+}
+
 paginaRotas.post(
   '/pagina/publicar',
   assincrono(async (req, res) => {
-    const dados = req.dados!;
-    const p = await paginaDaConta(dados, contaDoRequest(req));
-    if (!p) return erro(res, 422, 'PAGINA_NAO_SALVA', 'Salve a página antes de publicar.');
-    if (!FORMATO_ENDERECO.test(p.endereco)) return erro(res, 422, 'DADOS_INVALIDOS', 'Endereço da página inválido.');
-    if (await enderecoOcupado(req, p.endereco)) return erro(res, 409, 'ENDERECO_EM_USO', 'Este endereço já é de outra página. Escolha outro.');
-    const conta = contaDoRequest(req);
-    const mudar: Record<string, unknown> = { publicada_em: new Date().toISOString() };
-    // Endereços de entrada da conta (wh recorrente): gerados uma vez e reaproveitados.
-    if (!p.url_formulario) {
-      const g = await req.shell!.gerarIngressoWh({ webhook: 'formulario_lead', contexto: { conta_id: conta } });
-      Object.assign(mudar, { ingresso_formulario_id: g.ingresso_id, url_formulario: g.url });
-    }
-    if (!p.url_clique) {
-      const g = await req.shell!.gerarIngressoWh({ webhook: 'clique_link', contexto: { conta_id: conta } });
-      Object.assign(mudar, { ingresso_clique_id: g.ingresso_id, url_clique: g.url });
-    }
-    await dados.atualizar('paginas_corretor', p.id, mudar);
-    let r;
-    try {
-      r = await sincronizarTudo(req);
-    } catch (e) {
-      if (!violouUnico(e)) throw e;
-      // Outra conta publicou o mesmo endereço no mesmo instante: esta continua fora do ar.
-      await desfazer(async () => {
-        await dados.atualizar('paginas_corretor', p.id, { publicada_em: p.publicada_em ?? null });
-        // Já estava no ar: a vitrine volta a ser a do endereço gravado; senão, fica vazia.
-        if (p.publicada_em) await sincronizarTudo(req);
-        else await despublicarTudo(dados, conta);
-      });
-      return erro(res, 409, 'ENDERECO_EM_USO', 'Este endereço acabou de ser escolhido por outra página. Escolha outro.');
-    }
-    await publicarEvento(req, 'pagina_publicada', { pagina_id: Number(p.id) });
+    const r = await publicarPagina(req);
+    if (!r.ok) return erro(res, r.status, r.codigo, r.mensagem);
+    await publicarEvento(req, 'pagina_publicada', { pagina_id: r.pagina_id });
     res.json({ ...(await visao(req)), imoveis_publicados: r.imoveis });
   }),
 );

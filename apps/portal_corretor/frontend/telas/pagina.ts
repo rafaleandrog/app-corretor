@@ -1,9 +1,9 @@
 import { html, nothing } from 'lit';
-import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
+import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ROTULO_BLOCO, type Bloco } from '../../comum/pagina';
 import { acoesComMais, avisoCreci, chamarApi, contaDeTrabalho, dataHora, ehContaTrocada, enviar, gesto, itemDaUrl, itemNaUrl, mensagemDeErro, noGesto, type Gesto } from '../apoio';
 import { estadoDaFalha, estadoTela } from '../estados.js';
-import { botaoAssistenteColuna, moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 import type { PreviaPagina } from '../publico/pagina-publica.js';
 import { abrirAssistente } from './assistente.js';
 
@@ -35,10 +35,13 @@ interface Visao {
 // envio em voo), ele termina em silêncio, sem gravar, avisar nem mexer em `salvando`/`ocupado`, que a
 // troca zera para a conta nova.
 //
-// Exceções de UI nomeadas (spec 11.9, regra do CLAUDE.md): (1) arrastar para ordenar não tem
-// primitivo: subir/descer com [↑][↓]; (2) a prévia é a página pública dentro do editor, que tem CSS
-// próprio por ser página pública, numa largura de celular (`pc-previa-pagina`); `urbi-hospedeiro` e
-// `urbi-moldura` não mostram uma página com estilo próprio nem limitam a largura.
+// Blocos arrastáveis (D-119) pelo `urbi-arvore` (lista de folhas com `arrastavel` e `marcavel`: a
+// caixa é o "Mostrar"); as setas Subir e Descer do bloco selecionado ficam abaixo, como alternativa
+// acessível (a árvore não move pelo teclado). Ajustes do bloco na própria coluna da direita, com os
+// campos do bloco (não em diálogo). Exceção de UI nomeada (spec 11.9): a prévia é a página pública
+// dentro do editor, que tem CSS próprio por ser página pública, numa largura de celular
+// (`pc-previa-pagina`); `urbi-hospedeiro` e `urbi-moldura` não mostram uma página com estilo próprio
+// nem limitam a largura.
 
 const estado = {
   visao: null as Visao | null,
@@ -48,6 +51,10 @@ const estado = {
   salvando: false,
   ocupado: false,
   dispositivo: 'celular' as 'celular' | 'computador',
+  /** Rascunho dos campos do bloco selecionado (coluna da direita); some ao trocar de bloco ou salvar. */
+  rascunho: null as (Partial<Bloco> & { tipo: Bloco['tipo'] }) | null,
+  /** Imóveis marcados para a página, para escolher os destaques. */
+  publicaveis: null as { codigo: string; titulo: string | null; tipo: string }[] | null,
   conta: null as number | null,
   geracao: 0,
 };
@@ -58,6 +65,8 @@ export function aoAbrirPagina() {
   if (estado.conta !== contaDeTrabalho()) {
     estado.visao = null;
     estado.previa = null;
+    estado.rascunho = null;
+    estado.publicaveis = null;
     // As travas são do gesto da conta anterior, que termina em silêncio e não as solta: a nova começa livre.
     estado.salvando = false;
     estado.ocupado = false;
@@ -115,6 +124,7 @@ function selecionado(): number {
 }
 
 function selecionar(tipo: string) {
+  if (estado.rascunho && estado.rascunho.tipo !== tipo) estado.rascunho = null;
   itemNaUrl(tipo);
   redesenhar();
 }
@@ -171,46 +181,63 @@ async function mover(i: number, passo: number) {
   await salvar(gesto(), { blocos });
 }
 
-async function alternar(i: number) {
-  const blocos = estado.visao!.pagina.blocos.map((b, k) => (k === i ? { ...b, ativo: !b.ativo } : b));
+/** Soltura do arrastar (`urbi:arvore-mover`): os blocos levados vão para antes ou depois do alvo. */
+async function moverPara(ids: string[], alvoId: string, posicao: string) {
+  const blocos = estado.visao!.pagina.blocos;
+  const levados = blocos.filter((b) => ids.includes(b.tipo));
+  const resto = blocos.filter((b) => !ids.includes(b.tipo));
+  const alvo = resto.findIndex((b) => b.tipo === alvoId);
+  if (!levados.length || alvo < 0) return;
+  const novo = [...resto.slice(0, posicao === 'antes' ? alvo : alvo + 1), ...levados, ...resto.slice(posicao === 'antes' ? alvo : alvo + 1)];
+  if (novo.every((b, k) => b.tipo === blocos[k].tipo)) return;
+  await salvar(gesto(), { blocos: novo });
+}
+
+async function alternar(i: number, ativo?: boolean) {
+  const blocos = estado.visao!.pagina.blocos.map((b, k) => (k === i ? { ...b, ativo: ativo ?? !b.ativo } : b));
+  if (blocos[i].ativo === estado.visao!.pagina.blocos[i].ativo) return;
   await salvar(gesto(), { blocos });
 }
 
-async function camposDestaques(g: Gesto, b: Bloco): Promise<CampoFormulario[]> {
-  const r = await g.esperar(chamarApi('/imoveis?publicado_pagina=true&por_pagina=50'));
-  const lista = (r.dados ?? []).filter((i: any) => i.publicado_pagina);
-  return lista.map((i: any) => ({ nome: `im_${i.codigo}`, tipo: 'booleano', rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}`, valor: (b.codigos ?? []).includes(i.codigo) }));
+/** Os imóveis marcados para a página, lidos uma vez por entrada (para os destaques). */
+let carregandoPublicaveis = false;
+async function carregarPublicaveis() {
+  if (estado.publicaveis || carregandoPublicaveis) return;
+  carregandoPublicaveis = true;
+  // Conta trocada com a leitura em voo: a lista de A não aparece em B (a conta nova lê a dela).
+  const conta = estado.conta;
+  try {
+    const r = await chamarApi('/imoveis?publicado_pagina=true&por_pagina=50');
+    if (conta !== estado.conta) return;
+    estado.publicaveis = (r.dados ?? []).filter((i: any) => i.publicado_pagina).map((i: any) => ({ codigo: i.codigo, titulo: i.titulo ?? null, tipo: i.tipo }));
+  } catch (e) {
+    if (ehContaTrocada(e) || conta !== estado.conta) return;
+    estado.publicaveis = [];
+  } finally {
+    carregandoPublicaveis = false;
+  }
+  redesenhar();
 }
 
-const editar = (i: number) => noGesto(async (g) => {
+/** O bloco como está na tela: o salvo com o rascunho por cima. */
+function blocoEditado(b: Bloco): Bloco {
+  return estado.rascunho?.tipo === b.tipo ? { ...b, ...estado.rascunho } : b;
+}
+
+function mudar(b: Bloco, campos: Partial<Bloco>) {
+  estado.rascunho = { ...(estado.rascunho?.tipo === b.tipo ? estado.rascunho : { tipo: b.tipo }), ...campos };
+  redesenhar();
+}
+
+/** Salva os campos do bloco selecionado (coluna da direita). */
+const salvarBloco = (i: number) => noGesto(async (g) => {
   const b = estado.visao!.pagina.blocos[i];
-  const campos: CampoFormulario[] = [];
-  if (b.tipo !== 'contato') campos.push({ nome: 'titulo', tipo: 'texto', rotulo: 'Título do bloco', valor: b.titulo ?? '' });
-  if (b.tipo === 'apresentacao' || b.tipo === 'sobre') campos.push({ nome: 'texto', tipo: 'texto_longo', rotulo: 'Texto', valor: b.texto ?? '' });
-  if (b.tipo === 'bairros') campos.push({ nome: 'lista', tipo: 'texto_longo', rotulo: 'Um bairro ou região por linha', valor: (b.lista ?? []).join('\n') });
-  if (b.tipo === 'contato') {
-    campos.push({ nome: 'whatsapp', tipo: 'booleano', rotulo: 'Mostrar botão do WhatsApp', valor: b.whatsapp !== false });
-    campos.push({ nome: 'instagram', tipo: 'texto', rotulo: 'Instagram (só o usuário)', valor: b.instagram ?? '', placeholder: 'seu.usuario' });
-  }
-  let mensagem: string | undefined = DICA_BLOCO[b.tipo];
-  if (b.tipo === 'destaques') {
-    const opcoes = await camposDestaques(g, b);
-    mensagem = opcoes.length
-      ? 'Escolha até 6 imóveis (além disso, valem os 6 primeiros). Só aparecem os que estiverem publicados.'
-      : 'Marque imóveis para a página (na ficha do imóvel) para escolher os destaques.';
-    campos.push(...opcoes);
-  }
-  const v = await g.esperar(urbiVerso.formulario({ titulo: ROTULO_BLOCO[b.tipo], campos, mensagem }));
-  if (!v) return;
-  const novo: Bloco = { ...b };
-  if ('titulo' in v) novo.titulo = String(v.titulo ?? '');
-  if ('texto' in v) novo.texto = String(v.texto ?? '');
-  if ('lista' in v) novo.lista = String(v.lista ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
-  if ('whatsapp' in v) novo.whatsapp = v.whatsapp === true;
-  if ('instagram' in v) novo.instagram = String(v.instagram ?? '');
-  if (b.tipo === 'destaques') novo.codigos = Object.entries(v).filter(([k, x]) => k.startsWith('im_') && x === true).map(([k]) => k.slice(3)).slice(0, 6);
+  if (estado.rascunho?.tipo !== b.tipo) return;
+  const novo = blocoEditado(b);
+  if (novo.tipo === 'destaques') novo.codigos = (novo.codigos ?? []).slice(0, 6);
   const blocos = estado.visao!.pagina.blocos.map((x, k) => (k === i ? novo : x));
-  await salvar(g, { blocos });
+  if (await salvar(g, { blocos })) estado.rascunho = null;
+  redesenhar();
 });
 
 /** [Refazer a página com IA]: a mesma escrita de `POST /pagina/sugerir-textos`; o corretor revisa antes de usar. */
@@ -287,63 +314,61 @@ async function copiar() {
 
 /** O que cada bloco faz, no diálogo e nos ajustes da direita. */
 const DICA_BLOCO: Partial<Record<Bloco['tipo'], string>> = {
-  apresentacao: 'A capa: sua foto, o nome, o CRECI (só se cadastrado), o título e o texto, com o botão do WhatsApp.',
+  apresentacao: 'O primeiro bloco abaixo da capa (foto, nome, CRECI se houver e WhatsApp): o título e o texto de apresentação.',
   imoveis: 'Mostra todos os imóveis marcados para a página, anunciados e com autorização vigente.',
-  formulario: 'O contato chega em Clientes, com negócio novo no funil e o consentimento registrado.',
-  contato: 'Os botões do WhatsApp e do Instagram, na capa.',
+  formulario: 'O contato chega em Clientes, com negócio novo no funil; o consentimento fica como declarado até você confirmar.',
+  contato: 'O botão do WhatsApp na capa e o Instagram no fim da página.',
 };
 
 // ── Esquerda ──────────────────────────────────────────────────────────────────
 
-function itemBloco(b: Bloco, i: number, total: number, sel: number) {
-  return html`<urbi-linha justificar="entre" quebrar>
-    <urbi-stack>
-      <urbi-prosa>${ROTULO_BLOCO[b.tipo]}</urbi-prosa>
-      <urbi-prosa papel="fraco">${b.ativo ? 'aparece' : 'oculto'}${i === sel ? ' · selecionado' : ''}</urbi-prosa>
-    </urbi-stack>
-    <urbi-linha>
-      <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-up" ariaLabel=${`Subir ${ROTULO_BLOCO[b.tipo]}`} title="Subir"
-        ?desabilitado=${i === 0 || estado.salvando} @click=${(e: Event) => (e.stopPropagation(), void mover(i, -1))}></urbi-botao>
-      <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-down" ariaLabel=${`Descer ${ROTULO_BLOCO[b.tipo]}`} title="Descer"
-        ?desabilitado=${i === total - 1 || estado.salvando} @click=${(e: Event) => (e.stopPropagation(), void mover(i, 1))}></urbi-botao>
-      <urbi-checkbox label=${`Mostrar ${ROTULO_BLOCO[b.tipo]}`} ?marcado=${b.ativo} ?desabilitado=${estado.salvando}
-        @click=${(e: Event) => e.stopPropagation()} @urbi:checkbox-change=${() => void alternar(i)}></urbi-checkbox>
-    </urbi-linha>
-  </urbi-linha>`;
-}
+const ICONE_BLOCO: Record<Bloco['tipo'], string> = {
+  apresentacao: 'fa-solid fa-id-card',
+  destaques: 'fa-solid fa-star',
+  imoveis: 'fa-solid fa-house',
+  sobre: 'fa-solid fa-user',
+  bairros: 'fa-solid fa-map-location-dot',
+  formulario: 'fa-solid fa-envelope',
+  contato: 'fa-brands fa-whatsapp',
+};
 
 function colunaBlocos() {
   const v = estado.visao!;
   const p = v.pagina;
   const noAr = !!p.publicada_em;
   const sel = selecionado();
+  const atual = p.blocos[sel];
+  const nos = p.blocos.map((b) => ({ id: b.tipo, rotulo: `${ROTULO_BLOCO[b.tipo]}${b.ativo ? '' : ' (oculto)'}`, icone: ICONE_BLOCO[b.tipo], marcado: b.ativo ? 'sim' : 'nao', desabilitado: estado.salvando }));
   return html`<urbi-stack>
-    <urbi-linha justificar="entre" quebrar>
-      <urbi-stack>
-        <urbi-prosa papel="titulo">Página</urbi-prosa>
-        <urbi-prosa papel="secundario">${urlCompleta()}</urbi-prosa>
-      </urbi-stack>
-      <urbi-linha>
-        ${noAr
-          ? nothing
-          : html`<urbi-botao pequeno icone="fa-solid fa-rocket" ?carregando=${estado.ocupado} ?desabilitado=${!v.salva}
-              @click=${() => void acao('/pagina/publicar', 'Página publicada.')}>Publicar</urbi-botao>`}
-        ${botaoAssistenteColuna()}
-      </urbi-linha>
+    ${cabecalhoColuna('Página', noAr
+      ? nothing
+      : html`<urbi-botao icone="fa-solid fa-rocket" ?carregando=${estado.ocupado} ?desabilitado=${!v.salva}
+          @click=${() => void acao('/pagina/publicar', 'Página publicada.')}>Publicar</urbi-botao>`)}
+    <urbi-linha>
+      <urbi-prosa papel="secundario" truncar expandir title=${urlCompleta()}>${urlCompleta()}</urbi-prosa>
     </urbi-linha>
     <urbi-linha quebrar>
       <urbi-badge cor=${noAr ? 'sucesso' : 'padrao'}>${noAr ? `Publicada desde ${dataHora(p.publicada_em)}` : 'Rascunho'}</urbi-badge>
-      <urbi-botao variante="texto" pequeno @click=${() => void nomeEEndereco()}>Nome e endereço</urbi-botao>
+      <urbi-botao variante="texto" @click=${() => void nomeEEndereco()}>Nome e endereço</urbi-botao>
     </urbi-linha>
     ${!v.salva ? html`<urbi-prosa papel="dica">Esta é uma sugestão de página: ela é salva na primeira mudança, e aí dá para publicar.</urbi-prosa>` : nothing}
     ${v.marcados_para_pagina === 0
       ? html`<urbi-banner variante="alerta">Nenhum imóvel marcado para a página. Na ficha do imóvel, ligue "Aparece na minha página" (precisa estar anunciado e com autorização vigente).</urbi-banner>`
       : nothing}
     <urbi-prosa papel="secao">Blocos</urbi-prosa>
-    <urbi-lista clicavel separador .itens=${p.blocos} .itemAtivo=${(_b: Bloco, i: number) => i === sel}
-      .render_item=${(b: Bloco, i: number) => itemBloco(b, i, p.blocos.length, sel)}
-      @urbi:lista-click=${(e: CustomEvent) => selecionar((e.detail.item as Bloco).tipo)}></urbi-lista>
-    <urbi-prosa papel="dica">Os blocos aparecem nesta ordem; use as setas para mudar de lugar.</urbi-prosa>
+    <urbi-arvore marcavel arrastavel aria-label="Blocos da página" .nos=${nos} .selecionados=${atual ? [atual.tipo] : []}
+      @urbi:arvore-selecao=${(e: CustomEvent) => e.detail.ids?.[0] && selecionar(e.detail.ids[0])}
+      @urbi:arvore-marcar=${(e: CustomEvent) => void alternar(p.blocos.findIndex((b) => b.tipo === e.detail.id), e.detail.valor === 'sim')}
+      @urbi:arvore-mover=${(e: CustomEvent) => void moverPara(e.detail.ids, e.detail.alvoId, e.detail.posicao)}></urbi-arvore>
+    <urbi-linha justificar="entre" alinhar="centro">
+      <urbi-prosa papel="dica">Arraste para mudar a ordem; a caixa mostra ou oculta o bloco.</urbi-prosa>
+      <urbi-linha>
+        <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-up" ariaLabel=${`Subir ${atual ? ROTULO_BLOCO[atual.tipo] : 'bloco'}`} title="Subir o bloco selecionado"
+          ?desabilitado=${sel === 0 || estado.salvando} @click=${() => void mover(sel, -1)}></urbi-botao>
+        <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-down" ariaLabel=${`Descer ${atual ? ROTULO_BLOCO[atual.tipo] : 'bloco'}`} title="Descer o bloco selecionado"
+          ?desabilitado=${sel === p.blocos.length - 1 || estado.salvando} @click=${() => void mover(sel, 1)}></urbi-botao>
+      </urbi-linha>
+    </urbi-linha>
     <urbi-linha>
       <urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${estado.ocupado}
         @click=${() => void refazerComIa()}>Refazer a página com IA</urbi-botao>
@@ -385,15 +410,46 @@ function colunaPrevia() {
 
 // ── Direita ───────────────────────────────────────────────────────────────────
 
-function resumoBloco(b: Bloco) {
-  const linhas: string[] = [];
-  if (b.tipo !== 'contato') linhas.push(`Título: ${b.titulo || '(o padrão)'}`);
-  if ((b.tipo === 'apresentacao' || b.tipo === 'sobre') && b.texto) linhas.push(b.texto.length > 160 ? `${b.texto.slice(0, 160)}…` : b.texto);
-  if ((b.tipo === 'apresentacao' || b.tipo === 'sobre') && !b.texto) linhas.push('Sem texto ainda.');
-  if (b.tipo === 'bairros') linhas.push(b.lista?.length ? b.lista.join(', ') : 'Nenhum bairro ainda.');
-  if (b.tipo === 'destaques') linhas.push(b.codigos?.length ? `Escolhidos: ${b.codigos.join(', ')}` : 'Nenhum imóvel escolhido: o bloco fica de fora até você escolher.');
-  if (b.tipo === 'contato') linhas.push(`WhatsApp ${b.whatsapp !== false ? 'ligado' : 'desligado'}${b.instagram ? ` · Instagram @${b.instagram}` : ''}`);
-  return linhas;
+/** Os campos do bloco selecionado, na própria coluna (P09, direita). */
+function camposDoBloco(i: number) {
+  const salvo = estado.visao!.pagina.blocos[i];
+  const b = blocoEditado(salvo);
+  const sujo = estado.rascunho?.tipo === salvo.tipo;
+  if (b.tipo === 'destaques' && !estado.publicaveis) void carregarPublicaveis();
+  const escolhidos = b.codigos ?? [];
+  return html`<urbi-stack>
+    ${DICA_BLOCO[b.tipo] ? html`<urbi-prosa papel="dica">${DICA_BLOCO[b.tipo]}</urbi-prosa>` : nothing}
+    ${b.tipo !== 'contato'
+      ? html`<urbi-input label="Título do bloco" valor=${b.titulo ?? ''} placeholder=${ROTULO_BLOCO[b.tipo]} @urbi:input-change=${(e: CustomEvent) => mudar(salvo, { titulo: e.detail.valor })}></urbi-input>`
+      : nothing}
+    ${b.tipo === 'apresentacao' || b.tipo === 'sobre'
+      ? html`<urbi-textarea label="Texto" rows="5" valor=${b.texto ?? ''} @urbi:input-change=${(e: CustomEvent) => mudar(salvo, { texto: e.detail.valor })}></urbi-textarea>`
+      : nothing}
+    ${b.tipo === 'bairros'
+      ? html`<urbi-textarea label="Um bairro ou região por linha" rows="5" valor=${(b.lista ?? []).join('\n')}
+          @urbi:input-change=${(e: CustomEvent) => mudar(salvo, { lista: String(e.detail.valor ?? '').split('\n').map((x) => x.trim()).filter(Boolean) })}></urbi-textarea>`
+      : nothing}
+    ${b.tipo === 'contato'
+      ? html`<urbi-checkbox label="Mostrar botão do WhatsApp" ?marcado=${b.whatsapp !== false} @urbi:checkbox-change=${() => mudar(salvo, { whatsapp: b.whatsapp === false })}></urbi-checkbox>
+          <urbi-input label="Instagram (só o usuário)" valor=${b.instagram ?? ''} placeholder="seu.usuario" @urbi:input-change=${(e: CustomEvent) => mudar(salvo, { instagram: e.detail.valor })}></urbi-input>`
+      : nothing}
+    ${b.tipo === 'destaques'
+      ? !estado.publicaveis
+        ? estadoTela('carregando', { mensagem: 'Carregando os imóveis…' })
+        : estado.publicaveis.length
+          ? html`<urbi-prosa papel="secundario">Escolha até 6 imóveis. Só aparecem os que estiverem publicados.</urbi-prosa>
+              ${estado.publicaveis.map(
+                (im) => html`<urbi-checkbox label=${`${im.codigo} · ${im.titulo ?? im.tipo}`} ?marcado=${escolhidos.includes(im.codigo)}
+                  ?desabilitado=${!escolhidos.includes(im.codigo) && escolhidos.length >= 6}
+                  @urbi:checkbox-change=${() => mudar(salvo, { codigos: escolhidos.includes(im.codigo) ? escolhidos.filter((c) => c !== im.codigo) : [...escolhidos, im.codigo] })}></urbi-checkbox>`,
+              )}`
+          : html`<urbi-prosa papel="dica">Marque imóveis para a página (na ficha do imóvel) para escolher os destaques.</urbi-prosa>`
+      : nothing}
+    <urbi-linha>
+      <urbi-botao icone="fa-solid fa-check" ?desabilitado=${!sujo} ?carregando=${estado.salvando} @click=${() => void salvarBloco(i)}>Salvar bloco</urbi-botao>
+      ${sujo ? html`<urbi-botao variante="texto" @click=${() => { estado.rascunho = null; redesenhar(); }}>Descartar</urbi-botao>` : nothing}
+    </urbi-linha>
+  </urbi-stack>`;
 }
 
 function colunaAjustes() {
@@ -404,15 +460,7 @@ function colunaAjustes() {
   const noAr = !!v.pagina.publicada_em;
   return html`<urbi-stack>
     ${b
-      ? html`<urbi-card titulo=${`Bloco: ${ROTULO_BLOCO[b.tipo]}`} icone="fa-solid fa-sliders">
-          <urbi-stack>
-            ${DICA_BLOCO[b.tipo] ? html`<urbi-prosa papel="dica">${DICA_BLOCO[b.tipo]}</urbi-prosa>` : nothing}
-            ${resumoBloco(b).map((l) => html`<urbi-prosa papel="secundario">${l}</urbi-prosa>`)}
-            <urbi-linha>
-              <urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" @click=${() => void editar(i)}>Editar bloco</urbi-botao>
-            </urbi-linha>
-          </urbi-stack>
-        </urbi-card>`
+      ? html`<urbi-card titulo=${`Bloco: ${ROTULO_BLOCO[b.tipo]}`} icone="fa-solid fa-sliders">${camposDoBloco(i)}</urbi-card>`
       : nothing}
     <urbi-card titulo="Marca" icone="fa-solid fa-palette">
       <urbi-stack>
@@ -420,16 +468,14 @@ function colunaAjustes() {
           <urbi-avatar nome=${v.pagina.nome_exibicao} foto=${estado.previa?.pagina.foto_url ?? ''} tamanho="48"></urbi-avatar>
           <urbi-prosa papel="secundario">A página usa a cor, a foto e o nome da sua marca, os mesmos do Estúdio, das seleções e do portal.</urbi-prosa>
         </urbi-linha>
-        <urbi-linha><urbi-botao variante="texto" pequeno href=${urbiVerso.href('/ajustes?aba=conta')}>Editar em Ajustes › Conta e marca</urbi-botao></urbi-linha>
+        <urbi-linha><urbi-botao variante="texto" href=${urbiVerso.href('/ajustes?aba=conta')}>Editar em Ajustes › Conta e marca</urbi-botao></urbi-linha>
         ${v.sem_creci ? avisoCreci() : nothing}
       </urbi-stack>
     </urbi-card>
     <urbi-card titulo="Últimos 30 dias" icone="fa-solid fa-chart-simple">
       <urbi-stack>
-        <urbi-grid min="120px">
-          <urbi-kpi rotulo="Visitas" .valor=${n?.visitas_30d ?? '—'} formato=${typeof n?.visitas_30d === 'number' ? 'numero' : 'texto'}></urbi-kpi>
-          <urbi-kpi rotulo="Contatos" .valor=${n?.contatos_30d ?? 0} formato="numero"></urbi-kpi>
-        </urbi-grid>
+        <urbi-kpi rotulo="Contatos pelo formulário" .valor=${n?.contatos_30d ?? 0} formato="numero"></urbi-kpi>
+        <urbi-kpi rotulo="Visitas à página" .valor=${n?.visitas_30d ?? '—'} formato=${typeof n?.visitas_30d === 'number' ? 'numero' : 'texto'}></urbi-kpi>
         <urbi-prosa papel="fraco">Contatos que chegaram pelo formulário da página. As visitas à página ainda não são medidas.</urbi-prosa>
       </urbi-stack>
     </urbi-card>
@@ -440,7 +486,7 @@ function colunaAjustes() {
           { rotulo: 'Tirar do ar', icone: 'fa-solid fa-power-off', perigo: true, aoEscolher: () => void despublicar() },
         ])
       : html`<urbi-prosa papel="dica">Depois de publicar, aqui ficam Copiar link, Abrir minha página e Atualizar agora.</urbi-prosa>`}
-    <urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-comments" @click=${() => abrirAssistente()}>Perguntar ao Assistente</urbi-botao></urbi-linha>
+    <urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-comments" @click=${() => abrirAssistente()}>Perguntar ao Assistente</urbi-botao></urbi-linha>
   </urbi-stack>`;
 }
 

@@ -1,4 +1,5 @@
 import '@urbiverso/sdk/express';
+import { fusoValido } from '../comum/assistente';
 import { Router, type Request, type Response } from 'express';
 import { createHash } from 'node:crypto';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
@@ -7,7 +8,7 @@ import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
 import { id } from './acesso';
 import { reclassificar } from './inteligencia';
-import { lerVitrine, publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
+import { lerVitrine, MARCA_AVISO_OFERTA, publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 import { semSigilo } from '../comum/negociacao';
 import { negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel } from '../comum/portal-cliente';
 import { configDaConta, encerrada, gravarPropostaTravada, mandatoVigente } from './negociacao';
@@ -187,6 +188,9 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
         agenda: p.agenda ?? [], tarefas: p.tarefas ?? [], jornada: p.jornada ?? null, selecoes,
         // Já na lista permitida ao publicar (negociacaoPublica); `semSigilo` de novo na saída, por garantia.
         negociacoes: semSigilo(p.negociacoes ?? []),
+        conversa: Array.isArray(p.conversa) ? p.conversa : [],
+        // Fuso da conta que publicou: a página formata a hora da visita nele, não no do navegador do cliente.
+        fuso: fusoValido(p.fuso),
       },
     });
   } catch (e) {
@@ -196,7 +200,7 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
 
 // ---------- Webhooks ----------
 
-/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Só o hash do IP, nunca gravado. */
+/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Chave só com a origem embaralhada (hash), nunca o IP; o limite em si não grava nada. O mesmo hash segue no payload do `lead_recebido` e é gravado em `consentimentos.ip_hash` (D-129). */
 const janelas = new Map<string, number[]>();
 export function dentroDoLimite(chave: string, maximo: number, agora = Date.now()): boolean {
   const recentes = (janelas.get(chave) ?? []).filter((t) => agora - t < 60_000);
@@ -252,7 +256,8 @@ export const webhooks = {
     if (!v.ok) return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: 'Confira o formulário.', detalhes: v.erros });
     await req.eventos!.publicar(
       'lead_recebido',
-      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null },
+      // `ip_hash`: a origem do envio embaralhada (nunca o IP), guardada com a declaração de consentimento (D-129).
+      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null, ip_hash: origem(req) },
       { conta_id: conta },
     );
     res.json({ ok: true });
@@ -379,9 +384,23 @@ async function responsavel(dados: HelperDados, conta: number, sugerido: unknown)
   return ativos[0]?.usuario_id ?? (Number.isInteger(s) && s > 0 ? s : null);
 }
 
+/** Nome comparável: sem acento, minúsculo e com espaços simples. */
+const nomeComparavel = (n: unknown) => semAcentoMinusculo(String(n ?? '')).replace(/\s+/g, ' ').trim();
+function semAcentoMinusculo(t: string) {
+  return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+/** Versão do texto de consentimento do formulário da página (`frontend/publico/pagina-publica.ts`). */
+export const VERSAO_TEXTO_FORMULARIO = 'formulario-v1';
+
 /**
- * Lead da página (7.3): cria ou une o contato pelo telefone (ou e-mail), abre negócio "Novo" se
- * ele não tem negócio de compra em andamento, registra o consentimento e a linha do tempo.
+ * Lead da página (7.3, D-129). Quem não existe na conta vira contato e negócio "Novo". Quem já existe
+ * (mesmo telefone; sem telefone, mesmo e-mail) **não é alterado**: e-mail, consentimento, último
+ * contato e funil ficam como estão, porque o formulário é anônimo e qualquer um pode digitar o
+ * telefone de outra pessoa. O pedido vira linha do tempo e a tarefa "Novo pedido pela página", com o
+ * nome enviado destacado quando diverge do cadastro. Em todos os casos o consentimento é guardado como
+ * **declarado no formulário** (data, versão do texto e a origem embaralhada do envio), ligado ao
+ * envio pela linha do tempo, e o contato só fica consentido quando o corretor confirma na ficha.
  * Em SISTEMA a leitura enxerga todas as contas: toda leitura filtra a conta do evento.
  */
 export async function aoReceberLead(evento: EventoConta, ctx: ContextoListener) {
@@ -395,51 +414,92 @@ export async function aoReceberLead(evento: EventoConta, ctx: ContextoListener) 
       (p.telefone ? (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, telefone: p.telefone }, maximo: 1 }))[0] : undefined) ??
       (p.email ? (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, email: p.email }, maximo: 1 }))[0] : undefined);
     let contato: Linha | null = (await procurar()) ?? null;
-    // Mesmo envio repetido em poucos minutos (duplo clique, reenvio): não duplica nada.
+    // Mesmo envio repetido em poucos minutos (duplo clique, reenvio): não duplica nada. Com o contato
+    // existente, trava a linha dele ANTES de conferir a duplicata (`buscar` com `travar`, sdk_min 94):
+    // o segundo envio concorrente espera o primeiro commitar e então enxerga o que ele gravou.
     if (contato) {
-      const recentes = await trx.varrerTudo('linha_do_tempo', { filtros: { conta_id: conta, contato_id: contato.id, tipo: 'lead.recebido' }, maximo: 50 });
+      const travado = await trx.buscar('contatos', Number(contato.id), { travar: true });
+      if (!travado) throw new Error('contato removido durante o lead; o evento será reentregue');
+      contato = travado;
       const limite = new Date(Date.now() - 5 * 60_000).toISOString();
-      if (recentes.some((l) => (iso(l.ocorrido_em) ?? '') >= limite && (l.dados as Linha | null)?.mensagem === (p.mensagem ?? null))) return;
+      // Só a janela de 5 minutos (`maximo` lança, não corta: contato com muitos pedidos antigos segue recebendo).
+      const recentes = await trx.varrerTudo('linha_do_tempo', {
+        filtros: { conta_id: conta, contato_id: contato.id, tipo: 'lead.recebido', 'ocorrido_em[gte]': limite }, maximo: 50,
+      });
+      // Igual = mesma mensagem E mesmo imóvel; imóveis diferentes sem mensagem são pedidos diferentes.
+      const igual = (l: Linha) => {
+        const d = (l.dados as Linha | null) ?? {};
+        return (d.mensagem ?? null) === (p.mensagem ?? null) && (d.imovel_codigo ?? null) === (p.imovel_codigo ?? null);
+      };
+      if (recentes.some((l) => (iso(l.ocorrido_em) ?? '') >= limite && igual(l))) return;
     }
     const dono = await responsavel(trx, conta, p.responsavel_id);
     if (!dono) throw new Error('conta sem corretor ativo para receber o lead');
+    const imovel = p.imovel_codigo ? (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, codigo: p.imovel_codigo }, maximo: 1 }))[0] : null;
+    const onde = imovel ? `pela ficha do ${imovel.codigo}` : 'pela sua página';
+    const declarar = async (contatoId: number) =>
+      trx.criar('consentimentos', {
+        contato_id: contatoId, texto_versao: VERSAO_TEXTO_FORMULARIO, canal: 'formulario_pagina', registrado_por_id: null, aceito_em: agora,
+        declarado: true, ip_hash: typeof p.ip_hash === 'string' ? p.ip_hash.slice(0, 64) : null,
+      });
+    if (contato) {
+      // Contato que já existe: nada no cadastro muda (D-129). Pedido na linha do tempo e tarefa ao corretor.
+      const nomeDiverge = nomeComparavel(p.nome) !== nomeComparavel(contato.nome);
+      const emailDiverge = !!p.email && String(p.email).toLowerCase() !== String(contato.email ?? '').toLowerCase();
+      const consentimento = await declarar(Number(contato.id));
+      const veioComo = nomeDiverge ? ` (veio como ${String(p.nome).slice(0, 80)})` : '';
+      await trx.criar('linha_do_tempo', {
+        tipo: 'lead.recebido', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, autor_id: null, autor_papel: 'sistema',
+        resumo: `Novo pedido ${onde}${veioComo}${p.mensagem ? `: ${String(p.mensagem).slice(0, 180)}` : ''}`.slice(0, 300),
+        dados: {
+          origem: p.origem, imovel_codigo: p.imovel_codigo ?? null, mensagem: p.mensagem ?? null, existente: true,
+          nome_enviado: p.nome ?? null, nome_diverge: nomeDiverge, email_enviado: emailDiverge ? p.email : null, consentimento_id: Number(consentimento.id),
+        },
+        ocorrido_em: agora,
+      });
+      await trx.criar('atividades', {
+        tipo: 'tarefa', titulo: `Novo pedido pela página${veioComo}`.slice(0, 200), contato_id: contato.id, responsavel_id: contato.responsavel_id ?? dono,
+        quando: agora, status: 'pendente', criada_por_agente: false,
+        resultado: [
+          `Pedido ${onde}. Confira com o cliente antes de mudar o cadastro.`,
+          nomeDiverge ? `Nome enviado: ${String(p.nome).slice(0, 120)} (cadastro: ${contato.nome}).` : null,
+          emailDiverge ? `E-mail enviado: ${String(p.email).slice(0, 200)} (não foi gravado).` : null,
+          'Consentimento declarado no formulário: confirme na ficha se o cliente autorizou.',
+          p.mensagem ? `Mensagem: ${String(p.mensagem).slice(0, 600)}` : null,
+        ].filter(Boolean).join('\n'),
+      });
+      return;
+    }
     const origemPagina = async () => (await trx.varrerTudo('origens', { filtros: { conta_id: conta, canal: 'pagina' }, maximo: 50 })).find((o) => !o.campanha);
     const origem = (await origemPagina()) ?? (await trx.criar('origens', { canal: 'pagina', campanha: null }));
-    if (!contato) {
-      contato = await trx.criar('contatos', {
-        nome: p.nome, telefone: p.telefone ?? null, email: p.email ?? null, papeis: 'comprador',
-        responsavel_id: dono, origem_id: origem.id, ultimo_contato_em: agora, consentimento_em: agora,
-      });
-    } else {
-      await trx.atualizar('contatos', contato.id, { ultimo_contato_em: agora, consentimento_em: agora, ...(contato.email || !p.email ? {} : { email: p.email }) });
-    }
-    await trx.criar('consentimentos', { contato_id: contato.id, texto_versao: 'formulario-v1', canal: 'pagina', registrado_por_id: null, aceito_em: agora });
-    // Imóvel citado (ficha pública): liga o negócio a ele, se ainda for da conta.
-    const imovel = p.imovel_codigo ? (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, codigo: p.imovel_codigo }, maximo: 1 }))[0] : null;
-    const negocios = await trx.varrerTudo('negocios', { filtros: { conta_id: conta, contato_id: contato.id, pipeline: 'compra' }, maximo: 100 });
+    contato = await trx.criar('contatos', {
+      nome: p.nome, telefone: p.telefone ?? null, email: p.email ?? null, papeis: 'comprador',
+      responsavel_id: dono, origem_id: origem.id, ultimo_contato_em: agora,
+    });
+    const consentimento = await declarar(Number(contato!.id));
     let etapas = await trx.varrerTudo('etapas_funil', { filtros: { conta_id: conta, pipeline: 'compra' }, maximo: 200 });
     // Conta que nunca abriu o funil: semeia as etapas padrão, como a primeira leitura do app faria.
     if (!etapas.length) {
       for (const e of ETAPAS_PADRAO) await trx.criar('etapas_funil', { ...e, ativa: true, marco: MARCO_PADRAO[e.nome] ?? null });
       etapas = await trx.varrerTudo('etapas_funil', { filtros: { conta_id: conta, pipeline: 'compra' }, maximo: 200 });
     }
-    const abertas = new Set(etapas.filter((e) => e.tipo === 'aberta').map((e) => e.id));
-    let negocioId: number | null = negocios.find((n) => abertas.has(n.etapa_id))?.id ?? null;
+    let negocioId: number | null = null;
     const novo = etapas.filter((e) => e.tipo === 'aberta' && e.ativa !== false).sort((a, b) => a.ordem - b.ordem)[0];
-    if (!negocioId && novo) {
+    if (novo) {
+      // Imóvel citado (ficha pública): liga o negócio a ele, se ainda for da conta.
       const n = await trx.criar('negocios', {
-        contato_id: contato.id, titulo: `Compra — ${p.nome}`.slice(0, 200), pipeline: 'compra', etapa_id: novo.id, etapa_desde: agora,
+        contato_id: contato!.id, titulo: `Compra — ${p.nome}`.slice(0, 200), pipeline: 'compra', etapa_id: novo.id, etapa_desde: agora,
         responsavel_id: dono, origem_id: origem.id, imovel_id: imovel?.id ?? null, marco_max: novo.marco ?? MARCO_PADRAO[novo.nome] ?? null,
       });
       negocioId = n.id;
     }
-    const onde = imovel ? `pela ficha do ${imovel.codigo}` : 'pela sua página';
     await trx.criar('linha_do_tempo', {
-      tipo: 'lead.recebido', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, autor_id: null, autor_papel: 'sistema',
+      tipo: 'lead.recebido', alvo_tipo: 'contato', alvo_id: contato!.id, contato_id: contato!.id, autor_id: null, autor_papel: 'sistema',
       resumo: `Pediu contato ${onde}${p.mensagem ? `: ${String(p.mensagem).slice(0, 200)}` : ''}`.slice(0, 300),
-      dados: { origem: p.origem, imovel_codigo: p.imovel_codigo ?? null, mensagem: p.mensagem ?? null, negocio_id: negocioId }, ocorrido_em: agora,
+      dados: { origem: p.origem, imovel_codigo: p.imovel_codigo ?? null, mensagem: p.mensagem ?? null, negocio_id: negocioId, consentimento_id: Number(consentimento.id) },
+      ocorrido_em: agora,
     });
-    await reclassificar(trx, contato.id);
+    await reclassificar(trx, contato!.id);
   });
 }
 
@@ -584,7 +644,9 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
       // grava rodada nem aciona o Negociador, e o corretor recebe um recado na conversa.
       const imovel = viva.imovel_id ? (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, id: viva.imovel_id }, maximo: 1 }))[0] : null;
       if (!ofertaPlausivel(valor_c, Number(imovel?.preco_c) || null)) {
-        await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'texto', conteudo: `${AVISO_OFERTA_IMPLAUSIVEL} tentou ofertar ${reaisPt(valor_c)}; a oferta não foi registrada (valor fora do esperado).`, dados: { negociacao_id: nid } });
+        // Recado ao corretor, não fala do cliente: a marca `aviso` o tira do chat do portal (D-132); a P02 o
+        // mostra como antes (o texto não muda).
+        await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'texto', conteudo: `${AVISO_OFERTA_IMPLAUSIVEL} tentou ofertar ${reaisPt(valor_c)}; a oferta não foi registrada (valor fora do esperado).`, dados: { negociacao_id: nid, aviso: MARCA_AVISO_OFERTA } });
         return null;
       }
       // O mesmo evento entregue de novo: a oferta igual do portal já é a última.

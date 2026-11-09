@@ -322,7 +322,11 @@ crmRotas.get(
       dados.listar('atividades', { filtros: { contato_id: cid }, ordenar: 'quando', ordem: 'desc', por_pagina: 100 }),
       dados.listar('linha_do_tempo', { filtros: { contato_id: cid }, ordenar: 'ocorrido_em', ordem: 'desc', por_pagina: 50 }),
     ]);
-    const consentimento = await primeiro(dados, 'consentimentos', { contato_id: cid, 'revogado_em[nulo]': 'true' });
+    // Consentimento confirmado (pelo corretor) × só declarado no formulário da página (D-129): o
+    // declarado não conta como consentimento até o corretor confirmar.
+    const vigentes = (await dados.listar('consentimentos', { filtros: { contato_id: cid, 'revogado_em[nulo]': 'true' }, ordenar: 'aceito_em', ordem: 'desc', por_pagina: 50 })).dados;
+    const consentimento = vigentes.find((c) => !c.declarado) ?? null;
+    const consentimento_declarado = consentimento ? null : (vigentes.find((c) => c.declarado) ?? null);
     const idsVisita = atividades.dados.filter((a) => a.tipo === 'visita').map((a) => a.id);
     const visitas = idsVisita.length ? (await dados.listar('visitas', { filtros: { atividade_id: idsVisita.join(',') }, por_pagina: 100 })).dados : [];
     const etapas = await etapasPorId(dados);
@@ -333,7 +337,7 @@ crmRotas.get(
     const abordagem = proximaAbordagem(contato, negocios.dados, etapas, playbook);
     const origem = contato.origem_id ? await dados.buscar('origens', Number(contato.origem_id)) : null;
     const comOrigem = { ...contato, origem_canal: contato.origem_canal ?? origem?.canal ?? null, origem_campanha: contato.origem_campanha ?? origem?.campanha ?? null };
-    res.json({ contato: comOrigem, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, abordagem, classificacoes: classificacoes.dados });
+    res.json({ contato: comOrigem, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, consentimento_declarado, abordagem, classificacoes: classificacoes.dados });
   }),
 );
 
@@ -374,7 +378,7 @@ crmRotas.patch(
     // O próximo passo para o cliente vai ao topo do portal (bloco 9): o portal acompanha na hora.
     if ('proximo_passo_cliente' in v.dados && (v.dados.proximo_passo_cliente ?? null) !== (atual.proximo_passo_cliente ?? null)) {
       await registrar(dados, req, { tipo: 'contato.proximo_passo_cliente', alvo_tipo: 'contato', alvo_id: cid!, contato_id: cid!, resumo: `Próximo passo para o cliente: ${contato.proximo_passo_cliente ?? 'nenhum'}` });
-      await tentarPortal(dados, req.contexto?.contaEscrita, cid);
+      await tentarPortal(dados, req.contexto?.contaEscrita, cid, undefined, { fuso: req.contexto?.fuso });
     }
     res.json(contato);
   }),
@@ -690,7 +694,7 @@ crmRotas.post(
       if (atividade.tipo === 'visita') {
         await semErro('reclassificação', () => reclassificar(dados, cidAtividade));
         // A agenda do portal do cliente mostra as visitas marcadas (bloco 5b).
-        await semErro('portal do cliente', () => tentarPortal(dados, req.contexto?.contaEscrita, cidAtividade));
+        await semErro('portal do cliente', () => tentarPortal(dados, req.contexto?.contaEscrita, cidAtividade, undefined, { fuso: req.contexto?.fuso }));
       }
     }
     res.status(201).json(confirmacao ? { ...atividade, confirmacao } : atividade);
@@ -714,7 +718,7 @@ crmRotas.patch(
       if (v.dados.status === 'feita') await dados.atualizar('contatos', atual.contato_id, { ultimo_contato_em: agora() });
       await reclassificar(dados, atual.contato_id);
     }
-    if (atual.tipo === 'visita') await tentarPortal(dados, req.contexto?.contaEscrita, atual.contato_id);
+    if (atual.tipo === 'visita') await tentarPortal(dados, req.contexto?.contaEscrita, atual.contato_id, undefined, { fuso: req.contexto?.fuso });
     // Remarcou, reabriu ou virou visita: agenda o lembrete da nova hora (o da hora velha é ignorado).
     const remarcou = v.dados.quando !== undefined && iso(v.dados.quando) !== iso(atual.quando);
     const reabriu = v.dados.status === 'pendente' && atual.status !== 'pendente';
@@ -732,7 +736,7 @@ crmRotas.patch(
     const atual = aid ? await dados.buscar('atividades', aid) : null;
     if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', 'Atividade não encontrada.');
     await dados.remover('atividades', aid!, eu(req));
-    if (atual.tipo === 'visita') await tentarPortal(dados, req.contexto?.contaEscrita, atual.contato_id);
+    if (atual.tipo === 'visita') await tentarPortal(dados, req.contexto?.contaEscrita, atual.contato_id, undefined, { fuso: req.contexto?.fuso });
     res.json({ id: aid, removido: true });
   }),
 );
@@ -762,7 +766,7 @@ crmRotas.post(
       });
       await dados.atualizar('contatos', atividade.contato_id, { ultimo_contato_em: agora() });
       await reclassificar(dados, atividade.contato_id);
-      await tentarPortal(dados, req.contexto?.contaEscrita, atividade.contato_id);
+      await tentarPortal(dados, req.contexto?.contaEscrita, atividade.contato_id, undefined, { fuso: req.contexto?.fuso });
     }
     await publicarEvento(req, 'visita_feedback', { atividade_id: aid!, contato_id: atividade.contato_id ?? null, visita_id: Number(visita.id) });
     res.json(salva);

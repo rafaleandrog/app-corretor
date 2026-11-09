@@ -1,4 +1,5 @@
 import type { HelperDados } from '@urbiverso/sdk';
+import { fusoValido } from '../comum/assistente';
 import { iso } from '../comum/funil';
 import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
 import { MARCA_PADRAO } from '../comum/estudio';
@@ -176,7 +177,7 @@ export function selecaoValida(s: Linha, agora = new Date().toISOString()): boole
  * cliente e a jornada. Nada de nome, telefone ou e-mail do cliente (D-73). Sem acesso ativo, a linha sai.
  * `corretor` ausente (listener) mantém o topo já publicado.
  */
-export async function sincronizarPortal(dados: HelperDados, conta: number, contatoId: number, corretor?: Corretor): Promise<void> {
+export async function sincronizarPortal(dados: HelperDados, conta: number, contatoId: number, corretor?: Corretor, fuso?: string): Promise<void> {
   const acesso = await umaLinha(dados, 'acessos_cliente', { conta_id: conta, contato_id: contatoId, 'revogado_em[nulo]': 'true' });
   if (!acesso) {
     await apagarVitrine(dados, conta, 'portal', contatoId);
@@ -224,6 +225,9 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
   const feitas = atividades.filter((a) => a.status === 'feita');
   await gravarVitrine(dados, conta, 'portal', contatoId, {
     corretor: topo,
+    // Fuso da conta: a página pública roda no navegador do cliente (outro fuso possível), então a hora da
+    // visita é formatada neste. Sem `fuso` (listener), mantém o já publicado; sem nenhum, Brasília.
+    fuso: fusoValido(fuso ?? (atual?.dados as Linha | undefined)?.fuso),
     url_acoes: acesso.url_acoes ?? null,
     // Só o texto escrito para o cliente, e só quando preenchido: o `proximo_passo` interno nunca sai (D-55).
     ...(contato.proximo_passo_cliente ? { proximo_passo: contato.proximo_passo_cliente } : {}),
@@ -233,6 +237,8 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
     tarefas: tarefas.filter((t) => !t.feita_em).map((t) => ({ ref: t.id, texto: t.texto })),
     // Nunca o mandato, o teto estimado nem quem conduz: só o que `negociacaoPublica` permite.
     negociacoes: abertas.map((n) => negociacaoPublica(n, propostas, imovelPublicoDe(imovel.get(n.imovel_id)), Number(imovel.get(n.imovel_id)?.preco_c) || null)),
+    // A conversa com o corretor (M4, #191): as mensagens que o cliente pode ver.
+    conversa: await conversaDoPortal(dados, conta, contatoId),
     jornada: {
       desde,
       imoveis_recebidos: new Set(itens.map((i) => i.imovel_id)).size,
@@ -240,6 +246,100 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
       eventos: eventosDaJornada(desde, enviadas, itens, feitas, imovelDe, imovel, tarefas, imovelPublicoDe),
     },
   });
+}
+
+/** Quantas mensagens da conversa o portal mostra (as mais recentes). */
+export const MENSAGENS_NO_PORTAL = 40;
+
+/**
+ * Canais em que a mensagem foi de fato escrita entre o cliente e o corretor: o portal, o WhatsApp do
+ * app e o WhatsApp do celular do corretor (`wa_me`, aberto com o texto pronto). `registro` fica de
+ * fora: é o que o corretor anotou sem o app entregar (cliente sem WhatsApp, "só registrar", abordagem
+ * por ligação, visita ou e-mail, envio presencial), e `sistema` são os avisos internos.
+ */
+const CANAIS_ESCRITOS = new Set(['portal', 'whatsapp', 'wa_me']);
+
+/** Marca, em `mensagens.dados.aviso`, do recado interno ao corretor gravado como entrada do cliente (#194). */
+export const MARCA_AVISO_OFERTA = 'oferta_implausivel';
+
+/**
+ * O recado da oferta implausível (#194) sem a marca: o texto que o webhook do portal publica como
+ * mensagem (`publico.ts`, "Pelo portal, o cliente tentou ofertar …"), e as linhas gravadas antes da marca.
+ */
+const TEXTO_AVISO_OFERTA = /^Pelo portal, o cliente tentou ofertar .+; a oferta não foi registrada \(valor fora do esperado\)\.$/s;
+
+/** A mensagem é um aviso interno ao corretor, ainda que gravada como entrada do cliente? */
+export const ehAvisoInterno = (m: Linha) =>
+  ((m.dados ?? {}) as Linha).aviso === MARCA_AVISO_OFERTA || (m.direcao === 'entrada' && TEXTO_AVISO_OFERTA.test(String(m.conteudo ?? '')));
+
+/**
+ * A mensagem veio do "Registrar envio" (`envios.ts`)? Lá o corretor anota o que mandou pelo próprio
+ * WhatsApp, e o `conteudo` (o "Detalhe") é essa anotação, não o texto que chegou ao cliente. Marcada
+ * por `dados.envio_id`; as gravadas antes da marca, pela forma do cartão do envio (a chave `link` em
+ * `dados`, presente mesmo nula), que nenhuma outra saída do corretor de texto, arquivo, localização ou
+ * imóvel leva.
+ */
+export const veioDeEnvio = (m: Linha) => {
+  const d = (m.dados ?? {}) as Linha;
+  if (m.direcao !== 'saida' || m.autor_tipo !== 'humano') return false;
+  return d.envio_id != null || (m.tipo !== 'selecao' && m.tipo !== 'link_portal' && 'link' in d);
+};
+
+/** A mensagem pode aparecer no chat do portal (D-132)? */
+const visivelNoPortal = (m: Linha) =>
+  ((m.direcao === 'entrada' && m.autor_tipo === 'contato') || (m.direcao === 'saida' && m.autor_tipo !== 'sistema')) &&
+  CANAIS_ESCRITOS.has(String(m.canal)) &&
+  m.status !== 'falhou' &&
+  m.tipo !== 'sistema' &&
+  m.tipo !== 'link_portal' &&
+  !ehAvisoInterno(m) &&
+  // Do envio registrado só o cartão do imóvel foi ao cliente; o resto é anotação (arquivo, localização, mensagem, simulação).
+  (!veioDeEnvio(m) || m.tipo === 'imovel');
+
+/** Linhas lidas por página ao montar o chat: a primeira quase sempre basta. */
+const LEITURA_DO_PORTAL = MENSAGENS_NO_PORTAL * 3;
+
+/**
+ * A conversa do cliente no portal (M4, #191; exceção da vitrine decidida na D-132): só o que o cliente
+ * escreveu e o que lhe foi entregue por escrito. Entra a mensagem que é:
+ * - de entrada com autor `contato`, ou de saída (corretor, Negociador ou atendimento automático);
+ * - por um canal escrito (`portal`, `whatsapp`, `wa_me`): o `registro` é anotação do corretor, não entrega;
+ * - sem falha de envio (`status` diferente de `falhou`);
+ * - não é aviso: nem `tipo`/`autor_tipo` `sistema`, nem o recado interno da oferta implausível
+ *   (`ehAvisoInterno`), nem o próprio link do portal (`link_portal`);
+ * - não é anotação do "Registrar envio" (`veioDeEnvio`): dele só entra o cartão do imóvel.
+ * Das que passam, as 40 mais recentes, da mais antiga para a mais nova: lê em páginas, da mais nova para
+ * a mais antiga, e para quando junta 40 ou a conversa acaba (o canal já vai no filtro do banco). Cartão
+ * nunca leva texto livre: o de imóvel só código, título, bairro e preço (nem o link rastreado nem o id
+ * interno do imóvel), o da seleção só título e quantidade; o `conteudo` gravado com eles fica na P02.
+ */
+export async function conversaDoPortal(dados: HelperDados, conta: number, contatoId: number) {
+  const vistas = new Set<number>();
+  const visiveis: Linha[] = [];
+  for (let pagina = 1; visiveis.length < MENSAGENS_NO_PORTAL; pagina++) {
+    const r = await dados.listar('mensagens', {
+      filtros: { conta_id: conta, contato_id: contatoId, canal: [...CANAIS_ESCRITOS].join(',') },
+      ordenar: 'em', ordem: 'desc', pagina, por_pagina: LEITURA_DO_PORTAL,
+    });
+    for (const m of r.dados) {
+      // Mensagem nova entre duas páginas empurra a anterior para a página seguinte: não conta duas vezes.
+      if (vistas.has(Number(m.id))) continue;
+      vistas.add(Number(m.id));
+      if (visivelNoPortal(m)) visiveis.push(m);
+    }
+    if (r.dados.length < LEITURA_DO_PORTAL) break;
+  }
+  return visiveis
+    .sort((a, b) => String(iso(b.em)).localeCompare(String(iso(a.em))))
+    .slice(0, MENSAGENS_NO_PORTAL)
+    .reverse()
+    .map((m) => {
+      const d = (m.dados ?? {}) as Linha;
+      const base = { ref: Number(m.id), de: m.direcao === 'entrada' ? 'voce' : 'corretor', tipo: m.tipo as string, em: iso(m.em) };
+      if (m.tipo === 'imovel') return { ...base, texto: null, imovel: { codigo: d.codigo ?? null, titulo: d.titulo ?? null, bairro: d.bairro ?? null, preco_c: d.preco_c ?? null } };
+      if (m.tipo === 'selecao') return { ...base, texto: null, selecao: { titulo: d.titulo ?? m.conteudo ?? null, quantidade: Number(d.quantidade) || null } };
+      return { ...base, texto: m.conteudo ?? null };
+    });
 }
 
 export interface EventoJornada {
@@ -284,12 +384,32 @@ function eventosDaJornada(
   return [...resto.sort((a, b) => b.quando.localeCompare(a.quando)).slice(0, 49), inicio];
 }
 
-/** Para rotas que mudam a agenda ou as seleções: o portal acompanha sem derrubar a rota. */
-export async function tentarPortal(dados: HelperDados, conta: number | undefined, contatoId: number | null | undefined, corretor?: Corretor) {
+/** Erro vindo do PostgreSQL: traz o SQLSTATE (5 caracteres) em `code`, como o `23505` do único. */
+const ehErroDoBanco = (e: unknown) => /^[0-9A-Z]{5}$/.test(String((e as { code?: unknown })?.code ?? ''));
+
+/**
+ * Para rotas que mudam a agenda ou as seleções: o portal acompanha sem derrubar a rota. Na rota cada
+ * comando é a sua própria transação, então a falha fica no log e o resto segue.
+ *
+ * `emTransacao` (o listener, dentro do `comConta`): erro do banco NÃO é engolido. O PostgreSQL aborta a
+ * transação inteira no primeiro comando que falha, e o SDK não abre SAVEPOINT para a app
+ * (banco-de-dados.md: "não dá para abrir um BEGIN aninhado"); engolido, o comando seguinte do listener
+ * quebraria com outro erro ("transação abortada") e o bloco seria desfeito do mesmo jeito, só que com a
+ * causa escondida. Então ele sobe, o `comConta` desfaz tudo e a causa real aparece. Erro que não é do
+ * banco (não aborta a transação) continua só no log.
+ */
+export async function tentarPortal(
+  dados: HelperDados,
+  conta: number | undefined,
+  contatoId: number | null | undefined,
+  corretor?: Corretor,
+  opcoes: { emTransacao?: boolean; fuso?: string } = {},
+) {
   if (!conta || !contatoId) return;
   try {
-    await sincronizarPortal(dados, conta, contatoId, corretor);
+    await sincronizarPortal(dados, conta, contatoId, corretor, opcoes.fuso);
   } catch (e) {
+    if (opcoes.emTransacao && ehErroDoBanco(e)) throw e;
     console.warn(`[portal_corretor] portal do cliente ${contatoId}: não sincronizado: ${(e as Error).message}`);
   }
 }

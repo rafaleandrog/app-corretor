@@ -174,8 +174,47 @@ Nas contas de teste (nome terminado em "(demo)"), Hoje oferece **Gerar dados de
 demonstração** enquanto a conta não tem nenhum contato. Os dados são os do guia das telas, e o
 corretor de teste é o responsável por tudo. Origens que já existem são reaproveitadas, e imóveis
 e negociações recebem o próximo código livre. Se alguma etapa padrão foi renomeada ou removida, o
-app avisa qual é e não grava nada. Rodar de novo não duplica: com contatos na conta, a geração é
-recusada.
+app avisa qual é e não grava nada.
+
+Além dos clientes, imóveis e da negociação, a geração deixa a demonstração pronta para mostrar
+todas as telas:
+
+- **fotos de exemplo** nos imóveis ativos (imagens simples geradas pelo app: 12 na casa, 8 no
+  apartamento, 3 no lote);
+- **autorização de venda assinada**, com o documento anexado (um PDF de exemplo, sempre interno),
+  em cada imóvel ativo; a da casa é exclusiva. Os proprietários entram como contatos com o papel
+  proprietário (Helena Duarte, Sérgio Mattos e Wagner Lopes; no segundo corretor, Otávio Reis);
+- os imóveis ativos **marcados para a Minha Página** e a **página publicada**, com o endereço livre
+  sugerido pelo nome do corretor;
+- a **conversa** da Ana (quatro mensagens de exemplo), uma **seleção** com os três imóveis ativos e
+  o **portal do cliente** dela, que entram na conversa como cartões.
+- o **WhatsApp fictício** do corretor no perfil (é dele que sai o "Falar no WhatsApp" da capa da
+  página pública) e os **imóveis em destaque** da página (a casa e o apartamento);
+- no Estúdio, quatro **peças** de exemplo: duas em rascunho sem arte (falta a arte), uma em rascunho
+  com arte (para aprovar) e uma aprovada. As duas que têm arte (a de rascunho e a aprovada) só são
+  criadas quando o envio de arquivos está disponível na instância; sem ele, entram só as duas sem
+  arte. O mesmo vale para as fotos de exemplo e a autorização com documento. Nada é agendado nem
+  publicado no Instagram, e nenhum evento é disparado.
+
+**Rodar de novo completa o que falta e não duplica nada.** Numa conta que já tem contatos, o botão
+(ou `POST /demo/semear`) só acrescenta o que ainda não existe: fotos só em imóvel sem foto,
+autorização só em imóvel sem autorização vigente, dados só nos campos vazios, conversa, seleção e
+portal só se a Ana ainda não tem. A conversa da Ana gravada por versões anteriores também é
+corrigida: antes, as mensagens, o cartão da seleção e o link do portal dela eram gravados como
+anotação, e o portal esconde anotação; rodar de novo as transforma em conversa de verdade, e a Ana as
+vê na aba Conversa do portal. Só mudam as mensagens idênticas às da demonstração (o que você
+escreveu na conversa dela fica como está), e a resposta traz "conversa de Ana Ribeiro no portal"
+com o número de mensagens corrigidas. O WhatsApp fictício do corretor só entra se o perfil não tem telefone (sem perfil, o perfil é criado
+já com ele; o número que o corretor digitou fica); os
+destaques, só se o bloco está ligado e vazio (a escolha do corretor fica); as peças, só se a conta
+não tem nenhuma. Uma página já salva fica com o endereço e os blocos dela; se não
+está no ar, é publicada. A escada antiga da negociação (até a versão 0.1.49) é trocada pela do guia
+só quando está exatamente como a semente antiga gravou. A resposta diz o que foi feito
+(`completado`) e o que não deu certo sem mudar nada (`avisos`, uma lista de textos, vazia quando
+tudo correu bem; por exemplo "página não publicada: Este endereço já é de outra página. Escolha
+outro."). Aviso não conta como completado: sem mais nada a fazer, a geração é recusada como antes e
+a mensagem traz o aviso entre parênteses. Sem nada a completar, a geração é recusada como antes ("Esta conta já tem
+contatos").
 
 **Qual conjunto cada conta recebe.** Ao iniciar, o app marca as contas de teste:
 
@@ -189,13 +228,14 @@ criada depois uma conta de teste de número menor, ela também vira principal, e
 principal continua sendo: pode haver mais de uma conta principal.
 
 Depois de uma atualização do app, a conta de teste que já tinha gerado a demonstração antiga
-continua com ela, porque a geração só acontece em conta sem contatos. Para ver o conjunto novo, use
-uma conta de teste que ainda não tenha contatos.
+continua com os clientes e imóveis dela; gerar de novo só completa o que faltar (acima).
 
 **O corretor.** O nome que aparece é o do usuário na instância (crie o usuário de teste como
 "Rafael Gualberto"). Se o corretor ainda não tem perfil, ganha um CRECI fictício (DF-12345-F; no
-segundo corretor, DF-54321-F). Se já tem perfil, o perfil fica como está, com ou sem CRECI.
-**Nada depende do CRECI.**
+segundo corretor, DF-54321-F) e um WhatsApp fictício (+55 61 99000-0100; no segundo corretor,
++55 61 99000-0200), de onde sai o "Falar no WhatsApp" da página pública. Se já tem perfil, o
+perfil fica como está, com ou sem CRECI; só o telefone entra, e só se estiver vazio. **Nada
+depende do CRECI.**
 
 ### Conjunto do guia (conta principal)
 
@@ -213,16 +253,13 @@ partir da etapa, das visitas e do último contato.
 
 | Imóvel | Preço | Situação | Qualidade |
 |---|---|---|---|
-| Casa 4 quartos · Jardim Botânico (320 m²) | R$ 1.450.000 | ativo | 55 |
-| Apartamento 3 quartos · Sudoeste (112 m²) | R$ 980.000 | ativo | 35 |
-| Lote 450 m² · Reserva do Colorado Q1-03 | R$ 395.000 | ativo | 35 |
-| Cobertura 3 quartos · Noroeste | R$ 2.100.000 | rascunho | 25 |
+| Casa 4 quartos · Jardim Botânico (320 m²) | R$ 1.450.000 | ativo | 100 |
+| Apartamento 3 quartos · Sudoeste (112 m²) | R$ 980.000 | ativo | 80 (descrição curta) |
+| Lote 450 m² · Reserva do Colorado Q1-03 | R$ 395.000 | ativo | 70 (3 fotos) |
+| Cobertura 3 quartos · Noroeste (180 m²) | R$ 2.100.000 | rascunho | 35 (sem fotos, descrição nem autorização) |
 
-A nota de qualidade é a do cálculo real, e a semente não força nada. Por isso ela não bate com os
-números do guia (92, 78, 64 e 41):
-
-- a semente não tem fotos (30 pontos) nem autorização de venda (15 pontos);
-- a nota anda de 5 em 5.
+A nota de qualidade é a do cálculo real, e a semente não força nada. Ela anda de 5 em 5, por isso
+fica no valor mais perto possível dos números do guia (92, 78, 64 e 41) com dados coerentes.
 
 **A negociação (tela de negociações).** Ana · Casa Jardim Botânico, conduzida pelo Negociador IA:
 
@@ -230,8 +267,9 @@ números do guia (92, 78, 64 e 41):
   4 rodadas, autonomia "pergunta antes", válido por 5 dias. As concessões são o prazo de entrega
   de 60 dias, em troca de entrada de 30%, e os móveis planejados da cozinha, em troca de
   fechamento em 7 dias.
-- **Escada:** o vendedor pede 1.450.000; a Ana oferece 1.320.000; o vendedor vai a 1.400.000; a
-  Ana repete 1.320.000. Estamos na rodada 2 (cada oferta do comprador abre uma rodada).
+- **Escada (a do guia):** o anúncio pede 1.450.000; a Ana oferece 1.300.000; o Negociador responde
+  1.400.000 (enviada pelo portal); a Ana sobe a 1.320.000. Estamos na rodada 2 (cada oferta do
+  comprador abre uma rodada).
 - **Teto estimado do comprador:** R$ 1.390.000.
 - **Objeção registrada:** preço.
 
@@ -239,7 +277,8 @@ números do guia (92, 78, 64 e 41):
 
 - **Clientes:** Bruno Costa (Em atendimento, WhatsApp, R$ 520.000) e Lívia Rocha (Novo,
   indicação, R$ 450.000).
-- **Imóvel:** um, o Apartamento 2 quartos · Águas Claras (R$ 520.000).
+- **Imóvel:** um, o Apartamento 2 quartos · Águas Claras (R$ 520.000), com 2 fotos, autorização
+  assinada e na página do segundo corretor.
 - Nenhuma negociação.
 
 ### Conferência manual (conta principal, últimos 30 dias, logo depois de gerar)
@@ -256,7 +295,7 @@ números do guia (92, 78, 64 e 41):
 - Visitas feitas: **1** (Marcos).
 - Por origem: cada canal com 1 lead em andamento (Instagram, Portal imobiliário, Minha Página,
   Indicação, WhatsApp, Placa).
-- Hoje, Sua semana: 6 contatos novos, 6 leads, 5 atendidos.
+- Hoje, Sua semana: 9 contatos novos (os 6 clientes e os 3 proprietários), 6 leads, 5 atendidos.
 - Funil e conversão: Contatos **6**, Contato → visita **50%**, Visita → proposta **67%**, Ganhos
   **0**; Contatos por horário soma 6.
 - O que melhorar: sem perdas, só a leitura do funil ("67% das visitas viram proposta, mas só 0% das

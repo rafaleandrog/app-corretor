@@ -25,6 +25,8 @@ interface Ficha {
   visitas: Linha[];
   linha_do_tempo: Linha[];
   consentimento: Linha | null;
+  /** Consentimento só declarado no formulário da página, à espera da confirmação do corretor (D-129). */
+  consentimento_declarado?: Linha | null;
   abordagem: Linha | null;
   classificacoes: Linha[];
 }
@@ -701,7 +703,7 @@ export class FichaContato {
 
   /** Cadastro (aba Resumo): de onde veio, quando entrou, as observações e o consentimento. */
   private cartaoCadastro() {
-    const { contato: c, consentimento } = this.s.ficha!;
+    const { contato: c, consentimento, consentimento_declarado: declarado } = this.s.ficha!;
     return html`<urbi-card titulo="Cadastro" icone="fa-solid fa-id-card">
       ${this.acao('Editar contato', 'fa-solid fa-pen', () => this.editar())}
       <urbi-prosa papel="secundario">
@@ -712,8 +714,10 @@ export class FichaContato {
         ${consentimento
           ? html`<urbi-prosa>Consentimento registrado em ${dataHora(consentimento.aceito_em)} (${consentimento.canal}).</urbi-prosa>
               <urbi-botao variante="texto" @click=${() => this.consentimento(false)}>Revogar</urbi-botao>`
-          : html`<urbi-prosa papel="dica">Sem consentimento: o atendimento automático só usa mensagens-modelo aprovadas.</urbi-prosa>
-              <urbi-botao variante="texto" @click=${() => this.consentimento(true)}>Registrar</urbi-botao>`}
+          : html`<urbi-prosa papel="dica">${declarado
+                ? `Declarou consentimento no formulário da página em ${dataHora(declarado.aceito_em)}. Confirme com o cliente antes de registrar: até lá, o atendimento automático só usa mensagens-modelo aprovadas.`
+                : 'Sem consentimento: o atendimento automático só usa mensagens-modelo aprovadas.'}</urbi-prosa>
+              <urbi-botao variante="texto" @click=${() => this.consentimento(true)}>${declarado ? 'Confirmar' : 'Registrar'}</urbi-botao>`}
       </urbi-linha>
     </urbi-card>`;
   }

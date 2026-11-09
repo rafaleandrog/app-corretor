@@ -54,9 +54,10 @@ export function proximaVisita(agenda: Linha[], agora = Date.now()): string | nul
 }
 
 /**
- * Conversa · Imóveis n · Agenda n · Propostas n · Arquivos n. Propostas (D5, M5b) só aparece quando há
- * negociação, e o número conta as que esperam a resposta do cliente. Arquivos ainda não têm fonte no
- * app (D-73): a aba existe, com zero, e explica onde os documentos chegam.
+ * Conversa · Imóveis n · Agenda n · Propostas n (M4, #191): no máximo quatro abas, para caberem em 390 px.
+ * Cada número conta os itens da aba: imóveis, visitas por vir e negociações (não só as que esperam o
+ * cliente, que fariam "Propostas 0" com uma negociação aberta). Propostas só aparece com negociação; sem
+ * ela, a quarta aba é Arquivos, que ainda não tem fonte no app (D-73) e explica onde os documentos chegam.
  */
 export function abasDoPortal(p: Linha, agora = Date.now()): Aba[] {
   const negociacoes: NegociacaoPublica[] = p.negociacoes ?? [];
@@ -64,14 +65,40 @@ export function abasDoPortal(p: Linha, agora = Date.now()): Aba[] {
     { id: 'conversa', rotulo: 'Conversa', n: null },
     { id: 'imoveis', rotulo: 'Imóveis', n: imoveisDoPortal(p.selecoes ?? []).length },
     { id: 'agenda', rotulo: 'Agenda', n: visitasFuturas(p.agenda ?? [], agora).length },
-    ...(negociacoes.length ? [{ id: 'propostas' as const, rotulo: 'Propostas', n: negociacoes.filter((n) => propostaAceitavel(n, agora)).length }] : []),
-    { id: 'arquivos', rotulo: 'Arquivos', n: 0 },
+    negociacoes.length ? { id: 'propostas' as const, rotulo: 'Propostas', n: negociacoes.length } : { id: 'arquivos' as const, rotulo: 'Arquivos', n: 0 },
   ];
 }
 
 /** [Ver] do próximo passo: a agenda quando há visita marcada; senão, os imóveis. */
 export function destinoDoProximoPasso(p: Linha, agora = Date.now()): AbaPortal {
   return visitasFuturas(p.agenda ?? [], agora).length ? 'agenda' : 'imoveis';
+}
+
+/**
+ * Faixa "Próximo passo · Ver" (M4, #191), na ordem: o texto que o corretor escreveu para o cliente; a
+ * proposta do vendedor esperando a resposta dele; a próxima visita; a seleção que vence em até 3 dias;
+ * os imóveis ainda sem reação. `null` quando não há nada a fazer.
+ */
+export function proximoPassoDoPortal(p: Linha, agora = Date.now(), fuso = 'America/Sao_Paulo'): { texto: string; aba: AbaPortal } | null {
+  // Sem fuso informado, Brasília (padrão da conta): nunca o fuso do navegador ou do processo.
+  const tz = { timeZone: fuso };
+  if (p.proximo_passo) return { texto: String(p.proximo_passo), aba: destinoDoProximoPasso(p, agora) };
+  const negociacoes: NegociacaoPublica[] = p.negociacoes ?? [];
+  if (negociacoes.some((n) => propostaAceitavel(n, agora))) return { texto: 'Proposta do vendedor aguardando sua resposta', aba: 'propostas' };
+  const visita = proximaVisita(p.agenda ?? [], agora);
+  if (visita) {
+    const d = new Date(visita);
+    const dia = d.toLocaleDateString('pt-BR', { weekday: 'long', ...tz });
+    const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', ...tz }).replace(':00', ' h').replace(/^0/, '');
+    return { texto: `Visita ${dia.replace('-feira', '')} às ${hora}`, aba: 'agenda' };
+  }
+  const vence = (p.selecoes ?? []).map((s: Linha) => s.expira_em).filter(Boolean).map((x: string) => Date.parse(x)).filter((t: number) => t > agora).sort((a: number, b: number) => a - b)[0];
+  if (vence && vence - agora <= 3 * 86400e3) {
+    return { texto: `Sua seleção vale até ${new Date(vence).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', ...tz })}`, aba: 'imoveis' };
+  }
+  const semReacao = imoveisDoPortal(p.selecoes ?? []).filter((x) => !x.imovel.reacao).length;
+  if (semReacao) return { texto: `${semReacao} imóve${semReacao > 1 ? 'is' : 'l'} esperando sua opinião`, aba: 'imoveis' };
+  return null;
 }
 
 /** Aba pedida no endereço (`#imoveis`); desconhecida volta para a Conversa. */
@@ -81,13 +108,13 @@ export function abaDoEndereco(hash: string): AbaPortal {
 }
 
 /** Chip "Visita sáb." do imóvel em destaque: a próxima visita marcada a ele, se houver. */
-export function chipDeVisita(codigo: string, agenda: Linha[], agora = Date.now(), fuso?: string): string | null {
+export function chipDeVisita(codigo: string, agenda: Linha[], agora = Date.now(), fuso = 'America/Sao_Paulo'): string | null {
   const v = visitasFuturas(agenda, agora)
     .filter((x) => x.imovel?.codigo === codigo)
     .sort((a, b) => Date.parse(a.quando) - Date.parse(b.quando))[0];
   if (!v) return null;
   const d = new Date(v.quando);
-  const semana = d.toLocaleDateString('pt-BR', { weekday: 'short', ...(fuso ? { timeZone: fuso } : {}) });
+  const semana = d.toLocaleDateString('pt-BR', { weekday: 'short', timeZone: fuso });
   return `Visita ${semana}`;
 }
 

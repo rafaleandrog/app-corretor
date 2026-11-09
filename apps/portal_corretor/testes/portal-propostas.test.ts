@@ -4,7 +4,7 @@ import schema from '../schema.json';
 import manifesto from '../manifesto.json';
 import { rotas, rotasPublicas, webhooks, reagir } from '../backend/rotas';
 import { limparLimites } from '../backend/publico';
-import { abasDoPortal, centavosDoValor, negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel, propostaPublica } from '../comum/portal-cliente';
+import { abasDoPortal, centavosDoValor, proximoPassoDoPortal, negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel, propostaPublica } from '../comum/portal-cliente';
 import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
 
 // Bloco D5 (#104): propostas no Portal do Cliente (M5b), sempre por token. O cliente vê as rodadas da
@@ -170,7 +170,9 @@ test('regras puras: lista permitida de campos, proposta aceitável, valor digita
     ['1.380.000', '1380000', 'R$ 1.380.000,50', '1.380,5', 'abc', '1.38.000', ''].map(centavosDoValor),
     [138_000_000, 138_000_000, 138_000_050, 138_050, null, null, null],
   );
-  assert.deepEqual(abasDoPortal({ negociacoes: [n] }).map((a) => [a.id, a.n]), [['conversa', null], ['imoveis', 0], ['agenda', 0], ['propostas', 1], ['arquivos', 0]]);
+  // #191: quatro abas no máximo (cabem em 390 px); Propostas conta as negociações, coerente com as outras abas.
+  assert.deepEqual(abasDoPortal({ negociacoes: [n] }).map((a) => [a.id, a.n]), [['conversa', null], ['imoveis', 0], ['agenda', 0], ['propostas', 1]]);
+  assert.deepEqual(abasDoPortal({ negociacoes: [] }).map((a) => a.id), ['conversa', 'imoveis', 'agenda', 'arquivos']);
   assert.ok(!abasDoPortal({ negociacoes: [] }).some((a) => a.id === 'propostas'), 'sem negociação, sem a aba');
 });
 
@@ -572,4 +574,51 @@ test('#194: ofertaPlausivel com preço conhecido e ofertaProvavel nunca sugere a
     const s = ofertaProvavel(v, pedido);
     assert.ok(s === null || s <= 2_147_483_647, `${v}/${pedido}: ${s}`);
   }
+});
+
+test('próximo passo do portal: visita às 10 h no fuso da conta aparece "10 h" em qualquer TZ do processo', () => {
+  const agenda = [{ quando: '2026-11-14T13:00:00.000Z', imovel: null }]; // sábado 10 h em Brasília
+  const agora = Date.parse('2026-11-09T12:00:00Z');
+  const tzOriginal = process.env.TZ;
+  try {
+    for (const tz of ['UTC', 'America/Sao_Paulo', 'Asia/Tokyo', 'America/New_York']) {
+      process.env.TZ = tz;
+      assert.equal(proximoPassoDoPortal({ agenda }, agora, 'America/Sao_Paulo')!.texto, 'Visita sábado às 10 h', tz);
+      // Sem fuso informado, cai em Brasília: nunca no do processo/navegador.
+      assert.equal(proximoPassoDoPortal({ agenda }, agora)!.texto, 'Visita sábado às 10 h', tz);
+    }
+  } finally {
+    if (tzOriginal === undefined) delete process.env.TZ;
+    else process.env.TZ = tzOriginal;
+  }
+});
+
+test('fuso da conta: a rota que sincroniza o portal grava o fuso do contexto na vitrine e a rota pública o devolve', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const base: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: eventosFalsos() } };
+  // Ator com o contexto do request em Manaus (o `req.contexto.fuso` que o shell injeta em toda rota de app).
+  const emManaus: Ator = {
+    ...base,
+    extras: {
+      ...base.extras,
+      contexto: {
+        usuario: { id: 1, nome: 'Usuário 1', tipo: 'nao_informado', natureza: 'nao_informado', avatar_url: null },
+        nivelApp: 'escrita', rolesApp: ['corretor'], permissoesApps: {}, resolucao: 'escopado', contas: [100], contaEscrita: 100, fuso: 'America/Manaus',
+      },
+    },
+  };
+  const { contatoId, link } = await montar(banco, shell, base, MANDATO);
+  assert.equal(banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal')!.dados.fuso, 'America/Sao_Paulo', 'sem fuso no contexto, Brasília');
+  await comServidor(rotas, emManaus, banco, shell, async (chamar: Chamar) => {
+    const r = await chamar('POST', `/contatos/${contatoId}/tarefas-cliente`, { texto: 'Enviar o RG' });
+    assert.ok(r.status === 201, JSON.stringify(r.corpo));
+  });
+  assert.equal(banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal')!.dados.fuso, 'America/Manaus');
+  await comServidor(rotasPublicas, { usuario: 0, conta: null, papeis: [] }, banco, shell, async (chamar: Chamar) => {
+    const r = await chamar('GET', `/vitrine/portal?t=${tokenDe(link)}`);
+    assert.equal(r.status, 200);
+    assert.equal(r.corpo.portal.fuso, 'America/Manaus');
+  });
 });
