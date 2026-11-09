@@ -52,6 +52,7 @@ interface Marca {
 interface Conexao {
   instagram: { usuario: string; ultimo_erro: string | null } | null;
   disponivel: boolean;
+  ja_conectou?: boolean;
 }
 /** A descrição da peça (GET /estudio/pecas/:id/instrucao): o texto, as fotos e o logo para anexar. */
 interface Instrucao {
@@ -1014,6 +1015,8 @@ export class Estudio {
       ${!ig || ig.ultimo_erro
         ? estadoTela('desconectada', {
             integracao: 'Instagram',
+            // Quem nunca conectou vê "Conectar", não "Reconectar" (#182, item 5).
+            nuncaConectou: !ig && !this.conexao?.ja_conectou,
             mensagem: ig ? 'Seu Instagram desconectou: publicar e agendar pelo app voltam depois de reconectar. Baixar e publicar você continua valendo.' : 'Instagram não conectado: para publicar e agendar pelo app, conecte. Baixar e publicar você funciona sem ele.',
           })
         : nothing}`;

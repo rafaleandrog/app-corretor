@@ -223,7 +223,10 @@ instagramRotas.get(
     const conta = contaDoRequest(req);
     const app = await appMeta(req.parametros);
     const c = await conexao(req.dados!, conta);
+    // Já houve conexão nesta conta (hoje desconectada): a tela diz "Reconectar", não "Conectar" (#182, item 5).
+    const jaConectou = !!c || (await req.dados!.varrerTudo('canais_sociais', { filtros: { conta_id: conta, rede: 'instagram' }, maximo: 1 })).length > 0;
     res.json({
+      ja_conectou: jaConectou,
       instagram: c ? { usuario: c.usuario, tipo_conta: c.tipo_conta, conectado_em: c.conectado_em, token_expira_em: c.token_expira_em, ultimo_erro: c.ultimo_erro ?? null } : null,
       disponivel: !!app,
       // Endereço para cadastrar no app da Meta como "URI de redirecionamento".
@@ -300,6 +303,39 @@ instagramRotas.post(
   }),
 );
 
+/**
+ * Testar publicação (P12): confere, sem publicar nada, que a conexão publica. Lê a cota de publicação da
+ * conta no Instagram (`content_publishing_limit`, que exige a permissão de publicar): respondendo, o token
+ * vale e a conta pode publicar. Acesso vencido marca a conexão para reconectar; o sucesso limpa o aviso.
+ */
+instagramRotas.post(
+  '/conexoes/instagram/testar',
+  assincrono(async (req, res) => {
+    const dados = req.dados!;
+    const conta = contaDoRequest(req);
+    const c = await conexao(dados, conta);
+    if (!c) return erro(res, 409, 'INSTAGRAM_DESCONECTADO', 'Conecte o Instagram antes de testar.');
+    const token = await dados.revelar('canais_sociais', c.id, 'token');
+    if (!token) return erro(res, 409, 'INSTAGRAM_DESCONECTADO', 'A conexão está sem acesso: reconecte o Instagram.');
+    try {
+      const r = await chamar(`${GRAPH}/${encodeURIComponent(String(c.conta_externa_id))}/content_publishing_limit?fields=quota_usage,config&access_token=${encodeURIComponent(String(token))}`);
+      const linha = Array.isArray(r.data) ? r.data[0] : null;
+      if (c.ultimo_erro) await dados.atualizar('canais_sociais', c.id, { ultimo_erro: null });
+      res.json({
+        ok: true,
+        usuario: c.usuario ?? null,
+        stories: c.tipo_conta === 'BUSINESS',
+        usadas_24h: Number.isFinite(Number(linha?.quota_usage)) ? Number(linha.quota_usage) : null,
+        limite_24h: Number.isFinite(Number(linha?.config?.quota_total)) ? Number(linha.config.quota_total) : null,
+      });
+    } catch (e) {
+      if (!(e instanceof ErroInstagram)) throw e;
+      if (e.codigo === 'TOKEN_INVALIDO') await dados.atualizar('canais_sociais', c.id, { ultimo_erro: 'Acesso vencido ou revogado: reconecte.' });
+      return erro(res, 502, e.codigo, e.message);
+    }
+  }),
+);
+
 /** `ator.desc` da trilha de auditoria é obrigatório e não vazio (auditoria.md): nome, ou "Usuário {id}". */
 const nomeDoAtor = (req: Request) => (req.contexto!.usuario.nome ?? '').trim() || `Usuário ${req.contexto!.usuario.id}`;
 
@@ -367,7 +403,8 @@ instagramRotas.post(
     if (p.estado !== 'agendada') return erro(res, 409, 'ESTADO_INVALIDO', 'A peça não está agendada.');
     // Primeiro a peça (condicionada: se o listener já a reservou, a publicação segue e o cancelar recusa);
     // depois o agendamento. Se cancelar o evento falhar, o listener o ignora: o agendamento_id não bate mais.
-    const voltou = await dados.atualizarSe('pecas', p.id, { estado: p.aprovada_em ? 'aprovada' : 'rascunho', agendada_para: null, agendamento_id: null }, { estado: 'agendada', ...(p.agendamento_id ? { agendamento_id: p.agendamento_id } : {}) });
+    // Só peça aprovada agenda (D-86) e a migração 001 devolveu a rascunho as agendadas sem aprovação: volta a aprovada (#73).
+    const voltou = await dados.atualizarSe('pecas', p.id, { estado: 'aprovada', agendada_para: null, agendamento_id: null }, { estado: 'agendada', ...(p.agendamento_id ? { agendamento_id: p.agendamento_id } : {}) });
     if (!voltou) return erro(res, 409, 'PECA_MUDOU', 'A peça já está sendo publicada. Atualize a tela.');
     if (p.agendamento_id) await req.eventos!.cancelarAgendamento(p.agendamento_id).catch(() => undefined);
     res.json(voltou);

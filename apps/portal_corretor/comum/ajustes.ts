@@ -43,3 +43,48 @@ export function abaDoEndereco(sub: string, busca = ''): AbaAjustes | null {
   if (m[1]) return secao(m[1]);
   return secao(new URLSearchParams(busca).get('aba')) ?? ABA_PADRAO;
 }
+
+/** O que o menu de Ajustes sabe da conta para a linha de estado de cada seção (P12, diagnóstico 3.10). */
+export interface EstadoAjustes {
+  negociador?: { ligado: boolean; estilo: string; conduz_padrao: string } | null;
+  /** `indisponivel`: a instância não tem as credenciais da Meta (#30). */
+  instagram?: 'conectado' | 'atencao' | 'desconectado' | 'indisponivel' | null;
+  configuracoes?: { validade_selecao_dias: number; dias_cliente_parado: number } | null;
+}
+
+const ROTULO_ESTILO: Record<string, string> = { cooperativo: 'cooperativo', firme: 'firme', consultivo: 'consultivo' };
+
+/**
+ * A linha de baixo de cada item do menu de Ajustes ("ligado · texto" na referência). Com o estado da
+ * conta lido, diz o que está valendo; sem ele (ainda carregando, ou a leitura falhou), o que a seção tem.
+ */
+export function linhaDeEstado(id: AbaAjustes, e: EstadoAjustes = {}): string {
+  switch (id) {
+    case 'mensageiro':
+      return 'chega com o WhatsApp';
+    case 'negociador':
+      return e.negociador
+        ? `${e.negociador.ligado ? 'ligado' : 'pausado'} · ${e.negociador.conduz_padrao === 'humano' ? 'uma pessoa' : 'IA'} · ${ROTULO_ESTILO[e.negociador.estilo] ?? e.negociador.estilo}`
+        : 'propostas e contrapropostas';
+    case 'conexoes':
+      return e.instagram === 'conectado'
+        ? 'Instagram conectado'
+        : e.instagram === 'atencao'
+          ? 'Instagram precisa de atenção'
+          : e.instagram === 'indisponivel'
+            ? 'Instagram e WhatsApp indisponíveis'
+            : e.instagram === 'desconectado'
+              ? 'nada conectado'
+              : 'Instagram e WhatsApp';
+    case 'conta':
+      return 'perfil, CRECI, marca';
+    case 'funil':
+      return 'etapas e mensagens prontas';
+    case 'atendimento':
+      return e.configuracoes
+        ? `parado em ${e.configuracoes.dias_cliente_parado} dias · seleção vale ${e.configuracoes.validade_selecao_dias}`
+        : 'prazos do atendimento';
+    case 'privacidade':
+      return 'consentimentos e exportação';
+  }
+}

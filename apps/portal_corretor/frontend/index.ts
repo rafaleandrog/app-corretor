@@ -14,7 +14,7 @@ import { aoAbrirNumeros, renderNumeros } from './telas/desempenho.js';
 import { aoAbrirPagina, renderPagina } from './telas/pagina.js';
 import './telas/previa-pagina.js';
 import { renderEstudio } from './telas/estudio.js';
-import { renderAjustes } from './telas/ajustes.js';
+import { aoAbrirAjustes, renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, contaDoAssistente, lembrarTela } from './telas/assistente.js';
 import { destinoDoNegociador, fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
@@ -75,7 +75,7 @@ const TELAS: Record<ChaveTela, Tela> = {
   estudio: { titulo: 'Estúdio', papel: 'corretor', moldura: true, render: (_p, app, chave) => renderEstudio(() => app?.requestUpdate(), chave) },
   pagina: { titulo: 'Página', papel: 'corretor', moldura: true, aoAbrir: aoAbrirPagina, render: (_p, app) => renderPagina(() => app?.requestUpdate()) },
   numeros: { titulo: 'Números', papel: 'corretor', moldura: true, aoAbrir: aoAbrirNumeros, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
-  ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
+  ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, aoAbrir: aoAbrirAjustes, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
   corretores: { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
 

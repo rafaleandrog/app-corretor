@@ -169,3 +169,22 @@ test('P10: abre em Funil e conversão; sem "Mensageiro · em breve"; KPI em reai
   assert.doesNotMatch(fonte, /\bpequeno\b/);
   assert.doesNotMatch(fonte, /min="160px"/, 'quatro KPIs numa linha: o piso do urbi-kpi (140 px)');
 });
+
+test('P12: linha de estado de cada item do menu de Ajustes; WhatsApp com os 3 passos; Instagram desligado com o porquê (#30)', async () => {
+  const { ABAS_AJUSTES, linhaDeEstado } = await import('../comum/ajustes');
+  for (const a of ABAS_AJUSTES) assert.ok(linhaDeEstado(a.id).length > 3, a.id);
+  assert.equal(linhaDeEstado('conexoes', { instagram: 'conectado' }), 'Instagram conectado');
+  assert.equal(linhaDeEstado('conexoes', { instagram: 'indisponivel' }), 'Instagram e WhatsApp indisponíveis');
+  assert.equal(linhaDeEstado('negociador', { negociador: { ligado: true, estilo: 'cooperativo', conduz_padrao: 'ia' } }), 'ligado · IA · cooperativo');
+  assert.equal(linhaDeEstado('negociador', { negociador: { ligado: false, estilo: 'firme', conduz_padrao: 'humano' } }), 'pausado · uma pessoa · firme');
+  assert.equal(linhaDeEstado('atendimento', { configuracoes: { validade_selecao_dias: 14, dias_cliente_parado: 7 } }), 'parado em 7 dias · seleção vale 14');
+  const fonte = readFileSync(resolve(RAIZ, 'frontend/telas/conexoes.ts'), 'utf8');
+  const { PASSOS_WHATSAPP } = await import('../frontend/telas/conexoes');
+  assert.equal(PASSOS_WHATSAPP.length, 3);
+  assert.match(fonte, /Conectar WhatsApp<\/urbi-botao>/);
+  assert.match(fonte, /<urbi-botao icone="fa-brands fa-whatsapp" desabilitado/);
+  assert.match(fonte, /<urbi-botao icone="fa-brands fa-instagram" desabilitado title="Indisponível/);
+  assert.match(fonte, />Testar publicação<\/urbi-botao>/);
+  assert.match(fonte, /d\.ja_conectou \? 'Reconectar Instagram' : 'Conectar Instagram'/);
+  assert.doesNotMatch(fonte + readFileSync(resolve(RAIZ, 'frontend/telas/ajustes.ts'), 'utf8'), /\bpequeno\b/);
+});

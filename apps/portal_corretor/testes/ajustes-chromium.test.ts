@@ -248,8 +248,10 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     r = await ler();
     assert.deepEqual(r.ativa, ['conexoes']);
     assert.match(r.centro, /Conectar Instagram/);
-    assert.match(r.centro, /WhatsApp ainda não disponível/);
-    assert.match(r.centro, /Agenda fase 6/);
+    // WhatsApp com os 3 passos e o botão desligado (D-119, D-78); Agenda na fase 6 (grupo 5).
+    assert.match(r.centro, /WhatsApp chega numa próxima versão/);
+    assert.match(r.centro, /Entrar com a sua conta da Meta.*Digitar o número.*Confirmar no celular/);
+    assert.match(r.centro, /Agenda opcional · fase 6/);
     assert.match(r.direita, /Por que conectar aqui/);
 
     // Apelidos: /ajustes/marca e ?aba=marca abrem Conta e marca; /conta também. Com CRECI, sem aviso.
