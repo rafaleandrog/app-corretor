@@ -43,7 +43,7 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
   await comServidor(rotas, A, banco, {}, async (chamar) => {
     const g = await chamar('POST', '/demo/semear', {});
     assert.equal(g.status, 201);
-    assert.deepEqual(g.corpo, { contatos: 6, negocios: 6, imoveis: 4, negociacoes: 1 });
+    assert.deepEqual({ ...g.corpo, completado: undefined }, { contatos: 6, negocios: 6, imoveis: 4, negociacoes: 1, completado: undefined });
     // Idempotente: a segunda vez não grava nada.
     assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
     const contatos = banco.linhas('contatos').filter((c) => c.conta_id === 100);
@@ -59,14 +59,15 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
     assert.match(contatos.find((c) => c.nome === 'Roberto Lima')!.temperatura_motivo, /há 9 dias/);
     const origem = (nome: string) => banco.linhas('origens').find((o) => o.id === contatos.find((c) => c.nome === nome)!.origem_id)!.canal;
     assert.deepEqual(['Ana Ribeiro', 'Carlos Menezes', 'Fernanda Souza'].map(origem), ['instagram', 'pagina', 'indicacao']);
-    // Imóveis: a nota de qualidade é a do cálculo real (sem fotos na semente; documentado em docs/desempenho.md).
+    // Imóveis: a nota de qualidade é a do cálculo real; sem `req.arquivos` (este teste) não há fotos
+    // nem autorização (o teste "completa" abaixo cobre as duas).
     const lista = (await chamar('GET', '/imoveis?por_pagina=50')).corpo;
     const nota = Object.fromEntries(lista.dados.map((i: any) => [i.titulo, [i.preco_c, i.situacao, i.qualidade?.nota]]));
     assert.deepEqual(nota, {
       'Casa 4 quartos · Jardim Botânico': [145000000, 'ativo', 55],
       'Apartamento 3 quartos · Sudoeste': [98000000, 'ativo', 35],
-      'Lote 450 m² · Reserva do Colorado Q1-03': [39500000, 'ativo', 35],
-      'Cobertura 3 quartos · Noroeste': [210000000, 'rascunho', 25],
+      'Lote 450 m² · Reserva do Colorado Q1-03': [39500000, 'ativo', 55],
+      'Cobertura 3 quartos · Noroeste': [210000000, 'rascunho', 35],
     });
     // A visita da Ana é no sábado, 10 h de Brasília.
     const visita = banco.linhas('atividades').find((a) => a.conta_id === 100 && a.status === 'pendente')!;
@@ -84,8 +85,9 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
     assert.ok(!('recuo_c' in n) && !JSON.stringify(n).includes('136000000'), 'a lista não leva o recuo');
     const detalhe = (await chamar('GET', `/negociacoes/${n.id}`)).corpo;
     const propostas = detalhe.propostas;
-    assert.deepEqual(propostas.map((p: any) => [p.rodada, p.direcao, p.valor_c]), [
-      [1, 'vendedor', 145000000], [1, 'comprador', 132000000], [1, 'vendedor', 140000000], [2, 'comprador', 132000000],
+    // Escada do guia (P15, #189): comprador 1,30 mi → Negociador 1,40 mi → comprador 1,32 mi.
+    assert.deepEqual(propostas.map((p: any) => [p.rodada, p.direcao, p.autor_tipo, p.valor_c]), [
+      [1, 'comprador', 'cliente', 130000000], [1, 'vendedor', 'negociador_ia', 140000000], [2, 'comprador', 'cliente', 132000000],
     ]);
     const mandato = (await chamar('GET', `/negociacoes/${n.id}/mandato`)).corpo;
     const m = mandato.vigente;
@@ -93,7 +95,7 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
     // O mandato da semente passa na mesma validação da tela.
     assert.equal(validarMandato({ ...m }).ok, true);
     // KPIs da negociação, à mão: ZOPA de 1,36 mi (recuo) a 1,39 mi (teto estimado); concessão do
-    // vendedor até aqui 50 mil; a próxima cabe em 40% de (1,40 − 1,36) = 16 mil.
+    // vendedor até aqui 50 mil (do pedido de 1,45 a 1,40); a próxima cabe em 40% de (1,40 − 1,36) = 16 mil.
     assert.deepEqual(zopa(m, banco.linhas('negociacoes').find((x) => x.id === n.id)!.teto_estimado_comprador_c), { existe: true, de_c: 136000000, ate_c: 139000000 });
     const posicaoVendedor = propostas.filter((p: any) => p.direcao === 'vendedor').at(-1).valor_c;
     assert.equal(passoMaximo_c(posicaoVendedor, m.recuo_c, Number(m.passo_max_pct)), 1600000);
@@ -111,7 +113,7 @@ test('segundo corretor: conjunto próprio e menor; nada de um aparece para o out
   await comServidor(rotas, B, banco, {}, async (chamar) => {
     const g = await chamar('POST', '/demo/semear', {});
     assert.equal(g.status, 201);
-    assert.deepEqual(g.corpo, { contatos: 2, negocios: 2, imoveis: 1, negociacoes: 0 });
+    assert.deepEqual({ ...g.corpo, completado: undefined }, { contatos: 2, negocios: 2, imoveis: 1, negociacoes: 0, completado: undefined });
     const nomes = (await chamar('GET', '/contatos?por_pagina=50')).corpo.dados.map((c: any) => c.nome).sort();
     assert.deepEqual(nomes, ['Bruno Costa', 'Lívia Rocha']);
     assert.equal((await chamar('GET', '/negociacoes')).corpo.dados.length, 0);
@@ -147,4 +149,118 @@ test('proximoSabado10h: hoje é sábado antes das 10 h, depois das 10 h e um dia
   assert.equal(proximoSabado10h(new Date('2026-10-31T12:00:00.000Z')), '2026-10-31T13:00:00.000Z');
   assert.equal(proximoSabado10h(new Date('2026-10-31T14:00:00.000Z')), '2026-11-07T13:00:00.000Z');
   assert.equal(proximoSabado10h(new Date('2026-10-28T09:00:00.000Z')), '2026-10-31T13:00:00.000Z');
+});
+
+// ---------- #189: a semente completa a demonstração do guia ----------
+
+function helpers() {
+  let uploads = 0;
+  let ingressos = 0;
+  const arquivos = {
+    enviar: async (o: { tabela: string; coluna: string; mime: string; buffer: Buffer }) => {
+      assert.equal(o.tabela, 'imovel_midias');
+      assert.ok(o.buffer.length > 100 && ['image/png', 'application/pdf'].includes(o.mime));
+      return { upload_id: 9000 + ++uploads, expira_em: new Date(Date.now() + 600e3) };
+    },
+    url: async (id: number) => `/arquivo/${id}`,
+  };
+  const shell = {
+    gerarIngressoWh: async ({ webhook, contexto }: { webhook: string; contexto: { conta_id: number } }) => {
+      ingressos++;
+      return { url: `https://corretor.exemplo/api/wh/portal_corretor/wh_${webhook}_${contexto.conta_id}_${ingressos}`, ingresso_id: ingressos, token: `tk${ingressos}`, expira_em: null };
+    },
+    revogarIngressoWh: async () => ({ ok: true }),
+  };
+  return { arquivos, shell };
+}
+
+test('#189: semente completa: fotos, autorização, página no ar, conversa, seleção e portal da Ana; idempotente', async () => {
+  const banco = await duasContasDemo();
+  const { arquivos, shell } = helpers();
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    const g = await chamar('POST', '/demo/semear', {});
+    assert.equal(g.status, 201);
+    assert.ok(g.corpo.completado.includes('página publicada (usuario-1)'), JSON.stringify(g.corpo.completado));
+    // Qualidade (cálculo real): casa 100, apartamento 80, lote 70, cobertura 35.
+    const lista = (await chamar('GET', '/imoveis?por_pagina=50')).corpo.dados;
+    assert.deepEqual(Object.fromEntries(lista.map((i: any) => [i.titulo, i.qualidade?.nota])), {
+      'Casa 4 quartos · Jardim Botânico': 100, 'Apartamento 3 quartos · Sudoeste': 80, 'Lote 450 m² · Reserva do Colorado Q1-03': 70, 'Cobertura 3 quartos · Noroeste': 35,
+    });
+    const casa = lista.find((i: any) => i.titulo.startsWith('Casa'));
+    const aut = banco.linhas('autorizacoes_venda').find((a) => a.imovel_id === casa.id)!;
+    assert.deepEqual([aut.situacao, aut.exclusiva, !!aut.documento_midia_id], ['assinada', true, true]);
+    const doc = banco.linhas('imovel_midias').find((m) => m.id === aut.documento_midia_id)!;
+    assert.deepEqual([doc.tipo, doc.publica], ['documento', false], 'o documento da autorização nunca é público');
+    // Página no ar com os três imóveis ativos; a cobertura (rascunho) fica fora.
+    const pagina = (await chamar('GET', '/pagina')).corpo;
+    assert.ok(pagina.pagina.publicada_em);
+    assert.equal(pagina.marcados_para_pagina, 3);
+    const naVitrine = banco.linhas('vitrine_publica').filter((l) => l.conta === 100 && l.tipo === 'imovel');
+    assert.equal(naVitrine.length, 3);
+    assert.ok(naVitrine.every((l) => !JSON.stringify(l.dados).includes('Helena')), 'proprietário nunca vai a público');
+    // Seleção e portal da Ana; a conversa tem as mensagens de exemplo e os dois cartões.
+    const ana = banco.linhas('contatos').find((c) => c.nome === 'Ana Ribeiro')!;
+    const sel = (await chamar('GET', `/selecoes?contato_id=${ana.id}`)).corpo.dados;
+    assert.equal(sel.length, 1);
+    assert.equal(sel[0].itens.length, 3);
+    assert.equal((await chamar('GET', `/contatos/${ana.id}/portal`)).corpo.ativo, true);
+    const msgs = banco.linhas('mensagens').filter((m) => m.contato_id === ana.id).map((m) => m.tipo);
+    assert.deepEqual(msgs, ['texto', 'texto', 'texto', 'texto', 'selecao', 'link_portal']);
+    const portal = banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal' && l.chave === `100:${ana.id}`)!;
+    assert.equal(portal.dados.selecoes.length, 1);
+    assert.deepEqual(portal.dados.negociacoes[0].propostas.map((p: any) => [p.quem, p.valor_c]), [['voce', 130000000], ['vendedor', 140000000], ['voce', 132000000]]);
+    // De novo: nada a completar, nada duplicado.
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
+    assert.equal(banco.linhas('selecoes').length, 1);
+    assert.equal(banco.linhas('autorizacoes_venda').filter((a) => a.conta_id === 100).length, 3);
+  });
+});
+
+test('#189: conta que já gerou e publicou a página à mão: completa sem trocar o endereço e troca a escada antiga', async () => {
+  const banco = await duasContasDemo();
+  const { arquivos, shell } = helpers();
+  // A geração antiga (sem arquivos nem shell) e a página publicada à mão com outro endereço.
+  await comServidor(rotas, A, banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 201);
+    const p = (await chamar('GET', '/pagina')).corpo.pagina;
+    assert.equal((await chamar('PUT', '/pagina', { ...p, endereco: 'corretor-a-demo' })).status, 200);
+    assert.equal((await chamar('POST', '/pagina/publicar')).status, 200);
+  });
+  // A escada como a semente gravava até a 0.1.49.
+  const neg = banco.linhas('negociacoes').find((n) => n.conta_id === 100)!;
+  const tabela = banco.linhas('propostas');
+  for (const p of tabela.filter((x) => x.negociacao_id === neg.id)) tabela.splice(tabela.indexOf(p), 1);
+  let pid = 5000;
+  for (const [rodada, direcao, valor_c] of [[1, 'vendedor', 145000000], [1, 'comprador', 132000000], [1, 'vendedor', 140000000], [2, 'comprador', 132000000]] as const) {
+    tabela.push({ id: ++pid, conta_id: 100, negociacao_id: neg.id, rodada, direcao, valor_c, autor_tipo: direcao === 'vendedor' ? 'corretor' : 'cliente', canal: 'registro', estado: 'registrada' });
+  }
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    const g = await chamar('POST', '/demo/semear', {});
+    assert.equal(g.status, 200);
+    assert.ok(g.corpo.completado.some((f: string) => f.startsWith('escada')), JSON.stringify(g.corpo.completado));
+    const pagina = (await chamar('GET', '/pagina')).corpo;
+    assert.equal(pagina.pagina.endereco, 'corretor-a-demo');
+    assert.equal(banco.linhas('vitrine_publica').filter((l) => l.conta === 100 && l.tipo === 'imovel').length, 3);
+    const props = banco.linhas('propostas').filter((p) => p.negociacao_id === neg.id).map((p) => [p.rodada, p.direcao, p.valor_c]);
+    assert.deepEqual(props, [[1, 'comprador', 130000000], [1, 'vendedor', 140000000], [2, 'comprador', 132000000]]);
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
+  });
+});
+
+test('#41: segunda conta de quem atende várias recebe endereço livre e publica sem 409', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const { shell } = helpers();
+  const atende = (conta: number): Ator => ({ usuario: 9, conta, contas: [100, 200], papeis: ['corretor'] });
+  await comServidor(rotas, atende(100), banco, shell, async (chamar) => {
+    const p = (await chamar('GET', '/pagina')).corpo.pagina;
+    assert.equal(p.endereco, 'usuario-9');
+    await chamar('PUT', '/pagina', p);
+    assert.equal((await chamar('POST', '/pagina/publicar')).status, 200);
+  });
+  await comServidor(rotas, atende(200), banco, shell, async (chamar) => {
+    const p = (await chamar('GET', '/pagina')).corpo.pagina;
+    assert.equal(p.endereco, 'usuario-9-2');
+    await chamar('PUT', '/pagina', p);
+    assert.equal((await chamar('POST', '/pagina/publicar')).status, 200);
+  });
 });

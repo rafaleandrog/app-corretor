@@ -41,6 +41,11 @@ Arrastar os blocos para ordenar ainda não existe: a ordem muda pelas setas.
 
 - **Nome e endereço:** o nome que aparece e o endereço (`joao-corretor`, por exemplo). O endereço
   é único na plataforma inteira. Se outra pessoa já usa o endereço, o app avisa.
+  **Endereço sugerido:** antes de salvar a primeira vez, o app sugere o endereço a partir do seu
+  nome. Se esse endereço já é de uma página publicada de outra conta (é o caso de quem atende
+  várias contas com o mesmo nome), a sugestão já vem livre, com um sufixo: `joao-corretor-2`,
+  `joao-corretor-3`… **Quem reserva o endereço é a página no ar:** ao despublicar, a página sai
+  da vitrine e o endereço fica livre para outra conta.
 - **Cor:** a página usa a cor principal da sua marca, em [Ajustes › Conta e marca](conta-e-ajustes.md#a-marca).
   Mudar a marca muda a página no ar na hora; se não acompanhar, Ajustes › Conta e marca avisa e tem o botão
   **Atualizar o que está no ar**. Quem tinha escolhido uma cor para a página antes passou a tê-la
