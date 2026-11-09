@@ -206,7 +206,8 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
       });
       return {
         esquerda: w.profundo(col('esquerda')),
-        rapidos: [...col('esquerda')!.querySelectorAll('urbi-grid > urbi-botao')].map((b) => w.profundo(b)),
+        rapidos: [...col('esquerda')!.querySelectorAll('urbi-grid > urbi-card[clicavel]')].map((b) => `${b.getAttribute('titulo')} · ${w.profundo(b.querySelector('urbi-prosa'))}`),
+        etapas: ((col('esquerda')!.querySelector('urbi-chips-atalho') as any)?.opcoes ?? []).map((o: any) => o.rotulo),
         pedidos: lista.itens.map((x: any) => x.id),
         ativo: lista.itens.filter((x: any) => lista.itemAtivo(x)).map((x: any) => x.id),
         centroFilhos: [...(window as any).$qa('urbi-3-colunas > [slot="centro"]')].map((e) => e.localName),
@@ -223,10 +224,13 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
     });
     assert.match(r.esquerda, /Estúdio @rafael\.imoveis conectado/);
     assert.ok(!r.esquerda.includes('◎'), 'o ícone é o urbi-icone, não um glifo no texto');
-    assert.deepEqual(r.rapidos, ['Lançamento', 'Baixou o preço', 'Vendido', 'Visita aberta']);
+    // Criar rápido em 4 cartões 2×2, com título e subtítulo (P08).
+    assert.deepEqual(r.rapidos, ['Pacote de lançamento · post + story + carrossel', 'Baixou o preço · post + story', 'Vendido · post', 'Visita aberta · story']);
     assert.deepEqual(r.pedidos, [20, 11], 'Seus pedidos: o mais recente primeiro, um por envio');
     assert.deepEqual(r.ativo, [11], 'o pedido aberto fica marcado');
-    assert.match(r.esquerda, /Todas · 4/);
+    // Listas por etapa com contagem, "Todas" primeiro (D-122), todas sempre à vista.
+    assert.deepEqual(r.etapas.map((x: string) => x.replace(/ · \d+$/, '')), ['Todas', 'Falta a arte', 'Para aprovar', 'Prontas para publicar', 'Agendadas', 'Publicadas']);
+    assert.equal(r.etapas[0], 'Todas · 4');
     // Centro: o feed (expandir) e o compositor; sem faixa com IA liberada e Instagram conectado (e então
     // sem o hospedeiro das faixas, que deixaria um vão acima do feed).
     // Contrato do feed (ui-componentes-conteudo.md § Onde pôr o par feed + redator): o `urbi-feed[expandir]`
@@ -243,11 +247,14 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
     assert.match(r.rodapes[1].texto, /falta a arte.*Copiar descrição.*Abrir no Canva.*Enviar a arte do Canva/);
     assert.match(r.rodapes[2].texto, /Aprovar/);
     assert.match(r.rodapes[3].texto, /Cancelar agendamento/);
-    // Direita: Esta semana, Biblioteca com o logo e a referência, aviso de CRECI (falta) e nada de créditos.
+    // Direita: Esta semana, a conta do Instagram, Biblioteca com o logo e a referência, Créditos do mês
+    // ("—" até a plataforma informar o consumo, D-119) e o aviso de CRECI (falta).
     assert.match(r.direita, /Esta semana.*Agendadas · 1.*Carrossel · Casa no Lago Sul.*Publicadas · 1/);
     assert.match(r.direita, /Biblioteca.*Logo.*Referência 1/);
     assert.match(r.direita, /Adicione seu CRECI ao perfil para que ele apareça nos anúncios/);
-    assert.doesNotMatch(`${r.esquerda} ${r.direita}`, /[Cc]rédito|janela|autofill|preenchimento automático/);
+    assert.match(r.direita, /Instagram.*@rafael\.imoveis conectado/);
+    assert.match(r.direita, /Créditos do mês.*Créditos de IA usados.*ainda não chega ao app/);
+    assert.doesNotMatch(`${r.esquerda} ${r.direita}`, /janela|autofill|preenchimento automático/);
     assert.equal(r.estilos, 0, 'a tela não escreve CSS');
     assert.ok(r.chamadas.includes('GET /estudio/pecas') && r.chamadas.includes('GET /conexoes'));
 
@@ -261,6 +268,16 @@ test('Estúdio no Chromium: moldura, Criar rápido 2×2, pedido como conversa, c
       });
     });
     for (const [estado, arte, n] of contagem) assert.equal(n, 1, `${estado} (${arte ? 'com' : 'sem'} arte): ${n} botões principais`);
+    // Baixar (arte e legenda) em todo estado com arte; sem arte, não há o que baixar.
+    const baixar: any = await pagina.evaluate(() => {
+      const w = window as any;
+      return w.ESTADOS_TESTE.map((p: any) => {
+        const div = document.createElement('div');
+        w.render(w.cartaoPeca(p), div);
+        return [p.estado, p.arquivos.length, [...div.querySelectorAll('urbi-dropdown-item')].some((i) => i.textContent!.includes('Baixar (arte e legenda)'))];
+      });
+    });
+    for (const [estado, arte, tem] of baixar) assert.equal(tem, arte > 0, `${estado} (${arte ? 'com' : 'sem'} arte): Baixar ${tem ? 'presente' : 'ausente'}`);
 
     // ?item= abre o pedido da peça; com CRECI o aviso some.
     await pagina.evaluate(() => {
@@ -461,7 +478,7 @@ test('Estúdio no Chromium: ação da conta A que termina depois da troca para B
       const w = window as any;
       w.SEGURAR_CRIAR = true;
       w.urbiVerso.formulario = async () => ({ imovel_id: '5', pedido: '' });
-      ((window as any).$qa('urbi-3-colunas > [slot="esquerda"] urbi-grid > urbi-botao')[2] as HTMLElement).click();
+      ((window as any).$qa('urbi-3-colunas > [slot="esquerda"] urbi-grid > urbi-card')[2] as HTMLElement).dispatchEvent(new CustomEvent('urbi:card-click', { bubbles: true, composed: true }));
     });
     await pagina.waitForTimeout(120);
     assert.equal(await pagina.evaluate(() => (window as any).criacoes.length), 1, 'a criação de A está em voo');
@@ -956,7 +973,7 @@ test('transição 2/8: A → B com um pedido em voo', async (t) => {
       const w = window as any;
       w.SEGURAR_CRIAR = true;
       w.urbiVerso.formulario = async () => ({ imovel_id: '5', pedido: '' });
-      (w.$qa('urbi-3-colunas > [slot="esquerda"] urbi-grid > urbi-botao')[2] as HTMLElement).click();
+      (w.$qa('urbi-3-colunas > [slot="esquerda"] urbi-grid > urbi-card')[2] as HTMLElement).dispatchEvent(new CustomEvent('urbi:card-click', { bubbles: true, composed: true }));
     });
     await pagina.waitForTimeout(120);
     assert.equal(await pagina.evaluate(() => (window as any).criacoes.length), 1, 'a criação de A está em voo');

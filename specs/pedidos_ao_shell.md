@@ -205,6 +205,14 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** cada entrada de `paginas_publicas` aceitar `meta: "/rota-publica"`: ao servir o documento da página, o shell chama a rota pública da app (`GET /api/pub/{app}/{rota}` com a mesma query) e escreve no `<head>` o que ela devolver em `{ titulo, descricao, imagem }` (texto puro, com tamanho máximo, imagem só `https` ou URL assinada de arquivo da app), como `<title>`, `meta name="description"` e `og:title`/`og:description`/`og:image`. Sem resposta em tempo curto (ex.: 300 ms), fica o `titulo` do manifesto.
 
+## 27. Consumo de IA legível pela app (créditos do mês no Estúdio) (D-119, etapa 4, grupo 4)
+
+**Por quê:** a referência P08 (D-119) mostra **Créditos do mês** no Estúdio. O consumo de IA fica em `shell.log_ia` e aparece só ao admin (aba Utilização, `ia.md` § Observabilidade); o SDK 100 não dá à app nenhuma leitura de uso (chamadas, tokens ou custo), nem por conta.
+
+**Até lá:** o cartão mostra "—" com a explicação e conta o que o app sabe (peças escritas pela IA no mês).
+
+**Proposta mínima:** `req.ia.uso({ de, ate, slot?, conta_id? })` → `{ chamadas, tokens_entrada, tokens_saida, custo_estimado? }` da própria app, filtrável pela conta do request (o `log_ia` precisaria guardar a conta de escrita da chamada).
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

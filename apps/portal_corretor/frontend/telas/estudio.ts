@@ -192,6 +192,8 @@ export class Estudio {
   private trocando: number | null = null;
   /** Peças com a descrição à vista, e a descrição já buscada de cada uma. */
   private abertas = new Set<number>();
+  /** Peças sem arte cuja descrição (aberta por padrão) o corretor fechou. */
+  private fechadas = new Set<number>();
   private instrucoes: Record<number, Instrucao> = {};
   /** Peça do `?item=` à qual o feed já rolou: rola uma vez por escolha, não a cada redesenho. */
   private rolada: number | null = null;
@@ -500,7 +502,34 @@ export class Estudio {
     const abertas = new Set(this.abertas);
     abertas.delete(id);
     this.abertas = abertas;
+    this.fechadas = new Set(this.fechadas).add(id);
     this.redesenhar();
+  }
+
+  /** Descrições já pedidas em segundo plano (uma vez por peça e instância). */
+  private pedidas = new Set<number>();
+
+  /**
+   * Peça sem arte: a descrição vem à vista sem clique (D-119). Lida em segundo plano, uma vez; se falhar,
+   * fica o botão "Ver descrição e fotos" (que avisa o erro), sem alerta sozinho na tela.
+   */
+  private buscarDescricao(id: number) {
+    if (this.pedidas.has(id) || this.instrucoes[id]) return;
+    this.pedidas.add(id);
+    const refs = (this.marca?.referencias ?? []).map((r) => r.id);
+    queueMicrotask(() =>
+      this.solto(
+        this.esperar(chamarApi(`/estudio/pecas/${id}/instrucao?ferramenta=canva${refs.length ? `&referencias=${refs.join(',')}` : ''}`))
+          .then((r) => {
+            if (this.instrucoes[id]) return;
+            this.instrucoes = { ...this.instrucoes, [id]: r as Instrucao };
+            this.redesenhar();
+          })
+          .catch((e) => {
+            if (e instanceof InstanciaEncerrada) throw e;
+          }),
+      ),
+    );
   }
 
   private alternarInstrucao(p: Peca) {
@@ -753,7 +782,11 @@ export class Estudio {
   private maisDe(p: Peca, principal: AcaoPrincipal): Acao[] {
     const travada = TRAVADA.includes(p.estado);
     const mais: Acao[] = [];
-    if ((p.arquivos ?? []).length) mais.push({ rotulo: p.arquivos!.length > 1 ? 'Ver as artes' : 'Ver a arte', icone: 'fa-solid fa-image', aoEscolher: () => this.verArte(p) });
+    if ((p.arquivos ?? []).length) {
+      // Baixar em todo estado com arte (P08): as imagens e a legenda copiada, o pacote para publicar por fora.
+      mais.push({ rotulo: 'Baixar (arte e legenda)', icone: 'fa-solid fa-download', aoEscolher: () => this.baixar(p) });
+      mais.push({ rotulo: p.arquivos!.length > 1 ? 'Ver as artes' : 'Ver a arte', icone: 'fa-solid fa-image', aoEscolher: () => this.verArte(p) });
+    }
     if (!travada) {
       mais.push({ rotulo: 'Textos', icone: 'fa-solid fa-pen', aoEscolher: () => this.editar(p) });
       if (!semArte(p)) {
@@ -817,6 +850,20 @@ export class Estudio {
   }
 
   /**
+   * Prévia da arte enviada (D-119): as imagens em miniatura, na ordem dos slides (exceção nomeada
+   * "cartão de arte": `urbi-avatar`, o único primitivo que mostra uma imagem pequena; D-65). Abrir mostra
+   * a imagem inteira.
+   */
+  private previaArte(p: Peca) {
+    const artes = ((p.arquivos ?? []) as Record<string, any>[]).filter((a) => a.url);
+    if (!artes.length) return nothing;
+    return html`<urbi-linha quebrar>
+      ${artes.map((a, i) => html`<urbi-avatar nome=${`Arte ${i + 1}`} foto=${a.url} tamanho="72" title=${`Arte ${i + 1} de ${artes.length}`}></urbi-avatar>`)}
+      <urbi-botao variante="fantasma" icone="fa-solid fa-expand" @click=${() => this.verArte(p)}>${artes.length > 1 ? 'Ver as artes' : 'Ver a arte'}</urbi-botao>
+    </urbi-linha>`;
+  }
+
+  /**
    * O cartão da peça, no rodapé da mensagem do Estúdio: situação, próximo passo, UMA ação principal
    * (D-86) e o "Mais". Sem arte, a principal é a área de envio; Copiar descrição e Abrir no Canva vão
    * como secundários ao lado.
@@ -825,7 +872,9 @@ export class Estudio {
     const e = ESTADO[p.estado] ?? ESTADO.rascunho;
     const travada = TRAVADA.includes(p.estado);
     const falta = semArte(p) && !travada;
-    const aberta = this.abertas.has(p.id);
+    // Sem arte, a descrição em blocos fica à vista (D-119: a prévia da peça é a descrição até a arte chegar).
+    const aberta = this.abertas.has(p.id) || (falta && !this.fechadas.has(p.id) && !!this.instrucoes[p.id]);
+    if (falta && !this.fechadas.has(p.id)) this.buscarDescricao(p.id);
     const r = this.instrucoes[p.id];
     const ferramenta = FERRAMENTA[r?.ferramenta ?? 'canva'];
     const abrir = r ? r.abrir : FERRAMENTA.canva.abrir;
@@ -842,6 +891,8 @@ export class Estudio {
       ${p.estado === 'publicando' && publicandoHa < QUINZE_MIN ? html`<urbi-prosa papel="dica">Publicando. Se passar de 15 minutos assim, use "Destravar".</urbi-prosa>` : nothing}
       ${p.estado === 'erro' && p.erro ? html`<urbi-prosa papel="secundario">${p.erro}</urbi-prosa>` : nothing}
       ${passo ? html`<urbi-prosa papel="dica">${passo}</urbi-prosa>` : nothing}
+      ${this.previaArte(p)}
+      ${p.legenda ? html`<urbi-prosa papel="secundario" pre>${String(p.legenda).length > 280 ? `${String(p.legenda).slice(0, 280)}…` : p.legenda}</urbi-prosa>` : nothing}
       ${principal === 'enviar_arte'
         ? html`<urbi-linha quebrar>
             <urbi-botao variante="secundario" icone="fa-solid fa-copy" @click=${() => this.solto(this.copiarInstrucao(p))}>Copiar descrição</urbi-botao>
@@ -856,7 +907,7 @@ export class Estudio {
           ${this.trocando === p.id && !travada
             ? html`<urbi-linha quebrar>
                 ${this.seletorArte(p, false)}
-                <urbi-botao pequeno variante="fantasma" @click=${() => ((this.trocando = null), this.redesenhar())}>Fechar</urbi-botao>
+                <urbi-botao variante="fantasma" @click=${() => ((this.trocando = null), this.redesenhar())}>Fechar</urbi-botao>
               </urbi-linha>`
             : nothing}`}
     </urbi-stack>`;
@@ -916,21 +967,16 @@ export class Estudio {
       <urbi-prosa papel="secao">Criar rápido</urbi-prosa>
       <urbi-grid min="140px">
         ${CRIAR_RAPIDO.map(
-          (a) => html`<urbi-botao variante="secundario" icone=${a.icone} title=${a.resumo} ?desabilitado=${!!this.trabalhando} @click=${() => this.solto(this.criarRapido(a.id))}>${a.rotulo}</urbi-botao>`,
+          (a) => html`<urbi-card clicavel expandir titulo=${a.rotulo} icone=${a.icone} aria-disabled=${this.trabalhando ? 'true' : 'false'}
+            @urbi:card-click=${() => !this.trabalhando && this.solto(this.criarRapido(a.id))}>
+            <urbi-prosa papel="fraco">${a.resumo}</urbi-prosa>
+          </urbi-card>`,
         )}
       </urbi-grid>
       ${this.trabalhando ? html`<urbi-prosa papel="secundario">${this.trabalhando}</urbi-prosa>` : nothing}
       <urbi-prosa papel="secao">Seus pedidos</urbi-prosa>
-      ${pedidos.length
-        ? html`<urbi-linha quebrar>
-            ${ETAPAS.map((e) => {
-              const n = this.pecas.filter(e.casa).length;
-              return e.id === 'todas' || n || etapa.id === e.id
-                ? html`<urbi-badge interativo cor=${e.cor} ?ativo=${etapa.id === e.id} @click=${() => this.mudarEtapa(e.id)}>${e.rotulo} · ${n}</urbi-badge>`
-                : nothing;
-            })}
-          </urbi-linha>`
-        : nothing}
+      <urbi-chips-atalho .opcoes=${ETAPAS.map((e) => ({ id: e.id, rotulo: `${e.rotulo} · ${this.pecas.filter(e.casa).length}` }))} ativo=${etapa.id}
+        @urbi:chip-atalho:click=${(e: CustomEvent) => this.mudarEtapa(e.detail.id)}></urbi-chips-atalho>
       ${visiveis.length
         ? html`<urbi-lista separador clicavel .itens=${visiveis} .itemAtivo=${(x: Pedido) => x.id === aberto}
             .render_item=${(x: Pedido<Peca>) => html`<urbi-stack>
@@ -994,7 +1040,7 @@ export class Estudio {
         <urbi-prosa>${ROTULO_FORMATO[p.formato as Formato] ?? p.formato} · ${p.titulo ?? ''}</urbi-prosa>
         <urbi-prosa papel="fraco">${dataHora(quando)}</urbi-prosa>
       </urbi-stack>
-      <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-arrow-right" @click=${() => this.abrirPeca(p.id)}>Abrir</urbi-botao>
+      <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-right" @click=${() => this.abrirPeca(p.id)}>Abrir</urbi-botao>
     </urbi-linha>`;
     const arquivos = [
       ...(m?.logo_url ? [{ rotulo: 'Logo', url: m.logo_url, nome: 'logo.png', mime: 'image/png' }] : []),
@@ -1010,6 +1056,7 @@ export class Estudio {
           ${publicadas.length ? publicadas.map((p) => linhaSemana(p, p.publicada_em)) : html`<urbi-prosa papel="dica">Nada publicado nos últimos 7 dias.</urbi-prosa>`}
         </urbi-stack>
       </urbi-card>
+      ${this.cartaoInstagram()}
       <urbi-card titulo="Biblioteca" icone="fa-solid fa-folder-open">
         <urbi-stack>
           ${arquivos.length
@@ -1018,11 +1065,54 @@ export class Estudio {
               </urbi-linha>
               <urbi-prosa papel="dica">Abra para ver e baixar. Leve ao Canva junto com a descrição.</urbi-prosa>`
             : html`<urbi-prosa papel="dica">Sem logo, foto ou referências ainda.</urbi-prosa>`}
-          <urbi-linha><urbi-botao pequeno variante="fantasma" icone="fa-solid fa-palette" href=${urbiVerso.href('/ajustes/marca')}>Sua marca (logo, cores, estilo)</urbi-botao></urbi-linha>
+          <urbi-linha><urbi-botao variante="fantasma" icone="fa-solid fa-palette" href=${urbiVerso.href('/ajustes/marca')}>Sua marca (logo, cores, estilo)</urbi-botao></urbi-linha>
         </urbi-stack>
       </urbi-card>
+      ${this.cartaoCreditos()}
       ${m && !m.creci ? avisoCreci() : nothing}
     </urbi-stack>`;
+  }
+
+  /**
+   * A conta do Instagram (P08, direita). Conectada: o usuário e o atalho para Conexões. Sem conexão, o
+   * cartão fica visível com o botão desligado e o porquê: conectar depende do app aprovado na Meta
+   * (#30), que a instância ainda não tem; baixar e publicar por fora funciona sem ele.
+   */
+  private cartaoInstagram() {
+    const ig = this.conexao?.instagram;
+    const disponivel = !!this.conexao?.disponivel;
+    return html`<urbi-card titulo="Instagram" icone="fa-brands fa-instagram">
+      <urbi-stack>
+        ${ig
+          ? html`<urbi-prosa>${ig.ultimo_erro ? `@${ig.usuario}: reconecte o Instagram` : `@${ig.usuario} conectado`}</urbi-prosa>`
+          : html`<urbi-prosa papel="secundario">Nenhuma conta conectada.</urbi-prosa>`}
+        ${!ig || ig.ultimo_erro
+          ? html`<urbi-linha><urbi-botao variante="secundario" icone="fa-brands fa-instagram" ?desabilitado=${!disponivel} href=${disponivel ? urbiVerso.href('/ajustes/conexoes') : nothing}>${ig ? 'Reconectar' : 'Conectar o Instagram'}</urbi-botao></urbi-linha>
+              ${disponivel
+                ? nothing
+                : html`<urbi-prosa papel="dica">Conectar depende da aprovação do app na Meta, que esta instância ainda não tem. Enquanto isso, use "Baixar" na peça e publique pelo Instagram; depois marque "Publiquei por fora".</urbi-prosa>`}`
+          : html`<urbi-linha><urbi-botao variante="fantasma" icone="fa-solid fa-plug" href=${urbiVerso.href('/ajustes/conexoes')}>Ajustes › Conexões</urbi-botao></urbi-linha>`}
+      </urbi-stack>
+    </urbi-card>`;
+  }
+
+  /**
+   * Créditos do mês (D-119, P08 direita): o SDK 100 não dá à app o consumo de IA (o uso fica na aba
+   * Utilização do admin, `ia.md` § Observabilidade); até o shell expor (pedido 27), o número é "—" com
+   * a explicação, e o cartão conta o que o app sabe: as peças escritas pela IA neste mês.
+   */
+  private cartaoCreditos() {
+    const inicio = new Date();
+    inicio.setDate(1);
+    inicio.setHours(0, 0, 0, 0);
+    const doMes = this.pecas.filter((p) => p.gerada_por_ia && new Date(p.criado_em).getTime() >= inicio.getTime()).length;
+    return html`<urbi-card titulo="Créditos do mês" icone="fa-solid fa-coins">
+      <urbi-stack>
+        <urbi-kpi rotulo="Créditos de IA usados" valor="—" formato="texto"></urbi-kpi>
+        <urbi-prosa papel="fraco">O consumo de IA ainda não chega ao app: aparece aqui quando a plataforma passar a informar.</urbi-prosa>
+        <urbi-prosa papel="secundario">${doMes ? `${doMes} peça${doMes > 1 ? 's' : ''} escrita${doMes > 1 ? 's' : ''} pela IA neste mês.` : 'Nenhuma peça escrita pela IA neste mês.'}</urbi-prosa>
+      </urbi-stack>
+    </urbi-card>`;
   }
 
   /** O Estúdio na moldura: trilho · pedidos · conversa · contexto (abas no celular). */

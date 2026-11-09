@@ -147,8 +147,8 @@ export function proximoPasso(p: PecaTela, ferramenta = 'Canva IA'): string | nul
  * com o objetivo e os formatos já escolhidos.
  */
 export const CRIAR_RAPIDO: { id: string; rotulo: string; icone: string; objetivo: Objetivo; formatos: Formato[] | null; resumo: string }[] = [
-  { id: 'lancamento', rotulo: 'Lançamento', icone: 'fa-solid fa-box-open', objetivo: 'novo_imovel', formatos: null, resumo: 'post, carrossel e story' },
-  { id: 'baixou_preco', rotulo: 'Baixou o preço', icone: 'fa-solid fa-tag', objetivo: 'baixou_preco', formatos: ['post_1x1', 'story'], resumo: 'post e story' },
+  { id: 'lancamento', rotulo: 'Pacote de lançamento', icone: 'fa-solid fa-box-open', objetivo: 'novo_imovel', formatos: null, resumo: 'post + story + carrossel' },
+  { id: 'baixou_preco', rotulo: 'Baixou o preço', icone: 'fa-solid fa-tag', objetivo: 'baixou_preco', formatos: ['post_1x1', 'story'], resumo: 'post + story' },
   { id: 'vendido', rotulo: 'Vendido', icone: 'fa-solid fa-handshake', objetivo: 'vendido', formatos: ['post_1x1'], resumo: 'post' },
   { id: 'visita_aberta', rotulo: 'Visita aberta', icone: 'fa-solid fa-door-open', objetivo: 'visita_aberta', formatos: ['story'], resumo: 'story' },
 ];
