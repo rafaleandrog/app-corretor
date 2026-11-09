@@ -64,7 +64,7 @@ async function visao(req: Request) {
     primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaId }),
     primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id, conta_id: contaId }),
   ]);
-  const nome = req.contexto!.usuario.nome || conta?.nome || 'Corretor';
+  const nome = eu?.nome_profissional || req.contexto!.usuario.nome || conta?.nome || 'Corretor';
   const [imoveis, contatos] = await Promise.all([
     dados.listar('imoveis', { filtros: { publicado_pagina: true, conta_id: contaId }, por_pagina: 1 }),
     contatosDaPagina(dados, contaId),

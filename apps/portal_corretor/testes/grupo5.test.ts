@@ -188,3 +188,37 @@ test('P12: linha de estado de cada item do menu de Ajustes; WhatsApp com os 3 pa
   assert.match(fonte, /d\.ja_conectou \? 'Reconectar Instagram' : 'Conectar Instagram'/);
   assert.doesNotMatch(fonte + readFileSync(resolve(RAIZ, 'frontend/telas/ajustes.ts'), 'utf8'), /\bpequeno\b/);
 });
+
+test('P13: nome profissional e regiões no perfil (sem apagar o que não veio); tom de voz na marca e nos textos das artes', async () => {
+  const { validarMeuPerfil } = await import('../comum/conta');
+  const { validarMarca, contextoPeca } = await import('../comum/estudio');
+  const banco = new BancoFalso({ ...UNICOS, marca_conta: ['chave'] });
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const r = await chamar('PUT', '/conta/meu-perfil', { creci: '', telefone: '61999990000', nome_profissional: '  Marina   Souza ', regioes: 'Lago Sul, Sudoeste' });
+    assert.equal(r.status, 200, JSON.stringify(r.corpo));
+    const eu = (await chamar('GET', '/conta')).corpo.meu_perfil;
+    assert.deepEqual([eu.nome_profissional, eu.regioes], ['Marina Souza', 'Lago Sul, Sudoeste']);
+    // Tela antiga (sem os campos novos): o que estava gravado fica.
+    assert.equal((await chamar('PUT', '/conta/meu-perfil', { creci: 'DF-1-F', telefone: '61999990000' })).status, 200);
+    const depois = (await chamar('GET', '/conta')).corpo.meu_perfil;
+    assert.deepEqual([depois.nome_profissional, depois.regioes, depois.creci], ['Marina Souza', 'Lago Sul, Sudoeste', 'DF-1-F']);
+    assert.equal((await chamar('PUT', '/conta/meu-perfil', { nome_profissional: 'x'.repeat(121) })).status, 422);
+    // Marca: tom de voz validado; sem o campo, fica o gravado.
+    const base = { cor_primaria: '#112233', cor_secundaria: '#445566', estilo: 'moderno', assinatura: '' };
+    assert.equal((await chamar('PUT', '/estudio/marca', { ...base, tom_voz: 'gritado' })).status, 422);
+    assert.equal((await chamar('PUT', '/estudio/marca', { ...base, tom_voz: 'formal' })).corpo.tom_voz, 'formal');
+    assert.equal((await chamar('PUT', '/estudio/marca', base)).corpo.tom_voz, 'formal', 'sem o campo, fica o gravado');
+  });
+  assert.deepEqual(validarMeuPerfil({ creci: '', telefone: '' }).ok && (validarMeuPerfil({ creci: '', telefone: '' }) as any).dados, { creci: null, telefone: null });
+  assert.equal(validarMarca({ cor_primaria: '#112233', cor_secundaria: '#445566', estilo: 'moderno' }).ok, true);
+  assert.match(contextoPeca('', null, 'institucional' as any, 'post_1x1' as any, 'sofisticado'), /Tom de voz da marca: Sofisticado/);
+  assert.doesNotMatch(contextoPeca('', null, 'institucional' as any, 'post_1x1' as any, null), /Tom de voz/);
+  // Telas: formulário na tela com Salvar, sem diálogo (`urbiVerso.formulario`) no perfil nem na marca.
+  const conta = readFileSync(resolve(RAIZ, 'frontend/telas/conta.ts'), 'utf8');
+  const marca = readFileSync(resolve(RAIZ, 'frontend/telas/marca.ts'), 'utf8');
+  assert.doesNotMatch(marca, /urbiVerso\.formulario/);
+  assert.doesNotMatch(conta.slice(conta.indexOf('private async salvar')), /urbiVerso\.formulario\(\{ titulo: 'Seus dados'/);
+  assert.match(marca, /tipo="color"/, 'amostra de cor (#182 item 6)');
+  assert.match(marca, /label="Logo"[\s\S]*label="Sua foto \(opcional\)"/, 'rótulos claros dos arquivos (#182 item 6)');
+  for (const fonte of [conta, marca]) assert.doesNotMatch(fonte, /\bpequeno\b/);
+});

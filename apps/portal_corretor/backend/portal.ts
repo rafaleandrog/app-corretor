@@ -69,7 +69,8 @@ export async function corretorDaConta(dados: HelperDados, conta: number, usuario
     marcaPublica(dados, conta),
   ]);
   return {
-    nome: pagina?.nome_exibicao || nomeUsuario || contaLinha?.nome || 'Seu corretor',
+    // O nome profissional do perfil (P13) vem antes do nome do usuário da plataforma.
+    nome: pagina?.nome_exibicao || perfil?.nome_profissional || nomeUsuario || contaLinha?.nome || 'Seu corretor',
     creci: perfil?.creci ?? contaLinha?.creci_juridico ?? null,
     telefone: perfil?.telefone ?? null,
     ...marca,

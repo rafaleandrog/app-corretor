@@ -79,6 +79,7 @@ async function marca(req: Request) {
     cor_secundaria: m?.cor_secundaria ?? MARCA_PADRAO.cor_secundaria,
     estilo: m?.estilo ?? MARCA_PADRAO.estilo,
     assinatura: m?.assinatura ?? null,
+    tom_voz: m?.tom_voz ?? MARCA_PADRAO.tom_voz,
     salva: !!m,
     logo_url: await url(req, de('logo')?.arquivo),
     foto_url: await url(req, de('foto')?.arquivo),
@@ -200,7 +201,9 @@ async function textos(req: Request, pedido: string, im: ReturnType<typeof imovel
   try {
     const estado = await req.ia.estadoSlot('conteudo');
     if (!estado?.efetivo) return { textos: padrao, ia: false };
-    const r = await req.ia.consultar({ contexto: contextoPeca(pedido, im, objetivo, formato), schema: SCHEMA_PECA, slot: 'conteudo', instrucoes_sistema: INSTRUCAO_PECA });
+    // O tom de voz da marca (P13) vai como contexto; sem marca salva, o padrão.
+    const m = await primeiro(req.dados!, 'marca_conta', { chave: 'conta', conta_id: contaDoRequest(req) });
+    const r = await req.ia.consultar({ contexto: contextoPeca(pedido, im, objetivo, formato, m?.tom_voz ?? MARCA_PADRAO.tom_voz), schema: SCHEMA_PECA, slot: 'conteudo', instrucoes_sistema: INSTRUCAO_PECA });
     return { textos: textosDaIa((r.dados ?? {}) as Record<string, unknown>, padrao), ia: true };
   } catch (e) {
     const codigo = (e as { codigo?: string })?.codigo;

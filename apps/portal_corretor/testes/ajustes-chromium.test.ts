@@ -131,8 +131,20 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     let r: any = await ler();
     assert.deepEqual(r.secoes, ['Mensageiro', 'Negociador', 'Conexões', 'Conta e marca', 'Funil e abordagens', 'Horário de atendimento', 'Privacidade']);
     assert.deepEqual(r.ativa, ['conta']);
-    assert.match(r.centro, /Seus dados/);
+    // P13 (grupo 5): formulário na tela com Salvar, não diálogo; campos com rótulo no primitivo (#192).
+    assert.match(r.centro, /Seu perfil/);
     assert.match(r.centro, /Sua marca/);
+    assert.match(r.centro, /Salvar perfil e conta/);
+    assert.match(r.centro, /Salvar marca/);
+    assert.match(r.centro, /Tom de voz/);
+    assert.doesNotMatch(r.centro, /em verificação|verificado/, 'CRECI sem estado de verificação (D-93)');
+    const rotulos = await pagina.evaluate(() => {
+      const w = window as any;
+      const centro = document.querySelector('urbi-hospedeiro[slot="centro"]');
+      return [...w.todos(centro, 'urbi-input'), ...w.todos(centro, 'urbi-select'), ...w.todos(centro, 'urbi-seletor-arquivo')].map((x: any) => x.getAttribute('label'));
+    });
+    for (const l of ['Nome profissional', 'CRECI (opcional)', 'WhatsApp', 'Regiões que atende', 'Cor principal', 'Cor de apoio', 'Logo', 'Sua foto (opcional)']) assert.ok(rotulos.includes(l), l);
+    assert.ok(rotulos.every((l: string | null) => !!l), 'todo campo com rótulo');
     assert.doesNotMatch(r.centro, /Adicione seu CRECI/, 'o aviso do CRECI saiu do centro');
     assert.match(r.direita, /Adicione seu CRECI ao perfil/);
     assert.match(r.direita, /Perguntar ao Assistente/);

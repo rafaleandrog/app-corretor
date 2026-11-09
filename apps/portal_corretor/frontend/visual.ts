@@ -258,3 +258,26 @@ export function avisoCreci(): TemplateResult {
     <urbi-botao variante="fantasma" icone="fa-solid fa-id-badge" href=${urbiVerso.href('/ajustes/conta')}>Ajustes › Conta e marca</urbi-botao>
   </urbi-linha>`;
 }
+
+/**
+ * Escolha única com explicação (os "rádios" da referência: repetidos no Importar, tom de voz da marca,
+ * estilo do Negociador). O SDK 100 não tem rádio nem grupo de opções: cada opção é um `urbi-card
+ * clicavel` com o círculo marcado no ícone e a explicação no corpo; a escolhida leva o selo "em uso"
+ * (ou o rótulo dado). Diferença de primitivo registrada (D-124; pedido ao shell 29).
+ */
+export function escolhaUnica<T extends string>(
+  opcoes: readonly { id: T; rotulo: string; explicacao: string; exemplo?: string }[],
+  ativo: T,
+  aoEscolher: (id: T) => void,
+  { selo = 'em uso', desabilitado = false }: { selo?: string; desabilitado?: boolean } = {},
+): TemplateResult {
+  return html`${opcoes.map(
+    (o) => html`<urbi-card ?clicavel=${!desabilitado} titulo=${o.rotulo} icone=${o.id === ativo ? 'fa-solid fa-circle-dot' : 'fa-regular fa-circle'}
+      role="radio" aria-checked=${o.id === ativo ? 'true' : 'false'}
+      @urbi:card-click=${() => !desabilitado && o.id !== ativo && aoEscolher(o.id)}>
+      ${o.id === ativo ? html`<urbi-linha><urbi-badge cor="sucesso">${selo}</urbi-badge></urbi-linha>` : nothing}
+      <urbi-prosa papel="secundario">${o.explicacao}</urbi-prosa>
+      ${o.exemplo ? html`<urbi-prosa papel="dica">${o.exemplo}</urbi-prosa>` : nothing}
+    </urbi-card>`,
+  )}`;
+}

@@ -30,7 +30,7 @@ contaRotas.get(
     res.json({
       perfil: perfil ?? null,
       configuracoes: configuracoes ?? { ...CONFIGURACOES_PADRAO, padrao: true },
-      meu_perfil: meuPerfil ?? { creci: null, telefone: null },
+      meu_perfil: meuPerfil ?? { creci: null, telefone: null, nome_profissional: null, regioes: null },
       // #33: o admin do app numa conta que não é de demonstração não grava perfil de corretor.
       admin_em_conta_real: await adminEmContaReal(req),
     });

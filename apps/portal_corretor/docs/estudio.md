@@ -63,8 +63,9 @@ abaixo, o que o app sabe: quantas peças a IA escreveu neste mês.
 
 A marca fica em **Ajustes › Conta e marca** (o Estúdio tem o atalho **Sua marca**): a cor principal, a cor
 de apoio, o estilo (moderno, clássico ou minimalista), uma assinatura curta opcional (por exemplo
-"Seu corretor no Lago Sul"), o logo, a sua foto e as suas **referências** (abaixo). O Estúdio lê
-a marca de lá a cada peça. Com o CRECI cadastrado, a descrição pede o seu nome e o CRECI no rodapé
+"Seu corretor no Lago Sul"), o tom de voz, o logo, a sua foto e as suas **referências** (abaixo). O Estúdio lê
+a marca de lá a cada peça; o **tom de voz** da marca (Próximo e direto, Sofisticado ou Formal) vai para a
+IA que escreve os textos da peça. Com o CRECI cadastrado, a descrição pede o seu nome e o CRECI no rodapé
 da arte, e a aprovação acrescenta o CRECI à legenda quando ele falta **e cabe** no limite de 2.200
 caracteres. Se não couber, a legenda fica como está e a aprovação avisa "o CRECI não coube na
 legenda" (confira se ele está na arte): é um aviso, nunca uma pendência.
