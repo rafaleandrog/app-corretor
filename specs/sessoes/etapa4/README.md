@@ -29,7 +29,6 @@ Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a 
 
 ## Decisões que esperam o dono
 
-- P-44 e P-45 (grupo 3): passo abaixo do recuo liberado junto com a confirmação da D-120; teto das colunas de dinheiro (INTEGER, R$ 21,4 milhões) × #39.
 - Pendência (1) do plano: confirmar o menu do usuário externo entrando como o corretor demo.
 
 ## Arquivos desta pasta
