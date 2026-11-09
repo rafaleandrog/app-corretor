@@ -226,11 +226,13 @@ export class PcListaImoveis extends LitElement {
   private item(i: Imovel) {
     const s = SITUACAO_IMOVEL[i.situacao] ?? { rotulo: i.situacao, cor: 'padrao' };
     // Título curto na primeira linha; bairro (ou cidade) e preço embaixo, como a referência P06. O código
-    // fica no `title`. Tudo `truncar`: nada rola para o lado na coluna de 360 (#180).
+    // fica no `title`. Tudo `truncar`: nada rola para o lado na coluna de 360 (#180). O `expandir` do stack
+    // é o que deixa a prosa truncar ao lado do avatar (`flex: 1; min-width: 0` da `urbi-linha`): sem ele,
+    // o título longo passava 10 px da coluna, sem "…", e a lista rolava para o lado (medido em 0.1.51).
     const local = i.bairro || i.cidade || '';
     return html`<urbi-linha title=${i.codigo}>
       <urbi-avatar nome=${i.codigo} foto=${i.capa_url ?? ''} icone=${i.capa_url ? '' : 'fa-solid fa-image'} tamanho="48"></urbi-avatar>
-      <urbi-stack>
+      <urbi-stack expandir>
         <urbi-prosa truncar>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</urbi-prosa>
         <urbi-prosa papel="fraco" truncar>${[local, i.preco_c ? reaisCurto(i.preco_c) : 'Sob consulta'].filter(Boolean).join(' · ')}</urbi-prosa>
         <urbi-linha quebrar>

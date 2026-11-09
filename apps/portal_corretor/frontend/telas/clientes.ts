@@ -118,19 +118,20 @@ export function renderClientes(atualizar: () => void) {
     return molduraNegociacoes(atualizar, topo, '/clientes');
   }
   if (visao === 'funil') {
-    // P03: os filtros do Funil à esquerda, o quadro no centro (recriado quando os filtros mudam, com
-    // `expandir` para encher a altura, #180) e o cliente do cartão escolhido à direita.
+    // P03: os filtros do Funil à esquerda, o quadro no centro (recriado quando os filtros mudam) e o
+    // cliente do cartão escolhido à direita. O quadro vai solto no slot `centro` (`centroSolto`): é o
+    // `urbi-3-colunas` que lhe dá a estrutura de coluna, e o quadro enche a altura do centro (#180).
     const item = contatoDoFunil();
     const esquerda = html`<urbi-stack>
       ${topoClientes(visao, trocarVisao, novo)}
       <pc-clientes-funil-filtros .aoMudar=${atualizar}></pc-clientes-funil-filtros>
     </urbi-stack>`;
-    const centro = keyed(chaveDoQuadro(), html`<pc-clientes-quadro expandir></pc-clientes-quadro>`);
+    const centro = keyed(chaveDoQuadro(), html`<pc-clientes-quadro slot="centro" expandir></pc-clientes-quadro>`);
     const contexto = item
       ? keyed(chaveDaDireita(item), html`<pc-ficha-contato-funil .contatoId=${item}></pc-ficha-contato-funil>`)
       : html`<urbi-prosa papel="dica">Clique num cartão para ver o cliente aqui: por que está quente ou frio, a próxima abordagem e o que ele abriu.</urbi-prosa>`;
     return moldura(
-      { menu: '/clientes', lista: esquerda, centro, contexto, rotulos: { lista: 'Filtros', centro: 'Funil', contexto: 'Cliente' }, painel: item ? 'direita' : 'centro' },
+      { menu: '/clientes', lista: esquerda, centro, centroSolto: true, contexto, rotulos: { lista: 'Filtros', centro: 'Funil', contexto: 'Cliente' }, painel: item ? 'direita' : 'centro' },
       atualizar,
     );
   }

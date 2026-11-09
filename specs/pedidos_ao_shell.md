@@ -239,6 +239,14 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** `urbiVerso.formulario({ …, aoEnviar })`: com `aoEnviar(valores) => Promise<void | { erros?: Record<string, string>; mensagem?: string }>`, o diálogo fica aberto com o Salvar ocupado enquanto a Promise corre; resolvida sem erros, fecha e resolve com os valores; com `erros` (por `nome` de campo) ou `mensagem`, mostra cada erro no campo dele (onde já aparece o erro de `min`/`max` do `numero`) e a mensagem no topo, e continua aberto com o digitado; rejeitada, mostra uma mensagem genérica no topo e continua aberto. Opcional: uma ação secundária no diálogo (por exemplo, "Abrir Ana Ribeiro" na duplicata).
 
+## 31. Estrutura imposta pelo `urbi-hospedeiro` e grade de KPIs equilibrada (#180)
+
+**Por quê:** (1) `ui.md` § Papéis de UI (SDK 100) diz que "quem hospeda IMPÕE a estrutura correspondente (`display`/`flex-direction`/`min-height`) no nó slotado direto" que declara papel. E o mesmo doc diz que "`urbi-stack` e `urbi-hospedeiro` impõem `min-height: 0 !important` a **todo** filho direto" e que o guard visual só acende em alguns slots ("os demais primitivos impõem sem acender"). No shell 0.56.37, medido na 0.1.51 (`specs/prints/issue-180/`): o `urbi-hospedeiro` não impôs `display`/`flex-direction` ao `papel-fill`: o `pc-clientes-quadro` (componente de app em light DOM com `papel-fill`) ficou `display: block` dentro dele, e o `urbi-stack expandir` de dentro não enche a altura (o quadro do Funil parava em 817 de 984 px). Solto no slot `centro` do `urbi-3-colunas`, o quadro encheu a altura (medido assim na 0.1.51). Não foram medidos `papel-host` nem `papel-layout`. (2) Os quatro KPIs da P10 numa linha pedem ~596 px (`urbi-grid min="140px"`, o piso do `urbi-kpi`); com centro de 531 px (janela de 1280) a grade sai 3 + 1, com um cartão órfão. Não há como pedir "4 ou 2 + 2" sem CSS da tela.
+
+**Até lá:** (1) o quadro do Funil vai solto no slot `centro` (`centroSolto` da moldura) com o próprio `urbi-hospedeiro` dentro (0.1.55). (2) 3 + 1 abaixo de ~1377 px de janela (o centro mede largura − 749; quatro cartões pedem 596 mais ~32 de respiro = 628); em 1440 (o tamanho da referência) são 4 numa linha.
+
+**Proposta mínima:** (1) o `urbi-hospedeiro` impor `display`/`flex-direction` no filho com `papel-fill`, como diz o `ui.md`; (2) `urbi-grid` com uma opção de quebra equilibrada (por exemplo `colunas="4 2 1"`: a maior contagem que cabe no `min`, entre as listadas).
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

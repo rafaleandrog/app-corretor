@@ -43,7 +43,7 @@ colunas (no celular, uma por vez, com abas):
     Só números da conta, nenhum dado de cliente;
   - **Perguntar ao Assistente**.
 
-Os quatro números de cada relatório ficam numa linha (no celular, em pílulas). Valores em reais
+Os quatro números de cada relatório ficam numa linha (no celular, em pílulas), em janelas a partir de ~1377 px de largura; abaixo disso o quarto cai para a linha de baixo até o shell ajustar o `urbi-grid` (pedido 31). Valores em reais
 de R$ 1.000 para cima aparecem sem centavos ("R$ 104.825"); abaixo disso, com centavos.
 
 ### Resumo

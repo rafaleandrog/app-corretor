@@ -1,0 +1,1431 @@
+{
+ "versao": "0.1.51",
+ "imovel": {
+  "id": 14,
+  "titulo_len": 39
+ },
+ "negociacao": {
+  "id": 1,
+  "estado": "aguardando_corretor"
+ },
+ "telas": {
+  "Imoveis-1440x1000": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1392,
+    "h": 801,
+    "bottom": 984
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 801,
+     "sw": 360,
+     "cw": 360,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 384,
+     "w": 692,
+     "y": 183,
+     "h": 801,
+     "sw": 691,
+     "cw": 691,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 1076,
+     "w": 340,
+     "y": 183,
+     "h": 801,
+     "sw": 339,
+     "cw": 339,
+     "sh": 801,
+     "ch": 801
+    }
+   ],
+   "roladores": [
+    {
+     "tag": "div",
+     "w": 328,
+     "sw": 338,
+     "sl": 0,
+     "x": 40
+    }
+   ],
+   "cortados": [],
+   "kpis": [
+    {
+     "rotulo": "Visitas",
+     "x": 1110,
+     "y": 362,
+     "w": 273,
+     "h": 72,
+     "valor": "1",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Enviado a",
+     "x": 1110,
+     "y": 442,
+     "w": 273,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Cliques nos envios",
+     "x": 1110,
+     "y": 522,
+     "w": 273,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Negócios ligados",
+     "x": 1110,
+     "y": 602,
+     "w": 273,
+     "h": 72,
+     "valor": "1",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": null
+  },
+  "Pagina-1440x1000": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1392,
+    "h": 801,
+    "bottom": 984
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 801,
+     "sw": 360,
+     "cw": 360,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 384,
+     "w": 692,
+     "y": 183,
+     "h": 801,
+     "sw": 691,
+     "cw": 691,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 1076,
+     "w": 340,
+     "y": 183,
+     "h": 801,
+     "sw": 339,
+     "cw": 339,
+     "sh": 801,
+     "ch": 801
+    }
+   ],
+   "roladores": [],
+   "cortados": [
+    {
+     "t": "Apartamento 3 quartos · Sudoeste",
+     "col": 1,
+     "x": 610,
+     "right": 852,
+     "colRight": 1076,
+     "ellipsis": true,
+     "overflow": "hidden"
+    },
+    {
+     "t": "Casa 4 quartos · Jardim Botânico",
+     "col": 1,
+     "x": 610,
+     "right": 852,
+     "colRight": 1076,
+     "ellipsis": true,
+     "overflow": "hidden"
+    }
+   ],
+   "kpis": [
+    {
+     "rotulo": "Contatos pelo formulário",
+     "x": 1110,
+     "y": 751,
+     "w": 273,
+     "h": 72,
+     "valor": "1",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visitas à página",
+     "x": 1110,
+     "y": 831,
+     "w": 273,
+     "h": 72,
+     "valor": "—",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": null
+  },
+  "Numeros-funil-1440x1000": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1392,
+    "h": 801,
+    "bottom": 984
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 801,
+     "sw": 360,
+     "cw": 360,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 384,
+     "w": 692,
+     "y": 183,
+     "h": 801,
+     "sw": 691,
+     "cw": 691,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 1076,
+     "w": 340,
+     "y": 183,
+     "h": 801,
+     "sw": 339,
+     "cw": 339,
+     "sh": 801,
+     "ch": 801
+    }
+   ],
+   "roladores": [],
+   "cortados": [],
+   "kpis": [
+    {
+     "rotulo": "Contatos",
+     "x": 401,
+     "y": 295,
+     "w": 156,
+     "h": 72,
+     "valor": "6",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Contato → visita",
+     "x": 569,
+     "y": 295,
+     "w": 156,
+     "h": 72,
+     "valor": "50%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visita → proposta",
+     "x": 737,
+     "y": 295,
+     "w": 156,
+     "h": 72,
+     "valor": "67%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Ganhos",
+     "x": 904,
+     "y": 295,
+     "w": 156,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": null
+  },
+  "Numeros-resumo-1440x1000": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1392,
+    "h": 801,
+    "bottom": 984
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 801,
+     "sw": 360,
+     "cw": 360,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 384,
+     "w": 692,
+     "y": 183,
+     "h": 801,
+     "sw": 691,
+     "cw": 691,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 1076,
+     "w": 340,
+     "y": 183,
+     "h": 801,
+     "sw": 339,
+     "cw": 339,
+     "sh": 801,
+     "ch": 801
+    }
+   ],
+   "roladores": [],
+   "cortados": [],
+   "kpis": [
+    {
+     "rotulo": "Leads",
+     "x": 401,
+     "y": 295,
+     "w": 156,
+     "h": 72,
+     "valor": "6",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Conversão total",
+     "x": 569,
+     "y": 295,
+     "w": 156,
+     "h": 72,
+     "valor": "0%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Vendas",
+     "x": 737,
+     "y": 295,
+     "w": 156,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Comissão prevista",
+     "x": 904,
+     "y": 295,
+     "w": 156,
+     "h": 84,
+     "valor": "R$ 104.825",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "VGV",
+     "x": 418,
+     "y": 473,
+     "w": 147,
+     "h": 72,
+     "valor": "R$ 0,00",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Ciclo médio",
+     "x": 577,
+     "y": 473,
+     "w": 147,
+     "h": 72,
+     "valor": "—",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visitas feitas",
+     "x": 737,
+     "y": 473,
+     "w": 147,
+     "h": 72,
+     "valor": "1",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Captações",
+     "x": 896,
+     "y": 473,
+     "w": 147,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": null
+  },
+  "Funil-1440x1000": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1392,
+    "h": 801,
+    "bottom": 984
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 801,
+     "sw": 360,
+     "cw": 360,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 384,
+     "w": 692,
+     "y": 183,
+     "h": 801,
+     "sw": 691,
+     "cw": 691,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 1076,
+     "w": 340,
+     "y": 183,
+     "h": 801,
+     "sw": 339,
+     "cw": 339,
+     "sh": 801,
+     "ch": 801
+    }
+   ],
+   "roladores": [
+    {
+     "tag": "div",
+     "w": 360,
+     "sw": 416,
+     "sl": 0,
+     "x": 24
+    },
+    {
+     "tag": "div",
+     "w": 657,
+     "sw": 1636,
+     "sl": 0,
+     "x": 401
+    }
+   ],
+   "cortados": [
+    {
+     "t": "Vazio",
+     "col": 1,
+     "x": 956,
+     "right": 1120,
+     "colRight": 1076,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Ana Ribeiro",
+     "col": 2,
+     "x": 1331,
+     "right": 1473,
+     "colRight": 1416,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Compra — Ana Ribeiro · R$ 1.450.000,00",
+     "col": 2,
+     "x": 1331,
+     "right": 1473,
+     "colRight": 1416,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Mensagem registrada: Visita confirmada para sábado",
+     "col": 2,
+     "x": 1331,
+     "right": 1473,
+     "colRight": 1416,
+     "ellipsis": false,
+     "overflow": "hidden"
+    },
+    {
+     "t": "Abordagem atrasada",
+     "col": 2,
+     "x": 1331,
+     "right": 1458,
+     "colRight": 1416,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Juliana Prado",
+     "col": 2,
+     "x": 1331,
+     "right": 1473,
+     "colRight": 1416,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Compra — Juliana Prado · R$ 920.000,00",
+     "col": 2,
+     "x": 1331,
+     "right": 1473,
+     "colRight": 1416,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Mensagem pelo portal: Quero conversar sobre o preç",
+     "col": 2,
+     "x": 1331,
+     "right": 1473,
+     "colRight": 1416,
+     "ellipsis": false,
+     "overflow": "hidden"
+    },
+    {
+     "t": "Abordagem atrasada",
+     "col": 2,
+     "x": 1331,
+     "right": 1458,
+     "colRight": 1416,
+     "ellipsis": false,
+     "overflow": "visible"
+    }
+   ],
+   "kpis": [
+    {
+     "rotulo": "Novo → Em atendimento",
+     "x": 401,
+     "y": 233,
+     "w": 156,
+     "h": 84,
+     "valor": "83%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Em atendimento → Qualificado",
+     "x": 569,
+     "y": 233,
+     "w": 156,
+     "h": 84,
+     "valor": "80%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Qualificado → Visita agendada",
+     "x": 737,
+     "y": 233,
+     "w": 156,
+     "h": 84,
+     "valor": "75%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visita agendada → Visitou",
+     "x": 904,
+     "y": 233,
+     "w": 156,
+     "h": 84,
+     "valor": "100%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visitou → Proposta",
+     "x": 401,
+     "y": 329,
+     "w": 156,
+     "h": 84,
+     "valor": "67%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Proposta → Documentação",
+     "x": 569,
+     "y": 329,
+     "w": 156,
+     "h": 84,
+     "valor": "0%",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": {
+    "y": 421,
+    "bottom": 817,
+    "h": 396,
+    "x": 401,
+    "right": 1060,
+    "colunasX": [
+     402,
+     583,
+     765,
+     947,
+     1129,
+     1311,
+     1493,
+     1675,
+     1857
+    ],
+    "rolagemH": {
+     "w": 657,
+     "sw": 1636
+    },
+    "titulos": [
+     {
+      "t": "Novo",
+      "x": 416,
+      "visivel": true
+     },
+     {
+      "t": "1",
+      "x": 550,
+      "visivel": true
+     },
+     {
+      "t": "Fernanda Souza",
+      "x": 421,
+      "visivel": true
+     },
+     {
+      "t": "Em atendimento",
+      "x": 598,
+      "visivel": true
+     },
+     {
+      "t": "1",
+      "x": 732,
+      "visivel": true
+     },
+     {
+      "t": "Roberto Lima",
+      "x": 603,
+      "visivel": true
+     },
+     {
+      "t": "Qualificado",
+      "x": 780,
+      "visivel": true
+     },
+     {
+      "t": "1",
+      "x": 914,
+      "visivel": true
+     },
+     {
+      "t": "Carlos Menezes",
+      "x": 785,
+      "visivel": true
+     },
+     {
+      "t": "Visita agendada",
+      "x": 962,
+      "visivel": false
+     },
+     {
+      "t": "0",
+      "x": 1096,
+      "visivel": false
+     },
+     {
+      "t": "Vazio",
+      "x": 956,
+      "visivel": false
+     }
+    ]
+   }
+  },
+  "Negociacao-1440x1000": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1392,
+    "h": 801,
+    "bottom": 984
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 801,
+     "sw": 360,
+     "cw": 360,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 384,
+     "w": 692,
+     "y": 183,
+     "h": 801,
+     "sw": 691,
+     "cw": 691,
+     "sh": 801,
+     "ch": 801
+    },
+    {
+     "x": 1076,
+     "w": 340,
+     "y": 183,
+     "h": 801,
+     "sw": 339,
+     "cw": 339,
+     "sh": 801,
+     "ch": 801
+    }
+   ],
+   "roladores": [],
+   "cortados": [],
+   "kpis": [],
+   "kanban": null
+  },
+  "Imoveis-1280x720": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1232,
+    "h": 521,
+    "bottom": 704
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 521,
+     "sw": 360,
+     "cw": 360,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 384,
+     "w": 532,
+     "y": 183,
+     "h": 521,
+     "sw": 531,
+     "cw": 531,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 916,
+     "w": 340,
+     "y": 183,
+     "h": 521,
+     "sw": 339,
+     "cw": 339,
+     "sh": 521,
+     "ch": 521
+    }
+   ],
+   "roladores": [
+    {
+     "tag": "div",
+     "w": 328,
+     "sw": 338,
+     "sl": 0,
+     "x": 40
+    }
+   ],
+   "cortados": [],
+   "kpis": [
+    {
+     "rotulo": "Visitas",
+     "x": 950,
+     "y": 362,
+     "w": 273,
+     "h": 72,
+     "valor": "1",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Enviado a",
+     "x": 950,
+     "y": 442,
+     "w": 273,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Cliques nos envios",
+     "x": 950,
+     "y": 522,
+     "w": 273,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Negócios ligados",
+     "x": 950,
+     "y": 602,
+     "w": 273,
+     "h": 72,
+     "valor": "1",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": null
+  },
+  "Pagina-1280x720": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1232,
+    "h": 521,
+    "bottom": 704
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 521,
+     "sw": 360,
+     "cw": 360,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 384,
+     "w": 532,
+     "y": 183,
+     "h": 521,
+     "sw": 531,
+     "cw": 531,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 916,
+     "w": 340,
+     "y": 183,
+     "h": 521,
+     "sw": 339,
+     "cw": 339,
+     "sh": 521,
+     "ch": 521
+    }
+   ],
+   "roladores": [],
+   "cortados": [
+    {
+     "t": "Apartamento 3 quartos · Sudoeste",
+     "col": 1,
+     "x": 530,
+     "right": 772,
+     "colRight": 916,
+     "ellipsis": true,
+     "overflow": "hidden"
+    }
+   ],
+   "kpis": [
+    {
+     "rotulo": "Contatos pelo formulário",
+     "x": 950,
+     "y": 751,
+     "w": 273,
+     "h": 72,
+     "valor": "1",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visitas à página",
+     "x": 950,
+     "y": 831,
+     "w": 273,
+     "h": 72,
+     "valor": "—",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": null
+  },
+  "Numeros-funil-1280x720": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1232,
+    "h": 521,
+    "bottom": 704
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 521,
+     "sw": 360,
+     "cw": 360,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 384,
+     "w": 532,
+     "y": 183,
+     "h": 521,
+     "sw": 531,
+     "cw": 531,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 916,
+     "w": 340,
+     "y": 183,
+     "h": 521,
+     "sw": 339,
+     "cw": 339,
+     "sh": 521,
+     "ch": 521
+    }
+   ],
+   "roladores": [],
+   "cortados": [],
+   "kpis": [
+    {
+     "rotulo": "Contatos",
+     "x": 401,
+     "y": 333,
+     "w": 158,
+     "h": 72,
+     "valor": "6",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Contato → visita",
+     "x": 571,
+     "y": 333,
+     "w": 158,
+     "h": 72,
+     "valor": "50%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visita → proposta",
+     "x": 742,
+     "y": 333,
+     "w": 158,
+     "h": 72,
+     "valor": "67%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Ganhos",
+     "x": 401,
+     "y": 460,
+     "w": 158,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": null
+  },
+  "Numeros-resumo-1280x720": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1232,
+    "h": 521,
+    "bottom": 704
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 521,
+     "sw": 360,
+     "cw": 360,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 384,
+     "w": 532,
+     "y": 183,
+     "h": 521,
+     "sw": 531,
+     "cw": 531,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 916,
+     "w": 340,
+     "y": 183,
+     "h": 521,
+     "sw": 339,
+     "cw": 339,
+     "sh": 521,
+     "ch": 521
+    }
+   ],
+   "roladores": [],
+   "cortados": [],
+   "kpis": [
+    {
+     "rotulo": "Leads",
+     "x": 401,
+     "y": 333,
+     "w": 158,
+     "h": 72,
+     "valor": "6",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Conversão total",
+     "x": 571,
+     "y": 333,
+     "w": 158,
+     "h": 72,
+     "valor": "0%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Vendas",
+     "x": 742,
+     "y": 333,
+     "w": 158,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Comissão prevista",
+     "x": 401,
+     "y": 460,
+     "w": 158,
+     "h": 84,
+     "valor": "R$ 104.825",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "VGV",
+     "x": 418,
+     "y": 637,
+     "w": 147,
+     "h": 72,
+     "valor": "R$ 0,00",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Ciclo médio",
+     "x": 577,
+     "y": 637,
+     "w": 147,
+     "h": 72,
+     "valor": "—",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visitas feitas",
+     "x": 736,
+     "y": 637,
+     "w": 147,
+     "h": 72,
+     "valor": "1",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Captações",
+     "x": 418,
+     "y": 764,
+     "w": 147,
+     "h": 72,
+     "valor": "0",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": null
+  },
+  "Funil-1280x720": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1232,
+    "h": 521,
+    "bottom": 704
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 521,
+     "sw": 360,
+     "cw": 360,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 384,
+     "w": 532,
+     "y": 183,
+     "h": 521,
+     "sw": 531,
+     "cw": 531,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 916,
+     "w": 340,
+     "y": 183,
+     "h": 521,
+     "sw": 339,
+     "cw": 339,
+     "sh": 521,
+     "ch": 521
+    }
+   ],
+   "roladores": [
+    {
+     "tag": "div",
+     "w": 360,
+     "sw": 416,
+     "sl": 0,
+     "x": 24
+    },
+    {
+     "tag": "div",
+     "w": 497,
+     "sw": 1636,
+     "sl": 0,
+     "x": 401
+    }
+   ],
+   "cortados": [
+    {
+     "t": "1",
+     "col": 1,
+     "x": 914,
+     "right": 932,
+     "colRight": 916,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Carlos Menezes",
+     "col": 1,
+     "x": 785,
+     "right": 927,
+     "colRight": 916,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Compra — Carlos Menezes · R$ 800.000,00",
+     "col": 1,
+     "x": 785,
+     "right": 927,
+     "colRight": 916,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Mensagem pelo portal: Abri a seleção e salvei dois",
+     "col": 1,
+     "x": 785,
+     "right": 927,
+     "colRight": 916,
+     "ellipsis": false,
+     "overflow": "hidden"
+    },
+    {
+     "t": "Marcos Teixeira",
+     "col": 2,
+     "x": 1149,
+     "right": 1291,
+     "colRight": 1256,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Compra — Marcos Teixeira · R$ 395.000,00",
+     "col": 2,
+     "x": 1149,
+     "right": 1291,
+     "colRight": 1256,
+     "ellipsis": false,
+     "overflow": "visible"
+    },
+    {
+     "t": "Abordagem atrasada",
+     "col": 2,
+     "x": 1149,
+     "right": 1276,
+     "colRight": 1256,
+     "ellipsis": false,
+     "overflow": "visible"
+    }
+   ],
+   "kpis": [
+    {
+     "rotulo": "Novo → Em atendimento",
+     "x": 401,
+     "y": 233,
+     "w": 158,
+     "h": 84,
+     "valor": "83%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Em atendimento → Qualificado",
+     "x": 571,
+     "y": 233,
+     "w": 158,
+     "h": 84,
+     "valor": "80%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Qualificado → Visita agendada",
+     "x": 742,
+     "y": 233,
+     "w": 158,
+     "h": 84,
+     "valor": "75%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visita agendada → Visitou",
+     "x": 401,
+     "y": 329,
+     "w": 158,
+     "h": 84,
+     "valor": "100%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Visitou → Proposta",
+     "x": 571,
+     "y": 329,
+     "w": 158,
+     "h": 84,
+     "valor": "67%",
+     "valorH": 26,
+     "valorFs": 22.4
+    },
+    {
+     "rotulo": "Proposta → Documentação",
+     "x": 742,
+     "y": 329,
+     "w": 158,
+     "h": 84,
+     "valor": "0%",
+     "valorH": 26,
+     "valorFs": 22.4
+    }
+   ],
+   "kanban": {
+    "y": 421,
+    "bottom": 817,
+    "h": 396,
+    "x": 401,
+    "right": 900,
+    "colunasX": [
+     402,
+     583,
+     765,
+     947,
+     1129,
+     1311,
+     1493,
+     1675,
+     1857
+    ],
+    "rolagemH": {
+     "w": 497,
+     "sw": 1636
+    },
+    "titulos": [
+     {
+      "t": "Novo",
+      "x": 416,
+      "visivel": true
+     },
+     {
+      "t": "1",
+      "x": 550,
+      "visivel": true
+     },
+     {
+      "t": "Fernanda Souza",
+      "x": 421,
+      "visivel": true
+     },
+     {
+      "t": "Em atendimento",
+      "x": 598,
+      "visivel": true
+     },
+     {
+      "t": "1",
+      "x": 732,
+      "visivel": true
+     },
+     {
+      "t": "Roberto Lima",
+      "x": 603,
+      "visivel": true
+     },
+     {
+      "t": "Qualificado",
+      "x": 780,
+      "visivel": true
+     },
+     {
+      "t": "1",
+      "x": 914,
+      "visivel": false
+     },
+     {
+      "t": "Carlos Menezes",
+      "x": 785,
+      "visivel": false
+     },
+     {
+      "t": "Visita agendada",
+      "x": 962,
+      "visivel": false
+     },
+     {
+      "t": "0",
+      "x": 1096,
+      "visivel": false
+     },
+     {
+      "t": "Vazio",
+      "x": 956,
+      "visivel": false
+     }
+    ]
+   }
+  },
+  "Negociacao-1280x720": {
+   "moldura": {
+    "x": 24,
+    "y": 183,
+    "w": 1232,
+    "h": 521,
+    "bottom": 704
+   },
+   "colunas": [
+    {
+     "x": 24,
+     "w": 360,
+     "y": 183,
+     "h": 521,
+     "sw": 360,
+     "cw": 360,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 384,
+     "w": 532,
+     "y": 183,
+     "h": 521,
+     "sw": 531,
+     "cw": 531,
+     "sh": 521,
+     "ch": 521
+    },
+    {
+     "x": 916,
+     "w": 340,
+     "y": 183,
+     "h": 521,
+     "sw": 339,
+     "cw": 339,
+     "sh": 521,
+     "ch": 521
+    }
+   ],
+   "roladores": [],
+   "cortados": [],
+   "kpis": [],
+   "kanban": null
+  }
+ },
+ "bloqueadas": []
+}
