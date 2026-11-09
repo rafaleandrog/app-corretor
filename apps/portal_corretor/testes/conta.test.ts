@@ -62,9 +62,9 @@ test('configurações respeitam as faixas do schema', () => {
   assert.equal(validarConfiguracoes(base).ok, true);
   assert.equal(validarConfiguracoes({ ...base, prazo_primeiro_atendimento_min: 0 }).ok, false);
   assert.equal(validarConfiguracoes({ ...base, validade_selecao_dias: 2.5 }).ok, false);
-  // Sem aprovação por janela (D-86): o modo antigo, se vier de tela em cache, é ignorado e não é gravado.
-  const antigo = validarConfiguracoes({ ...base, modo_aprovacao_conteudo: 'janela', janela_aprovacao_horas: 12 });
-  assert.ok(antigo.ok && !('modo_aprovacao_conteudo' in antigo.dados) && !('janela_aprovacao_horas' in antigo.dados));
+  // Campo que o schema não tem mais (o modo de aprovação antigo, D-86 e #62), se vier de tela em cache, é ignorado.
+  const antigo = validarConfiguracoes({ ...base, modo_aprovacao: 'automatico', horas: 12 });
+  assert.ok(antigo.ok && !('modo_aprovacao' in antigo.dados) && !('horas' in antigo.dados));
   assert.equal(validarConfiguracoes({ ...base, dias_cliente_parado: '10' }).ok, true);
 });
 

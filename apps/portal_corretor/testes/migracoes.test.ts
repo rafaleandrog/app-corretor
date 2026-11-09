@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 // @ts-expect-error migração é JS puro (o runner do shell a importa), sem declaração de tipos.
 import semJanela from '../migracoes/001_sem_aprovacao_por_janela.js';
+// @ts-expect-error idem.
+import semColunasDaJanela from '../migracoes/002_sem_colunas_da_janela.js';
+import schema from '../schema.json';
 import { BancoFalso } from './apoio';
 
 /**
@@ -63,4 +66,12 @@ test('migração 001: sem cancelarAgendamento no contexto, a peça volta a rascu
   const m = contextoMigracao(banco);
   await semJanela({ ...m.ctx, eventos: {} });
   assert.deepEqual([banco.linhas('pecas')[0].estado, banco.linhas('pecas')[0].agendamento_id], ['rascunho', null]);
+});
+
+test('migração 002 (#62, release B): as colunas da aprovação por janela saem do schema e são esvaziadas', async () => {
+  const colunas = Object.keys((schema.tabelas as any).configuracoes_conta.colunas);
+  assert.ok(!colunas.includes('modo_aprovacao_conteudo') && !colunas.includes('janela_aprovacao_horas'));
+  const limpas: string[] = [];
+  await semColunasDaJanela({ dados: { limparColuna: async (t: string, c: string) => limpas.push(`${t}.${c}`) } });
+  assert.deepEqual(limpas, ['configuracoes_conta.modo_aprovacao_conteudo', 'configuracoes_conta.janela_aprovacao_horas']);
 });

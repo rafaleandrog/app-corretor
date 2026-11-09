@@ -242,7 +242,8 @@ Se não, use **Tentar de novo**.
 conectado", "reconecte o Instagram" ou o que o Instagram respondeu. Resolva e use **Tentar de
 novo**. Se você editar os textos de uma peça com erro, ela volta a rascunho e precisa de nova
 aprovação. Peça com erro e sem aprovação (sobra de versões antigas do app) mostra **Aprovar**:
-resolva e aprove.
+resolva e aprove. Toda peça é aprovada por você: a aprovação automática por prazo saiu de vez na
+versão 0.1.50 (a atualização apaga as duas configurações antigas que ainda a guardavam).
 
 **Agendamento atrasado:** se a plataforma ficar fora do ar e só voltar mais de 6 horas depois da
 hora marcada, a peça não é publicada atrasada: fica com erro, para você decidir.

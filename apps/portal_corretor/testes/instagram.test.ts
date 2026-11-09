@@ -178,8 +178,7 @@ test('agendar: só peça aprovada agenda; o listener publica na conta certa', as
   await reagir.publicacao_programada({ payload: atual, conta_id: 100 }, ctx as any);
   assert.equal(banco.linhas('pecas').find((x) => x.id === pecaId)!.publicacao_id, 'm1');
 
-  // Conta ainda gravada no modo antigo (antes da migração 001): o código não lê o modo, e o rascunho não agenda.
-  banco.linhas('configuracoes_conta').push({ id: 9999, conta_id: 100, chave: 'conta', modo_aprovacao_conteudo: 'janela', janela_aprovacao_horas: 24 } as any);
+  // Rascunho (sem aprovação) não agenda: não há aprovação automática (D-86).
   await comServidor(rotas, ator(100, { eventos: ev }), banco, shell, async (chamar) => {
     const r = (await chamar('POST', '/estudio/pedido', { pedido: 'institucional', formatos: ['post_1x1'] })).corpo.pecas[0];
     await chamar('PUT', `/estudio/pecas/${r.id}/arquivos`, { upload_ids: [21] });
@@ -263,7 +262,6 @@ test('revisão: o listener não aprova nada; rotina aceita conta como texto e n�
   const banco = new BancoFalso(UNICOS);
   metaFalsa();
   const ev = eventosFalsos();
-  banco.linhas('configuracoes_conta').push({ id: 9999, conta_id: 100, chave: 'conta', modo_aprovacao_conteudo: 'janela', janela_aprovacao_horas: 24 } as any);
   let id = 0;
   await comServidor(rotas, ator(100, { eventos: ev }), banco, shell, async (chamar) => {
     await pecaAprovada(chamar);
