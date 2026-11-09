@@ -156,10 +156,10 @@ test('estrutura da moldura (D-114): três colunas fixas na página do shell, sem
     const fonte = readFileSync(resolve(process.cwd(), arq), 'utf8');
     assert.doesNotMatch(fonte, /\bcss`|style=|<style|static styles/, arq);
   }
-  // O cabeçalho da coluna esquerda: título à esquerda, ações e o Assistente (34 px, só ícone) à direita.
-  // O cabeçalho da coluna esquerda: título à esquerda; ações, o Buscar (D-126) e o Assistente (34 px, só ícone) à direita.
+  // O cabeçalho da coluna esquerda: título à esquerda; ações, o Buscar (D-126) e o Assistente (só ícone) à direita.
+  // As duas linhas quebram (#171): quando as ações não cabem ao lado do título, descem em vez de sair cortadas.
   const cab = texto(cabecalhoColuna('Conversas', 'ACOES'));
-  assert.match(cab, /<urbi-linha justificar="entre" alinhar="centro">\s*<urbi-prosa papel="titulo">Conversas<\/urbi-prosa>\s*<urbi-linha>ACOES<urbi-botao variante="secundario" icone="fa-solid fa-magnifying-glass" ariaLabel="Buscar" title="Buscar \(\/\)"[^>]*><\/urbi-botao><urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles"/);
+  assert.match(cab, /<urbi-linha justificar="entre" alinhar="centro" quebrar>\s*<urbi-prosa papel="titulo">Conversas<\/urbi-prosa>\s*<urbi-linha quebrar>ACOES<urbi-botao variante="secundario" icone="fa-solid fa-magnifying-glass" ariaLabel="Buscar" title="Buscar \(\/\)"[^>]*><\/urbi-botao><urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles"/);
   assert.match(texto(botaoAssistenteColuna()), /ariaLabel="Abrir o Assistente"/);
 });
 

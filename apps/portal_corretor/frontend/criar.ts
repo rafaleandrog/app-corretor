@@ -102,7 +102,7 @@ export function menuCriar(): TemplateResult {
   </urbi-dropdown>`;
 }
 
-/** Assistente no cabeçalho das telas que ainda não têm o trilho da moldura. */
+/** Assistente no cabeçalho do shell (ao lado do Criar) das telas sem moldura de colunas; nas demais, ele fica no cabeçalho da coluna esquerda (D-126). */
 export function botaoAssistente(): TemplateResult {
   return html`<urbi-botao slot="actions" pequeno variante=${assistenteAberto() ? 'primario' : 'secundario'} icone="fa-solid fa-comments"
     @click=${() => alternarAssistente()}>Assistente</urbi-botao>`;
