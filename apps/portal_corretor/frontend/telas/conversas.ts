@@ -255,7 +255,7 @@ export class PcConversasLista extends LitElement {
     const opcoes = [{ id: '', rotulo: 'Todas' }, ...FILTROS_CONVERSA.map((f) => ({ id: f, rotulo: `${ROTULO_FILTRO[f]}${this.contadores[f] ? ` ${this.contadores[f]}` : ''}` }))];
     return html`<urbi-stack>
       ${cabecalhoColuna('Conversas', html`<urbi-botao variante="secundario" icone="fa-solid fa-plus" @click=${() => void this.nova()}>Nova</urbi-botao>`)}
-      <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Buscar nome, telefone ou imóvel" valor=${this.busca}
+      <urbi-input label="Buscar conversa" icone="fa-solid fa-magnifying-glass" placeholder="Buscar nome, telefone ou imóvel" valor=${this.busca}
         @urbi:input-change=${(e: CustomEvent) => this.filtrar({ q: e.detail.valor })}></urbi-input>
       <urbi-chips-atalho .opcoes=${opcoes} ativo=${this.filtro} @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ filtro: e.detail.id })}></urbi-chips-atalho>
       ${this.limite.atingido

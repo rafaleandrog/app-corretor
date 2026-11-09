@@ -190,7 +190,12 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
     umaLinha(dados, 'contatos', { conta_id: conta, id: contatoId }),
     dados.varrerTudo('selecoes', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'enviada_em', ordem: 'desc', maximo: 200 }),
     dados.varrerTudo('atividades', { filtros: { conta_id: conta, contato_id: contatoId, tipo: 'visita' }, ordenar: 'quando', ordem: 'asc', maximo: 500 }),
-    dados.varrerTudo('tarefas_cliente', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'criado_em', ordem: 'asc', maximo: 200 }),
+    // Abertas (para a lista do portal) e as feitas mais recentes (para a jornada), cada uma com o seu filtro
+    // na consulta (#80): as feitas antigas não enchem o teto nem derrubam a montagem do portal.
+    Promise.all([
+      dados.varrerTudo('tarefas_cliente', { filtros: { conta_id: conta, contato_id: contatoId, 'feita_em[nulo]': 'true' }, ordenar: 'criado_em', ordem: 'asc', maximo: 200 }),
+      dados.listar('tarefas_cliente', { filtros: { conta_id: conta, contato_id: contatoId, 'feita_em[nulo]': 'false' }, ordenar: 'feita_em', ordem: 'desc', por_pagina: 50 }),
+    ]).then(([abertas, feitas]) => [...abertas, ...feitas.dados]),
     dados.varrerTudo('negociacoes', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'id', ordem: 'asc', maximo: 50 }),
   ]);
   if (!contato) {

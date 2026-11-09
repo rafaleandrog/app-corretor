@@ -302,3 +302,22 @@ test('P17: Ligado · Pausar no cabeçalho; estilo em cartões; Testar em bolhas 
   assert.equal(aud[0].payload.tipo, 'negociador');
   assert.ok(Number.isInteger(aud[0].payload.config_id));
 });
+
+test('#192 e #182: todo campo montado pelo app tem rótulo no primitivo; busca sem asterisco; "Novo cliente" no menu e no diálogo', () => {
+  const todas = [...fontes('frontend'), ...fontes('frontend/telas')];
+  const sem: string[] = [];
+  for (const { arq, texto } of todas) {
+    for (const m of texto.matchAll(/<urbi-(input|select|textarea|input-numero|input-data|input-hora|input-data-hora|seletor-arquivo|checkbox)\b([\s\S]*?)>/g)) {
+      if (!/\blabel=/.test(m[2])) sem.push(`${arq}: <urbi-${m[1]}${m[2].slice(0, 60)}`);
+    }
+  }
+  assert.deepEqual(sem, []);
+  const atalhos = readFileSync(resolve(RAIZ, 'frontend/atalhos.ts'), 'utf8');
+  const busca = atalhos.slice(atalhos.indexOf("tipo: 'busca'"), atalhos.indexOf('buscar,', atalhos.indexOf("tipo: 'busca'")));
+  assert.doesNotMatch(busca, /obrigatorio: true/);
+  assert.match(readFileSync(resolve(RAIZ, 'frontend/telas/clientes.ts'), 'utf8'), /titulo: 'Novo cliente'/);
+  assert.match(readFileSync(resolve(RAIZ, 'frontend/criar.ts'), 'utf8'), /rotulo: 'Novo cliente'/);
+  const pedidos = readFileSync(resolve(RAIZ, '../../specs/pedidos_ao_shell.md'), 'utf8');
+  assert.match(pedidos, /## 28\. Superfície branca/);
+  assert.match(pedidos, /## 29\. Nome acessível nos campos do `formulario`/);
+});

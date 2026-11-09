@@ -52,7 +52,7 @@ Na **Lista**:
   **origem** (por onde o contato chegou) e mostra quantos estão ligados. Tudo combina com a busca e
   com o filtro pronto.
 - A busca e os filtros ficam no endereço da página: dá para voltar ou guardar o link.
-- **Novo:** nome, telefone ou e-mail, papel (comprador ou proprietário) e por onde chegou. Sem papel
+- **Novo** (o diálogo **Novo cliente**, o mesmo nome do menu Criar): nome, telefone ou e-mail, papel (comprador ou proprietário) e por onde chegou. Sem papel
   informado, o contato entra como comprador. O telefone é guardado no formato internacional
   (`+55…`); sem o `+`, o app assume Brasil. Salvo, a ficha do contato novo abre. Se o app recusar
   (telefone inválido, nome em branco), o formulário reabre com o que você digitou e a mensagem no

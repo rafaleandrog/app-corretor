@@ -95,7 +95,7 @@ export class PcListaEmpreendimentos extends LitElement {
   render() {
     return html`<urbi-stack>
       <urbi-linha>
-        <urbi-input expandir icone="fa-solid fa-magnifying-glass" placeholder="Nome, construtora ou cidade" valor=${this.busca}
+        <urbi-input expandir label="Buscar empreendimento" icone="fa-solid fa-magnifying-glass" placeholder="Nome, construtora ou cidade" valor=${this.busca}
           @urbi:input-change=${(e: CustomEvent) => {
             this.busca = e.detail.valor;
             void this.carregar();

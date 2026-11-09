@@ -213,6 +213,22 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** `req.ia.uso({ de, ate, slot?, conta_id? })` → `{ chamadas, tokens_entrada, tokens_saida, custo_estimado? }` da própria app, filtrável pela conta do request (o `log_ia` precisaria guardar a conta de escrita da chamada).
 
+## 28. Superfície branca para as colunas do painel (#176, etapa 4, grupo 5)
+
+**Por quê:** o guia do Padrão B pede colunas e cartões brancos sobre um fundo claro, com texto secundário a 4,5:1 ou mais. No shell 0.56.37 a área de trabalho sai cinza: o `urbi-inbox` pinta `div.layout` com `rgba(13, 27, 42, 0.04)` e `section.detail-pane` com `rgba(13, 27, 42, 0.05)` (estilo computado no QA de 07/11), e o texto secundário da lista de Clientes medido sobre esse véu ficou em ~2,9:1. O véu é do primitivo; o contrato (`ui.md`, regra 10) proíbe a tela de escrever CSS, e os tokens de superfície (`--cor-superficie`, `--cor-superficie-elevada`) só são consumidos pelo primitivo, não escolhidos pela tela. O app já não usa `urbi-inbox` (a moldura é `urbi-3-colunas` com `urbi-hospedeiro`, D-114), mas a conferência visual mostra o mesmo cinza nas colunas.
+
+**Até lá:** o app não compensa com CSS; usa `urbi-card` (superfície do tema) para os blocos de conteúdo e `papel="fraco"`/`"secundario"` como o primitivo os pinta. Exceção não registrada, porque não há o que a app possa fazer sem violar a regra 10.
+
+**Proposta mínima:** um atributo nos primitivos de painel (`urbi-3-colunas`, `urbi-hospedeiro`, `urbi-inbox`) que troque o véu translúcido por `--cor-superficie` (ex.: `superficie`), ou um token próprio de fundo de coluna (`--cor-fundo-coluna`) que o tema claro defina branco; e a medição de contraste do texto secundário sobre ele em `contraste-temas.test.ts`.
+
+## 29. Nome acessível nos campos do `formulario`, rádio e busca sem resultado vazio (#192, #182, etapa 4, grupo 5)
+
+**Por quê:** nos formulários abertos por `urbiVerso.formulario` (Novo cliente, Editar dados do imóvel, Registrar oferta, os filtros Temperatura e Origem de Clientes), o rótulo e o campo estão em shadow roots diferentes, sem `aria-labelledby` nem `aria-label`: o leitor de tela anuncia "caixa de texto" sem nome e `getByLabel` não acha o campo (árvore de acessibilidade do Chromium, QA de 07/11). Nos campos que a app monta, ela passa `label` em todo `urbi-input`, `urbi-select`, `urbi-textarea` e `urbi-seletor-arquivo` (grupo 5), e o SDK não diz se o primitivo liga esse rótulo ao campo interno. Ainda: o SDK 100 não tem rádio nem grupo de opções (a referência pede "Pular · Completar · Substituir" e o tom de voz como rádios com explicação), e o campo `busca` do formulário mostra "Nenhum resultado" com o campo vazio, cobrindo os botões do diálogo (#182, item 1).
+
+**Até lá:** a app usa cartões clicáveis (`urbi-card clicavel`, com o círculo marcado no ícone e `role="radio"`) para a escolha única (`escolhaUnica`, `frontend/visual.ts`); a busca global não leva o asterisco de obrigatório e só busca a partir de 2 letras.
+
+**Proposta mínima:** (a) o `formulario` e os primitivos de campo ligarem o `rotulo`/`label` ao controle interno (`aria-labelledby` ou `aria-label` no elemento nativo); (b) um `urbi-opcoes` (rádio com rótulo e explicação por opção, evento `{ valor }`); (c) o campo `busca` não mostrar a lista vazia antes de o usuário digitar.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

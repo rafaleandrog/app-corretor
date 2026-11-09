@@ -206,7 +206,7 @@ function camposDoContato(v: Record<string, unknown>): CampoFormulario[] {
 }
 
 /**
- * Novo contato (o mesmo formulário na Lista e no Funil); devolve o criado ou nada. O digitado não se
+ * Novo cliente (#182 item 8: o mesmo nome do menu Criar; o mesmo formulário na Lista e no Funil); devolve o criado ou nada. O digitado não se
  * perde (issue #187): quando o servidor recusa, o formulário reabre com os valores e a mensagem; na
  * duplicata de telefone, **Abrir <nome>** abre o contato que já tem o número. (O `urbiVerso.formulario`
  * fecha ao confirmar e não mostra erro por campo: a mensagem vai no topo do diálogo.)
@@ -217,7 +217,7 @@ async function novoContato(abrir: (id: number) => void): Promise<Record<string, 
   let mensagem: string | undefined;
   try {
     for (;;) {
-      const v = await g.esperar(urbiVerso.formulario({ titulo: 'Novo contato', mensagem, campos: camposDoContato(valores), rotuloConfirmar: 'Salvar' }));
+      const v = await g.esperar(urbiVerso.formulario({ titulo: 'Novo cliente', mensagem, campos: camposDoContato(valores), rotuloConfirmar: 'Salvar' }));
       if (!v) return null;
       valores = v;
       try {
@@ -452,7 +452,7 @@ export class PcTelaClientes extends LitElement {
     const restam = this.total - this.contatos.length;
     return html`<urbi-stack>
       ${topoClientes(this.visao, this.aoTrocarVisao, () => void this.novo())}
-      <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Buscar nome ou telefone"
+      <urbi-input label="Buscar cliente" icone="fa-solid fa-magnifying-glass" placeholder="Buscar nome ou telefone"
         valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
       <urbi-chips-atalho
         .opcoes=${[{ id: 'todas', rotulo: 'Todas' }, ...opcoesPapelNaTela().map((o) => ({ id: o.valor, rotulo: PAPEL_NO_PLURAL[o.valor] ?? o.rotulo }))]}

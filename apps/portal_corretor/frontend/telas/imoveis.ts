@@ -277,7 +277,7 @@ export class PcListaImoveis extends LitElement {
           ${this.aba === 'empreendimentos'
             ? keyed(this.versaoEmpreendimentos, html`<pc-lista-empreendimentos .selecionado=${this.selecionado} .aoEscolher=${this.aoEscolher}></pc-lista-empreendimentos>`)
             : html`<urbi-stack>
-                <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Código, título, bairro ou cidade"
+                <urbi-input label="Buscar imóvel" icone="fa-solid fa-magnifying-glass" placeholder="Código, título, bairro ou cidade"
                   valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
                 <urbi-chips-atalho .opcoes=${CHIPS_SITUACAO.map((c) => ({ id: c.valor || 'todas', rotulo: c.rotulo }))} ativo=${situacao || 'todas'}
                   @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ situacao: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>

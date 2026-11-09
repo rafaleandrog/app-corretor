@@ -565,7 +565,7 @@ export class PcTelaFichaImovel extends LitElement {
           ? html`<span slot="acoes"><urbi-botao variante="fantasma" icone="fa-solid fa-wand-magic-sparkles" ariaLabel="Ordem sugerida" title="Ordem sugerida"
               @click=${() => this.tentar('Não foi possível ordenar', () => enviar('POST', `/imoveis/${this.imovelId}/midias/ordem-sugerida`, {}))}></urbi-botao></span>`
           : ''}
-        <urbi-seletor-arquivo drop multiplo accept="image/jpeg,image/png,image/webp,video/mp4,application/pdf" ?desabilitado=${!!this.enviando}
+        <urbi-seletor-arquivo label="Fotos, vídeos e documentos" drop multiplo accept="image/jpeg,image/png,image/webp,video/mp4,application/pdf" ?desabilitado=${!!this.enviando}
           dica="Fotos (JPG, PNG, WEBP), vídeo MP4 ou PDF — até 25 MB cada. A primeira foto é a capa."
           @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivos(e)}></urbi-seletor-arquivo>
         ${this.enviando ? html`<urbi-prosa papel="secundario">${this.enviando}</urbi-prosa>` : ''}

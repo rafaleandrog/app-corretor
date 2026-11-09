@@ -743,7 +743,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
     // O cadastro começa pelas fotos (P07 e M3): o rascunho nasce com a primeira, sem pedir tipo nem
     // cidade (que vêm no passo 2). O botão grande vem no topo.
     return html`<urbi-stack>
-      <urbi-seletor-arquivo drop multiplo variante="primario" icone="fa-solid fa-camera" texto="Tirar fotos ou escolher da galeria"
+      <urbi-seletor-arquivo label="Fotos do imóvel" drop multiplo variante="primario" icone="fa-solid fa-camera" texto="Tirar fotos ou escolher da galeria"
         accept="image/jpeg,image/png,image/webp" dica="Fotos JPG, PNG ou WEBP, até 25 MB cada. Com 8 ou mais, o anúncio ganha pontos."
         ?desabilitado=${!!e.ocupado} @urbi:seletor-arquivo-change=${(ev: CustomEvent) => e.enviarFotos((ev.detail.arquivos as File[]) ?? [])}></urbi-seletor-arquivo>
       <urbi-prosa papel="secundario">${e.ia.fotos

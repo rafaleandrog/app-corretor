@@ -820,6 +820,7 @@ export class Estudio {
     const carrossel = p.formato === 'carrossel';
     const nome = FERRAMENTA[this.instrucoes[p.id]?.ferramenta ?? 'canva'].rotulo;
     return html`<urbi-seletor-arquivo
+      label="Arte da peça"
       accept="image/jpeg,image/png"
       ?multiplo=${carrossel}
       ?drop=${primeira}

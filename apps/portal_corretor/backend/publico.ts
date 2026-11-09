@@ -597,7 +597,10 @@ async function tarefaFeita(trx: HelperDados, conta: number, contato: Linha, tare
   if (!tid) return false;
   const t = (await trx.varrerTudo('tarefas_cliente', { filtros: { conta_id: conta, id: tid, contato_id: contato.id }, maximo: 1 }))[0];
   if (!t || t.feita_em) return false;
-  await trx.atualizar('tarefas_cliente', t.id, { feita_em: new Date().toISOString() });
+  // Ler e gravar num comando só (#80): duas entregas do mesmo aviso ao mesmo tempo não gravam a hora nem
+  // a linha do tempo duas vezes; a que perde a corrida recebe `null` e para aqui.
+  const feita = await trx.atualizarSe('tarefas_cliente', t.id, { feita_em: new Date().toISOString() }, { 'feita_em[nulo]': 'true', contato_id: contato.id });
+  if (!feita) return false;
   await linhaDoTempo(trx, contato.id, 'portal.tarefa_feita', `Marcou como feito no portal: ${t.texto}`, { tarefa_id: t.id }, conta);
   return true;
 }
