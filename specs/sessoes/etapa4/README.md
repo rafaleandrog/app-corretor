@@ -7,9 +7,9 @@ Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a 
 | Item | Situação |
 |---|---|
 | PR 1 · infra (#200) | mergeado, 0.1.47 |
-| Grupo 2 · Hoje, Funil, Cliente, Seleção e Agendar visita na P02, Buscar (#201) | ver o plano: mergeado ou em fechamento |
-| Grupo 3 · Imóveis, Imóvel, M3, Negociações, Negociação, M8, Proposta na P02, D-120, D-125 | branch `etapa4/grupo3`; PR aberto pela sessão condutora (ver o plano) |
-| Grupo 4 · Estúdio, Página, M6, M4 + M5 | branch `etapa4/grupo4` (0.1.50), implementado; PR pela sessão condutora (ver o plano) |
+| Grupo 2 · Hoje, Funil, Cliente, Seleção e Agendar visita na P02, Buscar (#201) | mergeado, 0.1.48 |
+| Grupo 3 · Imóveis, Imóvel, M3, Negociações, Negociação, M8, Proposta na P02, D-120, D-125 | mergeado, 0.1.49 (#203) |
+| Grupo 4 · Estúdio, Página, M6, M4 + M5 | mergeado, 0.1.50 (#204) |
 | Grupo 5 · Números, Conexões, Conta e marca, Importar, Negociador, Assistente + transversais | **a fazer**: brief em `brief-grupo5.md` |
 | Release da `main` para a homologação | **só no fim da etapa** (ordem do dono de 08/11) |
 
@@ -23,13 +23,10 @@ Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a 
 6. **Revisão**: skill `revisar-pr-apps` com `#n máximo 3 rodadas`. Codex pela menção `@codex review` num comentário do PR (é o único lugar com arroba; em relatórios escreva "Codex"); Codex CLI e Kimi ficam fora enquanto o proxy do ambiente recusar `api.openai.com` e `api.moonshot.ai`. Lentes em Sonnet; Opus só para contrato (schema, manifesto, permissões, contas, auditoria) e consertos que o toquem. Um commit por rodada; passe de fechamento; veredito.
 7. **Merge** com CI verde no head final e revisão sem bloqueante (autorização do dono para a etapa); conferir que as issues fecharam; plano com `[x]`, registro de sessão e pendências.
 
-## Antes do grupo 4
-
-- Publicar a Minha Página da conta demo (Corretor A (demo), id 7) na homologação, senão a M6 não captura (pendência (3) do plano). O brief do grupo 4 começa pela semente (#189), que já deixa a página publicada.
-
 ## Decisões que esperam o dono
 
-- Pendência (1) do plano: confirmar o menu do usuário externo entrando como o corretor demo.
+- Título e rota da P15 ("Negociações", `/negociacoes`) × referência ("Clientes" com alternador): pendência (1) do grupo 3 no plano.
+- Menu do usuário externo: pendência (1) do plano, a confirmar entrando como o corretor demo.
 
 ## Arquivos desta pasta
 
