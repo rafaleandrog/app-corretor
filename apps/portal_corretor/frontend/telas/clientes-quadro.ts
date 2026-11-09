@@ -120,8 +120,8 @@ export class PcClientesFunilFiltros extends LitElement {
 // etapas em quatro números; abaixo, o quadro por etapa, que enche a altura do centro (arrastar muda a
 // etapa; Perdido pede o motivo). Clicar num cartão escolhe o cliente (`?item=`), que abre à direita. Os
 // filtros vêm do endereço. O elemento desenha no light DOM e se declara `papel-fill` (ui.md § Papéis de
-// UI). Vai direto no slot `centro` do `urbi-3-colunas` (`centroSolto`), que impõe a estrutura de coluna
-// ao papel; o respiro é o `urbi-hospedeiro` de dentro. Dentro do hospedeiro da moldura ele ficava
+// UI). Vai direto no slot `centro` do `urbi-3-colunas` (`centroSolto`): medido assim na 0.1.51, a coluna
+// do `urbi-3-colunas` o deixa encher a altura; o respiro é o `urbi-hospedeiro` de dentro. Dentro do hospedeiro da moldura ele ficava
 // `display: block` e o quadro parava na altura do conteúdo (#180: fim em y 817 de 984 em 1440 × 1000).
 @customElement('pc-clientes-quadro')
 export class PcClientesQuadro extends LitElement {
