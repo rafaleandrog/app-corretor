@@ -60,6 +60,7 @@ window.urbiVerso = {
       salva: true, url: 'https://corretor.exemplo/portal_corretor/p?c=rafael', marcados_para_pagina: 2, sem_creci: true,
       numeros: { contatos_30d: 14, visitas_30d: null },
     };
+    if (caminho === '/imoveis') return { dados: [{ codigo: 'IM-0001', titulo: 'Casa 4 quartos', tipo: 'casa', publicado_pagina: true }, { codigo: 'IM-0002', titulo: 'Apto', tipo: 'apartamento', publicado_pagina: true }] };
     if (caminho === '/pagina/previa') return {
       publicada: true,
       pagina: { endereco: 'rafael', nome: 'Rafael Gualberto', creci: null, telefone: '+5561999990000', cor: '#12302F', foto_url: null, url_formulario: null,
@@ -193,13 +194,16 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     assert.match(r.esquerda, /rafael/);
     assert.match(r.esquerda, /Publicada desde/);
     assert.match(r.esquerda, /Refazer a página com IA/);
+    // Blocos arrastáveis (D-119) no `urbi-arvore`: a caixa é o "Mostrar"; as setas movem o selecionado.
     const blocos = await pagina.evaluate(() => {
       const w = window as any;
-      const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
-      return { tipos: lista.itens.map((b: any) => b.tipo), ativo: lista.itens.filter((b: any, i: number) => lista.itemAtivo(b, i)).map((b: any) => b.tipo), mostrar: w.todos(lista, 'urbi-checkbox').length };
+      const arv = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-arvore')[0];
+      return { tipos: arv.nos.map((n: any) => n.id), ativo: arv.selecionados, marcados: arv.nos.filter((n: any) => n.marcado === 'sim').length, arrasta: arv.hasAttribute('arrastavel') && arv.hasAttribute('marcavel') };
     });
     assert.deepEqual(blocos.tipos, ['apresentacao', 'destaques', 'imoveis', 'sobre', 'bairros', 'formulario', 'contato']);
     assert.deepEqual(blocos.ativo, ['apresentacao'], 'sem ?item=, o primeiro bloco');
+    assert.equal(blocos.arrasta, true);
+    assert.match(r.esquerda, /Arraste para mudar a ordem/);
     assert.match(r.centro, /Pré-visualização/);
     assert.match(r.centro, /Rafael Gualberto/, 'a prévia é a página pública');
     assert.doesNotMatch(r.centro, /CRECI/, 'sem CRECI, a capa não o mostra (D-93)');
@@ -207,24 +211,16 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     assert.match(r.direita, /Bloco: Apresentação/);
     assert.match(r.direita, /Editar em Ajustes › Conta e marca/);
     assert.match(r.direita, /Adicione seu CRECI ao perfil/);
-    assert.match(r.direita, /Contatos/);
+    assert.match(r.direita, /Contatos pelo formulário/);
+    assert.match(r.direita, /Salvar bloco/, 'ajustes do bloco na própria coluna');
+    assert.doesNotMatch(r.direita, /Editar bloco/);
     assert.match(r.direita, /Copiar link/);
-    assert.equal(r.estilos, 0, 'nenhum <style> nem style= na tela (a exceção da prévia fica no shadow dela)');
+    assert.equal(r.estilos, 0, `nenhum <style> nem style= na tela (a exceção da prévia fica no shadow dela): ${await pagina.evaluate(() => [...document.querySelectorAll('#raiz style, #raiz [style]')].map((e) => e.outerHTML.slice(0, 120)).join(' | '))}`);
     await medirMoldura('Página');
 
-    // Cada "Mostrar" diz de qual bloco é (nome acessível por bloco).
-    const nomes = await pagina.evaluate(() => {
-      const w = window as any;
-      const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
-      // `urbi-lista` não está registrada: renderiza-se o `render_item` de cada bloco à parte.
-      return lista.itens.map((b: any, i: number) => {
-        const d = document.createElement('div');
-        w.litRender(lista.render_item(b, i), d);
-        return d.querySelector('urbi-checkbox')!.getAttribute('label');
-      });
-    });
-    assert.equal(new Set(nomes).size, 7, `rótulos distintos: ${nomes}`);
-    assert.ok(nomes.every((n: string) => /^Mostrar .+/.test(n)));
+    // Nenhum botão `pequeno` na Página (D-128).
+    const pequenos = await pagina.evaluate(() => (window as any).todos(document, 'urbi-botao').filter((b: Element) => b.hasAttribute('pequeno')).map((b: Element) => b.textContent!.trim()));
+    assert.deepEqual(pequenos, []);
 
     // Celular: a prévia tem largura de celular; Computador: ocupa o centro.
     const largura = () =>
@@ -235,7 +231,7 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
       });
     let l = await largura();
     assert.equal(l.dispositivo, 'celular');
-    assert.ok(l.largura <= 392, `celular com ${l.largura}px`);
+    assert.ok(l.largura <= 302, `celular com ${l.largura}px`);
     await pagina.evaluate(() => {
       const w = window as any;
       const b = w.todos(document, 'urbi-botao-alternar').find((x: any) => x.textContent.includes('Computador'));
@@ -279,14 +275,16 @@ test('Página e Números no Chromium: três colunas, prévia com destaque, relat
     // Escolher "Imóveis em destaque": vira o selecionado, vai para a URL e ganha contorno na prévia.
     await pagina.evaluate(() => {
       const w = window as any;
-      const lista = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-lista')[0];
-      lista.dispatchEvent(new CustomEvent('urbi:lista-click', { detail: { item: lista.itens[1], indice: 1 } }));
+      const arv = w.todos(document.querySelector('urbi-hospedeiro[slot="esquerda"]'), 'urbi-arvore')[0];
+      arv.dispatchEvent(new CustomEvent('urbi:arvore-selecao', { detail: { ids: ['destaques'] }, bubbles: true, composed: true }));
     });
+    await esperar();
     await esperar();
     r = await colunas();
     assert.match(r.url, /item=destaques/);
     assert.match(r.direita, /Bloco: Imóveis em destaque/);
-    assert.match(r.direita, /Escolhidos: IM-0001/);
+    const escolhas = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="direita"]'), 'urbi-checkbox').map((c: any) => [c.getAttribute('label'), c.hasAttribute('marcado')]));
+    assert.deepEqual(escolhas, [['IM-0001 · Casa 4 quartos', true], ['IM-0002 · Apto', false]], 'destaques escolhidos na própria coluna');
     const destaque = await pagina.evaluate(() => {
       const w = window as any;
       const pub = w.todos(document, 'pc-pagina-publica')[0];

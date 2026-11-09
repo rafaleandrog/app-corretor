@@ -14,28 +14,32 @@ login, no celular ou no computador.
 
 A tela fica no desenho em colunas (no celular, uma por vez, com as abas Blocos · Prévia · Ajustes):
 
-- **À esquerda:** o endereço da página e o estado (**Publicada desde …** ou **Rascunho**), com o
-  botão **Publicar** enquanto ela não está no ar e o atalho **Nome e endereço**. Abaixo, os
-  **blocos**, na ordem em que aparecem: cada um com **Mostrar** (aparece ou fica oculto) e as setas
-  para subir e descer. Tocar num bloco o seleciona: ele fica marcado na lista, no endereço
-  (`/pagina?item=destaques`, por exemplo) e na prévia. No fim, **Refazer a página com IA** (a mesma
-  escrita com IA descrita abaixo).
+- **À esquerda:** o cabeçalho **Página** (com **Publicar** enquanto ela não está no ar, Buscar e
+  Assistente), o endereço da página numa linha (longo, termina em "…"; o endereço completo aparece
+  ao passar o mouse e em **Copiar link**), o estado (**Publicada desde …** ou **Rascunho**) e o
+  atalho **Nome e endereço**. Abaixo, os **blocos**, na ordem em que aparecem: **arraste** um bloco
+  para mudar de lugar, e a caixa ao lado de cada um mostra ou oculta o bloco (o oculto leva
+  "(oculto)" no nome). Tocar num bloco o seleciona: ele fica marcado na lista, no endereço
+  (`/pagina?item=destaques`, por exemplo) e na prévia. Logo abaixo, as setas **Subir** e
+  **Descer** movem o bloco selecionado (o mesmo que arrastar, para quem usa teclado ou leitor de
+  tela). No fim, **Refazer a página com IA** (a mesma escrita com IA descrita abaixo).
 - **No centro:** a **pré-visualização**, com a escolha **Celular** ou **Computador**. A prévia é a
   própria página que o visitante vê (a mesma capa, os mesmos cartões e a sua cor), montada com a
-  página salva e os imóveis que estão publicáveis agora; o bloco selecionado aparece contornado. Na
-  prévia nada sai da tela: os links não abrem e o formulário não envia. Bloco oculto não aparece
-  na prévia, e um aviso lembra de ligar o **Mostrar**. Antes de salvar a primeira mudança, a prévia
-  mostra a sugestão de página.
-- **À direita:** os **ajustes do bloco selecionado** (o que ele mostra hoje e **Editar bloco**); a
-  **Marca**, com a sua foto e o atalho **Editar em Ajustes › Conta e marca** (a cor e a foto vêm de
-  lá); **Últimos 30 dias**, com os **contatos** que chegaram pelo formulário da página (as
-  **visitas** à página ainda não são medidas e aparecem como "—"); e, com a página no ar, **Copiar
-  link** e, em **Mais**, Abrir minha página, Atualizar agora e Tirar do ar.
+  página salva e os imóveis que estão publicáveis agora; o bloco selecionado aparece contornado. No
+  Celular, ela fica na largura de um celular (300 px), com borda e cantos arredondados. Na prévia
+  nada sai da tela: os links não abrem e o formulário não envia. Bloco oculto não aparece na
+  prévia, e um aviso lembra de ligar a caixa. Antes de salvar a primeira mudança, a prévia mostra a
+  sugestão de página.
+- **À direita:** os **ajustes do bloco selecionado**, com os campos dele na própria coluna (título,
+  texto, bairros, WhatsApp e Instagram, ou a escolha dos imóveis em destaque, até 6) e **Salvar
+  bloco** (ou **Descartar**); a **Marca**, com a sua foto e o atalho **Editar em Ajustes › Conta e
+  marca** (a cor e a foto vêm de lá); **Últimos 30 dias**, um número embaixo do outro: os
+  **contatos pelo formulário** da página e as **visitas à página**, que ainda não são medidas e
+  aparecem como "—"; e, com a página no ar, **Copiar link** e, em **Mais**, Abrir minha página,
+  Atualizar agora e Tirar do ar.
 
 Se a releitura da página falhar ao voltar à tela, o editor segue com a última leitura e um aviso
 diz que ela pode estar desatualizada.
-
-Arrastar os blocos para ordenar ainda não existe: a ordem muda pelas setas.
 
 ### O que a página tem
 
@@ -54,13 +58,13 @@ Arrastar os blocos para ordenar ainda não existe: a ordem muda pelas setas.
 
 | Bloco | O que mostra |
 |---|---|
-| Apresentação | A capa: a sua foto (sem foto, as suas iniciais), o nome, o CRECI (só se cadastrado), o título e o texto, e os botões **Falar no WhatsApp** e Instagram |
+| Apresentação | O título e o texto de apresentação, logo abaixo da capa (a capa tem sempre a sua foto, ou as iniciais, o nome, o CRECI só se cadastrado e **Falar no WhatsApp**) |
 | Imóveis em destaque | Até 6 imóveis escolhidos, cada um com o botão **Quero saber mais**, que abre o seu WhatsApp citando o código e o título do imóvel (com o WhatsApp desligado, abre a ficha do imóvel). Numa página nova ele vem ligado, mas sem imóveis escolhidos fica de fora: só aparece com pelo menos um imóvel escolhido e publicado. O título padrão é **Imóveis em destaque**; numa página já salva vale o título gravado, e um título apagado volta a esse nome. Esse bloco não é o que toda página mostra: a página nova traz o bloco **Todos os imóveis** (título padrão **Imóveis à venda**) |
 | Todos os imóveis | Todos os imóveis publicados |
 | Sobre mim | Um texto mais longo |
 | Bairros que atendo | Uma lista de bairros ou regiões |
 | Formulário de contato | Nome, telefone, e-mail, mensagem e a autorização de contato |
-| WhatsApp e Instagram | Liga ou desliga o botão do WhatsApp e informa o Instagram |
+| WhatsApp e Instagram | Liga ou desliga o botão do WhatsApp da capa e informa o Instagram, que aparece no fim da página |
 
 - **Refazer a página com IA** sugere a apresentação e o "sobre mim" a partir do que o corretor contar e
   das regiões dos imóveis. A IA não inventa prêmios, anos de experiência nem números. O corretor

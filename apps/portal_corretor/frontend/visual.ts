@@ -255,6 +255,6 @@ import { AVISO_CRECI } from '../comum/conta';
 export function avisoCreci(): TemplateResult {
   return html`<urbi-linha quebrar>
     <urbi-prosa papel="dica">${AVISO_CRECI}</urbi-prosa>
-    <urbi-botao pequeno variante="fantasma" icone="fa-solid fa-id-badge" href=${urbiVerso.href('/ajustes/conta')}>Ajustes › Conta e marca</urbi-botao>
+    <urbi-botao variante="fantasma" icone="fa-solid fa-id-badge" href=${urbiVerso.href('/ajustes/conta')}>Ajustes › Conta e marca</urbi-botao>
   </urbi-linha>`;
 }
