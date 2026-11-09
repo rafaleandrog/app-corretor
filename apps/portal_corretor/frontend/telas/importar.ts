@@ -144,7 +144,7 @@ export class PcImportarFontes extends ColunaImportar {
         <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" href=${urbiVerso.href('/clientes')}>Clientes</urbi-botao>
       </urbi-linha>
       ${cabecalhoColuna('Importar contatos')}
-      <urbi-prosa papel="fraco">Seus contatos ficam só na sua conta.</urbi-prosa>
+      <urbi-prosa papel="dica">Seus contatos ficam só na sua conta.</urbi-prosa>
       <urbi-prosa papel="secao">De onde vêm</urbi-prosa>
       <urbi-lista clicavel separador .itens=${FONTES} .itemAtivo=${(f: (typeof FONTES)[number]) => f.id === estado.fonte}
         .indicador=${(f: (typeof FONTES)[number]) => (f.id === estado.fonte ? 'var(--cor-primaria)' : '')}
@@ -152,7 +152,7 @@ export class PcImportarFontes extends ColunaImportar {
           <urbi-icone classe=${f.icone}></urbi-icone>
           <urbi-stack>
             <urbi-prosa>${f.rotulo}</urbi-prosa>
-            <urbi-prosa papel="fraco">${f.detalhe}</urbi-prosa>
+            <urbi-prosa papel="dica">${f.detalhe}</urbi-prosa>
           </urbi-stack>
         </urbi-linha>`}
         @urbi:lista-click=${(e: CustomEvent) => this.escolher(String(e.detail.item?.id))}></urbi-lista>
@@ -326,7 +326,7 @@ export class PcTelaImportar extends ColunaImportar {
                 Importar ${n} ${n === 1 ? 'contato' : 'contatos'}
               </urbi-botao>
             </urbi-linha>
-            ${lotes > 1 ? html`<urbi-prosa papel="fraco">Vai em ${lotes} partes, uma depois da outra, por causa do tamanho máximo de cada envio.</urbi-prosa>` : nothing}`
+            ${lotes > 1 ? html`<urbi-prosa papel="dica">Vai em ${lotes} partes, uma depois da outra, por causa do tamanho máximo de cada envio.</urbi-prosa>` : nothing}`
         : nothing}
       ${relatorio
         ? html`<urbi-card titulo="Relatório da importação" icone="fa-solid fa-clipboard-check">
@@ -355,7 +355,7 @@ export class PcImportarRegras extends ColunaImportar {
     const atual = REPETIDOS.find((r) => r.id === estado.modo) ?? REPETIDOS[0];
     return html`<urbi-stack>
       <urbi-prosa papel="secao">Se o contato já existir</urbi-prosa>
-      <urbi-prosa papel="fraco">Mesmo telefone ou, sem telefone, mesmo e-mail.</urbi-prosa>
+      <urbi-prosa papel="dica">Mesmo telefone ou, sem telefone, mesmo e-mail.</urbi-prosa>
       <urbi-stack>
         ${escolhaUnica(REPETIDOS, atual.id, (id) => {
           mudar({ modo: id });

@@ -83,10 +83,10 @@ export class PcListaEmpreendimentos extends LitElement {
     return html`<urbi-lista separador clicavel .itens=${this.lista} .itemAtivo=${(e: Linha) => e.id === this.selecionado}
       .render_item=${(e: Linha) => html`<urbi-stack>
         <urbi-prosa truncar>${e.nome}</urbi-prosa>
-        <urbi-prosa papel="fraco" truncar>${[e.construtora, [e.regiao, e.cidade].filter(Boolean).join(', ')].filter(Boolean).join(' · ') || '—'}</urbi-prosa>
+        <urbi-prosa papel="dica" truncar>${[e.construtora, [e.regiao, e.cidade].filter(Boolean).join(', ')].filter(Boolean).join(' · ') || '—'}</urbi-prosa>
         <urbi-linha quebrar>
           <urbi-badge cor="info">${FASE[e.fase] ?? e.fase}</urbi-badge>
-          <urbi-prosa papel="fraco" inline>${faixa(e)}</urbi-prosa>
+          <urbi-prosa papel="dica" inline>${faixa(e)}</urbi-prosa>
         </urbi-linha>
       </urbi-stack>`}
       @urbi:lista-click=${(ev: CustomEvent) => this.aoEscolher((ev.detail.item as Linha).id)}></urbi-lista>`;

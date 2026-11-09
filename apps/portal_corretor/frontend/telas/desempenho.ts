@@ -151,7 +151,7 @@ function variacao(dias: number, atual: number | null, anterior: number | null, e
 function kpi(rotulo: string, valor: string | number, detalhe = '') {
   return html`<urbi-stack>
     <urbi-kpi rotulo=${rotulo} .valor=${valor} formato=${typeof valor === 'number' ? 'numero' : 'texto'}></urbi-kpi>
-    ${detalhe ? html`<urbi-prosa papel="fraco">${detalhe}</urbi-prosa>` : nothing}
+    ${detalhe ? html`<urbi-prosa papel="dica">${detalhe}</urbi-prosa>` : nothing}
   </urbi-stack>`;
 }
 
@@ -222,7 +222,7 @@ function relatorioFunil(d: Linha) {
   const passo = (rotulo: string, atual: number | null, anterior: number | null) => html`<urbi-linha justificar="entre" quebrar>
     <urbi-stack>
       <urbi-prosa>${rotulo}</urbi-prosa>
-      ${v(atual, anterior, true) ? html`<urbi-prosa papel="fraco">${v(atual, anterior, true)}</urbi-prosa>` : nothing}
+      ${v(atual, anterior, true) ? html`<urbi-prosa papel="dica">${v(atual, anterior, true)}</urbi-prosa>` : nothing}
     </urbi-stack>
     <urbi-badge>${pct(atual)}</urbi-badge>
   </urbi-linha>`;
@@ -369,7 +369,7 @@ function relatorioNegociacao(n: Linha) {
             .series=${series(objecoes.map((o) => o.quantidade), objecoes.map((o) => objecoesAntes.find((x) => x.categoria === o.categoria)?.quantidade ?? 0))}></urbi-grafico-colunas>`
         : html`<urbi-prosa papel="dica">Nenhuma objeção registrada no período.</urbi-prosa>`}
     </urbi-card>
-    <urbi-prosa papel="fraco">Só números somados da conta: nenhum valor do mandato aparece aqui. O filtro de origem não vale neste relatório.</urbi-prosa>`;
+    <urbi-prosa papel="dica">Só números somados da conta: nenhum valor do mandato aparece aqui. O filtro de origem não vale neste relatório.</urbi-prosa>`;
 }
 
 function centroNegociacao() {
@@ -410,7 +410,7 @@ function lista(rel: Relatorio) {
       .render_item=${(r: Relatorio) => html`<urbi-linha justificar="entre">
         <urbi-stack>
           <urbi-prosa>${r.titulo}</urbi-prosa>
-          <urbi-prosa papel="fraco">${r.descricao}</urbi-prosa>
+          <urbi-prosa papel="dica">${r.descricao}</urbi-prosa>
         </urbi-stack>
       </urbi-linha>`}
       @urbi:lista-click=${(e: CustomEvent) => mudar({ relatorio: (e.detail.item as Relatorio).id }, false)}></urbi-lista>
@@ -449,7 +449,7 @@ function contexto() {
         ${m.motivo && m.clientes
           ? html`<urbi-linha><urbi-botao icone="fa-solid fa-users" @click=${() => verClientes(m)}>Ver os ${m.clientes} ${m.clientes === 1 ? 'cliente' : 'clientes'}</urbi-botao></urbi-linha>`
           : nothing}
-        <urbi-prosa papel="fraco">Leitura feita com os números do período, sem IA.</urbi-prosa>
+        <urbi-prosa papel="dica">Leitura feita com os números do período, sem IA.</urbi-prosa>
       </urbi-stack>
     </urbi-card>
     <urbi-card titulo="Melhores origens" icone="fa-solid fa-ranking-star">

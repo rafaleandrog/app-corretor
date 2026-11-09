@@ -234,7 +234,7 @@ export class PcListaImoveis extends LitElement {
       <urbi-avatar nome=${i.codigo} foto=${i.capa_url ?? ''} icone=${i.capa_url ? '' : 'fa-solid fa-image'} tamanho="48"></urbi-avatar>
       <urbi-stack expandir>
         <urbi-prosa truncar>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</urbi-prosa>
-        <urbi-prosa papel="fraco" truncar>${[local, i.preco_c ? reaisCurto(i.preco_c) : 'Sob consulta'].filter(Boolean).join(' · ')}</urbi-prosa>
+        <urbi-prosa papel="dica" truncar>${[local, i.preco_c ? reaisCurto(i.preco_c) : 'Sob consulta'].filter(Boolean).join(' · ')}</urbi-prosa>
         <urbi-linha quebrar>
           <urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>
           <urbi-badge cor=${corQualidade(i.qualidade.nota)} title="Qualidade do anúncio">${i.qualidade.nota}</urbi-badge>
@@ -460,7 +460,7 @@ export class PcContextoImovel extends LitElement {
                   <urbi-prosa>${c.nome}</urbi-prosa>
                   ${chip('temperatura', c.temperatura)}
                 </urbi-linha>
-                <urbi-prosa papel="fraco">Combina em ${c.motivos.join(', ')}</urbi-prosa>
+                <urbi-prosa papel="dica">Combina em ${c.motivos.join(', ')}</urbi-prosa>
               </urbi-stack>
               ${anunciavel
                 ? html`<urbi-botao variante="secundario" icone="fa-solid fa-paper-plane" ?carregando=${this.enviando === c.id}

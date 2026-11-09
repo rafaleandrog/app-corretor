@@ -483,7 +483,7 @@ function colunaAjustes() {
       <urbi-stack>
         <urbi-kpi rotulo="Contatos pelo formulário" .valor=${n?.contatos_30d ?? 0} formato="numero"></urbi-kpi>
         <urbi-kpi rotulo="Visitas à página" .valor=${n?.visitas_30d ?? '—'} formato=${typeof n?.visitas_30d === 'number' ? 'numero' : 'texto'}></urbi-kpi>
-        <urbi-prosa papel="fraco">Contatos que chegaram pelo formulário da página. As visitas à página ainda não são medidas.</urbi-prosa>
+        <urbi-prosa papel="dica">Contatos que chegaram pelo formulário da página. As visitas à página ainda não são medidas.</urbi-prosa>
       </urbi-stack>
     </urbi-card>
     ${noAr

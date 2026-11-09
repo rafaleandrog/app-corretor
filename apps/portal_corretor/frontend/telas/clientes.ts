@@ -388,7 +388,7 @@ export class PcTelaClientes extends LitElement {
         <urbi-linha quebrar>
           ${c.etapa_nome ? html`<urbi-badge quebra-linha>${c.etapa_nome}</urbi-badge>` : nothing}
           ${c.origem_canal ? chip('origem', c.origem_canal) : nothing}
-          <urbi-prosa papel="fraco" inline>${embaixo || '—'}</urbi-prosa>
+          <urbi-prosa papel="dica" inline>${embaixo || '—'}</urbi-prosa>
         </urbi-linha>
       </urbi-stack>
     </urbi-linha>`;
