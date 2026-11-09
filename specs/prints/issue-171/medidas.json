@@ -1,0 +1,1686 @@
+[
+ {
+  "tela": "Clientes",
+  "assist": false,
+  "vp": "1280x720",
+  "arq": "Clientes-1280x720.png",
+  "vw": 1280,
+  "vh": 720,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1280,
+   "h": 664
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1232,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1232,
+   "h": 575,
+   "scrollH": 575
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1232,
+   "h": 521
+  },
+  "docScroll": 720,
+  "tituloPagina": "Clientes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 521,
+     "conteudo": 933
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 531,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 917,
+    "y": 183,
+    "w": 339,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Clientes",
+  "assist": true,
+  "vp": "1280x720",
+  "arq": "Clientes-assistente-1280x720.png",
+  "vw": 1280,
+  "vh": 720,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1280,
+   "h": 664
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1232,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1232,
+   "h": 575,
+   "scrollH": 575
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1232,
+   "h": 521
+  },
+  "docScroll": 720,
+  "tituloPagina": "Clientes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 521,
+     "conteudo": 933
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 491,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 877,
+    "y": 183,
+    "w": 379,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Imoveis",
+  "assist": false,
+  "vp": "1280x720",
+  "arq": "Imoveis-1280x720.png",
+  "vw": 1280,
+  "vh": 720,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1280,
+   "h": 664
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1232,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1232,
+   "h": 575,
+   "scrollH": 575
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1232,
+   "h": 521
+  },
+  "docScroll": 720,
+  "tituloPagina": "Imóveis",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 521,
+     "conteudo": 601
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 531,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 917,
+    "y": 183,
+    "w": 339,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Imoveis",
+  "assist": true,
+  "vp": "1280x720",
+  "arq": "Imoveis-assistente-1280x720.png",
+  "vw": 1280,
+  "vh": 720,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1280,
+   "h": 664
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1232,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1232,
+   "h": 575,
+   "scrollH": 575
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1232,
+   "h": 521
+  },
+  "docScroll": 720,
+  "tituloPagina": "Imóveis",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 521,
+     "conteudo": 601
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 491,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 877,
+    "y": 183,
+    "w": 379,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Ajustes",
+  "assist": false,
+  "vp": "1280x720",
+  "arq": "Ajustes-1280x720.png",
+  "vw": 1280,
+  "vh": 720,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1280,
+   "h": 664
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1232,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1232,
+   "h": 575,
+   "scrollH": 575
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1232,
+   "h": 521
+  },
+  "docScroll": 720,
+  "tituloPagina": "Ajustes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": "Ajustes"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 531,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 521,
+     "conteudo": 1489
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 917,
+    "y": 183,
+    "w": 339,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Ajustes",
+  "assist": true,
+  "vp": "1280x720",
+  "arq": "Ajustes-assistente-1280x720.png",
+  "vw": 1280,
+  "vh": 720,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1280,
+   "h": 664
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1232,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1232,
+   "h": 575,
+   "scrollH": 575
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1232,
+   "h": 521
+  },
+  "docScroll": 720,
+  "tituloPagina": "Ajustes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": "Ajustes"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 491,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 521,
+     "conteudo": 1913
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 877,
+    "y": 183,
+    "w": 379,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Hoje",
+  "assist": false,
+  "vp": "1280x720",
+  "arq": "Hoje-1280x720.png",
+  "vw": 1280,
+  "vh": 720,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1280,
+   "h": 664
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1232,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1232,
+   "h": 575,
+   "scrollH": 575
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1232,
+   "h": 521
+  },
+  "docScroll": 720,
+  "tituloPagina": "Hoje",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": null,
+    "cabecalho": "Hoje"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 531,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 521,
+     "conteudo": 902
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 917,
+    "y": 183,
+    "w": 339,
+    "h": 521,
+    "fundo": 704,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 521,
+     "conteudo": 709
+    },
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Clientes",
+  "assist": false,
+  "vp": "1366x657",
+  "arq": "Clientes-1366x657.png",
+  "vw": 1366,
+  "vh": 657,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1366,
+   "h": 601
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1318,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1318,
+   "h": 512,
+   "scrollH": 512
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1318,
+   "h": 458
+  },
+  "docScroll": 657,
+  "tituloPagina": "Clientes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 458,
+     "conteudo": 933
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 617,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1003,
+    "y": 183,
+    "w": 339,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Clientes",
+  "assist": true,
+  "vp": "1366x657",
+  "arq": "Clientes-assistente-1366x657.png",
+  "vw": 1366,
+  "vh": 657,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1366,
+   "h": 601
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1318,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1318,
+   "h": 512,
+   "scrollH": 512
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1318,
+   "h": 458
+  },
+  "docScroll": 657,
+  "tituloPagina": "Clientes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 458,
+     "conteudo": 933
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 577,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 963,
+    "y": 183,
+    "w": 379,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Imoveis",
+  "assist": false,
+  "vp": "1366x657",
+  "arq": "Imoveis-1366x657.png",
+  "vw": 1366,
+  "vh": 657,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1366,
+   "h": 601
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1318,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1318,
+   "h": 512,
+   "scrollH": 512
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1318,
+   "h": 458
+  },
+  "docScroll": 657,
+  "tituloPagina": "Imóveis",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 458,
+     "conteudo": 601
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 617,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1003,
+    "y": 183,
+    "w": 339,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Imoveis",
+  "assist": true,
+  "vp": "1366x657",
+  "arq": "Imoveis-assistente-1366x657.png",
+  "vw": 1366,
+  "vh": 657,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1366,
+   "h": 601
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1318,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1318,
+   "h": 512,
+   "scrollH": 512
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1318,
+   "h": 458
+  },
+  "docScroll": 657,
+  "tituloPagina": "Imóveis",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 458,
+     "conteudo": 601
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 577,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 963,
+    "y": 183,
+    "w": 379,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Ajustes",
+  "assist": false,
+  "vp": "1366x657",
+  "arq": "Ajustes-1366x657.png",
+  "vw": 1366,
+  "vh": 657,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1366,
+   "h": 601
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1318,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1318,
+   "h": 512,
+   "scrollH": 512
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1318,
+   "h": 458
+  },
+  "docScroll": 657,
+  "tituloPagina": "Ajustes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": "Ajustes"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 617,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 458,
+     "conteudo": 1365
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1003,
+    "y": 183,
+    "w": 339,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Ajustes",
+  "assist": true,
+  "vp": "1366x657",
+  "arq": "Ajustes-assistente-1366x657.png",
+  "vw": 1366,
+  "vh": 657,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1366,
+   "h": 601
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1318,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1318,
+   "h": 512,
+   "scrollH": 512
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1318,
+   "h": 458
+  },
+  "docScroll": 657,
+  "tituloPagina": "Ajustes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": "Ajustes"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 577,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 458,
+     "conteudo": 1395
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 963,
+    "y": 183,
+    "w": 379,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Hoje",
+  "assist": false,
+  "vp": "1366x657",
+  "arq": "Hoje-1366x657.png",
+  "vw": 1366,
+  "vh": 657,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1366,
+   "h": 601
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1318,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1318,
+   "h": 512,
+   "scrollH": 512
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1318,
+   "h": 458
+  },
+  "docScroll": 657,
+  "tituloPagina": "Hoje",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": null,
+    "cabecalho": "Hoje"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 617,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 458,
+     "conteudo": 883
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1003,
+    "y": 183,
+    "w": 339,
+    "h": 458,
+    "fundo": 641,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 458,
+     "conteudo": 709
+    },
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Clientes",
+  "assist": false,
+  "vp": "1920x969",
+  "arq": "Clientes-1920x969.png",
+  "vw": 1920,
+  "vh": 969,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1920,
+   "h": 913
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1872,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1872,
+   "h": 824,
+   "scrollH": 824
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1872,
+   "h": 770
+  },
+  "docScroll": 969,
+  "tituloPagina": "Clientes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 770,
+     "conteudo": 933
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 1171,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1557,
+    "y": 183,
+    "w": 339,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Clientes",
+  "assist": true,
+  "vp": "1920x969",
+  "arq": "Clientes-assistente-1920x969.png",
+  "vw": 1920,
+  "vh": 969,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1920,
+   "h": 913
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1872,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1872,
+   "h": 824,
+   "scrollH": 824
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1872,
+   "h": 770
+  },
+  "docScroll": 969,
+  "tituloPagina": "Clientes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 770,
+     "conteudo": 933
+    },
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 1131,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1517,
+    "y": 183,
+    "w": 379,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Imoveis",
+  "assist": false,
+  "vp": "1920x969",
+  "arq": "Imoveis-1920x969.png",
+  "vw": 1920,
+  "vh": 969,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1920,
+   "h": 913
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1872,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1872,
+   "h": 824,
+   "scrollH": 824
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1872,
+   "h": 770
+  },
+  "docScroll": 969,
+  "tituloPagina": "Imóveis",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 1171,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1557,
+    "y": 183,
+    "w": 339,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Imoveis",
+  "assist": true,
+  "vp": "1920x969",
+  "arq": "Imoveis-assistente-1920x969.png",
+  "vw": 1920,
+  "vh": 969,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1920,
+   "h": 913
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1872,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1872,
+   "h": 824,
+   "scrollH": 824
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1872,
+   "h": 770
+  },
+  "docScroll": 969,
+  "tituloPagina": "Imóveis",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 1131,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1517,
+    "y": 183,
+    "w": 379,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Ajustes",
+  "assist": false,
+  "vp": "1920x969",
+  "arq": "Ajustes-1920x969.png",
+  "vw": 1920,
+  "vh": 969,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1920,
+   "h": 913
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1872,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1872,
+   "h": 824,
+   "scrollH": 824
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1872,
+   "h": 770
+  },
+  "docScroll": 969,
+  "tituloPagina": "Ajustes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": "Ajustes"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 1171,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 770,
+     "conteudo": 1108
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1557,
+    "y": 183,
+    "w": 339,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Ajustes",
+  "assist": true,
+  "vp": "1920x969",
+  "arq": "Ajustes-assistente-1920x969.png",
+  "vw": 1920,
+  "vh": 969,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1920,
+   "h": 913
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1872,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1872,
+   "h": 824,
+   "scrollH": 824
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1872,
+   "h": 770
+  },
+  "docScroll": 969,
+  "tituloPagina": "Ajustes",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": "Ajustes"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 1131,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 770,
+     "conteudo": 1108
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1517,
+    "y": 183,
+    "w": 379,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Hoje",
+  "assist": false,
+  "vp": "1920x969",
+  "arq": "Hoje-1920x969.png",
+  "vw": 1920,
+  "vh": 969,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 1920,
+   "h": 913
+  },
+  "topo": {
+   "x": 24,
+   "y": 80,
+   "w": 1872,
+   "h": 37
+  },
+  "body": {
+   "x": 24,
+   "y": 129,
+   "w": 1872,
+   "h": 824,
+   "scrollH": 824
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 24,
+   "y": 183,
+   "w": 1872,
+   "h": 770
+  },
+  "docScroll": 969,
+  "tituloPagina": "Hoje",
+  "colunas": {
+   "esquerda": {
+    "x": 24,
+    "y": 183,
+    "w": 360,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": "Hoje"
+   },
+   "centro": {
+    "x": 385,
+    "y": 183,
+    "w": 1171,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 770,
+     "conteudo": 864
+    },
+    "cabecalho": ""
+   },
+   "direita": {
+    "x": 1557,
+    "y": 183,
+    "w": 339,
+    "h": 770,
+    "fundo": 953,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": null
+ },
+ {
+  "tela": "Clientes",
+  "assist": false,
+  "vp": "390x844",
+  "arq": "Clientes-390x844.png",
+  "vw": 390,
+  "vh": 844,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 390,
+   "h": 788
+  },
+  "topo": {
+   "x": 4,
+   "y": 64,
+   "w": 382,
+   "h": 37
+  },
+  "body": {
+   "x": 4,
+   "y": 113,
+   "w": 382,
+   "h": 723,
+   "scrollH": 723
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 4,
+   "y": 167,
+   "w": 382,
+   "h": 669
+  },
+  "docScroll": 844,
+  "tituloPagina": "Clientes",
+  "colunas": {
+   "esquerda": {
+    "x": 4,
+    "y": 204,
+    "w": 382,
+    "h": 632,
+    "fundo": 836,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 632,
+     "conteudo": 908
+    },
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": {
+   "x": 4,
+   "y": 167,
+   "w": 382,
+   "h": 37
+  }
+ },
+ {
+  "tela": "Imoveis",
+  "assist": false,
+  "vp": "390x844",
+  "arq": "Imoveis-390x844.png",
+  "vw": 390,
+  "vh": 844,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 390,
+   "h": 788
+  },
+  "topo": {
+   "x": 4,
+   "y": 64,
+   "w": 382,
+   "h": 37
+  },
+  "body": {
+   "x": 4,
+   "y": 113,
+   "w": 382,
+   "h": 723,
+   "scrollH": 723
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 4,
+   "y": 167,
+   "w": 382,
+   "h": 669
+  },
+  "docScroll": 844,
+  "tituloPagina": "Imóveis",
+  "colunas": {
+   "esquerda": {
+    "x": 4,
+    "y": 204,
+    "w": 382,
+    "h": 632,
+    "fundo": 836,
+    "rolavel": null,
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": {
+   "x": 4,
+   "y": 167,
+   "w": 382,
+   "h": 37
+  }
+ },
+ {
+  "tela": "Ajustes",
+  "assist": false,
+  "vp": "390x844",
+  "arq": "Ajustes-390x844.png",
+  "vw": 390,
+  "vh": 844,
+  "page": {
+   "x": 0,
+   "y": 56,
+   "w": 390,
+   "h": 788
+  },
+  "topo": {
+   "x": 4,
+   "y": 64,
+   "w": 382,
+   "h": 37
+  },
+  "body": {
+   "x": 4,
+   "y": 113,
+   "w": 382,
+   "h": 723,
+   "scrollH": 723
+  },
+  "moldura": {
+   "tag": "urbi-3-colunas",
+   "x": 4,
+   "y": 167,
+   "w": 382,
+   "h": 669
+  },
+  "docScroll": 844,
+  "tituloPagina": "Ajustes",
+  "colunas": {
+   "centro": {
+    "x": 4,
+    "y": 204,
+    "w": 382,
+    "h": 632,
+    "fundo": 836,
+    "rolavel": {
+     "tag": "div",
+     "cls": "container",
+     "visivel": 632,
+     "conteudo": 2077
+    },
+    "cabecalho": ""
+   }
+  },
+  "lateral": [],
+  "tabsMobile": {
+   "x": 4,
+   "y": 167,
+   "w": 382,
+   "h": 37
+  }
+ }
+]

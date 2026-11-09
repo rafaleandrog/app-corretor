@@ -40,7 +40,7 @@ interface Tela {
    * Estúdio) guarda a de quando nasceu e, quando ela muda, sabe que já não é a tela da página.
    */
   render: (param?: string, app?: LitElement, chave?: () => string) => unknown;
-  /** A tela já vem na moldura do Padrão B (trilho, lista, foco, contexto): o Assistente abre dentro dela. */
+  /** A tela já vem na moldura do Padrão B (lista, foco, contexto): o Assistente abre dentro dela. */
   moldura?: boolean;
   /** Tela que guarda os dados fora do componente: a cada entrada (e troca de conta) eles são relidos. */
   aoAbrir?: () => void;
@@ -203,9 +203,9 @@ export class AppPortalCorretor extends LitElement {
     if (!tela) {
       // O endereço recebido fica visível de propósito: é o diagnóstico do retorno de redirecionamento
       // (P-36, roteiro R.6). A query não volta por subRota() (overview.md). O menu do app não tem as
-      // telas do corretor (D-113) e o externo nem o abre: o caminho é o início do app, que tem o trilho.
+      // telas do corretor (D-113) e o externo nem o abre: o caminho é o início do app, que tem o menu no `nav` do shell.
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-compass" mensagem="Página não encontrada"
-        submensagem="Endereço recebido: ${this.sub}${window.location.search}. Abra o início do app (${urbiVerso.href('/')}) e escolha a tela no trilho, à esquerda."></urbi-estado-vazio>`;
+        submensagem="Endereço recebido: ${this.sub}${window.location.search}. Abra o início do app (${urbiVerso.href('/')}) e escolha a tela no menu do app, no nome do app na barra do shell."></urbi-estado-vazio>`;
     }
     if (!this.liberada(tela)) {
       const quem = tela.papel === 'corretor' ? 'corretor' : 'equipe da plataforma (operacao)';
@@ -242,7 +242,7 @@ export class AppPortalCorretor extends LitElement {
    */
   private chaveDaTela = () => `${this.sub}|${this.conta}|${this.visita}`;
 
-  /** Criar em toda tela do corretor; o Assistente no cabeçalho só onde ainda não há trilho. */
+  /** Criar em toda tela do corretor; o Assistente no cabeçalho só nas telas ainda fora da moldura (a moldura o põe na coluna esquerda). */
   private acoes(tela: Tela | undefined) {
     if (!tela || tela.papel !== 'corretor' || !this.papeis.includes('corretor') || this.semConta) return nothing;
     return html`${menuCriar()}${tela.moldura ? nothing : botaoAssistente()}`;
