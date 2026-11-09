@@ -467,7 +467,7 @@ export async function completarDemo(req: Request, conjunto: Conjunto, novos: Set
       for (const m of conjunto.conversa.mensagens) {
         await registrarMensagem(dados, {
           contato_id: Number(c.id), direcao: m.direcao, autor_tipo: m.direcao === 'entrada' ? 'contato' : 'humano', autor_id: m.direcao === 'saida' ? eu : null,
-          canal: 'registro', tipo: 'texto', conteudo: m.texto, em: new Date(Date.now() + m.horas * 3600e3).toISOString(),
+          canal: m.direcao === 'entrada' ? 'whatsapp' : 'wa_me', tipo: 'texto', conteudo: m.texto, em: new Date(Date.now() + m.horas * 3600e3).toISOString(),
         });
       }
       feito.push(`conversa de ${c.nome}`);
@@ -500,7 +500,7 @@ export async function completarDemo(req: Request, conjunto: Conjunto, novos: Set
         await publicarSelecao(dados, conta, salva!, corretor);
         await dados.criar('envios', { contato_id: c.id, tipo: 'selecao', canal: 'whatsapp', autor_tipo: 'humano', descricao: `${conjunto.selecao.titulo} (${ids.length} imóveis)`, enviado_em: agora, cliques: 0 });
         await registrarMensagem(dados, {
-          contato_id: Number(c.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu, canal: 'registro', tipo: 'selecao', conteudo: conjunto.selecao.titulo,
+          contato_id: Number(c.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu, canal: 'wa_me', tipo: 'selecao', conteudo: conjunto.selecao.titulo,
           dados: { selecao_id: Number(s.id), titulo: conjunto.selecao.titulo, quantidade: ids.length, link },
         });
         feito.push(`seleção para ${c.nome} (${ids.length} imóveis)`);
@@ -511,9 +511,41 @@ export async function completarDemo(req: Request, conjunto: Conjunto, novos: Set
         const link = `${origemPublica(g.url)}/portal_corretor/c?t=${g.token}`;
         await dados.criar('acessos_cliente', { contato_id: c.id, perfil: 'comprador', ingresso_id: g.ingresso_id, url_acoes: g.url, link, criado_por_id: eu });
         await dados.criar('envios', { contato_id: c.id, tipo: 'link_portal', canal: 'whatsapp', autor_tipo: 'humano', descricao: 'Link do portal do cliente', enviado_em: new Date().toISOString(), cliques: 0 });
-        await registrarMensagem(dados, { contato_id: Number(c.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu, canal: 'registro', tipo: 'link_portal', dados: { link } });
+        await registrarMensagem(dados, { contato_id: Number(c.id), direcao: 'saida', autor_tipo: 'humano', autor_id: eu, canal: 'wa_me', tipo: 'link_portal', dados: { link } });
         feito.push(`portal de ${c.nome}`);
       }
+    }
+  }
+
+  // Conta já semeada por versão anterior: a conversa, o cartão da seleção e o link da Ana foram gravados com
+  // `canal: 'registro'` e o chat do portal (D-132) os esconde. Troca para o canal de uma conversa real por
+  // WhatsApp, só nas mensagens que a semente gravou: mesmo contato, canal `registro`, autoria da semente e
+  // conteúdo idêntico (texto igual ao do conjunto; cartão e link com o link da seleção e do portal da Ana).
+  if (conjunto.conversa && temShell) {
+    const c = contatoPorNome(conjunto.conversa.com);
+    if (c) {
+      const textos = new Set(conjunto.conversa.mensagens.map((m) => `${m.direcao}|${m.texto}`));
+      const links = new Set<string>();
+      for (const s of await dados.varrerTudo('selecoes', { filtros: { conta_id: conta, contato_id: c.id }, maximo: 50 })) if (s.link) links.add(String(s.link));
+      for (const a of await dados.varrerTudo('acessos_cliente', { filtros: { conta_id: conta, contato_id: c.id }, maximo: 50 })) if (a.link) links.add(String(a.link));
+      const msgs = await dados.varrerTudo('mensagens', { filtros: { conta_id: conta, contato_id: c.id, canal: 'registro' }, maximo: 500 });
+      let corrigidas = 0;
+      for (const m of msgs) {
+        const dir = String(m.direcao);
+        let daSemente = false;
+        if (m.tipo === 'texto') {
+          daSemente = textos.has(`${dir}|${m.conteudo}`) &&
+            (dir === 'entrada' ? m.autor_tipo === 'contato' : m.autor_tipo === 'humano' && Number(m.autor_id) === Number(eu));
+        } else if (m.tipo === 'selecao' || m.tipo === 'link_portal') {
+          const link = (m.dados as { link?: unknown } | null)?.link;
+          daSemente = dir === 'saida' && m.autor_tipo === 'humano' && Number(m.autor_id) === Number(eu) && typeof link === 'string' && links.has(link) &&
+            (m.tipo === 'link_portal' || m.conteudo === conjunto.selecao?.titulo);
+        }
+        if (!daSemente) continue;
+        await dados.atualizar('mensagens', m.id, { canal: dir === 'entrada' ? 'whatsapp' : 'wa_me' });
+        corrigidas++;
+      }
+      if (corrigidas) feito.push(`conversa de ${c.nome} no portal (${corrigidas} mensagens)`);
     }
   }
 

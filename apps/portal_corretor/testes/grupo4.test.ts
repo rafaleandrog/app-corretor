@@ -106,9 +106,7 @@ test('#191: Próximo passo (proposta, visita, seleção que vence, imóveis sem 
   assert.equal(proximoPassoDoPortal({ proximo_passo: 'Trazer os documentos', negociacoes: [propostaAberta] }, agora)!.texto, 'Trazer os documentos');
 });
 
-// A semente grava a conversa da Ana, o cartão da seleção e o link com `canal: 'registro'` (demo.ts), que
-// a D-132 trata como anotação e tira do chat. Fica como pendência até a semente usar os canais escritos.
-test('#191: a semente mostra a conversa da Ana no portal (quatro textos e o cartão da seleção)', { todo: 'demo.ts grava canal registro (ver D-132)' }, async () => {
+test('#191: a semente mostra a conversa da Ana no portal (quatro textos e o cartão da seleção)', async () => {
   const { banco, ana } = await cenarioDaAna();
   assert.deepEqual(portalDe(banco, ana.id).conversa.map((m: any) => [m.de, m.tipo]), [
     ['voce', 'texto'], ['corretor', 'texto'], ['voce', 'texto'], ['corretor', 'texto'], ['corretor', 'selecao'],

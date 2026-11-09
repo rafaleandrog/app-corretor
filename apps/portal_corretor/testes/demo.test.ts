@@ -247,6 +247,34 @@ test('#189: conta que já gerou e publicou a página à mão: completa sem troca
   });
 });
 
+test('D-132: conta semeada antes (conversa da Ana com canal registro): completar corrige só as mensagens da semente e o chat aparece', async () => {
+  const banco = await duasContasDemo();
+  const { arquivos, shell } = helpers();
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 201);
+  });
+  const ana = banco.linhas('contatos').find((c) => c.nome === 'Ana Ribeiro')!;
+  const dela = () => banco.linhas('mensagens').filter((m) => m.contato_id === ana.id);
+  const portal = () => banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal' && l.chave === `100:${ana.id}`)!.dados.conversa;
+  assert.deepEqual(new Set(dela().map((m) => m.canal)), new Set(['whatsapp', 'wa_me']));
+  // Estado da versão anterior: tudo da semente em `registro`, mais uma anotação e um texto do corretor.
+  const sementes = dela().length;
+  for (const m of dela()) m.canal = 'registro';
+  const base = { conta_id: 100, contato_id: ana.id, direcao: 'saida', autor_tipo: 'humano', autor_id: 1, canal: 'registro', tipo: 'texto' };
+  banco.linhas('mensagens').push({ ...base, id: 9001, conteudo: 'Anotação minha: ligar amanhã', em: new Date().toISOString() });
+  banco.linhas('mensagens').push({ ...base, id: 9002, autor_id: 77, conteudo: 'Combinado: sábado às 10 h na casa. Te espero lá!', em: new Date().toISOString() });
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    const g = await chamar('POST', '/demo/semear', {});
+    assert.equal(g.status, 200);
+    assert.ok(g.corpo.completado.some((f: string) => f.includes('Ana Ribeiro no portal')), JSON.stringify(g.corpo.completado));
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
+  });
+  assert.equal(dela().filter((m) => m.canal === 'registro').length, 2, 'só a anotação e o texto de outro autor ficam em registro');
+  assert.ok(dela().filter((m) => m.canal === 'registro').every((m) => m.id === 9001 || m.id === 9002));
+  assert.equal(dela().length, sementes + 2);
+  assert.deepEqual(portal().map((m: any) => [m.de, m.tipo]), [['voce', 'texto'], ['corretor', 'texto'], ['voce', 'texto'], ['corretor', 'texto'], ['corretor', 'selecao']]);
+});
+
 test('#41: segunda conta de quem atende várias recebe endereço livre e publica sem 409', async () => {
   const banco = new BancoFalso(UNICOS);
   const { shell } = helpers();
