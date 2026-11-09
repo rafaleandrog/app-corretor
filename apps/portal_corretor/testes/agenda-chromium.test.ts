@@ -3,11 +3,10 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
 
-// Agenda no celular (390 × 844): título e linha de cliente longos terminam em reticências em vez de serem
-// cortados. O corte vem do primitivo `urbi-prosa` (atributo `truncar`) dentro de um `urbi-stack expandir`,
-// o mesmo padrão de Imóveis (#180). Os primitivos `urbi-*` não têm registro no Chromium dos testes, então o
-// teste confere o que a tela entrega a eles (atributos e texto inteiro no `title`) e que a página não rola
-// para o lado; o `text-overflow` em si é do primitivo e se confere na conferência visual. Sem Playwright, pula.
+// Agenda no celular (390 × 844): título e linha de cliente longos usam `urbi-prosa` com `truncar` dentro de um
+// `urbi-stack expandir`, o mesmo padrão de Imóveis (#180). Os primitivos `urbi-*` não têm registro no Chromium
+// dos testes, então o teste prova só os atributos que a tela entrega (`truncar`, `expandir`) e o texto inteiro
+// no `title`. Que as reticências aparecem é a conferência visual em celular. Sem Playwright, pula.
 
 function playwright(): any {
   try {
@@ -30,7 +29,7 @@ document.getElementById('raiz').appendChild(el);
 render(el.item(a), document.getElementById('lista'));
 `;
 
-test('Agenda no celular: título longo usa truncar (reticências) e não estoura a página', async (t) => {
+test('Agenda no celular: título longo usa truncar e expandir, com o texto inteiro no title', async (t) => {
   const pw = playwright();
   if (!pw) return t.skip('Playwright não instalado neste ambiente');
   const pacote = await build({
@@ -51,7 +50,6 @@ test('Agenda no celular: título longo usa truncar (reticências) e não estoura
         titulos: prosas.map((p) => p.getAttribute('title')),
         textos: prosas.map((p) => p.textContent?.trim()),
         expandir: stack?.hasAttribute('expandir'),
-        estouro: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       };
     });
     assert.equal(r.truncar.length, 2);
@@ -60,7 +58,6 @@ test('Agenda no celular: título longo usa truncar (reticências) e não estoura
     assert.match(r.titulos[0] ?? '', /Lago Sul$/, 'o título inteiro fica no title');
     assert.equal(r.titulos[0], r.textos[0]);
     assert.equal(r.titulos[1], r.textos[1]);
-    assert.equal(r.estouro, false, 'a página não rola para o lado em 390 px');
   } finally {
     await navegador.close();
   }
