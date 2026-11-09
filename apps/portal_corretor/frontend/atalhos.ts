@@ -1,5 +1,6 @@
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { BUSCA_MIN, cortarTermo, normalizarTermo } from '../comum/busca';
+import { formatarTelefone } from '../comum/crm';
 import { chamarApi, noGesto } from './apoio.js';
 import { criar, irParaComQuery, OPCOES_CRIAR, type OpcaoCriar } from './criar.js';
 import { alternarAssistente } from './telas/assistente.js';
@@ -127,10 +128,10 @@ export type DestinoBusca = { tipo: 'cliente' | 'imovel' | 'negociacao'; id: numb
 
 const juntar = (...partes: (string | null | undefined)[]) => partes.filter((p) => p && String(p).trim()).join(' · ');
 
-/** As opções da lista, na ordem clientes, imóveis, negociações, com o tipo à frente do rótulo. */
+/** As opções da lista, na ordem clientes, imóveis, negociações, com o tipo à frente do rótulo; o telefone formatado (#182, item 2). */
 export function opcoesDaBusca(r: Partial<RespostaBusca> | null | undefined): { rotulo: string; destino: DestinoBusca }[] {
   return [
-    ...(r?.clientes ?? []).map((c) => ({ rotulo: juntar('Cliente', c.nome, c.telefone ?? c.email), destino: { tipo: 'cliente' as const, id: c.id } })),
+    ...(r?.clientes ?? []).map((c) => ({ rotulo: juntar('Cliente', c.nome, formatarTelefone(c.telefone) || c.email), destino: { tipo: 'cliente' as const, id: c.id } })),
     ...(r?.imoveis ?? []).map((i) => ({ rotulo: juntar('Imóvel', i.codigo, i.titulo, i.bairro), destino: { tipo: 'imovel' as const, id: i.id } })),
     ...(r?.negociacoes ?? []).map((n) => ({
       rotulo: juntar('Negociação', n.codigo, n.contato_nome, n.imovel_titulo ?? n.imovel_codigo),

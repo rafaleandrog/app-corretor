@@ -264,11 +264,14 @@ test('J/K: próximo e anterior, sem item vai à ponta, na ponta fica', () => {
 
 test('opções da busca: tipo à frente, na ordem clientes, imóveis, negociações', () => {
   const op = opcoesDaBusca({
-    clientes: [{ id: 1, nome: 'Ana', telefone: '+5561999990001', email: null }],
+    clientes: [
+      { id: 1, nome: 'Ana', telefone: '+5561999990001', email: null },
+      { id: 4, nome: 'Bia', telefone: null, email: 'bia@ex.com' },
+    ],
     imoveis: [{ id: 2, codigo: 'IM-0001', titulo: null, bairro: 'Lago Sul' }],
     negociacoes: [{ id: 3, codigo: 'NG-0007', contato_nome: null, imovel_codigo: 'IM-0001', imovel_titulo: null }],
   });
-  assert.deepEqual(op.map((o) => o.rotulo), ['Cliente · Ana · +5561999990001', 'Imóvel · IM-0001 · Lago Sul', 'Negociação · NG-0007 · IM-0001']);
-  assert.deepEqual(op.map((o) => o.destino), [{ tipo: 'cliente', id: 1 }, { tipo: 'imovel', id: 2 }, { tipo: 'negociacao', id: 3 }]);
+  assert.deepEqual(op.map((o) => o.rotulo), ['Cliente · Ana · (61) 99999-0001', 'Cliente · Bia · bia@ex.com', 'Imóvel · IM-0001 · Lago Sul', 'Negociação · NG-0007 · IM-0001']);
+  assert.deepEqual(op.map((o) => o.destino), [{ tipo: 'cliente', id: 1 }, { tipo: 'cliente', id: 4 }, { tipo: 'imovel', id: 2 }, { tipo: 'negociacao', id: 3 }]);
   assert.deepEqual(opcoesDaBusca(null), []);
 });

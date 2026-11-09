@@ -55,6 +55,9 @@ test('regras puras: telefone formatado (#182), perfil de busca normalizado, hor�
   assert.equal(formatarTelefone('61990000101'), '(61) 99000-0101');
   assert.equal(formatarTelefone('+556133330000'), '(61) 3333-0000');
   assert.equal(formatarTelefone('+351912345678'), '+351912345678', 'fora do Brasil sai como está');
+  assert.equal(formatarTelefone('5561990000101'), '(61) 99000-0101');
+  assert.equal(formatarTelefone('+14155550100'), '+14155550100', 'internacional de 11 dígitos não vira brasileiro');
+  assert.equal(formatarTelefone('+12025550123'), '+12025550123');
   assert.equal(formatarTelefone(null), '');
 
   assert.deepEqual(normalizarPerfilBusca({ finalidade: ' moradia ', tipos: 'apartamento, casa', regioes: ['Sudoeste', ''], preco_max_c: '90000000', quartos: 3.4, vagas: 0, lixo: 1 }), {

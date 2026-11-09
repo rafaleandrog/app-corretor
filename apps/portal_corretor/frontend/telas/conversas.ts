@@ -8,7 +8,7 @@ import { estadoDaFalha, estadoTela } from '../estados.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 import { irParaComQuery } from '../criar.js';
 import { abrirNegociacao, propostaDoContato } from './negociacoes.js';
-import { chipsDoPerfilBusca } from '../../comum/crm.js';
+import { chipsDoPerfilBusca, formatarTelefone } from '../../comum/crm.js';
 import { combina } from '../../comum/imoveis.js';
 import { linkWhatsapp } from '../../comum/pagina.js';
 import {
@@ -215,7 +215,7 @@ export class PcConversasLista extends LitElement {
     // Recusado (#187): o formulário reabre com o cliente escolhido e a frase do erro.
     const r = (await formularioQueSalva({
       titulo: 'Nova conversa',
-      campos: [{ nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, placeholder: 'Nome ou telefone', buscar: buscaDoGesto(vida, '/contatos', (c) => `${c.nome}${c.telefone ? ` · ${c.telefone}` : ''}`) }],
+      campos: [{ nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, placeholder: 'Nome ou telefone', buscar: buscaDoGesto(vida, '/contatos', (c) => `${c.nome}${c.telefone ? ` · ${formatarTelefone(c.telefone)}` : ''}`) }],
       mensagem: 'A conversa reúne o que o cliente escreveu pelo portal e o que você mandou a ele.',
       rotuloConfirmar: 'Abrir conversa',
       gesto: vida,

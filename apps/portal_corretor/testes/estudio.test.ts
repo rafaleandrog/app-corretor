@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas } from '../backend/rotas';
-import { AVISO_CRECI_NAO_COUBE, checarPeca, imovelParaArte, legendaComCreci, promptFerramenta, textosDaIa, textosPadrao, validarMarca } from '../comum/estudio';
+import { AVISO_CRECI_NAO_COUBE, OBJETIVOS, pedidoPadraoDoPacote, checarPeca, imovelParaArte, legendaComCreci, promptFerramenta, textosDaIa, textosPadrao, validarMarca } from '../comum/estudio';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const UNICOS = { contatos: ['telefone'], imoveis: ['codigo'], marca_conta: ['chave'], marca_arquivos: ['tipo'], perfis_corretor: ['usuario_id'] };
@@ -163,6 +163,12 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     // Pacote de lançamento: três formatos.
     const pacote = await chamar('POST', '/estudio/pacote', { imovel_id: imovel.id });
     assert.deepEqual(pacote.corpo.pecas.map((p: any) => p.formato), ['post_1x1', 'carrossel', 'story']);
+    assert.ok(pacote.corpo.pecas.every((p: any) => p.pedido === 'Pacote de lançamento do imóvel'));
+    // #182, item 15: sem pedido escrito, o pedido padrão acompanha o objetivo (nada de "lançamento" em "Baixou o preço").
+    const baixou = await chamar('POST', '/estudio/pacote', { imovel_id: imovel.id, objetivo: 'baixou_preco' });
+    assert.equal(baixou.status, 201);
+    assert.ok(baixou.corpo.pecas.every((p: any) => p.objetivo === 'baixou_preco' && p.pedido === 'Pacote · Baixou o preço'));
+    for (const p of baixou.corpo.pecas) assert.equal((await chamar('PATCH', `/estudio/pecas/${p.id}/remover`)).status, 200);
     assert.equal((await chamar('GET', '/estudio/pecas')).corpo.total, 5);
     assert.equal((await chamar('PATCH', `/estudio/pecas/${pecaId}/remover`)).status, 200);
     assert.equal((await chamar('GET', '/estudio/pecas')).corpo.total, 4);
@@ -240,4 +246,23 @@ test('Referências do corretor: somam até o limite, entram na instrução só s
     assert.equal((await chamar('PATCH', `/estudio/marca/arquivos/${refsA[1]}/remover`)).status, 404);
   });
   assert.equal(banco.linhas('marca_arquivos').filter((l) => l.conta_id === 100 && l.tipo === 'referencia').length, 5);
+});
+
+test('pedido padrão do pacote (#182, item 15): acompanha o objetivo; o pedido escrito vence; objetivo inválido cai em novo_imovel', async () => {
+  assert.deepEqual([...OBJETIVOS], ['novo_imovel', 'baixou_preco', 'vendido', 'visita_aberta', 'destaque']);
+  assert.equal(pedidoPadraoDoPacote('novo_imovel'), 'Pacote de lançamento do imóvel');
+  assert.equal(pedidoPadraoDoPacote('baixou_preco'), 'Pacote · Baixou o preço');
+  assert.equal(pedidoPadraoDoPacote('vendido'), 'Pacote · Vendido');
+  assert.equal(pedidoPadraoDoPacote('visita_aberta'), 'Pacote · Visita aberta');
+  assert.equal(pedidoPadraoDoPacote('destaque'), 'Pacote · Destaque');
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, AcomIA, banco, {}, async (chamar) => {
+    const imovel = await imovelAnunciado(chamar);
+    const escrito = await chamar('POST', '/estudio/pacote', { imovel_id: imovel.id, objetivo: 'vendido', pedido: 'Meu pedido  escrito' });
+    assert.equal(escrito.status, 201);
+    assert.ok(escrito.corpo.pecas.every((p: any) => p.objetivo === 'vendido' && p.pedido === 'Meu pedido  escrito'), 'o pedido escrito vence o padrão');
+    const invalido = await chamar('POST', '/estudio/pacote', { imovel_id: imovel.id, objetivo: 'inexistente' });
+    assert.equal(invalido.status, 201);
+    assert.ok(invalido.corpo.pecas.every((p: any) => p.objetivo === 'novo_imovel' && p.pedido === 'Pacote de lançamento do imóvel'));
+  });
 });

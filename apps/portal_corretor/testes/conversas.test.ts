@@ -2,6 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas, reagir } from '../backend/rotas';
 import { BancoFalso, comServidor, type Ator } from './apoio';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { buscaDoGesto, gesto } from '../frontend/apoio';
 import { chipDeStatus, contarFiltros, haQuanto, passaNoFiltro, resumoDaMensagem } from '../comum/conversas';
 
 // Conversas (P02, D-116): uma conversa por cliente, alimentada pelo portal (listener), pelos envios e pelo
@@ -283,4 +286,20 @@ test('corrida do ler-e-criar: a segunda chamada que bate no único devolve a con
   const segunda = await conversaDoContato(atrasado as any, Number(ana.id), 'registro');
   assert.equal(segunda.id, primeira.id);
   assert.equal(banco.linhas('conversas').length, 1);
+});
+
+test('Nova conversa (#182): o rótulo do cliente leva nome e telefone formatado, mas o valor enviado é o id do contato', async () => {
+  const fonte = readFileSync(resolve(process.cwd(), 'frontend/telas/conversas.ts'), 'utf8');
+  const m = fonte.match(/buscaDoGesto\(vida, '\/contatos', (\(c\) => `[^\n]*`)\)/);
+  assert.ok(m, 'a busca do formulário Nova conversa continua usando buscaDoGesto em /contatos');
+  assert.match(fonte, /salvar: \(v\) => enviar\('POST', '\/conversas', \{ contato_id: v\.contato_id \}\)/, 'o que se envia é o valor do campo, o id');
+  const rotulo = new Function('formatarTelefone', `return ${m![1]}`)((v: string) => `fmt(${v})`);
+  const g = globalThis as any;
+  g.localStorage = { getItem: () => null, setItem: () => {} };
+  g.urbiVerso = {
+    contexto: () => ({}),
+    api: async () => ({ dados: [{ id: 42, nome: 'Ana', telefone: '61999990001' }, { id: 43, nome: 'Bia', telefone: null }] }),
+  };
+  const achados = await buscaDoGesto(gesto(), '/contatos', rotulo)('a', new AbortController().signal);
+  assert.deepEqual(achados, [{ valor: 42, rotulo: 'Ana · fmt(61999990001)' }, { valor: 43, rotulo: 'Bia' }]);
 });
