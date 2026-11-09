@@ -10,7 +10,7 @@ Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a 
 | Grupo 2 · Hoje, Funil, Cliente, Seleção e Agendar visita na P02, Buscar (#201) | mergeado, 0.1.48 |
 | Grupo 3 · Imóveis, Imóvel, M3, Negociações, Negociação, M8, Proposta na P02, D-120, D-125 | mergeado, 0.1.49 (#203) |
 | Grupo 4 · Estúdio, Página, M6, M4 + M5 | mergeado, 0.1.50 (#204) |
-| Grupo 5 · Números, Conexões, Conta e marca, Importar, Negociador, Assistente + transversais | **a fazer**: brief em `brief-grupo5.md` |
+| Grupo 5 · Números, Conexões, Conta e marca, Importar, Negociador, Assistente + transversais | implementado na branch `etapa4/grupo5` (0.1.51); PR, conferência visual e revisão a fazer |
 | Release da `main` para a homologação | **só no fim da etapa** (ordem do dono de 08/11) |
 
 ## Como rodar um grupo (o que funcionou nos grupos 2 e 3)
