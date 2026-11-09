@@ -162,8 +162,8 @@ Colunas: elementos trocados; pior contraste claro (`fraco` → `dica`); pior con
 | Novo imóvel (passo Dados) (`novo-imovel.ts`) | 6 (6 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -8,4 / -8,4 | 0/-3/0 · 0/0/0 | 0 / 0 |
 | Novo imóvel (passo Autorização) (`novo-imovel.ts`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
 | Novo imóvel (passo Onde aparece) (`novo-imovel.ts`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
-| Imóveis › ficha › modal Editar mandato (`mandato.ts`) | 32 (18 visíveis) | 2,99 → **4,49** | 3,7 → 4,97 | -25,2 / -25,2 | -4/-6/-9 · 0/-6/-9 | 0 / 0 |
-| Negociações › modal Editar mandato (`mandato.ts, negociacoes.ts`) | 15 (15 visíveis) | 2,99 → **4,49** | 3,7 → 4,97 | -25,2 / -25,2 | 0/-6/-9 · 0/0/-9 | 0 / 0 |
+| Imóveis › ficha › modal Editar mandato (`mandato.ts`) | 32 (18 visíveis) | 2,99 → **4,49** | 3,76 → **5,10** (a linha antiga dizia 3,7 → 4,97: SUBSTITUÍDO; valor da conferência real 0.1.58 e do `medidas.json`) | -25,2 / -25,2 | -4/-6/-9 · 0/-6/-9 | 0 / 0 |
+| Negociações › modal Editar mandato (`mandato.ts, negociacoes.ts`) | 15 (15 visíveis) | 2,99 → **4,49** | 3,76 → **5,10** (a linha antiga dizia 3,7 → 4,97: SUBSTITUÍDO; valor da conferência real 0.1.58 e do `medidas.json`) | -25,2 / -25,2 | 0/-6/-9 · 0/0/-9 | 0 / 0 |
 | Negociações (item aberto) (`negociacoes.ts`) | 10 (10 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -15,6 / -15,6 | 0/-6/-7 · 0/0/0 | 0 / 0 |
 | Clientes › ficha (com seleções e portal) (`ficha-contato.ts, selecoes-cliente.ts`) | 19 (18 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -22,8 / -22,8 | -11/-10/-2 · -11/0/0 | 0 / 0 |
 | Ajustes › Funil (`ajustes.ts (menu)`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
@@ -194,3 +194,7 @@ Os números de contraste são iguais nas duas janelas. Nenhum elemento mudou de 
 ### Resumo
 
 Dos 21 arquivos, 20 têm ao menos uma tela medida com `dica` (nesta rodada ou na remedição anterior); só `empreendimentos.ts` ficou sem medida (conta demo sem empreendimento). Em vários arquivos há estados condicionais (listados acima) que não puderam ser exercitados sem gravar ou sem dado. O que continua abaixo de 4,5:1 com `dica`: Funil no claro (4,24) e o modal de mandato no claro (4,49).
+
+## Conferência real da 0.1.58
+
+Ver `specs/prints/conferencia-0.1.58/` (09/11/2026, só leitura): no shell 0.56.37 com o app 0.1.58 o modal de mandato mede 4,49 (claro) e 5,10 (escuro), o Funil 4,24 e 4,69, e o `secundario` do cartão de tom de Ajustes 4,47 e 4,69.

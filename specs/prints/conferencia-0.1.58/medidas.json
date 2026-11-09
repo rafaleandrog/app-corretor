@@ -1,0 +1,2184 @@
+{
+ "instancia": "pinguim",
+ "app": "portal_corretor 0.1.58",
+ "conta": 7,
+ "metodo": "Playwright, so leitura; toda chamada nao GET/HEAD a instancia respondida 204 no navegador",
+ "itens": {
+  "1": {
+   "status": 200,
+   "versao": "0.1.58",
+   "shell_min": "0.56.37",
+   "sdk_min": 100
+  },
+  "2": {
+   "hoje": {
+    "urbi2x1": true,
+    "urbi3colunas": false,
+    "ret2x1": {
+     "x": 4,
+     "y": 166.8,
+     "w": 382,
+     "h": 1285.4,
+     "r": 386,
+     "b": 1452.2
+    },
+    "inicioConteudoY": 167,
+    "tabsVisiveis": [],
+    "atalhos": {
+     "Conversas": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Conversas",
+       "x": 20,
+       "y": 182.8,
+       "w": 120.7,
+       "h": 34.2,
+       "r": 140.7,
+       "b": 217
+      }
+     ],
+     "Criar": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Criar",
+       "x": 309,
+       "y": 64,
+       "w": 69,
+       "h": 24.8,
+       "r": 378,
+       "b": 88.8
+      },
+      {
+       "tag": "urbi-botao",
+       "txt": "Criar",
+       "x": 148.7,
+       "y": 182.8,
+       "w": 84.6,
+       "h": 34.2,
+       "r": 233.3,
+       "b": 217
+      }
+     ],
+     "Imoveis": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Imóveis",
+       "x": 241.3,
+       "y": 182.8,
+       "w": 102.7,
+       "h": 34.2,
+       "r": 344,
+       "b": 217
+      }
+     ],
+     "Assistente": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Assistente",
+       "x": 20,
+       "y": 225,
+       "w": 120,
+       "h": 34.2,
+       "r": 140,
+       "b": 259.2
+      }
+     ]
+    },
+    "precisa": [
+     {
+      "tag": "urbi-prosa",
+      "txt": "Precisa de você · 1",
+      "x": 20,
+      "y": 376.5,
+      "w": 350,
+      "h": 17.4,
+      "r": 370,
+      "b": 393.9
+     }
+    ],
+    "docScrollW": 390
+   },
+   "agenda": {
+    "urbi2x1": true,
+    "urbi3colunas": false,
+    "ret2x1": {
+     "x": 4,
+     "y": 166.8,
+     "w": 382,
+     "h": 1748.6,
+     "r": 386,
+     "b": 1915.4
+    },
+    "inicioConteudoY": 167,
+    "tabsVisiveis": [],
+    "atalhos": {
+     "Conversas": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Conversas",
+       "x": 20,
+       "y": 182.8,
+       "w": 120.7,
+       "h": 34.2,
+       "r": 140.7,
+       "b": 217
+      }
+     ],
+     "Criar": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Criar",
+       "x": 309,
+       "y": 64,
+       "w": 69,
+       "h": 24.8,
+       "r": 378,
+       "b": 88.8
+      },
+      {
+       "tag": "urbi-botao",
+       "txt": "Criar",
+       "x": 148.7,
+       "y": 182.8,
+       "w": 84.6,
+       "h": 34.2,
+       "r": 233.3,
+       "b": 217
+      }
+     ],
+     "Imoveis": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Imóveis",
+       "x": 241.3,
+       "y": 182.8,
+       "w": 102.7,
+       "h": 34.2,
+       "r": 344,
+       "b": 217
+      }
+     ],
+     "Assistente": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Assistente",
+       "x": 20,
+       "y": 225,
+       "w": 120,
+       "h": 34.2,
+       "r": 140,
+       "b": 259.2
+      }
+     ]
+    },
+    "precisa": [
+     {
+      "tag": "urbi-prosa",
+      "txt": "Precisa de você · 1",
+      "x": 20,
+      "y": 376.5,
+      "w": 350,
+      "h": 17.4,
+      "r": 370,
+      "b": 393.9
+     }
+    ],
+    "docScrollW": 390,
+    "clicou": "ok",
+    "urlAgenda": "/portal_corretor?aba=agenda"
+   },
+   "em1280": {
+    "urbi2x1": false,
+    "urbi3colunas": true
+   },
+   "de_volta": {
+    "urbi2x1": true,
+    "urbi3colunas": false,
+    "ret2x1": {
+     "x": 4,
+     "y": 166.8,
+     "w": 382,
+     "h": 1285.4,
+     "r": 386,
+     "b": 1452.2
+    },
+    "inicioConteudoY": 167,
+    "tabsVisiveis": [],
+    "atalhos": {
+     "Conversas": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Conversas",
+       "x": 20,
+       "y": 182.8,
+       "w": 120.7,
+       "h": 34.2,
+       "r": 140.7,
+       "b": 217
+      }
+     ],
+     "Criar": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Criar",
+       "x": 309,
+       "y": 64,
+       "w": 69,
+       "h": 24.8,
+       "r": 378,
+       "b": 88.8
+      },
+      {
+       "tag": "urbi-botao",
+       "txt": "Criar",
+       "x": 148.7,
+       "y": 182.8,
+       "w": 84.6,
+       "h": 34.2,
+       "r": 233.3,
+       "b": 217
+      }
+     ],
+     "Imoveis": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Imóveis",
+       "x": 241.3,
+       "y": 182.8,
+       "w": 102.7,
+       "h": 34.2,
+       "r": 344,
+       "b": 217
+      }
+     ],
+     "Assistente": [
+      {
+       "tag": "urbi-botao",
+       "txt": "Assistente",
+       "x": 20,
+       "y": 225,
+       "w": 120,
+       "h": 34.2,
+       "r": 140,
+       "b": 259.2
+      }
+     ]
+    },
+    "precisa": [
+     {
+      "tag": "urbi-prosa",
+      "txt": "Precisa de você · 1",
+      "x": 20,
+      "y": 376.5,
+      "w": 350,
+      "h": 17.4,
+      "r": 370,
+      "b": 393.9
+     }
+    ],
+    "docScrollW": 390
+   },
+   "neg": {
+    "titulos": [
+     {
+      "texto": "Ana Ribeiro · Casa 4 quartos · Jardim Botânico",
+      "x": 20,
+      "y": 219.8,
+      "w": 350,
+      "h": 52,
+      "r": 370,
+      "b": 271.8,
+      "scrollW": 350,
+      "clientW": 350,
+      "whiteSpace": "normal",
+      "textOverflow": "clip",
+      "linhas": 2
+     }
+    ],
+    "docScrollW": 390,
+    "docClientW": 390
+   },
+   "erros": []
+  },
+  "3": {
+   "1280": {
+    "Importar": {
+     "botao": {
+      "x": 40,
+      "y": 232.8,
+      "w": 107,
+      "h": 34.2,
+      "r": 147,
+      "b": 267
+     },
+     "coluna": {
+      "x": 24,
+      "y": 182.8,
+      "w": 360,
+      "h": 521.2,
+      "r": 384,
+      "b": 704
+     },
+     "dentro": true,
+     "clicavelNoCentro": true
+    },
+    "Novo": {
+     "botao": {
+      "x": 155,
+      "y": 232.8,
+      "w": 86.8,
+      "h": 34.2,
+      "r": 241.7,
+      "b": 267
+     },
+     "coluna": {
+      "x": 24,
+      "y": 182.8,
+      "w": 360,
+      "h": 521.2,
+      "r": 384,
+      "b": 704
+     },
+     "dentro": true,
+     "clicavelNoCentro": true
+    },
+    "Buscar": {
+     "botao": {
+      "x": 249.7,
+      "y": 235.4,
+      "w": 48.3,
+      "h": 29,
+      "r": 298,
+      "b": 264.4
+     },
+     "coluna": {
+      "x": 24,
+      "y": 182.8,
+      "w": 360,
+      "h": 521.2,
+      "r": 384,
+      "b": 704
+     },
+     "dentro": true,
+     "clicavelNoCentro": true
+    },
+    "Assistente": {
+     "botao": {
+      "x": 306,
+      "y": 235.4,
+      "w": 48.3,
+      "h": 29,
+      "r": 354.2,
+      "b": 264.4
+     },
+     "coluna": {
+      "x": 24,
+      "y": 182.8,
+      "w": 360,
+      "h": 521.2,
+      "r": 384,
+      "b": 704
+     },
+     "dentro": true,
+     "clicavelNoCentro": true
+    },
+    "erros": []
+   },
+   "1440": {
+    "Importar": {
+     "botao": {
+      "x": 40,
+      "y": 232.8,
+      "w": 107,
+      "h": 34.2,
+      "r": 147,
+      "b": 267
+     },
+     "coluna": {
+      "x": 24,
+      "y": 182.8,
+      "w": 360,
+      "h": 801.2,
+      "r": 384,
+      "b": 984
+     },
+     "dentro": true,
+     "clicavelNoCentro": true
+    },
+    "Novo": {
+     "botao": {
+      "x": 155,
+      "y": 232.8,
+      "w": 86.8,
+      "h": 34.2,
+      "r": 241.7,
+      "b": 267
+     },
+     "coluna": {
+      "x": 24,
+      "y": 182.8,
+      "w": 360,
+      "h": 801.2,
+      "r": 384,
+      "b": 984
+     },
+     "dentro": true,
+     "clicavelNoCentro": true
+    },
+    "Buscar": {
+     "botao": {
+      "x": 249.7,
+      "y": 235.4,
+      "w": 48.3,
+      "h": 29,
+      "r": 298,
+      "b": 264.4
+     },
+     "coluna": {
+      "x": 24,
+      "y": 182.8,
+      "w": 360,
+      "h": 801.2,
+      "r": 384,
+      "b": 984
+     },
+     "dentro": true,
+     "clicavelNoCentro": true
+    },
+    "Assistente": {
+     "botao": {
+      "x": 306,
+      "y": 235.4,
+      "w": 48.3,
+      "h": 29,
+      "r": 354.2,
+      "b": 264.4
+     },
+     "coluna": {
+      "x": 24,
+      "y": 182.8,
+      "w": 360,
+      "h": 801.2,
+      "r": 384,
+      "b": 984
+     },
+     "dentro": true,
+     "clicavelNoCentro": true
+    },
+    "erros": []
+   }
+  },
+  "4": {
+   "imoveis": {
+    "conteudo": {
+     "sw": 360,
+     "cw": 360
+    },
+    "coluna": {
+     "sw": 360,
+     "cw": 360
+    },
+    "transbordos": [],
+    "titulo": [
+     {
+      "texto": "Lote 450 m² · Reserva do Colorado Q1-03",
+      "truncar": true,
+      "textOverflow": "ellipsis",
+      "overflow": "hidden",
+      "sw": 262,
+      "cw": 236,
+      "x": 116,
+      "y": 517.1,
+      "w": 236,
+      "h": 20.3,
+      "r": 352,
+      "b": 537.4
+     }
+    ],
+    "erros": []
+   },
+   "funil1440": {
+    "quadro": {
+     "x": 385,
+     "y": 182.8,
+     "w": 691,
+     "h": 801.2,
+     "r": 1076,
+     "b": 984
+    },
+    "centro": {
+     "x": 384,
+     "y": 182.8,
+     "w": 692,
+     "h": 801.2,
+     "r": 1076,
+     "b": 984
+    },
+    "baseQuadro": 984,
+    "baseConteudoQuadro": 984,
+    "baseCentro": 984,
+    "diferenca": 0,
+    "centroRola": {
+     "sh": 801,
+     "ch": 801
+    },
+    "erros": []
+   },
+   "funil1280": {
+    "quadro": {
+     "x": 385,
+     "y": 182.8,
+     "w": 531,
+     "h": 521.2,
+     "r": 916,
+     "b": 704
+    },
+    "centro": {
+     "x": 384,
+     "y": 182.8,
+     "w": 532,
+     "h": 521.2,
+     "r": 916,
+     "b": 704
+    },
+    "baseQuadro": 704,
+    "baseConteudoQuadro": 806,
+    "baseCentro": 704,
+    "diferenca": 0,
+    "centroRola": {
+     "sh": 521,
+     "ch": 521
+    },
+    "erros": []
+   },
+   "funil_urbi_kanban": {
+    "1280": {
+     "centroB": 704,
+     "tags": {
+      "urbi-hospedeiro": {
+       "tag": "urbi-hospedeiro",
+       "x": 385,
+       "y": 182.8,
+       "w": 531,
+       "h": 521.2,
+       "r": 916,
+       "b": 704
+      },
+      "urbi-stack": {
+       "tag": "urbi-stack",
+       "x": 401,
+       "y": 198.8,
+       "w": 499,
+       "h": 489.2,
+       "r": 900,
+       "b": 688
+      },
+      "urbi-linha": {
+       "tag": "urbi-linha",
+       "x": 401,
+       "y": 198.8,
+       "w": 499,
+       "h": 26,
+       "r": 900,
+       "b": 224.8
+      },
+      "urbi-prosa": {
+       "tag": "urbi-prosa",
+       "x": 401,
+       "y": 198.8,
+       "w": 154.5,
+       "h": 26,
+       "r": 555.5,
+       "b": 224.8
+      },
+      "urbi-badge": {
+       "tag": "urbi-badge",
+       "x": 833.1,
+       "y": 200,
+       "w": 66.9,
+       "h": 23.6,
+       "r": 900,
+       "b": 223.6
+      },
+      "urbi-grid": {
+       "tag": "urbi-grid",
+       "x": 401,
+       "y": 232.8,
+       "w": 499,
+       "h": 180,
+       "r": 900,
+       "b": 412.8
+      },
+      "urbi-kpi": {
+       "tag": "urbi-kpi",
+       "x": 401,
+       "y": 232.8,
+       "w": 158.3,
+       "h": 84,
+       "r": 559.3,
+       "b": 316.8
+      },
+      "urbi-kanban": {
+       "tag": "urbi-kanban",
+       "x": 401,
+       "y": 420.8,
+       "w": 499,
+       "h": 267.2,
+       "r": 900,
+       "b": 688
+      }
+     },
+     "erros": []
+    },
+    "1440": {
+     "centroB": 984,
+     "tags": {
+      "urbi-hospedeiro": {
+       "tag": "urbi-hospedeiro",
+       "x": 385,
+       "y": 182.8,
+       "w": 691,
+       "h": 801.2,
+       "r": 1076,
+       "b": 984
+      },
+      "urbi-stack": {
+       "tag": "urbi-stack",
+       "x": 401,
+       "y": 198.8,
+       "w": 659,
+       "h": 769.2,
+       "r": 1060,
+       "b": 968
+      },
+      "urbi-linha": {
+       "tag": "urbi-linha",
+       "x": 401,
+       "y": 198.8,
+       "w": 659,
+       "h": 26,
+       "r": 1060,
+       "b": 224.8
+      },
+      "urbi-prosa": {
+       "tag": "urbi-prosa",
+       "x": 401,
+       "y": 198.8,
+       "w": 154.5,
+       "h": 26,
+       "r": 555.5,
+       "b": 224.8
+      },
+      "urbi-badge": {
+       "tag": "urbi-badge",
+       "x": 993.1,
+       "y": 200,
+       "w": 66.9,
+       "h": 23.6,
+       "r": 1060,
+       "b": 223.6
+      },
+      "urbi-grid": {
+       "tag": "urbi-grid",
+       "x": 401,
+       "y": 232.8,
+       "w": 659,
+       "h": 180,
+       "r": 1060,
+       "b": 412.8
+      },
+      "urbi-kpi": {
+       "tag": "urbi-kpi",
+       "x": 401,
+       "y": 232.8,
+       "w": 155.8,
+       "h": 84,
+       "r": 556.8,
+       "b": 316.8
+      },
+      "urbi-kanban": {
+       "tag": "urbi-kanban",
+       "x": 401,
+       "y": 420.8,
+       "w": 659,
+       "h": 547.2,
+       "r": 1060,
+       "b": 968
+      }
+     },
+     "erros": []
+    }
+   }
+  },
+  "5": {
+   "Clientes_light": {
+    "tokenFraco": "rgba(13, 27, 42, 0.48)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 75,
+    "piorApoio": {
+     "texto": "Com um cliente aberto, aqui ficam o perfil de busc",
+     "papel": "dica",
+     "componente": "urbi-hospedeiro",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#F2F4F7",
+     "grad": false,
+     "razao": 4.74,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorDica": {
+     "texto": "Com um cliente aberto, aqui ficam o perfil de busc",
+     "papel": "dica",
+     "componente": "urbi-hospedeiro",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#F2F4F7",
+     "grad": false,
+     "razao": 4.74,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Com um cliente aberto, aqui ficam o perfil de busc",
+     "papel": "dica",
+     "componente": "urbi-hospedeiro",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#F2F4F7",
+     "grad": false,
+     "razao": 4.74,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorGeral": {
+     "texto": "A ficha abre aqui: linha do tempo, próximo passo, ",
+     "papel": null,
+     "componente": "urbi-estado-vazio",
+     "el": "div",
+     "cor": "rgba(13, 27, 42, 0.48)",
+     "fundo": "#F2F4F7",
+     "grad": false,
+     "razao": 3.1,
+     "fraco": true,
+     "fonte": "12px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "A ficha abre aqui: linha do tempo, próximo passo, ",
+      "papel": null,
+      "componente": "urbi-estado-vazio",
+      "el": "div",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#F2F4F7",
+      "grad": false,
+      "razao": 3.1,
+      "fraco": true,
+      "fonte": "12px"
+     }
+    ],
+    "nComCorDoFraco": 4,
+    "comGradiente": 2
+   },
+   "Clientes_dark": {
+    "tokenFraco": "rgba(255, 255, 255, 0.4)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 75,
+    "piorApoio": {
+     "texto": "Com um cliente aberto, aqui ficam o perfil de busc",
+     "papel": "dica",
+     "componente": "urbi-hospedeiro",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#0D1B2A",
+     "grad": false,
+     "razao": 5.18,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorDica": {
+     "texto": "Com um cliente aberto, aqui ficam o perfil de busc",
+     "papel": "dica",
+     "componente": "urbi-hospedeiro",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#0D1B2A",
+     "grad": false,
+     "razao": 5.18,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Com um cliente aberto, aqui ficam o perfil de busc",
+     "papel": "dica",
+     "componente": "urbi-hospedeiro",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#0D1B2A",
+     "grad": false,
+     "razao": 5.18,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorGeral": {
+     "texto": "A ficha abre aqui: linha do tempo, próximo passo, ",
+     "papel": null,
+     "componente": "urbi-estado-vazio",
+     "el": "div",
+     "cor": "rgba(255, 255, 255, 0.4)",
+     "fundo": "#0D1B2A",
+     "grad": false,
+     "razao": 3.78,
+     "fraco": true,
+     "fonte": "12px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "A ficha abre aqui: linha do tempo, próximo passo, ",
+      "papel": null,
+      "componente": "urbi-estado-vazio",
+      "el": "div",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0D1B2A",
+      "grad": false,
+      "razao": 3.78,
+      "fraco": true,
+      "fonte": "12px"
+     }
+    ],
+    "nComCorDoFraco": 4,
+    "comGradiente": 2
+   },
+   "Ficha-contato_light": {
+    "tokenFraco": "rgba(13, 27, 42, 0.48)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 136,
+    "piorApoio": {
+     "texto": "(61) 99000-0101 · Comprador",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorDica": {
+     "texto": "08/11/2026, 01:33",
+     "papel": "dica",
+     "componente": "urbi-lista",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "(61) 99000-0101 · Comprador",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "v0.56.37_a17d0267",
+     "papel": null,
+     "componente": "urbi-topbar",
+     "el": "span",
+     "cor": "rgba(13, 27, 42, 0.48)",
+     "fundo": "#FFFFFF",
+     "grad": false,
+     "razao": 3.16,
+     "fraco": true,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     }
+    ],
+    "nComCorDoFraco": 3,
+    "comGradiente": 3
+   },
+   "Ficha-contato_dark": {
+    "tokenFraco": "rgba(255, 255, 255, 0.4)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 136,
+    "piorApoio": {
+     "texto": "(61) 99000-0101 · Comprador",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorDica": {
+     "texto": "08/11/2026, 01:33",
+     "papel": "dica",
+     "componente": "urbi-lista",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "(61) 99000-0101 · Comprador",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "Quente",
+     "papel": null,
+     "componente": "urbi-badge",
+     "el": "slot",
+     "cor": "rgb(215, 93, 61)",
+     "fundo": "#2A2A34",
+     "grad": false,
+     "razao": 3.74,
+     "fraco": false,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     }
+    ],
+    "nComCorDoFraco": 3,
+    "comGradiente": 3
+   },
+   "Imoveis_light": {
+    "tokenFraco": "rgba(13, 27, 42, 0.48)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 125,
+    "piorApoio": {
+     "texto": "Situação",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorDica": {
+     "texto": "Situação",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Situação",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorGeral": {
+     "texto": "v0.56.37_a17d0267",
+     "papel": null,
+     "componente": "urbi-topbar",
+     "el": "span",
+     "cor": "rgba(13, 27, 42, 0.48)",
+     "fundo": "#FFFFFF",
+     "grad": false,
+     "razao": 3.16,
+     "fraco": true,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     }
+    ],
+    "nComCorDoFraco": 3,
+    "comGradiente": 4
+   },
+   "Imoveis_dark": {
+    "tokenFraco": "rgba(255, 255, 255, 0.4)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 125,
+    "piorApoio": {
+     "texto": "Situação",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorDica": {
+     "texto": "Situação",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Situação",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorGeral": {
+     "texto": "v0.56.37_a17d0267",
+     "papel": null,
+     "componente": "urbi-topbar",
+     "el": "span",
+     "cor": "rgba(255, 255, 255, 0.4)",
+     "fundo": "#0A0E1A",
+     "grad": false,
+     "razao": 3.8,
+     "fraco": true,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     }
+    ],
+    "nComCorDoFraco": 3,
+    "comGradiente": 4
+   },
+   "Ajustes_light": {
+    "tokenFraco": "rgba(13, 27, 42, 0.48)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 75,
+    "piorApoio": {
+     "texto": "Fala como você fala com o cliente: frases curtas, ",
+     "papel": "secundario",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E0E3E7",
+     "grad": false,
+     "razao": 4.47,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorDica": {
+     "texto": "A foto do perfil fica em Sua marca, logo abaixo, e",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Fala como você fala com o cliente: frases curtas, ",
+     "papel": "secundario",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E0E3E7",
+     "grad": false,
+     "razao": 4.47,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "v0.56.37_a17d0267",
+     "papel": null,
+     "componente": "urbi-topbar",
+     "el": "span",
+     "cor": "rgba(13, 27, 42, 0.48)",
+     "fundo": "#FFFFFF",
+     "grad": false,
+     "razao": 3.16,
+     "fraco": true,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     }
+    ],
+    "nComCorDoFraco": 3,
+    "comGradiente": 3
+   },
+   "Ajustes_dark": {
+    "tokenFraco": "rgba(255, 255, 255, 0.4)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 75,
+    "piorApoio": {
+     "texto": "Fala como você fala com o cliente: frases curtas, ",
+     "papel": "secundario",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#202D3B",
+     "grad": false,
+     "razao": 4.69,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorDica": {
+     "texto": "A foto do perfil fica em Sua marca, logo abaixo, e",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Fala como você fala com o cliente: frases curtas, ",
+     "papel": "secundario",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#202D3B",
+     "grad": false,
+     "razao": 4.69,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "v0.56.37_a17d0267",
+     "papel": null,
+     "componente": "urbi-topbar",
+     "el": "span",
+     "cor": "rgba(255, 255, 255, 0.4)",
+     "fundo": "#0A0E1A",
+     "grad": false,
+     "razao": 3.8,
+     "fraco": true,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     }
+    ],
+    "nComCorDoFraco": 3,
+    "comGradiente": 3
+   },
+   "Hoje_light": {
+    "tokenFraco": "rgba(13, 27, 42, 0.48)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 93,
+    "piorApoio": {
+     "texto": "Tem negócio em proposta ou documentação",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorDica": {
+     "texto": "Nada marcado para hoje.",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Tem negócio em proposta ou documentação",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E9EBEF",
+     "grad": false,
+     "razao": 4.6,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "v0.56.37_a17d0267",
+     "papel": null,
+     "componente": "urbi-topbar",
+     "el": "span",
+     "cor": "rgba(13, 27, 42, 0.48)",
+     "fundo": "#FFFFFF",
+     "grad": false,
+     "razao": 3.16,
+     "fraco": true,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     }
+    ],
+    "nComCorDoFraco": 3,
+    "comGradiente": 8
+   },
+   "Hoje_dark": {
+    "tokenFraco": "rgba(255, 255, 255, 0.4)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 93,
+    "piorApoio": {
+     "texto": "Tem negócio em proposta ou documentação",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorDica": {
+     "texto": "Nada marcado para hoje.",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Tem negócio em proposta ou documentação",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#172433",
+     "grad": false,
+     "razao": 4.97,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "Sem resposta",
+     "papel": null,
+     "componente": "urbi-badge",
+     "el": "slot",
+     "cor": "rgb(215, 93, 61)",
+     "fundo": "#2A2A34",
+     "grad": false,
+     "razao": 3.74,
+     "fraco": false,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     }
+    ],
+    "nComCorDoFraco": 3,
+    "comGradiente": 8
+   },
+   "Funil_light": {
+    "tokenFraco": "rgba(13, 27, 42, 0.48)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 105,
+    "piorApoio": {
+     "texto": "Compra — Fernanda Souza",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#D8D4CE",
+     "grad": false,
+     "razao": 4.24,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorDica": {
+     "texto": "Mensagem pelo portal: Procuro um lote para constru",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#D8D4CE",
+     "grad": false,
+     "razao": 4.24,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Compra — Fernanda Souza",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#D8D4CE",
+     "grad": false,
+     "razao": 4.24,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "Vazio",
+     "papel": null,
+     "componente": "urbi-kanban",
+     "el": "div",
+     "cor": "rgba(13, 27, 42, 0.48)",
+     "fundo": "#DEE1E5",
+     "grad": false,
+     "razao": 2.97,
+     "fraco": true,
+     "fonte": "12px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#FFFFFF",
+      "grad": false,
+      "razao": 3.16,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "Vazio",
+      "papel": null,
+      "componente": "urbi-kanban",
+      "el": "div",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#DEE1E5",
+      "grad": false,
+      "razao": 2.97,
+      "fraco": true,
+      "fonte": "12px"
+     },
+     {
+      "texto": "Vazio",
+      "papel": null,
+      "componente": "urbi-kanban",
+      "el": "div",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#DEE1E5",
+      "grad": false,
+      "razao": 2.97,
+      "fraco": true,
+      "fonte": "12px"
+     },
+     {
+      "texto": "Vazio",
+      "papel": null,
+      "componente": "urbi-kanban",
+      "el": "div",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#DEE1E5",
+      "grad": false,
+      "razao": 2.97,
+      "fraco": true,
+      "fonte": "12px"
+     },
+     {
+      "texto": "Vazio",
+      "papel": null,
+      "componente": "urbi-kanban",
+      "el": "div",
+      "cor": "rgba(13, 27, 42, 0.48)",
+      "fundo": "#DEE1E5",
+      "grad": false,
+      "razao": 2.97,
+      "fraco": true,
+      "fonte": "12px"
+     }
+    ],
+    "nComCorDoFraco": 7,
+    "comGradiente": 2
+   },
+   "Funil_dark": {
+    "tokenFraco": "rgba(255, 255, 255, 0.4)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 105,
+    "piorApoio": {
+     "texto": "Compra — Fernanda Souza",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#2B2D2A",
+     "grad": false,
+     "razao": 4.69,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorDica": {
+     "texto": "Mensagem pelo portal: Procuro um lote para constru",
+     "papel": "dica",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#2B2D2A",
+     "grad": false,
+     "razao": 4.69,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "Compra — Fernanda Souza",
+     "papel": "secundario",
+     "componente": "urbi-stack",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#2B2D2A",
+     "grad": false,
+     "razao": 4.69,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "Quente",
+     "papel": null,
+     "componente": "urbi-badge",
+     "el": "slot",
+     "cor": "rgb(215, 93, 61)",
+     "fundo": "#3C322C",
+     "grad": false,
+     "razao": 3.3,
+     "fraco": false,
+     "fonte": "11px"
+    },
+    "comCorDoFraco": [
+     {
+      "texto": "v0.56.37_a17d0267",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "·",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "16/10 18:32",
+      "papel": null,
+      "componente": "urbi-topbar",
+      "el": "span",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#0A0E1A",
+      "grad": false,
+      "razao": 3.8,
+      "fraco": true,
+      "fonte": "11px"
+     },
+     {
+      "texto": "Vazio",
+      "papel": null,
+      "componente": "urbi-kanban",
+      "el": "div",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#14202C",
+      "grad": false,
+      "razao": 3.75,
+      "fraco": true,
+      "fonte": "12px"
+     },
+     {
+      "texto": "Vazio",
+      "papel": null,
+      "componente": "urbi-kanban",
+      "el": "div",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#14202C",
+      "grad": false,
+      "razao": 3.75,
+      "fraco": true,
+      "fonte": "12px"
+     },
+     {
+      "texto": "Vazio",
+      "papel": null,
+      "componente": "urbi-kanban",
+      "el": "div",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#14202C",
+      "grad": false,
+      "razao": 3.75,
+      "fraco": true,
+      "fonte": "12px"
+     },
+     {
+      "texto": "Vazio",
+      "papel": null,
+      "componente": "urbi-kanban",
+      "el": "div",
+      "cor": "rgba(255, 255, 255, 0.4)",
+      "fundo": "#14202C",
+      "grad": false,
+      "razao": 3.75,
+      "fraco": true,
+      "fonte": "12px"
+     }
+    ],
+    "nComCorDoFraco": 7,
+    "comGradiente": 2
+   },
+   "Mandato_clique": "Editar mandato",
+   "Mandato_light": {
+    "tokenFraco": "rgba(13, 27, 42, 0.48)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 39,
+    "piorApoio": {
+     "texto": "O ponto de recuo fica abaixo ou igual ao alvo, e o",
+     "papel": "dica",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E0E5EA",
+     "grad": false,
+     "razao": 4.49,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorDica": {
+     "texto": "O ponto de recuo fica abaixo ou igual ao alvo, e o",
+     "papel": "dica",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(13, 27, 42, 0.62)",
+     "fundo": "#E0E5EA",
+     "grad": false,
+     "razao": 4.49,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "mostrar",
+     "papel": "corpo",
+     "componente": "urbi-botao",
+     "el": "slot",
+     "cor": "rgb(23, 111, 160)",
+     "fundo": "#E0E5EA",
+     "grad": false,
+     "razao": 4.33,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "piorGeral": {
+     "texto": "O ponto de recuo e a BATNA são sigilosos: o client",
+     "papel": null,
+     "componente": "urbi-banner",
+     "el": "slot",
+     "cor": "rgb(163, 96, 0)",
+     "fundo": "#DAD7D3",
+     "grad": false,
+     "razao": 3.47,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "comCorDoFraco": [],
+    "nComCorDoFraco": 0,
+    "comGradiente": 2
+   },
+   "Mandato_dark": {
+    "tokenFraco": "rgba(255, 255, 255, 0.4)",
+    "papelFracoNaArvore": 0,
+    "textosMedidos": 39,
+    "piorApoio": {
+     "texto": "O ponto de recuo fica abaixo ou igual ao alvo, e o",
+     "papel": "dica",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#191E2D",
+     "grad": false,
+     "razao": 5.1,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorDica": {
+     "texto": "O ponto de recuo fica abaixo ou igual ao alvo, e o",
+     "papel": "dica",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#191E2D",
+     "grad": false,
+     "razao": 5.1,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorProsaQualquer": {
+     "texto": "O ponto de recuo fica abaixo ou igual ao alvo, e o",
+     "papel": "dica",
+     "componente": "urbi-card",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#191E2D",
+     "grad": false,
+     "razao": 5.1,
+     "fraco": false,
+     "fonte": "12px"
+    },
+    "piorGeral": {
+     "texto": "Só sugere",
+     "papel": null,
+     "componente": "urbi-botao-alternar",
+     "el": "slot",
+     "cor": "rgba(255, 255, 255, 0.5)",
+     "fundo": "#16243A",
+     "grad": false,
+     "razao": 4.94,
+     "fraco": false,
+     "fonte": "13px"
+    },
+    "comCorDoFraco": [],
+    "nComCorDoFraco": 0,
+    "comGradiente": 2
+   },
+   "erros": []
+  },
+  "6": {
+   "buscaClique": "Buscar",
+   "buscaDigitou": "ok",
+   "busca": {
+    "trecho": "Cancelar | Abrir | Cliente, imóvel ou negociação | Cliente · Ana Ribeiro · (61) 99000-0101 | Negociação · NG-0001 · Ana Ribeiro · Casa 4 quartos · Jardim Botânico | Buscar",
+    "formatado": true,
+    "cru": false
+   },
+   "novaClique": "Nova",
+   "novaDigitou": "ok",
+   "nova": {
+    "trecho": "A conversa reúne o que o cliente escreveu pelo portal e o que você mandou a ele. | Cancelar | Abrir conversa | Cliente | * | Ana Ribeiro · (61) 99000-0101 | Nova conversa",
+    "formatado": true,
+    "cru": false
+   },
+   "erros": []
+  },
+  "7": {
+   "clientes": {
+    "campos": 2,
+    "semNome": 1,
+    "nomePlaceholder": 1,
+    "nomeRotulo": 0,
+    "det": [
+     "SEM - combobox:",
+     "PH - textbox \"Buscar nome ou telefone\""
+    ]
+   },
+   "filtrosClique": "Filtros",
+   "clientes-filtros": {
+    "campos": 2,
+    "semNome": 2,
+    "nomePlaceholder": 0,
+    "nomeRotulo": 0,
+    "det": [
+     "SEM - combobox:",
+     "SEM - combobox:"
+    ]
+   },
+   "novo-imovel": {
+    "campos": 1,
+    "semNome": 1,
+    "nomePlaceholder": 0,
+    "nomeRotulo": 0,
+    "det": [
+     "SEM - combobox:"
+    ]
+   },
+   "importar": {
+    "campos": 5,
+    "semNome": 2,
+    "nomePlaceholder": 0,
+    "nomeRotulo": 3,
+    "det": [
+     "SEM - combobox:",
+     "SEM - combobox:",
+     "NOME - radio \"Pular escolhido O contato que já existe fica como está.\" [checked]",
+     "NOME - radio \"Completar Preenche só os campos que estão vazios no contato que já existe.\"",
+     "NOME - radio \"Substituir Os dados da planilha substituem os do contato que já existe.\""
+    ]
+   },
+   "ajustes-conta": {
+    "campos": 13,
+    "semNome": 7,
+    "nomePlaceholder": 4,
+    "nomeRotulo": 2,
+    "det": [
+     "SEM - combobox:",
+     "PH - textbox \"Como os clientes te conhecem\"",
+     "PH - textbox \"DF-12345-F\"",
+     "PH - textbox \"(61) 99999-9999\"",
+     "PH - textbox \"Seu nome ou o da imobiliária\": Corretor A",
+     "SEM - combobox:",
+     "SEM - textbox",
+     "SEM - textbox",
+     "SEM - textbox: \"#0b5394\"",
+     "SEM - textbox: \"#f2b705\"",
+     "SEM - combobox:",
+     "NOME - radio \"Sofisticado Valoriza detalhes e acabamento, com vocabulário mais elaborado.\"",
+     "NOME - radio \"Formal Tratamento respeitoso e objetivo, sem gírias nem exclamações.\""
+    ]
+   },
+   "erros": [],
+   "recontagem": {
+    "regra": "textbox/combobox/checkbox (radio fora, como na 0.1.51); cor so com valor = sem nome",
+    "clientes": [
+     2,
+     1
+    ],
+    "clientes-filtros": [
+     2,
+     2
+    ],
+    "novo-imovel": [
+     2,
+     1
+    ],
+    "importar": [
+     2,
+     2
+    ],
+    "ajustes-conta": [
+     13,
+     7
+    ],
+    "total": [
+     21,
+     13
+    ],
+    "tres_telas_pedidas": [
+     17,
+     10
+    ],
+    "radios_com_nome_fora_da_conta": 6
+   }
+  }
+ },
+ "erros_de_pagina_e_rede": [],
+ "chamadas_que_gravam_bloqueadas": []
+}

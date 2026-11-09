@@ -39,9 +39,10 @@ As prioridades são sugestões deste pacote. Quem decide é o dono. Nenhum pedid
   - rótulo do `urbi-kpi`: 4,47;
   - submensagem do `urbi-estado-vazio`: 3,10;
   - versão na barra do shell: 3,16;
+  - "Vazio" no quadro do `urbi-kanban`: 2,97 no claro e 3,75 no escuro (na cor do token fraco; do shell, entra no item (b));
   - `--cor-texto-sec` (papel `dica`) sobre o cartão `variante-alerta`, no Funil: 4,24 (fundo `#D8D4CE`).
 - **[medido]** O papel `fraco` mede de 3,04 a 3,10 no claro (2,89 no Funil) e de 3,70 a 3,78 no escuro.
-- **[medido, fora do texto do pedido 28]** A seção "Cobertura das 21 telas" de `issue-176/medidas.md` traz o `dica` a 4,49 no modal Editar mandato, no claro.
+- **[medido no shell 0.56.37, app 0.1.58]** (conferência real, só leitura, `specs/prints/conferencia-0.1.58/`) Com `dica`/`secundario`, as exceções a 4,5:1 são: Funil, claro 4,24 e escuro 4,69; modal de mandato, claro 4,49 e escuro 5,10; e, em Ajustes, o `secundario` dentro do cartão de tom ("Fala como você fala…"), claro 4,47 e escuro 4,69 (a `dica` da mesma tela passa: 4,60 e 4,97). Passam: Clientes 4,74 e 5,18; ficha, Imóveis e Hoje 4,60 e 4,97. Textos do shell na cor do token fraco, que entram no item (b): versão na barra (3,16 claro, 3,80 escuro), submensagem do estado vazio (3,10, 3,78) e "Vazio" no `urbi-kanban` (2,97, 3,75).
 - **[relato]** Até 07/11 a tela usava o `urbi-inbox`, que deixava a área de trabalho cinza (`div.layout` a .04 e `section.detail-pane` a .05). Sobre ele, o texto secundário da lista de Clientes ficava em ~2,9:1. O app não usa mais o `urbi-inbox`, e a remedição não o reproduz.
 
 **O que o app faz até lá:** usa os primitivos como eles são e não põe cor nenhuma na tela (decisão D-124). Coluna e cartão ficam como o tema os pinta. O texto de apoio passou de `fraco` para `dica`/`secundario`, e um teste impede a volta do `fraco` enquanto ele medir abaixo de 4,5:1.
