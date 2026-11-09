@@ -152,8 +152,13 @@ export function normalizarPerfilBusca(v: unknown): Record<string, unknown> | nul
 /** Telefone para a tela: `+5561990000101` vira "(61) 99000-0101" (issue #182); o que não é brasileiro sai como está. */
 export function formatarTelefone(v: string | null | undefined): string {
   if (!v) return '';
-  const d = String(v).replace(/\D/g, '');
-  const nacional = d.startsWith('55') && (d.length === 12 || d.length === 13) ? d.slice(2) : d;
+  const bruto = String(v).trim();
+  const d = bruto.replace(/\D/g, '');
+  // Com '+', só o +55 é brasileiro; sem '+', 55 + 12 ou 13 dígitos é o E.164 brasileiro e o resto é DDD + número.
+  const comCodigo = d.startsWith('55') && (d.length === 12 || d.length === 13);
+  if (bruto.startsWith('+') && !d.startsWith('55')) return bruto;
+  const nacional = comCodigo ? d.slice(2) : d;
+  if (bruto.startsWith('+') && !comCodigo) return bruto;
   if (nacional.length === 11) return `(${nacional.slice(0, 2)}) ${nacional.slice(2, 7)}-${nacional.slice(7)}`;
   if (nacional.length === 10) return `(${nacional.slice(0, 2)}) ${nacional.slice(2, 6)}-${nacional.slice(6)}`;
   return String(v);
