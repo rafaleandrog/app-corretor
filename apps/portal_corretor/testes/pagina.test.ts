@@ -217,7 +217,8 @@ test('formulário: valida, barra robô e excesso, e publica o lead só na conta 
   assert.equal(ok.publicados.length, 1);
   assert.equal(ok.publicados[0].tipo, 'lead_recebido');
   assert.deepEqual(ok.publicados[0].opcoes, { conta_id: 100 });
-  assert.deepEqual(Object.keys(ok.publicados[0].payload).sort(), ['email', 'imovel_codigo', 'mensagem', 'nome', 'origem', 'responsavel_id', 'telefone']);
+  assert.deepEqual(Object.keys(ok.publicados[0].payload).sort(), ['email', 'imovel_codigo', 'ip_hash', 'mensagem', 'nome', 'origem', 'responsavel_id', 'telefone']);
+  assert.match(ok.publicados[0].payload.ip_hash, /^[0-9a-f]{16}$/, 'a origem vai embaralhada, nunca o IP');
   assert.equal(ok.publicados[0].payload.origem, 'ficha_imovel');
   // Conta no corpo não vale nada: a conta é sempre a do ingresso.
   const forjado = await chamarWebhook('formulario_lead', 100, { nome: 'Eva', email: 'eva@exemplo.com', consentimento: true, conta_id: 200 }, '10.0.0.9');
@@ -246,11 +247,12 @@ test('lead vira contato, negócio novo, consentimento e linha do tempo na conta 
   await reagir.lead_recebido(evento, ctx);
   const deA = banco.linhas('contatos').filter((c) => c.conta_id === 100);
   assert.equal(deA.length, 1);
-  assert.deepEqual([deA[0].nome, deA[0].responsavel_id, !!deA[0].consentimento_em], ['Ana Souza', 1, true]);
+  // D-129: o consentimento do formulário é só declarado; o contato fica sem consentimento até o corretor confirmar.
+  assert.deepEqual([deA[0].nome, deA[0].responsavel_id, !!deA[0].consentimento_em], ['Ana Souza', 1, false]);
   const negocio = banco.linhas('negocios').find((n) => n.conta_id === 100)!;
   const etapa = banco.linhas('etapas_funil').find((e) => e.id === negocio.etapa_id)!;
   assert.deepEqual([etapa.nome, etapa.conta_id, negocio.marco_max], ['Novo', 100, 'novo']);
-  assert.equal(banco.linhas('consentimentos').filter((c) => c.conta_id === 100).length, 1);
+  assert.deepEqual(banco.linhas('consentimentos').filter((c) => c.conta_id === 100).map((c) => [c.declarado, c.texto_versao]), [[true, 'formulario-v1']]);
   assert.ok(banco.linhas('linha_do_tempo').some((l) => l.conta_id === 100 && l.tipo === 'lead.recebido'));
   assert.equal(banco.linhas('origens').find((o) => o.conta_id === 100)!.canal, 'pagina');
   assert.notEqual(deA[0].origem_id, origemB.id, 'origem própria da conta, não a de B');
@@ -259,7 +261,7 @@ test('lead vira contato, negócio novo, consentimento e linha do tempo na conta 
   await reagir.lead_recebido(evento, ctx);
   assert.equal(banco.linhas('consentimentos').filter((c) => c.conta_id === 100).length, 1);
   assert.equal(banco.linhas('negocios').filter((n) => n.conta_id === 100).length, 1);
-  // Nova mensagem do mesmo telefone: une ao contato e reaproveita o negócio aberto.
+  // Nova mensagem do mesmo telefone: une ao contato, sem negócio novo (D-129: vira pedido e tarefa).
   await reagir.lead_recebido({ ...evento, payload: { ...evento.payload, mensagem: 'Outra dúvida' } }, ctx);
   assert.equal(banco.linhas('contatos').filter((c) => c.conta_id === 100).length, 1);
   assert.equal(banco.linhas('negocios').filter((n) => n.conta_id === 100).length, 1);
@@ -454,4 +456,45 @@ test('GET /pagina: contatos_30d conta só os da página da conta do request, mes
   await comServidor(rotas, naConta(200), banco, shell, async (chamar) => {
     assert.equal((await chamar('GET', '/pagina')).corpo.numeros.contatos_30d, 1, 'conta 200: só o dela');
   });
+});
+
+test('#193 (D-129): lead com telefone de contato existente não muda e-mail, consentimento nem último contato', async () => {
+  const banco = new BancoFalso(UNICOS);
+  let anaId = 0;
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    anaId = (await chamar('POST', '/contatos', { nome: 'Ana Ribeiro', telefone: '61990000101' })).corpo.id;
+  });
+  banco.linhas('perfis_corretor').push({ id: 9002, conta_id: 100, usuario_id: 1, ativo: true } as any);
+  const ana = () => banco.linhas('contatos').find((c) => c.id === anaId)!;
+  const antes = { ...ana() };
+  const ctx = banco.ctxSistema([{ id: 100, nome: 'A' }]);
+  const evento = { payload: { nome: 'Fulano Trocado', telefone: '+5561990000101', email: 'invasor@exemplo.com', mensagem: 'oi', imovel_codigo: null, origem: 'pagina', responsavel_id: 1, ip_hash: 'abcdef0123456789' }, conta_id: 100 };
+  await reagir.lead_recebido(evento, ctx);
+  assert.deepEqual([ana().email ?? null, ana().consentimento_em ?? null, ana().ultimo_contato_em], [null, null, antes.ultimo_contato_em]);
+  assert.equal(ana().nome, 'Ana Ribeiro');
+  assert.equal(banco.linhas('negocios').filter((n) => n.contato_id === anaId).length, 0, 'sem negócio novo: o corretor decide');
+  // Linha do tempo com o nome enviado destacado e a tarefa "Novo pedido pela página".
+  const linha = banco.linhas('linha_do_tempo').find((l) => l.contato_id === anaId && l.tipo === 'lead.recebido')!;
+  assert.match(linha.resumo, /veio como Fulano Trocado/);
+  assert.deepEqual([linha.dados.nome_diverge, linha.dados.email_enviado], [true, 'invasor@exemplo.com']);
+  const tarefa = banco.linhas('atividades').find((a) => a.contato_id === anaId && a.tipo === 'tarefa')!;
+  assert.equal(tarefa.titulo, 'Novo pedido pela página (veio como Fulano Trocado)');
+  assert.match(tarefa.resultado, /não foi gravado/);
+  // Consentimento só declarado, ligado ao envio, com a origem embaralhada.
+  const c = banco.linhas('consentimentos').filter((x) => x.contato_id === anaId);
+  assert.deepEqual(c.map((x) => [x.declarado, x.ip_hash, x.texto_versao, x.registrado_por_id]), [[true, 'abcdef0123456789', 'formulario-v1', null]]);
+  assert.equal(linha.dados.consentimento_id, c[0].id);
+  // A ficha não conta o declarado como consentimento e mostra que ele espera a confirmação.
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const ficha = (await chamar('GET', `/contatos/${anaId}`)).corpo;
+    assert.equal(ficha.consentimento, null);
+    assert.equal(ficha.consentimento_declarado.declarado, true);
+    assert.equal((await chamar('POST', `/contatos/${anaId}/consentimento`, { canal: 'whatsapp' })).status, 201);
+    const depois = (await chamar('GET', `/contatos/${anaId}`)).corpo;
+    assert.ok(depois.consentimento && !depois.consentimento.declarado);
+  });
+  // Mesmo nome (sem acento e caixa diferentes): sem o destaque.
+  await reagir.lead_recebido({ ...evento, payload: { ...evento.payload, nome: 'ana ribeiro', email: null, mensagem: 'outra' } }, ctx);
+  const tarefas = banco.linhas('atividades').filter((a) => a.contato_id === anaId && a.tipo === 'tarefa');
+  assert.equal(tarefas[1].titulo, 'Novo pedido pela página');
 });

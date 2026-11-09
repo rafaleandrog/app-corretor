@@ -127,15 +127,22 @@ Quem preenche o formulário vira cliente em **Clientes**:
 
 - **Contato novo:** criado como comprador, com origem "página". O responsável é quem publicou
   a página pela primeira vez; se essa pessoa não for mais corretor ativo da conta, o primeiro
-  corretor ativo.
-- **Telefone já cadastrado** (ou, sem contato com o telefone, o mesmo e-mail): o pedido entra no
-  contato existente.
-- **Negócio:** um negócio de compra na primeira etapa do funil ("Novo"), se o contato ainda não
-  tem um em andamento. Pela ficha de um imóvel, o negócio já fica ligado a ele.
-- **Consentimento:** registrado com a versão do texto (`formulario-v1`), porque a autorização de
-  contato é obrigatória.
-- **Linha do tempo:** registra "Pediu contato pela sua página" (ou "pela ficha do IM-0001"), com a
-  mensagem. A temperatura é recalculada.
+  corretor ativo. Ganha um negócio de compra na primeira etapa do funil ("Novo"); pela ficha de um
+  imóvel, o negócio já fica ligado a ele. A linha do tempo registra "Pediu contato pela sua página"
+  (ou "pela ficha do IM-0001"), com a mensagem, e a temperatura é recalculada.
+- **Telefone já cadastrado** (ou, sem contato com o telefone, o mesmo e-mail): **o cadastro do
+  cliente não muda.** O formulário é aberto e qualquer pessoa pode digitar o telefone de outra, então
+  o app não grava o e-mail enviado, não marca consentimento, não mexe no último contato nem abre
+  negócio. O pedido entra na linha do tempo ("Novo pedido pela sua página") e vira a tarefa
+  **Novo pedido pela página** para o responsável pelo cliente, com a mensagem. Se o nome enviado é
+  outro, o título destaca: "Novo pedido pela página (veio como Fulano)"; o e-mail diferente aparece
+  na tarefa como "não foi gravado". Você confere com o cliente e atualiza o cadastro se for o caso.
+- **Consentimento declarado:** a autorização de contato é obrigatória no formulário, mas é uma
+  **declaração** de quem preencheu, não a prova de que foi o cliente. Ela fica guardada com a data, a
+  versão do texto (`formulario-v1`) e a origem embaralhada do envio, ligada ao pedido na linha do
+  tempo. **O cliente só fica com consentimento quando você confirma** na ficha (Cadastro ›
+  Confirmar); até lá, a ficha mostra "Declarou consentimento no formulário…" e o atendimento
+  automático só usa mensagens-modelo aprovadas (D-129).
 - **Envio repetido:** a mesma mensagem enviada de novo em até 5 minutos não duplica nada.
 
 **Proteções:**

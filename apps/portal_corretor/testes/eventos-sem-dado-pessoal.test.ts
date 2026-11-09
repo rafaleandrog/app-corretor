@@ -38,7 +38,8 @@ const auditavel = (tipo: string) => !!(manifesto.eventos as Record<string, { aud
  * exige mudar a doc da app e o pedido ao shell, que o teste confere.
  */
 const RESIDUAL: Record<string, string[]> = {
-  lead_recebido: ['nome', 'telefone', 'email', 'mensagem'],
+  // `ip_hash`: a origem do envio embaralhada (D-129), guardada com a declaração de consentimento.
+  lead_recebido: ['nome', 'telefone', 'email', 'mensagem', 'ip_hash'],
   reacao_recebida: ['comentario'],
   acao_cliente_recebida: ['texto'],
 };

@@ -322,7 +322,11 @@ crmRotas.get(
       dados.listar('atividades', { filtros: { contato_id: cid }, ordenar: 'quando', ordem: 'desc', por_pagina: 100 }),
       dados.listar('linha_do_tempo', { filtros: { contato_id: cid }, ordenar: 'ocorrido_em', ordem: 'desc', por_pagina: 50 }),
     ]);
-    const consentimento = await primeiro(dados, 'consentimentos', { contato_id: cid, 'revogado_em[nulo]': 'true' });
+    // Consentimento confirmado (pelo corretor) × só declarado no formulário da página (D-129): o
+    // declarado não conta como consentimento até o corretor confirmar.
+    const vigentes = (await dados.listar('consentimentos', { filtros: { contato_id: cid, 'revogado_em[nulo]': 'true' }, ordenar: 'aceito_em', ordem: 'desc', por_pagina: 50 })).dados;
+    const consentimento = vigentes.find((c) => !c.declarado) ?? null;
+    const consentimento_declarado = consentimento ? null : (vigentes.find((c) => c.declarado) ?? null);
     const idsVisita = atividades.dados.filter((a) => a.tipo === 'visita').map((a) => a.id);
     const visitas = idsVisita.length ? (await dados.listar('visitas', { filtros: { atividade_id: idsVisita.join(',') }, por_pagina: 100 })).dados : [];
     const etapas = await etapasPorId(dados);
@@ -333,7 +337,7 @@ crmRotas.get(
     const abordagem = proximaAbordagem(contato, negocios.dados, etapas, playbook);
     const origem = contato.origem_id ? await dados.buscar('origens', Number(contato.origem_id)) : null;
     const comOrigem = { ...contato, origem_canal: contato.origem_canal ?? origem?.canal ?? null, origem_campanha: contato.origem_campanha ?? origem?.campanha ?? null };
-    res.json({ contato: comOrigem, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, abordagem, classificacoes: classificacoes.dados });
+    res.json({ contato: comOrigem, negocios: negocios.dados, atividades: atividades.dados, visitas, linha_do_tempo: linha.dados, consentimento, consentimento_declarado, abordagem, classificacoes: classificacoes.dados });
   }),
 );
 

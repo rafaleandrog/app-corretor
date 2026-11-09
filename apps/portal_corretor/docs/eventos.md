@@ -11,7 +11,8 @@ automações (o Negociador IA, os lembretes). Cada evento carrega só os número
 imóvel, da conversa), rótulos fechados (o tipo da atividade, o motivo da perda), datas e valores, e não o
 nome, o telefone ou o texto de um cliente. Quem abre o aviso vê o resto na tela certa. Duas exceções: os
 avisos que nascem na borda pública (`lead_recebido`, `reacao_recebida` e `acao_cliente_recebida`) levam o que
-o visitante escreveu, porque ainda não há registro para apontar (ver o risco residual em
+o visitante escreveu (o `lead_recebido` leva também a origem do envio embaralhada, nunca o endereço de
+internet, para a declaração de consentimento), porque ainda não há registro para apontar (ver o risco residual em
 [Negociação e mandato](negociacao.md)); e a trilha de auditoria, abaixo, leva o **seu** nome.
 
 Os eventos são sempre da **sua conta**: o corretor de outra conta não recebe nem vê os seus.

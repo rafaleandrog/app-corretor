@@ -365,6 +365,15 @@
         },
         "revogado_em": {
           "tipo": "datahora"
+        },
+        "declarado": {
+          "tipo": "booleano",
+          "obrigatorio": true,
+          "padrao": false
+        },
+        "ip_hash": {
+          "tipo": "texto",
+          "limite": 64
         }
       }
     },
