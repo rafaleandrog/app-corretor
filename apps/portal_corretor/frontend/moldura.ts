@@ -26,7 +26,9 @@ export interface OpcoesMoldura {
   /**
    * O `centro` já vem com `slot="centro"` em cada filho e a moldura não o embrulha num `urbi-hospedeiro`.
    * Para o par lista de mensagens + compositor: o fill só se mantém no filho DIRETO do container com
-   * altura (ui-componentes-conteudo.md § Onde pôr o par feed + redator). Só vale com `lista`
+   * altura (ui-componentes-conteudo.md § Onde pôr o par feed + redator). Também o quadro do Funil
+   * (`pc-clientes-quadro`, `papel-fill` de light DOM): só a coluna do `urbi-3-colunas` lhe impõe a
+   * estrutura que deixa o quadro encher a altura (#180), e ele traz o próprio hospedeiro. Só vale com `lista`
    * (`urbi-3-colunas`); no `urbi-2x1` o centro segue embrulhado.
    */
   centroSolto?: boolean;

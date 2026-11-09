@@ -1,0 +1,16 @@
+# Issue #180: transbordos medidos na homologação "pinguim" (app 0.1.51, 09/11/2026)
+
+Só leitura, Playwright com a base de `scripts/conferencia-visual/capturar.mjs` (`CONTA=7`, Corretor A (demo)); toda chamada à instância que não fosse GET/HEAD era abortada no navegador (nenhuma tentada). Fonte do sistema (Google Fonts bloqueado). Capturas `<tela>-<largura>x<altura>.png`, dados brutos em `medidas.json`. Moldura: 360 · 691 · 340 em 1440×1000 (y 183 a 984) e 360 · 531 · 340 em 1280×720 (y 183 a 704).
+
+| # | Item | 1440×1000 | 1280×720 | Situação |
+|---|---|---|---|---|
+| 1 | Lista de Imóveis (imóvel aberto) | Lista rola 10 px para o lado (`scrollWidth` 338 em 328); "Lote 450 m² · Reserva do Colorado Q1-03" cortado na borda **sem "…"**. Busca, chips e miniaturas inteiros; bairro e preço na linha de baixo (P06) | Igual | **Continuava.** Corrigido na 0.1.55 (`imoveis.ts`: `urbi-stack expandir` ao lado da miniatura). Prova no DOM ao vivo: sem rolagem lateral, título com "…" (`Imoveis-prova-correcao-1440x1000.png`; o centro mostra "não encontrado" porque a prova abriu um id fora da conta, sem efeito na lista) |
+| 2 | "Últimos 30 dias" (ficha do imóvel e Página) | Uma coluna de KPIs, 273 px cada, nada cortado | Igual | Resolvido antes (grupos 3 e 4) |
+| 3 | Escada de propostas (negociação 1, aguardando você, 3 rodadas) | Lista compacta; nada passa da coluna | Cartão 499 px, lista 465 = `scrollWidth` 465; canal e quando na 2ª linha | Resolvido antes (grupo 3) |
+| 4 | Números (Funil e Resumo) | 4 KPIs numa linha (156 px), "R$ 104.825" numa linha (26 px); Resultados 4 numa linha | **3 + 1** nos KPIs e em Resultados (centro 499 úteis; 4 × 140 + 3 × 12 = 596) | Quebra do valor resolvida (grupo 5). 3 + 1 fica só abaixo de ~1366 px: limite do `urbi-grid` (pedido ao shell 31) |
+| 5 | Endereço da Página | Com "…" e `title` | Igual | Resolvido antes (grupo 4) |
+| 6 | Funil | Quadro de y 421 a **817** (centro vai a 984): 167 px vazios | Quadro termina em 817, **113 px abaixo** do fim do centro (704): a rolagem é do centro inteiro | **Continuava.** Causa: `pc-clientes-quadro` (light DOM) fica `display: block` dentro do `urbi-hospedeiro`, e o `expandir` do stack de dentro não age. Corrigido na 0.1.55 (`clientes.ts`, `clientes-quadro.ts`): quadro solto no slot `centro` com o próprio hospedeiro e as taxas `sem-expandir`. Prova no DOM: quadro até 968 (1440) e 688 (1280) (`Funil-prova-correcao-*.png`) |
+
+Colunas depois de "Visita agendada" seguem na rolagem lateral do quadro (9 etapas × 182 px = 1636 px em 659): é o desenho da referência P03, que também corta a terceira coluna.
+
+Fora do #180, visto de passagem: na 0.1.51 o cabeçalho de Clientes ainda corta o Assistente (resolvido no #171, 0.1.54); na prévia da Página em 1280, o botão "Quero saber mais" do cartão sai cortado (CSS da página pública).

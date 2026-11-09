@@ -120,7 +120,9 @@ export class PcClientesFunilFiltros extends LitElement {
 // etapas em quatro números; abaixo, o quadro por etapa, que enche a altura do centro (arrastar muda a
 // etapa; Perdido pede o motivo). Clicar num cartão escolhe o cliente (`?item=`), que abre à direita. Os
 // filtros vêm do endereço. O elemento desenha no light DOM e se declara `papel-fill` (ui.md § Papéis de
-// UI): dentro do hospedeiro da coluna, com `expandir`, ele preenche o centro e o quadro rola por dentro.
+// UI). Vai direto no slot `centro` do `urbi-3-colunas` (`centroSolto`), que impõe a estrutura de coluna
+// ao papel; o respiro é o `urbi-hospedeiro` de dentro. Dentro do hospedeiro da moldura ele ficava
+// `display: block` e o quadro parava na altura do conteúdo (#180: fim em y 817 de 984 em 1440 × 1000).
 @customElement('pc-clientes-quadro')
 export class PcClientesQuadro extends LitElement {
   @state() private quadro: { etapas: Linha[]; negocios: Linha[]; passagem: Linha[] } | null = null;
@@ -240,13 +242,19 @@ export class PcClientesQuadro extends LitElement {
     const nome = new Map(this.quadro!.etapas.map((e) => [e.id, e.nome]));
     const com = (this.quadro!.passagem ?? []).filter((p) => p.taxa !== null);
     if (!com.length) return nothing;
-    // 140px é o piso do urbi-kpi no contrato; no centro cabem quatro lado a lado.
-    return html`<urbi-grid min="140px">
+    // 140px é o piso do urbi-kpi no contrato; no centro cabem quatro lado a lado. `sem-expandir`: a grade
+    // fica na altura natural e o quadro leva o resto do centro.
+    return html`<urbi-grid min="140px" sem-expandir>
       ${com.map((p) => html`<urbi-kpi rotulo=${`${nome.get(p.de_etapa_id)} → ${nome.get(p.para_etapa_id)}`} formato="texto" .valor=${`${Math.round(p.taxa * 100)}%`} title=${`${p.passaram} de ${p.chegaram} negócios`}></urbi-kpi>`)}
     </urbi-grid>`;
   }
 
   render() {
+    // O hospedeiro dá o respiro da coluna (a moldura não embrulha o centro solto) e enche a altura.
+    return html`<urbi-hospedeiro expandir>${this.conteudo()}</urbi-hospedeiro>`;
+  }
+
+  private conteudo() {
     if (this.falha && !this.quadro) {
       return html`<urbi-banner variante="erro">
         ${this.falha}

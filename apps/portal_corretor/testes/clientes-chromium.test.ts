@@ -319,7 +319,8 @@ test('Clientes no Chromium: lista, ficha no centro, contexto à direita, ?item= 
       const w = window as any;
       const colunas = document.querySelector('urbi-3-colunas')!;
       return {
-        quadro: !!colunas.querySelector('urbi-hospedeiro[slot="centro"] pc-clientes-quadro'),
+        // Solto no slot do centro, com o próprio hospedeiro dentro (#180: só assim o quadro enche a altura).
+        quadro: !!colunas.querySelector(':scope > pc-clientes-quadro[slot="centro"] > urbi-hospedeiro[expandir]'),
         filtros: (w.achar(colunas.querySelector('urbi-hospedeiro[slot="esquerda"] pc-clientes-funil-filtros'), 'urbi-chips-atalho')?.opcoes ?? []).map((o: any) => o.rotulo),
       } as any;
     });

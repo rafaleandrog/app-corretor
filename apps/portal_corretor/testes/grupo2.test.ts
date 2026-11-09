@@ -388,6 +388,13 @@ test('telas do grupo 2: sem CSS próprio, sem `pequeno`, sem chamada direta; chi
   assert.match(quadro, /\{ id: 'todas', rotulo: 'Todas' \}, \.\.\.FILTROS_PRONTOS/);
   assert.doesNotMatch(quadro, /urbi-select/, 'sem select na esquerda do Funil');
   assert.match(quadro, /<urbi-kanban expandir/);
+  // #180: o quadro enche a altura do centro: solto no slot da coluna, com o próprio hospedeiro, e as taxas
+  // na altura natural. Na lista de Imóveis, o stack ao lado da miniatura expande para o título truncar.
+  assert.match(quadro, /<urbi-hospedeiro expandir>\$\{this\.conteudo\(\)\}<\/urbi-hospedeiro>/);
+  assert.match(quadro, /<urbi-grid min="140px" sem-expandir>/);
+  assert.match(clientes, /<pc-clientes-quadro slot="centro" expandir>/);
+  assert.match(clientes, /centroSolto: true/);
+  assert.match(raiz('frontend/telas/imoveis.ts'), /tamanho="48"><\/urbi-avatar>\s*<urbi-stack expandir>/);
   const ficha = raiz('frontend/telas/ficha-contato.ts');
   assert.match(ficha, /ABA_PADRAO: AbaFicha = 'linha'/, 'a ficha abre na Linha do tempo (D-117)');
   assert.match(ficha, /Editar perfil/);
