@@ -91,3 +91,20 @@ test('POST /envios só aceita imóvel anunciável: rascunho 422, ativo com autor
     assert.equal((await chamar('GET', `/imoveis/${im.id}/contexto`)).corpo.anunciavel, true);
   });
 });
+
+test('POST /envios: registro de envio já feito fora do app não exige imóvel anunciável', async () => {
+  const banco = new BancoFalso({ ...UNICOS });
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'] }, banco, {}, async (chamar) => {
+    const c = (await chamar('POST', '/contatos', { nome: 'Rita Souza', telefone: '61988881111' })).corpo;
+    const im = (await chamar('POST', '/imoveis', { tipo: 'apartamento', cidade: 'Brasília', titulo: 'Apto' })).corpo;
+    banco.linhas('imoveis')[0].situacao = 'vendido';
+    for (const extra of [{ tipo: 'imovel', canal: 'presencial' }, { tipo: 'imovel', canal: 'email' }, { tipo: 'simulacao', canal: 'email' }, { tipo: 'arquivo', canal: 'presencial' }]) {
+      const r = await chamar('POST', '/envios', { contato_id: c.id, imovel_id: im.id, ...extra });
+      assert.equal(r.status, 201, JSON.stringify(r.corpo));
+    }
+    // O cartão pelo WhatsApp, esse sim, continua exigindo imóvel anunciável.
+    const wa = await chamar('POST', '/envios', { contato_id: c.id, imovel_id: im.id, tipo: 'imovel', canal: 'whatsapp' });
+    assert.equal(wa.status, 422, JSON.stringify(wa.corpo));
+    assert.equal(banco.linhas('envios').length, 4);
+  });
+});

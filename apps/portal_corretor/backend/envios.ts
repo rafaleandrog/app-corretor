@@ -32,8 +32,10 @@ enviosRotas.post(
     const imovel = iid ? await dados.buscar('imoveis', iid) : null;
     if (tipo === 'imovel' && !imovel) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o imóvel enviado.');
     if (iid && !imovel) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
-    // O envio leva o cartão do imóvel ao cliente: só o que é anunciável (ativo ou reservado, com autorização vigente) pode ir.
-    if (imovel && !(await imovelAnunciavel(req, imovel))) return erro(res, 422, 'IMOVEL_NAO_ANUNCIAVEL', 'Este imóvel não pode ser enviado: precisa estar ativo ou reservado, com autorização de venda assinada e vigente.');
+    // O cartão do imóvel que o app monta para o WhatsApp (tipo imóvel + canal whatsapp) só leva o que é anunciável
+    // (ativo ou reservado, com autorização vigente). Registro de algo já enviado fora do app (e-mail, presencial,
+    // arquivo, simulação) não é barrado: o fato aconteceu e Números não pode perdê-lo.
+    if (imovel && tipo === 'imovel' && canal === 'whatsapp' && !(await imovelAnunciavel(req, imovel))) return erro(res, 422, 'IMOVEL_NAO_ANUNCIAVEL', 'Este imóvel não pode ser enviado: precisa estar ativo ou reservado, com autorização de venda assinada e vigente.');
     const nid = id(req.body?.negocio_id);
     const negocio = nid ? await dados.buscar('negocios', nid) : null;
     if (nid && (!negocio || negocio.contato_id !== cid)) return erro(res, 422, 'DADOS_INVALIDOS', 'Negócio não encontrado para este cliente.');
