@@ -26,6 +26,13 @@ export const ROTULO_OBJETIVO: Record<Objetivo, string> = {
   visita_aberta: 'Visita aberta',
   destaque: 'Destaque',
 };
+/**
+ * Pedido do pacote (`/estudio/pacote`) quando o corretor não escreve nenhum: acompanha o objetivo, para a peça
+ * de "Baixou o preço" não nascer com pedido de "lançamento" (#182, item 15).
+ */
+export function pedidoPadraoDoPacote(objetivo: Objetivo): string {
+  return objetivo === 'novo_imovel' ? 'Pacote de lançamento do imóvel' : `Pacote · ${ROTULO_OBJETIVO[objetivo]}`;
+}
 /** Selo que a arte mostra no canto, por objetivo. */
 export const SELO: Record<Objetivo, string | null> = { novo_imovel: 'NOVIDADE', baixou_preco: 'BAIXOU O PREÇO', vendido: 'VENDIDO', visita_aberta: 'VISITA ABERTA', destaque: null };
 

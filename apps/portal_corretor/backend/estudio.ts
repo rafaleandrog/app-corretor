@@ -10,6 +10,7 @@ import {
   MARCA_PADRAO,
   MAX_SLIDES,
   OBJETIVOS,
+  pedidoPadraoDoPacote,
   ferramentaValida,
   FERRAMENTA,
   MAX_REFERENCIAS,
@@ -293,10 +294,10 @@ estudioRotas.post(
   assincrono(async (req, res) => {
     const iid = id(req.body?.imovel_id);
     if (!iid) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o imóvel do lançamento.');
-    const pedido = texto(req.body?.pedido, 1000) || 'Pacote de lançamento do imóvel';
     const imovel = await imovelDaPeca(req, iid);
     if (!imovel) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
     const objetivo = (OBJETIVOS as readonly string[]).includes(req.body?.objetivo) ? (req.body.objetivo as Objetivo) : 'novo_imovel';
+    const pedido = texto(req.body?.pedido, 1000) || pedidoPadraoDoPacote(objetivo);
     const criadas: Record<string, any>[] = [];
     let usouIa = false;
     for (const formato of ['post_1x1', 'carrossel', 'story'] as Formato[]) {

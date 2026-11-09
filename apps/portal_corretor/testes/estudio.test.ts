@@ -163,6 +163,12 @@ test('Estúdio: pedido vira peças com textos (modelo sem IA), arte enviada, apr
     // Pacote de lançamento: três formatos.
     const pacote = await chamar('POST', '/estudio/pacote', { imovel_id: imovel.id });
     assert.deepEqual(pacote.corpo.pecas.map((p: any) => p.formato), ['post_1x1', 'carrossel', 'story']);
+    assert.ok(pacote.corpo.pecas.every((p: any) => p.pedido === 'Pacote de lançamento do imóvel'));
+    // #182, item 15: sem pedido escrito, o pedido padrão acompanha o objetivo (nada de "lançamento" em "Baixou o preço").
+    const baixou = await chamar('POST', '/estudio/pacote', { imovel_id: imovel.id, objetivo: 'baixou_preco' });
+    assert.equal(baixou.status, 201);
+    assert.ok(baixou.corpo.pecas.every((p: any) => p.objetivo === 'baixou_preco' && p.pedido === 'Pacote · Baixou o preço'));
+    for (const p of baixou.corpo.pecas) assert.equal((await chamar('PATCH', `/estudio/pecas/${p.id}/remover`)).status, 200);
     assert.equal((await chamar('GET', '/estudio/pecas')).corpo.total, 5);
     assert.equal((await chamar('PATCH', `/estudio/pecas/${pecaId}/remover`)).status, 200);
     assert.equal((await chamar('GET', '/estudio/pecas')).corpo.total, 4);
