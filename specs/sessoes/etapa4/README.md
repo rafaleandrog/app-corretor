@@ -9,7 +9,7 @@ Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a 
 | PR 1 · infra (#200) | mergeado, 0.1.47 |
 | Grupo 2 · Hoje, Funil, Cliente, Seleção e Agendar visita na P02, Buscar (#201) | ver o plano: mergeado ou em fechamento |
 | Grupo 3 · Imóveis, Imóvel, M3, Negociações, Negociação, M8, Proposta na P02, D-120, D-125 | branch `etapa4/grupo3`; PR aberto pela sessão condutora (ver o plano) |
-| Grupo 4 · Estúdio, Página, M6, M4 + M5 | **a fazer**: brief em `brief-grupo4.md` |
+| Grupo 4 · Estúdio, Página, M6, M4 + M5 | branch `etapa4/grupo4` (0.1.50), implementado; PR pela sessão condutora (ver o plano) |
 | Grupo 5 · Números, Conexões, Conta e marca, Importar, Negociador, Assistente + transversais | **a fazer**: brief em `brief-grupo5.md` |
 | Release da `main` para a homologação | **só no fim da etapa** (ordem do dono de 08/11) |
 
