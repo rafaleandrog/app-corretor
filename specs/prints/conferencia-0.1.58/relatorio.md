@@ -1,6 +1,6 @@
 # Conferência só de leitura: portal_corretor 0.1.58 na "pinguim" (09/11/2026)
 
-Playwright pré-instalado, base `capturar.mjs` (token injetado só nas chamadas à instância; `eu-sistema` respondido com `identidade`), `CONTA=7` (Corretor A (demo)), fonte do sistema. Toda chamada à instância que não fosse GET/HEAD era respondida 204 no navegador: **nenhuma foi tentada** (lista vazia em `medidas.json`). Erros de página (`pageerror`) e respostas 4xx/5xx nas telas abertas: **nenhum**. Scripts: `base.cjs`, `help2.js`, `conferir.cjs`, `funil.cjs` nesta pasta.
+Playwright pré-instalado, base `capturar.mjs` (token injetado só nas chamadas à instância; `eu-sistema` respondido com `identidade`), `CONTA=7` (Corretor A (demo)), fonte do sistema. Toda chamada à instância que não fosse GET/HEAD era respondida 204 no navegador: **nenhuma foi tentada** (lista vazia em `medidas.json`). Erros de página (`pageerror`) e respostas 4xx/5xx nas telas abertas: **nenhum**. Scripts (`base.cjs`, `help2.js`, `conferir.cjs`, `funil.cjs`): não foram arquivados nesta pasta; ficaram só na sessão.
 
 | # | Item | Resultado | Medido |
 |---|---|---|---|
@@ -8,7 +8,7 @@ Playwright pré-instalado, base `capturar.mjs` (token injetado só nas chamadas 
 | 2 | #190 celular 390×844 | PASSOU | `urbi-2x1` presente, `urbi-3-colunas` ausente, nenhum `role=tab` visível. Atalhos Conversas, Criar, Imóveis (y 183) e Assistente (y 225) visíveis. "Precisa de você · 1" em y 376,5. Conteúdo começa em **y 167** (com o seletor Conta). Aba Agenda (`?aba=agenda`): atalhos e "Precisa de você" iguais. 390 → 1280: `urbi-3-colunas` sim, `urbi-2x1` não. → 390: volta ao `urbi-2x1`. Negociação 1: título com 350 px (x 20–370), 2 linhas, `scrollWidth` = `clientWidth` = 350, documento 390 |
 | 3 | #171 cabeçalho de Clientes | PASSOU | Em 1280 e 1440, coluna x 24–384. Importar 40–147, Novo 155–242, Buscar 250–298, Assistente 306–354. Todos na 2ª linha (y 233–267), dentro da coluna e clicáveis no centro |
 | 4 | #180 Imóveis e Funil | PASSOU | Imóvel 14 aberto: lista com `scrollWidth` 360 = `clientWidth` 360 e nenhum transbordo na coluna. Título "Lote 450 m²…" com `truncar` e `text-overflow: ellipsis` (262 > 236 px, então mostra "…"). Funil, base do `urbi-kanban` × base do centro: 968/984 (**16 px**) em 1440×1000 e 688/704 (**16 px**) em 1280×720 |
-| 5 | #176 contraste, pior texto de apoio (`dica`/`secundario`) | FALHOU contra o esperado (2 divergências) | Ver a tabela abaixo |
+| 5 | #176 contraste, pior texto de apoio (`dica`/`secundario`) | DIVERGÊNCIA contra o esperado (2 divergências; o item passou com divergências) | Ver a tabela abaixo |
 | 6 | #182 item 2, telefone | PASSOU | Busca com "990000101" mostra "Cliente · Ana Ribeiro · (61) 99000-0101", sem "+5561". Nova conversa (só digitado, não salvo) mostra "Ana Ribeiro · (61) 99000-0101", sem "+5561" |
 | 7 | #192 campos sem nome | PASSOU (contagem igual) | **13 de 21**: Clientes 1/2, Filtros 2/2, Novo imóvel passo 1 1/2, Importar 2/2, Conta e marca 7/13. Nas três telas pedidas, 10 de 17. As árvores são idênticas às da 0.1.51. Pela mesma regra, os 6 `radio` (Importar, tom) ficam fora da conta e todos têm nome |
 | 8 | #39, #187, "Baixou o preço" (#182 item 15) | NÃO EXERCIDO | Esses itens precisam gravar (POST). Lacuna: falta o principal de QA |

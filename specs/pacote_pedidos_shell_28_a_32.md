@@ -14,7 +14,7 @@ Texto completo de cada pedido: `specs/pedidos_ao_shell.md`, seções 28 a 32. Pr
 
 | # | Pedido | Quem sente | Prioridade sugerida | Esforço (shell) |
 |---|---|---|---|---|
-| 28 | Coluna e cartão brancos, e texto dos primitivos a 4,5:1 | Todo usuário, no tema claro | **Média**: o app já levou o texto de apoio a 4,5:1, mas selos, chip ativo, avatar, KPI e estado vazio continuam abaixo | não estimado |
+| 28 | Coluna e cartão brancos, e texto dos primitivos a 4,5:1 | Todo usuário, no tema claro | **Média**: o app levou o texto de apoio de ~3,0 para ≥ 4,60 claro / 4,97 escuro na maioria das telas (exceções abaixo de 4,5:1 medidas na 0.1.58: Funil claro 4,24, mandato claro 4,49, Ajustes 4,47; Funil escuro 4,69), mas selos, chip ativo, avatar, KPI e estado vazio continuam abaixo | não estimado |
 | 29 | Rótulo ligado ao campo, rádio, busca vazia, teclado | Quem usa leitor de tela ou teclado, e os testes automáticos | **Alta**: 13 de 21 campos medidos não têm nome e nenhum tem o nome do rótulo, e o app não consegue resolver pelo contrato | não estimado |
 | 30 | Formulário que mostra o erro do servidor sem fechar | Corretor que salva um cadastro recusado | **Média**: o app tem um contorno que reabre o diálogo, mas o erro não aparece no campo que o causou | não estimado |
 | 31 | `urbi-hospedeiro` impõe a estrutura; grade de KPIs equilibrada | Corretor no Funil e em Números, em janela menor que ~1377 px | **Baixa**: as duas coisas já têm contorno no app | não estimado |
@@ -29,9 +29,9 @@ As prioridades são sugestões deste pacote. Quem decide é o dono. Nenhum pedid
 **O que pedimos:** no tema claro, coluna e cartão brancos sem CSS da tela, e piso de 4,5:1 para o texto que os primitivos pintam, medido sobre a coluna e o cartão em que ele aparece.
 
 **Por que:**
-- **[SDK]** O único fundo de painel documentado é o do trilho em hover do `urbi-3-colunas` (`--urbi-3-colunas-trilho-fundo-hover`, `ui-componentes-layout.md`). O SDK não documenta cor, tamanho nem contraste do que os outros primitivos pintam. Ele documenta `--cor-texto-fraco` (`rgba(13,27,42,.48)`) como cor de meta, placeholder e desabilitado (`ui.md` § Tokens).
+- **[SDK]** O único fundo de painel documentado é o do trilho em hover do `urbi-3-colunas` (`--urbi-3-colunas-trilho-fundo-hover`, `ui-componentes-layout.md`). O SDK não documenta cor, tamanho nem contraste do papel `dica` nem do que os outros primitivos pintam (o `urbi-abas` tem cores documentadas, `ui-componentes-layout.md`). Ele documenta `--cor-texto-fraco` como cor de meta, placeholder e desabilitado (`ui.md` § Tokens); o valor `rgba(13,27,42,.48)` está no SDK (`dist/tokens.css`), não em `docs/`.
 - **[medido]** (`issue-176/medidas.md`) O `urbi-3-colunas` e o `urbi-hospedeiro` não pintam nada em repouso. A coluna mostra o `--cor-fundo` do `urbi-shell-page`: `#F2F4F7` no claro e `#0D1B2A` no escuro. O `urbi-card` pinta `--cor-superficie` (`rgba(13,27,42,.04)`) e sai `#E9EBEF`, mais escuro que a coluna. O guia do app pede coluna e cartão `#FFFFFF` sobre `#F4F3EF`.
-- **[medido]** Texto que fica abaixo de 4,5:1 no claro:
+- **[medido]** Texto que fica abaixo de 4,5:1 no claro (e, no modal de mandato da 0.1.58, `urbi-banner` de alerta 3,47 e `urbi-botao` "mostrar" 4,33 no claro, `urbi-botao-alternar` 4,94 no escuro, `specs/prints/conferencia-0.1.58/medidas.json`):
   - selos de estado do `urbi-badge`: de 3,02 a 4,15 no claro e de 3,30 a 7,11 no escuro;
   - selo neutro dentro de cartão: 4,36 no claro e 4,37 no escuro (sobre a coluna dá 4,50 e 4,68);
   - `urbi-chips-atalho` ativo: 4,05;
@@ -39,7 +39,7 @@ As prioridades são sugestões deste pacote. Quem decide é o dono. Nenhum pedid
   - rótulo do `urbi-kpi`: 4,47;
   - submensagem do `urbi-estado-vazio`: 3,10;
   - versão na barra do shell: 3,16;
-  - "Vazio" no quadro do `urbi-kanban`: 2,97 no claro e 3,75 no escuro (na cor do token fraco; do shell, entra no item (b));
+  - "Vazio" no quadro do `urbi-kanban`: 2,97 no claro e 3,75 no escuro (na cor do token fraco; do shell, entra no item (b); números de `conferencia-0.1.58/medidas.json`);
   - `--cor-texto-sec` (papel `dica`) sobre o cartão `variante-alerta`, no Funil: 4,24 (fundo `#D8D4CE`).
 - **[medido]** O papel `fraco` mede de 3,04 a 3,10 no claro (2,89 no Funil) e de 3,70 a 3,78 no escuro.
 - **[medido no shell 0.56.37, app 0.1.58]** (conferência real, só leitura, `specs/prints/conferencia-0.1.58/`) Com `dica`/`secundario`, as exceções a 4,5:1 são: Funil, claro 4,24 e escuro 4,69; modal de mandato, claro 4,49 e escuro 5,10; e, em Ajustes, o `secundario` dentro do cartão de tom ("Fala como você fala…"), claro 4,47 e escuro 4,69 (a `dica` da mesma tela passa: 4,60 e 4,97). Passam: Clientes 4,74 e 5,18; ficha, Imóveis e Hoje 4,60 e 4,97. Textos do shell na cor do token fraco, que entram no item (b): versão na barra (3,16 claro, 3,80 escuro), submensagem do estado vazio (3,10, 3,78) e "Vazio" no `urbi-kanban` (2,97, 3,75).
@@ -51,21 +51,22 @@ As prioridades são sugestões deste pacote. Quem decide é o dono. Nenhum pedid
 - **(a)** Uma das duas:
   - um atributo nos primitivos de painel (`urbi-3-colunas`, `urbi-2x1`, `urbi-hospedeiro`) que pinte a coluna com uma superfície opaca (ex.: `superficie`);
   - ou um token `--cor-fundo-coluna`, que o tema claro defina branco, com o `urbi-card` claro sobre ele.
-- **(b)** Piso de 4,5:1 em `contraste-temas.test.ts` para o texto dos primitivos sobre a composição real (coluna e cartão): estado do `urbi-badge` (inclusive o neutro dentro de cartão), `urbi-chips-atalho` ativo, iniciais do `urbi-avatar`, rótulo do `urbi-kpi` e submensagem do `urbi-estado-vazio`.
-- **(c)** Piso de 4,5:1 para `--cor-texto-sec` sobre as variantes de cartão.
+- **(b)** Piso de 4,5:1 em `contraste-temas.test.ts` para o texto dos primitivos sobre a composição real (coluna e cartão): estado do `urbi-badge` (inclusive o neutro dentro de cartão), `urbi-chips-atalho` ativo, iniciais do `urbi-avatar`, rótulo do `urbi-kpi`, submensagem do `urbi-estado-vazio`, versão na barra do topo e "Vazio" do `urbi-kanban` (os três últimos usam `--cor-texto-fraco`).
+- **(c)** Piso de 4,5:1 para `--cor-texto-sec` (`dica`/`secundario`) sobre as variantes de cartão: `variante-alerta` no Funil 4,24, cartão de tom de Ajustes 4,47 e modal de mandato 4,49, todos no claro.
 
 **O que muda para o usuário quando entregue:** a tela fica clara como a referência, com o cartão destacado da coluna, e os selos de temperatura (Quente, Morno, Frio), os chips, os avatares e os números ficam legíveis.
 
 **Como o shell confere que ficou pronto** (todas são **sugestão de critério**; os números atuais são do tema claro, salvo onde está dito):
 1. A tela consegue ter coluna e cartão brancos no claro sem CSS próprio. Hoje: coluna `#F2F4F7` e cartão `#E9EBEF`.
-2. O `--cor-texto-sec` fica ≥ 4,5:1 sobre o cartão `variante-alerta`. Hoje: 4,24.
+2. O `--cor-texto-sec` fica ≥ 4,5:1 sobre o cartão `variante-alerta` (Hoje: 4,24), o cartão de tom de Ajustes (4,47) e o modal de mandato (4,49).
 3. O `urbi-badge` de estado fica ≥ 4,5:1 sobre a coluna e sobre o cartão, inclusive o `variante-alerta`, nos dois temas. Hoje: 3,02 no claro e 3,30 no escuro, os dois no cartão do Funil.
 4. O `urbi-badge` neutro dentro de cartão fica ≥ 4,5:1. Hoje: 4,36 no claro e 4,37 no escuro.
 5. O `urbi-chips-atalho` ativo fica ≥ 4,5:1. Hoje: 4,05.
 6. As iniciais do `urbi-avatar` ficam ≥ 4,5:1. Hoje: de 3,76 a 4,05.
 7. O rótulo do `urbi-kpi` fica ≥ 4,5:1. Hoje: 4,47.
 8. A submensagem do `urbi-estado-vazio` fica ≥ 4,5:1. Hoje: 3,10.
-9. A versão na barra do shell fica ≥ 4,5:1. Hoje: 3,16. A tabela do pedido liga essa linha ao item (b), mas o texto do (b) não a cita.
+9. A versão na barra do shell fica ≥ 4,5:1. Hoje: 3,16 (claro) e 3,80 (escuro).
+10. O "Vazio" do `urbi-kanban` fica ≥ 4,5:1. Hoje: 2,97 no claro e 3,75 no escuro.
 
 ---
 
@@ -194,7 +195,7 @@ As prioridades são sugestões deste pacote. Quem decide é o dono. Nenhum pedid
   A referência começa em ~67. No rodapé da janela não há nada.
 
 **O que o app faz até lá** (0.1.56):
-- Hoje vai no `urbi-2x1`, sem abas e com uma rolagem só. Na prova no DOM, o conteúdo começa em y 183 com o seletor e cerca de 129 sem ele.
+- Hoje vai no `urbi-2x1`, sem abas e com uma rolagem só. Na prova no DOM, o conteúdo começa em y 183 com o seletor (0.1.56) e cerca de 129 sem ele; na conferência da 0.1.58, em y 167 com o seletor.
 - Em M3 e M8, as ações ficam no fim da coluna e do cartão, não fixas (D-124).
 - O app escolhe entre `urbi-2x1` e `urbi-3-colunas` com um `matchMedia` próprio e o corte de 900 px copiado como número fixo. O `compatibilidade.md` (entrada v0.53.29) manda apagar esse `matchMedia` quando o shell resolver.
 
@@ -226,7 +227,7 @@ Os pedidos **não declaram** que um depende do outro. O que há é componente em
 
 ## O que NÃO é pedido ao shell (o app já resolveu na etapa 5)
 
-- **Texto de apoio a 4,5:1:** o `fraco` virou `dica` em 21 telas (PR #213, 0.1.58). Fica de fora do pedido 28 a escolha do papel; o que continua no 28 é cor do primitivo e do tema.
+- **Texto de apoio:** o `fraco` virou `dica` em 21 telas (PR #213, 0.1.58), com as exceções abaixo de 4,5:1 listadas no pedido 28. Fica de fora do pedido 28 a escolha do papel; o que continua no 28 é cor do primitivo e do tema.
 - **Véu cinza do `urbi-inbox`:** o app não usa mais o `urbi-inbox`. A moldura de três colunas (D-114) é anterior à etapa 5.
 - **Rótulo em todo campo:** o app já passa o rótulo em todos, com dois testes que vigiam isso (PR #212, sem versão nova). O que falta no 29 é só a ligação do rótulo dentro do primitivo.
 - **Formulário que perdia o que foi digitado:** o app reabre o formulário com os valores e o erro (PR #207, 0.1.53). O 30 pede o erro no campo, sem fechar.
