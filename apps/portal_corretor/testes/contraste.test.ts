@@ -4,11 +4,13 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Issue #176: o texto de apoio das telas tem de ficar a 4,5:1 ou mais contra o fundo (guia do Padrão B, § 1).
-// Medido na homologação (shell 0.56.37, `specs/prints/issue-176/`): `urbi-prosa papel="fraco"` pinta
-// `--cor-texto-fraco` (meta, placeholder, desabilitado: ui.md § Tokens) e fica em 3,04 a 3,10:1 no tema
-// claro e 3,70 a 3,78:1 no escuro; `papel="dica"` tem o mesmo tamanho (0,75rem) com `--cor-texto-sec` e
-// fica em 4,60 a 4,74:1 (claro) e 4,97 a 5,18:1 (escuro). Nenhum texto das telas é desabilitado, então
-// nenhuma usa `fraco`. Lê o código-fonte de `frontend/`.
+// Medido no shell 0.56.37 (`specs/prints/issue-176/`; não é contrato do SDK): `urbi-prosa papel="fraco"`
+// (`--cor-texto-fraco`, que o SDK documenta como meta/placeholder/disabled) mede abaixo de 4,5:1: 3,04 a
+// 3,10 no claro (2,89 no Funil) e 3,70 a 3,78 no escuro. O app trocou para `papel="dica"` (mesmo tamanho,
+// `--cor-texto-sec`), que no mesmo shell mede 4,60 ou melhor no claro em 10 das 11 telas medidas (exceção:
+// Funil, 4,24 sobre o cartão `variante-alerta`). O SDK não documenta cor nem contraste do `dica`.
+// Este teste proíbe o `fraco` enquanto o token do shell estiver abaixo de 4,5:1 (medido no shell 0.56.37):
+// se o shell subir o token, o teste deve ser revisto. Lê o código-fonte de `frontend/`.
 
 function arquivos(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
@@ -26,5 +28,5 @@ test('nenhuma tela usa o papel "fraco" do urbi-prosa (abaixo de 4,5:1 nos temas 
       achados.push(`${p}:${texto.slice(0, m.index).split('\n').length}`);
     }
   }
-  assert.deepEqual(achados, [], 'troque por papel="dica" (mesmo tamanho, --cor-texto-sec)');
+  assert.deepEqual(achados, [], 'troque por papel="dica" (mesmo tamanho, --cor-texto-sec); o fraco mede abaixo de 4,5:1 no shell 0.56.37 (revise este teste se o shell subir o token)');
 });

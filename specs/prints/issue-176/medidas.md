@@ -39,3 +39,74 @@ Os números são iguais em 1366×657 e 1440×1000: o fundo e a cor não mudam co
 As 88 ocorrências de `papel="fraco"` em `frontend/telas/` passaram a `papel="dica"`. O `dica` tem o mesmo tamanho (0,75rem) e usa `--cor-texto-sec`. No `fraco` não sobrou texto desabilitado, único uso que o token prevê. Prova no DOM vivo das cinco telas: o pior caso passou a **4,60** no claro e **4,97** no escuro. A linha ficou 1 px mais baixa (17 → 16 px; 35 → 32 em duas linhas). `testes/contraste.test.ts` impede que o `fraco` volte.
 
 O que fica abaixo de 4,5 é do shell (pedido 28).
+
+## Remedição da revisão (PR #213)
+
+Remedido em 09/11/2026 na "pinguim" (app 0.1.51, `CONTA=7`, 1366×657), só leitura: nenhuma chamada que grava foi tentada (lista de bloqueadas vazia). Dados em `medidas.json` › `remedicao_revisao`; capturas `remedicao-<tela>-<tema>-dica-1366x657.png` (o estado depois da troca `fraco` → `dica` no DOM vivo).
+
+**Correção de método.** O texto de um `urbi-badge` fica no light DOM e herda a cor do `span.badge` da sombra, pelo `<slot>`. A medição anterior lia a cor do host (`rgba(13,27,42,.87)`), e por isso o selo aparecia a 10,97. Agora a cor de cada nó de texto vem do `<slot>` que o distribui (`assignedSlot`), e o fundo efetivo é composto a partir dali. Os textos fora da janela também contam.
+
+### a) Selos de estado `urbi-badge` (cor do texto · fundo efetivo · razão)
+
+| Selo (`cor`) | Onde | Claro | Escuro |
+|---|---|---|---|
+| Quente (`erro`) | linha da lista de Clientes (coluna) | `#BF492B` · `#EEE6E7` · 4,08 | `#D75D3D` · `#21222C` · 4,17 |
+| Quente, Sem resposta (`erro`) | cartão (ficha, fila de Hoje, Negociações) | `#BF492B` · `#E5DEDF` · 3,78 | `#D75D3D` · `#2A2A34` · **3,74** |
+| Quente (`erro`) | cartão do Funil (`variante-alerta`) | `#BF492B` · `#D6C9C1` · **3,09** | `#D75D3D` · `#3C322C` · **3,30** |
+| Morno (`alerta`) | lista de Clientes | `#A36000` · `#EAE5DE` · 3,97 | `#F7A111` · `#242828` · 7,11 |
+| Morno, Abordagem atrasada (`alerta`) | cartão (Hoje, Negociações) | `#A36000` · `#E2DDD7` · 3,69 | `#F7A111` · `#2D312F` · 6,34 |
+| Morno, Abordagem atrasada (`alerta`) | cartão do Funil (`variante-alerta`) | `#A36000` · `#D3C8B9` · **3,02** | `#F7A111` · `#3F3827` · 5,55 |
+| Frio (`info`) | lista de Clientes · cartão de Hoje | 4,15 · 3,86 | 5,58 · 5,00 |
+| Frio (`info`) | cartão do Funil | `#0D75A9` · `#C8CCCB` · 3,14 | `#2AA9E0` · `#2B393C` · 4,48 |
+| Feito, Ativo, Publicada (`sucesso`) | coluna (Hoje, Imóveis, Página) | `#027E66` · `#DAE8E9` · 4,00 | `#13A98D` · `#0E2934` · 5,11 |
+| link ativo, ZOPA, escolhido (`sucesso`) | cartão (ficha, Negociações, Importar) | `#027E66` · `#D2E0E1` · 3,72 | `#13A98D` · `#16313C` · 4,59 |
+| escolhido (`sucesso`) | cartão dentro de cartão (Conta e marca) | `#027E66` · `#CAD9DA` · 3,45 | `#13A98D` · `#1F3943` · 4,10 |
+| neutro (`padrao` ou sem `cor`) | coluna | `rgba(13,27,42,.62)` · `#E2E5E9` · 4,50 | `rgba(255,255,255,.5)` · `#202D3B` · 4,68 |
+| neutro | cartão (ficha, Imóveis) | `#D9DDE1` · **4,36** | `#293643` · **4,37** |
+| `alerta` com texto neutro (faltas da qualidade em Imóveis) | coluna | `#E0E3E7` · 4,47 | `#202D3B` · 4,69 |
+
+Telas com selo medido: Clientes, ficha, Hoje, Imóveis, Negociações, Funil, Página, Conversas, Importar, Conta e marca (Estúdio não tem selo).
+
+### b) Altura da linha (`getBoundingClientRect().height`, claro, troca no DOM vivo)
+
+| Medida | `fraco` | `dica` | Diferença |
+|---|---|---|---|
+| Uma linha de apoio (`urbi-prosa`, Clientes e Hoje) | 17,39 | 16,19 | −1,20 |
+| Duas linhas (data de Hoje) | 34,78 | 32,38 | −2,40 |
+| Linha da lista de Clientes (com um apoio) | 80,58 / 81,58 | 79,38 / 80,38 | −1,20 por linha |
+| Lista de Clientes, 5 primeiros itens somados | 372,01 | 366,00 | **−6,01** |
+| Lista de Clientes inteira (9 itens) | 628,53 | 617,70 | −10,83 |
+| Fila de Hoje (1 item, sem apoio `fraco`) | 47,14 | 47,14 | 0 |
+| Primeiros passos de Hoje (5 itens) | 143,16 | 143,16 | 0 (a altura vem do selo e do botão) |
+
+### c) `dica` aplicada no DOM vivo: pior contraste por tela
+
+| Tela | Claro (pior `dica` · `fraco` antes) | Escuro | Onde está o pior |
+|---|---|---|---|
+| Clientes | 4,74 · 3,10 | 5,18 · 3,78 | coluna |
+| Ficha | 4,60 · 3,04 | 4,97 · 3,70 | cartão |
+| Hoje | 4,60 · 3,10 | 4,97 · 3,78 | cartão |
+| Imóveis | 4,60 · 3,04 | 4,97 · 3,70 | cartão |
+| Negociações | 4,60 · 3,04 | 4,97 · 3,70 | cartão |
+| **Funil** | **4,24** · **2,89** | 4,69 · 3,55 | sinal do cartão (`urbi-prosa papel="dica" truncar`, `clientes-quadro.ts`) sobre o cartão `variante-alerta` do quadro (`#D8D4CE`); 4,30 no cartão sem variante |
+| Estúdio | 4,60 · 3,04 | 4,97 · 3,70 | cartão interativo |
+| Página | 4,60 · 3,04 | 4,97 · 3,70 | cartão |
+| Conversas | 4,74 · 3,10 | 5,18 · 3,78 | coluna |
+| Importar | 4,74 · 3,10 | 5,18 · 3,78 | coluna |
+| Conta e marca | 4,60 · 3,04 | 4,97 · 3,70 | cartão |
+
+Com as cinco telas da prova anterior (Ajustes na seção padrão), são 12 telas medidas com `dica`. Só o Funil, no claro, fica abaixo de 4,5:1.
+
+### d) Aviso de IA na ficha
+
+Com a IA disponível, o aviso não aparece. Para medi-lo, a sonda `GET /contatos/{id}/ia` foi respondida no próprio navegador com `{resumo:false, mensagem:false}`. Nada foi à instância e nada foi gravado. O aviso aparece num `urbi-card` (`#E9EBEF` / `#172433`): **3,04** claro e **3,70** escuro com `fraco`, e **4,60** / **4,97** com `dica`. Agora é medido, não deduzido.
+
+### Divergências
+
+- **DIVERGE** selo de estado no claro: antes "3,69 a 4,08", agora **3,02 a 4,15**. 3,02 é Morno e Abordagem atrasada no cartão do Funil, e 4,15 é Frio na lista. Fora do Funil e de Conta e marca a faixa vai de 3,69 a 4,15.
+- **DIVERGE** selo de estado no escuro: antes "3,74 (Quente) a 7,11", agora **3,30 a 7,11**. 3,30 é Quente no cartão do Funil. Os valores 3,74 e 7,11 se confirmam.
+- **DIVERGE** `urbi-badge` neutro: antes "4,50 · 4,68". Esses valores valem só sobre a coluna. Num cartão o neutro dá **4,36 · 4,37**, abaixo de 4,5.
+- **DIVERGE** pior caso do `dica`: antes "4,60 / 4,97", agora **4,24** no claro (Funil). O escuro se mantém em 4,69, acima de 4,5. Nas outras 10 telas, 4,60 / 4,97 se confirma.
+- **DIVERGE** pior caso do `fraco` antes da troca: antes 3,04, agora **2,89** (Funil, claro).
+- Alturas: "17 → 16 px; 35 → 32" eram valores arredondados. Os medidos são 17,39 → 16,19 (−1,20) e 34,78 → 32,38 (**−2,40, não −3**). Numa lista de 5 clientes, a lista fica 6,01 px mais baixa. As listas de Hoje não mudam.
+- O aviso de IA (3,04 / 3,70) se confirma, agora medido.
