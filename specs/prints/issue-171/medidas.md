@@ -29,7 +29,7 @@ Não há mais trilho vertical: o menu é o `nav` do shell, no nome da app na bar
 
 ## O que some
 
-**Cabeçalho da coluna de Clientes** (Clientes · Importar · Novo · Buscar · Assistente): os botões precisam de ~411 px e a coluna dá 328 úteis. Em toda largura (a coluna é fixa) o **Buscar sai cortado e o Assistente fica fora da coluna**, inalcançável; no celular, o Assistente. Conversas, Imóveis e Página cabem.
+**Cabeçalho da coluna de Clientes** (Clientes · Importar · Novo · Buscar · Assistente): os botões ocupam 314 px (x=126 a 440: Importar 107 + Novo 87 + Buscar 48 + Assistente 48 + gaps de 8), ~400 com o título, e a coluna dá 328 úteis (360 − 2×16). Não cabe numa linha: o Buscar termina na borda da coluna (24–384) e o Assistente (392–440) fica fora. Em toda largura (a coluna é fixa) o **Buscar sai cortado e o Assistente fica fora da coluna**, inalcançável; no celular, o Assistente. Conversas, Imóveis e Página cabem.
 
 | Botão (1366×657) | Antes (x) | Com `quebrar` (x) |
 |---|---|---|
@@ -43,3 +43,11 @@ Prova feita no DOM da página ao vivo (`Clientes-cabecalho-com-quebrar-*.png`); 
 ## Celular (390×844)
 
 Barra 56 · título + Criar até y=101 · seletor de conta 54 · abas das colunas 37 · conteúdo a partir de y=204 (150 sem o seletor, 18 %). O nome da app sai truncado ("Portal do Corr…") na barra do shell.
+
+## Diferença · causa · decisão
+
+| Diferença | Referência v2 | App 0.1.51 | Causa | Decisão |
+|---|---|---|---|---|
+| Cabeçalho de Clientes em duas linhas | P04: uma linha, sem Buscar | Título e botões em duas linhas (com `quebrar`) | Buscar (D-126) e botões só ícone de 48 px (D-123) passam de 328 px úteis | `quebrar` do `urbi-linha`, sem tirar botão. **Decisão do dono pendente:** Importar só ícone ou no menu "mais" |
+
+A altura do cabeçalho de Clientes sai da tolerância de ±4 px da D-121 nesta tela.

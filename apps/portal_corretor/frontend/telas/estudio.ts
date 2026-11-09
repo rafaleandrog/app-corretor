@@ -1140,7 +1140,7 @@ export class Estudio {
     </urbi-card>`;
   }
 
-  /** O Estúdio na moldura: trilho · pedidos · conversa · contexto (abas no celular). */
+  /** O Estúdio na moldura: pedidos · conversa · contexto, com o menu no `nav` do shell (D-114; abas no celular). */
   desenhar(): TemplateResult {
     // Sem conta ativa não há o que mostrar: o estado vazio padrão, sem nada herdado.
     if (this.conta === null) {

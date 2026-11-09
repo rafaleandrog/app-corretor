@@ -9,7 +9,7 @@ declare const urbiVerso: UrbiVersoAPI;
 
 // Assistente do Corretor (bloco 9, spec 10.2). Abre na coluna de contexto, à direita, de qualquer
 // tela (D-109, revê D-76): esquerda e centro ficam, e fechar devolve o contexto da tela. Sai do menu e
-// vira botão do trilho; `/assistente` é apelido que abre Hoje com ele aberto. A conversa e o "aberto"
+// vira botão no cabeçalho da coluna esquerda (D-114, D-126); `/assistente` é apelido que abre Hoje com ele aberto. A conversa e o "aberto"
 // ficam em memória, fora do componente: sobrevivem à troca de tela enquanto o app está aberto.
 
 interface Proposta {

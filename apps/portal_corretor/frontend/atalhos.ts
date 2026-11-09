@@ -147,7 +147,7 @@ export function irPara(d: DestinoBusca) {
 }
 
 /**
- * A busca global (`/` ou Buscar no trilho). É um gesto da conta em que abriu: trocada a conta com o
+ * A busca global (`/` ou o botão Buscar no cabeçalho da coluna esquerda, D-126). É um gesto da conta em que abriu: trocada a conta com o
  * diálogo aberto, a lista para de buscar e o escolhido (que é da conta anterior) não abre nada.
  */
 export function abrirBusca() {

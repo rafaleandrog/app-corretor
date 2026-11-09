@@ -13,7 +13,7 @@ import { alternarAssistente, assistenteAberto, painelAssistente } from './telas/
 //
 // O botão Assistente fica no fim do cabeçalho da coluna esquerda de toda tela (`botaoAssistenteColuna`,
 // D-114); aberto, o Assistente ocupa a coluna de contexto (D-109). Só primitivos, sem CSS estrutural:
-// as larguras são atributos do `urbi-3-colunas`, e os tamanhos (botão 34 px, campo 36 px, raio 12) são
+// as larguras são atributos do `urbi-3-colunas`, e os tamanhos (botão só ícone 48 × 29 por D-123, campo 36 px, raio 12) são
 // os dos primitivos (D-115).
 
 export interface OpcoesMoldura {
@@ -42,8 +42,8 @@ export interface OpcoesMoldura {
 export const LARGURAS = { lista: '360px', contexto: '340px', assistente: '380px' } as const;
 
 /**
- * O botão Assistente do cabeçalho da coluna esquerda (D-114): 34 × 34 (o `urbi-botao` sem `pequeno`, que
- * tem 25 px; README v2 § 3), só ícone, fundo da IA quando aberto. A tela o põe no fim da linha do título. O negociador humano (D7) não tem Assistente.
+ * O botão Assistente do cabeçalho da coluna esquerda (D-114): só ícone, sem `pequeno`, que sai 48 × 29
+ * no `urbi-botao` (D-123, aceito até o pedido 24 ao shell), fundo da IA quando aberto. A tela o põe no fim da linha do título. O negociador humano (D7) não tem Assistente.
  */
 export function botaoAssistenteColuna(): TemplateResult | typeof nothing {
   if (soNegociador()) return nothing;
