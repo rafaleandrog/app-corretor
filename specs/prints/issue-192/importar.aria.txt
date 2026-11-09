@@ -1,0 +1,38 @@
+- button "Pinguim Homolog":
+  - img "Pinguim Homolog"
+- button "Portal do Corretor"
+- button "Ajuda"
+- text: v0.56.37_a17d0267 · 16/10 18:32
+- link "1 Notificações":
+  - /url: /notificacoes
+- button "Admin"
+- button "Minha conta"
+- status
+- banner:
+  - heading "Importar contatos" [level=1]
+  - button "Criar"
+- text: Conta
+- combobox:
+  - option "Corretor A (demo)" [selected]
+  - option "Corretor B (demo)"
+  - option "qa-portal-corretor-conta-b"
+- link "Clientes":
+  - /url: /portal_corretor/clientes
+- text: Importar contatos
+- button "Buscar"
+- button "Abrir o Assistente"
+- text: Seus contatos ficam só na sua conta. De onde vêm
+- button "Planilha ou CSV Excel, Google Planilhas"
+- button "Contatos do celular arquivo vCard (.vcf)"
+- button "Outro CRM, direto Kenlo, Jetimob, Imobzi · fase 2"
+- text: "Outro CRM, por enquanto: exporte os clientes em CSV, escolha Planilha e diga de qual CRM ela veio, para o app sugerir as colunas. Planilha em CSV (no Excel: Salvar como › CSV), com cabeçalho. Até 2000 linhas por vez; o app envia em partes, sem limite de colunas. De onde vem a planilha?"
+- combobox:
+  - option "Planilha simples (nome, telefone, e-mail)"
+  - option "Outra" [selected]
+- text: Arquivo da planilha Arraste um arquivo aqui ou
+- button "Selecionar arquivo"
+- text: Arquivo CSV com cabeçalho Se o contato já existir Mesmo telefone ou, sem telefone, mesmo e-mail.
+- radio "Pular escolhido O contato que já existe fica como está." [checked]
+- radio "Completar Preenche só os campos que estão vazios no contato que já existe."
+- radio "Substituir Os dados da planilha substituem os do contato que já existe."
+- text: Depois de importar Contatos importados entram sem consentimento registrado. Confirme com cada cliente antes de mandar mensagens e registre o consentimento na ficha dele quando ele autorizar.

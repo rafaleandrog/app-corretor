@@ -1,0 +1,66 @@
+- button "Pinguim Homolog":
+  - img "Pinguim Homolog"
+- button "Portal do Corretor"
+- button "Ajuda"
+- text: v0.56.37_a17d0267 · 16/10 18:32
+- link "1 Notificações":
+  - /url: /notificacoes
+- button "Admin"
+- button "Minha conta"
+- status
+- banner:
+  - heading "Clientes" [level=1]
+  - button "Criar"
+- text: Conta
+- combobox:
+  - option "Corretor A (demo)" [selected]
+  - option "Corretor B (demo)"
+  - option "qa-portal-corretor-conta-b"
+- text: Clientes
+- link "Importar":
+  - /url: /portal_corretor/clientes/importar
+- button "Novo"
+- button "Buscar"
+- button "Abrir o Assistente"
+- button "Funil"
+- button "Lista" [pressed]
+- button "Negociações"
+- text: Buscar cliente
+- textbox "Buscar nome ou telefone"
+- button "Todas" [pressed]
+- button "Compradores"
+- button "Proprietários"
+- button "Todas" [pressed]
+- button "Novos"
+- button "Sem contato"
+- button "Quentes"
+- button "Retorno vencido"
+- button "Filtros"
+- button "Ana Ribeiro Ana Ribeiro Quente Proposta Instagram (61) 99000-0101 · Comprador":
+  - img "Ana Ribeiro"
+  - text: Ana Ribeiro Quente Proposta Instagram (61) 99000-0101 · Comprador
+- button "Carlos Menezes Carlos Menezes Morno Qualificado Minha página (61) 99000-0103 · Comprador":
+  - img "Carlos Menezes"
+  - text: Carlos Menezes Morno Qualificado Minha página (61) 99000-0103 · Comprador
+- button "Fernanda Souza Fernanda Souza Morno Novo Indicação (61) 99000-0104 · Comprador":
+  - img "Fernanda Souza"
+  - text: Fernanda Souza Morno Novo Indicação (61) 99000-0104 · Comprador
+- button "Helena Duarte Helena Duarte Proprietário":
+  - img "Helena Duarte"
+  - text: Helena Duarte Proprietário
+- button "Juliana Prado Juliana Prado Quente Proposta Portal imobiliário (61) 99000-0102 · Comprador":
+  - img "Juliana Prado"
+  - text: Juliana Prado Quente Proposta Portal imobiliário (61) 99000-0102 · Comprador
+- button "Marcos Teixeira Marcos Teixeira Frio Visitou Placa (61) 99000-0106 · Comprador":
+  - img "Marcos Teixeira"
+  - text: Marcos Teixeira Frio Visitou Placa (61) 99000-0106 · Comprador
+- button "Roberto Lima Roberto Lima Morno Em atendimento WhatsApp (61) 99000-0105 · Comprador":
+  - img "Roberto Lima"
+  - text: Roberto Lima Morno Em atendimento WhatsApp (61) 99000-0105 · Comprador
+- button "Sérgio Mattos Sérgio Mattos Proprietário":
+  - img "Sérgio Mattos"
+  - text: Sérgio Mattos Proprietário
+- button "Wagner Lopes Wagner Lopes Proprietário":
+  - img "Wagner Lopes"
+  - text: Wagner Lopes Proprietário
+- text: "Escolha um cliente A ficha abre aqui: linha do tempo, próximo passo, o que foi enviado e os negócios. Com um cliente aberto, aqui ficam o perfil de busca, o portal do cliente e a privacidade."

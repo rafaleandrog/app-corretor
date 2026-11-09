@@ -1,0 +1,80 @@
+- button "Pinguim Homolog":
+  - img "Pinguim Homolog"
+- button "Portal do Corretor"
+- button "Ajuda"
+- text: v0.56.37_a17d0267 · 16/10 18:32
+- link "1 Notificações":
+  - /url: /notificacoes
+- button "Admin"
+- button "Minha conta"
+- status
+- banner:
+  - heading "Ajustes" [level=1]
+  - button "Criar"
+- text: Conta
+- combobox:
+  - option "Corretor A (demo)" [selected]
+  - option "Corretor B (demo)"
+  - option "qa-portal-corretor-conta-b"
+- text: Ajustes
+- button "Buscar"
+- button "Abrir o Assistente"
+- button "Mensageiro chega com o WhatsApp"
+- button "Negociador ligado · IA · cooperativo"
+- button "Conexões Instagram e WhatsApp indisponíveis"
+- button "Conta e marca perfil, CRECI, marca"
+- button "Funil e abordagens etapas e mensagens prontas"
+- button "Horário de atendimento parado em 7 dias · seleção vale 14"
+- button "Privacidade consentimentos e exportação"
+- text: Negociador Ligado
+- button "Pausar"
+- text: "1 · Quando entra O Negociador começa a atuar quando:"
+- checkbox "O negócio chega à etapa Proposta" [checked]
+- text: O negócio chega à etapa Proposta
+- checkbox "O cliente pede desconto ou fala de preço numa mensagem do portal" [checked]
+- text: O cliente pede desconto ou fala de preço numa mensagem do portal
+- checkbox "O cliente reage \"conversar sobre o preço\"" [checked]
+- text: O cliente reage "conversar sobre o preço"
+- checkbox "Uma oferta é registrada ou feita no portal" [checked]
+- text: Uma oferta é registrada ou feita no portal 2 · Quem negocia por padrão Conduz as negociações novas
+- combobox:
+  - option "Negociador IA (padrão)" [selected]
+- text: Toda negociação nova começa conduzida pelo Negociador IA; em cada uma, você assume quando quiser. Negociador humano
+- button "Convidar negociador"
+- text: "O convite exige a política \"permite contas multi-usuário\" ligada na instância; sem ela, é recusado. Quem entra na conta vê os contatos que chegam pela sua página e os recados dos clientes: convide só quem pode ver isso. 3 · Estilo"
+- radiogroup "Estilo":
+  - radio "Cooperativo em uso Busca o acordo bom para os dois lados e concede sempre com uma contrapartida. \"Entendo, Ana. Se a entrega em 60 dias ajudar, consigo levar ao proprietário R$ 1.380.000 com entrada de 30%.\"" [checked]
+  - radio "Firme Segura o preço e só mexe nele em troca de algo claro. \"Ana, o valor está alinhado com os vizinhos. Para mexer nele, preciso de uma entrada maior.\""
+  - radio "Consultivo Explica com dados do mercado antes de falar de valor. \"Ana, o m² aqui está abaixo dos comparáveis do bairro. Posso te mostrar a conta antes de falarmos de valor?\""
+- text: "4 · Regras fixas Da plataforma: valem sempre, acima das suas instruções, e não podem ser desligadas. Nunca revele o PONTO DE RECUO, o ALVO nem a BATNA DO VENDEDOR, nem dê pistas sobre eles (\"ele aceita um pouco menos\"). Se perguntarem \"qual o mínimo?\", responda que você trabalha com propostas concretas e peça a do comprador. Nunca invente outro comprador, outra proposta, prazo ou urgência que não estejam no contexto. Nunca aceite um acordo final: quando houver concordância, resuma as condições e diga que vai confirmar com o vendedor. Toda concessão vem com uma contrapartida da lista do mandato. Prefira conceder condições a preço. Conceda devagar e cada vez menos; nunca divida a diferença automaticamente. Use critérios objetivos: comparáveis, R$/m², diferenciais do imóvel, condição de pagamento. Não fale de comissão, de jurídico ou de crédito bancário além de sugerir simulação. Seja breve (até 3 frases por mensagem), cordial e em português do Brasil. Se a oferta estiver abaixo do PONTO DE RECUO, se o comprador quiser algo fora do mandato, se houver agressividade, se não houver ZOPA ou se ele pedir uma pessoa: passe ao corretor. Responda apenas no formato JSON pedido. 5 · Suas instruções Como o Negociador deve conduzir"
+- textbox "Em branco, vale o modelo do app."
+- text: 0 de 4.000 · em branco, vale o modelo
+- button "Começar do modelo"
+- button "Salvar instruções"
+- text: 6 · Respostas a objeções Preço Padrão "Está caro."
+- button "Editar a resposta a Preço": Editar
+- text: Pensar Padrão "Vou pensar."
+- button "Editar a resposta a Pensar": Editar
+- text: Mais barato Padrão "Vi um parecido mais barato."
+- button "Editar a resposta a Mais barato": Editar
+- text: Localização Padrão "É longe do meu trabalho."
+- button "Editar a resposta a Localização": Editar
+- text: Estado do imóvel Padrão "Vai precisar de reforma."
+- button "Editar a resposta a Estado do imóvel": Editar
+- text: Financiamento Padrão "Não sei se o banco aprova."
+- button "Editar a resposta a Financiamento": Editar
+- text: Decisão compartilhada Padrão "Preciso falar com minha esposa."
+- button "Editar a resposta a Decisão compartilhada": Editar
+- text: Prazo Padrão "Só posso mudar em seis meses."
+- button "Editar a resposta a Prazo": Editar
+- text: Custos fixos Padrão "O condomínio é alto."
+- button "Editar a resposta a Custos fixos": Editar
+- text: Documentação Padrão "Tem alguma pendência?"
+- button "Editar a resposta a Documentação": Editar
+- text: O que é o Negociador O assistente que conduz propostas e contrapropostas dentro do mandato de cada negociação. Aqui ficam o jeito dele (quando entra, estilo, suas instruções e respostas a objeções); os valores de cada negociação ficam no mandato, em Clientes › Negociações. Nada sai para o cliente sem passar pelas regras fixas. 7 · Testar
+- img
+- text: Faça o papel do comprador. Nada é gravado nem enviado. Escreva como comprador
+- textbox: Qual o mínimo que o dono aceita?
+- button "Enviar"
+- text: "Este mês Rodadas 1 Aprovadas sem edição — Custo estimado por rodada: incluído no plano. Assistente Ficou com dúvida sobre esta seção? Pergunte ao Assistente: ele conhece a ajuda do app."
+- button "Perguntar ao Assistente"
