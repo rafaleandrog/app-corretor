@@ -135,3 +135,22 @@ test('#33: o admin do app (sem papel corretor) não grava perfil de corretor num
     assert.equal((await chamar('PUT', '/conta/meu-perfil', { telefone: '61999990001' })).status, 200);
   });
 });
+
+test('P05: três perguntas sugeridas por tela, que preenchem o campo; exemplo na conversa vazia; Confirmar · Cancelar', async () => {
+  const { PERGUNTAS_SUGERIDAS, perguntasSugeridas, TELAS_APP } = await import('../comum/assistente');
+  for (const [sub, lista] of Object.entries(PERGUNTAS_SUGERIDAS)) {
+    assert.equal(lista.length, 3, sub);
+    assert.ok(sub in TELAS_APP, `${sub} é tela do app`);
+  }
+  assert.deepEqual(perguntasSugeridas('/clientes/12'), PERGUNTAS_SUGERIDAS['/clientes']);
+  assert.deepEqual(perguntasSugeridas('/ajustes/privacidade'), PERGUNTAS_SUGERIDAS['/ajustes'], 'aba sem lista própria: a de Ajustes');
+  assert.deepEqual(perguntasSugeridas('/qualquer'), PERGUNTAS_SUGERIDAS['/']);
+  const fonte = readFileSync(resolve(RAIZ, 'frontend/telas/assistente.ts'), 'utf8');
+  assert.match(fonte, /\.valorInicial=\$\{conversa\.rascunho\}/, 'o chip preenche o campo do chat');
+  assert.match(fonte, /<urbi-badge interativo[^>]*@click=\$\{\(\) => preencherPergunta\(p\)\}/);
+  assert.match(fonte, /\baudio\b/, 'microfone no campo');
+  assert.match(fonte, />Confirmar<\/urbi-botao>[\s\S]*>Cancelar<\/urbi-botao>/);
+  assert.match(fonte, /EXEMPLO_CONVERSA_VAZIA/);
+  assert.match(fonte, /Ir para \$\{irPara\.nome\}/);
+  assert.doesNotMatch(fonte, /\bpequeno\b/);
+});

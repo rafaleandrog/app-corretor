@@ -5,13 +5,16 @@ descricao: O chat que abre à direita de qualquer tela — tira dúvidas pelo ma
 
 # Assistente do Corretor
 
-O **Assistente** abre um chat **na coluna da direita da tela em que você está**: a tela continua ali, e
-**Fechar**, no topo do chat, o tira da coluna. Em **Números**, já no desenho novo, a lista e o centro ficam como estavam. Nas demais telas, a tela recarrega ao abrir e ao fechar o Assistente. Ele não está mais no menu:
+O **Assistente** abre um chat **na coluna da direita da tela em que você está** (380 px de largura): a
+tela continua ali, e **Fechar** (×), no topo do chat, o tira da coluna. Em **Números**, já no desenho novo, a lista e o centro ficam como estavam. Nas demais telas, a tela recarrega ao abrir e ao fechar o Assistente. Ele não está mais no menu:
 - Nas telas em colunas, é o botão **Assistente** (✦) no fim do cabeçalho da coluna esquerda.
 - Nas demais, é o botão **Assistente** no alto da tela, ao lado de **Criar**.
 - O endereço antigo `/assistente` abre **Hoje** com o Assistente aberto.
 
-Dá para perguntar por escrito ou ditar pelo microfone, quando a transcrição de voz estiver liberada.
+Dá para perguntar por escrito ou ditar pelo microfone do campo, quando a transcrição de voz estiver liberada.
+- No topo do chat ficam **três perguntas sugeridas** da tela em que você está (por exemplo, em Números:
+  "Onde vejo a conversão e o VGV?"). Tocar numa delas põe a pergunta no campo; você envia ou ajusta antes.
+- Com a conversa vazia, o topo mostra um exemplo do que dá para perguntar e pedir.
 - Ele responde pensando na tela em que você está.
 - Se você trocar de tela, ele continua aberto, com a mesma conversa, enquanto o app estiver aberto.
 - Quando a IA não está liberada para o app, o topo do chat avisa "IA indisponível agora" e ele responde com os artigos do manual.
@@ -26,7 +29,7 @@ Dá para perguntar por escrito ou ditar pelo microfone, quando a transcrição d
 
 **A resposta:**
 - Diz em que artigo do manual se baseou e tem o link **abrir a documentação**.
-- Quando é algo que se faz numa tela, mostra o botão **Abrir** com o nome da tela.
+- Quando é algo que se faz numa tela, mostra o botão **Ir para** com o nome da tela.
 - Se o manual não cobre o assunto, ele diz que não sabe e sugere falar com a equipe da plataforma
   que deu o seu acesso. Ele não inventa funcionalidade.
 
@@ -40,9 +43,9 @@ Abrir o Assistente com a ficha de um cliente na tela também o leva junto. O nom
 | **Lembrete ou tarefa** | "me lembra de ligar para a Ana amanhã às 10h" | Cria a atividade (tarefa, ligação, mensagem ou retorno) na sua Agenda, ligada ao cliente quando é sobre um cliente da fila do dia ou da ficha aberta |
 | **Agendar uma peça** | "agenda o post da casa do Lago para sexta às 18h" | Agenda a peça aprovada do Estúdio para publicar no Instagram, como em [Estúdio › Publicar](estudio.md) |
 
-Antes de fazer, o Assistente mostra **Posso fazer isto?** com o que vai acontecer, escrito pelo
+Antes de fazer, o Assistente mostra o cartão **Vou fazer isto** com o que vai acontecer, escrito pelo
 próprio app: a data e a hora conferidas e o cliente ou a peça encontrados. Nada acontece até você
-clicar em **Confirmar**. Em **Agora não**, nada é feito. As mesmas regras das telas valem aqui: por
+clicar em **Confirmar**. Em **Cancelar**, nada é feito. As mesmas regras das telas valem aqui: por
 exemplo, agendar só de 5 minutos a 90 dias à frente, com o Instagram conectado.
 
 **O que ele nunca faz:**
