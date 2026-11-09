@@ -269,7 +269,7 @@ export class PcListaImoveis extends LitElement {
       ...a,
       label: `${a.label}${a.id === 'carteira' ? (this.carregando && !this.imoveis.length ? '' : ` (${this.total})`) : this.totalEmpreendimentos === null ? '' : ` (${this.totalEmpreendimentos})`}`,
     }));
-    // Cabeçalho comum da moldura (D-128): título, Novo e Assistente, botões de 34 px (sem `pequeno`).
+    // Cabeçalho comum da moldura (D-128): título, Novo e Assistente, botões de 34 px.
     return html`<urbi-stack>
       ${cabecalhoColuna('Imóveis', this.aba === 'carteira' ? html`<urbi-botao icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo</urbi-botao>` : nothing)}
       <urbi-abas .abas=${abas} ativa=${this.aba} @urbi:aba-selecionar=${(e: CustomEvent) => e.detail?.id !== this.aba && this.aoTrocarAba(e.detail?.id)}>
@@ -295,6 +295,7 @@ interface Contexto {
   qualidade: { nota: number; faltas: string[] };
   sem_creci: boolean;
   numeros: { visitas: number; enviados: number; cliques: number; negocios: number };
+  anunciavel: boolean;
   combinam: { id: number; nome: string; temperatura: string | null; motivos: string[] }[];
 }
 
@@ -418,7 +419,7 @@ export class PcContextoImovel extends LitElement {
   render() {
     if (this.falha && !this.dados) return estadoDaFalha(this.falha, () => this.carregar());
     if (!this.dados) return estadoTela('carregando');
-    const { qualidade, numeros, combinam } = this.dados;
+    const { qualidade, numeros, combinam, anunciavel } = this.dados;
     return html`<urbi-stack>
       <urbi-card titulo="Qualidade do anúncio" icone="fa-solid fa-list-check">
         <urbi-stack>
@@ -447,6 +448,9 @@ export class PcContextoImovel extends LitElement {
         </urbi-stack>
       </urbi-card>
       <urbi-card titulo="Clientes que combinam" icone="fa-solid fa-user-check">
+        ${combinam.length && !anunciavel
+          ? html`<urbi-prosa papel="dica">Para enviar este imóvel, ele precisa estar ativo ou reservado, com autorização de venda assinada e vigente.</urbi-prosa>`
+          : ''}
         ${combinam.length
           ? html`<urbi-lista separador .itens=${combinam} .render_item=${(c: Contexto['combinam'][number]) => html`<urbi-linha justificar="entre">
               <urbi-stack>
@@ -456,8 +460,10 @@ export class PcContextoImovel extends LitElement {
                 </urbi-linha>
                 <urbi-prosa papel="fraco">Combina em ${c.motivos.join(', ')}</urbi-prosa>
               </urbi-stack>
-              <urbi-botao variante="secundario" icone="fa-solid fa-paper-plane" ?carregando=${this.enviando === c.id}
-                ?desabilitado=${this.enviados.has(c.id)} @click=${() => this.enviar(c)}>${this.enviados.has(c.id) ? 'Enviado' : 'Enviar'}</urbi-botao>
+              ${anunciavel
+                ? html`<urbi-botao variante="secundario" icone="fa-solid fa-paper-plane" ?carregando=${this.enviando === c.id}
+                    ?desabilitado=${this.enviados.has(c.id)} @click=${() => this.enviar(c)}>${this.enviados.has(c.id) ? 'Enviado' : 'Enviar'}</urbi-botao>`
+                : ''}
             </urbi-linha>`}></urbi-lista>`
           : html`<urbi-prosa papel="dica">Nenhum comprador com perfil de busca que combine (tipo, região, preço, quartos, vagas ou área).</urbi-prosa>`}
       </urbi-card>

@@ -467,10 +467,12 @@ export function numeroEmTexto(v: unknown): string {
 }
 
 /**
- * Rascunho que nasceu pelas fotos, sem tipo nem cidade (P07 e M3): o tipo gravado é o "outro" de
- * reserva da coluna, e a tela o pede de novo no passo 2.
+ * Rascunho que nasceu pelas fotos, sem tipo escolhido (P07 e M3): o tipo gravado é o "outro" de
+ * reserva da coluna, e a tela o pede de novo no passo 2. Não depende da cidade: preencher só a cidade
+ * e salvar não torna o "outro" de reserva uma escolha. Um rascunho com "outro" de verdade também volta a
+ * pedir o tipo na reabertura (a coluna não distingue); ao concluir, o imóvel sai de rascunho e vale o gravado.
  */
-export const rascunhoSemTipo = (im: Record<string, unknown>) => im.situacao === 'rascunho' && im.tipo === 'outro' && !String(im.cidade ?? '').trim();
+export const rascunhoSemTipo = (im: Record<string, unknown>) => im.situacao === 'rascunho' && im.tipo === 'outro';
 
 export const PASSOS_NOVO_IMOVEL = [
   { id: 'fotos', rotulo: 'Fotos' },

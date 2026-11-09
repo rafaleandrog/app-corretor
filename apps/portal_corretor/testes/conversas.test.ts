@@ -31,6 +31,9 @@ test('corretor: nova conversa, texto pelo WhatsApp do celular, envio de imóvel 
   await comServidor(rotas, A, banco, semShell, async (chamar) => {
     const ana = (await chamar('POST', '/contatos', { nome: 'Ana Ribeiro', telefone: '+5561999990001', origem_canal: 'instagram', origem_campanha: 'Casa J. Botânico' })).corpo;
     const im = (await chamar('POST', '/imoveis', { tipo: 'casa', titulo: 'Casa 4 quartos', bairro: 'Jardim Botânico', cidade: 'Brasília', preco_c: 145000000 })).corpo;
+    // Anunciável (envio só aceita imóvel ativo com autorização vigente).
+    banco.linhas('imoveis').find((i) => i.id === im.id)!.situacao = 'ativo';
+    await banco.dados(100).criar('autorizacoes_venda', { imovel_id: im.id, situacao: 'assinada', inicio: '2020-01-01', fim: '2099-12-31', documento_midia_id: 1 });
 
     // Nova conversa (o botão Nova): uma por cliente; de novo, devolve a mesma.
     const nova = await chamar('POST', '/conversas', { contato_id: ana.id });
@@ -235,6 +238,9 @@ test('busca por imóvel e aviso de limite da caixa', async () => {
     const ana = (await chamar('POST', '/contatos', { nome: 'Ana', telefone: '+5561999990001' })).corpo;
     const bia = (await chamar('POST', '/contatos', { nome: 'Bia', telefone: '+5561999990002' })).corpo;
     const im = (await chamar('POST', '/imoveis', { tipo: 'casa', titulo: 'Casa do Lago', bairro: 'Lago Sul', cidade: 'Brasília', preco_c: 145000000 })).corpo;
+    // Anunciável (envio só aceita imóvel ativo com autorização vigente).
+    banco.linhas('imoveis').find((i) => i.id === im.id)!.situacao = 'ativo';
+    await banco.dados(100).criar('autorizacoes_venda', { imovel_id: im.id, situacao: 'assinada', inicio: '2020-01-01', fim: '2099-12-31', documento_midia_id: 1 });
     await chamar('POST', '/conversas', { contato_id: ana.id });
     await chamar('POST', '/conversas', { contato_id: bia.id });
     await chamar('POST', '/envios', { contato_id: ana.id, tipo: 'imovel', imovel_id: im.id, canal: 'whatsapp' });

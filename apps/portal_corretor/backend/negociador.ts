@@ -636,6 +636,12 @@ negociadorRotas.post(
         const item = cp0.concessao && agora.mandato ? itemDoMandato(cp0.concessao, agora.mandato.concessoes) : null;
         movimento = { ...movimento, contraproposta: { ...cp0, concessao: item?.item ?? cp0.concessao, contrapartida: item?.contrapartida ?? null } };
       }
+      // Sem validade no movimento, a padrão do mandato (P16 bloco 3): a mesma vale no texto ao cliente e na proposta.
+      if (temContraproposta) {
+        const cp0 = movimento.contraproposta!;
+        const horasResolvidas = cp0.validade_horas ?? agora.mandato?.validade_contraproposta_horas ?? null;
+        movimento = { ...movimento, contraproposta: { ...cp0, validade_horas: horasResolvidas } };
+      }
       if (temContraproposta && !escreveu) {
         const cp0 = movimento.contraproposta!;
         const item = cp0.concessao && cp0.contrapartida ? { item: cp0.concessao, limite: '', contrapartida: cp0.contrapartida } : null;
@@ -654,8 +660,7 @@ negociadorRotas.post(
       let proposta: Linha | null = null;
       if (temContraproposta) {
         const cp = movimento.contraproposta!;
-        // Sem validade no movimento, a padrão do mandato (P16 bloco 3).
-        const horas = cp.validade_horas ?? agora.mandato?.validade_contraproposta_horas ?? null;
+        const horas = cp.validade_horas;
         const r = await gravarPropostaTravada(trx, nid!, {
           direcao: 'vendedor',
           autor_tipo: editada ? (soNegociador(req) ? 'negociador_humano' : 'corretor') : 'negociador_ia',

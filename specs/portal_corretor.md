@@ -1256,7 +1256,7 @@ As respostas padrão por categoria de objeção estão no **Apêndice D** (preç
 #### 10.9.7 Garantias no código (não dependem do modelo, D-98)
 
 Antes de qualquer envio do Negociador IA ou da aprovação de uma sugestão, o backend valida:
-1. **Piso:** valor da contraproposta ≥ ponto de recuo do mandato; se não, **bloqueia** para o Negociador IA e para o negociador humano e passa ao corretor. Para o **corretor** (dono do mandato, D-120), abaixo do recuo não bloqueia: a tela avisa, pede confirmação explícita e o envio fica registrado como auditável (`contraproposta.enviada` com `abaixo_do_recuo: true`).
+1. **Piso:** valor da contraproposta ≥ ponto de recuo do mandato; se não, **bloqueia** para o Negociador IA e para o negociador humano e passa ao corretor. Para o **corretor** (dono do mandato, D-120), abaixo do recuo não bloqueia: a tela avisa, pede confirmação explícita e o envio fica registrado na trilha de auditoria da plataforma pelo evento auditável próprio `contraproposta_abaixo_do_recuo` (só ids: negociação, proposta e quem enviou, com o nome), publicado depois do envio gravado, fora da transação: a trilha é best-effort (contrato de auditoria do SDK), e uma falha dela não desfaz o envio.
 2. **Passo:** redução de preço desta rodada ≤ passo máximo; e menor ou igual à da rodada anterior.
 3. **Rodadas:** número da rodada ≤ máximo do mandato.
 4. **Concessões:** só itens listados no mandato, cada um com a contrapartida registrada.

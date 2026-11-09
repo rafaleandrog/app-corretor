@@ -230,12 +230,12 @@ export class PcTelaFichaImovel extends LitElement {
           const i = lista.findIndex((x) => x.id === (l as Linha).id);
           const m = lista[i];
           return html`<urbi-linha quebrar>
-            <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-up" ariaLabel="Subir" ?desabilitado=${i === 0} @click=${() => this.mover(i, -1)}></urbi-botao>
-            <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-arrow-down" ariaLabel="Descer" ?desabilitado=${i === lista.length - 1} @click=${() => this.mover(i, 1)}></urbi-botao>
-            <urbi-visualizador-arquivo pequeno variante="fantasma" rotulo="Ver" url=${m.url ?? ''} nome=${m.legenda ?? ROTULO_TIPO_MIDIA[m.tipo]}
+            <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-up" ariaLabel="Subir" ?desabilitado=${i === 0} @click=${() => this.mover(i, -1)}></urbi-botao>
+            <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-down" ariaLabel="Descer" ?desabilitado=${i === lista.length - 1} @click=${() => this.mover(i, 1)}></urbi-botao>
+            <urbi-visualizador-arquivo variante="fantasma" rotulo="Ver" url=${m.url ?? ''} nome=${m.legenda ?? ROTULO_TIPO_MIDIA[m.tipo]}
               mime=${m.tipo === 'foto' ? 'image/jpeg' : ''}></urbi-visualizador-arquivo>
-            <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-pen" ariaLabel="Editar" @click=${() => this.editarMidia(m)}></urbi-botao>
-            <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-trash" ariaLabel="Apagar" @click=${() => this.removerMidia(m)}></urbi-botao>
+            <urbi-botao variante="fantasma" icone="fa-solid fa-pen" ariaLabel="Editar" @click=${() => this.editarMidia(m)}></urbi-botao>
+            <urbi-botao variante="fantasma" icone="fa-solid fa-trash" ariaLabel="Apagar" @click=${() => this.removerMidia(m)}></urbi-botao>
           </urbi-linha>`;
         },
       },
@@ -420,7 +420,7 @@ export class PcTelaFichaImovel extends LitElement {
   }
 
   private acao(rotulo: string, icone: string, fn: () => void) {
-    return html`<span slot="acoes"><urbi-botao variante="fantasma" pequeno icone=${icone} ariaLabel=${rotulo} title=${rotulo} @click=${fn}></urbi-botao></span>`;
+    return html`<span slot="acoes"><urbi-botao variante="fantasma" icone=${icone} ariaLabel=${rotulo} title=${rotulo} @click=${fn}></urbi-botao></span>`;
   }
 
   // ---------- O que falta ----------
@@ -452,7 +452,7 @@ export class PcTelaFichaImovel extends LitElement {
     const banner = this.falha
       ? html`<urbi-banner variante="erro">
           ${this.falha}
-          <urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
+          <urbi-botao slot="acao" variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao>
         </urbi-banner>`
       : '';
     if (this.falha && !this.ficha) return banner;
@@ -542,8 +542,8 @@ export class PcTelaFichaImovel extends LitElement {
                     </urbi-stack>
                     <urbi-linha quebrar>
                       <urbi-badge cor=${sa.cor}>${sa.rotulo}</urbi-badge>
-                      ${['rascunho', 'enviada'].includes(a.situacao) ? html`<urbi-botao variante="texto" pequeno @click=${() => this.assinar(a)}>Marcar assinada</urbi-botao>` : ''}
-                      ${a.situacao !== 'revogada' ? html`<urbi-botao variante="texto" pequeno @click=${() => this.revogar(a)}>Revogar</urbi-botao>` : ''}
+                      ${['rascunho', 'enviada'].includes(a.situacao) ? html`<urbi-botao variante="texto" @click=${() => this.assinar(a)}>Marcar assinada</urbi-botao>` : ''}
+                      ${a.situacao !== 'revogada' ? html`<urbi-botao variante="texto" @click=${() => this.revogar(a)}>Revogar</urbi-botao>` : ''}
                     </urbi-linha>
                   </urbi-linha>`;
                 }}></urbi-lista>
@@ -562,7 +562,7 @@ export class PcTelaFichaImovel extends LitElement {
       </urbi-card>
       ${keyed(`fotos|${fotos > 0}|${!!this.ia.fotos}`, html`<urbi-card id="fotos" titulo="Fotos e arquivos" icone="fa-solid fa-images">
         ${this.ia.fotos && fotos
-          ? html`<span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-wand-magic-sparkles" ariaLabel="Ordem sugerida" title="Ordem sugerida"
+          ? html`<span slot="acoes"><urbi-botao variante="fantasma" icone="fa-solid fa-wand-magic-sparkles" ariaLabel="Ordem sugerida" title="Ordem sugerida"
               @click=${() => this.tentar('Não foi possível ordenar', () => enviar('POST', `/imoveis/${this.imovelId}/midias/ordem-sugerida`, {}))}></urbi-botao></span>`
           : ''}
         <urbi-seletor-arquivo drop multiplo accept="image/jpeg,image/png,image/webp,video/mp4,application/pdf" ?desabilitado=${!!this.enviando}
@@ -583,7 +583,7 @@ export class PcTelaFichaImovel extends LitElement {
                 <urbi-lista separador .itens=${visitas} .render_item=${(v: Linha) => html`<urbi-stack>
                     <urbi-linha justificar="entre" quebrar>
                       <urbi-prosa>${dataHora(v.quando)}${v.contato_nome ? ` · ${v.contato_nome}` : ''}</urbi-prosa>
-                      ${v.contato_id ? html`<urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${v.contato_id}`)}>Ver cliente</urbi-botao>` : ''}
+                      ${v.contato_id ? html`<urbi-botao variante="texto" href=${urbiVerso.href(`/clientes/${v.contato_id}`)}>Ver cliente</urbi-botao>` : ''}
                     </urbi-linha>
                     ${v.feedback_em
                       ? html`<urbi-prosa papel="secundario">${v.feedback_nota ? `Nota ${v.feedback_nota}/5. ` : ''}${v.feedback_texto ?? ''}${v.compartilhar_com_proprietario ? '' : ' (não compartilhar com o proprietário)'}</urbi-prosa>`
@@ -598,7 +598,7 @@ export class PcTelaFichaImovel extends LitElement {
               <div slot="detalhe">
                 <urbi-lista separador .itens=${this.envios} .render_item=${(e: Linha) => html`<urbi-linha justificar="entre" quebrar>
                     <urbi-prosa>${e.contato_nome ?? 'Cliente'} · ${dataHora(e.enviado_em)}</urbi-prosa>
-                    <urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${e.contato_id}`)}>Ver cliente</urbi-botao>
+                    <urbi-botao variante="texto" href=${urbiVerso.href(`/clientes/${e.contato_id}`)}>Ver cliente</urbi-botao>
                   </urbi-linha>`}></urbi-lista>
               </div>`
           : html`<urbi-prosa papel="dica">Ainda não foi enviado a nenhum cliente. Registre o envio pela ficha do cliente.</urbi-prosa>`}
@@ -611,7 +611,7 @@ export class PcTelaFichaImovel extends LitElement {
                     <urbi-prosa>${n.titulo}</urbi-prosa>
                     <urbi-linha>
                       <urbi-badge>${n.etapa_nome ?? ''}</urbi-badge>
-                      <urbi-botao variante="texto" pequeno href=${urbiVerso.href(`/clientes/${n.contato_id}`)}>Ver cliente</urbi-botao>
+                      <urbi-botao variante="texto" href=${urbiVerso.href(`/clientes/${n.contato_id}`)}>Ver cliente</urbi-botao>
                     </urbi-linha>
                   </urbi-linha>`}></urbi-lista>
               </div>`

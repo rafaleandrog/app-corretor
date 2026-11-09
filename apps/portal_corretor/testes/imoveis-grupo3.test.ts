@@ -70,3 +70,24 @@ test('Ditar o resto: a fala vira campos saneados; IA fora do ar é 503; fala vaz
     assert.equal((await chamar('POST', '/imoveis/ia', { texto: 'casa' })).status, 403);
   });
 });
+
+test('POST /envios só aceita imóvel anunciável: rascunho 422, ativo com autorização vigente 201', async () => {
+  const banco = new BancoFalso({ ...UNICOS });
+  await comServidor(rotas, { usuario: 1, conta: 100, papeis: ['corretor'] }, banco, {}, async (chamar) => {
+    const c = (await chamar('POST', '/contatos', { nome: 'Rita Souza', telefone: '61988881111' })).corpo;
+    const im = (await chamar('POST', '/imoveis', { tipo: 'apartamento', cidade: 'Brasília', titulo: 'Apto' })).corpo;
+    const corpo = { contato_id: c.id, tipo: 'imovel', imovel_id: im.id, canal: 'whatsapp' };
+    const r = await chamar('POST', '/envios', corpo);
+    assert.equal(r.status, 422, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.codigo ?? r.corpo.erro?.codigo, 'IMOVEL_NAO_ANUNCIAVEL');
+    assert.equal(banco.linhas('envios').length, 0);
+    // Ativo sem autorização vigente continua recusado.
+    banco.linhas('imoveis')[0].situacao = 'ativo';
+    assert.equal((await chamar('POST', '/envios', corpo)).status, 422);
+    // Ativo com autorização assinada e vigente: envia.
+    await banco.dados(100).criar('autorizacoes_venda', { imovel_id: im.id, situacao: 'assinada', inicio: '2020-01-01', fim: '2099-12-31', documento_midia_id: 1 });
+    const ok = await chamar('POST', '/envios', corpo);
+    assert.equal(ok.status, 201, JSON.stringify(ok.corpo));
+    assert.equal((await chamar('GET', `/imoveis/${im.id}/contexto`)).corpo.anunciavel, true);
+  });
+});

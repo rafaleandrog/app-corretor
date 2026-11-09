@@ -759,6 +759,8 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
                 <urbi-avatar nome=${m.legenda ?? 'Foto'} foto=${m.url ?? ''} tamanho="112"></urbi-avatar>
                 ${i === 0 ? html`<urbi-badge cor=${e.capaSugerida ? 'info' : 'padrao'}>${e.capaSugerida ? 'Capa sugerida' : 'Capa'}</urbi-badge>` : nothing}
                 <urbi-prosa papel="fraco" truncar>${m.ia_ambiente ? (ROTULO_AMBIENTE[m.ia_ambiente] ?? m.ia_ambiente) : (m.legenda ?? `Foto ${i + 1}`)}</urbi-prosa>
+                ${i > 0 ? html`<urbi-botao variante="fantasma" ariaLabel="Usar como capa" title="Usar como capa" ?desabilitado=${!!e.ocupado}
+                  @click=${() => e.usarComoCapa(m)}>Usar como capa</urbi-botao>` : nothing}
                 <urbi-linha>
                   <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-left" ariaLabel="Mover para antes" title="Mover para antes"
                     ?desabilitado=${!!e.ocupado || i === 0} @click=${() => e.moverFoto(m, -1)}></urbi-botao>

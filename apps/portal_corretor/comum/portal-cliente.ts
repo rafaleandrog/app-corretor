@@ -1,3 +1,4 @@
+import { CENTAVOS_MAXIMO } from './crm';
 // Portal do Cliente no formato dos mockups M4 e M5 (bloco B9, spec 11.3): abas, próximo passo,
 // imóvel em destaque e estado do link. Puro: recebe o portal já lido da vitrine (só dado público)
 // e devolve o que a página pública desenha.
@@ -168,7 +169,8 @@ export function ofertaPlausivel(valor_c: number, preco_pedido_c: number | null |
  */
 export function ofertaProvavel(valor_c: number, preco_pedido_c: number | null | undefined): number | null {
   if (!preco_pedido_c || !(valor_c > 0)) return null;
-  for (let v = valor_c * 1000; v <= preco_pedido_c * 2; v *= 1000) if (ofertaPlausivel(v, preco_pedido_c)) return v;
+  // Nunca sugere acima do teto das colunas (o webhook recusaria a própria sugestão).
+  for (let v = valor_c * 1000; v <= preco_pedido_c * 2 && v <= CENTAVOS_MAXIMO; v *= 1000) if (ofertaPlausivel(v, preco_pedido_c)) return v;
   return null;
 }
 

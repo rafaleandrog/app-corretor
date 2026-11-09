@@ -6,6 +6,7 @@ import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
 import { criarLink } from './vitrine';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
+import { imovelAnunciavel } from './imoveis';
 
 // Envios (bloco 4b, spec 6.15): o histórico de tudo que o corretor mandou a cada cliente. Nesta
 // versão o envio é registrado pelo corretor (ele manda pelo próprio WhatsApp). Com a página no ar e
@@ -31,6 +32,8 @@ enviosRotas.post(
     const imovel = iid ? await dados.buscar('imoveis', iid) : null;
     if (tipo === 'imovel' && !imovel) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o imóvel enviado.');
     if (iid && !imovel) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
+    // O envio leva o cartão do imóvel ao cliente: só o que é anunciável (ativo ou reservado, com autorização vigente) pode ir.
+    if (imovel && !(await imovelAnunciavel(req, imovel))) return erro(res, 422, 'IMOVEL_NAO_ANUNCIAVEL', 'Este imóvel não pode ser enviado: precisa estar ativo ou reservado, com autorização de venda assinada e vigente.');
     const nid = id(req.body?.negocio_id);
     const negocio = nid ? await dados.buscar('negocios', nid) : null;
     if (nid && (!negocio || negocio.contato_id !== cid)) return erro(res, 422, 'DADOS_INVALIDOS', 'Negócio não encontrado para este cliente.');

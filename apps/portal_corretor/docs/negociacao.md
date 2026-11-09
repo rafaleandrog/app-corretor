@@ -245,12 +245,13 @@ agora** (`POST /negociacoes/:id/propostas` com `direcao: vendedor` e `canal: por
 passa pelas mesmas garantias de código do Negociador (passo, rodadas, concessões, sigilo, validade e
 canal). Sem validade escrita, vale a **validade padrão de cada contraproposta** do mandato. Enviada,
 a negociação fica "aguardando o cliente". Com o acordo já com o proprietário, nada sai até a decisão
-dele.
+dele, mesmo que você tenha levado o acordo a ele em outra aba um instante antes de enviar.
 
 **Abaixo do ponto de recuo:** o recuo é seu, então o app não proíbe, mas avisa: "Esta contraproposta
 fica abaixo do ponto de recuo do mandato. Confirme para enviar mesmo assim (fica registrado)." Só
 com a sua confirmação ela sai, e o envio fica na **trilha de auditoria** da plataforma
-(`contraproposta_abaixo_do_recuo`, com o seu nome e o número da negociação). Abaixo do recuo o
+(`contraproposta_abaixo_do_recuo`, com o seu nome e o número da negociação). O registro na trilha
+vem logo depois do envio e, se falhar, não desfaz o envio. Abaixo do recuo o
 passo máximo (medido até o recuo) também não se aplica; as outras garantias continuam. O
 **negociador humano e o Negociador IA nunca enviam abaixo do recuo**: para eles, o bloqueio é o mesmo
 de sempre.

@@ -179,7 +179,7 @@ test('Negociações no Chromium: lista, faixa, sigilo mascarado, sugestão edita
     await pagina.evaluate(() => {
       const w = window as any;
       w.respostaFormulario = { valor: '1.300.000', condicoes: '', mensagem: 'Ana, faço 1,3.' };
-      w.botao(document.querySelector('pc-negociacao-foco'), 'Editar').click();
+      const foco = document.querySelector('pc-negociacao-foco'); w.todos(foco, 'urbi-dropdown-item').find((i: any) => w.profundo(i).includes('Editar')).dispatchEvent(new CustomEvent('urbi:dropdown-select', { bubbles: true, composed: true }));
     });
     await esperar();
     r = await pagina.evaluate(() => ({ alertas: (window as any).alertas.slice(), chamadas: (window as any).chamadas.slice() }));
@@ -331,7 +331,7 @@ test('Negociações no Chromium (D-111): Editar manda só o valor mudado, sem o 
       w.respostaDecisao = () => ({ ok: true, decisao: 'editada' });
       // Na releitura depois do envio, a sugestão nova é só em texto (para a segunda parte).
       w.detalhe = { ...w.DETALHE_BASE, sugestao: { execucao_id: 10, resposta: { contraproposta: null, mensagem: 'Ana, entendo a preocupação com o prazo.' }, validacoes: [], bloqueado_por: null } };
-      w.botao(document.querySelector('pc-negociacao-foco'), 'Editar').click();
+      const foco = document.querySelector('pc-negociacao-foco'); w.todos(foco, 'urbi-dropdown-item').find((i: any) => w.profundo(i).includes('Editar')).dispatchEvent(new CustomEvent('urbi:dropdown-select', { bubbles: true, composed: true }));
     });
     await esperar();
     let f: any = await ultimoFormulario();

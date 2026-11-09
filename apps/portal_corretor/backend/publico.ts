@@ -578,11 +578,15 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
       valor_c = Number(aceite.valor_c);
     } else {
       valor_c = Number(p.valor_c);
-      // #194, segunda trava (sob a trava, com o preço pedido do mandato ou do imóvel): oferta
-      // implausível não grava rodada nem aciona o Negociador.
+      // #194, segunda trava (sob a trava): mede pelo MESMO preço do webhook (o preço pedido público do
+      // imóvel, `imoveis.preco_c`; o mandato só como reserva quando o imóvel não tem preço). Oferta
+      // implausível não grava rodada nem aciona o Negociador, e o corretor recebe um recado na conversa.
       const mandato = await mandatoVigente(trx, viva);
       const imovel = viva.imovel_id ? (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, id: viva.imovel_id }, maximo: 1 }))[0] : null;
-      if (!ofertaPlausivel(valor_c, Number(mandato?.preco_pedido_c) || Number(imovel?.preco_c) || null)) return null;
+      if (!ofertaPlausivel(valor_c, Number(imovel?.preco_c) || Number(mandato?.preco_pedido_c) || null)) {
+        await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'texto', conteudo: `${AVISO_OFERTA_IMPLAUSIVEL} tentou ofertar ${reaisPt(valor_c)}; a oferta não foi registrada (valor fora do esperado).`, dados: { negociacao_id: nid } });
+        return null;
+      }
       // O mesmo evento entregue de novo: a oferta igual do portal já é a última.
       if (ultima && ultima.direcao === 'comprador' && ultima.canal === 'portal' && Number(ultima.valor_c) === valor_c) return null;
     }

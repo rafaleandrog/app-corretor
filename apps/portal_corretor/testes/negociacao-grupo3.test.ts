@@ -217,3 +217,67 @@ test('D-127: abrir a negociação deixa o aviso de sistema "Negociação aberta"
     assert.equal(msg.autor_tipo, 'sistema');
   });
 });
+
+// Banco cuja leitura SEM trava da negociação mostra o estado de antes do "Aceitar acordo": simula a
+// decisão entrando entre a leitura da rota e a transação (a leitura travada vê o estado real).
+class BancoCorrida extends BancoFalso {
+  corrida = false;
+  dados(conta: number, multi?: boolean) {
+    const d = super.dados(conta, multi);
+    const ligado = () => this.corrida;
+    return {
+      ...d,
+      async buscar(tabela: string, id: number, op?: { travar?: boolean }) {
+        const r = await d.buscar(tabela, id, op);
+        return tabela === 'negociacoes' && r && ligado() ? { ...r, estado: 'aguardando_cliente' } : r;
+      },
+    } as typeof d;
+  }
+}
+
+test('corrida: o acordo levado ao proprietário entre a leitura e a trava barra o envio (409) sem gravar nem rebaixar o estado', async () => {
+  const banco = new BancoCorrida(UNICOS);
+  const b = await base(banco, 100);
+  const ev = eventos();
+  await comServidor(rotas, corretor(1, 100, ev), banco, {}, async (chamar) => {
+    const nid = await pronta(chamar, b);
+    const oferta = (await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 })).corpo;
+    assert.equal((await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aceitar_acordo', proposta_id: oferta.id })).status, 200);
+    const antes = banco.linhas('propostas').length;
+    banco.corrida = true;
+    for (const canal of ['portal', 'wa_me']) {
+      const r = await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 146_000_000, canal });
+      assert.equal(r.status, 409, JSON.stringify(r.corpo));
+      assert.equal(r.corpo.codigo, 'ACORDO_PROPOSTO');
+    }
+    banco.corrida = false;
+    assert.equal(banco.linhas('propostas').length, antes);
+    assert.equal(banco.linhas('negociacoes')[0].estado, 'aguardando_proprietario');
+    assert.ok(!ev.publicados.some((e) => e.tipo === 'contraproposta_enviada'));
+  });
+});
+
+test('10.9.7 pela rota: sigilo na mensagem e limite de rodadas barram o envio (422)', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const b = await base(banco, 100);
+  await comServidor(rotas, corretor(1, 100), banco, {}, async (chamar) => {
+    const nid = await pronta(chamar, b);
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 132_000_000 });
+    const sigilo = await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 147_000_000, canal: 'portal', mensagem: 'Nosso mínimo é R$ 1.360.000,00.' });
+    assert.equal(sigilo.status, 422, JSON.stringify(sigilo.corpo));
+    assert.deepEqual(sigilo.corpo.bloqueado_por, ['SIGILO_VIOLADO']);
+    assert.ok(!JSON.stringify(sigilo.corpo).includes('1.360.000'));
+    // Quatro rodadas (o padrão do mandato) registradas; a 5.ª não sai.
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 150_000_000 });
+    for (const v of [133_000_000, 134_000_000, 135_000_000]) {
+      await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: v });
+      await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 150_000_000 });
+    }
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 136_000_000 });
+    const antes = banco.linhas('propostas').length;
+    const quinta = await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'vendedor', valor_c: 150_000_000, canal: 'portal' });
+    assert.equal(quinta.status, 422, JSON.stringify(quinta.corpo));
+    assert.deepEqual(quinta.corpo.bloqueado_por, ['RODADAS_ESGOTADAS']);
+    assert.equal(banco.linhas('propostas').length, antes);
+  });
+});

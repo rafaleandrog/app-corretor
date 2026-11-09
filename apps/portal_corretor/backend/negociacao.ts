@@ -698,8 +698,11 @@ negociacaoRotas.post(
     }
     const envio = canal !== 'registro';
     if (envio && b.direcao !== 'vendedor') return erro(res, 422, 'DADOS_INVALIDOS', 'Só a contraproposta do vendedor sai pelo portal ou pelo Fazer agora.');
-    // Com o acordo levado ao proprietário, nenhuma contraproposta sai até a decisão dele.
-    if (envio && negociacao.estado === 'aguardando_proprietario') return erro(res, 409, 'ACORDO_PROPOSTO', 'O acordo está com o proprietário: registre a decisão dele antes de enviar outra contraproposta.');
+    // Com o acordo levado ao proprietário, nenhuma contraproposta sai até a decisão dele. Esta leitura é
+    // só o atalho; quem decide é a linha relida sob a trava (no `validar` abaixo), porque o "Aceitar
+    // acordo" pode entrar entre esta leitura e a transação.
+    const ACORDO_PROPOSTO = 'O acordo está com o proprietário: registre a decisão dele antes de enviar outra contraproposta.';
+    if (envio && negociacao.estado === 'aguardando_proprietario') return erro(res, 409, 'ACORDO_PROPOSTO', ACORDO_PROPOSTO);
     const contato = envio && negociacao.contato_id ? await dados.buscar('contatos', Number(negociacao.contato_id)) : null;
     if (canal === 'wa_me' && !linkWhatsapp(contato?.telefone, '-')) {
       return erro(res, 422, 'SEM_WHATSAPP', 'O cliente não tem um telefone de WhatsApp válido no cadastro. Envie pelo portal ou corrija o telefone do contato.');
@@ -714,6 +717,7 @@ negociacaoRotas.post(
     const confirmouAbaixo = envio && !humano && b.confirmar_abaixo_do_recuo === true;
     let abaixoDoRecuo = false;
     let validadeDoMandato: number | null = null;
+    let acordoNoProprietario = false;
     // A resposta do vendedor registrada pelo negociador humano passa pelas mesmas 7 garantias do
     // Negociador IA (10.9.7): piso, passo, rodadas, concessões, sigilo e validade, com o mandato e as
     // propostas lidos sob a trava. O registro é a resposta que ele deu fora do app, pelo próprio
@@ -721,7 +725,12 @@ negociacaoRotas.post(
     // decidiu, sem essa trava; a decisão do proprietário é só dele (403 acima).
     const validar =
       (humano && direcao === 'vendedor') || envio
-        ? async (trx: HelperDados, viva: Linha, anteriores: Linha[]) => {
+        ? async (trx: HelperDados, viva: Linha, anteriores: Linha[]): Promise<ResultadoValidacao> => {
+            // Decidido sobre a linha travada: com o acordo no proprietário, o envio não grava nada.
+            if (envio && viva.estado === 'aguardando_proprietario') {
+              acordoNoProprietario = true;
+              return { ok: false, bloqueado_por: [], verificacoes: [], passa_ao_corretor: false };
+            }
             const mandato = paraMotor(await mandatoVigente(trx, viva));
             validadeDoMandato = mandato?.validade_contraproposta_horas ?? null;
             const v = validarMovimento(
@@ -770,6 +779,7 @@ negociacaoRotas.post(
     });
     if ('recusa' in resultado) {
       if (resultado.recusa === 'bloqueado') {
+        if (acordoNoProprietario) return erro(res, 409, 'ACORDO_PROPOSTO', ACORDO_PROPOSTO);
         const { validacao } = resultado;
         return res.status(422).json({
           erro: true,

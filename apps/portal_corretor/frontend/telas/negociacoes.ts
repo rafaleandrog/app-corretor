@@ -712,15 +712,15 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
       <urbi-linha quebrar>
         ${cp?.valor_c
           ? html`<urbi-botao icone="fa-solid fa-paper-plane" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('portal')}>Enviar</urbi-botao>
-              <urbi-botao variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('wa_me')}>Fazer agora</urbi-botao>
-              <urbi-botao variante="secundario" icone="fa-solid fa-pen" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.editar()}>Editar</urbi-botao>`
+              <urbi-botao variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('wa_me')}>Fazer agora</urbi-botao>`
           : html`<urbi-botao icone="fa-solid fa-pen" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.editar()}>Revisar e enviar</urbi-botao>`}
-        ${(() => {
-          // M8: Assumir no fim da sugestão, ao lado de Enviar e Editar (o rodapé fixo é lacuna do primitivo).
-          const conduzo = d.conduzida_por === (soNegociador() ? 'humano' : 'corretor');
-          return conduzo ? '' : html`<urbi-botao variante="secundario" icone="fa-solid fa-hand" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.conduzir('assumir')}>Assumir</urbi-botao>`;
-        })()}
-        <urbi-botao variante="texto" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.descartar()}>Descartar</urbi-botao>
+        <urbi-dropdown flutuante>
+          <urbi-botao slot="trigger" variante="texto" icone="fa-solid fa-ellipsis" ?desabilitado=${this.n!.s.ocupado}>Mais</urbi-botao>
+          <div slot="menu">
+            ${cp?.valor_c ? html`<urbi-dropdown-item icone="fa-solid fa-pen" @urbi:dropdown-select=${() => void this.n!.editar()}>Editar</urbi-dropdown-item>` : ''}
+            <urbi-dropdown-item icone="fa-solid fa-trash" perigo @urbi:dropdown-select=${() => void this.n!.descartar()}>Descartar</urbi-dropdown-item>
+          </div>
+        </urbi-dropdown>
       </urbi-linha>
     </urbi-card>`;
   }

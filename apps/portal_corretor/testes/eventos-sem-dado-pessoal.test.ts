@@ -405,7 +405,8 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
 
     // Negociação 1, pelas rotas do corretor (pergunta antes).
     const d = banco.dados(100);
-    const im1 = await d.criar('imoveis', { codigo: 'IM-9901', titulo: 'Apto Asa Sul', preco_c: MANDATO.preco_pedido_c });
+    const im1 = await d.criar('imoveis', { codigo: 'IM-9901', titulo: 'Apto Asa Sul', situacao: 'ativo', preco_c: MANDATO.preco_pedido_c });
+    await d.criar('autorizacoes_venda', { imovel_id: im1.id, situacao: 'assinada', inicio: '2020-01-01', fim: '2099-12-31', documento_midia_id: 1 }); // anunciável: o envio só aceita imóvel ativo com autorização vigente
     const ng1 = await d.criar('negocios', { contato_id: ids.zu, titulo: `Compra ${zu.nome}`, pipeline: 'compra', etapa_id: 1, responsavel_id: 1 });
     // visita_agendada, atividade_criada e visita_feedback (bloco de eventos, D-118): visita ao imóvel, com o retorno do cliente.
     const vis = await ok(chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita ao apto', quando: new Date(Date.now() + 86400e3).toISOString(), contato_id: ids.zu, imovel_id: im1.id, local: 'Asa Sul' }), 'visita ao imóvel');

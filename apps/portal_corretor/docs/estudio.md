@@ -87,7 +87,7 @@ Três jeitos de pedir; o pedido novo abre no centro, com a descrição de cada p
 
 | O quê | O que faz |
 |---|---|
-| **Caixa do pedido** (embaixo do centro) | Escreva o que quer, ou use o **microfone** da caixa para falar (a fala vira texto pela IA da plataforma; o microfone só aparece quando o administrador liberou a transcrição). Ao enviar, abre o **Novo pedido**: confira o texto, escolha o imóvel (ou nenhum, para uma peça institucional), o objetivo e os formatos. Sai uma peça por formato. Cancelar devolve o texto à caixa. O **Novo post** do botão Criar abre o mesmo formulário |
+| **Caixa do pedido** (embaixo do centro) | Escreva o que quer, ou use o **microfone** da caixa para falar (a fala vira texto pela IA da plataforma; o microfone só aparece quando o administrador liberou a transcrição). Ao enviar, abre o **Novo pedido**: confira o texto, escolha o imóvel (ou nenhum, para uma peça institucional), o objetivo e os formatos. Sai uma peça por formato. Cancelar devolve o texto à caixa. O **Novo post** do botão Criar abre o mesmo formulário; o **Criar conteúdo** da ficha do imóvel também (`?criar=post&imovel=<id>`), já com o imóvel escolhido |
 | **Criar rápido › Lançamento** | O pacote de lançamento: post, carrossel e story de um imóvel, de uma vez |
 | **Criar rápido › Baixou o preço, Vendido, Visita aberta** | Escolha o imóvel (e, se quiser, um pedido): sai post e story (Baixou o preço), um post (Vendido) ou um story (Visita aberta), com o objetivo já escolhido |
 

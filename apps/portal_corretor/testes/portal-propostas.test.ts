@@ -4,7 +4,7 @@ import schema from '../schema.json';
 import manifesto from '../manifesto.json';
 import { rotas, rotasPublicas, webhooks, reagir } from '../backend/rotas';
 import { limparLimites } from '../backend/publico';
-import { abasDoPortal, centavosDoValor, negociacaoPublica, propostaAceitavel, propostaPublica } from '../comum/portal-cliente';
+import { abasDoPortal, centavosDoValor, negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel, propostaPublica } from '../comum/portal-cliente';
 import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
 
 // Bloco D5 (#104): propostas no Portal do Cliente (M5b), sempre por token. O cliente vê as rodadas da
@@ -521,4 +521,37 @@ test('#194: oferta implausível pelo portal: 422 claro, sem rodada nem Negociado
   assert.equal(banco.linhas('propostas').filter((p) => p.negociacao_id === nid).length, 0, 'nenhuma oferta gravada');
   assert.equal(ia.chamadas.length, 0, 'o Negociador não roda');
   assert.ok(banco.linhas('mensagens').some((m) => /não foi registrada/.test(String(m.conteudo))), 'a tentativa chega ao corretor na conversa');
+});
+
+test('#194: as duas travas medem pelo preço do imóvel; o mandato só é reserva (oferta plausível pelo imóvel e implausível pelo mandato passa nas duas)', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  const mandatoAlto = { ...MANDATO, preco_pedido_c: 400_000_000, alvo_c: 390_000_000, recuo_c: 380_000_000 };
+  const { nid, contatoId } = await montar(banco, shell, A, mandatoAlto);
+  const ctx = ctxListener(banco, ev, iaSimulada([]));
+  const contexto = { conta_id: 100, contato_id: contatoId };
+  // Caminho feliz do webhook com preço conhecido: 132 mi contra o imóvel de 150 mi.
+  const w = await webhook(contexto, { tipo: 'proposta_nova', negociacao: nid, valor_c: 132_000_000 }, '10.9.2.1', banco.dados(null));
+  assert.equal(w.status, 200, JSON.stringify(w.corpo));
+  assert.ok(w.publicados.some((p) => p.payload.tipo === 'proposta_nova'));
+  // O listener mede pelo mesmo preço: grava a oferta, em vez de descartá-la em silêncio.
+  for (const p of w.publicados) await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: p.opcoes.conta_id }, ctx);
+  assert.deepEqual(banco.linhas('propostas').filter((p) => p.negociacao_id === nid).map((p) => p.valor_c), [132_000_000]);
+  assert.ok(!banco.linhas('mensagens').some((m) => /não foi registrada/.test(String(m.conteudo))));
+});
+
+test('#194: ofertaPlausivel com preço conhecido e ofertaProvavel nunca sugere acima do teto das colunas', () => {
+  assert.equal(ofertaPlausivel(132_000_000, 145_000_000), true);
+  assert.equal(ofertaPlausivel(60_000_000, 145_000_000), false);
+  // Pedido alto (R$ 40 mi): a escala "× 1000" de 3.000 daria 3 bi de centavos, acima do teto: sem sugestão.
+  assert.equal(ofertaProvavel(3_000_000, 4_000_000_000), null);
+  // Dentro do teto a sugestão continua saindo (1,2 mi de pedido: 1.200 → 1,2 bi de centavos).
+  assert.equal(ofertaProvavel(1_200_000, 1_200_000_000), 1_200_000_000);
+  for (const [v, pedido] of [[135_000, 2_000_000_000], [2_000_000, 4_000_000_000], [1_500_000, 3_000_000_000]]) {
+    const s = ofertaProvavel(v, pedido);
+    assert.ok(s === null || s <= 2_147_483_647, `${v}/${pedido}: ${s}`);
+  }
 });

@@ -107,6 +107,13 @@ function resumo(im: Record<string, any>, extra: { midias: any[]; autorizacoes: a
   return { qualidade, autorizacao_vigente: vigente, publicavel, fotos_publicas: fotosPublicas };
 }
 
+/** Anunciável (spec 6.3): situação ativa ou reservada e autorização de venda assinada e vigente. Mesma regra da seleção da conversa. */
+export async function imovelAnunciavel(req: Request, im: Record<string, any>): Promise<boolean> {
+  if (!SITUACOES_ANUNCIADAS.includes(im.situacao)) return false;
+  const auts = await req.dados!.listar('autorizacoes_venda', { filtros: { imovel_id: im.id, situacao: 'assinada' }, por_pagina: 50 });
+  return auts.dados.some((a) => autorizacaoVigente(a as Autorizacao, hoje(req)));
+}
+
 /** Conteúdo devolvido pela extração (texto JSON ou objeto); `null` se não for um objeto. */
 function lerObjeto(conteudo: unknown): Record<string, unknown> | null {
   let v = conteudo;
@@ -353,6 +360,7 @@ imoveisRotas.get(
         negocios: negocios.total,
       },
       combinam,
+      anunciavel: await imovelAnunciavel(req, imovel),
     });
   }),
 );
