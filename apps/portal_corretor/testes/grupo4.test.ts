@@ -193,6 +193,75 @@ test('D-132: o chat mostra as 40 mais recentes, da mais antiga para a mais nova'
   assert.deepEqual(textos, Array.from({ length: 40 }, (_, k) => `m${k + 6}`));
 });
 
+test('D-132: o "Detalhe" do Registrar envio é anotação: fica na P02 e nunca vai ao chat do portal', async () => {
+  const { banco, h, ana } = await cenarioDaAna();
+  const item = banco.linhas('selecao_itens')[0];
+  const casa = banco.linhas('imoveis').find((i) => i.id === item.imovel_id)!;
+  await comServidor(rotas, A({ arquivos: h.arquivos }), banco, h.shell, async (chamar) => {
+    // Imóvel pelo WhatsApp com anotação: o cartão vai ao chat, a anotação não.
+    assert.equal((await chamar('POST', '/envios', { contato_id: ana.id, tipo: 'imovel', canal: 'whatsapp', imovel_id: casa.id, descricao: 'Nota: ela achou caro' })).status, 201);
+    // Mensagem, arquivo e localização registrados pelo WhatsApp: só anotação, nada entra.
+    for (const [tipo, descricao] of [['mensagem', 'Nota: mandei o áudio'], ['arquivo', 'Nota: planta em PDF'], ['localizacao', 'Nota: pino do condomínio']]) {
+      assert.equal((await chamar('POST', '/envios', { contato_id: ana.id, tipo, canal: 'whatsapp', descricao })).status, 201);
+    }
+    // Canal fora do conjunto escrito (e-mail vira `registro`): nem cartão nem texto.
+    assert.equal((await chamar('POST', '/envios', { contato_id: ana.id, tipo: 'imovel', canal: 'email', imovel_id: casa.id, descricao: 'Nota: por e-mail' })).status, 201);
+  });
+  // A P02 do corretor continua mostrando cada anotação.
+  for (const nota of ['Nota: ela achou caro', 'Nota: mandei o áudio', 'Nota: planta em PDF', 'Nota: pino do condomínio', 'Nota: por e-mail']) {
+    assert.ok(banco.linhas('mensagens').some((m) => m.conteudo === nota && m.direcao === 'saida'), nota);
+  }
+  assert.equal(banco.linhas('mensagens').find((m) => m.conteudo === 'Nota: por e-mail')!.canal, 'registro');
+  // Linha gravada antes da marca `envio_id` (só o cartão do envio, com a chave `link`) também é reconhecida.
+  await registrarMensagem(banco.dados(100), { contato_id: ana.id, direcao: 'saida', autor_tipo: 'humano', autor_id: 1, canal: 'wa_me', tipo: 'texto', conteudo: 'Nota antiga', dados: { titulo: 'Nota antiga', link: null } });
+  // Saída de sistema por canal escrito também fica fora.
+  await registrarMensagem(banco.dados(100), { contato_id: ana.id, direcao: 'saida', autor_tipo: 'sistema', canal: 'wa_me', tipo: 'texto', conteudo: 'Aviso automático' });
+  await reagir.acao_cliente_recebida({ conta_id: 100, payload: { contato_id: ana.id, tipo: 'mensagem', texto: 'Recebi' } }, banco.ctxSistema(SISTEMA));
+  const conversa = portalDe(banco, ana.id).conversa;
+  const chat = JSON.stringify(conversa);
+  assert.ok(!/Nota|Aviso automático/.test(chat), chat);
+  const cartoes = conversa.filter((m: any) => m.tipo === 'imovel');
+  assert.equal(cartoes.length, 1, 'só o cartão do WhatsApp');
+  assert.deepEqual(cartoes[0], { ref: cartoes[0].ref, de: 'corretor', tipo: 'imovel', em: cartoes[0].em, texto: null, imovel: { codigo: casa.codigo, titulo: casa.titulo ?? null, bairro: casa.bairro ?? null, preco_c: casa.preco_c ?? null } });
+  // Cartão de seleção também sem texto livre ao lado: só título e quantidade.
+  const selecao = conversa.find((m: any) => m.tipo === 'selecao');
+  assert.equal(selecao.texto, null);
+  assert.deepEqual(Object.keys(selecao.selecao).sort(), ['quantidade', 'titulo']);
+  assert.equal(conversa.at(-1).texto, 'Recebi');
+});
+
+test('D-132: com mais de 80 excluídas entre as recentes, o chat ainda mostra as 40 visíveis mais recentes, lendo em páginas', async () => {
+  const { banco, ana } = await cenarioDaAna();
+  const dados = banco.dados(100);
+  const base = Date.now() + 3600e3;
+  for (let i = 1; i <= 45; i++) {
+    await registrarMensagem(dados, { contato_id: ana.id, direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'texto', conteudo: `m${i}`, em: new Date(base + i * 60e3).toISOString() });
+  }
+  // 100 excluídas mais recentes que todas, em canal escrito (o filtro do banco não as tira): saída de sistema,
+  // link do portal, envio que falhou e anotação de envio.
+  for (let i = 0; i < 100; i++) {
+    const em = new Date(base + 3600e3 + i * 1000).toISOString();
+    const tipo = i % 4;
+    const r = await registrarMensagem(dados, {
+      contato_id: ana.id, direcao: 'saida', autor_tipo: tipo === 0 ? 'sistema' : 'humano', autor_id: tipo === 0 ? null : 1, canal: 'wa_me',
+      tipo: tipo === 1 ? 'link_portal' : 'texto', conteudo: `x${i}`, dados: tipo === 3 ? { envio_id: 9000 + i, titulo: `x${i}`, link: null } : null, em,
+    });
+    if (tipo === 2) await dados.atualizar('mensagens', r.mensagem.id, { status: 'falhou' });
+  }
+  // A leitura é paginada (nunca a conversa inteira de uma vez) e o canal já vai no filtro.
+  const leituras: any[] = [];
+  const ctx = banco.ctxSistema(SISTEMA);
+  const original = ctx.dados.comConta;
+  ctx.dados.comConta = (id: number, fn: (trx: any) => Promise<unknown>) =>
+    original(id, (trx: any) => fn({ ...trx, listar: (t: string, op: any) => (t === 'mensagens' && op.ordenar === 'em' && leituras.push(op), trx.listar(t, op)) }));
+  // A mensagem que dispara a sincronização é de agora, mais antiga que as do teste (gravadas uma hora à frente).
+  await reagir.acao_cliente_recebida({ conta_id: 100, payload: { contato_id: ana.id, tipo: 'mensagem', texto: 'agora' } }, ctx);
+  const textos = portalDe(banco, ana.id).conversa.map((m: any) => m.texto);
+  assert.equal(textos.length, 40);
+  assert.deepEqual(textos, Array.from({ length: 40 }, (_, k) => `m${k + 6}`));
+  assert.ok(leituras.length >= 2 && leituras.every((op) => op.por_pagina <= 120 && op.filtros.canal === 'portal,whatsapp,wa_me'), JSON.stringify(leituras.map((l) => [l.pagina, l.por_pagina])));
+});
+
 test('D-132: falha do banco na sincronização do portal sobe dentro da transação do listener e fica no log na rota', async () => {
   const erroSql = Object.assign(new Error('relation does not exist'), { code: '42P01' });
   const dadosQueFalham: any = { listar: async () => { throw erroSql; }, varrerTudo: async () => { throw erroSql; }, buscar: async () => { throw erroSql; } };

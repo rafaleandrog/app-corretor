@@ -58,7 +58,8 @@ test('corretor: nova conversa, texto pelo WhatsApp do celular, envio de imóvel 
     assert.equal(e.status, 201);
     const detalhe = (await chamar('GET', `/conversas/${cid}`)).corpo;
     assert.deepEqual(detalhe.mensagens.map((m: { tipo: string; direcao: string }) => [m.tipo, m.direcao]), [['texto', 'saida'], ['imovel', 'saida']]);
-    assert.deepEqual(Object.keys(detalhe.mensagens[1].dados).sort(), ['bairro', 'codigo', 'imovel_id', 'link', 'preco_c', 'titulo']);
+    // `envio_id` marca o cartão do Registrar envio: o chat do portal deixa a anotação de fora (D-132).
+    assert.deepEqual(Object.keys(detalhe.mensagens[1].dados).sort(), ['bairro', 'codigo', 'envio_id', 'imovel_id', 'link', 'preco_c', 'titulo']);
     assert.equal(detalhe.contato.nome, 'Ana Ribeiro');
     assert.equal(detalhe.whatsapp.conectado, false, 'sem o WhatsApp do app, a tela mostra a faixa');
     assert.equal(detalhe.negociacao, null);

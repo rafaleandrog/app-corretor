@@ -273,32 +273,72 @@ export const ehAvisoInterno = (m: Linha) =>
   ((m.dados ?? {}) as Linha).aviso === MARCA_AVISO_OFERTA || (m.direcao === 'entrada' && TEXTO_AVISO_OFERTA.test(String(m.conteudo ?? '')));
 
 /**
+ * A mensagem veio do "Registrar envio" (`envios.ts`)? Lá o corretor anota o que mandou pelo próprio
+ * WhatsApp, e o `conteudo` (o "Detalhe") é essa anotação, não o texto que chegou ao cliente. Marcada
+ * por `dados.envio_id`; as gravadas antes da marca, pela forma do cartão do envio (a chave `link` em
+ * `dados`, presente mesmo nula), que nenhuma outra saída do corretor de texto, arquivo, localização ou
+ * imóvel leva.
+ */
+export const veioDeEnvio = (m: Linha) => {
+  const d = (m.dados ?? {}) as Linha;
+  if (m.direcao !== 'saida' || m.autor_tipo !== 'humano') return false;
+  return d.envio_id != null || (m.tipo !== 'selecao' && m.tipo !== 'link_portal' && 'link' in d);
+};
+
+/** A mensagem pode aparecer no chat do portal (D-132)? */
+const visivelNoPortal = (m: Linha) =>
+  ((m.direcao === 'entrada' && m.autor_tipo === 'contato') || (m.direcao === 'saida' && m.autor_tipo !== 'sistema')) &&
+  CANAIS_ESCRITOS.has(String(m.canal)) &&
+  m.status !== 'falhou' &&
+  m.tipo !== 'sistema' &&
+  m.tipo !== 'link_portal' &&
+  !ehAvisoInterno(m) &&
+  // Do envio registrado só o cartão do imóvel foi ao cliente; o resto é anotação (arquivo, localização, mensagem, simulação).
+  (!veioDeEnvio(m) || m.tipo === 'imovel');
+
+/** Linhas lidas por página ao montar o chat: a primeira quase sempre basta. */
+const LEITURA_DO_PORTAL = MENSAGENS_NO_PORTAL * 3;
+
+/**
  * A conversa do cliente no portal (M4, #191; exceção da vitrine decidida na D-132): só o que o cliente
  * escreveu e o que lhe foi entregue por escrito. Entra a mensagem que é:
  * - de entrada com autor `contato`, ou de saída (corretor, Negociador ou atendimento automático);
  * - por um canal escrito (`portal`, `whatsapp`, `wa_me`): o `registro` é anotação do corretor, não entrega;
  * - sem falha de envio (`status` diferente de `falhou`);
  * - não é aviso: nem `tipo`/`autor_tipo` `sistema`, nem o recado interno da oferta implausível
- *   (`ehAvisoInterno`), nem o próprio link do portal (`link_portal`).
- * Das que passam, as 40 mais recentes, da mais antiga para a mais nova. O cartão de imóvel leva só o
- * que já foi ao cliente (código, título, bairro, preço), nunca o link rastreado nem o id interno do
- * imóvel; o da seleção, só título e quantidade.
+ *   (`ehAvisoInterno`), nem o próprio link do portal (`link_portal`);
+ * - não é anotação do "Registrar envio" (`veioDeEnvio`): dele só entra o cartão do imóvel.
+ * Das que passam, as 40 mais recentes, da mais antiga para a mais nova: lê em páginas, da mais nova para
+ * a mais antiga, e para quando junta 40 ou a conversa acaba (o canal já vai no filtro do banco). Cartão
+ * nunca leva texto livre: o de imóvel só código, título, bairro e preço (nem o link rastreado nem o id
+ * interno do imóvel), o da seleção só título e quantidade; o `conteudo` gravado com eles fica na P02.
  */
 export async function conversaDoPortal(dados: HelperDados, conta: number, contatoId: number) {
-  // Lê mais que 40 porque parte das recentes pode ficar de fora pelo filtro.
-  const r = await dados.listar('mensagens', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'em', ordem: 'desc', por_pagina: MENSAGENS_NO_PORTAL * 3 });
-  return r.dados
-    .filter((m) => (m.direcao === 'entrada' && m.autor_tipo === 'contato') || (m.direcao === 'saida' && m.autor_tipo !== 'sistema'))
-    .filter((m) => CANAIS_ESCRITOS.has(String(m.canal)) && m.status !== 'falhou')
-    .filter((m) => m.tipo !== 'sistema' && m.tipo !== 'link_portal' && !ehAvisoInterno(m))
+  const vistas = new Set<number>();
+  const visiveis: Linha[] = [];
+  for (let pagina = 1; visiveis.length < MENSAGENS_NO_PORTAL; pagina++) {
+    const r = await dados.listar('mensagens', {
+      filtros: { conta_id: conta, contato_id: contatoId, canal: [...CANAIS_ESCRITOS].join(',') },
+      ordenar: 'em', ordem: 'desc', pagina, por_pagina: LEITURA_DO_PORTAL,
+    });
+    for (const m of r.dados) {
+      // Mensagem nova entre duas páginas empurra a anterior para a página seguinte: não conta duas vezes.
+      if (vistas.has(Number(m.id))) continue;
+      vistas.add(Number(m.id));
+      if (visivelNoPortal(m)) visiveis.push(m);
+    }
+    if (r.dados.length < LEITURA_DO_PORTAL) break;
+  }
+  return visiveis
+    .sort((a, b) => String(iso(b.em)).localeCompare(String(iso(a.em))))
     .slice(0, MENSAGENS_NO_PORTAL)
     .reverse()
     .map((m) => {
       const d = (m.dados ?? {}) as Linha;
-      const base = { ref: Number(m.id), de: m.direcao === 'entrada' ? 'voce' : 'corretor', tipo: m.tipo as string, em: iso(m.em), texto: m.conteudo ?? null };
-      if (m.tipo === 'imovel') return { ...base, imovel: { codigo: d.codigo ?? null, titulo: d.titulo ?? null, bairro: d.bairro ?? null, preco_c: d.preco_c ?? null } };
-      if (m.tipo === 'selecao') return { ...base, selecao: { titulo: d.titulo ?? m.conteudo ?? null, quantidade: Number(d.quantidade) || null } };
-      return base;
+      const base = { ref: Number(m.id), de: m.direcao === 'entrada' ? 'voce' : 'corretor', tipo: m.tipo as string, em: iso(m.em) };
+      if (m.tipo === 'imovel') return { ...base, texto: null, imovel: { codigo: d.codigo ?? null, titulo: d.titulo ?? null, bairro: d.bairro ?? null, preco_c: d.preco_c ?? null } };
+      if (m.tipo === 'selecao') return { ...base, texto: null, selecao: { titulo: d.titulo ?? m.conteudo ?? null, quantidade: Number(d.quantidade) || null } };
+      return { ...base, texto: m.conteudo ?? null };
     });
 }
 

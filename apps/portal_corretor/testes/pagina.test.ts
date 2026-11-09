@@ -519,14 +519,24 @@ test('lead de contato com muitos pedidos antigos: a leitura da duplicata é só 
   for (let i = 0; i < 80; i++) {
     banco.linhas('linha_do_tempo').push({ id: 50000 + i, conta_id: 100, tipo: 'lead.recebido', contato_id: anaId, resumo: 'antigo', dados: { mensagem: null, imovel_codigo: null }, ocorrido_em: velho } as any);
   }
-  // Espia as leituras da linha do tempo: `maximo` lança (não corta), então a janela tem de ir no filtro.
+  // Espia as leituras da linha do tempo e faz o `varrerTudo` lançar como o real quando passa do `maximo`
+  // (banco-de-dados.md: lança, não corta): sem a janela no filtro, os 80 antigos estouram o teto e o lead cai.
   const leituras: Record<string, unknown>[] = [];
   const original = ctx.dados.comConta;
   ctx.dados.comConta = (id: number, fn: (trx: any) => Promise<unknown>) =>
-    original(id, (trx: any) => fn({ ...trx, varrerTudo: (t: string, op: any) => (t === 'linha_do_tempo' && leituras.push(op.filtros), trx.varrerTudo(t, op)) }));
+    original(id, (trx: any) => fn({
+      ...trx,
+      varrerTudo: async (t: string, op: any = {}) => {
+        if (t === 'linha_do_tempo') leituras.push({ ...op.filtros, maximo: op.maximo });
+        const r = await trx.varrerTudo(t, op);
+        if (r.length > (op.maximo ?? 100_000)) throw new Error(`maximo estourado em ${t}: ${r.length}`);
+        return r;
+      },
+    }));
   await reagir.lead_recebido(evento, ctx);
   assert.equal(pedidos().length, 81, 'o pedido novo entra apesar dos antigos idênticos');
   assert.ok(leituras.length > 0 && leituras.every((f) => 'ocorrido_em[gte]' in f), 'a leitura de duplicata filtra por data');
+  assert.ok(leituras.every((f) => typeof f.maximo === 'number' && f.maximo < 81), 'o teto é menor que os pedidos antigos: sem a janela, estouraria');
 });
 
 test('lead repetido deduplica só com mesma mensagem E mesmo imóvel; imóveis diferentes sem mensagem não se perdem', async () => {

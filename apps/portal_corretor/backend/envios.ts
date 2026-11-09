@@ -62,10 +62,13 @@ enviosRotas.post(
     // Link rastreado só quando o imóvel está na página pública; sem ele, a mensagem segue sem link.
     const link = imovel ? await criarLink(req, codigoLink, imovel.id).catch(() => null) : null;
     // O envio entra na conversa do cliente (P02, D-116) como mensagem de saída, com o cartão que o cliente vê.
+    // O `conteudo` é o "Detalhe" que o corretor anotou (ele mandou pelo próprio WhatsApp): aparece a ele na P02,
+    // mas não é texto entregue. A marca `envio_id` tira a anotação do chat do portal (D-132, `veioDeEnvio`):
+    // ali só entra o cartão do imóvel, sem texto.
     const tipoMensagem = tipo === 'mensagem' || tipo === 'simulacao' ? 'texto' : tipo;
     const cartao = imovel
-      ? { imovel_id: imovel.id, codigo: imovel.codigo, titulo: imovel.titulo ?? null, bairro: imovel.bairro ?? null, preco_c: imovel.preco_c ?? null, link }
-      : { titulo: descricao, link };
+      ? { envio_id: Number(envio.id), imovel_id: imovel.id, codigo: imovel.codigo, titulo: imovel.titulo ?? null, bairro: imovel.bairro ?? null, preco_c: imovel.preco_c ?? null, link }
+      : { envio_id: Number(envio.id), titulo: descricao, link };
     const naConversa = await registrarMensagem(dados, {
       contato_id: cid!, direcao: 'saida', autor_tipo: 'humano', autor_id: req.contexto!.usuario.id, canal: canal === 'whatsapp' ? 'wa_me' : 'registro',
       tipo: tipoMensagem as 'texto' | 'imovel' | 'arquivo' | 'localizacao', conteudo: descricao, dados: cartao, em: agora,
