@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, data, dataHora, enviar, gesto, mensagemDeErro } from '../apoio';
+import { chamarApi, data, dataHora, enviar, formularioQueSalva, gesto, mensagemDeErro } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -131,22 +131,32 @@ export class PcSelecoesCliente extends LitElement {
       { nome: 'mensagem', tipo: 'texto_longo', rotulo: 'Mensagem (opcional)', placeholder: 'Separei estes imóveis pelo que conversamos.' },
       ...anunciaveis.map((i): CampoFormulario => ({ nome: `im_${i.id}`, tipo: 'booleano', rotulo: `${i.codigo} · ${i.titulo ?? i.tipo}${i.bairro ? ` · ${i.bairro}` : ''}` })),
     ];
-    const v = await this.vida.esperar(urbiVerso.formulario({ titulo: 'Nova seleção', campos, mensagem: `Escolha até ${MAX_ITENS} imóveis. O cliente abre pelo link, sem login, e diz o que achou de cada um.`, rotuloConfirmar: 'Criar e enviar' }));
-    if (!v) return;
-    const ids = Object.entries(v).filter(([k, x]) => k.startsWith('im_') && x === true).map(([k]) => Number(k.slice(3)));
-    if (!ids.length || ids.length > MAX_ITENS) {
-      await urbiVerso.alertar({ titulo: 'Confira os imóveis', mensagem: `Escolha de 1 a ${MAX_ITENS} imóveis.`, tipo: 'alerta' });
-      return;
-    }
     this.ocupado = true;
     try {
-      const r = await this.vida.esperar(enviar('POST', '/selecoes', { contato_id: this.contatoId, titulo: v.titulo, mensagem: v.mensagem, imovel_ids: ids }));
+      // Recusado (#187), pelo servidor ou pela conta de imóveis: o formulário reabre com o título, a
+      // mensagem e os imóveis marcados, e a frase do erro.
+      let ids: number[] = [];
+      const r = await formularioQueSalva({
+        titulo: 'Nova seleção',
+        campos,
+        mensagem: `Escolha até ${MAX_ITENS} imóveis. O cliente abre pelo link, sem login, e diz o que achou de cada um.`,
+        rotuloConfirmar: 'Criar e enviar',
+        gesto: this.vida,
+        aviso: null,
+        salvar: (v) => {
+          ids = Object.entries(v).filter(([k, x]) => k.startsWith('im_') && x === true).map(([k]) => Number(k.slice(3)));
+          if (!ids.length || ids.length > MAX_ITENS) throw new Error(`Escolha de 1 a ${MAX_ITENS} imóveis.`);
+          return enviar('POST', '/selecoes', { contato_id: this.contatoId, titulo: v.titulo, mensagem: v.mensagem, imovel_ids: ids });
+        },
+      });
+      if (!r || !this.vida.vivo()) return;
       await this.reler();
       this.mudou();
       await this.copiar(this.mensagemSelecao(r.link, ids.length), 'Seleção criada. A mensagem com o link foi copiada: é só colar no WhatsApp.');
     } catch (e) {
+      // A seleção já foi criada: a falha aqui é da releitura, e o formulário não volta.
       if (this.vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível criar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      await urbiVerso.alertar({ titulo: 'Não foi possível atualizar a lista', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       if (this.vida.vivo()) this.ocupado = false;
     }
@@ -218,20 +228,23 @@ export class PcSelecoesCliente extends LitElement {
   }
 
   private async novaTarefaNaConta() {
-    const v = await this.vida.esperar(urbiVerso.formulario({
+    // Recusado (#187): o formulário reabre com o texto e a frase do erro.
+    const r = await formularioQueSalva({
       titulo: 'Pedir ao cliente',
       mensagem: 'Aparece no portal em "O que falta de você". Quando o cliente marcar como feito, você vê aqui e na linha do tempo.',
       campos: [{ nome: 'texto', tipo: 'texto', rotulo: 'O que falta', obrigatorio: true, placeholder: 'Ex.: enviar a documentação' }],
       rotuloConfirmar: 'Pedir',
-    }));
-    if (!v) return;
+      gesto: this.vida,
+      aviso: null,
+      salvar: (v) => enviar('POST', `/contatos/${this.contatoId}/tarefas-cliente`, { texto: v.texto }),
+    });
+    if (!r || !this.vida.vivo()) return;
     try {
-      await this.vida.esperar(enviar('POST', `/contatos/${this.contatoId}/tarefas-cliente`, { texto: v.texto }));
       await this.reler();
       this.mudou();
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível pedir', mensagem: mensagemDeErro(e), tipo: 'erro' });
+      await urbiVerso.alertar({ titulo: 'Não foi possível atualizar a lista', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 

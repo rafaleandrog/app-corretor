@@ -381,7 +381,9 @@ test('telas do grupo 2: sem CSS próprio, sem `pequeno`, sem chamada direta; chi
   assert.match(clientes, /placeholder="Buscar nome ou telefone"/);
   assert.match(clientes, /formatarTelefone\(c\.telefone\)/);
   assert.match(clientes, /Mostrar mais/);
-  assert.match(clientes, /rotuloConfirmar: `Abrir \$\{nome\}`/, 'a duplicata oferece abrir o contato (#187)');
+  // A duplicata oferece abrir o contato (#187): o laço compartilhado de apoio.ts, com a duplicata do contato.
+  assert.match(clientes, /duplicata: duplicataDeContato\(abrir\)/, 'o Novo cliente usa a duplicata do contato (#187)');
+  assert.match(raiz('frontend/apoio.ts'), /rotuloConfirmar: `Abrir \$\{nome\}`/, 'a duplicata oferece abrir o contato (#187)');
   const quadro = raiz('frontend/telas/clientes-quadro.ts');
   assert.match(quadro, /\{ id: 'todas', rotulo: 'Todas' \}, \.\.\.FILTROS_PRONTOS/);
   assert.doesNotMatch(quadro, /urbi-select/, 'sem select na esquerda do Funil');

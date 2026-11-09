@@ -1,7 +1,7 @@
 import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
-import { chamarApi, gesto, mensagemDeErro } from '../apoio.js';
+import { chamarApi, ehContaTrocada, formularioQueSalva, gesto, mensagemDeErro } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -116,7 +116,10 @@ export class PcTelaCorretores extends LitElement {
 
   private convidar() {
     return this.semAvisoDeOutraConta(async () => {
-      const valores = await this.vida.esperar(urbiVerso.formulario<{ email: string; conta: string }>({
+      // Recusado (#187): o formulário reabre com o e-mail e o nome da conta, e a frase do erro. Sem o papel de
+      // equipe, convidar não tem como dar certo: a tela mostra o aviso fixo e o formulário não volta.
+      let semPapel = false;
+      const r = await formularioQueSalva({
         titulo: 'Convidar corretor',
         mensagem: 'O corretor recebe um e-mail para criar a senha. A conta dele nasce quando ele aceitar.',
         rotuloConfirmar: 'Enviar convite',
@@ -124,21 +127,27 @@ export class PcTelaCorretores extends LitElement {
           { nome: 'email', tipo: 'texto', rotulo: 'E-mail do corretor', obrigatorio: true, placeholder: 'nome@exemplo.com' },
           { nome: 'conta', tipo: 'texto', rotulo: 'Nome da conta', obrigatorio: true, placeholder: 'Ex.: Marina Souza Imóveis' },
         ],
-      }));
-      if (!valores) return;
-      try {
-        const r = await this.vida.esperar(chamarApi('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } }));
-        if (r?.aviso) await this.vida.esperar(urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' }));
-        else urbiVerso.notificar('Convite enviado.', 'sucesso');
-        await this.carregar();
-      } catch (e) {
-        if (this.vida.encerrado(e)) throw e;
-        if (semPapelDeEquipe(e)) {
-          this.semPapelDeEquipe = true;
-          return;
-        }
-        await urbiVerso.alertar({ titulo: 'Convite não enviado', mensagem: mensagemDeErro(e) });
+        gesto: this.vida,
+        aviso: null,
+        salvar: async (valores) => {
+          try {
+            return await chamarApi('/equipe/convites', { method: 'POST', body: JSON.stringify(valores), headers: { 'Content-Type': 'application/json' } });
+          } catch (e) {
+            if (ehContaTrocada(e) || !semPapelDeEquipe(e)) throw e;
+            semPapel = true;
+            return null;
+          }
+        },
+      });
+      if (!this.vida.vivo()) return;
+      if (semPapel) {
+        this.semPapelDeEquipe = true;
+        return;
       }
+      if (!r) return;
+      if (r.aviso) await this.vida.esperar(urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' }));
+      else urbiVerso.notificar('Convite enviado.', 'sucesso');
+      await this.carregar();
     });
   }
 

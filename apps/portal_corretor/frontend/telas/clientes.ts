@@ -10,9 +10,11 @@ import {
   chamarApi,
   chip,
   dataHora,
+  duplicataDeContato,
   enviar,
   filtrosDaUrl,
   filtrosNaUrl,
+  formularioQueSalva,
   gesto,
   itemNaUrl,
   mensagemDeErro,
@@ -211,39 +213,14 @@ function camposDoContato(v: Record<string, unknown>): CampoFormulario[] {
  * duplicata de telefone, **Abrir <nome>** abre o contato que já tem o número. (O `urbiVerso.formulario`
  * fecha ao confirmar e não mostra erro por campo: a mensagem vai no topo do diálogo.)
  */
-async function novoContato(abrir: (id: number) => void): Promise<Record<string, any> | null> {
-  const g = gesto();
-  let valores: Record<string, unknown> = {};
-  let mensagem: string | undefined;
-  try {
-    for (;;) {
-      const v = await g.esperar(urbiVerso.formulario({ titulo: 'Novo cliente', mensagem, campos: camposDoContato(valores), rotuloConfirmar: 'Salvar' }));
-      if (!v) return null;
-      valores = v;
-      try {
-        const r = await g.esperar(enviar('POST', '/contatos', v));
-        urbiVerso.notificar('Salvo.', 'sucesso');
-        return r ?? {};
-      } catch (e) {
-        if (g.encerrado(e)) return null;
-        const falha = e as Error & { codigo?: string; detalhes?: string[] };
-        const existente = falha.codigo === 'DUPLICATA' && falha.detalhes?.[0] ? Number(falha.detalhes[0]) : null;
-        if (existente) {
-          const nome = /telefone: (.+)\.$/.exec(falha.message)?.[1] ?? 'o contato';
-          const abrirExistente = await g.esperar(urbiVerso.confirmar({ titulo: 'Telefone já cadastrado', mensagem: `${falha.message} Abrir a ficha dele ou corrigir o cadastro?`, rotuloConfirmar: `Abrir ${nome}`, rotuloCancelar: 'Corrigir' }));
-          if (abrirExistente) {
-            abrir(existente);
-            return null;
-          }
-        }
-        mensagem = `Não foi possível salvar: ${mensagemDeErro(e)} Confira e tente de novo.`;
-      }
-    }
-  } catch (e) {
-    if (g.encerrado(e)) return null;
-    await urbiVerso.alertar({ titulo: 'Não foi possível abrir o formulário', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    return null;
-  }
+function novoContato(abrir: (id: number) => void): Promise<Record<string, any> | null> {
+  return formularioQueSalva({
+    titulo: 'Novo cliente',
+    campos: camposDoContato,
+    rotuloConfirmar: 'Salvar',
+    salvar: (v) => enviar('POST', '/contatos', v),
+    duplicata: duplicataDeContato(abrir),
+  });
 }
 
 /** Topo da coluna esquerda de Clientes (P03 e P04, D-128): o cabeçalho comum com Importar e Novo, e as visões. */

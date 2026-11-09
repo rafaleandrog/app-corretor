@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { numeroEmTexto, reaisEmTexto, secaoDaFalta } from '../../comum/imoveis';
-import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, gesto, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
+import { acoesComMais, chamarApi, corQualidade, data, dataHora, enviar, formularioEnviar, formularioQueSalva, gesto, mensagemDeErro, opcoes, reais, ROTULO_AMBIENTE, ROTULO_TIPO_IMOVEL, ROTULO_TIPO_MIDIA, SITUACAO_IMOVEL, subirArquivo, type Acao } from '../apoio.js';
 import { filtrosDaUrl, filtrosNaUrl } from '../visual.js';
 import { irParaComQuery } from '../criar.js';
 import { autorizacaoAberta, comAtual, marcarAssinada, registrarAutorizacao, SITUACAO_AUTORIZACAO } from './autorizacao-venda.js';
@@ -338,12 +338,16 @@ export class PcTelaFichaImovel extends LitElement {
   private situacao() {
     return this.semAvisoDeOutraConta(async () => {
       const im = this.ficha!.imovel;
-      const v = await this.vida.esperar(urbiVerso.formulario({
+      // Recusado (#187: sem autorização vigente, por exemplo): reabre com a escolha e a frase do erro.
+      const r = await formularioQueSalva({
         titulo: 'Situação do imóvel',
         mensagem: 'Ativo e reservado pedem autorização de venda assinada e vigente.',
         campos: [{ nome: 'situacao', tipo: 'selecao', rotulo: 'Situação', valor: im.situacao, opcoes: Object.entries(SITUACAO_IMOVEL).map(([valor, s]) => ({ valor, rotulo: s.rotulo })) }],
-      }));
-      if (v) await this.tentar('Não foi possível mudar a situação', () => enviar('PATCH', `/imoveis/${this.imovelId}`, { situacao: v.situacao }));
+        gesto: this.vida,
+        aviso: null,
+        salvar: (v) => enviar('PATCH', `/imoveis/${this.imovelId}`, { situacao: v.situacao }),
+      });
+      if (r && this.vida.vivo()) await this.carregar();
     });
   }
 

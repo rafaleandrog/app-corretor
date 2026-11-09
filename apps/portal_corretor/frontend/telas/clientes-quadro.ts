@@ -5,7 +5,7 @@ import type { Gesto } from '../apoio.js';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { FILTROS_PRONTOS, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
-import { chamarApi, chip, contaDeTrabalho, ehContaTrocada, enviar, filtrosDaUrl, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA, lerPreparandoFunil } from '../apoio.js';
+import { chamarApi, chip, contaDeTrabalho, ehContaTrocada, enviar, filtrosDaUrl, formularioQueSalva, gesto, noGesto, filtrosNaUrl, mensagemDeErro, opcoes, reais, ROTULO_MOTIVO_PERDA, lerPreparandoFunil } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -181,18 +181,22 @@ export class PcClientesQuadro extends LitElement {
     if (!g.vivo() || !this.quadro) return;
     const etapa = this.quadro.etapas.find((x) => String(x.id) === String(listaDestino));
     if (!etapa) return;
-    let motivo: string | undefined;
     if (etapa.tipo === 'perdida') {
-      const v = await g.esperar(urbiVerso.formulario({
+      // Recusado (#187): o formulário reabre com o motivo escolhido e a frase do erro. Sem motivo (cancelou)
+      // nada é gravado: o cartão volta para onde estava.
+      await formularioQueSalva({
         titulo: 'Por que perdeu?',
         campos: [{ nome: 'motivo', tipo: 'selecao', rotulo: 'Motivo', obrigatorio: true, opcoes: opcoes(ROTULO_MOTIVO_PERDA) }],
         rotuloConfirmar: 'Marcar como perdido',
-      }));
-      if (!v) return void this.carregar(); // sem motivo nada é gravado: o cartão volta para onde estava
-      motivo = String(v.motivo);
+        gesto: g,
+        aviso: null,
+        salvar: (v) => enviar('PATCH', `/negocios/${item.id}`, { etapa_id: etapa.id, motivo_perda: String(v.motivo) }),
+      });
+      if (!g.vivo()) return;
+      return void this.carregar();
     }
     try {
-      const r = await g.esperar(enviar('PATCH', `/negocios/${item.id}`, { etapa_id: etapa.id, motivo_perda: motivo }));
+      const r = await g.esperar(enviar('PATCH', `/negocios/${item.id}`, { etapa_id: etapa.id }));
       // Mover para Proposta: com mandato, o Negociador entra conforme a configuração (`entrarPelaEtapaProposta`); a tela avisa.
       const aviso = avisoDeEntrada(r?.negociador_entrou);
       if (aviso) urbiVerso.notificar(aviso, 'info');

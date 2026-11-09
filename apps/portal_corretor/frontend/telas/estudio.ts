@@ -31,11 +31,13 @@ import {
   enviar,
   filtrosDaUrl,
   filtrosNaUrl,
+  formularioQueSalva,
   juntarDataHora,
   mensagemDeErro,
   pedidoDeCriar,
   subirArquivo,
   type Acao,
+  type Gesto,
 } from '../apoio.js';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { cabecalhoColuna, moldura } from '../moldura.js';
@@ -255,6 +257,15 @@ export class Estudio {
     }
     if (!this.vivo) throw new InstanciaEncerrada();
     return r;
+  }
+
+  /** A instância como gesto (`formularioQueSalva`): morta no meio, o formulário termina em silêncio. */
+  private comoGesto(): Gesto {
+    return {
+      vivo: () => this.vivo,
+      esperar: (passo) => this.esperar(Promise.resolve(passo)),
+      encerrado: (e) => e instanceof InstanciaEncerrada || ehContaTrocada(e) || !this.vivo,
+    };
   }
 
   /** Quem dispara e não espera (clique, menu): a operação encerrada ou cancelada termina em silêncio. */
@@ -574,21 +585,23 @@ export class Estudio {
   // ---------- Ações da peça ----------
 
   private async editar(p: Peca) {
-    const v = await this.esperar(
-      urbiVerso.formulario({
-        titulo: 'Textos da peça',
-        campos: [
-          { nome: 'titulo', tipo: 'texto', rotulo: 'Título', obrigatorio: true, valor: p.titulo },
-          { nome: 'chamada', tipo: 'texto', rotulo: 'Chamada', valor: p.chamada ?? '' },
-          { nome: 'destaques', tipo: 'texto', rotulo: 'Destaques (separados por vírgula, até 4)', valor: (p.destaques ?? []).join(', ') },
-          { nome: 'legenda', tipo: 'texto_longo', rotulo: 'Legenda', valor: p.legenda ?? '' },
-          { nome: 'hashtags', tipo: 'texto', rotulo: 'Hashtags', valor: p.hashtags ?? '' },
-        ],
-        mensagem: 'Mudou o título, a chamada ou os destaques? A descrição muda junto: copie de novo e refaça a arte no Canva.',
-      }),
-    );
-    if (!v) return;
-    await this.acao(() => enviar('PATCH', `/estudio/pecas/${p.id}`, { ...v, destaques: String(v.destaques ?? '').split(',').map((d) => d.trim()).filter(Boolean) }), 'Textos salvos.');
+    // Recusado (#187): o formulário reabre com os textos digitados e a frase do erro.
+    const r = await formularioQueSalva<{ avisos?: string[] }>({
+      titulo: 'Textos da peça',
+      campos: [
+        { nome: 'titulo', tipo: 'texto', rotulo: 'Título', obrigatorio: true, valor: p.titulo },
+        { nome: 'chamada', tipo: 'texto', rotulo: 'Chamada', valor: p.chamada ?? '' },
+        { nome: 'destaques', tipo: 'texto', rotulo: 'Destaques (separados por vírgula, até 4)', valor: (p.destaques ?? []).join(', ') },
+        { nome: 'legenda', tipo: 'texto_longo', rotulo: 'Legenda', valor: p.legenda ?? '' },
+        { nome: 'hashtags', tipo: 'texto', rotulo: 'Hashtags', valor: p.hashtags ?? '' },
+      ],
+      mensagem: 'Mudou o título, a chamada ou os destaques? A descrição muda junto: copie de novo e refaça a arte no Canva.',
+      gesto: this.comoGesto(),
+      aviso: null,
+      salvar: (v) => enviar('PATCH', `/estudio/pecas/${p.id}`, { ...v, destaques: String(v.destaques ?? '').split(',').map((d) => d.trim()).filter(Boolean) }),
+    });
+    if (!r || !this.vivo) return;
+    await this.concluido(r, 'Textos salvos.');
     // A descrição leva os textos: a guardada fica velha.
     const anterior = this.instrucoes[p.id];
     const { [p.id]: _velha, ...resto } = this.instrucoes;
@@ -635,25 +648,31 @@ export class Estudio {
       await this.esperar(urbiVerso.alertar({ titulo: 'Não foi possível concluir', mensagem: mensagemDeErro(e), tipo: 'erro' }));
       throw cancelado();
     }
+    await this.concluido(r, sucesso);
+  }
+
+  /** Depois de gravar: o aviso (com os avisos da rota) e a releitura. */
+  private async concluido(r: { avisos?: string[] } | undefined, sucesso: string) {
     urbiVerso.notificar([sucesso, ...(r?.avisos ?? [])].join(' '), r?.avisos?.length ? 'info' : 'sucesso');
     await this.carregar();
   }
 
   private async agendar(p: Peca) {
     const amanha = new Date(Date.now() + 86400e3).toLocaleDateString('sv-SE');
-    const v = await this.esperar(
-      urbiVerso.formulario({
-        titulo: 'Agendar no Instagram',
-        mensagem: 'Na hora marcada o app confere a peça de novo e publica na sua conta conectada.',
-        campos: [
-          { nome: 'dia', tipo: 'data', rotulo: 'Dia', obrigatorio: true, valor: amanha },
-          { nome: 'hora', tipo: 'texto', rotulo: 'Hora (HH:MM)', obrigatorio: true, valor: '09:00' },
-        ],
-        rotuloConfirmar: 'Agendar',
-      }),
-    );
-    if (!v) return;
-    await this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/agendar`, { quando: juntarDataHora(v.dia, v.hora) }), 'Peça agendada.');
+    // Recusado (#187: horário no passado, peça sem arte): reabre com o dia e a hora e a frase do erro.
+    const r = await formularioQueSalva<{ avisos?: string[] }>({
+      titulo: 'Agendar no Instagram',
+      mensagem: 'Na hora marcada o app confere a peça de novo e publica na sua conta conectada.',
+      campos: [
+        { nome: 'dia', tipo: 'data', rotulo: 'Dia', obrigatorio: true, valor: amanha },
+        { nome: 'hora', tipo: 'texto', rotulo: 'Hora (HH:MM)', obrigatorio: true, valor: '09:00' },
+      ],
+      rotuloConfirmar: 'Agendar',
+      gesto: this.comoGesto(),
+      aviso: null,
+      salvar: (v) => enviar('POST', `/estudio/pecas/${p.id}/agendar`, { quando: juntarDataHora(v.dia, v.hora) }),
+    });
+    if (r && this.vivo) await this.concluido(r, 'Peça agendada.');
   }
 
   /** Publicar: agora, agendar ou baixar para publicar pelo Instagram (e marcar "Publiquei por fora"). */
@@ -708,15 +727,17 @@ export class Estudio {
   }
 
   private async publiqueiFora(p: Peca) {
-    const v = await this.esperar(
-      urbiVerso.formulario({
-        titulo: 'Publiquei por fora',
-        mensagem: 'Publicou pelo Instagram ou pelo Meta Business Suite? Registre aqui para o Estúdio saber.',
-        campos: [{ nome: 'link', tipo: 'texto', rotulo: 'Link do post (opcional)', placeholder: 'https://www.instagram.com/p/…' }],
-        rotuloConfirmar: 'Registrar',
-      }),
-    );
-    if (v) await this.acao(() => enviar('POST', `/estudio/pecas/${p.id}/publicada-fora`, { link: v.link }), 'Registrado como publicado.');
+    // Recusado (#187: link fora do formato): reabre com o link e a frase do erro.
+    const r = await formularioQueSalva<{ avisos?: string[] }>({
+      titulo: 'Publiquei por fora',
+      mensagem: 'Publicou pelo Instagram ou pelo Meta Business Suite? Registre aqui para o Estúdio saber.',
+      campos: [{ nome: 'link', tipo: 'texto', rotulo: 'Link do post (opcional)', placeholder: 'https://www.instagram.com/p/…' }],
+      rotuloConfirmar: 'Registrar',
+      gesto: this.comoGesto(),
+      aviso: null,
+      salvar: (v) => enviar('POST', `/estudio/pecas/${p.id}/publicada-fora`, { link: v.link }),
+    });
+    if (r && this.vivo) await this.concluido(r, 'Registrado como publicado.');
   }
 
   private async remover(p: Peca) {

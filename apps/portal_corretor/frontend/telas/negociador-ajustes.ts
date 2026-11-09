@@ -5,7 +5,7 @@ import { ESTILOS, LIMITE_INSTRUCOES } from '../../comum/negociacao';
 import { PROMPT_PARTE_2_PADRAO, REGRAS_FIXAS } from '../../comum/negociador';
 import { contadorInstrucoes, CUSTO_POR_RODADA, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, LIMITE_EVENTOS, MENSAGEM_CONVITE, PERGUNTA_TESTE, POLITICA_CONVITE, ROTULO_GATILHO, SELO_SIGILO } from '../../comum/negociador-ajustes';
 import { reaisParaCentavos } from '../../comum/crm';
-import { chamarApi, enviar, escolhaUnica, gesto, mensagemDeErro, reais } from '../apoio.js';
+import { chamarApi, ehContaTrocada, enviar, escolhaUnica, formularioQueSalva, gesto, mensagemDeErro, reais } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -92,22 +92,33 @@ export class PcAjustesNegociador extends LitElement {
   /** Convidar negociador: só o e-mail (D-94, sem CRECI). Os erros da plataforma chegam traduzidos pela rota. */
   private convidar() {
     return this.semAvisoDeOutraConta(async () => {
-      const v = await this.vida.esperar(urbiVerso.formulario({
+      // Recusado (#187): o formulário reabre com o e-mail e a frase do erro. Sem contas multi-usuário na
+      // instância, convidar não tem como dar certo: a tela mostra o aviso fixo e o formulário não volta.
+      let bloqueado: unknown = null;
+      const r = await formularioQueSalva({
         titulo: 'Convidar negociador',
         mensagem: MENSAGEM_CONVITE,
         campos: [{ nome: 'email', tipo: 'texto', rotulo: 'E-mail', obrigatorio: true, placeholder: 'nome@exemplo.com' }],
         rotuloConfirmar: 'Convidar',
-      }));
-      if (!v) return;
-      try {
-        const r = await this.vida.esperar(enviar('POST', '/negociador/convites', { email: String(v.email ?? '') }));
-        if (r?.aviso) await this.vida.esperar(urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' }));
-        else urbiVerso.notificar('Convite enviado.', 'sucesso');
-      } catch (e) {
-        if (this.vida.encerrado(e)) throw e;
-        if ((e as { codigo?: string })?.codigo === 'CONVITE_MULTI_USUARIO_BLOQUEADO') this.semMultiUsuario = true;
-        await this.vida.esperar(urbiVerso.alertar({ titulo: 'Não foi possível convidar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
-      }
+        gesto: this.vida,
+        aviso: null,
+        salvar: async (v) => {
+          try {
+            return await enviar('POST', '/negociador/convites', { email: String(v.email ?? '') });
+          } catch (e) {
+            if (ehContaTrocada(e) || (e as { codigo?: string })?.codigo !== 'CONVITE_MULTI_USUARIO_BLOQUEADO') throw e;
+            bloqueado = e;
+            return null;
+          }
+        },
+      });
+      if (!this.vida.vivo()) return;
+      if (bloqueado) {
+        this.semMultiUsuario = true;
+        await this.vida.esperar(urbiVerso.alertar({ titulo: 'Não foi possível convidar', mensagem: mensagemDeErro(bloqueado), tipo: 'erro' }));
+      } else if (r?.aviso) await this.vida.esperar(urbiVerso.alertar({ titulo: 'Convite criado', mensagem: r.aviso, tipo: 'alerta' }));
+      else if (r) urbiVerso.notificar('Convite enviado.', 'sucesso');
+      else return;
       await this.carregarEquipe();
     });
   }
@@ -236,7 +247,8 @@ export class PcAjustesNegociador extends LitElement {
   private editarObjecao(o: Linha) {
     return this.semAvisoDeOutraConta(async () => {
       const atual = o.minha ?? o.padrao;
-      const v = await this.vida.esperar(urbiVerso.formulario({
+      // Recusado (#187): o formulário reabre com os três textos e a frase do erro.
+      const item = await formularioQueSalva({
         titulo: `Minha resposta · ${o.titulo}`,
         mensagem: `Quando o cliente diz "${o.fala_cliente}"`,
         campos: [
@@ -245,9 +257,11 @@ export class PcAjustesNegociador extends LitElement {
           { nome: 'proximo_passo', tipo: 'texto_longo', rotulo: 'Próximo passo', obrigatorio: true, valor: atual.proximo_passo ?? '' },
         ],
         rotuloConfirmar: 'Salvar a minha resposta',
-      }));
-      if (!v) return;
-      await this.objecao({ categoria: o.categoria, ...v }, 'Sua resposta foi salva.');
+        gesto: this.vida,
+        aviso: 'Sua resposta foi salva.',
+        salvar: (v) => enviar('PUT', '/negociador/objecoes', { categoria: o.categoria, ...v }),
+      });
+      if (item && this.vida.vivo()) this.objecoes = this.objecoes.map((x) => (x.categoria === item.categoria ? item : x));
     });
   }
 
