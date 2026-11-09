@@ -67,10 +67,14 @@ export class PcTelaAgenda extends LitElement {
   }
 
   private item(a: Atividade) {
+    const quando = `${new Date(a.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · ${ROTULO_TIPO_ATIVIDADE[a.tipo]}: ${a.titulo}`;
+    const quem = `${a.contato_nome ?? 'sem cliente'}${a.imovel_codigo ? ` · ${a.imovel_codigo}` : ''}${a.local ? ` · ${a.local}` : ''}`;
+    // Mesmo padrão de Imóveis (#180): `truncar` nas duas linhas e `expandir` no stack, que deixa a prosa encolher
+    // ao lado do botão; sem isso o título longo era cortado no celular sem "…". O texto inteiro fica no `title`.
     return html`<urbi-linha justificar="entre" quebrar>
-      <urbi-stack>
-        <urbi-prosa>${new Date(a.quando).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · ${ROTULO_TIPO_ATIVIDADE[a.tipo]}: ${a.titulo}</urbi-prosa>
-        <urbi-prosa papel="secundario">${a.contato_nome ?? 'sem cliente'}${a.imovel_codigo ? ` · ${a.imovel_codigo}` : ''}${a.local ? ` · ${a.local}` : ''}</urbi-prosa>
+      <urbi-stack expandir>
+        <urbi-prosa truncar title=${quando}>${quando}</urbi-prosa>
+        <urbi-prosa papel="secundario" truncar title=${quem}>${quem}</urbi-prosa>
       </urbi-stack>
       ${this.acoes(a)}
     </urbi-linha>`;
