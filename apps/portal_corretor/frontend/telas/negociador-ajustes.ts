@@ -207,6 +207,7 @@ export class PcAjustesNegociador extends LitElement {
       this.config = await this.vida.esperar(enviar('PUT', '/negociador/config', mudanca));
       if ('instrucoes_corretor' in mudanca) this.instrucoes = this.config!.instrucoes_corretor ?? '';
       urbiVerso.notificar(aviso, 'sucesso');
+      window.dispatchEvent(new CustomEvent('pc-ajustes-mudou'));
     } catch (e) {
       if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -380,7 +381,8 @@ export class PcNegociadorTeste extends LitElement {
     }
     if (!this.vida.vivo()) return;
     this.testando = true;
-    this.conversa = [...this.conversa, { quem: 'comprador', texto: fala }];
+    const bolha: FalaTeste = { quem: 'comprador', texto: fala };
+    this.conversa = [...this.conversa, bolha];
     this.rascunho = '';
     try {
       const r = await this.vida.esperar(enviar('POST', '/negociador/teste', {
@@ -392,6 +394,9 @@ export class PcNegociadorTeste extends LitElement {
       this.conversa = [...this.conversa, { quem: 'negociador', texto: r.resposta?.mensagem || 'O Negociador não escreveu mensagem nesta rodada.', detalhe: r }];
     } catch (e) {
       if (this.vida.encerrado(e)) return;
+      // A fala volta ao campo (sem pisar no que o corretor já tenha digitado) e a bolha pendente sai.
+      this.conversa = this.conversa.filter((f) => f !== bolha);
+      if (!this.rascunho.trim()) this.rascunho = fala;
       await urbiVerso.alertar({ titulo: 'Não foi possível testar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.testando = false;

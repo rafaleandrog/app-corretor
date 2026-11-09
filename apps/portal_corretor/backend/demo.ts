@@ -198,7 +198,7 @@ demoRotas.post(
       return res.json({ completado: feito, avisos });
     }
     const eu = req.contexto!.usuario.id;
-    await prepararFunil(dados);
+    await prepararFunil(dados, { conta_id: contaDoRequest(req) });
     const etapas = await etapasDaConta(dados);
     const etapa = (nome: string) => etapas.find((e) => e.pipeline === 'compra' && e.nome === nome);
     const faltando = conjunto.pessoas.find((p) => !etapa(p.etapa));

@@ -2,6 +2,7 @@ import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { formatarTelefone } from '../../comum/crm';
+import { validarMeuPerfil, validarPerfilConta } from '../../comum/conta';
 import { chamarApi, enviar, gesto, mensagemDeErro } from '../apoio.js';
 
 declare const urbiVerso: UrbiVersoAPI;
@@ -120,16 +121,36 @@ export class PcTelaConta extends LitElement {
     if (!r || !d || this.salvando || !this.vida.vivo()) return;
     this.salvando = true;
     this.errosSalvar = [];
+    const avisos: string[] = [];
+    let perfilSalvo = false;
     try {
-      const avisos: string[] = [];
-      if (!d.admin_em_conta_real) {
-        const eu = await this.vida.esperar(enviar('PUT', '/conta/meu-perfil', { creci: r.creci, telefone: r.telefone, nome_profissional: r.nome_profissional, regioes: r.regioes }));
-        if (Array.isArray(eu?.avisos)) avisos.push(...eu.avisos);
-      }
       const p = d.perfil;
       const contaMudou = !p || p.nome !== r.conta_nome.trim() || p.tipo !== r.conta_tipo || (p.documento ?? '') !== r.documento.trim() || (p.creci_juridico ?? '') !== r.creci_juridico.trim();
-      if (contaMudou && (p || r.conta_nome.trim())) {
-        await this.vida.esperar(enviar('PUT', '/conta/perfil', { nome: r.conta_nome, tipo: r.conta_tipo, documento: r.documento, creci_juridico: r.creci_juridico }));
+      const gravaConta = contaMudou && !!(p || r.conta_nome.trim());
+      const corpoEu = { creci: r.creci, telefone: r.telefone, nome_profissional: r.nome_profissional, regioes: r.regioes };
+      const corpoConta = { nome: r.conta_nome, tipo: r.conta_tipo, documento: r.documento, creci_juridico: r.creci_juridico };
+      // Valida as duas partes com os mesmos validadores do backend antes do primeiro PUT: nada é gravado
+      // se qualquer parte já é sabidamente inválida.
+      const erros: string[] = [];
+      if (!d.admin_em_conta_real) {
+        const v = validarMeuPerfil(corpoEu);
+        if (!v.ok) erros.push(...v.erros);
+      }
+      if (gravaConta) {
+        const v = validarPerfilConta(corpoConta);
+        if (!v.ok) erros.push(...v.erros);
+      }
+      if (erros.length) {
+        this.errosSalvar = erros;
+        return;
+      }
+      if (!d.admin_em_conta_real) {
+        const eu = await this.vida.esperar(enviar('PUT', '/conta/meu-perfil', corpoEu));
+        perfilSalvo = true;
+        if (Array.isArray(eu?.avisos)) avisos.push(...eu.avisos);
+      }
+      if (gravaConta) {
+        await this.vida.esperar(enviar('PUT', '/conta/perfil', corpoConta));
       }
       // Salvo com aviso (CRECI fora do formato usual, D-93): avisa sem desfazer nada.
       urbiVerso.notificar(avisos.length ? `Salvo. ${avisos.join(' ')}` : 'Salvo.', avisos.length ? 'info' : 'sucesso');
@@ -138,7 +159,16 @@ export class PcTelaConta extends LitElement {
     } catch (e) {
       if (this.vida.encerrado(e)) return;
       const falha = e as { detalhes?: string[] };
-      this.errosSalvar = falha.detalhes?.length ? falha.detalhes : [mensagemDeErro(e)];
+      const erros = falha.detalhes?.length ? falha.detalhes : [mensagemDeErro(e)];
+      if (perfilSalvo) {
+        // O segundo PUT falhou depois de o primeiro gravar: diz qual parte foi salva e mantém os avisos.
+        this.errosSalvar = ['O seu perfil foi salvo, mas os dados da conta não.', ...erros, ...avisos];
+        window.dispatchEvent(new CustomEvent('pc-conta-salva'));
+        await this.carregar();
+        this.rascunho = r; // o que o corretor digitou continua na tela para ele corrigir a conta
+      } else {
+        this.errosSalvar = erros;
+      }
     } finally {
       this.salvando = false;
     }

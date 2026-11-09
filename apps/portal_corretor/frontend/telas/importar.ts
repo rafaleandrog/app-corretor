@@ -356,10 +356,12 @@ export class PcImportarRegras extends ColunaImportar {
     return html`<urbi-stack>
       <urbi-prosa papel="secao">Se o contato já existir</urbi-prosa>
       <urbi-prosa papel="fraco">Mesmo telefone ou, sem telefone, mesmo e-mail.</urbi-prosa>
-      ${escolhaUnica(REPETIDOS, atual.id, (id) => {
-        mudar({ modo: id });
-        void preverLinhas();
-      }, { selo: 'escolhido', desabilitado: estado.enviando })}
+      <urbi-stack>
+        ${escolhaUnica(REPETIDOS, atual.id, (id) => {
+          mudar({ modo: id });
+          void preverLinhas();
+        }, { selo: 'escolhido', desabilitado: estado.enviando, nome: 'Se o contato já existir' })}
+      </urbi-stack>
       <urbi-card titulo="Depois de importar" icone="fa-solid fa-user-shield">
         <urbi-prosa papel="secundario">
           Contatos importados entram sem consentimento registrado. Confirme com cada cliente antes de mandar mensagens e

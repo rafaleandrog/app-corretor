@@ -96,8 +96,8 @@ async function origem(dados: HelperDados, canal: unknown, campanha: unknown): Pr
  * `POST /funil/preparar` quando a resposta traz `preparar: true`.
  */
 export async function etapasDaConta(dados: HelperDados, pipeline?: Pipeline) {
-  const r = await dados.listar('etapas_funil', { por_pagina: 200, ordenar: 'ordem', ordem: 'asc' });
-  return r.dados.filter((e) => !pipeline || e.pipeline === pipeline);
+  const linhas = await dados.varrerTudo('etapas_funil', { ordenar: 'ordem', ordem: 'asc', maximo: 5000 });
+  return linhas.filter((e) => !pipeline || e.pipeline === pipeline);
 }
 
 /**
@@ -452,7 +452,8 @@ crmRotas.post(
     const contato = cid ? await dados.buscar('contatos', cid) : null;
     if (!contato) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o contato do negócio.');
     const pipeline = (PIPELINES as readonly string[]).includes(req.body?.pipeline) ? (req.body.pipeline as Pipeline) : 'compra';
-    await prepararFunil(dados);
+    const contaFunil = req.contexto?.contaEscrita;
+    await prepararFunil(dados, contaFunil ? { conta_id: contaFunil } : {});
     const etapas = await etapasDaConta(dados, pipeline);
     const primeira = etapas.find((e) => e.ativa && e.tipo === 'aberta');
     if (!primeira) return erro(res, 409, 'SEM_ETAPA', 'Este funil não tem etapa em andamento ativa. Revise em Ajustes › Funil.');
@@ -793,6 +794,8 @@ crmRotas.put(
     const v = validarEtapas(pipeline, req.body?.etapas);
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira as etapas.', v.erros);
     const dados = req.dados!;
+    const contaFunil = req.contexto?.contaEscrita;
+    await prepararFunil(dados, contaFunil ? { conta_id: contaFunil } : {}); // etapasDaConta é só leitura: a conta ganha as etapas padrão antes de qualquer escrita
     const atuais = await etapasDaConta(dados, pipeline);
     const porId = new Map(atuais.map((e) => [e.id, e]));
     for (const e of v.dados) if (e.id && !porId.has(e.id)) return erro(res, 422, 'DADOS_INVALIDOS', 'Etapa de outro funil ou inexistente.');

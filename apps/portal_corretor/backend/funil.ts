@@ -6,7 +6,7 @@ import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { registrar } from './crm';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
 import { limiteParado } from '../comum/crm';
-import { etapasPorId, playbookDaConta, prepararFunil, proximaAbordagem, reclassificar } from './inteligencia';
+import { etapasPorId, funilPrecisaPreparo, playbookDaConta, prepararFunil, proximaAbordagem, reclassificar } from './inteligencia';
 import { numerosDaSemana } from './numeros';
 import { contaDoRequest, paginaDaConta } from './vitrine';
 import { dicaDoAssistente, primeirosPassos } from '../comum/hoje';
@@ -131,7 +131,8 @@ funilRotas.get(
 funilRotas.post(
   '/funil/preparar',
   assincrono(async (req, res) => {
-    await prepararFunil(req.dados!);
+    const conta = req.contexto?.contaEscrita;
+    await prepararFunil(req.dados!, conta ? { conta_id: conta } : {});
     res.json({ ok: true });
   }),
 );
@@ -447,7 +448,7 @@ funilRotas.get(
   assincrono(async (req: Request, res) => {
     const dados = req.dados!;
     const fuso = req.contexto?.fuso || 'America/Sao_Paulo';
-    const [fila, conta, precisa, agenda_hoje] = await Promise.all([filaDoDia(dados, fuso), estadoDaConta(req), passagens(dados), agendaDeHoje(dados, fuso)]);
+    const [fila, conta, precisa, agenda_hoje, preparar] = await Promise.all([filaDoDia(dados, fuso), estadoDaConta(req), passagens(dados), agendaDeHoje(dados, fuso), funilPrecisaPreparo(dados)]);
     // A faixa da semana é complementar: se o cálculo falhar, a fila do dia continua de pé.
     const semana = await numerosDaSemana(dados).catch(() => null);
     // A demonstração só se oferece em conta de teste ainda sem nenhum contato.
@@ -461,6 +462,8 @@ funilRotas.get(
       sem_creci: conta.sem_creci,
       semana,
       demo_disponivel,
+      // Sem playbook a fila não traz abordagem vencida; o GET não grava, então a tela pede `POST /funil/preparar`.
+      preparar,
       dica: dicaValidada(fila, conta.primeiros_passos, fuso),
     });
   }),

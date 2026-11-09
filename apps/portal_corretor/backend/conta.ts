@@ -6,6 +6,7 @@ import {
   validarMeuPerfil,
   validarPerfilConta,
 } from '../comum/conta';
+import { contaDoRequest } from './vitrine';
 import { assincrono, erro, exigirPapel, MENSAGEM_SEM_CONTA, primeiro, salvarUnico, semConta } from './acesso';
 
 // Ajustes › Conta e Atendimento. Tudo aqui é da conta do corretor logado: as três tabelas são
@@ -23,7 +24,7 @@ contaRotas.get(
   assincrono(async (req, res) => {
     const dados = req.dados!;
     const [perfil, configuracoes, meuPerfil] = await Promise.all([
-      primeiro(dados, 'perfil_conta', { chave: 'conta' }),
+      primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaDoRequest(req) }),
       primeiro(dados, 'configuracoes_conta', { chave: 'conta' }),
       primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id }),
     ]);
@@ -67,7 +68,8 @@ contaRotas.put(
  */
 export async function adminEmContaReal(req: Request): Promise<boolean> {
   if (req.contexto?.nivelApp !== 'admin' || req.contexto?.rolesApp?.includes('corretor')) return false;
-  const perfil = await primeiro(req.dados!, 'perfil_conta', { chave: 'conta' });
+  // Só o perfil da conta ativa decide: quem atende várias contas lê o conjunto (nunca `primeiro` sem conta).
+  const perfil = await primeiro(req.dados!, 'perfil_conta', { chave: 'conta', conta_id: contaDoRequest(req) });
   return !perfil?.demo;
 }
 

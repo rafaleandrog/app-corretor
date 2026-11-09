@@ -21,7 +21,7 @@ import { filaDoDia } from './funil';
 // Assistente do Corretor (bloco 9, spec 10.2). Responde pela ajuda (docs/ da app, D-58) e pelo
 // estado da conta; propõe ações que o corretor confirma na tela. A ação não é executada aqui: a
 // confirmada vai pelas rotas de sempre (POST /atividades, agendar peça), que validam de novo. (A
-// fila do dia semeia as etapas e o playbook padrão na primeira vez, como o Início.)
+// fila do dia só lê: conta sem playbook semeado não traz abordagem vencida até `POST /funil/preparar`.)
 export const assistenteRotas = Router();
 guardarCorretor(assistenteRotas, ['/assistente']);
 

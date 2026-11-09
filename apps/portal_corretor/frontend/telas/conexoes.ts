@@ -141,9 +141,14 @@ export class PcTelaConexoes extends LitElement {
       const r = await this.vida.esperar(enviar('POST', '/conexoes/instagram/testar'));
       const cota = r.usadas_24h !== null && r.limite_24h ? ` Nas últimas 24 horas, ${r.usadas_24h} de ${r.limite_24h} publicações permitidas.` : '';
       this.teste = { ok: true, texto: `Tudo certo: o app consegue publicar em @${r.usuario ?? 'sua conta'}. Nada foi publicado no teste.${cota}` };
+      // O teste que dá certo limpa o `ultimo_erro` no backend: o cartão e o menu de Ajustes releem.
+      window.dispatchEvent(new CustomEvent('pc-ajustes-mudou'));
+      await this.carregar();
     } catch (e) {
       if (this.vida.encerrado(e)) return;
       this.teste = { ok: false, texto: mensagemDeErro(e) };
+      // O teste que falha pode gravar `ultimo_erro` (ex.: TOKEN_INVALIDO): o menu de Ajustes relê, como em `desconectar`.
+      window.dispatchEvent(new CustomEvent('pc-ajustes-mudou'));
       await this.carregar();
     } finally {
       this.testando = false;

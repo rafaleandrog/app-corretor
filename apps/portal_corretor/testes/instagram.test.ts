@@ -377,6 +377,21 @@ test('P12: Testar publicação confere a conexão sem publicar; desconectar apag
   });
 });
 
+test('status: conectar/desconectar duas vezes (2 linhas em canais_sociais) responde 200 com ja_conectou true', async () => {
+  const banco = new BancoFalso(UNICOS);
+  metaFalsa();
+  await comServidor(rotas, ator(100), banco, shell, async (chamar) => {
+    for (let i = 0; i < 2; i++) {
+      await chamar('POST', '/conexoes/instagram/retorno', { code: 'x' });
+      assert.equal((await chamar('POST', '/conexoes/instagram/desconectar')).status, 200);
+    }
+    const r = await chamar('GET', '/conexoes');
+    assert.equal(r.status, 200, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.ja_conectou, true);
+    assert.equal(r.corpo.instagram, null);
+  });
+});
+
 test('#73: evento agendado que chega para peça de volta a rascunho (migração 001) não publica nada', async () => {
   const banco = new BancoFalso(UNICOS);
   const chamadas = metaFalsa();

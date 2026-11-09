@@ -18,8 +18,9 @@ function desdobrar(texto: string): string[] {
   const linhas: string[] = [];
   for (const l of brutas) {
     const anterior = linhas.length ? linhas[linhas.length - 1] : null;
-    if (anterior !== null && /^[ \t]/.test(l)) linhas[linhas.length - 1] = anterior + l.slice(1);
-    else if (anterior !== null && /QUOTED-PRINTABLE/i.test(anterior.split(':', 1)[0]) && anterior.endsWith('=')) linhas[linhas.length - 1] = anterior.slice(0, -1) + l;
+    // O soft break do QP vem antes da dobra comum: `Jo=C3=` + ` =A3o` vira `Jo=C3=A3o` (a whitespace de continuação cai).
+    if (anterior !== null && /QUOTED-PRINTABLE/i.test(anterior.split(':', 1)[0]) && anterior.endsWith('=')) linhas[linhas.length - 1] = anterior.slice(0, -1) + (/^[ \t]/.test(l) ? l.slice(1) : l);
+    else if (anterior !== null && /^[ \t]/.test(l)) linhas[linhas.length - 1] = anterior + l.slice(1);
     else linhas.push(l);
   }
   return linhas;

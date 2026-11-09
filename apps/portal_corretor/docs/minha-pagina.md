@@ -158,7 +158,8 @@ Quem preenche o formulário vira cliente em **Clientes**:
 - **Consentimento declarado:** a autorização de contato é obrigatória no formulário, mas é uma
   **declaração** de quem preencheu, não a prova de que foi o cliente. Ela fica guardada com a data, a
   versão do texto (`formulario-v1`) e uma versão embaralhada do endereço de internet de quem enviou
-  (um resumo SHA-256 do endereço, sem segredo misturado: não mostra o endereço à primeira vista, mas
+  (um resumo SHA-256 do endereço, sem segredo misturado, do qual o app guarda só os primeiros 16
+  caracteres hexadecimais: não mostra o endereço à primeira vista, mas
   quem tiver acesso ao banco consegue recuperá-lo testando os endereços possíveis, que no IPv4 são
   poucos; trate-o como dado pessoal), ligada ao pedido na linha do tempo. **O cliente
   só fica com consentimento quando você confirma** na ficha (Cadastro › Confirmar); até lá, a ficha
@@ -171,7 +172,8 @@ Quem preenche o formulário vira cliente em **Clientes**:
 **Proteções:**
 - No máximo 3 envios por minuto vindos de um mesmo endereço de internet, contados em memória em
   cada servidor do app (com mais de um servidor, o limite vale por servidor). Para contar, o app usa
-  uma versão embaralhada do endereço (o mesmo resumo SHA-256, sem segredo). Essa mesma versão
+  uma versão embaralhada do endereço (o mesmo resumo SHA-256, sem segredo, cortado nos primeiros 16
+  caracteres hexadecimais). Essa mesma versão
   embaralhada (nunca o endereço de verdade) também fica guardada junto com a declaração de
   consentimento de quem enviou o formulário; como ela não leva segredo, não é anônima.
 - Um campo escondido barra robôs: quem o preenche recebe "enviado" e nada é gravado.

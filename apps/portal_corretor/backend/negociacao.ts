@@ -891,6 +891,10 @@ negociacaoRotas.put(
       else valores.assinatura_humana = texto(b.assinatura_humana, 120);
     }
     if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira os ajustes do Negociador.', erros);
+    // Só conta alteração efetiva: cada chave enviada contra o valor atual (gatilhos já mesclados).
+    // Sem ela, nada é gravado nem publicado (a trilha auditável é imutável).
+    const mudou = Object.entries(valores).some(([k, v]) => JSON.stringify(v ?? null) !== JSON.stringify((atual as Record<string, unknown>)[k] ?? null));
+    if (!mudou) return res.json(atual);
     // A primeira gravação leva os padrões junto (a linha nasce aqui, nunca dentro de um GET).
     const base = atual.padrao
       ? { ligado: atual.ligado, conduz_padrao: atual.conduz_padrao, gatilhos: atual.gatilhos, estilo: atual.estilo }

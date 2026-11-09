@@ -1,6 +1,6 @@
 import { html, nothing } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { abaDaUrl, abaNaUrl, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, gesto, mensagemDeErro, noCelular, noGesto, reais, type OpcoesAba } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, gesto, lerPreparandoFunil, mensagemDeErro, noCelular, noGesto, reais, type OpcoesAba } from '../apoio.js';
 import { ABAS_INICIO, APELIDOS_INICIO, type TipoFila } from '../../comum/funil';
 import { ACOES_FILA, cargaVazia, entrarEmHoje, FILA_VISIVEL, iniciarCarga, marcarEntrada, mostrarTudo, motivoDoItem, precisaCarregar, receberCarga, telaDeHoje, type AcaoFila, type PassoInicial } from '../../comum/hoje';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
@@ -111,7 +111,7 @@ async function carregar(atualizar: () => void) {
   // A carga é da conta de agora: trocada no meio, a resposta (ou a falha) não é gravada como desta.
   const g = gesto();
   try {
-    const [dados, ia] = await g.esperar(Promise.all([chamarApi('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]));
+    const [dados, ia] = await g.esperar(Promise.all([lerPreparandoFunil('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]));
     const antes = estado.carga;
     estado.carga = receberCarga(antes, geracao, { dados });
     if (estado.carga !== antes) estado.ia = ia;

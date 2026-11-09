@@ -163,7 +163,9 @@ export class BancoFalso {
         return { dados: r.slice(ini, ini + por).map((l) => comoLido(tabela, l)), total: r.length, pagina: op.pagina ?? 1, por_pagina: por, paginas: Math.ceil(r.length / por) };
       },
       async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
-        return consultar(tabela, op).map((l) => comoLido(tabela, l));
+        const r = consultar(tabela, op);
+        verificarMaximo(tabela, r.length, op.maximo);
+        return r.map((l) => comoLido(tabela, l));
       },
       async buscar(tabela: string, id: number, op: { travar?: boolean } = {}) {
         // Como o framework: a trava só vale dentro de transaction() (a `buscar` dela trava de verdade).
@@ -298,7 +300,9 @@ export class BancoFalso {
       dados: {
         // Leitura SISTEMA enxerga todas as contas (contas.md).
         async varrerTudo(tabela: string, op: OpcoesFalsas = {}) {
-          return todas(tabela).filter((l) => !l.removido_em && casa(l, op.filtros)).map((l) => comoLido(tabela, l));
+          const r = todas(tabela).filter((l) => !l.removido_em && casa(l, op.filtros));
+          verificarMaximo(tabela, r.length, op.maximo);
+          return r.map((l) => comoLido(tabela, l));
         },
         // `comConta` roda numa transação (contas.md): desfaz tudo se o bloco lança e, no regime
         // segregado, aceita `buscar(…, { travar: true })` (banco-de-dados.md § Trava de linha).
@@ -321,6 +325,13 @@ interface OpcoesFalsas {
   ordem?: 'asc' | 'desc';
   pagina?: number;
   por_pagina?: number;
+  /** Só do `varrerTudo`: teto em linhas (default 100 000). Estourado, lança — não corta. */
+  maximo?: number;
+}
+
+/** `varrerTudo` devolve tudo ou lança (banco-de-dados.md): acima de `maximo`, diz o tamanho real. */
+function verificarMaximo(tabela: string, total: number, maximo = 100_000) {
+  if (total > maximo) throw new Error(`varrerTudo(${tabela}): a tabela tem ${total} linhas, acima do maximo (${maximo})`);
 }
 
 const semAcento = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

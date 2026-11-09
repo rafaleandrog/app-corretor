@@ -244,6 +244,18 @@ test('P14: vCard vira as linhas da planilha (2.1 QP, 3.0 dobrado, 4.0, celular p
   assert.equal(ehVcard('x.csv', 'nome;telefone'), false);
 });
 
+test('P14: vCard 2.1 QP com soft break seguido de linha dobrada resolve o soft break antes da dobra', async () => {
+  const { lerVcard } = await import('../comum/vcard');
+  const cartao = (...meio: string[]) => ['BEGIN:VCARD', 'VERSION:2.1', ...meio, 'TEL;CELL:61977770001', 'END:VCARD'].join('\r\n');
+  const [, linha] = lerVcard(cartao('FN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:Jo=C3=\r\n =A3o'));
+  assert.equal(linha[0], 'João');
+  const [, tab] = lerVcard(cartao('FN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:Jo=C3=\r\n\t=A3o'));
+  assert.equal(tab[0], 'João');
+  // Sem dobra: soft break simples; sem QP: dobra comum preserva o `=` do texto.
+  assert.equal(lerVcard(cartao('FN;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:Jo=C3=\r\n=A3o'))[1][0], 'João');
+  assert.equal(lerVcard(cartao('FN:a=', ' b'))[1][0], 'a=b');
+});
+
 test('#40: importação em lotes que cabem no corpo do shell, com o número da linha da planilha original', async () => {
   const { dividirEmLotes, somarRelatorios, csvDasRejeitadas, LOTE_IMPORTACAO } = await import('../comum/csv');
   // 2000 linhas com 5 colunas (~230 bytes cada): nenhum lote passa de 400 linhas nem de ~80 kB.

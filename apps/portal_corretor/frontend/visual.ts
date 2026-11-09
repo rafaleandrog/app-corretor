@@ -1,4 +1,5 @@
 import { html, nothing, type TemplateResult } from 'lit';
+import { ref } from 'lit/directives/ref.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { CANAIS, OPCOES_PARADO_DIAS, PAPEIS, PAPEIS_NA_TELA, TEMPERATURAS } from '../comum/crm';
 import { corQualidade, reais, ROTULO_TIPO_IMOVEL, SITUACAO_IMOVEL } from './apoio.js';
@@ -269,12 +270,42 @@ export function escolhaUnica<T extends string>(
   opcoes: readonly { id: T; rotulo: string; explicacao: string; exemplo?: string }[],
   ativo: T,
   aoEscolher: (id: T) => void,
-  { selo = 'em uso', desabilitado = false }: { selo?: string; desabilitado?: boolean } = {},
+  { selo = 'em uso', desabilitado = false, nome = 'Escolha uma opção' }: { selo?: string; desabilitado?: boolean; nome?: string } = {},
 ): TemplateResult {
+  const escolher = (id: T) => {
+    if (!desabilitado && id !== ativo) aoEscolher(id);
+  };
+  // Grupo de rádio (WAI-ARIA): o host de cada `urbi-card` é o radio (role, tabindex e teclado vão no
+  // host, sem wrapper nem CSS). O contêiner é o pai das opções (grid/stack da tela, que o helper não
+  // possui): o role="radiogroup" e o nome vão nele pela primeira opção, que é a âncora.
+  const marcarGrupo = (el?: Element) => {
+    const grupo = el?.parentElement;
+    if (!grupo) return;
+    grupo.setAttribute('role', 'radiogroup');
+    grupo.setAttribute('aria-label', nome);
+  };
+  const teclado = (i: number) => (e: KeyboardEvent) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      escolher(opcoes[i].id);
+      return;
+    }
+    const passo = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    const alvo = e.key === 'Home' ? 0 : e.key === 'End' ? opcoes.length - 1 : passo ? (i + passo + opcoes.length) % opcoes.length : -1;
+    if (alvo < 0) return;
+    e.preventDefault();
+    const irmaos = (e.currentTarget as Element).parentElement?.querySelectorAll(':scope > [role="radio"]');
+    (irmaos?.[alvo] as HTMLElement | undefined)?.focus();
+    escolher(opcoes[alvo].id);
+  };
+  const haAtivo = opcoes.some((o) => o.id === ativo);
   return html`${opcoes.map(
-    (o) => html`<urbi-card ?clicavel=${!desabilitado} titulo=${o.rotulo} icone=${o.id === ativo ? 'fa-solid fa-circle-dot' : 'fa-regular fa-circle'}
-      role="radio" aria-checked=${o.id === ativo ? 'true' : 'false'}
-      @urbi:card-click=${() => !desabilitado && o.id !== ativo && aoEscolher(o.id)}>
+    (o, i) => html`<urbi-card ${i === 0 ? ref(marcarGrupo) : nothing} ?clicavel=${!desabilitado} titulo=${o.rotulo} icone=${o.id === ativo ? 'fa-solid fa-circle-dot' : 'fa-regular fa-circle'}
+      role="radio" aria-checked=${o.id === ativo ? 'true' : 'false'} aria-disabled=${desabilitado ? 'true' : 'false'}
+      tabindex=${o.id === ativo || (!haAtivo && i === 0) ? '0' : '-1'}
+      @keydown=${teclado(i)}
+      @urbi:card-click=${() => escolher(o.id)}>
       ${o.id === ativo ? html`<urbi-linha><urbi-badge cor="sucesso">${selo}</urbi-badge></urbi-linha>` : nothing}
       <urbi-prosa papel="secundario">${o.explicacao}</urbi-prosa>
       ${o.exemplo ? html`<urbi-prosa papel="dica">${o.exemplo}</urbi-prosa>` : nothing}

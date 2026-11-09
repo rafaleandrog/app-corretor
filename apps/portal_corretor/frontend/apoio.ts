@@ -245,7 +245,6 @@ export async function enviar(metodo: 'POST' | 'PUT' | 'PATCH', rota: string, cor
   });
 }
 
-/** A frase do erro para a tela: nunca a mensagem crua da plataforma (#177, `fraseDoErro` em `estados.ts`). */
 /**
  * Leitura do funil (quadro, etapas, playbook) que prepara a conta nova (issue #32): os GET não gravam, e
  * respondem `preparar: true` quando a conta ainda não tem etapas ou abordagens. Aí a tela pede a escrita
@@ -264,6 +263,7 @@ export async function lerPreparandoFunil(rota: string): Promise<any> {
   return chamarApi(rota);
 }
 
+/** A frase do erro para a tela: nunca a mensagem crua da plataforma (#177, `fraseDoErro` em `estados.ts`). */
 export function mensagemDeErro(e: unknown): string {
   return fraseDoErro(e);
 }
