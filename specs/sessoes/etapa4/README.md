@@ -10,8 +10,9 @@ Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a 
 | Grupo 2 · Hoje, Funil, Cliente, Seleção e Agendar visita na P02, Buscar (#201) | mergeado, 0.1.48 |
 | Grupo 3 · Imóveis, Imóvel, M3, Negociações, Negociação, M8, Proposta na P02, D-120, D-125 | mergeado, 0.1.49 (#203) |
 | Grupo 4 · Estúdio, Página, M6, M4 + M5 | mergeado, 0.1.50 (#204) |
-| Grupo 5 · Números, Conexões, Conta e marca, Importar, Negociador, Assistente + transversais | implementado na branch `etapa4/grupo5` (0.1.51); PR, conferência visual e revisão a fazer |
-| Release da `main` para a homologação | **só no fim da etapa** (ordem do dono de 08/11) |
+| Grupo 5 · Números, Conexões, Conta e marca, Importar, Negociador, Assistente + transversais | mergeado, 0.1.51 (#205; conferência visual em `specs/prints/conferencia-grupo5-0.1.51/`) |
+| Etapa 4 | **concluída** com o merge do #205 |
+| Release da `main` para a homologação | logo após o merge do #205 (fim da etapa, ordem do dono de 08/11) |
 
 ## Como rodar um grupo (o que funcionou nos grupos 2 e 3)
 
@@ -27,9 +28,10 @@ Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a 
 
 - Título e rota da P15 ("Negociações", `/negociacoes`) × referência ("Clientes" com alternador): pendência (1) do grupo 3 no plano.
 - Menu do usuário externo: pendência (1) do plano, a confirmar entrando como o corretor demo.
+- Grupo 5: D-133, P-47, P-48, D-129 e as diferenças da conferência visual (P05 379 × 340, P17, P10, P13); ver `RETOMADA.md`.
 
 ## Arquivos desta pasta
 
 - `brief-grupo2.md` … `brief-grupo5.md`: briefs de implementação (2 e 3 já executados; servem de modelo).
 - `achados-201-r1.md`: achados das três rodadas da revisão do #201 (referência do que as lentes pegam).
-- `RETOMADA.md`: estado da sessão de 08/11 no momento da pausa (histórico).
+- `RETOMADA.md`: etapa 4 concluída; lista do que espera o dono.

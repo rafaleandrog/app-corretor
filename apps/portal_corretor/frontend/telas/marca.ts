@@ -227,7 +227,7 @@ export class PcTelaMarca extends LitElement {
           @urbi:input-change=${(e: CustomEvent) => this.mudar('assinatura', String(e.detail.valor ?? ''))}></urbi-input>
         <urbi-prosa papel="secao">Tom de voz (artes do Estúdio)</urbi-prosa>
         <urbi-grid min="180px">
-          ${escolhaUnica(OPCOES_TOM_VOZ, r.tom_voz, (id) => this.mudar('tom_voz', id), { selo: 'escolhido' })}
+          ${escolhaUnica(OPCOES_TOM_VOZ, r.tom_voz, (id) => this.mudar('tom_voz', id), { selo: 'escolhido', nome: 'Tom de voz (artes do Estúdio)' })}
         </urbi-grid>
         <urbi-prosa papel="dica">Esta marca vale em todo lugar. A cor principal e a sua foto aparecem para o cliente; salvar já atualiza o que está no ar e, se não conseguir, avisa aqui. Logo e foto são salvos ao escolher o arquivo.</urbi-prosa>
         <urbi-linha justificar="fim">

@@ -310,7 +310,7 @@ export class BancoFalso {
           if (!contas.some((c) => c.id === id)) throw Object.assign(new Error('conta inativa'), { codigo: 'CONTA_INVALIDA' });
           const base = banco.dados(id, true);
           base.existe = async (tabela: string, filtros: Record<string, unknown>) =>
-            todas(tabela).some((l) => Object.entries(filtros).every(([k, v]) => String(l[k]) === String(v)));
+            todas(tabela).some((l) => !l.removido_em && casa(l, filtros));
           return base.transaction(fn);
         },
       },

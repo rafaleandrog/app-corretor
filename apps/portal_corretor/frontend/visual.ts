@@ -285,7 +285,7 @@ export function escolhaUnica<T extends string>(
     grupo.setAttribute('aria-label', nome);
   };
   const teclado = (i: number) => (e: KeyboardEvent) => {
-    if (e.target !== e.currentTarget) return;
+    if (e.target !== e.currentTarget || desabilitado) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       escolher(opcoes[i].id);

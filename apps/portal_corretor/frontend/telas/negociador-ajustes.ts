@@ -293,7 +293,7 @@ export class PcAjustesNegociador extends LitElement {
       </urbi-grid>
       <urbi-card titulo="3 · Estilo" icone="fa-solid fa-comment-dots">
         <urbi-grid min="200px">
-          ${escolhaUnica(estilos, c.estilo as (typeof ESTILOS)[number], (e) => void this.gravar({ estilo: e }, `Estilo ${ESTILO_NEGOCIADOR[e].rotulo.toLowerCase()}.`), { desabilitado: this.salvando })}
+          ${escolhaUnica(estilos, c.estilo as (typeof ESTILOS)[number], (e) => void this.gravar({ estilo: e }, `Estilo ${ESTILO_NEGOCIADOR[e].rotulo.toLowerCase()}.`), { desabilitado: this.salvando, nome: 'Estilo' })}
         </urbi-grid>
       </urbi-card>
       <urbi-grid min="260px">
