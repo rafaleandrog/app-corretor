@@ -1,9 +1,9 @@
 import { LitElement, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { UrbiVersoAPI } from '@urbiverso/sdk';
+import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { PLAYBOOK_OBJECOES_PADRAO } from '../../comum/negociacao';
 import { reaisParaCentavos } from '../../comum/crm';
-import { buscaDoGesto, chamarApi, contaDeTrabalho, data, dataHora, ehContaTrocada, enviar, seNaoContaTrocada, filtrosDaUrl, filtrosNaUrl, gesto, mensagemDeErro, reais, soNegociador, type Gesto } from '../apoio.js';
+import { buscaDoGesto, chamarApi, ContaTrocada, contaDeTrabalho, data, dataHora, ehContaTrocada, enviar, falhaAmbigua, formularioQueSalva, seNaoContaTrocada, filtrosDaUrl, filtrosNaUrl, gesto, mensagemDeErro, reais, soNegociador, type Gesto } from '../apoio.js';
 import { moldura } from '../moldura.js';
 import { acoesComMais, type Acao } from '../visual.js';
 import { haQuanto } from '../../comum/conversas';
@@ -103,6 +103,49 @@ const centavosDigitados = (v: unknown): number | null => {
 };
 
 // ---------------------------------------------------------------------------------------------------
+// Formulários que gravam (#187, dívida do #207): recusado, o formulário reabre com o digitado e a frase do
+// erro (`formularioQueSalva`), em vez do alerta solto. O que sai para fora nunca se repete por reabrir: o
+// POST de proposta não tem chave de idempotência, então a falha AMBÍGUA (rede, 5xx: o servidor pode ter
+// gravado) confere a escada antes de deixar reenviar; as outras gravações são condicionadas no servidor
+// (repetidas, dão 409 e nada muda).
+
+const valorInvalido = (exemplo: string) => new Error(`Digite o valor em reais, por exemplo ${exemplo}.`);
+
+/** A falha ambígua cuja conferência também falhou: o corretor decide, sabendo que pode ter entrado. */
+export const FRASE_PROPOSTA_EM_DUVIDA = 'A resposta não chegou, e a proposta pode ter sido registrada. Cancele e confira a escada de propostas antes de enviar de novo.';
+export const FRASE_SUGESTAO_EM_DUVIDA = 'A resposta não chegou, e o pedido pode ter chegado ao Negociador. Cancele e confira a negociação antes de pedir de novo.';
+
+/** Os ids das propostas da negociação, para a conferência depois de uma falha ambígua. */
+async function idsDasPropostas(g: Gesto, nid: number): Promise<Set<number>> {
+  const r = await g.esperar(chamarApi(`/negociacoes/${nid}/propostas`));
+  return new Set(((r?.dados ?? []) as Linha[]).map((p) => Number(p.id)));
+}
+
+/**
+ * O POST da proposta falhou. Recusa do app (nada gravado): relança, e o formulário reabre para corrigir.
+ * Falha ambígua: relê a escada. A proposta entrou (uma que não estava em `antes`, com a mesma direção e o
+ * mesmo valor): devolve-a marcada `conferida`, e nada é reenviado. Não entrou: relança (reenviar é
+ * seguro). A releitura também falhou: a frase da dúvida, e o corretor decide.
+ */
+export async function conferirProposta(g: Gesto, e: unknown, nid: number, antes: Set<number>, direcao: string, valor_c: number): Promise<Linha> {
+  if (g.encerrado(e) || !falhaAmbigua(e)) throw e;
+  let escada: Linha[];
+  try {
+    escada = (await g.esperar(chamarApi(`/negociacoes/${nid}/propostas`)))?.dados ?? [];
+  } catch (e2) {
+    if (g.encerrado(e2)) throw e2;
+    throw new Error(FRASE_PROPOSTA_EM_DUVIDA);
+  }
+  const entrou = escada.find((p) => !antes.has(Number(p.id)) && p.direcao === direcao && Number(p.valor_c) === valor_c);
+  if (!entrou) throw e;
+  return { ...entrou, conferida: true };
+}
+
+/** O que muda na negociação quando um pedido de sugestão chega ao servidor (sugestão, proposta, estado, fala). */
+const marcaDaNegociacao = (d: Linha | null) =>
+  JSON.stringify([d?.estado ?? null, d?.sugestao?.execucao_id ?? null, ((d?.propostas ?? []) as Linha[]).map((p) => p.id), d?.ultima_fala?.em ?? null]);
+
+// ---------------------------------------------------------------------------------------------------
 // Estado da negociação aberta: o centro e a direita leem o MESMO estado (como a ficha do cliente).
 
 class NegociacaoAberta {
@@ -164,9 +207,8 @@ class NegociacaoAberta {
   /** Uma ação que grava: avisa o erro (o 422 das garantias diz o que barrou) e relê. */
   async agir(titulo: string, fn: () => Promise<unknown>): Promise<boolean> {
     if (this.s.ocupado || !this.vida.vivo()) return false;
-    this.s.ocupado = true;
     try {
-      await this.vida.esperar(fn());
+      await this.gravar(fn);
       return true;
     } catch (e) {
       // Conta trocada no meio: sem alerta, e quem chamou não segue.
@@ -175,6 +217,19 @@ class NegociacaoAberta {
       const mensagem = (e as { codigo?: string })?.codigo === 'ESCREVA_A_MENSAGEM' ? (e as Error).message : mensagemDeErro(e);
       await urbiVerso.alertar({ titulo, mensagem, tipo: 'erro' });
       return false;
+    }
+  }
+
+  /**
+   * Grava como o `agir` (a trava, a releitura e o aviso à lista), mas a falha volta a quem chamou: dentro
+   * de `formularioQueSalva`, o formulário reabre com o digitado e a frase dela (#187).
+   */
+  async gravar<T>(fn: () => Promise<T>): Promise<T> {
+    if (!this.vida.vivo()) throw new ContaTrocada();
+    if (this.s.ocupado) throw new Error('Outra ação desta negociação ainda está em andamento. Espere terminar e envie de novo.');
+    this.s.ocupado = true;
+    try {
+      return await this.vida.esperar(fn());
     } finally {
       // A trava e a releitura são desta conta; a negociação da outra é outro objeto, que começou livre.
       if (this.vida.vivo()) {
@@ -182,6 +237,20 @@ class NegociacaoAberta {
         await this.carregar();
         avisarQueMudou(this.id);
       }
+    }
+  }
+
+  /**
+   * O POST de uma proposta desta negociação. Falha ambígua: confere a escada (`conferirProposta`); a
+   * proposta que entrou não é reenviada. `antes` é a escada da tela, lida antes do envio.
+   */
+  private async postarProposta(corpo: Record<string, unknown>): Promise<Linha> {
+    const antes = new Set(((this.s.detalhe?.propostas ?? []) as Linha[]).map((p) => Number(p.id)));
+    try {
+      return await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/propostas`, corpo));
+    } catch (e) {
+      if (this.vida.encerrado(e)) throw e;
+      return conferirProposta(this.vida, e, this.id, antes, String(corpo.direcao), Number(corpo.valor_c));
     }
   }
 
@@ -197,7 +266,11 @@ class NegociacaoAberta {
   private async novaContrapropostaNaConta() {
     const m = this.s.mandato;
     const concessoes = ((m?.concessoes ?? []) as Linha[]).filter((c) => c.item);
-    const v = await this.vida.esperar(urbiVerso.formulario({
+    // A janela do Fazer agora abre no clique de cada envio (senão o navegador a bloqueia), só recebe o link
+    // depois de gravar e fecha a cada falha, antes de o formulário reabrir: nunca duas abertas nem um link
+    // aberto sem a proposta gravada.
+    const envio: { janela: Window | null; canal: string } = { janela: null, canal: 'portal' };
+    const r = await formularioQueSalva<Linha>({
       titulo: 'Nova contraproposta',
       mensagem: 'A sua contraproposta, sem depender de sugestão. O app confere o mandato antes de enviar: passo, rodadas, concessões, validade e sigilo.',
       campos: [
@@ -211,55 +284,70 @@ class NegociacaoAberta {
         { nome: 'canal', tipo: 'selecao', rotulo: 'Enviar por', valor: 'portal', opcoes: [{ valor: 'portal', rotulo: 'Portal do cliente' }, { valor: 'wa_me', rotulo: 'Fazer agora (WhatsApp do seu celular)' }] },
       ],
       rotuloConfirmar: 'Enviar contraproposta',
-    } as Parameters<UrbiVersoAPI['formulario']>[0]));
-    if (!v) return;
-    const valor_c = centavosDigitados(v.valor);
-    if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.400.000.', tipo: 'alerta' });
-    const item = concessoes.find((c) => String(c.item) === String(v.concessao ?? ''));
-    const horas = Number(String(v.validade_horas ?? '').trim());
-    const canal = v.canal === 'wa_me' ? 'wa_me' : 'portal';
-    const corpo: Record<string, unknown> = {
-      direcao: 'vendedor',
-      valor_c,
-      canal,
-      condicoes: v.condicoes ? String(v.condicoes) : null,
-      concessao: item ? String(item.item) : null,
-      contrapartida: item ? String(item.contrapartida) : null,
-      ...(Number.isInteger(horas) && horas > 0 ? { validade_horas: horas } : {}),
-      ...(String(v.mensagem ?? '').trim() ? { mensagem: String(v.mensagem).trim() } : {}),
-    };
-    // A janela do Fazer agora abre no próprio clique (senão o navegador bloqueia) e recebe o link depois.
-    const janela = canal === 'wa_me' ? window.open('', '_blank') : null;
-    let r: Linha | null = null;
-    const ok = await this.agir('A contraproposta não foi enviada', async () => {
-      try {
-        r = await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/propostas`, corpo));
-      } catch (e) {
-        // D-120: abaixo do recuo, só o corretor, e só confirmando. A confirmação fica registrada.
-        // Conta trocada com o envio em voo: segue para o `agir`, que termina em silêncio.
-        if (this.vida.encerrado(e) || !abaixoDoRecuoConfirmavel(e)) throw e;
-        const sim = await this.vida.esperar(urbiVerso.confirmar({
-          titulo: 'Abaixo do ponto de recuo',
-          mensagem: `${reais(valor_c)} fica abaixo do ponto de recuo do mandato. Enviar mesmo assim? O envio fica registrado na trilha de auditoria, com o seu nome.`,
-          rotuloConfirmar: 'Enviar abaixo do recuo',
-          perigo: true,
-        }));
-        if (!sim) {
-          janela?.close();
-          return;
+      gesto: this.vida,
+      aviso: null,
+      salvar: async (v) => {
+        const valor_c = centavosDigitados(v.valor);
+        if (!valor_c) throw valorInvalido('1.400.000');
+        const item = concessoes.find((c) => String(c.item) === String(v.concessao ?? ''));
+        const horas = Number(String(v.validade_horas ?? '').trim());
+        const canal = v.canal === 'wa_me' ? 'wa_me' : 'portal';
+        const corpo: Record<string, unknown> = {
+          direcao: 'vendedor',
+          valor_c,
+          canal,
+          condicoes: v.condicoes ? String(v.condicoes) : null,
+          concessao: item ? String(item.item) : null,
+          contrapartida: item ? String(item.contrapartida) : null,
+          ...(Number.isInteger(horas) && horas > 0 ? { validade_horas: horas } : {}),
+          ...(String(v.mensagem ?? '').trim() ? { mensagem: String(v.mensagem).trim() } : {}),
+        };
+        envio.canal = canal;
+        envio.janela = canal === 'wa_me' ? window.open('', '_blank') : null;
+        try {
+          return await this.gravar(() => this.enviarContraproposta(corpo, valor_c));
+        } catch (e) {
+          // Fecha a desta tentativa; a próxima abre outra no próprio clique.
+          envio.janela?.close();
+          throw e;
         }
-        r = await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/propostas`, { ...corpo, confirmar_abaixo_do_recuo: true }));
-      }
+      },
     });
-    const resposta = r as Linha | null;
-    if (!ok || !resposta) return void janela?.close();
-    if (canal === 'wa_me') {
-      if (resposta.link && janela) janela.location.href = resposta.link;
-      else {
-        janela?.close();
-        await urbiVerso.alertar({ titulo: 'Mensagem pronta', mensagem: [resposta.texto ?? '', resposta.link ? `Abra no WhatsApp: ${resposta.link}` : ''].filter(Boolean).join('\n\n'), tipo: 'info' });
-      }
-    } else urbiVerso.notificar('Contraproposta enviada pelo portal do cliente.', 'sucesso');
+    const janela = envio.janela;
+    if (!r) return void janela?.close();
+    if (envio.canal !== 'wa_me') return void urbiVerso.notificar('Contraproposta enviada pelo portal do cliente.', 'sucesso');
+    if (r.link && janela) janela.location.href = r.link;
+    else if (r.conferida) {
+      // Gravou, mas a resposta (com o texto e o link) se perdeu: nada é reenviado; o corretor escreve à mão.
+      janela?.close();
+      await this.vida.esperar(urbiVerso.alertar({ titulo: 'Contraproposta registrada', mensagem: `A resposta demorou, mas a contraproposta de ${reais(r.valor_c)} já está na escada. A mensagem pronta não chegou: escreva ao cliente pelo WhatsApp do seu celular.`, tipo: 'info' }));
+    } else {
+      janela?.close();
+      await this.vida.esperar(urbiVerso.alertar({ titulo: 'Mensagem pronta', mensagem: [r.texto ?? '', r.link ? `Abra no WhatsApp: ${r.link}` : ''].filter(Boolean).join('\n\n'), tipo: 'info' }));
+    }
+  }
+
+  /**
+   * Um envio da Nova contraproposta. D-120: a recusa só por ficar abaixo do recuo pede a confirmação do
+   * corretor, NESTE envio; só confirmado vai o segundo POST, com a marca (fica na trilha de auditoria). O
+   * negociador humano nunca confirma (`abaixoDoRecuoConfirmavel`, e o backend ignora a marca dele). Não
+   * confirmou: nada sai, e o formulário reabre com o digitado. O primeiro POST foi recusado (422, nada
+   * gravado), então o segundo nunca duplica; o reenvio pelo formulário reaberto começa de novo sem a marca.
+   */
+  private async enviarContraproposta(corpo: Record<string, unknown>, valor_c: number): Promise<Linha> {
+    try {
+      return await this.postarProposta(corpo);
+    } catch (e) {
+      if (this.vida.encerrado(e) || !abaixoDoRecuoConfirmavel(e)) throw e;
+      const sim = await this.vida.esperar(urbiVerso.confirmar({
+        titulo: 'Abaixo do ponto de recuo',
+        mensagem: `${reais(valor_c)} fica abaixo do ponto de recuo do mandato. Enviar mesmo assim? O envio fica registrado na trilha de auditoria, com o seu nome.`,
+        rotuloConfirmar: 'Enviar abaixo do recuo',
+        perigo: true,
+      }));
+      if (!sim) throw new Error('A contraproposta fica abaixo do ponto de recuo e não foi enviada. Ajuste o valor ou cancele.');
+      return this.postarProposta({ ...corpo, confirmar_abaixo_do_recuo: true });
+    }
   }
 
   /**
@@ -273,30 +361,35 @@ class NegociacaoAberta {
   private async registrarDecisaoNaConta(decisao: 'aceita' | 'recusa' | 'contraproposta') {
     const acordo = ((this.s.detalhe?.propostas ?? []) as Linha[]).filter((p) => p.direcao === 'comprador' && p.estado === 'aceita').pop();
     if (!acordo) return;
-    let corpo: Record<string, unknown> = { decisao };
+    const corpo: Record<string, unknown> = { decisao };
     if (decisao === 'contraproposta') {
-      const v = await this.vida.esperar(urbiVerso.formulario({
+      // A decisão é condicionada no servidor (sob a trava: a proposta `aceita` e a negociação aguardando o
+      // proprietário): repetida depois de gravar, dá 409 e nenhuma segunda rodada entra.
+      await formularioQueSalva({
         titulo: 'Contraproposta do proprietário',
+        gesto: this.vida,
         campos: [
           { nome: 'valor', tipo: 'texto', rotulo: 'Valor que o proprietário aceita (R$)', placeholder: '1.420.000', obrigatorio: true },
           { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
         ],
         rotuloConfirmar: 'Registrar',
-      }));
-      if (!v) return;
-      const valor_c = centavosDigitados(v.valor);
-      if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.420.000.', tipo: 'alerta' });
-      corpo = { ...corpo, valor_c, condicoes: v.condicoes ? String(v.condicoes) : null };
-    } else {
-      const sim = await this.vida.esperar(urbiVerso.confirmar({
-        titulo: decisao === 'aceita' ? 'O proprietário aceitou' : 'O proprietário recusou',
-        mensagem: decisao === 'aceita'
-          ? `A negociação se encerra como ganha por ${reais(acordo.valor_c)}, e o negócio fica com esse valor.`
-          : 'A oferta do comprador fica recusada e a negociação volta para você.',
-        rotuloConfirmar: 'Registrar decisão',
-      }));
-      if (!sim) return;
+        aviso: 'Decisão do proprietário registrada.',
+        salvar: async (v) => {
+          const valor_c = centavosDigitados(v.valor);
+          if (!valor_c) throw valorInvalido('1.420.000');
+          return this.gravar(() => this.vida.esperar(enviar('PATCH', `/propostas/${acordo.id}`, { ...corpo, valor_c, condicoes: v.condicoes ? String(v.condicoes) : null })));
+        },
+      });
+      return;
     }
+    const sim = await this.vida.esperar(urbiVerso.confirmar({
+      titulo: decisao === 'aceita' ? 'O proprietário aceitou' : 'O proprietário recusou',
+      mensagem: decisao === 'aceita'
+        ? `A negociação se encerra como ganha por ${reais(acordo.valor_c)}, e o negócio fica com esse valor.`
+        : 'A oferta do comprador fica recusada e a negociação volta para você.',
+      rotuloConfirmar: 'Registrar decisão',
+    }));
+    if (!sim) return;
     await this.agir('Não foi possível registrar a decisão', async () => {
       const r = await this.vida.esperar(enviar('PATCH', `/propostas/${acordo.id}`, corpo));
       urbiVerso.notificar(
@@ -312,7 +405,7 @@ class NegociacaoAberta {
   encerrar(como: 'ganha' | 'perdida') {
     return this.semAvisoDeOutraConta(async () => {
       const oferta = this.ultimaOferta();
-      const v = await this.vida.esperar(urbiVerso.formulario(
+      const formulario: { titulo: string; mensagem?: string; campos: CampoFormulario[]; rotuloConfirmar: string } =
         como === 'ganha'
           ? {
               titulo: 'Encerrar como ganha',
@@ -324,19 +417,25 @@ class NegociacaoAberta {
               titulo: 'Encerrar como perdida',
               campos: [{ nome: 'motivo', tipo: 'selecao', rotulo: 'Motivo', obrigatorio: true, opcoes: MOTIVOS_PERDA.map((mo) => ({ valor: mo, rotulo: ROTULO_MOTIVO_PERDA[mo] ?? mo })) }],
               rotuloConfirmar: 'Encerrar como perdida',
-            },
-      ));
-      if (!v) return;
-      const corpo: Record<string, unknown> = { estado: como };
-      if (como === 'ganha') {
-        const valor_c = centavosDigitados(v.valor);
-        if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.400.000.', tipo: 'alerta' });
-        corpo.valor_final_c = valor_c;
-      } else corpo.motivo_perda = String(v.motivo);
-      await this.agir('Não foi possível encerrar', async () => {
-        const r = await this.vida.esperar(enviar('PATCH', `/negociacoes/${this.id}`, corpo));
-        urbiVerso.notificar(como === 'ganha' ? `Negociação ganha.${r?.comissao_prevista_c ? ` Comissão prevista: ${reais(r.comissao_prevista_c)}.` : ''}` : 'Negociação encerrada como perdida.', 'sucesso');
+            };
+      // O encerramento é condicionado no servidor (`atualizarSe` no estado lido): repetido depois de gravar,
+      // dá 409 NEGOCIACAO_ENCERRADA, e o evento não se publica duas vezes.
+      const r = await formularioQueSalva<Linha>({
+        ...formulario,
+        gesto: this.vida,
+        aviso: null,
+        salvar: async (v) => {
+          const corpo: Record<string, unknown> = { estado: como };
+          if (como === 'ganha') {
+            const valor_c = centavosDigitados(v.valor);
+            if (!valor_c) throw valorInvalido('1.400.000');
+            corpo.valor_final_c = valor_c;
+          } else corpo.motivo_perda = String(v.motivo);
+          return this.gravar(() => this.vida.esperar(enviar('PATCH', `/negociacoes/${this.id}`, corpo)));
+        },
       });
+      if (!r) return;
+      urbiVerso.notificar(como === 'ganha' ? `Negociação ganha.${r.comissao_prevista_c ? ` Comissão prevista: ${reais(r.comissao_prevista_c)}.` : ''}` : 'Negociação encerrada como perdida.', 'sucesso');
     });
   }
 
@@ -350,18 +449,39 @@ class NegociacaoAberta {
   }
 
   private async pedirSugestaoNaConta() {
-    const v = await this.vida.esperar(urbiVerso.formulario({
+    // A IA falhou (503 IA_INDISPONIVEL, antes de gravar): o formulário reabre com o que foi colado. A falha
+    // ambígua (o servidor pode ter rodado o Negociador, que em "faz sozinho" envia) não reenvia às cegas:
+    // relê a negociação e, se ela mudou, o pedido chegou.
+    const r = await formularioQueSalva<Linha>({
       titulo: 'Pedir sugestão ao Negociador',
+      gesto: this.vida,
       mensagem: 'Cole o que o cliente disse por último, se houver. O Negociador sugere o próximo movimento dentro do mandato; nada é enviado sem a sua aprovação, salvo em "faz sozinho".',
       campos: [{ nome: 'mensagem_cliente', tipo: 'texto_longo', rotulo: 'O que o cliente disse (opcional)' }],
       rotuloConfirmar: 'Pedir sugestão',
-    }));
-    if (!v) return;
-    await this.agir('Não foi possível pedir a sugestão', async () => {
-      const r = await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/sugestao`, { mensagem_cliente: v.mensagem_cliente ? String(v.mensagem_cliente) : null, canal: 'portal' }));
-      if (r?.passagem) urbiVerso.notificar(`A negociação passou a você: ${(r.motivos_passagem ?? []).map((m: Linha) => m.descricao).join('; ') || 'o Negociador pediu.'}`, 'info');
-      else if (r?.enviada) urbiVerso.notificar('O Negociador enviou a contraproposta pelo portal.', 'sucesso');
+      aviso: null,
+      salvar: (v) =>
+        this.gravar(async () => {
+          const antes = marcaDaNegociacao(this.s.detalhe);
+          try {
+            return await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/sugestao`, { mensagem_cliente: v.mensagem_cliente ? String(v.mensagem_cliente) : null, canal: 'portal' }));
+          } catch (e) {
+            if (this.vida.encerrado(e) || !falhaAmbigua(e)) throw e;
+            let depois: Linha | null;
+            try {
+              depois = await this.vida.esperar(chamarApi(`/negociacoes/${this.id}`));
+            } catch (e2) {
+              if (this.vida.encerrado(e2)) throw e2;
+              throw new Error(FRASE_SUGESTAO_EM_DUVIDA);
+            }
+            if (marcaDaNegociacao(depois) === antes) throw e;
+            return { conferida: true } as Linha;
+          }
+        }),
     });
+    if (!r) return;
+    if (r.conferida) urbiVerso.notificar('A resposta demorou, mas o pedido chegou ao Negociador: confira a negociação.', 'info');
+    else if (r.passagem) urbiVerso.notificar(`A negociação passou a você: ${(r.motivos_passagem ?? []).map((m: Linha) => m.descricao).join('; ') || 'o Negociador pediu.'}`, 'info');
+    else if (r.enviada) urbiVerso.notificar('O Negociador enviou a contraproposta pelo portal.', 'sucesso');
   }
 
   /** A sugestão traz contraproposta? Só ela se aprova; a só em texto o corretor revisa e envia (D-111). */
@@ -410,43 +530,48 @@ class NegociacaoAberta {
     const sugestao = this.s.detalhe?.sugestao;
     if (!sugestao) return;
     const rascunho = String(sugestao.resposta?.mensagem ?? '');
+    // A decisão reserva a sugestão no servidor (`atualizarSe` na execução pendente, sob a trava, com as
+    // garantias de 10.9.7 refeitas): repetida depois de gravar, dá 409 SUGESTAO_JA_DECIDIDA, nunca dois envios.
     if (!this.temContraproposta()) {
-      const v = await this.vida.esperar(urbiVerso.formulario({
+      await formularioQueSalva({
         titulo: 'Revisar e enviar',
+        gesto: this.vida,
         mensagem: 'O texto do Negociador é só um rascunho: revise e envie com as suas palavras. O app confere de novo que nada revele o sigilo.',
         campos: [{ nome: 'mensagem', tipo: 'texto_longo', rotulo: 'Mensagem ao cliente', valor: rascunho, obrigatorio: true }],
         rotuloConfirmar: 'Enviar pelo portal',
-      }));
-      const mensagem = v ? String(v.mensagem ?? '').trim() : '';
-      if (!mensagem) return;
-      await this.agir('A mensagem não foi enviada', async () => {
-        await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'editar', execucao_id: sugestao.execucao_id, canal: 'portal', mensagem }));
-        urbiVerso.notificar('Mensagem enviada pelo portal do cliente.', 'sucesso');
+        aviso: 'Mensagem enviada pelo portal do cliente.',
+        salvar: async (v) => {
+          const mensagem = String(v.mensagem ?? '').trim();
+          if (!mensagem) throw new Error('Escreva a mensagem ao cliente.');
+          return this.gravar(() => this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/decisao`, { acao: 'editar', execucao_id: sugestao.execucao_id, canal: 'portal', mensagem })));
+        },
       });
       return;
     }
     const cp = sugestao.resposta.contraproposta;
-    const v = await this.vida.esperar(urbiVerso.formulario({
+    await formularioQueSalva({
       titulo: 'Editar a sugestão',
+      gesto: this.vida,
       mensagem: `O app confere de novo as regras do mandato: abaixo do recuo, passo maior que o permitido ou texto que revele o sigilo não são enviados.${rascunho ? `\n\nRascunho do Negociador (só referência): ${rascunho}` : ''}`,
       campos: [
         { nome: 'valor', tipo: 'texto', rotulo: 'Valor da contraproposta (R$)', valor: (cp.valor_c / 100).toLocaleString('pt-BR') },
         { nome: 'mensagem', tipo: 'texto_longo', rotulo: 'Mensagem ao cliente (opcional)', valor: '', placeholder: 'Em branco, sai a mensagem montada pelo app.' },
       ],
       rotuloConfirmar: 'Enviar pelo portal',
-    }));
-    if (!v) return;
-    const digitado = String(v.valor ?? '').trim();
-    const valor_c = digitado ? centavosDigitados(digitado) : cp.valor_c;
-    if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.380.000.', tipo: 'alerta' });
-    const mensagem = String(v.mensagem ?? '').trim();
-    await this.agir('A contraproposta não foi enviada', async () => {
-      await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/decisao`, {
-        acao: 'editar', execucao_id: sugestao.execucao_id, canal: 'portal',
-        ...(valor_c !== cp.valor_c ? { contraproposta: { valor_c, validade_horas: cp.validade_horas ?? null } } : {}),
-        ...(mensagem ? { mensagem } : {}),
-      }));
-      urbiVerso.notificar('Contraproposta enviada pelo portal do cliente.', 'sucesso');
+      aviso: 'Contraproposta enviada pelo portal do cliente.',
+      salvar: async (v) => {
+        const digitado = String(v.valor ?? '').trim();
+        const valor_c = digitado ? centavosDigitados(digitado) : cp.valor_c;
+        if (!valor_c) throw valorInvalido('1.380.000');
+        const mensagem = String(v.mensagem ?? '').trim();
+        return this.gravar(() =>
+          this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/decisao`, {
+            acao: 'editar', execucao_id: sugestao.execucao_id, canal: 'portal',
+            ...(valor_c !== cp.valor_c ? { contraproposta: { valor_c, validade_horas: cp.validade_horas ?? null } } : {}),
+            ...(mensagem ? { mensagem } : {}),
+          })),
+        );
+      },
     });
   }
 
@@ -461,20 +586,22 @@ class NegociacaoAberta {
   }
 
   private async registrarOfertaNaConta() {
-    const v = await this.vida.esperar(urbiVerso.formulario({
+    // O registro é um POST de proposta: a falha ambígua confere a escada (`postarProposta`).
+    await formularioQueSalva({
       titulo: 'Registrar oferta do cliente',
+      gesto: this.vida,
       campos: [
         { nome: 'valor', tipo: 'texto', rotulo: 'Valor oferecido (R$)', placeholder: '1.320.000', obrigatorio: true },
         { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
       ],
       rotuloConfirmar: 'Registrar',
-    }));
-    if (!v) return;
-    const valor_c = centavosDigitados(v.valor);
-    if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.320.000.', tipo: 'alerta' });
-    await this.agir('Não foi possível registrar a oferta', () =>
-      enviar('POST', `/negociacoes/${this.id}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }),
-    );
+      aviso: null,
+      salvar: async (v) => {
+        const valor_c = centavosDigitados(v.valor);
+        if (!valor_c) throw valorInvalido('1.320.000');
+        return this.gravar(() => this.postarProposta({ direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }));
+      },
+    });
   }
 
   async conduzir(acao: 'assumir' | 'devolver') {
@@ -862,16 +989,15 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       });
       return;
     }
-    const v = await n.vida.esperar(urbiVerso.formulario({
+    // A atribuição à mesma pessoa é reaproveitada no servidor (e não avisa de novo): repetir não duplica.
+    await formularioQueSalva({
       titulo: 'Atribuir a um negociador',
+      gesto: n.vida,
       mensagem: 'A pessoa passa a conduzir esta negociação, dentro do mandato. Ela não vê o recuo, o alvo nem a BATNA do vendedor e não aceita o acordo final.',
       campos: [{ nome: 'usuario_id', tipo: 'selecao', rotulo: 'Negociador', obrigatorio: true, opcoes: prontas.map((p) => ({ valor: String(p.usuario_id), rotulo: p.email })) }],
       rotuloConfirmar: 'Atribuir',
-    }));
-    if (!v) return;
-    await n.agir('Não foi possível atribuir', async () => {
-      await n.vida.esperar(enviar('POST', '/negociador/atribuicoes', { negociacao_id: d.id, usuario_id: Number(v.usuario_id) }));
-      urbiVerso.notificar('Negociação atribuída.', 'sucesso');
+      aviso: 'Negociação atribuída.',
+      salvar: (v) => n.gravar(() => n.vida.esperar(enviar('POST', '/negociador/atribuicoes', { negociacao_id: d.id, usuario_id: Number(v.usuario_id) }))),
     });
   }
 
@@ -975,53 +1101,77 @@ export async function novaProposta(foco?: { id: number; nome: string } | null): 
   }
 }
 
+/**
+ * Uma tentativa da Nova proposta que gravou parte dos passos (o negócio, a negociação) e falhou depois. O
+ * formulário reabre e o reenvio, com o mesmo cliente e o mesmo imóvel, segue do passo que faltou: nada já
+ * gravado se grava de novo.
+ */
+interface PassosDaProposta {
+  contato: number;
+  imovel: number;
+  negocio?: Linha;
+  nid?: number;
+}
+
 async function novaPropostaNoGesto(g: Gesto, foco?: { id: number; nome: string } | null): Promise<number | null> {
-  const v = await g.esperar(urbiVerso.formulario({
+  let feitos: PassosDaProposta | null = null;
+  const campos: CampoFormulario[] = [
+    { nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, valor: foco?.id ?? null, rotuloValor: foco?.nome, placeholder: 'Nome ou telefone', buscar: buscaDoGesto(g, '/contatos', (c) => c.nome) },
+    { nome: 'imovel_id', tipo: 'busca', rotulo: 'Imóvel', obrigatorio: true, placeholder: 'Código, bairro ou título', buscar: buscaDoGesto(g, '/imoveis', (i) => `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`) },
+    { nome: 'valor', tipo: 'texto', rotulo: 'Valor oferecido (R$)', placeholder: '1.320.000', obrigatorio: true },
+    { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
+  ] as CampoFormulario[];
+  const r = await formularioQueSalva<{ nid: number }>({
     titulo: 'Nova proposta',
+    gesto: g,
     mensagem: 'Registre a oferta do cliente. A negociação abre em Clientes › Negociações, onde você define o mandato.',
-    campos: [
-      { nome: 'contato_id', tipo: 'busca', rotulo: 'Cliente', obrigatorio: true, valor: foco?.id ?? null, rotuloValor: foco?.nome, placeholder: 'Nome ou telefone', buscar: buscaDoGesto(g, '/contatos', (c) => c.nome) },
-      { nome: 'imovel_id', tipo: 'busca', rotulo: 'Imóvel', obrigatorio: true, placeholder: 'Código, bairro ou título', buscar: buscaDoGesto(g, '/imoveis', (i) => `${i.codigo} · ${i.titulo ?? i.bairro ?? ''}`) },
-      { nome: 'valor', tipo: 'texto', rotulo: 'Valor oferecido (R$)', placeholder: '1.320.000', obrigatorio: true },
-      { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
-    ],
+    campos,
     rotuloConfirmar: 'Registrar proposta',
-  } as Parameters<UrbiVersoAPI['formulario']>[0]));
-  if (!v) return null;
-  const valor_c = centavosDigitados(v.valor);
-  if (!valor_c) {
-    await urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.320.000.', tipo: 'alerta' });
-    return null;
-  }
-  const contato = Number(v.contato_id);
-  const imovel = Number(v.imovel_id);
-  try {
-    // Conduta (uma negociação em andamento por negócio, 6.16): 1) o cliente já negocia ESTE imóvel →
-    // a oferta entra nela; 2) senão, um negócio aberto de compra do cliente sobre este imóvel (ou sem
-    // imóvel) e sem negociação em andamento recebe a negociação nova; 3) senão, abre um negócio próprio
-    // para o imóvel. Negócio que já negocia OUTRO imóvel nunca recebe a oferta (não grava no imóvel errado).
-    const emAndamento: Linha[] = (await g.esperar(chamarApi(`/negociacoes?contato_id=${contato}&estado=${FILTROS[0].estados}&por_pagina=100`)))?.dados ?? [];
-    let negociacao = emAndamento.find((n) => Number(n.imovel_id) === imovel) ?? null;
-    if (!negociacao) {
-      const ocupados = new Set(emAndamento.map((n) => Number(n.negocio_id)));
-      const negocios: Linha[] = (await g.esperar(chamarApi(`/contatos/${contato}`)))?.negocios ?? [];
-      const livre = (n: Linha) => n.etapa_tipo === 'aberta' && n.pipeline === 'compra' && !ocupados.has(Number(n.id));
-      const aberto = negocios.find((n) => livre(n) && Number(n.imovel_id) === imovel) ?? negocios.find((n) => livre(n) && !n.imovel_id);
-      const negocio = aberto ?? (await g.esperar(enviar('POST', '/negocios', { contato_id: contato, imovel_id: imovel })));
-      // O negócio novo que já nasce na Proposta abre a negociação sozinho (gatilho `etapa_proposta`):
-      // a oferta entra nela, sem pedir outra (que daria 409 NEGOCIACAO_EXISTENTE).
-      const entrou = !aberto ? negocio?.negociador_entrou : null;
-      negociacao = entrou?.negociacao_id ? { id: entrou.negociacao_id } : await g.esperar(enviar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel }));
-      if (!aberto) urbiVerso.notificar('Aberto um negócio novo do cliente para este imóvel.', 'info');
-    }
-    await g.esperar(enviar('POST', `/negociacoes/${negociacao!.id}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }));
-    urbiVerso.notificar('Proposta registrada.', 'sucesso');
-    return Number(negociacao!.id);
-  } catch (e) {
-    if (g.encerrado(e)) return null;
-    await urbiVerso.alertar({ titulo: 'Não foi possível registrar a proposta', mensagem: mensagemDeErro(e), tipo: 'erro' });
-    return null;
-  }
+    aviso: 'Proposta registrada.',
+    salvar: async (v) => {
+      const valor_c = centavosDigitados(v.valor);
+      if (!valor_c) throw valorInvalido('1.320.000');
+      const contato = Number(v.contato_id);
+      const imovel = Number(v.imovel_id);
+      if (!feitos || feitos.contato !== contato || feitos.imovel !== imovel) feitos = { contato, imovel };
+      const passos = feitos;
+      if (!passos.nid) {
+        // Conduta (uma negociação em andamento por negócio, 6.16): 1) o cliente já negocia ESTE imóvel →
+        // a oferta entra nela; 2) senão, um negócio aberto de compra do cliente sobre este imóvel (ou sem
+        // imóvel) e sem negociação em andamento recebe a negociação nova; 3) senão, abre um negócio próprio
+        // para o imóvel. Negócio que já negocia OUTRO imóvel nunca recebe a oferta (não grava no imóvel errado).
+        // Relidos a cada tentativa: o negócio e a negociação que uma tentativa anterior criou (inclusive com
+        // a resposta perdida) aparecem aqui e não se criam de novo.
+        const emAndamento: Linha[] = (await g.esperar(chamarApi(`/negociacoes?contato_id=${contato}&estado=${FILTROS[0].estados}&por_pagina=100`)))?.dados ?? [];
+        let negociacao: Linha | null = emAndamento.find((n) => Number(n.imovel_id) === imovel) ?? null;
+        if (!negociacao) {
+          const ocupados = new Set(emAndamento.map((n) => Number(n.negocio_id)));
+          const negocios: Linha[] = (await g.esperar(chamarApi(`/contatos/${contato}`)))?.negocios ?? [];
+          const livre = (n: Linha) => n.etapa_tipo === 'aberta' && n.pipeline === 'compra' && !ocupados.has(Number(n.id));
+          let negocio = negocios.find((n) => livre(n) && Number(n.imovel_id) === imovel) ?? negocios.find((n) => livre(n) && !n.imovel_id) ?? passos.negocio ?? null;
+          if (!negocio) {
+            negocio = passos.negocio = await g.esperar(enviar('POST', '/negocios', { contato_id: contato, imovel_id: imovel }));
+            urbiVerso.notificar('Aberto um negócio novo do cliente para este imóvel.', 'info');
+          }
+          // O negócio novo que já nasce na Proposta abre a negociação sozinho (gatilho `etapa_proposta`):
+          // a oferta entra nela, sem pedir outra (que daria 409 NEGOCIACAO_EXISTENTE).
+          const entrou = negocio === passos.negocio ? negocio?.negociador_entrou : null;
+          negociacao = entrou?.negociacao_id ? { id: entrou.negociacao_id } : await g.esperar(enviar('POST', '/negociacoes', { negocio_id: negocio!.id, imovel_id: imovel }));
+        }
+        passos.nid = Number(negociacao!.id);
+      }
+      const nid = passos.nid;
+      const antes = await idsDasPropostas(g, nid);
+      try {
+        await g.esperar(enviar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }));
+      } catch (e) {
+        if (g.encerrado(e)) throw e;
+        await conferirProposta(g, e, nid, antes, 'comprador', valor_c);
+      }
+      return { nid };
+    },
+  });
+  return r ? r.nid : null;
 }
 
 /**
@@ -1044,8 +1194,12 @@ export async function propostaDoContato(g: Gesto, contato: { id: number; nome: s
     ...livres.map((n) => ({ valor: `negocio:${n.id}:${n.imovel_id}`, rotulo: `${n.titulo ?? 'Negócio'}${n.imovel_codigo ? ` · ${n.imovel_codigo}` : ''} (abrir negociação)` })),
   ];
   if (!escolhas.length) return novaProposta(contato);
-  const v = await g.esperar(urbiVerso.formulario({
+  // A negociação aberta numa tentativa que falhou depois (na oferta) é reaproveitada no reenvio com a mesma
+  // escolha; com a resposta perdida, o servidor recusa a segunda (409 NEGOCIACAO_EXISTENTE, um índice único).
+  const abertasAqui = new Map<string, number>();
+  const r = await formularioQueSalva<{ nid: number }>({
     titulo: `Proposta · ${contato.nome}`,
+    gesto: g,
     mensagem: 'Escolha o negócio. Sem negociação ainda, ela é aberta agora; a oferta é opcional (registre-a se o cliente já disse um valor).',
     campos: [
       { nome: 'escolha', tipo: 'selecao', rotulo: 'Negócio e imóvel', obrigatorio: true, valor: escolhas[0].valor, opcoes: escolhas },
@@ -1053,23 +1207,37 @@ export async function propostaDoContato(g: Gesto, contato: { id: number; nome: s
       { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
     ],
     rotuloConfirmar: 'Abrir a negociação',
-  }));
-  if (!v) return null;
-  const digitado = String(v.valor ?? '').trim();
-  const valor_c = digitado ? centavosDigitados(digitado) : null;
-  if (digitado && !valor_c) {
-    await urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.320.000.', tipo: 'alerta' });
-    return null;
-  }
-  const [tipo, a, b] = String(v.escolha).split(':');
-  let nid = Number(a);
-  if (tipo === 'negocio') {
-    const criada = await g.esperar(enviar('POST', '/negociacoes', { negocio_id: Number(a), imovel_id: Number(b) }));
-    nid = Number(criada.id);
-    urbiVerso.notificar(`Negociação ${criada.codigo} aberta.`, 'sucesso');
-  }
-  if (valor_c) await g.esperar(enviar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }));
-  return nid;
+    aviso: null,
+    salvar: async (v) => {
+      const digitado = String(v.valor ?? '').trim();
+      const valor_c = digitado ? centavosDigitados(digitado) : null;
+      if (digitado && !valor_c) throw valorInvalido('1.320.000');
+      const escolha = String(v.escolha);
+      const [tipo, a, b] = escolha.split(':');
+      let nid = Number(a);
+      if (tipo === 'negocio') {
+        const ja = abertasAqui.get(escolha);
+        if (ja) nid = ja;
+        else {
+          const criada = await g.esperar(enviar('POST', '/negociacoes', { negocio_id: Number(a), imovel_id: Number(b) }));
+          nid = Number(criada.id);
+          abertasAqui.set(escolha, nid);
+          urbiVerso.notificar(`Negociação ${criada.codigo} aberta.`, 'sucesso');
+        }
+      }
+      if (valor_c) {
+        const antes = await idsDasPropostas(g, nid);
+        try {
+          await g.esperar(enviar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }));
+        } catch (e) {
+          if (g.encerrado(e)) throw e;
+          await conferirProposta(g, e, nid, antes, 'comprador', valor_c);
+        }
+      }
+      return { nid };
+    },
+  });
+  return r ? r.nid : null;
 }
 
 /**

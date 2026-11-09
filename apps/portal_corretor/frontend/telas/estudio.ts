@@ -29,6 +29,7 @@ import {
   dataHora,
   ehContaTrocada,
   enviar,
+  falhaAmbigua,
   filtrosDaUrl,
   filtrosNaUrl,
   formularioQueSalva,
@@ -45,6 +46,13 @@ import { cabecalhoColuna, moldura } from '../moldura.js';
 declare const urbiVerso: UrbiVersoAPI;
 
 type Peca = PecaTela & Record<string, any>;
+/** A resposta de `POST /estudio/pedido` e `/estudio/pacote`; `conferida`: achada na releitura depois de uma falha ambígua. */
+interface RespostaCriar {
+  pecas: Peca[];
+  ia?: boolean;
+  conferida?: boolean;
+}
+const FRASE_PECAS_EM_DUVIDA = 'A resposta não chegou, e as peças podem ter sido criadas. Cancele e confira a lista antes de criar de novo.';
 interface Marca {
   creci: string | null;
   logo_url: string | null;
@@ -393,17 +401,20 @@ export class Estudio {
       { nome: 'objetivo', tipo: 'selecao', rotulo: 'Objetivo', valor: 'novo_imovel', opcoes: OBJETIVOS.map((o) => ({ valor: o, rotulo: ROTULO_OBJETIVO[o] })) },
       ...FORMATOS.map((f): CampoFormulario => ({ nome: `f_${f}`, tipo: 'booleano', rotulo: ROTULO_FORMATO[f], valor: f === 'post_1x1' })),
     ];
-    const v = await this.esperar(
-      urbiVerso.formulario({
-        titulo: 'Novo pedido',
-        campos,
-        mensagem: 'O app escreve os textos (com IA, quando liberada) e a descrição da arte para colar no Canva IA, com a sua marca. Você gera lá, envia a arte aqui e revisa antes de aprovar.',
-        rotuloConfirmar: 'Criar',
-      }),
-    );
-    if (!v) throw cancelado();
-    const formatos = FORMATOS.filter((f) => v[`f_${f}`] === true);
-    await this.criar('/estudio/pedido', { pedido: v.pedido, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, objetivo: v.objetivo, formatos });
+    // Recusado (#187: sem formato, sem pedido nem imóvel, a rede): reabre com o digitado e a frase do erro.
+    const r = await formularioQueSalva<RespostaCriar>({
+      titulo: 'Novo pedido',
+      campos,
+      mensagem: 'O app escreve os textos (com IA, quando liberada) e a descrição da arte para colar no Canva IA, com a sua marca. Você gera lá, envia a arte aqui e revisa antes de aprovar.',
+      rotuloConfirmar: 'Criar',
+      gesto: this.comoGesto(),
+      aviso: null,
+      salvar: (v) =>
+        this.enviarCriacao('/estudio/pedido', { pedido: v.pedido, imovel_id: v.imovel_id ? Number(v.imovel_id) : null, objetivo: v.objetivo, formatos: FORMATOS.filter((f) => v[`f_${f}`] === true) }),
+    });
+    if (!this.vivo) throw new InstanciaEncerrada();
+    if (!r) throw cancelado();
+    await this.aposCriar(r);
   }
 
   /** Criar rápido (2×2): sempre de um imóvel; Lançamento é o Pacote de lançamento. */
@@ -422,40 +433,63 @@ export class Estudio {
       await this.esperar(urbiVerso.alertar({ titulo: 'Nenhum imóvel anunciado', mensagem: `"${atalho.rotulo}" é para imóvel ativo ou reservado.`, tipo: 'alerta' }));
       return;
     }
-    const v = await this.esperar(
-      urbiVerso.formulario({
-        titulo: atalho.formatos ? atalho.rotulo : 'Pacote de lançamento',
-        mensagem: `Sai ${atalho.resumo}: os textos e uma descrição para o Canva IA de cada peça.`,
-        campos: [
-          { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', obrigatorio: true, pesquisavel: true, opcoes: imoveis.map(opcaoImovel) },
-          { nome: 'pedido', tipo: 'texto_longo', rotulo: 'Algum pedido? (opcional)', placeholder: 'Ex.: destacar a varanda gourmet.' },
-        ],
-        rotuloConfirmar: 'Criar',
-      }),
-    );
-    if (!v) return;
-    if (!atalho.formatos) await this.criar('/estudio/pacote', { imovel_id: Number(v.imovel_id), pedido: v.pedido, objetivo: atalho.objetivo });
-    else await this.criar('/estudio/pedido', { imovel_id: Number(v.imovel_id), pedido: v.pedido || atalho.rotulo, objetivo: atalho.objetivo, formatos: atalho.formatos });
+    const r = await formularioQueSalva<RespostaCriar>({
+      titulo: atalho.formatos ? atalho.rotulo : 'Pacote de lançamento',
+      mensagem: `Sai ${atalho.resumo}: os textos e uma descrição para o Canva IA de cada peça.`,
+      campos: [
+        { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', obrigatorio: true, pesquisavel: true, opcoes: imoveis.map(opcaoImovel) },
+        { nome: 'pedido', tipo: 'texto_longo', rotulo: 'Algum pedido? (opcional)', placeholder: 'Ex.: destacar a varanda gourmet.' },
+      ],
+      rotuloConfirmar: 'Criar',
+      gesto: this.comoGesto(),
+      aviso: null,
+      salvar: (v) =>
+        !atalho.formatos
+          ? this.enviarCriacao('/estudio/pacote', { imovel_id: Number(v.imovel_id), pedido: v.pedido, objetivo: atalho.objetivo })
+          : this.enviarCriacao('/estudio/pedido', { imovel_id: Number(v.imovel_id), pedido: v.pedido || atalho.rotulo, objetivo: atalho.objetivo, formatos: atalho.formatos }),
+    });
+    if (r && this.vivo) await this.aposCriar(r);
   }
 
-  /** Cria e abre o pedido novo. Falha: mostra o erro e rejeita com "cancelado" (o redator devolve o texto). */
-  private async criar(rota: string, corpo: Record<string, unknown>) {
+  /**
+   * O POST que cria as peças, dentro do formulário (#187): a recusa volta a ele, que reabre com o digitado.
+   * A rota cria uma peça por formato, sem chave de idempotência, e a IA pode passar do tempo do caminho:
+   * na falha AMBÍGUA (rede, 5xx) a lista é relida antes de deixar reenviar. Apareceram peças novas deste
+   * imóvel e objetivo: elas são o resultado (`conferida`), e nada é reenviado. Nenhuma: a falha volta (o
+   * reenvio é seguro). A releitura falhou: a frase da dúvida, e o corretor decide.
+   */
+  private async enviarCriacao(rota: string, corpo: Record<string, unknown>): Promise<RespostaCriar> {
+    const antes = new Set(this.pecas.map((p) => p.id));
     this.trabalhando = 'Escrevendo os textos e a descrição…';
     this.redesenhar();
-    let r: Record<string, any>;
     try {
-      r = await this.esperar(enviar('POST', rota, corpo));
+      return (await this.esperar(enviar('POST', rota, corpo))) as RespostaCriar;
     } catch (e) {
-      if (e instanceof InstanciaEncerrada) throw e;
-      this.trabalhando = null;
-      this.redesenhar();
-      await this.esperar(urbiVerso.alertar({ titulo: 'Não foi possível criar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
-      throw cancelado();
+      if (e instanceof InstanciaEncerrada || !falhaAmbigua(e)) throw e;
+      await this.carregar();
+      if (!this.vivo) throw new InstanciaEncerrada();
+      if (this.falha) throw new Error(FRASE_PECAS_EM_DUVIDA);
+      const novas = this.pecas.filter((p) => !antes.has(p.id) && (p.imovel_id ?? null) === (corpo.imovel_id ?? null) && p.objetivo === corpo.objetivo);
+      if (!novas.length) throw e;
+      return { pecas: novas, conferida: true };
+    } finally {
+      if (this.vivo) {
+        this.trabalhando = null;
+        this.redesenhar();
+      }
     }
-    const pecas = r.pecas as Peca[];
+  }
+
+  /** Depois de criar: o aviso e o pedido novo aberto no centro. */
+  private async aposCriar(r: RespostaCriar) {
+    const pecas = r.pecas;
     const criadas = new Set(pecas.map((p) => p.id));
-    this.trabalhando = null;
-    urbiVerso.notificar(`${pecas.length} peça(s) criada(s)${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}. Copie a descrição, gere a arte no Canva e envie na peça.`, 'sucesso');
+    urbiVerso.notificar(
+      r.conferida
+        ? `A resposta demorou, mas ${pecas.length} peça(s) foram criadas: confira antes de pedir de novo.`
+        : `${pecas.length} peça(s) criada(s)${r.ia ? '' : ' (textos pelo modelo: a IA não está liberada agora)'}. Copie a descrição, gere a arte no Canva e envie na peça.`,
+      r.conferida ? 'info' : 'sucesso',
+    );
     // O pedido novo abre no centro, na etapa "Todas", com a descrição e as fotos à vista. O id do pedido
     // não é o da peça criada: um envio igual ao anterior em menos de 2 min junta as peças ao pedido dele
     // (`agruparPedidos`). As peças criadas entram na lista já, e a URL vai ao pedido que as contém.
@@ -491,6 +525,17 @@ export class Estudio {
    * referências da marca; "Usar outra ferramenta" troca a ferramenta e as referências.
    */
   private async abrirInstrucao(id: number, ferramenta: Ferramenta = 'canva', referencias?: number[]): Promise<Instrucao | null> {
+    try {
+      return await this.prepararInstrucao(id, ferramenta, referencias);
+    } catch (e) {
+      if (e instanceof InstanciaEncerrada) throw e;
+      await this.esperar(urbiVerso.alertar({ titulo: 'Não foi possível preparar a descrição', mensagem: mensagemDeErro(e), tipo: 'erro' }));
+      return null;
+    }
+  }
+
+  /** O mesmo, com a falha devolvida a quem chamou (a descrição volta fechada): o formulário reabre com ela. */
+  private async prepararInstrucao(id: number, ferramenta: Ferramenta = 'canva', referencias?: number[]): Promise<Instrucao> {
     this.abertas = new Set(this.abertas).add(id);
     this.redesenhar();
     const guardada = this.instrucoes[id];
@@ -500,10 +545,8 @@ export class Estudio {
     try {
       r = (await this.esperar(chamarApi(`/estudio/pecas/${id}/instrucao?ferramenta=${encodeURIComponent(ferramenta)}${refs.length ? `&referencias=${refs.join(',')}` : ''}`))) as Instrucao;
     } catch (e) {
-      if (e instanceof InstanciaEncerrada) throw e;
-      this.fecharInstrucao(id);
-      await this.esperar(urbiVerso.alertar({ titulo: 'Não foi possível preparar a descrição', mensagem: mensagemDeErro(e), tipo: 'erro' }));
-      return null;
+      if (!(e instanceof InstanciaEncerrada)) this.fecharInstrucao(id);
+      throw e;
     }
     this.instrucoes = { ...this.instrucoes, [id]: r };
     this.redesenhar();
@@ -565,21 +608,21 @@ export class Estudio {
   /** Usar outra ferramenta (D-86): Claude Design ou outra, e as referências que entram na descrição. */
   private async outraFerramenta(p: Peca) {
     const refs = this.marca?.referencias ?? [];
-    const v = await this.esperar(
-      urbiVerso.formulario({
-        titulo: 'Usar outra ferramenta',
-        mensagem: refs.length
-          ? 'A descrição muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Conta e marca).'
-          : 'A descrição muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Conta e marca.',
-        campos: [
-          { nome: 'ferramenta', tipo: 'selecao', rotulo: 'Ferramenta', valor: this.instrucoes[p.id]?.ferramenta ?? 'canva', opcoes: FERRAMENTAS.map((f) => ({ valor: f, rotulo: FERRAMENTA[f].rotulo })) },
-          ...refs.map((r, i): CampoFormulario => ({ nome: `r_${r.id}`, tipo: 'booleano', rotulo: `Referência ${i + 1}`, valor: true })),
-        ],
-        rotuloConfirmar: 'Preparar',
-      }),
-    );
-    if (!v) return;
-    await this.abrirInstrucao(p.id, v.ferramenta as Ferramenta, refs.filter((r) => v[`r_${r.id}`] === true).map((r) => r.id));
+    // A descrição é uma leitura (GET, sem gravar): falhou, o formulário reabre com a escolha e a frase (#187).
+    await formularioQueSalva({
+      titulo: 'Usar outra ferramenta',
+      mensagem: refs.length
+        ? 'A descrição muda para a ferramenta escolhida. Marque as referências que entram (elas ficam em Ajustes › Conta e marca).'
+        : 'A descrição muda para a ferramenta escolhida. Quer mandar referências (posts que você admira)? Envie em Ajustes › Conta e marca.',
+      campos: [
+        { nome: 'ferramenta', tipo: 'selecao', rotulo: 'Ferramenta', valor: this.instrucoes[p.id]?.ferramenta ?? 'canva', opcoes: FERRAMENTAS.map((f) => ({ valor: f, rotulo: FERRAMENTA[f].rotulo })) },
+        ...refs.map((r, i): CampoFormulario => ({ nome: `r_${r.id}`, tipo: 'booleano', rotulo: `Referência ${i + 1}`, valor: true })),
+      ],
+      rotuloConfirmar: 'Preparar',
+      gesto: this.comoGesto(),
+      aviso: null,
+      salvar: (v) => this.prepararInstrucao(p.id, v.ferramenta as Ferramenta, refs.filter((r) => v[`r_${r.id}`] === true).map((r) => r.id)),
+    });
   }
 
   // ---------- Ações da peça ----------

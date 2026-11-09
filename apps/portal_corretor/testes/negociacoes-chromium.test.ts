@@ -53,7 +53,8 @@ window.urbiVerso = {
   notificar: () => {},
   alertar: async (a) => { window.alertas.push(a.titulo + ' | ' + a.mensagem); },
   confirmar: async () => window.confirmarResposta ?? true,
-  formulario: async (f) => { (window.formularios ??= []).push(f); return window.respostaFormulario ?? null; },
+  // Uma resposta por abertura: recusado, o formulário reabre (#187) e, sem resposta nova, o corretor cancela.
+  formulario: async (f) => { (window.formularios ??= []).push(f); const r = window.respostaFormulario ?? null; window.respostaFormulario = null; return r; },
   api: async (rota, opcoes) => {
     const metodo = opcoes?.method ?? 'GET';
     window.chamadas.push(metodo + ' ' + rota);
@@ -175,16 +176,24 @@ test('Negociações no Chromium: lista, faixa, sigilo mascarado, sugestão edita
     r = await pagina.evaluate(() => (window as any).profundo(document.querySelector('pc-negociacao-contexto')));
     assert.match(r, /Recuo R\$\s?1\.360\.000/, 'mostrar revela o recuo só na tela do corretor');
 
-    // Editar a sugestão para abaixo do recuo: o backend recusa (422) e a tela mostra o motivo.
+    // Editar a sugestão para abaixo do recuo: o backend recusa (422) e o formulário reabre com o digitado e
+    // o motivo (#187), sem alerta solto.
     await pagina.evaluate(() => {
       const w = window as any;
       w.respostaFormulario = { valor: '1.300.000', condicoes: '', mensagem: 'Ana, faço 1,3.' };
       const foco = document.querySelector('pc-negociacao-foco'); w.todos(foco, 'urbi-dropdown-item').find((i: any) => w.profundo(i).includes('Editar')).dispatchEvent(new CustomEvent('urbi:dropdown-select', { bubbles: true, composed: true }));
     });
     await esperar();
-    r = await pagina.evaluate(() => ({ alertas: (window as any).alertas.slice(), chamadas: (window as any).chamadas.slice() }));
-    assert.ok(r.chamadas.includes('POST /negociacoes/1/decisao'));
-    assert.deepEqual(r.alertas, ['A contraproposta não foi enviada | Abaixo do ponto de recuo: o app não envia.']);
+    r = await pagina.evaluate(() => {
+      const w = window as any;
+      const f = w.formularios.at(-1);
+      return { alertas: w.alertas.slice(), chamadas: w.chamadas.slice(), titulos: w.formularios.map((x: any) => x.titulo), mensagem: f.mensagem, valores: f.campos.map((c: any) => c.valor) };
+    });
+    assert.equal(r.chamadas.filter((c: string) => c === 'POST /negociacoes/1/decisao').length, 1);
+    assert.deepEqual(r.titulos, ['Editar a sugestão', 'Editar a sugestão'], 'reabriu uma vez');
+    assert.match(r.mensagem, /^Não foi possível salvar: Abaixo do ponto de recuo: o app não envia\./);
+    assert.deepEqual(r.valores, ['1.300.000', 'Ana, faço 1,3.']);
+    assert.deepEqual(r.alertas, []);
 
     // Mandato (P16): recuo acima do alvo é recusado no próprio formulário, e Salvar fica desligado.
     await pagina.evaluate(() => {
@@ -365,19 +374,21 @@ test('Negociações no Chromium (D-111): Editar manda só o valor mudado, sem o 
     assert.deepEqual(ds, [{ acao: 'editar', execucao_id: 10, canal: 'portal', mensagem: 'Ana, entendo. Posso ver a entrega em 60 dias com o proprietário.' }]);
     assert.ok(ds.every((d: any) => d.acao !== 'aprovar'));
 
-    // Se ainda assim vier 422 ESCREVA_A_MENSAGEM, o alerta traz o texto da rota.
+    // Se ainda assim vier 422 ESCREVA_A_MENSAGEM, o formulário reabre com o texto da rota (#187).
     await pagina.evaluate(() => {
       const w = window as any;
       w.alertas = [];
+      w.respostaFormulario = { mensagem: 'Ana, entendo.' };
       w.respostaDecisao = () => {
         throw Object.assign(new Error('Esta sugestão é só texto, e o texto do Negociador é um rascunho: edite e envie a mensagem com as suas palavras, ou descarte.'), { status: 422, codigo: 'ESCREVA_A_MENSAGEM' });
       };
       w.botao(document.querySelector('pc-negociacao-foco'), 'Revisar e enviar').click();
     });
     await esperar();
-    r = await pagina.evaluate(() => (window as any).alertas.slice());
-    assert.equal(r.length, 1);
-    assert.match(r[0], /edite e envie a mensagem com as suas palavras/);
+    r = await pagina.evaluate(() => ({ alertas: (window as any).alertas.slice(), f: (window as any).formularios.at(-1) }));
+    assert.deepEqual(r.alertas, []);
+    assert.match(r.f.mensagem, /edite e envie a mensagem com as suas palavras/);
+    assert.equal(r.f.campos[0].valor, 'Ana, entendo.', 'com o texto digitado');
   } finally {
     await navegador.close();
   }

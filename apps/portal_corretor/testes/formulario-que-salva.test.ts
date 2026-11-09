@@ -2,7 +2,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { escolherConta, formularioEnviar, formularioQueSalva, duplicataDeContato, camposComValores } from '../frontend/apoio';
+import { ContaTrocada, escolherConta, falhaAmbigua, formularioEnviar, formularioQueSalva, duplicataDeContato, camposComValores } from '../frontend/apoio';
 import { FRASE_GENERICA } from '../frontend/estados';
 
 // Issue #187: salvar que o servidor recusa NUNCA descarta o que o corretor digitou. O `urbiVerso.formulario`
@@ -184,6 +184,19 @@ const CORRIGIDAS: Array<[string, string]> = [
   ['frontend/telas/estudio.ts', 'Textos da peça'],
   ['frontend/telas/estudio.ts', 'Agendar no Instagram'],
   ['frontend/telas/estudio.ts', 'Publiquei por fora'],
+  // Dívida do #207: as Negociações, o Estúdio que cria e o Refazer com IA.
+  ['frontend/telas/negociacoes.ts', 'Nova contraproposta'],
+  ['frontend/telas/negociacoes.ts', 'Contraproposta do proprietário'],
+  ['frontend/telas/negociacoes.ts', 'Pedir sugestão ao Negociador'],
+  ['frontend/telas/negociacoes.ts', 'Revisar e enviar'],
+  ['frontend/telas/negociacoes.ts', 'Editar a sugestão'],
+  ['frontend/telas/negociacoes.ts', 'Registrar oferta do cliente'],
+  ['frontend/telas/negociacoes.ts', 'Atribuir a um negociador'],
+  ['frontend/telas/negociacoes.ts', 'Nova proposta'],
+  ['frontend/telas/negociacoes.ts', '`Proposta · ${contato.nome}`'],
+  ['frontend/telas/estudio.ts', 'Novo pedido'],
+  ['frontend/telas/estudio.ts', 'Usar outra ferramenta'],
+  ['frontend/telas/pagina.ts', 'Refazer a página com IA'],
 ];
 
 test('telas corrigidas (#187): o formulário que grava passa por formularioQueSalva', () => {
@@ -197,6 +210,10 @@ test('telas corrigidas (#187): o formulário que grava passa por formularioQueSa
   // O envio do Conversas (título calculado) e o editar da Conta (título do chamador) também.
   assert.match(raiz('frontend/telas/conversas.ts'), /formularioQueSalva\(\{\s*titulo,\s*campos,/);
   assert.match(raiz('frontend/telas/conta.ts'), /formularioQueSalva\(\{\s*titulo,\s*campos,/);
+  // Encerrar (título do ramo) e Criar rápido (título do atalho) também; em negociacoes.ts não sobra formulário solto.
+  assert.match(raiz('frontend/telas/negociacoes.ts'), /formularioQueSalva<Linha>\(\{\s*\.\.\.formulario,/);
+  assert.match(raiz('frontend/telas/estudio.ts'), /formularioQueSalva<RespostaCriar>\(\{\s*titulo: atalho\.formatos/);
+  assert.doesNotMatch(raiz('frontend/telas/negociacoes.ts'), /urbiVerso\.formulario\(/);
   // E o `formularioEnviar` (16 telas) é o mesmo laço.
   assert.match(raiz('frontend/apoio.ts'), /return formularioQueSalva\(\{ titulo, campos, \.\.\.opcoes, salvar:/);
 });
@@ -205,4 +222,18 @@ test('pedido ao shell 30 registrado (#187): formulário que valida no servidor s
   const pedidos = raiz('../../specs/pedidos_ao_shell.md');
   assert.match(pedidos, /## 30\. Formulário que valida no servidor sem fechar \(#187\)/);
   assert.match(pedidos, /aoEnviar/);
+});
+
+test('falhaAmbigua (#187): rede e 5xx sem código do app podem ter gravado; a recusa do app, o erro da tela e a conta trocada não', () => {
+  assert.equal(falhaAmbigua(new TypeError('Failed to fetch')), true, 'a rede caiu');
+  assert.equal(falhaAmbigua(erro('Internal Server Error', { status: 500 })), true);
+  assert.equal(falhaAmbigua(erro('Bad Gateway', { status: 502 })), true);
+  assert.equal(falhaAmbigua(erro('x', { status: 500, codigo: 'ERRO_INTERNO' })), true, 'código que não é do app');
+  assert.equal(falhaAmbigua(erro('x', { status: 0 })), true);
+  assert.equal(falhaAmbigua('texto solto'), true);
+  assert.equal(falhaAmbigua(recusa('Telefone inválido.')), false, '422 do app: nada gravado');
+  assert.equal(falhaAmbigua(duplicata()), false);
+  assert.equal(falhaAmbigua(erro('A IA não respondeu.', { status: 503, codigo: 'IA_INDISPONIVEL' })), false, '503 com o código do app: recusou antes de gravar');
+  assert.equal(falhaAmbigua(new Error('Digite o valor em reais.')), false, 'validação da própria tela');
+  assert.equal(falhaAmbigua(new ContaTrocada()), false, 'conta trocada termina em silêncio');
 });

@@ -101,9 +101,20 @@ corrigir e salvar de novo; **Cancelar** desiste. Vale para os formulários que g
 Editar contato, Perfil de busca, Próximo passo, Mudar etapa, Registrar envio, os dados do imóvel e a
 situação dele, a autorização de venda, Nova visita, Pedir ao cliente, Nova seleção, Nome e endereço da
 Página, os textos e o agendamento das peças do Estúdio, os convites e as suas respostas às objeções do
-Negociador, entre outros). Se o telefone já é de outro contato, **Abrir <nome>** abre a ficha dele, e
-**Corrigir** volta ao formulário. Clicar fora do formulário ou apertar Esc também cancela e descarta o que foi digitado, como o **Cancelar**. Se a gravação falhar por rede ou erro do servidor, antes de salvar de novo confira na lista se o registro já não entrou, porque o servidor pode ter gravado antes de a resposta se perder. Os formulários de Clientes › Negociações (oferta, contraproposta,
-encerrar) ainda avisam o erro e fecham: lá, abra de novo e preencha.
+Negociador, os formulários de Clientes › Negociações e da Nova proposta, o Novo pedido, o Criar rápido e
+o Usar outra ferramenta do Estúdio e o Refazer a página com IA, entre outros). Se o telefone já é de outro contato, **Abrir <nome>** abre a ficha dele, e
+**Corrigir** volta ao formulário. Clicar fora do formulário ou apertar Esc também cancela e descarta o que foi digitado, como o **Cancelar**. Se a gravação falhar por rede ou erro do servidor, antes de salvar de novo confira na lista se o registro já não entrou, porque o servidor pode ter gravado antes de a resposta se perder.
+
+Onde reenviar repetiria algo para fora, o app confere antes de deixar enviar de novo: na **oferta**, na
+**contraproposta** e na **Nova proposta**, se a conexão cai, ele relê a escada de propostas e, se ela já
+entrou, não reabre (avisa que foi registrada; no **Fazer agora**, escreva ao cliente pelo WhatsApp do
+celular, porque a mensagem pronta não chegou). No **Pedir sugestão**, ele relê a negociação; no **Novo
+pedido** e no **Criar rápido** do Estúdio, a lista de peças. Se nem a releitura funcionar, o formulário
+reabre dizendo que pode ter entrado: **Cancele e confira** antes de enviar de novo. A janela do **Fazer
+agora** abre a cada envio e só recebe o link quando a contraproposta foi gravada; se falhar, ela fecha. A
+Nova proposta que já criou o negócio ou a negociação não os cria de novo ao reenviar. Na contraproposta
+abaixo do ponto de recuo, a confirmação é pedida de novo a cada envio; recusada, nada sai e o formulário
+volta com o valor para você ajustar.
 
 **Estados das telas** (são sete, o conjunto comum às telas do corretor; cada tela mostra só os que se aplicam a ela):
 - Enquanto carrega, aparece o indicador de carregamento, nunca a tela em branco.

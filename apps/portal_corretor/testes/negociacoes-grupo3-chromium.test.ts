@@ -68,7 +68,7 @@ window.urbiVerso = {
   notificar: () => {},
   alertar: async (a) => { window.alertas.push(a.titulo + ' | ' + a.mensagem); },
   confirmar: async (c) => { window.confirmacoes.push(c.titulo); return true; },
-  formulario: async (f) => { (window.formularios ??= []).push(f.titulo); return window.respostaFormulario ?? null; },
+  formulario: async (f) => { (window.formularios ??= []).push(f.titulo); const r = window.respostaFormulario ?? null; window.respostaFormulario = null; return r; },
   api: async (rota, opcoes) => {
     const metodo = opcoes?.method ?? 'GET';
     const R = window.RESPOSTAS;

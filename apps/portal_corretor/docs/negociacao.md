@@ -258,6 +258,17 @@ passo máximo (medido até o recuo) também não se aplica; as outras garantias 
 **negociador humano e o Negociador IA nunca enviam abaixo do recuo**: para eles, o bloqueio é o mesmo
 de sempre.
 
+**Quando o envio é recusado ou falha** (vale para a Nova contraproposta, a oferta do cliente, a
+contraproposta do proprietário, o encerramento, o pedido de sugestão, a revisão e a edição da sugestão e
+a atribuição): o formulário **reabre com o que você digitou** e o motivo no alto (a garantia que barrou,
+o valor que não é número, a IA que não respondeu). Não confirmou o envio abaixo do recuo: nada sai e o
+formulário volta com o valor para ajustar; ao enviar de novo, a confirmação é pedida outra vez. Se a
+conexão cai depois do envio, o app relê a escada (ou a negociação, no pedido de sugestão) antes de
+deixar enviar de novo: se a contraproposta ou a oferta já entrou, ele não reenvia e avisa. As outras
+gravações (decisão, encerramento, atribuição) o servidor só aceita uma vez: repetidas, voltam com o
+motivo. No **Fazer agora**, a janela do WhatsApp abre a cada envio e só recebe o link depois de a
+contraproposta ser gravada; se o envio falhar, ela fecha.
+
 ### Decisão do proprietário e encerramento
 
 Com o acordo levado ao proprietário ("aguardando proprietário"), **Registrar decisão** guarda o que o

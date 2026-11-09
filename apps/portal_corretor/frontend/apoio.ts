@@ -6,7 +6,7 @@ declare const urbiVerso: UrbiVersoAPI;
 // formatação de data e dinheiro em pt-BR. Chip, cartão de imóvel, estado na URL e "mais" moram em
 // `visual.ts` e saem daqui também.
 export * from './visual.js';
-import { fraseDoErro } from './estados';
+import { CODIGOS_DO_APP, fraseDoErro } from './estados';
 
 // Conta ativa de escrita. Quem tem várias contas (o admin do app, por exemplo) precisa dizer em qual
 // grava: o shell só aceita escrita em tabela segregada com `X-Conta` (contas.md § Escrita com N
@@ -398,6 +398,19 @@ export async function formularioQueSalva<R = any>(o: OpcoesFormularioQueSalva<R>
     if (o.aviso !== null) urbiVerso.notificar(o.aviso ?? 'Salvo.', 'sucesso');
     return (r ?? {}) as R;
   }
+}
+
+/**
+ * A falha pode ter vindo DEPOIS de o servidor gravar (#187, dívida do #207): rede caída, 5xx sem código do
+ * app (o 500 de um evento publicado depois do commit, o 502/504 do caminho). Reenviar um POST que não é
+ * idempotente duplicaria. A recusa do app (4xx, ou 5xx com o código dele, como `IA_INDISPONIVEL`) e o
+ * `Error` da própria tela não são ambíguos: nada foi gravado. Conta trocada também não (termina em silêncio).
+ */
+export function falhaAmbigua(e: unknown): boolean {
+  if (ehContaTrocada(e)) return false;
+  const f = (e ?? {}) as { status?: unknown; codigo?: unknown; name?: unknown };
+  if (typeof f.status === 'number') return f.status === 0 || (f.status >= 500 && !(typeof f.codigo === 'string' && CODIGOS_DO_APP.has(f.codigo)));
+  return f.name === 'TypeError' || !(e instanceof Error);
 }
 
 /** Telefone de outro contato (`409 DUPLICATA` com o id dele): **Abrir <nome>** ou corrigir (#187). */
