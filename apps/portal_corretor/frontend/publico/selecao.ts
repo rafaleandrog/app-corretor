@@ -13,10 +13,10 @@ import {
   type PropostaPublica,
   type SituacaoNegociacao,
   chipDeVisita,
-  destinoDoProximoPasso,
   estadoDoErro,
   imoveisDoPortal,
   proximaVisita,
+  proximoPassoDoPortal,
   recadosDasSelecoes,
   iniciais,
   reacaoDada,
@@ -137,9 +137,57 @@ const estiloSelecao = css`
   .rodadas li.vendedor::before { background: var(--acento); }
   .rodadas .valor { font-weight: 700; font-size: 1.1rem; }
   .confirmar { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--fundo); }
+  /* Cartão do imóvel (Seleção e M5, #191): foto baixa, título do imóvel, a linha "bairro · dados", o
+     preço logo abaixo e as reações em botões de 34 px. */
+  .item .galeria img, .item .sem-foto { aspect-ratio: auto; height: 130px; }
+  .item.destaque .galeria img, .item.destaque .sem-foto { height: 170px; }
+  .item .corpo { padding: 10px 14px 12px; }
+  .item .titulo { font-size: 16px; line-height: 22px; font-weight: 700; }
+  .item .dados { font-size: 13px; line-height: 18px; color: var(--suave); }
+  .item .preco { font-size: 18px; line-height: 24px; margin-top: 2px; }
+  .reacoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .reacoes button { flex: 1 1 auto; min-height: 34px; padding: 0 10px; border-radius: 10px; font-size: 13px; }
+  /* Portal (M4, #191): topo de 60 px, faixa do próximo passo, quatro abas que cabem em 390 px. */
+  header.barra { background: var(--papel); border-bottom: 1px solid var(--linha); }
+  header.barra .linha { max-width: 960px; margin: 0 auto; height: 60px; padding: 0 16px; display: flex; align-items: center; gap: 10px; }
+  header.barra .titulo { flex: 1; min-width: 0; }
+  header.barra h1 { margin: 0; font-size: 16px; line-height: 22px; }
+  header.barra .quem { font-size: 12px; line-height: 16px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  header.barra .zap { min-height: 34px; padding: 0 12px; border-radius: 10px; font-size: 13px; }
+  header.barra .avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex: none; background: var(--fundo); color: var(--texto); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .faixa { background: var(--acento); color: var(--papel); }
+  .faixa .linha { max-width: 960px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; gap: 10px; }
+  .faixa .linha > div { flex: 1; min-width: 0; }
+  .faixa small { display: block; font-size: 11px; line-height: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.9; }
+  .faixa strong { display: block; font-size: 16px; line-height: 22px; }
+  .faixa .botao { min-height: 34px; padding: 0 12px; border-radius: 10px; font-size: 13px; font-weight: 700; background: var(--papel); color: var(--acento); }
+  .abas.quatro { padding: 0; overflow: hidden; }
+  .abas.quatro button { flex: 1 1 0; min-width: 0; min-height: 34px; padding: 1px 4px; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .abas.quatro .n { min-width: 0; margin-left: 3px; padding: 0; background: none; color: inherit; font-size: 13px; }
+  /* Conversa como chat (M4): balões do corretor à esquerda e do cliente à direita, cartões de imóvel e o
+     compositor de uma linha fixo no pé da tela. */
+  .chat { display: flex; flex-direction: column; gap: 10px; padding-bottom: 84px; }
+  .balao { max-width: 78%; padding: 10px 12px; border-radius: 12px; background: var(--papel); border: 1px solid var(--linha); font-size: 14px; line-height: 20px; white-space: pre-line; }
+  .balao.voce { align-self: flex-end; background: var(--ok-fundo); border-color: var(--ok-fundo); }
+  .balao .autor { font-size: 11px; line-height: 16px; font-weight: 700; color: var(--acento); }
+  .balao .hora { display: block; margin-top: 4px; font-size: 11px; line-height: 15px; color: var(--suave); text-align: right; }
+  .balao.cartao-chat { padding: 0; overflow: hidden; max-width: 270px; }
+  .cartao-chat img, .cartao-chat .sem-foto { display: block; width: 100%; height: 120px; object-fit: cover; aspect-ratio: auto; }
+  .cartao-chat .corpo { padding: 10px 12px; }
+  .cartao-chat .titulo { font-size: 16px; line-height: 22px; font-weight: 700; }
+  .cartao-chat .dados { font-size: 13px; color: var(--suave); }
+  .cartao-chat .preco { font-size: 16px; font-weight: 700; }
+  .cartao-chat .botoes { display: flex; border-top: 1px solid var(--linha); }
+  .cartao-chat .botoes button { flex: 1; min-height: 34px; border: 0; background: none; color: var(--acento); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+  .cartao-chat .botoes button + button { border-left: 1px solid var(--linha); }
+  .cartao-chat .botoes button[aria-pressed='true'] { background: var(--acento); color: var(--papel); }
+  .compositor { position: fixed; left: 0; right: 0; bottom: 0; z-index: 3; background: var(--papel); border-top: 1px solid var(--linha); }
+  .compositor form { max-width: 960px; margin: 0 auto; padding: 10px 16px 16px; display: flex; align-items: center; gap: 8px; }
+  .compositor input { flex: 1; height: 38px; padding: 0 14px; border-radius: 22px; font-size: 14px; }
+  .compositor button { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--acento); color: var(--papel); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .compositor .aviso { margin: 0 16px 8px; }
   @media (min-width: 720px) {
-    .item .galeria img { aspect-ratio: 16 / 10; }
-    .reacoes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .item.destaque .galeria img { height: 240px; }
   }
 `;
 
@@ -155,24 +203,37 @@ interface OpcoesItem {
   comentar: ((codigo: string, texto: string) => void) | null;
   abrirComentario: (codigo: string | null) => void;
   chip?: string | null;
+  /** Imóvel em destaque do M5 (foto mais alta). */
+  destaque?: boolean;
 }
 
 /** Cartão de um imóvel, com galeria, os botões de reação e "Comentar" (M5). */
+/** "Jardim Botânico · 320 m² · 4 qts · 3 vagas" (M5): o bairro só se o título ainda não o cita. */
+function dadosDoImovel(i: Linha): string {
+  const titulo = String(i.titulo ?? '');
+  const area = i.area_util_m2 ?? i.area_total_m2;
+  return [
+    i.bairro && !titulo.includes(i.bairro) ? i.bairro : !i.bairro && i.cidade ? i.cidade : null,
+    area ? `${area} m²` : null,
+    i.quartos ? `${i.quartos} qt${i.quartos > 1 ? 's' : ''}` : null,
+    i.vagas ? `${i.vagas} vaga${i.vagas > 1 ? 's' : ''}` : null,
+  ].filter(Boolean).join(' · ');
+}
+
 function itemSelecao(i: Linha, estado: EstadoReacoes, o: OpcoesItem): TemplateResult {
   const aviso = estado.avisos.get(i.codigo);
   const ocupado = estado.enviando.has(i.codigo);
-  return html`<article class="item">
+  return html`<article class="item ${o.destaque ? 'destaque' : ''}">
     ${i.fotos?.length
       ? html`<div class="galeria">${i.fotos.map((f: Linha, n: number) => html`<img src=${f.url} alt=${f.legenda ?? `Foto ${n + 1} de ${i.fotos.length}: ${nomeImovel(i)}`} loading="lazy" />`)}</div>`
       : html`<div class="sem-foto"></div>`}
     <div class="corpo">
       <div class="cabeca">
-        <div class="preco">${reais(i.preco_c)}</div>
+        <div class="titulo">${nomeImovel(i)}</div>
         ${o.chip ? html`<span class="chip">${o.chip}</span>` : nothing}
       </div>
-      ${local(i) ? html`<div class="lugar">${local(i)}</div>` : nothing}
-      <div class="suave">${nomeImovel(i)}${i.fotos?.length > 1 ? ` · ${i.fotos.length} fotos` : ''}</div>
-      ${iconesImovel(i)}
+      <div class="dados">${dadosDoImovel(i)}${i.fotos?.length > 1 ? ` · ${i.fotos.length} fotos` : ''}</div>
+      <div class="preco">${reais(i.preco_c)}</div>
       ${i.descricao ? html`<details><summary class="suave">Ver descrição</summary><p class="texto">${i.descricao}</p></details>` : nothing}
       ${o.reagir
         ? html`<div class="reacoes" role="group" aria-label=${`O que você achou de ${nomeImovel(i)}?`}>
@@ -552,32 +613,106 @@ export class PcPortalCliente extends LitElement {
     </ol>`;
   }
 
+  /** Mensagem escrita no compositor (fica na tela até a vitrine trazer a gravada). */
+  @state() private enviadas: { texto: string; em: string }[] = [];
+
+  /** Hora do balão: "10:39" hoje; "seg 10:31" em outro dia. */
+  private horaDoBalao(q: string | null) {
+    if (!q) return '';
+    const d = new Date(q);
+    const h = hora(q);
+    return d.toDateString() === new Date().toDateString() ? h : `${d.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')} ${h}`;
+  }
+
+  /** Cartão de imóvel na conversa: com a foto e as reações quando o imóvel está numa seleção do cliente. */
+  private cartaoNaConversa(m: Linha, p: Linha) {
+    const naSelecao = imoveisDoPortal(p.selecoes ?? []).find((x) => x.imovel.codigo === m.imovel?.codigo);
+    const i = naSelecao?.imovel ?? m.imovel ?? {};
+    const atualizar = () => this.requestUpdate();
+    const ocupado = this.reacoes.enviando.has(i.codigo);
+    const aviso = this.reacoes.avisos.get(i.codigo);
+    return html`<div class="balao cartao-chat">
+      ${i.fotos?.[0]?.url ? html`<img src=${i.fotos[0].url} alt=${nomeImovel(i)} loading="lazy" />` : html`<div class="sem-foto"></div>`}
+      <div class="corpo">
+        <div class="titulo">${nomeImovel(i)}</div>
+        ${dadosDoImovel(i) ? html`<div class="dados">${dadosDoImovel(i)}</div>` : nothing}
+        <div class="preco">${reais(i.preco_c)}</div>
+        ${aviso ? html`<div class="aviso aviso-item ${aviso.ok ? '' : 'erro'}" role=${aviso.ok ? 'status' : 'alert'}>${aviso.texto}</div>` : nothing}
+      </div>
+      ${naSelecao
+        ? html`<div class="botoes" role="group" aria-label=${`O que você achou de ${nomeImovel(i)}?`}>
+            ${[{ valor: 'gostei', rotulo: 'Gostei' }, { valor: 'quero_visitar', rotulo: 'Quero visitar' }].map(
+              (r) => html`<button type="button" aria-pressed=${i.reacao === r.valor ? 'true' : 'false'} ?disabled=${ocupado} @click=${() => enviarReacao(naSelecao.selecao, i.codigo, r.valor, this.reacoes, atualizar)}>${r.rotulo}</button>`,
+            )}
+          </div>`
+        : nothing}
+    </div>`;
+  }
+
+  /** Um balão da conversa: texto, seleção (com "Ver imóveis") ou cartão de imóvel. */
+  private balao(m: Linha, p: Linha) {
+    const corretor = primeiroNome(p.corretor?.nome);
+    if (m.tipo === 'imovel' && m.imovel) return this.cartaoNaConversa(m, p);
+    const voce = m.de === 'voce';
+    const texto =
+      m.tipo === 'selecao'
+        ? `Separei ${m.selecao?.quantidade ? `${m.selecao.quantidade} imóve${m.selecao.quantidade > 1 ? 'is' : 'l'}` : 'imóveis'} para você${m.selecao?.titulo ? `: ${m.selecao.titulo}` : ''}.`
+        : (m.texto ?? '');
+    if (!texto) return nothing;
+    return html`<div class="balao ${voce ? 'voce' : ''}">
+      ${voce ? nothing : html`<div class="autor">${corretor}</div>`}
+      ${texto}
+      ${m.tipo === 'selecao' ? html`<div><button class="botao claro" type="button" @click=${() => this.irPara('imoveis')}>Ver imóveis</button></div>` : nothing}
+      <span class="hora">${this.horaDoBalao(m.em)}</span>
+    </div>`;
+  }
+
+  /** Envio pelo compositor: vai ao `acao_cliente` (tipo `mensagem`); aparece na hora e a tela relê. */
+  private async escrever(ev: Event) {
+    ev.preventDefault();
+    const form = ev.target as HTMLFormElement;
+    const texto = String(new FormData(form).get('texto') ?? '').trim();
+    if (!texto || this.enviando) return;
+    this.enviando = true;
+    const r = await postar(this.portal!.url_acoes, { tipo: 'mensagem', texto });
+    this.enviando = false;
+    this.avisoEm = 'mensagem';
+    if (r.ok) {
+      form.reset();
+      this.aviso = null;
+      this.enviadas = [...this.enviadas, { texto, em: new Date().toISOString() }];
+      this.agendarReleituras();
+    } else this.aviso = { ok: false, texto: r.mensagem ?? 'Não foi possível enviar.' };
+  }
+
   /**
-   * Conversa (M4): o histórico que o portal já tem (a jornada) e o campo "Escreva para <corretor>"
-   * pelo `acao_cliente`. As respostas do corretor chegam pelo WhatsApp: o portal não guarda as
-   * mensagens trocadas (D-73, sem texto do cliente na vitrine).
+   * Conversa (M4, #191): as mensagens trocadas com o corretor (as do cliente e as que o corretor
+   * mandou; avisos internos não aparecem), com os cartões de imóvel e o compositor de uma linha fixo
+   * no pé ("Escreva para …"), que entra pelo `acao_cliente`.
    */
   private abaConversa(p: Linha) {
     const nome = primeiroNome(p.corretor?.nome);
-    const zap = p.corretor ? linkWhatsapp(p.corretor.telefone, 'Olá! Estou no meu portal e queria falar com você.') : null;
-    const valeAte = (p.selecoes as Linha[]).map((s) => s.expira_em).filter(Boolean).sort()[0] ?? null;
+    const conversa: Linha[] = p.conversa ?? [];
+    // O que o cliente escreveu e a vitrine ainda não trouxe.
+    const gravadas = new Set(conversa.filter((m) => m.de === 'voce').map((m) => m.texto));
+    const pendentes = this.enviadas.filter((e) => !gravadas.has(e.texto));
     return html`
-      ${datasChave(proximaVisita(p.agenda ?? []), valeAte)}
-      ${p.jornada ? html`<section><h2>Histórico</h2>${this.jornada(p.jornada)}</section>` : nothing}
-      <section>
-        <h2>Escreva para ${nome}</h2>
-        ${p.url_acoes
-          ? html`<div class="caixa">
-              <form @submit=${(e: Event) => this.acao(e, { tipo: 'mensagem' })}>
-                <label>Mensagem para ${nome}<textarea name="texto" required maxlength="1000"></textarea></label>
-                ${this.avisoEm === 'mensagem' && this.aviso ? html`<div class="aviso ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
-                <div><button class="botao" type="submit" ?disabled=${this.enviando}>Enviar</button></div>
-              </form>
-            </div>
-            <p class="suave">${nome} responde pelo WhatsApp.</p>`
-          : nothing}
-        ${zap ? html`<div class="acoes"><a class="botao verde" href=${zap} target="_blank" rel="noopener">Conversar no WhatsApp</a></div>` : nothing}
-      </section>
+      <div class="chat" role="log" aria-label=${`Conversa com ${nome}`}>
+        ${conversa.length || pendentes.length
+          ? html`${conversa.map((m) => this.balao(m, p))}${pendentes.map((e) => this.balao({ de: 'voce', tipo: 'texto', texto: e.texto, em: e.em }, p))}`
+          : html`<p class="suave">Ainda não há mensagens por aqui. Escreva para ${nome}: a mensagem chega na hora.</p>`}
+      </div>
+      ${p.url_acoes
+        ? html`<div class="compositor">
+            ${this.avisoEm === 'mensagem' && this.aviso ? html`<div class="aviso ${this.aviso.ok ? '' : 'erro'}" role=${this.aviso.ok ? 'status' : 'alert'}>${this.aviso.texto}</div>` : nothing}
+            <form @submit=${(e: Event) => this.escrever(e)}>
+              <input name="texto" required maxlength="1000" autocomplete="off" placeholder=${`Escreva para o ${nome}`} aria-label=${`Escreva para o ${nome}`} />
+              <button type="submit" ?disabled=${this.enviando} aria-label="Enviar">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+              </button>
+            </form>
+          </div>`
+        : nothing}
     `;
   }
 
@@ -603,6 +738,7 @@ export class PcPortalCliente extends LitElement {
               comentar: (codigo, texto) => enviarComentario(atual.selecao, codigo, texto, p.url_acoes ?? null, this.reacoes, atualizar),
               abrirComentario: (codigo) => { this.reacoes.comentando = codigo; atualizar(); },
               chip: chipDeVisita(atual.imovel.codigo, p.agenda ?? []),
+              destaque: true,
             })}
           </section>`
         : html`<section><p class="suave">Quando o corretor separar imóveis para você, eles aparecem aqui.</p></section>`}
@@ -643,11 +779,13 @@ export class PcPortalCliente extends LitElement {
     `;
   }
 
+  /** Agenda (M5): as visitas, com calendário e pedido de remarcar, e a jornada ("Sua jornada", M4). */
   private abaAgenda(p: Linha) {
     return html`<section>
-      <h2>Suas visitas</h2>
-      ${p.agenda.length ? this.agenda(p.agenda) : html`<p class="suave">Nenhuma visita marcada.</p>`}
-    </section>`;
+        <h2>Suas visitas</h2>
+        ${p.agenda.length ? this.agenda(p.agenda) : html`<p class="suave">Nenhuma visita marcada.</p>`}
+      </section>
+      ${p.jornada ? html`<section><h2>Sua jornada</h2>${this.jornada(p.jornada)}</section>` : nothing}`;
   }
 
   /** Oferta ou aceite: vai ao webhook do portal; o corretor (ou o Negociador) responde por aqui. */
@@ -787,13 +925,29 @@ export class PcPortalCliente extends LitElement {
     const ids = abas.map((a) => a.id);
     // A aba atual é sempre uma das que existem (o endereço pode pedir `#propostas` sem negociação).
     const atual: AbaPortal = ids.includes(this.aba) ? this.aba : 'conversa';
+    const passo = proximoPassoDoPortal(p);
+    const nome = p.corretor?.nome ?? 'Seu corretor';
+    const zap = p.corretor ? linkWhatsapp(p.corretor.telefone, 'Olá! Estou no meu portal e queria falar com você.') : null;
     return html`
-      ${topo(p.corretor, 'Olá! Estou no meu portal e queria falar com você.', {
-        rotulo: 'Meu atendimento',
-        proximoPasso: p.proximo_passo ?? null,
-        ver: () => this.irPara(destinoDoProximoPasso(p)),
-      })}
-      <nav class="abas" role="tablist" aria-label="Seu atendimento" @keydown=${(e: KeyboardEvent) => this.teclaNasAbas(e, ids)}>
+      <header class="barra">
+        <div class="linha">
+          <div class="titulo">
+            <h1>Meu atendimento</h1>
+            <div class="quem">com ${nome}${p.corretor?.creci ? ` · CRECI ${p.corretor.creci}` : ''}</div>
+          </div>
+          ${zap ? html`<a class="botao verde zap" href=${zap} target="_blank" rel="noopener">WhatsApp</a>` : nothing}
+          ${p.corretor?.foto_url
+            ? html`<img class="avatar" src=${p.corretor.foto_url} alt=${`Foto de ${nome}`} />`
+            : html`<span class="avatar" aria-hidden="true">${iniciais(nome)}</span>`}
+        </div>
+      </header>
+      ${passo
+        ? html`<div class="faixa"><div class="linha">
+            <div><small>Próximo passo</small><strong>${passo.texto}</strong></div>
+            <button class="botao" type="button" @click=${() => this.irPara(passo.aba)}>Ver</button>
+          </div></div>`
+        : nothing}
+      <nav class="abas quatro" role="tablist" aria-label="Seu atendimento" @keydown=${(e: KeyboardEvent) => this.teclaNasAbas(e, ids)}>
         ${abas.map(
           (a) => html`<button type="button" role="tab" id=${`guia-${a.id}`} aria-controls="painel" aria-selected=${atual === a.id ? 'true' : 'false'} tabindex=${atual === a.id ? '0' : '-1'} @click=${() => this.irPara(a.id)}>
             ${a.rotulo}${a.n !== null ? html`<span class="n">${a.n}</span>` : nothing}

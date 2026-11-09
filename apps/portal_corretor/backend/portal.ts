@@ -233,6 +233,8 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
     tarefas: tarefas.filter((t) => !t.feita_em).map((t) => ({ ref: t.id, texto: t.texto })),
     // Nunca o mandato, o teto estimado nem quem conduz: só o que `negociacaoPublica` permite.
     negociacoes: abertas.map((n) => negociacaoPublica(n, propostas, imovelPublicoDe(imovel.get(n.imovel_id)), Number(imovel.get(n.imovel_id)?.preco_c) || null)),
+    // A conversa com o corretor (M4, #191): as mensagens que o cliente pode ver.
+    conversa: await conversaDoPortal(dados, conta, contatoId),
     jornada: {
       desde,
       imoveis_recebidos: new Set(itens.map((i) => i.imovel_id)).size,
@@ -240,6 +242,31 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
       eventos: eventosDaJornada(desde, enviadas, itens, feitas, imovelDe, imovel, tarefas, imovelPublicoDe),
     },
   });
+}
+
+/** Quantas mensagens da conversa o portal mostra (as mais recentes). */
+export const MENSAGENS_NO_PORTAL = 40;
+
+/**
+ * A conversa do cliente no portal (M4, #191): só o que o cliente pode ver, isto é, as mensagens dele
+ * e as que o corretor (ou o atendimento automático) mandou para ele. Avisos internos (`sistema`) e o
+ * próprio link do portal ficam de fora; o cartão de imóvel leva só o que já foi ao cliente (código,
+ * título, bairro, preço), nunca o link rastreado nem o id interno do imóvel.
+ */
+export async function conversaDoPortal(dados: HelperDados, conta: number, contatoId: number) {
+  const r = await dados.listar('mensagens', { filtros: { conta_id: conta, contato_id: contatoId }, ordenar: 'em', ordem: 'desc', por_pagina: MENSAGENS_NO_PORTAL * 2 });
+  return r.dados
+    .filter((m) => m.tipo !== 'sistema' && m.tipo !== 'link_portal' && m.autor_tipo !== 'sistema')
+    .filter((m) => (m.direcao === 'entrada' && m.autor_tipo === 'contato') || m.direcao === 'saida')
+    .slice(0, MENSAGENS_NO_PORTAL)
+    .reverse()
+    .map((m) => {
+      const d = (m.dados ?? {}) as Linha;
+      const base = { ref: Number(m.id), de: m.direcao === 'entrada' ? 'voce' : 'corretor', tipo: m.tipo as string, em: iso(m.em), texto: m.conteudo ?? null };
+      if (m.tipo === 'imovel') return { ...base, imovel: { codigo: d.codigo ?? null, titulo: d.titulo ?? null, bairro: d.bairro ?? null, preco_c: d.preco_c ?? null } };
+      if (m.tipo === 'selecao') return { ...base, selecao: { titulo: d.titulo ?? m.conteudo ?? null, quantidade: Number(d.quantidade) || null } };
+      return base;
+    });
 }
 
 export interface EventoJornada {

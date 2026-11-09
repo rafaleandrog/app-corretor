@@ -5,6 +5,7 @@ import type { HelperDados } from '@urbiverso/sdk';
 import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
+import { tentarPortal } from './portal';
 import { linkWhatsapp } from '../comum/pagina';
 import {
   type CanalMensagem,
@@ -129,6 +130,9 @@ export async function registrarMensagem(dados: HelperDados, m: NovaMensagem): Pr
   if (!salva) throw Object.assign(new Error('Conversa não encontrada.'), { codigo: 'NAO_ENCONTRADO' });
   // O contador soma com `incrementar`, nunca ler-somar-gravar (banco-de-dados.md § Contratos): duas entradas juntas somam duas.
   if (m.autor_tipo !== 'sistema' && m.direcao === 'entrada') salva = (await dados.incrementar('conversas', conversa.id, { nao_lidas: 1 })) ?? salva;
+  // O portal do cliente mostra a conversa (M4, #191): a mensagem que o cliente vê vai para lá. Sem
+  // portal ativo, nada acontece; uma falha fica no log e não desfaz a mensagem.
+  if (m.autor_tipo !== 'sistema' && tipo !== 'sistema') await tentarPortal(dados, Number(salva.conta_id ?? m.conta) || undefined, m.contato_id);
   return { conversa: salva, mensagem, repetida: false };
 }
 

@@ -187,6 +187,7 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
         agenda: p.agenda ?? [], tarefas: p.tarefas ?? [], jornada: p.jornada ?? null, selecoes,
         // Já na lista permitida ao publicar (negociacaoPublica); `semSigilo` de novo na saída, por garantia.
         negociacoes: semSigilo(p.negociacoes ?? []),
+        conversa: Array.isArray(p.conversa) ? p.conversa : [],
       },
     });
   } catch (e) {

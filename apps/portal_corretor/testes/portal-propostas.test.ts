@@ -170,7 +170,9 @@ test('regras puras: lista permitida de campos, proposta aceitável, valor digita
     ['1.380.000', '1380000', 'R$ 1.380.000,50', '1.380,5', 'abc', '1.38.000', ''].map(centavosDoValor),
     [138_000_000, 138_000_000, 138_000_050, 138_050, null, null, null],
   );
-  assert.deepEqual(abasDoPortal({ negociacoes: [n] }).map((a) => [a.id, a.n]), [['conversa', null], ['imoveis', 0], ['agenda', 0], ['propostas', 1], ['arquivos', 0]]);
+  // #191: quatro abas no máximo (cabem em 390 px); Propostas conta as negociações, coerente com as outras abas.
+  assert.deepEqual(abasDoPortal({ negociacoes: [n] }).map((a) => [a.id, a.n]), [['conversa', null], ['imoveis', 0], ['agenda', 0], ['propostas', 1]]);
+  assert.deepEqual(abasDoPortal({ negociacoes: [] }).map((a) => a.id), ['conversa', 'imoveis', 'agenda', 'arquivos']);
   assert.ok(!abasDoPortal({ negociacoes: [] }).some((a) => a.id === 'propostas'), 'sem negociação, sem a aba');
 });
 
