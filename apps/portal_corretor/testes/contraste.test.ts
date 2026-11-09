@@ -19,14 +19,33 @@ function arquivos(dir: string): string[] {
   });
 }
 
+// Literal no atributo (papel="fraco") e valor de expressão (papel=${x ? 'fraco' : …}), com espaços em volta do `=`.
+const PAPEL_FRACO = /papel\s*=\s*(?:"fraco"|'fraco'|\$\{[^}]*['"`]fraco['"`][^}]*\})/g;
+
 test('nenhuma tela usa o papel "fraco" do urbi-prosa (abaixo de 4,5:1 nos temas claro e escuro)', () => {
   const achados: string[] = [];
   for (const p of arquivos('frontend')) {
     const texto = readFileSync(p, 'utf8');
-    // Literal no atributo (papel="fraco") e valor de expressão (papel=${x ? 'fraco' : …}).
-    for (const m of texto.matchAll(/papel=(?:"fraco"|'fraco'|\$\{[^}]*['"`]fraco['"`][^}]*\})/g)) {
+    for (const m of texto.matchAll(PAPEL_FRACO)) {
       achados.push(`${p}:${texto.slice(0, m.index).split('\n').length}`);
     }
   }
   assert.deepEqual(achados, [], 'troque por papel="dica" (mesmo tamanho, --cor-texto-sec); o fraco mede abaixo de 4,5:1 no shell 0.56.37 (revise este teste se o shell subir o token)');
+});
+
+test('a regex do fraco pega as formas com espaço em volta do "=" e deixa o "dica" passar', () => {
+  const casos: [string, number][] = [
+    ['<urbi-prosa papel="fraco">x</urbi-prosa>', 1],
+    ['<urbi-prosa papel = "fraco">x</urbi-prosa>', 1],
+    ['<urbi-prosa papel= "fraco">x</urbi-prosa>', 1],
+    ['<urbi-prosa papel ="fraco">x</urbi-prosa>', 1],
+    ["<urbi-prosa papel = 'fraco'>x</urbi-prosa>", 1],
+    ["<urbi-prosa papel=${a ? 'fraco' : 'dica'}>x</urbi-prosa>", 1],
+    ["<urbi-prosa papel = ${a ? 'fraco' : 'dica'}>x</urbi-prosa>", 1],
+    ["<urbi-prosa papel= ${ a ? `fraco` : 'dica' }>x</urbi-prosa>", 1],
+    ['<urbi-prosa papel="dica">x</urbi-prosa>', 0],
+    ['<urbi-prosa papel = "dica">x</urbi-prosa>', 0],
+    ["<urbi-prosa papel=${a ? 'dica' : 'secundario'}>x</urbi-prosa>", 0],
+  ];
+  for (const [texto, esperado] of casos) assert.equal([...texto.matchAll(PAPEL_FRACO)].length, esperado, texto);
 });

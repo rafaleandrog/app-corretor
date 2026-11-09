@@ -112,3 +112,85 @@ Com a IA disponível, o aviso não aparece. Para medi-lo, a sonda `GET /contatos
 - **DIVERGE** pior caso do `fraco` antes da troca: antes 3,04, agora **2,89** (Funil, claro).
 - Alturas: "17 → 16 px; 35 → 32" eram valores arredondados. Os medidos são 17,39 → 16,19 (−1,20) e 34,78 → 32,38 (**−2,40, não −3**). Numa lista de 5 clientes, a lista fica 6,01 px mais baixa. As listas de Hoje não mudam.
 - O aviso de IA (3,04 / 3,70) se confirma, agora medido.
+
+
+## Cobertura das 21 telas (pós-Codex)
+
+O Codex apontou (P1) que a medição cobria 12 telas e o PR mexe em 21 arquivos de `frontend/telas/`. Esta seção liga cada arquivo à tela e mede as que faltavam. Dados em `medidas.json` › `cobertura_21_telas`; capturas `cobertura-<tela>-<tema>-fraco-dica-1366x657.png` (esquerda `fraco`, direita `dica`, faixa magenta no meio).
+
+**Limite desta evidência.** O procedimento da seção 6 de `specs/layout/README.md` (captura lado a lado contra o PNG de referência) **não foi refeito tela a tela**. Foi feita medição antes/depois do próprio efeito da troca (contraste e altura) no DOM ao vivo da 0.1.51, porque a 0.1.58 não está instalada.
+
+**Método.** Igual ao da seção "Remedição da revisão": homologação "pinguim" (app 0.1.51), `CONTA=7`, só leitura, estilos computados, razão WCAG compondo alfas sobre o fundo efetivo (cor lida do `<slot>` do `urbi-prosa`), `papel` trocado no DOM ao vivo sem gravar, 1366×657 e 1440×1000, claro e escuro (`data-theme`). Chamadas que gravam são abortadas no navegador: nesta rodada foram 4 tentativas, todas `PATCH /conversas/1/lida` (a tela de Conversas marca a conversa como lida ao abrir), e nenhuma chegou à instância. Todas as telas são do papel `corretor` (`TELAS` em `frontend/index.ts`); Hoje e Negociações também abrem para o negociador humano. Altura do bloco: soma das alturas dos elementos trocados e `scrollHeight` do conteúdo de cada coluna (esquerda/centro/direita), antes → depois.
+
+### a) Arquivo → tela
+
+| Arquivo | Tela | Endereço | Situação |
+|---|---|---|---|
+| `ajustes.ts` | Ajustes (linha de estado no menu da aba) | `/ajustes e /ajustes/<aba>` | medida (remedição anterior) e, nesta, 7 linhas do menu em /ajustes/funil |
+| `clientes-quadro.ts` | Clientes › Funil | `/clientes?visao=funil` | medida (remedição anterior; nesta, Clientes-funil) |
+| `clientes.ts` | Clientes › lista | `/clientes` | medida (remedição anterior) |
+| `conexoes.ts` | Ajustes › Conexões | `/ajustes/conexoes` | medida nesta (Conexoes) |
+| `conta.ts` | Ajustes › Conta e marca / Atendimento | `/ajustes/conta` | medida (anterior) e nesta (Ajustes-conta) |
+| `conversas.ts` | Conversas | `/conversas?item=` | medida (anterior) e nesta (Conversas) |
+| `desempenho.ts` | Números (apelido /desempenho) | `/numeros` | medida nesta (Numeros) |
+| `empreendimentos.ts` | Imóveis › aba Empreendimentos | `/imoveis?aba=empreendimentos (apelido /empreendimentos)` | não medida: a conta demo (CONTA=7) não tem empreendimento (GET /empreendimentos devolve lista vazia) e o estado vazio não tem texto com `fraco` |
+| `estudio.ts` | Estúdio | `/estudio` | medida (anterior) |
+| `ficha-contato.ts` | Clientes › ficha do contato | `/clientes?item=` | medida (anterior) e nesta (Ficha-contato) |
+| `ficha-imovel.ts` | Imóveis › ficha do imóvel | `/imoveis?item= (apelido /imoveis/<id>)` | medida nesta (Imovel-ficha) |
+| `imoveis.ts` | Imóveis › lista (e coluna de contexto) | `/imoveis` | medida (anterior) e nesta (Imovel-ficha, a lista está na coluna esquerda) |
+| `importar.ts` | Importar contatos | `/clientes/importar` | medida (anterior) |
+| `inicio.ts` | Hoje (e Hoje › Agenda) | `/ e /agenda` | medida (anterior) e nesta (Hoje-agenda) |
+| `mandato.ts` | Modal Definir/Editar mandato, aberto na ficha do imóvel e na negociação | `/imoveis?item= e /negociacoes?neg=, botão Editar mandato` | medida nesta (Imovel-mandato, Negociacao-mandato); abrir o modal não grava |
+| `marca.ts` | Ajustes › Conta e marca (cartão Sua marca) | `/ajustes/conta` | medida (anterior) e nesta (Ajustes-conta) |
+| `negociacoes.ts` | Negociações (também do negociador humano) | `/negociacoes?neg=` | medida (anterior) e nesta (Negociacoes-item); estados condicionais não vistos (ver não medidas) |
+| `negociador-ajustes.ts` | Ajustes › Negociador | `/ajustes/negociador` | medida nesta (Ajustes-negociador); o teste do Negociador não foi exercitado (ver não medidas) |
+| `novo-imovel.ts` | Novo imóvel (4 passos) | `/imoveis/novo e /imoveis/novo?item=12&passo=dados|autorizacao|onde` | medida nesta (passo Fotos sem item; passos Dados, Autorização e Onde aparece com `?item=12`, só leitura) |
+| `pagina.ts` | Página | `/pagina` | medida (anterior) |
+| `selecoes-cliente.ts` | Clientes › ficha › Seleções e Portal do cliente | `/clientes?item= (dentro da ficha)` | medida nesta (Ficha-contato, host pc-selecoes-cliente); a linha "Enviada em" não apareceu |
+
+### b) Telas medidas nesta rodada
+
+Colunas: elementos trocados; pior contraste claro (`fraco` → `dica`); pior contraste escuro; diferença da soma das alturas dos elementos trocados em px (1366 / 1440); diferença do conteúdo das colunas esq/centro/dir em px (1366 · 1440); elementos com número de linhas ou transbordo (`scrollWidth > clientWidth`) diferente (1366 / 1440).
+
+| Tela | Trocados | Claro | Escuro | Δ elementos (px) | Δ colunas (px) | Linhas/transbordo |
+|---|---|---|---|---|---|---|
+| Números (`desempenho.ts`) | 9 (9 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -10,8 / -12,0 | 0/-2/0 · 0/-3/0 | 0 / 0 |
+| Ajustes › Conexões (`conexoes.ts`) | 11 (11 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -14,4 / -14,4 | 0/-6/0 · 0/-7/0 | 0 / 0 |
+| Ajustes › Negociador (`negociador-ajustes.ts`) | 19 (19 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -22,8 / -22,8 | 0/-12/-2 · 0/-12/-2 | 0 / 0 |
+| Imóveis › ficha do imóvel (`ficha-imovel.ts, imoveis.ts`) | 27 (13 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -15,6 / -15,6 | -4/-6/0 · 0/-6/0 | 0 / 0 |
+| Novo imóvel (passo Fotos) (`novo-imovel.ts (Fotos)`) | 5 (5 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -6,0 / -6,0 | 0/0/0 · 0/0/0 | 0 / 0 |
+| Novo imóvel (passo Dados) (`novo-imovel.ts`) | 6 (6 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -8,4 / -8,4 | 0/-3/0 · 0/0/0 | 0 / 0 |
+| Novo imóvel (passo Autorização) (`novo-imovel.ts`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
+| Novo imóvel (passo Onde aparece) (`novo-imovel.ts`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
+| Imóveis › ficha › modal Editar mandato (`mandato.ts`) | 32 (18 visíveis) | 2,99 → **4,49** | 3,7 → 4,97 | -25,2 / -25,2 | -4/-6/-9 · 0/-6/-9 | 0 / 0 |
+| Negociações › modal Editar mandato (`mandato.ts, negociacoes.ts`) | 15 (15 visíveis) | 2,99 → **4,49** | 3,7 → 4,97 | -25,2 / -25,2 | 0/-6/-9 · 0/0/-9 | 0 / 0 |
+| Negociações (item aberto) (`negociacoes.ts`) | 10 (10 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -15,6 / -15,6 | 0/-6/-7 · 0/0/0 | 0 / 0 |
+| Clientes › ficha (com seleções e portal) (`ficha-contato.ts, selecoes-cliente.ts`) | 19 (18 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -22,8 / -22,8 | -11/-10/-2 · -11/0/0 | 0 / 0 |
+| Ajustes › Funil (`ajustes.ts (menu)`) | 7 (7 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -8,4 / -8,4 | 0/0/0 · 0/0/0 | 0 / 0 |
+| Ajustes › Conta e marca (`conta.ts, marca.ts`) | 11 (11 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -14,4 / -13,2 | 0/-4/0 · 0/-3/0 | 0 / 0 |
+| Conversas (`conversas.ts`) | 16 (16 visíveis) | 3,04 → **4,6** | 3,7 → 4,97 | -19,2 / -19,2 | 0/-13/0 · 0/-13/0 | 0 / 0 |
+| Clientes › Funil (item aberto) (`clientes-quadro.ts`) | 9 (9 visíveis) | 2,89 → **4,24** | 3,55 → 4,69 | -13,2 / -13,2 | 0/-2/-4 · 0/0/0 | 0 / 0 |
+| Hoje › Agenda (`inicio.ts`) | 4 (4 visíveis) | 3,1 → **4,74** | 3,78 → 5,18 | -6,0 / -6,0 | 0/0/0 · 0/0/0 | 0 / 0 |
+
+Os números de contraste são iguais nas duas janelas. Nenhum elemento mudou de número de linhas nem passou a transbordar. A maior variação é de 1,2 px por linha (17,39 → 16,19 px; duas linhas, 34,78 → 32,38), igual à da remedição anterior. "Visíveis" é menor que "trocados" onde há texto em aba ou bloco fora da janela (por exemplo a ficha do imóvel); todos entram na conta de contraste.
+
+### c) Divergências
+
+- **DIVERGE** Modal Editar mandato (`mandato.ts`), claro: o `dica` mede **4,49:1**, abaixo de 4,5:1 por 0,01 (cinco textos; antes 2,99). No escuro 5,10 (antes 3,76).
+- **DIVERGE** Clientes › Funil, claro: `dica` **4,24:1** (antes 2,89), já registrado e confirmado. O escuro mede 4,69.
+- Nas demais telas medidas nesta rodada o pior `dica` é 4,60 (claro) e 4,97 (escuro) sobre cartão, ou 4,74 e 5,18 sobre a coluna. Nenhuma diferença de altura passou de 4 px por linha (o máximo foi 1,2 px).
+
+### d) Não medidas (com motivo)
+
+- **não medida:** `empreendimentos.ts` (2 usos) e a ficha do empreendimento: não medida: conta demo sem empreendimentos; as duas telas só mostram texto com o papel quando há dado.
+- **não medida:** negociador-ajustes.ts, "Você, como comprador", "Negociador · teste", "O Negociador está respondendo…" (aviso de teste do Negociador): não medida: só aparecem depois de "Testar", que chama a IA e grava a conversa de teste; nenhuma chamada que grava foi tentada.
+- **não medida:** novo-imovel.ts, estados "documento(s) anexado(s)", resumo de ambiente da IA ("ia_ambiente") e avanço de passo: não medida: dependem de anexar foto/documento ou de avançar o passo, que grava o rascunho. Os 4 passos foram abertos por URL, sem avançar.
+- **não medida:** negociacoes.ts, estados condicionais ("IA indisponível agora: registre as propostas à mão", "Rascunho do Negociador", "Sem mandato, nenhuma contraproposta sai", "A ZOPA aparece com o mandato…", "Aceitar o acordo é do corretor…"): não medida: dependem de IA indisponível, de rascunho gerado (grava) ou de negociação sem mandato/sem oferta; a única negociação da conta demo tem mandato.
+- **não medida:** selecoes-cliente.ts, "Enviada em …": não medida: a ficha aberta não trouxe seleção enviada naquela posição; os outros 2 usos foram vistos.
+- **não medida:** desempenho.ts, "Só números somados da conta…" (relatório): não medida: aparece só com relatório gerado (grava).
+- estudio.ts, importar.ts, pagina.ts e o texto de IA indisponível da ficha já tinham sido medidos na remedição anterior (aviso de IA medido com a sonda respondida no navegador); nesta rodada não foram refeitos, e não confirmei neles os textos estáticos \"Próximo passo:\" (conversas.ts), \"Na ordem do mais urgente\" (inicio.ts) e \"No portal do cliente:\" (ficha-contato.ts).
+- Corretores (operacao), Agenda, Playbook, funil-ajustes, Assistente e ficha do empreendimento não entram nos 21 arquivos: nenhum deles tinha `papel="fraco"` na main (grep) e o PR não os alterou. Corretores é do papel operacao, não alcançável por corretor.
+
+### Resumo
+
+Dos 21 arquivos, 20 têm ao menos uma tela medida com `dica` (nesta rodada ou na remedição anterior); só `empreendimentos.ts` ficou sem medida (conta demo sem empreendimento). Em vários arquivos há estados condicionais (listados acima) que não puderam ser exercitados sem gravar ou sem dado. O que continua abaixo de 4,5:1 com `dica`: Funil no claro (4,24) e o modal de mandato no claro (4,49).

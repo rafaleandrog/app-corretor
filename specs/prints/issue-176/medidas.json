@@ -26480,5 +26480,1806 @@
     }
    ]
   }
+ },
+ "cobertura_21_telas": {
+  "medido_em": "09/11/2026",
+  "instancia": "pinguim (app 0.1.51, shell 0.56.37, CONTA=7)",
+  "viewports": [
+   "1366x657",
+   "1440x1000"
+  ],
+  "metodo": "só leitura; estilos computados; razão WCAG compondo alfas sobre o fundo efetivo; `papel` trocado no DOM ao vivo (fraco -> dica) sem gravar; tema escuro por data-theme",
+  "chamadas_que_gravam_bloqueadas": "4 tentativas bloqueadas, todas PATCH /conversas/1/lida (a tela de Conversas marca a conversa como lida ao abrir); nenhuma chegou à instância",
+  "procedimento_secao_6_refeito": false,
+  "nota": "A seção 6 de specs/layout/README.md (captura lado a lado contra o PNG de referência) NÃO foi refeita tela a tela: foi feita medição antes/depois do efeito da troca (contraste e altura) no DOM ao vivo da 0.1.51, porque a 0.1.58 não está instalada.",
+  "arquivos_para_telas": [
+   {
+    "arquivo": "ajustes.ts",
+    "tela": "Ajustes (linha de estado no menu da aba)",
+    "rota": "/ajustes e /ajustes/<aba>",
+    "situacao": "medida (remedição anterior) e, nesta, 7 linhas do menu em /ajustes/funil"
+   },
+   {
+    "arquivo": "clientes-quadro.ts",
+    "tela": "Clientes › Funil",
+    "rota": "/clientes?visao=funil",
+    "situacao": "medida (remedição anterior; nesta, Clientes-funil)"
+   },
+   {
+    "arquivo": "clientes.ts",
+    "tela": "Clientes › lista",
+    "rota": "/clientes",
+    "situacao": "medida (remedição anterior)"
+   },
+   {
+    "arquivo": "conexoes.ts",
+    "tela": "Ajustes › Conexões",
+    "rota": "/ajustes/conexoes",
+    "situacao": "medida nesta (Conexoes)"
+   },
+   {
+    "arquivo": "conta.ts",
+    "tela": "Ajustes › Conta e marca / Atendimento",
+    "rota": "/ajustes/conta",
+    "situacao": "medida (anterior) e nesta (Ajustes-conta)"
+   },
+   {
+    "arquivo": "conversas.ts",
+    "tela": "Conversas",
+    "rota": "/conversas?item=",
+    "situacao": "medida (anterior) e nesta (Conversas)"
+   },
+   {
+    "arquivo": "desempenho.ts",
+    "tela": "Números (apelido /desempenho)",
+    "rota": "/numeros",
+    "situacao": "medida nesta (Numeros)"
+   },
+   {
+    "arquivo": "empreendimentos.ts",
+    "tela": "Imóveis › aba Empreendimentos",
+    "rota": "/imoveis?aba=empreendimentos (apelido /empreendimentos)",
+    "situacao": "não medida: a conta demo (CONTA=7) não tem empreendimento (GET /empreendimentos devolve lista vazia) e o estado vazio não tem texto com `fraco`"
+   },
+   {
+    "arquivo": "estudio.ts",
+    "tela": "Estúdio",
+    "rota": "/estudio",
+    "situacao": "medida (anterior)"
+   },
+   {
+    "arquivo": "ficha-contato.ts",
+    "tela": "Clientes › ficha do contato",
+    "rota": "/clientes?item=",
+    "situacao": "medida (anterior) e nesta (Ficha-contato)"
+   },
+   {
+    "arquivo": "ficha-imovel.ts",
+    "tela": "Imóveis › ficha do imóvel",
+    "rota": "/imoveis?item= (apelido /imoveis/<id>)",
+    "situacao": "medida nesta (Imovel-ficha)"
+   },
+   {
+    "arquivo": "imoveis.ts",
+    "tela": "Imóveis › lista (e coluna de contexto)",
+    "rota": "/imoveis",
+    "situacao": "medida (anterior) e nesta (Imovel-ficha, a lista está na coluna esquerda)"
+   },
+   {
+    "arquivo": "importar.ts",
+    "tela": "Importar contatos",
+    "rota": "/clientes/importar",
+    "situacao": "medida (anterior)"
+   },
+   {
+    "arquivo": "inicio.ts",
+    "tela": "Hoje (e Hoje › Agenda)",
+    "rota": "/ e /agenda",
+    "situacao": "medida (anterior) e nesta (Hoje-agenda)"
+   },
+   {
+    "arquivo": "mandato.ts",
+    "tela": "Modal Definir/Editar mandato, aberto na ficha do imóvel e na negociação",
+    "rota": "/imoveis?item= e /negociacoes?neg=, botão Editar mandato",
+    "situacao": "medida nesta (Imovel-mandato, Negociacao-mandato); abrir o modal não grava"
+   },
+   {
+    "arquivo": "marca.ts",
+    "tela": "Ajustes › Conta e marca (cartão Sua marca)",
+    "rota": "/ajustes/conta",
+    "situacao": "medida (anterior) e nesta (Ajustes-conta)"
+   },
+   {
+    "arquivo": "negociacoes.ts",
+    "tela": "Negociações (também do negociador humano)",
+    "rota": "/negociacoes?neg=",
+    "situacao": "medida (anterior) e nesta (Negociacoes-item); estados condicionais não vistos (ver não medidas)"
+   },
+   {
+    "arquivo": "negociador-ajustes.ts",
+    "tela": "Ajustes › Negociador",
+    "rota": "/ajustes/negociador",
+    "situacao": "medida nesta (Ajustes-negociador); o teste do Negociador não foi exercitado (ver não medidas)"
+   },
+   {
+    "arquivo": "novo-imovel.ts",
+    "tela": "Novo imóvel (4 passos)",
+    "rota": "/imoveis/novo e /imoveis/novo?item=12&passo=dados|autorizacao|onde",
+    "situacao": "medida nesta (passo Fotos sem item; passos Dados, Autorização e Onde aparece com `?item=12`, só leitura)"
+   },
+   {
+    "arquivo": "pagina.ts",
+    "tela": "Página",
+    "rota": "/pagina",
+    "situacao": "medida (anterior)"
+   },
+   {
+    "arquivo": "selecoes-cliente.ts",
+    "tela": "Clientes › ficha › Seleções e Portal do cliente",
+    "rota": "/clientes?item= (dentro da ficha)",
+    "situacao": "medida nesta (Ficha-contato, host pc-selecoes-cliente); a linha \"Enviada em\" não apareceu"
+   }
+  ],
+  "telas_medidas_nesta_rodada": {
+   "Numeros": {
+    "tela": "Números",
+    "url": "/portal_corretor/numeros",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 9,
+      "visiveis": 9,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "Leitura feita com os números do período, sem IA.",
+      "soma_altura_elementos_antes_px": 156.51,
+      "soma_altura_elementos_depois_px": 145.71,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 1162,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 1160,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 9,
+      "visiveis": 9,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Leitura feita com os números do período, sem IA.",
+      "soma_altura_elementos_antes_px": 156.51,
+      "soma_altura_elementos_depois_px": 145.71,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 1162,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 1160,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 9,
+      "visiveis": 9,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "Leitura feita com os números do período, sem IA.",
+      "soma_altura_elementos_antes_px": 173.9,
+      "soma_altura_elementos_depois_px": 161.9,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1052,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1049,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 9,
+      "visiveis": 9,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Leitura feita com os números do período, sem IA.",
+      "soma_altura_elementos_antes_px": 173.9,
+      "soma_altura_elementos_depois_px": 161.9,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1052,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1049,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Hoje-agenda": {
+    "tela": "Hoje › Agenda",
+    "url": "/portal_corretor/agenda",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 4,
+      "visiveis": 4,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "Segunda-feira, 9 de novembro · Mensageiro: ainda não disponí",
+      "soma_altura_elementos_antes_px": 86.95,
+      "soma_altura_elementos_depois_px": 80.95,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 531,
+       "direita": 709
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 531,
+       "direita": 709
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 4,
+      "visiveis": 4,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "Segunda-feira, 9 de novembro · Mensageiro: ainda não disponí",
+      "soma_altura_elementos_antes_px": 86.95,
+      "soma_altura_elementos_depois_px": 80.95,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 531,
+       "direita": 709
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 531,
+       "direita": 709
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 4,
+      "visiveis": 4,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "Segunda-feira, 9 de novembro · Mensageiro: ainda não disponí",
+      "soma_altura_elementos_antes_px": 86.95,
+      "soma_altura_elementos_depois_px": 80.95,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 4,
+      "visiveis": 4,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "Segunda-feira, 9 de novembro · Mensageiro: ainda não disponí",
+      "soma_altura_elementos_antes_px": 86.95,
+      "soma_altura_elementos_depois_px": 80.95,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Conexoes": {
+    "tela": "Ajustes › Conexões",
+    "url": "/portal_corretor/ajustes/conexoes",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 11,
+      "visiveis": 11,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "A mesma que você usa no Instagram ou no Facebook.",
+      "soma_altura_elementos_antes_px": 208.68,
+      "soma_altura_elementos_depois_px": 194.28,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 808,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 802,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 11,
+      "visiveis": 11,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "A mesma que você usa no Instagram ou no Facebook.",
+      "soma_altura_elementos_antes_px": 208.68,
+      "soma_altura_elementos_depois_px": 194.28,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 808,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 802,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 11,
+      "visiveis": 11,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "A mesma que você usa no Instagram ou no Facebook.",
+      "soma_altura_elementos_antes_px": 208.68,
+      "soma_altura_elementos_depois_px": 194.28,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 808,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 11,
+      "visiveis": 11,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "A mesma que você usa no Instagram ou no Facebook.",
+      "soma_altura_elementos_antes_px": 208.68,
+      "soma_altura_elementos_depois_px": 194.28,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 808,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Ajustes-funil": {
+    "tela": "Ajustes › Funil",
+    "url": "/portal_corretor/ajustes/funil",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "chega com o WhatsApp",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 3360,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 3360,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "chega com o WhatsApp",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 3360,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 3360,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "chega com o WhatsApp",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 2951,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 2951,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "chega com o WhatsApp",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 2951,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 2951,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Ajustes-negociador": {
+    "tela": "Ajustes › Negociador",
+    "url": "/portal_corretor/ajustes/negociador",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 19,
+      "visiveis": 19,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "0 de 4.000 · em branco, vale o modelo",
+      "soma_altura_elementos_antes_px": 330.41,
+      "soma_altura_elementos_depois_px": 307.61,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 2254,
+       "direita": 835
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 2242,
+       "direita": 833
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 19,
+      "visiveis": 19,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "0 de 4.000 · em branco, vale o modelo",
+      "soma_altura_elementos_antes_px": 330.41,
+      "soma_altura_elementos_depois_px": 307.61,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 2254,
+       "direita": 835
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 2242,
+       "direita": 833
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 19,
+      "visiveis": 19,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "0 de 4.000 · em branco, vale o modelo",
+      "soma_altura_elementos_antes_px": 330.41,
+      "soma_altura_elementos_depois_px": 307.61,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 2066,
+       "direita": 835
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 2054,
+       "direita": 833
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 19,
+      "visiveis": 19,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "0 de 4.000 · em branco, vale o modelo",
+      "soma_altura_elementos_antes_px": 330.41,
+      "soma_altura_elementos_depois_px": 307.61,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 2066,
+       "direita": 835
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 2054,
+       "direita": 833
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Ajustes-conta": {
+    "tela": "Ajustes › Conta e marca",
+    "url": "/portal_corretor/ajustes/conta",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 11,
+      "visiveis": 11,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "A foto do perfil fica em Sua marca, logo abaixo, e aparece n",
+      "soma_altura_elementos_antes_px": 208.68,
+      "soma_altura_elementos_depois_px": 194.28,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 1365,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 1361,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 11,
+      "visiveis": 11,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "A foto do perfil fica em Sua marca, logo abaixo, e aparece n",
+      "soma_altura_elementos_antes_px": 208.68,
+      "soma_altura_elementos_depois_px": 194.28,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 1365,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 1361,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 11,
+      "visiveis": 11,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "A foto do perfil fica em Sua marca, logo abaixo, e aparece n",
+      "soma_altura_elementos_antes_px": 191.29,
+      "soma_altura_elementos_depois_px": 178.09,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1257,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1254,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 11,
+      "visiveis": 11,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "A foto do perfil fica em Sua marca, logo abaixo, e aparece n",
+      "soma_altura_elementos_antes_px": 191.29,
+      "soma_altura_elementos_depois_px": 178.09,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1257,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1254,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Imovel-ficha": {
+    "tela": "Imóveis › ficha do imóvel",
+    "url": "/portal_corretor/imoveis?item=12",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 27,
+      "visiveis": 13,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "Situação",
+      "soma_altura_elementos_antes_px": 226.07,
+      "soma_altura_elementos_depois_px": 210.47,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 601,
+       "centro": 1672,
+       "direita": 832
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 597,
+       "centro": 1666,
+       "direita": 832
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 27,
+      "visiveis": 13,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Situação",
+      "soma_altura_elementos_antes_px": 226.07,
+      "soma_altura_elementos_depois_px": 210.47,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 601,
+       "centro": 1672,
+       "direita": 832
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 597,
+       "centro": 1666,
+       "direita": 832
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 27,
+      "visiveis": 13,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "Situação",
+      "soma_altura_elementos_antes_px": 226.07,
+      "soma_altura_elementos_depois_px": 210.47,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1575,
+       "direita": 832
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1569,
+       "direita": 832
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 27,
+      "visiveis": 13,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Situação",
+      "soma_altura_elementos_antes_px": 226.07,
+      "soma_altura_elementos_depois_px": 210.47,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1575,
+       "direita": 832
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1569,
+       "direita": 832
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Novo-imovel": {
+    "tela": "Novo imóvel (passo Fotos)",
+    "url": "/portal_corretor/imoveis/novo",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 5,
+      "visiveis": 5,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 86.95,
+      "soma_altura_elementos_depois_px": 80.95,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 485
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 485
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 5,
+      "visiveis": 5,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 86.95,
+      "soma_altura_elementos_depois_px": 80.95,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 485
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 485
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 5,
+      "visiveis": 5,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 86.95,
+      "soma_altura_elementos_depois_px": 80.95,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 5,
+      "visiveis": 5,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 86.95,
+      "soma_altura_elementos_depois_px": 80.95,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Negociacoes-item": {
+    "tela": "Negociações (item aberto)",
+    "url": "/portal_corretor/negociacoes?neg=1",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 10,
+      "visiveis": 10,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "Registro · 08/11/2026, 01:33",
+      "soma_altura_elementos_antes_px": 226.07,
+      "soma_altura_elementos_depois_px": 210.47,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 786,
+       "direita": 768
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 780,
+       "direita": 761
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 10,
+      "visiveis": 10,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Registro · 08/11/2026, 01:33",
+      "soma_altura_elementos_antes_px": 226.07,
+      "soma_altura_elementos_depois_px": 210.47,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 786,
+       "direita": 768
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 780,
+       "direita": 761
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 10,
+      "visiveis": 10,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "Registro · 08/11/2026, 01:33",
+      "soma_altura_elementos_antes_px": 226.07,
+      "soma_altura_elementos_depois_px": 210.47,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 10,
+      "visiveis": 10,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Registro · 08/11/2026, 01:33",
+      "soma_altura_elementos_antes_px": 226.07,
+      "soma_altura_elementos_depois_px": 210.47,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Ficha-contato": {
+    "tela": "Clientes › ficha (com seleções e portal)",
+    "url": "/portal_corretor/clientes?item=2368",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 19,
+      "visiveis": 18,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "08/11/2026, 01:33 · Rafael Gualberto",
+      "soma_altura_elementos_antes_px": 330.41,
+      "soma_altura_elementos_depois_px": 307.61,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 933,
+       "centro": 759,
+       "direita": 589
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 922,
+       "centro": 749,
+       "direita": 587
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 19,
+      "visiveis": 18,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "08/11/2026, 01:33 · Rafael Gualberto",
+      "soma_altura_elementos_antes_px": 330.41,
+      "soma_altura_elementos_depois_px": 307.61,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 933,
+       "centro": 759,
+       "direita": 589
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 922,
+       "centro": 749,
+       "direita": 587
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 19,
+      "visiveis": 18,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "08/11/2026, 01:33 · Rafael Gualberto",
+      "soma_altura_elementos_antes_px": 330.41,
+      "soma_altura_elementos_depois_px": 307.61,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 933,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 922,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 19,
+      "visiveis": 18,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "08/11/2026, 01:33 · Rafael Gualberto",
+      "soma_altura_elementos_antes_px": 330.41,
+      "soma_altura_elementos_depois_px": 307.61,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 933,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 922,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Clientes-funil": {
+    "tela": "Clientes › Funil (item aberto)",
+    "url": "/portal_corretor/clientes?visao=funil&item=2368",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 9,
+      "visiveis": 9,
+      "pior_antes_fraco": 2.89,
+      "pior_depois_dica": 4.24,
+      "texto_do_pior_depois": "Mensagem pelo portal: Procuro um lote para construir na Rese",
+      "soma_altura_elementos_antes_px": 191.29,
+      "soma_altura_elementos_depois_px": 178.08,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 634,
+       "direita": 714
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 632,
+       "direita": 710
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 9,
+      "visiveis": 9,
+      "pior_antes_fraco": 3.55,
+      "pior_depois_dica": 4.69,
+      "texto_do_pior_depois": "Mensagem pelo portal: Procuro um lote para construir na Rese",
+      "soma_altura_elementos_antes_px": 191.29,
+      "soma_altura_elementos_depois_px": 178.08,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 634,
+       "direita": 714
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 632,
+       "direita": 710
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 9,
+      "visiveis": 9,
+      "pior_antes_fraco": 2.89,
+      "pior_depois_dica": 4.24,
+      "texto_do_pior_depois": "Mensagem pelo portal: Procuro um lote para construir na Rese",
+      "soma_altura_elementos_antes_px": 191.29,
+      "soma_altura_elementos_depois_px": 178.08,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 9,
+      "visiveis": 9,
+      "pior_antes_fraco": 3.55,
+      "pior_depois_dica": 4.69,
+      "texto_do_pior_depois": "Mensagem pelo portal: Procuro um lote para construir na Rese",
+      "soma_altura_elementos_antes_px": 191.29,
+      "soma_altura_elementos_depois_px": 178.08,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Conversas": {
+    "tela": "Conversas",
+    "url": "/portal_corretor/conversas?item=1",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 16,
+      "visiveis": 16,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "01:33",
+      "soma_altura_elementos_antes_px": 278.24,
+      "soma_altura_elementos_depois_px": 259.04,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 625,
+       "centro": 1107,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 625,
+       "centro": 1094,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 16,
+      "visiveis": 16,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "01:33",
+      "soma_altura_elementos_antes_px": 278.24,
+      "soma_altura_elementos_depois_px": 259.04,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 625,
+       "centro": 1107,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 625,
+       "centro": 1094,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 16,
+      "visiveis": 16,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "01:33",
+      "soma_altura_elementos_antes_px": 278.24,
+      "soma_altura_elementos_depois_px": 259.04,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1107,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1094,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 16,
+      "visiveis": 16,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "01:33",
+      "soma_altura_elementos_antes_px": 278.24,
+      "soma_altura_elementos_depois_px": 259.04,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1107,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1094,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Imovel-mandato": {
+    "tela": "Imóveis › ficha › modal Editar mandato",
+    "url": "/portal_corretor/imoveis?item=12",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 32,
+      "visiveis": 18,
+      "pior_antes_fraco": 2.99,
+      "pior_depois_dica": 4.49,
+      "texto_do_pior_depois": "O ponto de recuo fica abaixo ou igual ao alvo, e o alvo abai",
+      "soma_altura_elementos_antes_px": 365.19,
+      "soma_altura_elementos_depois_px": 339.99,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 601,
+       "centro": 1672,
+       "direita": 1077
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 597,
+       "centro": 1666,
+       "direita": 1068
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 32,
+      "visiveis": 18,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Situação",
+      "soma_altura_elementos_antes_px": 365.19,
+      "soma_altura_elementos_depois_px": 339.99,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 601,
+       "centro": 1672,
+       "direita": 1077
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 597,
+       "centro": 1666,
+       "direita": 1068
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 32,
+      "visiveis": 18,
+      "pior_antes_fraco": 2.99,
+      "pior_depois_dica": 4.49,
+      "texto_do_pior_depois": "O ponto de recuo fica abaixo ou igual ao alvo, e o alvo abai",
+      "soma_altura_elementos_antes_px": 365.19,
+      "soma_altura_elementos_depois_px": 339.99,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1575,
+       "direita": 1077
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1569,
+       "direita": 1068
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 32,
+      "visiveis": 18,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Situação",
+      "soma_altura_elementos_antes_px": 365.19,
+      "soma_altura_elementos_depois_px": 339.99,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 1575,
+       "direita": 1077
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 1569,
+       "direita": 1068
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Negociacao-mandato": {
+    "tela": "Negociações › modal Editar mandato",
+    "url": "/portal_corretor/negociacoes?neg=1",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 15,
+      "visiveis": 15,
+      "pior_antes_fraco": 2.99,
+      "pior_depois_dica": 4.49,
+      "texto_do_pior_depois": "O ponto de recuo fica abaixo ou igual ao alvo, e o alvo abai",
+      "soma_altura_elementos_antes_px": 365.19,
+      "soma_altura_elementos_depois_px": 339.99,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 786,
+       "direita": 1077
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 780,
+       "direita": 1068
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 15,
+      "visiveis": 15,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Registro · 08/11/2026, 01:33",
+      "soma_altura_elementos_antes_px": 365.19,
+      "soma_altura_elementos_depois_px": 339.99,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 786,
+       "direita": 1077
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 780,
+       "direita": 1068
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 15,
+      "visiveis": 15,
+      "pior_antes_fraco": 2.99,
+      "pior_depois_dica": 4.49,
+      "texto_do_pior_depois": "O ponto de recuo fica abaixo ou igual ao alvo, e o alvo abai",
+      "soma_altura_elementos_antes_px": 365.19,
+      "soma_altura_elementos_depois_px": 339.99,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 1077
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 1068
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 15,
+      "visiveis": 15,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Registro · 08/11/2026, 01:33",
+      "soma_altura_elementos_antes_px": 365.19,
+      "soma_altura_elementos_depois_px": 339.99,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 1077
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 1068
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Novo-imovel-dados": {
+    "tela": "Novo imóvel (passo Dados)",
+    "url": "/portal_corretor/imoveis/novo?item=12&passo=dados",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 6,
+      "visiveis": 6,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "Fale (ou escreva) o que falta: \"apartamento de 3 quartos no ",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 752,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 749,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 6,
+      "visiveis": 6,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Fale (ou escreva) o que falta: \"apartamento de 3 quartos no ",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 752,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 749,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 6,
+      "visiveis": 6,
+      "pior_antes_fraco": 3.04,
+      "pior_depois_dica": 4.6,
+      "texto_do_pior_depois": "Fale (ou escreva) o que falta: \"apartamento de 3 quartos no ",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 6,
+      "visiveis": 6,
+      "pior_antes_fraco": 3.7,
+      "pior_depois_dica": 4.97,
+      "texto_do_pior_depois": "Fale (ou escreva) o que falta: \"apartamento de 3 quartos no ",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Novo-imovel-autorizacao": {
+    "tela": "Novo imóvel (passo Autorização)",
+    "url": "/portal_corretor/imoveis/novo?item=12&passo=autorizacao",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   },
+   "Novo-imovel-onde": {
+    "tela": "Novo imóvel (passo Onde aparece)",
+    "url": "/portal_corretor/imoveis/novo?item=12&passo=onde",
+    "1366x657": {
+     "light": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 458
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 458,
+       "centro": 458,
+       "direita": 458
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    },
+    "1440x1000": {
+     "light": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.1,
+      "pior_depois_dica": 4.74,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     },
+     "dark": {
+      "elementos_trocados": 7,
+      "visiveis": 7,
+      "pior_antes_fraco": 3.78,
+      "pior_depois_dica": 5.18,
+      "texto_do_pior_depois": "Leva cerca de 3 minutos. Nenhum passo pede CRECI.",
+      "soma_altura_elementos_antes_px": 121.73,
+      "soma_altura_elementos_depois_px": 113.33,
+      "maior_diferenca_por_linha_px": 1.2,
+      "altura_conteudo_colunas_antes_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "altura_conteudo_colunas_depois_px": {
+       "esquerda": 801,
+       "centro": 801,
+       "direita": 801
+      },
+      "elementos_com_numero_de_linhas_diferente": 0,
+      "elementos_com_transbordo_diferente": 0
+     }
+    }
+   }
+  },
+  "nao_medidas": [
+   "empreendimentos.ts (2 usos) e a ficha do empreendimento: não medida: conta demo sem empreendimentos; as duas telas só mostram texto com o papel quando há dado.",
+   "negociador-ajustes.ts, \"Você, como comprador\", \"Negociador · teste\", \"O Negociador está respondendo…\" (aviso de teste do Negociador): não medida: só aparecem depois de \"Testar\", que chama a IA e grava a conversa de teste; nenhuma chamada que grava foi tentada.",
+   "novo-imovel.ts, estados \"documento(s) anexado(s)\", resumo de ambiente da IA (\"ia_ambiente\") e avanço de passo: não medida: dependem de anexar foto/documento ou de avançar o passo, que grava o rascunho. Os 4 passos foram abertos por URL, sem avançar.",
+   "negociacoes.ts, estados condicionais (\"IA indisponível agora: registre as propostas à mão\", \"Rascunho do Negociador\", \"Sem mandato, nenhuma contraproposta sai\", \"A ZOPA aparece com o mandato…\", \"Aceitar o acordo é do corretor…\"): não medida: dependem de IA indisponível, de rascunho gerado (grava) ou de negociação sem mandato/sem oferta; a única negociação da conta demo tem mandato.",
+   "selecoes-cliente.ts, \"Enviada em …\": não medida: a ficha aberta não trouxe seleção enviada naquela posição; os outros 2 usos foram vistos.",
+   "desempenho.ts, \"Só números somados da conta…\" (relatório): não medida: aparece só com relatório gerado (grava).",
+   "conversas.ts \"Próximo passo:\", estudio.ts, importar.ts, inicio.ts \"Na ordem do mais urgente\", pagina.ts e ficha-contato.ts (IA indisponível, resumo pela IA, \"No portal do cliente:\") já estavam na remedição anterior ou dependem de estado que não existe na conta demo; nesta rodada não foram refeitos.",
+   "Corretores (operacao), Agenda, Playbook, funil-ajustes, Assistente e ficha do empreendimento não entram nos 21 arquivos: nenhum deles tinha `papel=\"fraco\"` na main (grep) e o PR não os alterou. Corretores é do papel operacao, não alcançável por corretor."
+  ],
+  "divergencias": [
+   {
+    "tela": "Modal Editar mandato (Imóveis e Negociações)",
+    "tema": "claro",
+    "dica": 4.49,
+    "minimo": 4.5,
+    "texto": "\"O ponto de recuo fica abaixo ou igual ao alvo…\" (cinco textos do modal têm 4,49; antes 2,99). No escuro 5,10 (antes 3,76)."
+   },
+   {
+    "tela": "Clientes › Funil",
+    "tema": "claro",
+    "dica": 4.24,
+    "minimo": 4.5,
+    "texto": "já registrado na remedição anterior; confirmado nesta (antes 2,89)."
+   }
+  ],
+  "capturas": "cobertura-<tela>-<tema>-fraco-dica-1366x657.png (esquerda fraco, direita dica; faixa magenta no meio)"
  }
 }
