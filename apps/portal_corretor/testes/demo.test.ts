@@ -295,7 +295,7 @@ test('#189: publicação da página que falha vira aviso: não conta como comple
     // A página sai do ar e o endereço dela passa a ser de outra conta.
     const pagina = banco.linhas('paginas_corretor').find((p) => p.conta_id === 100)!;
     pagina.publicada_em = null;
-    banco.linhas('vitrine_publica').push({ id: 90001, conta: 999, tipo: 'pagina', chave: pagina.endereco, dados: {} });
+    banco.linhas('vitrine_publica').push({ id: 90001, conta_id: 999, conta: 999, tipo: 'pagina', chave: pagina.endereco, dados: {} });
     // Sem mais nada a fazer: 409, com a falha na mensagem, a cada chamada.
     for (let i = 0; i < 2; i++) {
       const g = await chamar('POST', '/demo/semear', {});
