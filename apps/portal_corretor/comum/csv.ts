@@ -104,3 +104,62 @@ export function mapearPorModelo(cabecalho: string[], modeloId: string | null): R
   }
   return mapa;
 }
+
+// ---------- Importação em lotes (#40) ----------
+//
+// O shell recusa corpo acima de 100 kB (`413 CORPO_MUITO_GRANDE`, overview.md do SDK; a unidade, 1000 ou
+// 1024 bytes, e a forma de medir não estão definidas lá). A tela divide a importação em lotes de até 400
+// linhas e de até ~80 kB estimados pelo JSON de cada linha (margem para o resto do corpo), envia um por vez
+// e soma os relatórios. Assim as 2000 linhas por vez cabem, com qualquer número de colunas.
+
+export const LOTE_IMPORTACAO = { linhas: 400, bytes: 80_000 } as const;
+/** Linhas por importação (a tela recusa acima disso antes de enviar; a rota, por lote). */
+export const LIMITE_LINHAS_IMPORTACAO = 2000;
+
+/** Divide as linhas em lotes que cabem no corpo; `inicio` é o índice da primeira linha do lote. */
+export function dividirEmLotes<T>(linhas: T[], { linhas: maxLinhas, bytes: maxBytes }: { linhas: number; bytes: number } = LOTE_IMPORTACAO): { inicio: number; linhas: T[] }[] {
+  const enc = new TextEncoder();
+  const lotes: { inicio: number; linhas: T[] }[] = [];
+  let atual: T[] = [];
+  let inicio = 0;
+  let bytes = 0;
+  linhas.forEach((l, i) => {
+    const tamanho = enc.encode(JSON.stringify(l)).length + 1;
+    if (atual.length && (atual.length >= maxLinhas || bytes + tamanho > maxBytes)) {
+      lotes.push({ inicio, linhas: atual });
+      atual = [];
+      bytes = 0;
+      inicio = i;
+    }
+    atual.push(l);
+    bytes += tamanho;
+  });
+  if (atual.length) lotes.push({ inicio, linhas: atual });
+  return lotes;
+}
+
+export interface RelatorioImportacao {
+  criados: number;
+  unidos: number;
+  pulados: number;
+  rejeitados: { linha: number; motivo: string }[];
+}
+
+export function somarRelatorios(relatorios: RelatorioImportacao[]): RelatorioImportacao {
+  return relatorios.reduce(
+    (t, r) => ({ criados: t.criados + r.criados, unidos: t.unidos + r.unidos, pulados: t.pulados + r.pulados, rejeitados: [...t.rejeitados, ...r.rejeitados] }),
+    { criados: 0, unidos: 0, pulados: 0, rejeitados: [] } as RelatorioImportacao,
+  );
+}
+
+/**
+ * "Baixar relatório" (P14, 12.1): as linhas rejeitadas com o número da linha na planilha, o motivo e as
+ * células originais, para o corretor corrigir e importar de novo. `linhas` são as do arquivo, sem o
+ * cabeçalho (a linha 2 da planilha é `linhas[0]`).
+ */
+export function csvDasRejeitadas(rejeitados: { linha: number; motivo: string }[], cabecalho: string[], linhas: string[][]): string {
+  return gerarCsv(
+    ['Linha', 'Motivo', ...cabecalho],
+    rejeitados.map((r) => [r.linha, r.motivo, ...(linhas[r.linha - 2] ?? [])]),
+  );
+}

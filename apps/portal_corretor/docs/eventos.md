@@ -28,7 +28,7 @@ Os eventos são sempre da **sua conta**: o corretor de outra conta não recebe n
 | Você manda uma mensagem, um imóvel, um arquivo ou o link do portal | `mensagem_enviada`, `envio_criado`, `acesso_cliente_convidado` |
 | Você assume ou devolve uma conversa ao Negociador | `conversa_assumida`, `conversa_devolvida` |
 | Entra uma atividade na agenda; uma visita é marcada; você registra o retorno de uma visita | `atividade_criada`, `visita_agendada`, `visita_feedback`, e o `lembrete_visita` na hora combinada |
-| Uma planilha de contatos é importada | `contatos_importados` |
+| Uma planilha ou um arquivo de contatos do celular é importado (um aviso por parte enviada, quando a importação vai em partes) | `contatos_importados` |
 | Um negócio muda de etapa, é ganho ou perdido | `negocio_etapa_mudou`, `negocio_ganho`, `negocio_perdido` |
 | Um imóvel entra, é anunciado, baixa de preço, muda de visibilidade ou é vendido | `imovel_criado`, `imovel_ativado`, `imovel_preco_reduzido`, `imovel_visibilidade_mudou`, `imovel_vendido` |
 | Uma autorização de venda vence em até 30 dias (aviso diário, uma vez por autorização) | `autorizacao_vencendo` |

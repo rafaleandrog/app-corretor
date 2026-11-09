@@ -222,3 +222,61 @@ test('P13: nome profissional e regiões no perfil (sem apagar o que não veio); 
   assert.match(marca, /label="Logo"[\s\S]*label="Sua foto \(opcional\)"/, 'rótulos claros dos arquivos (#182 item 6)');
   for (const fonte of [conta, marca]) assert.doesNotMatch(fonte, /\bpequeno\b/);
 });
+
+test('P14: vCard vira as linhas da planilha (2.1 QP, 3.0 dobrado, 4.0, celular preferido)', async () => {
+  const { lerVcard, ehVcard, CABECALHO_VCARD } = await import('../comum/vcard');
+  const vcf = [
+    'BEGIN:VCARD', 'VERSION:3.0', 'FN:Ana Souza', 'N:Souza;Ana;;;', 'TEL;TYPE=HOME:+55 61 3333-0000', 'TEL;TYPE=CELL:+55 61 98888-7777',
+    'EMAIL;TYPE=INTERNET:ana@exemplo.com', 'NOTE:Quer 3 quartos\\, perto do metrô\\nliga à noite', 'END:VCARD',
+    'BEGIN:VCARD', 'VERSION:2.1', 'N;CHARSET=UTF-8;ENCODING=QUOTED-PRINTABLE:Concei=C3=A7=C3=A3o;Jo=C3=A3o;;;', 'TEL;CELL:61977770001', 'END:VCARD',
+    'BEGIN:VCARD', 'VERSION:4.0', 'FN:Bruno', ' Costa', 'item1.TEL;VALUE=uri:tel:+5561966660002', 'END:VCARD',
+    'BEGIN:VCARD', 'VERSION:3.0', 'ORG:Empresa sem nome nem telefone', 'END:VCARD',
+  ].join('\r\n');
+  const linhas = lerVcard(vcf);
+  assert.deepEqual(linhas[0], [...CABECALHO_VCARD]);
+  assert.deepEqual(linhas.slice(1), [
+    ['Ana Souza', '+55 61 98888-7777', 'ana@exemplo.com', 'Quer 3 quartos, perto do metrô liga à noite'],
+    ['João Conceição', '61977770001', '', ''],
+    ['BrunoCosta', '+5561966660002', '', ''],
+  ]);
+  assert.equal(ehVcard('contatos.VCF', ''), true);
+  assert.equal(ehVcard('x.csv', 'BEGIN:VCARD\n'), true);
+  assert.equal(ehVcard('x.csv', 'nome;telefone'), false);
+});
+
+test('#40: importação em lotes que cabem no corpo do shell, com o número da linha da planilha original', async () => {
+  const { dividirEmLotes, somarRelatorios, csvDasRejeitadas, LOTE_IMPORTACAO } = await import('../comum/csv');
+  // 2000 linhas com 5 colunas (~230 bytes cada): nenhum lote passa de 400 linhas nem de ~80 kB.
+  const linhas = Array.from({ length: 2000 }, (_, i) => ({ nome: `Contato ${i} ${'x'.repeat(60)}`, telefone: `619${String(70000000 + i)}`, email: `c${i}@exemplo.com.br`, papeis: 'comprador', observacoes: 'o'.repeat(120) }));
+  const lotes = dividirEmLotes(linhas);
+  assert.ok(lotes.length >= 5);
+  assert.equal(lotes.reduce((t, l) => t + l.linhas.length, 0), 2000);
+  for (const l of lotes) {
+    assert.ok(l.linhas.length <= LOTE_IMPORTACAO.linhas);
+    const corpo = JSON.stringify({ linhas: l.linhas, modo: 'pular', arquivo: 'contatos-2026.csv', primeira_linha: l.inicio + 2 });
+    assert.ok(new TextEncoder().encode(corpo).length < 100_000, `lote em ${l.inicio}: ${corpo.length}`);
+  }
+  assert.deepEqual(lotes.map((l) => l.inicio), lotes.map((_, i) => lotes.slice(0, i).reduce((t, x) => t + x.linhas.length, 0)));
+  // A rota numera as linhas pelo `primeira_linha` do lote.
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const r = await chamar('POST', '/contatos/importar', { linhas: [{ nome: 'Ok', telefone: '61911112222' }, { nome: '' }], modo: 'pular', primeira_linha: 402 });
+    assert.equal(r.status, 200, JSON.stringify(r.corpo));
+    assert.deepEqual(r.corpo.rejeitados.map((x: any) => x.linha), [403]);
+    const p = await chamar('POST', '/contatos/importar', { linhas: [{ nome: '' }], simular: true, primeira_linha: 10 });
+    assert.equal(p.corpo.previa[0].linha, 10);
+    assert.equal((await chamar('POST', '/contatos/importar', { linhas: [{ nome: '' }], simular: true })).corpo.previa[0].linha, 2, 'sem o campo: a linha 2');
+  });
+  const soma = somarRelatorios([{ criados: 2, unidos: 1, pulados: 0, rejeitados: [{ linha: 3, motivo: 'a' }] }, { criados: 1, unidos: 0, pulados: 4, rejeitados: [{ linha: 403, motivo: 'b' }] }]);
+  assert.deepEqual(soma, { criados: 3, unidos: 1, pulados: 4, rejeitados: [{ linha: 3, motivo: 'a' }, { linha: 403, motivo: 'b' }] });
+  // Baixar relatório: a linha rejeitada com o motivo e as células originais.
+  const csv = csvDasRejeitadas([{ linha: 3, motivo: 'Informe o nome.' }], ['Nome', 'Telefone'], [['Ana', '61 1'], ['', '61 2']]);
+  assert.match(csv, /Linha;Motivo;Nome;Telefone\r\n3;Informe o nome\.;;61 2\r\n/);
+  // A tela: fontes com vCard ativo e o outro CRM na fase 2; repetidos como escolha única com explicação.
+  const fonte = readFileSync(resolve(RAIZ, 'frontend/telas/importar.ts'), 'utf8');
+  assert.match(fonte, /dividirEmLotes\(convertidas\(\)\)/);
+  assert.match(fonte, /primeira_linha: lote\.inicio \+ 2/);
+  assert.match(fonte, />Baixar relatório<\/urbi-botao>/);
+  assert.match(fonte, /escolhaUnica\(REPETIDOS/);
+  assert.doesNotMatch(fonte, /Em breve|urbi-chips-atalho|\bpequeno\b/);
+});
