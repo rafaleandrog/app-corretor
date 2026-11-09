@@ -99,7 +99,7 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Por quê:** o negociador humano (D7) é membro da conta do corretor e lê, pelo barramento (listagem, busca individual e notificações por inscrição), todo evento segregado da conta: o recorte é por conta, não por papel nem por registro. O `destinatarios` do `publicar` recorta só o stream SSE (`barramento.md` § Destinatários). Os eventos de negociação já saem só com ids, mas três eventos nascem num handler de `wh`, onde o `req.dados` não é segregado e o app não pode gravar na conta antes de publicar (`wh.md`, `contas.md` § Modo de conexão). O dado pessoal só chega ao listener pelo evento:
 
-- `lead_recebido`: nome, telefone, e-mail e mensagem de quem pediu contato;
+- `lead_recebido`: nome, telefone, e-mail e mensagem de quem pediu contato, e `ip_hash` (a origem do envio embaralhada, nunca o IP);
 - `reacao_recebida`: o comentário do cliente na seleção;
 - `acao_cliente_recebida`: o texto da mensagem do cliente pelo portal.
 
@@ -199,7 +199,7 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 ## 26. Meta tags por página pública (prévia do link no WhatsApp e no Instagram) (#181, etapa 4, grupo 4)
 
-**Por quê:** o corretor manda o link da Minha Página, da ficha de um imóvel, da seleção e do portal pelo WhatsApp. Quem gera a prévia do link (WhatsApp, Instagram, Facebook) lê só o HTML servido, sem rodar JavaScript. Hoje o HTML de `/portal_corretor/p?c=…` tem só o `<title>` da instância ("Pinguim Homolog"), sem `description` nem `og:*`: todo link sai com o nome da instância, sem o nome do corretor, a foto ou o imóvel. `paginas-publicas.md` (SDK 100) só fala do `titulo` fixo do manifesto e do `document.title`.
+**Por quê:** o corretor manda o link da Minha Página, da ficha de um imóvel, da seleção e do portal pelo WhatsApp. Quem gera a prévia do link (WhatsApp, Instagram, Facebook) lê só o HTML servido, sem rodar JavaScript. Pelo contrato (`paginas-publicas.md`, SDK 100), o `titulo` de cada entrada de `paginas_publicas` é uma string fixa do manifesto e vira o `<title>` da aba; o doc não prevê `description` nem `og:*`. No manifesto da app, a Minha Página tem `titulo: "Corretor de imóveis"`, a ficha "Abrindo o imóvel", a seleção "Imóveis para você" e o portal "Portal do cliente": todo link sai com esse texto fixo, sem o nome do corretor, a foto ou o imóvel.
 
 **Até lá:** o app escreve o `document.title` certo depois de carregar ("Nome · Corretor de imóveis"; na ficha, "Título do imóvel · Nome"), o que vale para a aba do navegador, não para a prévia do link.
 
@@ -207,9 +207,9 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 ## 27. Consumo de IA legível pela app (créditos do mês no Estúdio) (D-119, etapa 4, grupo 4)
 
-**Por quê:** a referência P08 (D-119) mostra **Créditos do mês** no Estúdio. O consumo de IA fica em `shell.log_ia` e aparece só ao admin (aba Utilização, `ia.md` § Observabilidade); o SDK 100 não dá à app nenhuma leitura de uso (chamadas, tokens ou custo), nem por conta.
+**Por quê:** a referência P08 (D-119) mostra **Créditos do mês** no Estúdio. O consumo de IA fica em `shell.log_ia` e aparece ao admin (rota `GET /ia/uso` e aba Utilização, `ia.md` § Settings operacionais da app, "Como a recusa aparece", e § Log de uso); o SDK 100 não documenta à app uma leitura agregada de uso (chamadas, tokens ou custo), nem por conta. Só o retorno de cada `consultar` traz `tokens_entrada` e `tokens_saida` (`RespostaIA`, `ia.md`).
 
-**Até lá:** o cartão mostra "—" com a explicação e conta o que o app sabe (peças escritas pela IA no mês).
+**Até lá:** o cartão mostra "—" com a explicação e conta o que o app sabe (peças escritas pela IA no mês). Alternativa sem mudança no shell: o app gravar e somar os `tokens_entrada`/`tokens_saida` de cada consulta que ele mesmo faz (só o que passa pelo app, sem o custo).
 
 **Proposta mínima:** `req.ia.uso({ de, ate, slot?, conta_id? })` → `{ chamadas, tokens_entrada, tokens_saida, custo_estimado? }` da própria app, filtrável pela conta do request (o `log_ia` precisaria guardar a conta de escrita da chamada).
 

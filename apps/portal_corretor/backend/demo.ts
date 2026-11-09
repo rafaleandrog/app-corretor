@@ -164,9 +164,10 @@ demoRotas.post(
     if (algum.total) {
       // Conta que já gerou (ou que tem dados): a semente só completa o que falta da demonstração do
       // guia (#189) e nunca reescreve o que já existe. Nada a completar: recusa, como antes.
-      const feito = await completarDemo(req, conjunto);
-      if (!feito.length) return erro(res, 409, 'JA_TEM_DADOS', 'Esta conta já tem contatos: a demonstração só entra numa conta vazia.');
-      return res.json({ completado: feito });
+      const { feito, avisos } = await completarDemo(req, conjunto);
+      // Aviso (ex.: página não publicada) não conta como completado: sem mais nada feito, segue o 409.
+      if (!feito.length) return erro(res, 409, 'JA_TEM_DADOS', `Esta conta já tem contatos: a demonstração só entra numa conta vazia.${avisos.length ? ` (${avisos.join('; ')})` : ''}`);
+      return res.json({ completado: feito, avisos });
     }
     const eu = req.contexto!.usuario.id;
     const etapas = await etapasDaConta(dados);
@@ -183,6 +184,7 @@ demoRotas.post(
     const agora = new Date();
     const quando = (dias: number) => new Date(agora.getTime() + dias * 86400e3).toISOString();
     const criados: number[] = [];
+    const imoveisNovos: number[] = [];
     try {
       await dados.transaction(async (trx) => {
         const origens = new Map<string, number>();
@@ -200,6 +202,7 @@ demoRotas.post(
             descricao: im.descricao ?? null, endereco_publico: 'bairro', publicado_pagina: false, compartilhado_rede: 'nao',
           });
           imoveis.set(im.chave, linha.id);
+          imoveisNovos.push(Number(linha.id));
         }
         const negocioDe = new Map<string, { contato: number; negocio: number }>();
         for (const p of conjunto.pessoas) {
@@ -255,8 +258,8 @@ demoRotas.post(
     const meuPerfil = await primeiro(dados, 'perfis_corretor', { usuario_id: eu });
     if (!meuPerfil) await dados.criar('perfis_corretor', { usuario_id: eu, creci: conjunto.creci }).catch(() => null);
     for (const cid of criados) await reclassificar(dados, cid).catch(() => null);
-    const completado = await completarDemo(req, conjunto);
-    res.status(201).json({ contatos: criados.length, negocios: conjunto.pessoas.length, imoveis: conjunto.imoveis.length, negociacoes: principal ? 1 : 0, completado });
+    const { feito: completado, avisos } = await completarDemo(req, conjunto, new Set(imoveisNovos));
+    res.status(201).json({ contatos: criados.length, negocios: conjunto.pessoas.length, imoveis: conjunto.imoveis.length, negociacoes: principal ? 1 : 0, completado, avisos });
   }),
 );
 
@@ -278,14 +281,18 @@ const AMBIENTES_FOTO = ['Fachada', 'Sala', 'Cozinha', 'Suíte', 'Varanda', 'Áre
  * venda assinada com documento (só em imóvel sem autorização vigente), marca para a Minha Página, a
  * página (o endereço de uma página já salva fica como está) publicada, a conversa, a seleção e o
  * portal do cliente do guia (só se ele ainda não tem) e a escada do P15 no lugar da antiga. Devolve
- * o que foi feito; vazio quando não havia nada a completar. Cada passo depende de `req.arquivos` e
+ * `feito` (vazio quando não havia nada a completar) e `avisos` (falhas que não mudaram nada, como a
+ * página não publicada: informadas ao usuário, mas não contam como completado). `novos` são os ids dos
+ * imóveis criados nesta mesma chamada: só neles a semente liga `publicado_pagina`, porque "desligado"
+ * é escolha válida do corretor e a semente nunca religa. Cada passo depende de `req.arquivos` e
  * `req.shell`; sem eles (contexto de teste sem os helpers), o passo é pulado.
  */
-export async function completarDemo(req: Request, conjunto: Conjunto): Promise<string[]> {
+export async function completarDemo(req: Request, conjunto: Conjunto, novos: Set<number> = new Set()): Promise<{ feito: string[]; avisos: string[] }> {
   const dados = req.dados!;
   const conta = contaDoRequest(req);
   const eu = req.contexto!.usuario.id;
   const feito: string[] = [];
+  const avisos: string[] = [];
   const dia = hojeEm(req);
   const todos = await dados.varrerTudo('imoveis', { filtros: { conta_id: conta }, maximo: 5000 });
   const imovelDe = new Map<string, Linha>();
@@ -303,7 +310,7 @@ export async function completarDemo(req: Request, conjunto: Conjunto): Promise<s
     const vazio: Linha = {};
     const quer: Linha = { descricao: im.descricao, area_util_m2: im.area, quartos: im.quartos, banheiros: im.banheiros, vagas: im.vagas };
     for (const [c, v] of Object.entries(quer)) if (v !== undefined && (linha[c] === null || linha[c] === undefined || linha[c] === '')) vazio[c] = v;
-    if (im.pagina && !linha.publicado_pagina) vazio.publicado_pagina = true;
+    if (im.pagina && !linha.publicado_pagina && novos.has(Number(linha.id))) vazio.publicado_pagina = true;
     if (Object.keys(vazio).length) {
       Object.assign(linha, await dados.atualizar('imoveis', linha.id, vazio));
       feito.push(`${im.titulo}: dados`);
@@ -366,7 +373,8 @@ export async function completarDemo(req: Request, conjunto: Conjunto): Promise<s
     }
     if (!pagina.publicada_em) {
       const r = await publicarPagina(req);
-      feito.push(r.ok ? `página publicada (${pagina.endereco})` : `página não publicada: ${r.mensagem}`);
+      if (r.ok) feito.push(`página publicada (${pagina.endereco})`);
+      else avisos.push(`página não publicada: ${r.mensagem}`);
     } else if (feito.some((f) => f.includes(':'))) {
       // Já no ar: a vitrine acompanha os imóveis que acabaram de virar publicáveis.
       await sincronizarTudo(req);
@@ -449,5 +457,5 @@ export async function completarDemo(req: Request, conjunto: Conjunto): Promise<s
     const c = contatoPorNome(conjunto.selecao.para);
     if (c && feito.length) await sincronizarPortal(dados, conta, Number(c.id), corretor);
   }
-  return feito;
+  return { feito, avisos };
 }

@@ -43,7 +43,7 @@ test('conjunto do guia: clientes, temperaturas, imóveis, visita de sábado e a 
   await comServidor(rotas, A, banco, {}, async (chamar) => {
     const g = await chamar('POST', '/demo/semear', {});
     assert.equal(g.status, 201);
-    assert.deepEqual({ ...g.corpo, completado: undefined }, { contatos: 6, negocios: 6, imoveis: 4, negociacoes: 1, completado: undefined });
+    assert.deepEqual(g.corpo, { contatos: 6, negocios: 6, imoveis: 4, negociacoes: 1, completado: ['Casa 4 quartos · Jardim Botânico: dados', 'Apartamento 3 quartos · Sudoeste: dados', 'Lote 450 m² · Reserva do Colorado Q1-03: dados', 'conversa de Ana Ribeiro'], avisos: [] });
     // Idempotente: a segunda vez não grava nada.
     assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
     const contatos = banco.linhas('contatos').filter((c) => c.conta_id === 100);
@@ -113,7 +113,7 @@ test('segundo corretor: conjunto próprio e menor; nada de um aparece para o out
   await comServidor(rotas, B, banco, {}, async (chamar) => {
     const g = await chamar('POST', '/demo/semear', {});
     assert.equal(g.status, 201);
-    assert.deepEqual({ ...g.corpo, completado: undefined }, { contatos: 2, negocios: 2, imoveis: 1, negociacoes: 0, completado: undefined });
+    assert.deepEqual(g.corpo, { contatos: 2, negocios: 2, imoveis: 1, negociacoes: 0, completado: ['Apartamento 2 quartos · Águas Claras: dados'], avisos: [] });
     const nomes = (await chamar('GET', '/contatos?por_pagina=50')).corpo.dados.map((c: any) => c.nome).sort();
     assert.deepEqual(nomes, ['Bruno Costa', 'Lívia Rocha']);
     assert.equal((await chamar('GET', '/negociacoes')).corpo.dados.length, 0);
@@ -262,5 +262,53 @@ test('#41: segunda conta de quem atende várias recebe endereço livre e publica
     assert.equal(p.endereco, 'usuario-9-2');
     await chamar('PUT', '/pagina', p);
     assert.equal((await chamar('POST', '/pagina/publicar')).status, 200);
+  });
+});
+
+test('#189: o corretor tirou um imóvel da página: a semente não o republica, nem completando outra coisa', async () => {
+  const banco = await duasContasDemo();
+  const { arquivos, shell } = helpers();
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 201);
+    const apto = banco.linhas('imoveis').find((i) => i.conta_id === 100 && i.titulo.startsWith('Apartamento'))!;
+    assert.equal(apto.publicado_pagina, true, 'recém-criado na semente: entra na página');
+    // O corretor desliga; nada mais falta: a segunda chamada recusa e não religa.
+    apto.publicado_pagina = false;
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 409);
+    assert.equal(apto.publicado_pagina, false);
+    // Agora falta outra coisa (a autorização da casa): a chamada completa isso e continua sem religar.
+    const casa = banco.linhas('imoveis').find((i) => i.conta_id === 100 && i.titulo.startsWith('Casa'))!;
+    const auts = banco.linhas('autorizacoes_venda');
+    for (const a of auts.filter((x) => x.imovel_id === casa.id)) auts.splice(auts.indexOf(a), 1);
+    const g = await chamar('POST', '/demo/semear', {});
+    assert.equal(g.status, 200);
+    assert.ok(g.corpo.completado.includes('Casa 4 quartos · Jardim Botânico: autorização assinada'), JSON.stringify(g.corpo.completado));
+    assert.equal(apto.publicado_pagina, false);
+  });
+});
+
+test('#189: publicação da página que falha vira aviso: não conta como completado e não impede o 409', async () => {
+  const banco = await duasContasDemo();
+  const { arquivos, shell } = helpers();
+  await comServidor(rotas, { ...A, extras: { arquivos } }, banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', '/demo/semear', {})).status, 201);
+    // A página sai do ar e o endereço dela passa a ser de outra conta.
+    const pagina = banco.linhas('paginas_corretor').find((p) => p.conta_id === 100)!;
+    pagina.publicada_em = null;
+    banco.linhas('vitrine_publica').push({ id: 90001, conta: 999, tipo: 'pagina', chave: pagina.endereco, dados: {} });
+    // Sem mais nada a fazer: 409, com a falha na mensagem, a cada chamada.
+    for (let i = 0; i < 2; i++) {
+      const g = await chamar('POST', '/demo/semear', {});
+      assert.equal(g.status, 409);
+      assert.match(JSON.stringify(g.corpo), /página não publicada: Este endereço já é de outra página/);
+    }
+    // Com outra coisa a completar: 200, o completado traz só o que mudou e a falha vai em `avisos`.
+    const casa = banco.linhas('imoveis').find((i) => i.conta_id === 100 && i.titulo.startsWith('Casa'))!;
+    const auts = banco.linhas('autorizacoes_venda');
+    for (const a of auts.filter((x) => x.imovel_id === casa.id)) auts.splice(auts.indexOf(a), 1);
+    const g = await chamar('POST', '/demo/semear', {});
+    assert.equal(g.status, 200);
+    assert.deepEqual(g.corpo.completado, ['Casa 4 quartos · Jardim Botânico: autorização assinada']);
+    assert.deepEqual(g.corpo.avisos, ['página não publicada: Este endereço já é de outra página. Escolha outro.']);
   });
 });

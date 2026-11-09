@@ -197,7 +197,7 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
 
 // ---------- Webhooks ----------
 
-/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Só o hash do IP, nunca gravado. */
+/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Chave só com a origem embaralhada (hash), nunca o IP; o limite em si não grava nada. O mesmo hash segue no payload do `lead_recebido` e é gravado em `consentimentos.ip_hash` (D-129). */
 const janelas = new Map<string, number[]>();
 export function dentroDoLimite(chave: string, maximo: number, agora = Date.now()): boolean {
   const recentes = (janelas.get(chave) ?? []).filter((t) => agora - t < 60_000);
@@ -411,11 +411,24 @@ export async function aoReceberLead(evento: EventoConta, ctx: ContextoListener) 
       (p.telefone ? (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, telefone: p.telefone }, maximo: 1 }))[0] : undefined) ??
       (p.email ? (await trx.varrerTudo('contatos', { filtros: { conta_id: conta, email: p.email }, maximo: 1 }))[0] : undefined);
     let contato: Linha | null = (await procurar()) ?? null;
-    // Mesmo envio repetido em poucos minutos (duplo clique, reenvio): não duplica nada.
+    // Mesmo envio repetido em poucos minutos (duplo clique, reenvio): não duplica nada. Com o contato
+    // existente, trava a linha dele ANTES de conferir a duplicata (`buscar` com `travar`, sdk_min 94):
+    // o segundo envio concorrente espera o primeiro commitar e então enxerga o que ele gravou.
     if (contato) {
-      const recentes = await trx.varrerTudo('linha_do_tempo', { filtros: { conta_id: conta, contato_id: contato.id, tipo: 'lead.recebido' }, maximo: 50 });
+      const travado = await trx.buscar('contatos', Number(contato.id), { travar: true });
+      if (!travado) throw new Error('contato removido durante o lead; o evento será reentregue');
+      contato = travado;
       const limite = new Date(Date.now() - 5 * 60_000).toISOString();
-      if (recentes.some((l) => (iso(l.ocorrido_em) ?? '') >= limite && (l.dados as Linha | null)?.mensagem === (p.mensagem ?? null))) return;
+      // Só a janela de 5 minutos (`maximo` lança, não corta: contato com muitos pedidos antigos segue recebendo).
+      const recentes = await trx.varrerTudo('linha_do_tempo', {
+        filtros: { conta_id: conta, contato_id: contato.id, tipo: 'lead.recebido', 'ocorrido_em[gte]': limite }, maximo: 50,
+      });
+      // Igual = mesma mensagem E mesmo imóvel; imóveis diferentes sem mensagem são pedidos diferentes.
+      const igual = (l: Linha) => {
+        const d = (l.dados as Linha | null) ?? {};
+        return (d.mensagem ?? null) === (p.mensagem ?? null) && (d.imovel_codigo ?? null) === (p.imovel_codigo ?? null);
+      };
+      if (recentes.some((l) => (iso(l.ocorrido_em) ?? '') >= limite && igual(l))) return;
     }
     const dono = await responsavel(trx, conta, p.responsavel_id);
     if (!dono) throw new Error('conta sem corretor ativo para receber o lead');

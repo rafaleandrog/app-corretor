@@ -157,16 +157,20 @@ Quem preenche o formulário vira cliente em **Clientes**:
   na tarefa como "não foi gravado". Você confere com o cliente e atualiza o cadastro se for o caso.
 - **Consentimento declarado:** a autorização de contato é obrigatória no formulário, mas é uma
   **declaração** de quem preencheu, não a prova de que foi o cliente. Ela fica guardada com a data, a
-  versão do texto (`formulario-v1`) e a origem embaralhada do envio, ligada ao pedido na linha do
-  tempo. **O cliente só fica com consentimento quando você confirma** na ficha (Cadastro ›
-  Confirmar); até lá, a ficha mostra "Declarou consentimento no formulário…" e o atendimento
-  automático só usa mensagens-modelo aprovadas (D-129).
+  versão do texto (`formulario-v1`) e uma versão embaralhada do endereço de internet de quem enviou
+  (não dá para descobrir o endereço a partir dela), ligada ao pedido na linha do tempo. **O cliente
+  só fica com consentimento quando você confirma** na ficha (Cadastro › Confirmar); até lá, a ficha
+  mostra "Declarou consentimento no formulário…" em vez de "consentimento registrado". Isso muda só o
+  que a ficha mostra: hoje nada no app deixa o atendimento automático mais restrito por causa dele.
+  Declarações gravadas pelo formulário antes da versão 0.1.50 não ficaram marcadas como declaradas,
+  então a ficha as mostra como consentimento registrado; confira com o cliente se tiver dúvida.
 - **Envio repetido:** a mesma mensagem enviada de novo em até 5 minutos não duplica nada.
 
 **Proteções:**
 - No máximo 3 envios por minuto vindos de um mesmo endereço de internet, contados em memória em
-  cada servidor do app (com mais de um servidor, o limite vale por servidor). O app usa uma
-  versão embaralhada do endereço e não a grava.
+  cada servidor do app (com mais de um servidor, o limite vale por servidor). Para contar, o app usa
+  uma versão embaralhada do endereço. Essa mesma versão embaralhada (nunca o endereço de verdade)
+  também fica guardada junto com a declaração de consentimento de quem enviou o formulário.
 - Um campo escondido barra robôs: quem o preenche recebe "enviado" e nada é gravado.
 
 Nome, telefone, e-mail e mensagem são marcados para **nunca ficar no registro de chamadas** da

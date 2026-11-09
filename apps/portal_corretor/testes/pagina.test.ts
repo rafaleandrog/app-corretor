@@ -498,3 +498,71 @@ test('#193 (D-129): lead com telefone de contato existente não muda e-mail, con
   const tarefas = banco.linhas('atividades').filter((a) => a.contato_id === anaId && a.tipo === 'tarefa');
   assert.equal(tarefas[1].titulo, 'Novo pedido pela página');
 });
+
+/** Contato Ana (conta 100) pronto para receber lead pelo listener. */
+async function anaParaLead() {
+  const banco = new BancoFalso(UNICOS);
+  let anaId = 0;
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    anaId = (await chamar('POST', '/contatos', { nome: 'Ana Ribeiro', telefone: '61990000101' })).corpo.id;
+  });
+  banco.linhas('perfis_corretor').push({ id: 9002, conta_id: 100, usuario_id: 1, ativo: true } as any);
+  const ctx = banco.ctxSistema([{ id: 100, nome: 'A' }]);
+  const evento = { payload: { nome: 'Ana Ribeiro', telefone: '+5561990000101', email: null, mensagem: null, imovel_codigo: null, origem: 'pagina', responsavel_id: 1, ip_hash: 'abcdef0123456789' }, conta_id: 100 };
+  const pedidos = () => banco.linhas('linha_do_tempo').filter((l) => l.contato_id === anaId && l.tipo === 'lead.recebido');
+  return { banco, anaId, ctx, evento, pedidos };
+}
+
+test('lead de contato com muitos pedidos antigos: a leitura da duplicata é só da janela de 5 minutos e o lead entra', async () => {
+  const { banco, anaId, ctx, evento, pedidos } = await anaParaLead();
+  const velho = new Date(Date.now() - 3 * 86_400_000).toISOString();
+  for (let i = 0; i < 80; i++) {
+    banco.linhas('linha_do_tempo').push({ id: 50000 + i, conta_id: 100, tipo: 'lead.recebido', contato_id: anaId, resumo: 'antigo', dados: { mensagem: null, imovel_codigo: null }, ocorrido_em: velho } as any);
+  }
+  // Espia as leituras da linha do tempo: `maximo` lança (não corta), então a janela tem de ir no filtro.
+  const leituras: Record<string, unknown>[] = [];
+  const original = ctx.dados.comConta;
+  ctx.dados.comConta = (id: number, fn: (trx: any) => Promise<unknown>) =>
+    original(id, (trx: any) => fn({ ...trx, varrerTudo: (t: string, op: any) => (t === 'linha_do_tempo' && leituras.push(op.filtros), trx.varrerTudo(t, op)) }));
+  await reagir.lead_recebido(evento, ctx);
+  assert.equal(pedidos().length, 81, 'o pedido novo entra apesar dos antigos idênticos');
+  assert.ok(leituras.length > 0 && leituras.every((f) => 'ocorrido_em[gte]' in f), 'a leitura de duplicata filtra por data');
+});
+
+test('lead repetido deduplica só com mesma mensagem E mesmo imóvel; imóveis diferentes sem mensagem não se perdem', async () => {
+  const { banco, anaId, ctx, evento, pedidos } = await anaParaLead();
+  const ficha = (codigo: string | null, mensagem: string | null = null) => ({ ...evento, payload: { ...evento.payload, imovel_codigo: codigo, mensagem } });
+  await reagir.lead_recebido(ficha('AP-1'), ctx);
+  await reagir.lead_recebido(ficha('AP-1'), ctx);
+  assert.equal(pedidos().length, 1, 'mesmo imóvel e mesma mensagem: duplicata');
+  await reagir.lead_recebido(ficha('AP-2'), ctx);
+  assert.deepEqual(pedidos().map((l) => l.dados.imovel_codigo), ['AP-1', 'AP-2'], 'outro imóvel sem mensagem: pedido novo');
+  await reagir.lead_recebido(ficha('AP-2', 'Aceita financiamento?'), ctx);
+  assert.equal(pedidos().length, 3, 'mesmo imóvel, mensagem diferente: pedido novo');
+  assert.equal(banco.linhas('atividades').filter((a) => a.contato_id === anaId && a.tipo === 'tarefa').length, 3);
+});
+
+test('corrida: dois leads idênticos do mesmo contato existente gravam uma vez (contato travado antes da checagem)', async () => {
+  const { banco, anaId, ctx, evento, pedidos } = await anaParaLead();
+  const chave = `contatos:${anaId}`;
+  let abrir!: () => void;
+  const portao = new Promise<void>((ok) => (abrir = ok));
+  let segundaTerminou = false;
+  let esperou = false;
+  // A primeira para logo depois de travar o contato; a segunda chega à trava e espera.
+  banco.pausaNaTransacao = async (tabela) => {
+    if (tabela !== 'contatos:travada') return;
+    banco.pausaNaTransacao = null;
+    abrir();
+    while (!segundaTerminou && banco.esperando(chave) === 0) await new Promise((ok) => setTimeout(ok, 1));
+    esperou = banco.esperando(chave) > 0;
+  };
+  await Promise.all([
+    reagir.lead_recebido(evento, ctx).finally(() => ((banco.pausaNaTransacao = null), abrir())),
+    portao.then(() => reagir.lead_recebido(evento, ctx)).finally(() => (segundaTerminou = true)),
+  ]);
+  assert.ok(esperou, 'o segundo envio esperou a trava do contato');
+  assert.equal(pedidos().length, 1);
+  assert.equal(banco.linhas('consentimentos').filter((c) => c.contato_id === anaId).length, 1);
+  assert.equal(banco.linhas('atividades').filter((a) => a.contato_id === anaId && a.tipo === 'tarefa').length, 1);
+});
