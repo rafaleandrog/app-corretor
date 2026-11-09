@@ -66,7 +66,7 @@ Na **Lista**:
 Na mesma conta não existem dois contatos ativos com o mesmo telefone. Ao cadastrar ou editar com
 um telefone que já existe, o app recusa e, em geral, diz o nome de quem já tem aquele número: no
 **Novo cliente** e no **Editar contato** da ficha, **Abrir <nome>** abre a ficha de quem já tem o número,
-e **Corrigir** reabre o formulário com o que você digitou. Contato removido libera o telefone.
+e **Corrigir** reabre o formulário com o que você digitou. Clicar fora do formulário ou apertar Esc também cancela e descarta o que foi digitado, como o **Cancelar**. Se a gravação falhar por rede ou erro do servidor, antes de salvar de novo confira na lista se o registro já não entrou, porque o servidor pode ter gravado antes de a resposta se perder. Contato removido libera o telefone.
 
 ### Ficha do contato
 

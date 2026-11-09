@@ -102,7 +102,7 @@ Editar contato, Perfil de busca, Próximo passo, Mudar etapa, Registrar envio, o
 situação dele, a autorização de venda, Nova visita, Pedir ao cliente, Nova seleção, Nome e endereço da
 Página, os textos e o agendamento das peças do Estúdio, os convites e as suas respostas às objeções do
 Negociador, entre outros). Se o telefone já é de outro contato, **Abrir <nome>** abre a ficha dele, e
-**Corrigir** volta ao formulário. Os formulários de Clientes › Negociações (oferta, contraproposta,
+**Corrigir** volta ao formulário. Clicar fora do formulário ou apertar Esc também cancela e descarta o que foi digitado, como o **Cancelar**. Se a gravação falhar por rede ou erro do servidor, antes de salvar de novo confira na lista se o registro já não entrou, porque o servidor pode ter gravado antes de a resposta se perder. Os formulários de Clientes › Negociações (oferta, contraproposta,
 encerrar) ainda avisam o erro e fecham: lá, abra de novo e preencha.
 
 **Estados das telas** (são sete, o conjunto comum às telas do corretor; cada tela mostra só os que se aplicam a ela):

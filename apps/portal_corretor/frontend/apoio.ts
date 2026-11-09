@@ -370,17 +370,16 @@ export async function formularioQueSalva<R = any>(o: OpcoesFormularioQueSalva<R>
     if (!v) return null;
     valores = v;
     reaberto = true;
+    let r: R | undefined;
     try {
-      const r = await g.esperar((async () => o.salvar(v))());
-      if (o.aviso !== null) urbiVerso.notificar(o.aviso ?? 'Salvo.', 'sucesso');
-      return (r ?? {}) as R;
+      r = await g.esperar((async () => o.salvar(v))());
     } catch (e) {
       // Conta trocada com o envio em voo: nada é avisado nem reaberto na outra.
       if (g.encerrado(e)) return null;
       const existente = o.duplicata ? idDaDuplicata(e) : null;
       if (existente && o.duplicata) {
         const texto = e instanceof Error ? e.message : '';
-        const nome = /: ([^:]+)\.$/.exec(texto)?.[1] ?? 'o cadastro';
+        const nome = /telefone: (.+)\.$/.exec(texto)?.[1] ?? 'o cadastro';
         let abrir = false;
         try {
           abrir = await g.esperar(urbiVerso.confirmar({ titulo: o.duplicata.titulo, mensagem: `${texto} ${o.duplicata.pergunta}`, rotuloConfirmar: `Abrir ${nome}`, rotuloCancelar: 'Corrigir' }));
@@ -393,7 +392,11 @@ export async function formularioQueSalva<R = any>(o: OpcoesFormularioQueSalva<R>
         }
       }
       mensagem = mensagemDaRecusa(e, o.mensagem);
+      continue;
     }
+    // Fora do try: o que corre depois de gravar não pode reabrir o formulário (o reenvio duplicaria).
+    if (o.aviso !== null) urbiVerso.notificar(o.aviso ?? 'Salvo.', 'sucesso');
+    return (r ?? {}) as R;
   }
 }
 

@@ -21,7 +21,7 @@ let respostaConfirmar = false;
 
 const erro = (message: string, extra: Record<string, unknown>) => Object.assign(new Error(message), extra);
 const recusa = (detalhe: string) => erro('Dados inválidos.', { status: 422, codigo: 'DADOS_INVALIDOS', detalhes: [detalhe] });
-const duplicata = () => erro('Já existe um contato com este telefone: Ana Ribeiro.', { status: 409, codigo: 'DUPLICATA', detalhes: ['42'] });
+const duplicata = (nome = 'Ana Ribeiro') => erro(`Já existe um contato com este telefone: ${nome}.`, { status: 409, codigo: 'DUPLICATA', detalhes: ['42'] });
 
 beforeEach(() => {
   for (const k of Object.keys(guardado)) delete guardado[k];
@@ -103,6 +103,13 @@ test('409 DUPLICATA com o id: "Abrir <nome>" abre o existente; "Corrigir" reabre
   assert.equal(confirmacoes[0].rotuloConfirmar, 'Abrir Ana Ribeiro');
   assert.equal(confirmacoes[0].rotuloCancelar, 'Corrigir');
   assert.equal(abertos.length, 1, 'não reabriu');
+
+  // Nome com ':' vai inteiro no rótulo.
+  abertos = [];
+  respostas = [{ nome: 'Ana', telefone: '61999990000', vip: false }];
+  envios = [duplicata('Ana: Silva')];
+  await formularioQueSalva({ titulo: 'Novo cliente', campos: CAMPOS, salvar: (v) => g.urbiVerso.api('/contatos', { body: JSON.stringify(v) }), duplicata: duplicataDeContato(() => {}) });
+  assert.equal(confirmacoes[confirmacoes.length - 1].rotuloConfirmar, 'Abrir Ana: Silva');
 
   // Corrigir: volta ao formulário com o digitado e a frase da duplicata.
   abertos = [];
