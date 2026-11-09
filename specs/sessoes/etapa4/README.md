@@ -1,0 +1,39 @@
+# Etapa 4 · como continuar em outra sessão
+
+Esta pasta guarda o material de trabalho da etapa 4 da fase 1.7 (telas contra a referência v2, comandos ponta a ponta, issues abertas). Vale junto com `specs/plano_de_implementacao.md` (status e pendências) e `specs/portal_corretor.md` (decisões D-121 a D-128 e as que vierem).
+
+## Estado
+
+| Item | Situação |
+|---|---|
+| PR 1 · infra (#200) | mergeado, 0.1.47 |
+| Grupo 2 · Hoje, Funil, Cliente, Seleção e Agendar visita na P02, Buscar (#201) | ver o plano: mergeado ou em fechamento |
+| Grupo 3 · Imóveis, Imóvel, M3, Negociações, Negociação, M8, Proposta na P02, D-120, D-125 | branch `etapa4/grupo3`; PR aberto pela sessão condutora (ver o plano) |
+| Grupo 4 · Estúdio, Página, M6, M4 + M5 | **a fazer**: brief em `brief-grupo4.md` |
+| Grupo 5 · Números, Conexões, Conta e marca, Importar, Negociador, Assistente + transversais | **a fazer**: brief em `brief-grupo5.md` |
+| Release da `main` para a homologação | **só no fim da etapa** (ordem do dono de 08/11) |
+
+## Como rodar um grupo (o que funcionou nos grupos 2 e 3)
+
+1. **Branch** `etapa4/grupoN` a partir da `main` atualizada (`git fetch origin main && git checkout -B etapa4/grupoN origin/main`). Se o grupo anterior ainda estiver em revisão, pode nascer da branch dele e depois mergear a `main` (merge, nunca rebase/force).
+2. **Implementação**: um agente (Opus) com o brief do grupo. O brief já traz spec, diagnóstico, referência, issues a fechar, regras e o formato do relatório. O agente comita e empurra a cada passo; não abre PR, não faz release, não toca na instância. `versao` do manifesto e `version` do `package.json` sobem juntos quando schema, migração ou pisos mudam (confira a `main` antes: o número é sequencial).
+3. **PR**: título com o grupo e a versão; corpo com o que entrou por tela, `Closes #n` em inglês (um por issue), parciais, decisões que pedem o dono (P-nn), o que ficou de fora e por quê, diferenças de primitivo, eventos novos. Rodapé do Claude Code.
+4. **Pré-release do branch** para a homologação "pinguim" (workflow `release.yml`, `ref` = branch, `alvo` = `portal_corretor`); a instância instala sozinha em poucos minutos (`GET /api/shell/apps` mostra a versão). É permitido só durante a conferência e a revisão do PR.
+5. **Conferência visual** (seção 6 de `specs/layout/README.md`): `CONTA=7 CONVERSA=1 node apps/portal_corretor/scripts/conferencia-visual/capturar.mjs pinguim <saida> <telas>` e `comparar.py <saida> <lado> --md`; README no formato de `specs/prints/conferencia-grupo2-0.1.48/README.md` (tabela diferença · causa · decisão; D-121 tolerância, D-122 "Todas", D-123 botão só ícone, D-124 primitivo como ele é, D-126 Buscar, D-128 cabeçalho comum). Pode ser feita por um agente Sonnet.
+6. **Revisão**: skill `revisar-pr-apps` com `#n máximo 3 rodadas`. Codex pela menção `@codex review` num comentário do PR (é o único lugar com arroba; em relatórios escreva "Codex"); Codex CLI e Kimi ficam fora enquanto o proxy do ambiente recusar `api.openai.com` e `api.moonshot.ai`. Lentes em Sonnet; Opus só para contrato (schema, manifesto, permissões, contas, auditoria) e consertos que o toquem. Um commit por rodada; passe de fechamento; veredito.
+7. **Merge** com CI verde no head final e revisão sem bloqueante (autorização do dono para a etapa); conferir que as issues fecharam; plano com `[x]`, registro de sessão e pendências.
+
+## Antes do grupo 4
+
+- Publicar a Minha Página da conta demo (Corretor A (demo), id 7) na homologação, senão a M6 não captura (pendência (3) do plano). O brief do grupo 4 começa pela semente (#189), que já deixa a página publicada.
+
+## Decisões que esperam o dono
+
+- P-44 e P-45 (grupo 3): passo abaixo do recuo liberado junto com a confirmação da D-120; teto das colunas de dinheiro (INTEGER, R$ 21,4 milhões) × #39.
+- Pendência (1) do plano: confirmar o menu do usuário externo entrando como o corretor demo.
+
+## Arquivos desta pasta
+
+- `brief-grupo2.md` … `brief-grupo5.md`: briefs de implementação (2 e 3 já executados; servem de modelo).
+- `achados-201-r1.md`: achados das três rodadas da revisão do #201 (referência do que as lentes pegam).
+- `RETOMADA.md`: estado da sessão de 08/11 no momento da pausa (histórico).
