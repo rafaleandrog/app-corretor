@@ -579,11 +579,11 @@ async function aoPropostaDoPortal(conta: number, p: Linha, ctx: ContextoListener
     } else {
       valor_c = Number(p.valor_c);
       // #194, segunda trava (sob a trava): mede pelo MESMO preço do webhook (o preço pedido público do
-      // imóvel, `imoveis.preco_c`; o mandato só como reserva quando o imóvel não tem preço). Oferta
-      // implausível não grava rodada nem aciona o Negociador, e o corretor recebe um recado na conversa.
-      const mandato = await mandatoVigente(trx, viva);
+      // imóvel, `imoveis.preco_c`). Sem preço ("sob consulta") nenhuma das duas aplica a plausibilidade
+      // (só o piso absoluto): o preço do mandato é sigiloso e nunca entra aqui. Oferta implausível não
+      // grava rodada nem aciona o Negociador, e o corretor recebe um recado na conversa.
       const imovel = viva.imovel_id ? (await trx.varrerTudo('imoveis', { filtros: { conta_id: conta, id: viva.imovel_id }, maximo: 1 }))[0] : null;
-      if (!ofertaPlausivel(valor_c, Number(imovel?.preco_c) || Number(mandato?.preco_pedido_c) || null)) {
+      if (!ofertaPlausivel(valor_c, Number(imovel?.preco_c) || null)) {
         await registrarMensagem(trx, { conta, contato_id: Number(contato.id), direcao: 'entrada', autor_tipo: 'contato', canal: 'portal', tipo: 'texto', conteudo: `${AVISO_OFERTA_IMPLAUSIVEL} tentou ofertar ${reaisPt(valor_c)}; a oferta não foi registrada (valor fora do esperado).`, dados: { negociacao_id: nid } });
         return null;
       }
