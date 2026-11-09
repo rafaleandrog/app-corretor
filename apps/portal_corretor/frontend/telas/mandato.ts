@@ -22,6 +22,8 @@ export function formularioDe(atual: Linha | null, precoAnuncio_c: number | null)
     passo_pct: String(Math.round(Number(atual?.passo_max_pct ?? 0.4) * 100)),
     rodadas: String(atual?.rodadas_max ?? 4),
     validade: atual?.validade ?? hojeMais(30),
+    // Sem mandato ainda, 48 horas por contraproposta; mandato antigo sem o campo fica sem prazo.
+    validade_cp: atual ? (atual.validade_contraproposta_horas ? String(atual.validade_contraproposta_horas) : '') : '48',
     autonomia: atual?.autonomia ?? 'pergunta_antes',
     autorizacao: atual?.autorizacao_proprietario ?? null,
   };
@@ -48,6 +50,13 @@ export class PcMandatoModal extends LitElement {
   @state() private recuoAberto = false;
   /** Documentos do imóvel (mídias tipo documento): a autorização por anexo escolhe um deles. */
   @state() private documentos: Linha[] | null = null;
+  /**
+   * Negociadores humanos da conta com o papel (D-108): só existem com a política multi-usuário ligada
+   * na instância. Lista vazia (ou a rota fora do ar) = a escolha "humano" não aparece.
+   */
+  @state() private negociadores: { usuario_id: number; nome?: string | null; email?: string | null }[] = [];
+  /** Quem conduz, quando é humano: o id da pessoa atribuída. */
+  @property({ type: Number }) negociadorId = 0;
   // Trocou quem negocia: fechar sem salvar ainda relê a negociação.
   private conduziu = false;
   /**
@@ -69,7 +78,7 @@ export class PcMandatoModal extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.vida = gesto();
-    this.conduz = this.conduzidaPor;
+    this.conduz = this.conduzidaPor === 'humano' && this.negociadorId ? `humano:${this.negociadorId}` : this.conduzidaPor;
     this.f = formularioDe(this.atual, null);
     this.recuoAberto = !this.f.recuo;
     const vida = this.vida;
@@ -82,6 +91,30 @@ export class PcMandatoModal extends LitElement {
       },
       seNaoContaTrocada(() => void (this.documentos = [])),
     );
+    void chamarApi('/negociador/negociadores').then(
+      (r) => void (this.negociadores = ((r?.dados ?? []) as Linha[]).filter((n) => n.tem_papel) as typeof this.negociadores),
+      () => undefined, // sem a política (ou sem o shell), só IA e você
+    );
+  }
+
+  /** Negociador humano (D-108): atribui a negociação à pessoa (`POST /negociador/atribuicoes`). */
+  private async atribuirHumano(usuarioId: number) {
+    if (this.trocando || !this.vida.vivo()) return;
+    const antes = this.conduz;
+    this.conduz = `humano:${usuarioId}`;
+    this.trocando = true;
+    try {
+      await this.vida.esperar(enviar('POST', '/negociador/atribuicoes', { negociacao_id: this.negociacaoId, usuario_id: usuarioId }));
+      this.negociadorId = usuarioId;
+      this.conduziu = true;
+      urbiVerso.notificar('A pessoa passou a negociar. Ela recebeu o aviso.', 'sucesso');
+    } catch (e) {
+      if (this.vida.encerrado(e)) return;
+      this.conduz = antes;
+      await urbiVerso.alertar({ titulo: 'Não foi possível passar a negociação', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      this.trocando = false;
+    }
   }
 
   private fechar(salvou: boolean) {
@@ -90,6 +123,7 @@ export class PcMandatoModal extends LitElement {
 
   /** Negociador IA ou você: /devolver ou /assumir. Devolver exige o Negociador ligado nos ajustes. */
   private async trocarQuemNegocia(para: string) {
+    if (para.startsWith('humano:')) return this.atribuirHumano(Number(para.slice(7)));
     if (para === this.conduz || this.trocando || !this.vida.vivo()) return;
     const antes = this.conduz;
     this.conduz = para;
@@ -188,11 +222,17 @@ export class PcMandatoModal extends LitElement {
     if (!f) return '';
     const erros = errosDoFormulario(f);
     const versao = this.atual?.versao ? ` · versão ${Number(this.atual.versao) + 1}` : '';
+    // Seletor de três posições (10.9.3): três `urbi-botao-alternar`, um ligado por vez. O seletor de
+    // posições é lacuna nomeada em 11.9. "Faz sozinho" pede a autorização do proprietário (D-99).
     const autonomias = [
-      { valor: 'sugere', rotulo: 'Só sugere' },
-      { valor: 'pergunta_antes', rotulo: 'Pergunta antes' },
-      // Faz sozinho só aparece com a autorização do proprietário registrada (D-99).
-      ...(f.autorizacao ? [{ valor: 'faz_sozinho', rotulo: 'Faz sozinho dentro da faixa' }] : []),
+      { valor: 'sugere', rotulo: 'Só sugere', icone: 'fa-solid fa-lightbulb' },
+      { valor: 'pergunta_antes', rotulo: 'Pergunta antes', icone: 'fa-solid fa-circle-question' },
+      { valor: 'faz_sozinho', rotulo: 'Faz sozinho dentro da faixa', icone: 'fa-solid fa-bolt' },
+    ];
+    const quem = [
+      { valor: 'ia', rotulo: 'Negociador IA' },
+      ...this.negociadores.map((n) => ({ valor: `humano:${n.usuario_id}`, rotulo: `Negociador humano: ${n.nome || n.email || `pessoa ${n.usuario_id}`}` })),
+      { valor: 'corretor', rotulo: 'Você (corretor)' },
     ];
     return html`<urbi-modal title=${`Mandato de negociação${versao}`} maxWidth="760px" @urbi-modal:close=${() => this.fechar(false)}>
       <urbi-stack>
@@ -202,7 +242,7 @@ export class PcMandatoModal extends LitElement {
             <urbi-input label="Alvo (R$)" valor=${f.alvo} @urbi:input-change=${(e: CustomEvent) => this.mudar({ alvo: e.detail.valor })}></urbi-input>
             ${this.recuoAberto
               ? html`<urbi-input label="Ponto de recuo (R$)" valor=${f.recuo} @urbi:input-change=${(e: CustomEvent) => this.mudar({ recuo: e.detail.valor })}></urbi-input>`
-              : html`<urbi-prosa>Ponto de recuo (R$) <strong>••••</strong> <urbi-botao pequeno variante="texto" @click=${() => (this.recuoAberto = true)}>mostrar</urbi-botao></urbi-prosa>`}
+              : html`<urbi-prosa>Ponto de recuo (R$) <strong>••••</strong> <urbi-botao variante="texto" @click=${() => (this.recuoAberto = true)}>mostrar</urbi-botao></urbi-prosa>`}
           </urbi-linha>
           <urbi-banner variante="alerta">O ponto de recuo e a BATNA são sigilosos: o cliente nunca os vê, e o Negociador nunca os revela.</urbi-banner>
           <urbi-textarea label="BATNA do vendedor (o que ele faz se não houver acordo)" rows="2" valor=${f.batna}
@@ -216,11 +256,11 @@ export class PcMandatoModal extends LitElement {
               <urbi-input label="Concessão" valor=${c.item} placeholder="prazo de entrega de 90 dias" @urbi:input-change=${(e: CustomEvent) => this.concessao(i, 'item', e.detail.valor)}></urbi-input>
               <urbi-input label="Até onde" valor=${c.limite} placeholder="até 90 dias" @urbi:input-change=${(e: CustomEvent) => this.concessao(i, 'limite', e.detail.valor)}></urbi-input>
               <urbi-input label="Em troca de" valor=${c.contrapartida} placeholder="entrada maior" @urbi:input-change=${(e: CustomEvent) => this.concessao(i, 'contrapartida', e.detail.valor)}></urbi-input>
-              <urbi-botao pequeno variante="texto" icone="fa-solid fa-trash" ariaLabel="Tirar concessão"
+              <urbi-botao variante="texto" icone="fa-solid fa-trash" ariaLabel="Tirar concessão"
                 @click=${() => this.mudar({ concessoes: f.concessoes.filter((_, j) => j !== i) })}></urbi-botao>
             </urbi-linha>`,
           )}
-          <urbi-botao pequeno variante="secundario" icone="fa-solid fa-plus"
+          <urbi-botao variante="secundario" icone="fa-solid fa-plus"
             @click=${() => this.mudar({ concessoes: [...f.concessoes, { item: '', limite: '', contrapartida: '' }] })}>Adicionar concessão</urbi-botao>
           <urbi-linha quebrar>
             <urbi-input label="Passo máximo por rodada (%)" tipo="number" valor=${f.passo_pct} @urbi:input-change=${(e: CustomEvent) => this.mudar({ passo_pct: e.detail.valor })}></urbi-input>
@@ -229,27 +269,36 @@ export class PcMandatoModal extends LitElement {
           <urbi-prosa papel="fraco">O passo é a parte do que ainda falta até o recuo que se pode ceder numa rodada (40% é o padrão); cada concessão pede algo em troca.</urbi-prosa>
         </urbi-card>
         <urbi-card titulo="3 · Prazo" icone="fa-solid fa-calendar">
-          <urbi-input-data label="Mandato válido até" valor=${f.validade} @urbi:input-data-change=${(e: CustomEvent) => this.mudar({ validade: e.detail.valor })}></urbi-input-data>
-          <urbi-prosa papel="fraco">Depois dessa data o Negociador não age e passa a negociação a você.</urbi-prosa>
+          <urbi-linha quebrar>
+            <urbi-input-data label="Mandato válido até" valor=${f.validade} @urbi:input-data-change=${(e: CustomEvent) => this.mudar({ validade: e.detail.valor })}></urbi-input-data>
+            <urbi-input label="Cada contraproposta vale (horas)" valor=${f.validade_cp ?? ""} placeholder="48"
+              @urbi:input-change=${(e: CustomEvent) => this.mudar({ validade_cp: e.detail.valor })}></urbi-input>
+          </urbi-linha>
+          <urbi-prosa papel="fraco">Depois da data o Negociador não age e passa a negociação a você. A validade de cada contraproposta vale quando ela não traz a sua (vazio: sem prazo).</urbi-prosa>
         </urbi-card>
         <urbi-card titulo="4 · Quem negocia e autonomia" icone="fa-solid fa-robot">
           ${this.conduz === 'humano'
             ? html`<urbi-prosa>Quem negocia: o negociador da sua equipe.</urbi-prosa>`
-            : html`<urbi-select label="Quem negocia" valor=${this.conduz} ?desabilitado=${this.trocando}
-                .opcoes=${[{ valor: 'ia', rotulo: 'Negociador IA' }, { valor: 'corretor', rotulo: 'Você (corretor)' }]}
+            : html`<urbi-select label="Quem negocia" valor=${this.conduz} ?desabilitado=${this.trocando} .opcoes=${quem}
                 @urbi:select-change=${(e: CustomEvent) => void this.trocarQuemNegocia(e.detail.valor)}></urbi-select>`}
-          <urbi-prosa papel="fraco">Trocar aqui vale na hora, sem salvar.</urbi-prosa>
-          <urbi-select label="O Negociador" valor=${f.autonomia} .opcoes=${autonomias}
-            @urbi:select-change=${(e: CustomEvent) => this.mudar({ autonomia: e.detail.valor })}></urbi-select>
+          <urbi-prosa papel="fraco">Trocar aqui vale na hora, sem salvar.${this.negociadores.length ? '' : ' Um negociador humano aparece aqui quando a instância permite contas com várias pessoas e você convida alguém em Ajustes › Negociador.'}</urbi-prosa>
+          <urbi-prosa>O Negociador</urbi-prosa>
+          <urbi-linha quebrar>
+            ${autonomias.map(
+              (a) => html`<urbi-botao-alternar icone=${a.icone} .ligado=${f.autonomia === a.valor}
+                ?desabilitado=${a.valor === 'faz_sozinho' && !f.autorizacao}
+                @urbi:botao-alternar-change=${() => this.mudar({ autonomia: a.valor })}>${a.rotulo}</urbi-botao-alternar>`,
+            )}
+          </urbi-linha>
           ${f.autorizacao
             ? html`<urbi-linha quebrar>
                 <urbi-prosa>${this.textoDaAutorizacao(f.autorizacao)}</urbi-prosa>
-                <urbi-botao pequeno variante="texto" @click=${() => this.mudar({ autorizacao: null, autonomia: f.autonomia === 'faz_sozinho' ? 'pergunta_antes' : f.autonomia })}>Tirar</urbi-botao>
+                <urbi-botao variante="texto" @click=${() => this.mudar({ autorizacao: null, autonomia: f.autonomia === 'faz_sozinho' ? 'pergunta_antes' : f.autonomia })}>Tirar</urbi-botao>
               </urbi-linha>`
             : html`<urbi-prosa papel="fraco">"Faz sozinho" aparece quando a autorização do proprietário estiver registrada.</urbi-prosa>
                 <urbi-linha quebrar>
-                  <urbi-botao pequeno variante="secundario" icone="fa-solid fa-paperclip" ?desabilitado=${this.documentos === null} @click=${() => void this.anexarDocumento()}>Anexar documento</urbi-botao>
-                  <urbi-botao pequeno variante="secundario" icone="fa-solid fa-message" @click=${() => void this.registrarAutorizacao()}>Registrar por mensagem</urbi-botao>
+                  <urbi-botao variante="secundario" icone="fa-solid fa-paperclip" ?desabilitado=${this.documentos === null} @click=${() => void this.anexarDocumento()}>Anexar documento</urbi-botao>
+                  <urbi-botao variante="secundario" icone="fa-solid fa-message" @click=${() => void this.registrarAutorizacao()}>Registrar por mensagem</urbi-botao>
                 </urbi-linha>`}
         </urbi-card>
         ${erros.length ? html`<urbi-banner variante="erro">${erros.join(' ')}</urbi-banner>` : ''}

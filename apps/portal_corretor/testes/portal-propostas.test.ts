@@ -4,7 +4,7 @@ import schema from '../schema.json';
 import manifesto from '../manifesto.json';
 import { rotas, rotasPublicas, webhooks, reagir } from '../backend/rotas';
 import { limparLimites } from '../backend/publico';
-import { abasDoPortal, centavosDoValor, negociacaoPublica, propostaAceitavel, propostaPublica } from '../comum/portal-cliente';
+import { abasDoPortal, centavosDoValor, negociacaoPublica, ofertaPlausivel, ofertaProvavel, propostaAceitavel, propostaPublica } from '../comum/portal-cliente';
 import { BancoFalso, comServidor, type Ator, type Unico } from './apoio';
 
 // Bloco D5 (#104): propostas no Portal do Cliente (M5b), sempre por token. O cliente vê as rodadas da
@@ -109,23 +109,23 @@ function iaSimulada(respostas: Record<string, unknown>[]) {
 }
 
 /** Webhook do portal com o contexto do ingresso do cliente; devolve o que o handler publicou. */
-async function webhook(contexto: Record<string, unknown>, corpo: unknown, ip = '10.9.0.1') {
+async function webhook(contexto: Record<string, unknown>, corpo: unknown, ip = '10.9.0.1', dados?: unknown) {
   const publicados: { tipo: string; payload: any; opcoes: any }[] = [];
   const desvios: string[] = [];
   const r: { status: number; corpo: any; res: any } = { status: 200, corpo: null, res: null };
   r.res = { status: (s: number) => ((r.status = s), r.res), json: (c: unknown) => ((r.corpo = c), r.res) };
-  const req: any = { body: corpo, headers: {}, ip, wh: { webhook: 'acao_cliente', modo: 'recorrente', ingresso_id: 1, contexto, contador_usos: 0, criado_por: 1 }, eventos: { publicar: async (tipo: string, payload: any, opcoes: any) => { const d = desvioDe(tipo, payload); if (d) { desvios.push(d); throw new Error(`CAMPOS: ${d}`); } publicados.push({ tipo, payload, opcoes }); } } };
+  const req: any = { body: corpo, headers: {}, ip, dados, wh: { webhook: 'acao_cliente', modo: 'recorrente', ingresso_id: 1, contexto, contador_usos: 0, criado_por: 1 }, eventos: { publicar: async (tipo: string, payload: any, opcoes: any) => { const d = desvioDe(tipo, payload); if (d) { desvios.push(d); throw new Error(`CAMPOS: ${d}`); } publicados.push({ tipo, payload, opcoes }); } } };
   await webhooks.acao_cliente(req, r.res);
   return { ...r, publicados, desvios };
 }
 
 /** Uma conta com cliente, imóvel anunciado, negociação com mandato e o link do portal do cliente. */
-async function montar(banco: BancoFalso, shell: ReturnType<typeof shellFalso>, ator: Ator, mandato: Record<string, unknown>) {
+async function montar(banco: BancoFalso, shell: ReturnType<typeof shellFalso>, ator: Ator, mandato: Record<string, unknown>, precoImovel: number | null = PEDIDO) {
   let saida: { contatoId: number; nid: number; link: string } = {} as any;
   await comServidor(rotas, ator, banco, shell, async (chamar: Chamar) => {
     const contato = (await chamar('POST', '/contatos', { nome: `Ana Comprador ${ator.conta}`, telefone: `+55619${ator.conta}77777`, email: `ana${ator.conta}@exemplo.com` })).corpo;
     const negocio = await banco.dados(ator.conta!).criar('negocios', { contato_id: contato.id, titulo: 'Compra apto', pipeline: 'compra', etapa_id: 1, responsavel_id: ator.usuario });
-    const imovel = await banco.dados(ator.conta!).criar('imoveis', { codigo: 'IM-0001', titulo: 'Apto Asa Sul', bairro: 'Asa Sul', cidade: 'Brasília', preco_c: PEDIDO, endereco: 'SQS 308 Bloco Secreto', endereco_publico: 'bairro' });
+    const imovel = await banco.dados(ator.conta!).criar('imoveis', { codigo: 'IM-0001', titulo: 'Apto Asa Sul', bairro: 'Asa Sul', cidade: 'Brasília', preco_c: precoImovel, endereco: 'SQS 308 Bloco Secreto', endereco_publico: 'bairro' });
     const link = (await chamar('POST', `/contatos/${contato.id}/portal`)).corpo.link;
     const n = await chamar('POST', '/negociacoes', { negocio_id: negocio.id, imovel_id: imovel.id });
     assert.equal(n.status, 201, JSON.stringify(n.corpo));
@@ -159,7 +159,7 @@ test('regras puras: lista permitida de campos, proposta aceitável, valor digita
   assert.deepEqual(Object.keys(propostaPublica(comprador)!).sort(), ['concessao', 'condicoes', 'contrapartida', 'estado', 'quando', 'quem', 'ref', 'rodada', 'validade_ate', 'valor_c']);
   assert.equal(propostaPublica(comprador)!.condicoes, null, 'a anotação do corretor sobre a oferta do cliente não sai');
   const n = negociacaoPublica({ id: 9, estado: 'aguardando_cliente', mandato_id: 5, teto_estimado_comprador_c: 140_000_000, fonte_estimativa: 'disse que tem 1,4', conduzida_por: 'ia' }, [enviada, comprador, proprietario, vendedorRegistrada], { codigo: 'IM-0001', titulo: 'Apto', bairro: 'Asa Sul', cidade: 'Brasília', endereco: 'x' } as any);
-  assert.deepEqual(Object.keys(n).sort(), ['imovel', 'pode_agir', 'propostas', 'ref', 'situacao']);
+  assert.deepEqual(Object.keys(n).sort(), ['imovel', 'pode_agir', 'preco_pedido_c', 'propostas', 'ref', 'situacao']);
   assert.deepEqual(Object.keys(n.imovel!).sort(), ['bairro', 'cidade', 'codigo', 'titulo']);
   assert.deepEqual(n.propostas.map((p) => p.ref), [3, 4]);
   assert.ok(!JSON.stringify(n).includes(String(RECUO)) && !JSON.stringify(n).includes('140000000') && !JSON.stringify(n).includes('disse que'));
@@ -487,4 +487,89 @@ test('o corretor respondeu no meio do motor: o estado não regride e a tarefa n�
   await entregar({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_nova', negociacao: nid, valor_c: 140_000_000 }, ctxListener(banco, ev, iaComCorretor));
   assert.equal(banco.linhas('negociacoes').find((n) => n.id === nid)!.estado, 'aguardando_cliente', 'não regride');
   assert.ok(!banco.linhas('atividades').some((a) => a.tipo === 'tarefa' && /Aprovar a sugestão|oferta do portal/.test(a.titulo)));
+});
+
+test('#194: oferta implausível pelo portal: 422 claro, sem rodada nem Negociador, e vira só mensagem ao corretor', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  const { nid, contatoId } = await montar(banco, shell, A, SOZINHO);
+  const ia = iaSimulada([]);
+  const ctx = ctxListener(banco, ev, ia);
+  const antes = { ...banco.linhas('negociacoes').find((n) => n.id === nid)! };
+  const contexto = { conta_id: 100, contato_id: contatoId };
+  // O portal publicado traz o preço pedido (público), e a tela pergunta antes de enviar.
+  const portal = banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal')!;
+  assert.equal(portal.dados.negociacoes[0].preco_pedido_c, PEDIDO);
+  for (const [valor_c, sugerido] of [[1, null], [135_000, 135_000_000], [60_000_000, null]] as const) {
+    const w = await webhook(contexto, { tipo: 'proposta_nova', negociacao: nid, valor_c }, `10.9.1.${valor_c % 200}`, banco.dados(null));
+    assert.equal(w.status, 422, `${valor_c}: ${JSON.stringify(w.corpo)}`);
+    assert.equal(w.corpo.codigo, 'OFERTA_IMPLAUSIVEL');
+    assert.equal(w.corpo.sugerido_c, sugerido);
+    if (sugerido) assert.match(w.corpo.mensagem, /Você quis dizer R\$\s?1\.350\.000/);
+    // Só a mensagem ao corretor sai; nenhuma oferta.
+    assert.deepEqual(w.publicados.map((p) => p.payload.tipo), ['mensagem']);
+    assert.deepEqual(w.desvios, []);
+    for (const p of w.publicados) await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: p.opcoes.conta_id }, ctx);
+  }
+  // A segunda trava, no listener: a oferta implausível que chegasse direto também não grava.
+  await reagir.acao_cliente_recebida({ payload: { contato_id: contatoId, tipo: 'proposta_nova', texto: null, visita: null, tarefa: null, negociacao: nid, proposta: null, valor_c: 1 }, conta_id: 100 }, ctx);
+  const depois = banco.linhas('negociacoes').find((n) => n.id === nid)!;
+  assert.equal(depois.rodadas, antes.rodadas, 'rodadas não mudam');
+  assert.equal(banco.linhas('propostas').filter((p) => p.negociacao_id === nid).length, 0, 'nenhuma oferta gravada');
+  assert.equal(ia.chamadas.length, 0, 'o Negociador não roda');
+  assert.ok(banco.linhas('mensagens').some((m) => /não foi registrada/.test(String(m.conteudo))), 'a tentativa chega ao corretor na conversa');
+});
+
+test('#194: as duas travas medem pelo preço do imóvel; o mandato só é reserva (oferta plausível pelo imóvel e implausível pelo mandato passa nas duas)', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  const mandatoAlto = { ...MANDATO, preco_pedido_c: 400_000_000, alvo_c: 390_000_000, recuo_c: 380_000_000 };
+  const { nid, contatoId } = await montar(banco, shell, A, mandatoAlto);
+  const ctx = ctxListener(banco, ev, iaSimulada([]));
+  const contexto = { conta_id: 100, contato_id: contatoId };
+  // Caminho feliz do webhook com preço conhecido: 132 mi contra o imóvel de 150 mi.
+  const w = await webhook(contexto, { tipo: 'proposta_nova', negociacao: nid, valor_c: 132_000_000 }, '10.9.2.1', banco.dados(null));
+  assert.equal(w.status, 200, JSON.stringify(w.corpo));
+  assert.ok(w.publicados.some((p) => p.payload.tipo === 'proposta_nova'));
+  // O listener mede pelo mesmo preço: grava a oferta, em vez de descartá-la em silêncio.
+  for (const p of w.publicados) await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: p.opcoes.conta_id }, ctx);
+  assert.deepEqual(banco.linhas('propostas').filter((p) => p.negociacao_id === nid).map((p) => p.valor_c), [132_000_000]);
+  assert.ok(!banco.linhas('mensagens').some((m) => /não foi registrada/.test(String(m.conteudo))));
+});
+
+test('#194: imóvel sem preço (sob consulta) e mandato com preço alto: a oferta passa no webhook e o listener a registra, sem recado de descarte', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  const ev = eventosFalsos();
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev } };
+  const mandatoAlto = { ...MANDATO, preco_pedido_c: 400_000_000, alvo_c: 390_000_000, recuo_c: 380_000_000 };
+  const { nid, contatoId } = await montar(banco, shell, A, mandatoAlto, null);
+  const ctx = ctxListener(banco, ev, iaSimulada([]));
+  const portal = banco.linhas('vitrine_publica').find((l) => l.tipo === 'portal')!;
+  assert.equal(portal.dados.negociacoes[0].preco_pedido_c, null, 'o portal não leva o preço do mandato');
+  const w = await webhook({ conta_id: 100, contato_id: contatoId }, { tipo: 'proposta_nova', negociacao: nid, valor_c: 5_000_000 }, '10.9.3.1', banco.dados(null));
+  assert.equal(w.status, 200, JSON.stringify(w.corpo));
+  for (const p of w.publicados) await reagir.acao_cliente_recebida({ payload: p.payload, conta_id: p.opcoes.conta_id }, ctx);
+  assert.deepEqual(banco.linhas('propostas').filter((p) => p.negociacao_id === nid).map((p) => p.valor_c), [5_000_000]);
+  assert.ok(!banco.linhas('mensagens').some((m) => /não foi registrada/.test(String(m.conteudo))));
+});
+
+test('#194: ofertaPlausivel com preço conhecido e ofertaProvavel nunca sugere acima do teto das colunas', () => {
+  assert.equal(ofertaPlausivel(132_000_000, 145_000_000), true);
+  assert.equal(ofertaPlausivel(60_000_000, 145_000_000), false);
+  // Pedido alto (R$ 40 mi): a escala "× 1000" de 3.000 daria 3 bi de centavos, acima do teto: sem sugestão.
+  assert.equal(ofertaProvavel(3_000_000, 4_000_000_000), null);
+  // Dentro do teto a sugestão continua saindo (1,2 mi de pedido: 1.200 → 1,2 bi de centavos).
+  assert.equal(ofertaProvavel(1_200_000, 1_200_000_000), 1_200_000_000);
+  for (const [v, pedido] of [[135_000, 2_000_000_000], [2_000_000, 4_000_000_000], [1_500_000, 3_000_000_000]]) {
+    const s = ofertaProvavel(v, pedido);
+    assert.ok(s === null || s <= 2_147_483_647, `${v}/${pedido}: ${s}`);
+  }
 });

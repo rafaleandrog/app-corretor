@@ -405,7 +405,8 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
 
     // Negociação 1, pelas rotas do corretor (pergunta antes).
     const d = banco.dados(100);
-    const im1 = await d.criar('imoveis', { codigo: 'IM-9901', titulo: 'Apto Asa Sul', preco_c: MANDATO.preco_pedido_c });
+    const im1 = await d.criar('imoveis', { codigo: 'IM-9901', titulo: 'Apto Asa Sul', situacao: 'ativo', preco_c: MANDATO.preco_pedido_c });
+    await d.criar('autorizacoes_venda', { imovel_id: im1.id, situacao: 'assinada', inicio: '2020-01-01', fim: '2099-12-31', documento_midia_id: 1 }); // anunciável: o envio só aceita imóvel ativo com autorização vigente
     const ng1 = await d.criar('negocios', { contato_id: ids.zu, titulo: `Compra ${zu.nome}`, pipeline: 'compra', etapa_id: 1, responsavel_id: 1 });
     // visita_agendada, atividade_criada e visita_feedback (bloco de eventos, D-118): visita ao imóvel, com o retorno do cliente.
     const vis = await ok(chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita ao apto', quando: new Date(Date.now() + 86400e3).toISOString(), contato_id: ids.zu, imovel_id: im1.id, local: 'Asa Sul' }), 'visita ao imóvel');
@@ -428,6 +429,8 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     // Envio de imóvel ao cliente: envio_criado e a mensagem na conversa (mensagem_enviada).
     await ok(chamar('POST', '/envios', { contato_id: ids.zu, tipo: 'imovel', imovel_id: im1.id, canal: 'whatsapp', descricao: fala(zu) }), 'envio');
     await ok(chamar('POST', `/negociacoes/${n1}/decisao`, { acao: 'aceitar_acordo', proposta_id: oferta.id }), 'acordo'); // negociacao_acordo_proposto
+    // proposta_decidida: o proprietário recusa o acordo; a negociação volta ao corretor (P15, "Registrar decisão").
+    await ok(chamar('PATCH', `/propostas/${oferta.id}`, { decisao: 'recusa' }), 'decisão do proprietário'); // proposta_decidida
     await ok(chamar('PATCH', `/negociacoes/${n1}`, { estado: 'ganha', valor_final_c: 140_000_000 }), 'encerrar'); // negociacao_encerrada
 
     // Negociação 2: oferta abaixo do recuo, o Negociador passa ao corretor (negociacao_limite_atingido).
@@ -437,6 +440,8 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     await ok(chamar('POST', `/negociacoes/${n2}/propostas`, { direcao: 'comprador', valor_c: 120_000_000 }), 'oferta baixa');
     ia.fila.push(contraproposta(146_000_000));
     await ok(chamar('POST', `/negociacoes/${n2}/sugestao`, { mensagem_cliente: fala(zu) }), 'sugestão 2');
+    // contraproposta_abaixo_do_recuo (auditável, D-120): o corretor confirma e envia abaixo do recuo.
+    await ok(chamar('POST', `/negociacoes/${n2}/propostas`, { direcao: 'vendedor', valor_c: 130_000_000, canal: 'portal', confirmar_abaixo_do_recuo: true }), 'abaixo do recuo');
 
     // Negociação 3, do cliente do portal, com o Negociador fazendo sozinho.
     await ok(chamar('POST', `/contatos/${ids.teo}/portal`), 'link do portal');

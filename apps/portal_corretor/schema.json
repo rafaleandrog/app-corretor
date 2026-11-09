@@ -2403,6 +2403,13 @@
           "tipo": "data",
           "obrigatorio": true
         },
+        "validade_contraproposta_horas": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 1,
+            "max": 720
+          }
+        },
         "autonomia": {
           "tipo": "texto",
           "limite": 20,

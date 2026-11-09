@@ -16,7 +16,7 @@ import './telas/previa-pagina.js';
 import { renderEstudio } from './telas/estudio.js';
 import { renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, contaDoAssistente, lembrarTela } from './telas/assistente.js';
-import { fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
+import { destinoDoNegociador, fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
 import { botaoAssistente, menuCriar } from './criar.js';
 import { instalarAtalhos } from './atalhos.js';
@@ -169,13 +169,12 @@ export class AppPortalCorretor extends LitElement {
       history.replaceState(history.state, '', `${urbiVerso.href('/clientes')}${ficha}`);
       sub = '/clientes';
     }
-    // Negociador humano (D7): área do corretor (incluindo `/assistente`) leva às Negociações, dentro da
-    // moldura dele, em vez de um aviso sem trilho.
+    // Negociador humano (D7, D-125): a app abre direto nas Negociações atribuídas a ele, e qualquer outra
+    // rota (Hoje, a área do corretor, `/assistente`) redireciona para lá, levando o `item` da notificação.
     if (soNegociador()) {
-      const { chave } = resolverEndereco(sub);
-      const t = chave ? TELAS[chave] : undefined;
-      if (sub === '/assistente' || (t && ![t.papel, ...(t.tambem ?? [])].includes('negociador'))) {
-        history.replaceState(history.state, '', urbiVerso.href('/negociacoes'));
+      const destino = destinoDoNegociador(sub, window.location.search);
+      if (destino) {
+        history.replaceState(history.state, '', `${urbiVerso.href('/negociacoes')}${destino.slice('/negociacoes'.length)}`);
         sub = '/negociacoes';
       }
     }

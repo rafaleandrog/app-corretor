@@ -141,6 +141,9 @@ test('envio registrado entra no histórico, conta como contato e traz o texto pr
   await comServidor(rotas, A, banco, {}, async (chamar) => {
     const c = (await chamar('POST', '/contatos', { nome: 'Rita Souza', telefone: '61988881111' })).corpo;
     const im = (await chamar('POST', '/imoveis', { tipo: 'apartamento', cidade: 'Brasília', bairro: 'Sudoeste', titulo: 'Apto 2 quartos' })).corpo;
+    // Anunciável (envio só aceita imóvel ativo com autorização vigente).
+    banco.linhas('imoveis').find((i) => i.id === im.id)!.situacao = 'ativo';
+    await banco.dados(100).criar('autorizacoes_venda', { imovel_id: im.id, situacao: 'assinada', inicio: '2020-01-01', fim: '2099-12-31', documento_midia_id: 1 });
     await chamar('PATCH', `/imoveis/${im.id}`, { preco: 720000 });
     banco.linhas('contatos')[0].ultimo_contato_em = '2020-01-01T00:00:00.000Z';
     assert.equal((await chamar('POST', '/envios', { contato_id: c.id, tipo: 'imovel' })).status, 422, 'imóvel obrigatório');

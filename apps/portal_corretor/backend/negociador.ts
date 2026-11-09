@@ -1,4 +1,5 @@
 import '@urbiverso/sdk/express';
+import { centavosValidos } from '../comum/crm';
 import type { HelperDados } from '@urbiverso/sdk';
 import { Router, type Request, type Response } from 'express';
 import { respostaSegura } from '../comum/assistente';
@@ -25,14 +26,13 @@ import {
   type RespostaNegociador,
 } from '../comum/negociador';
 import { linkWhatsapp } from '../comum/pagina';
-import { assincrono, ehCorretor, erro, guardarNegociacao, primeiro, soNegociador } from './acesso';
+import { assincrono, ehCorretor, erro, guardarNegociacao, id, primeiro, soNegociador } from './acesso';
 import {
   MENSAGEM_ENCERRADA,
   NAO_ENCONTRADA,
   configDaConta,
   encerrada,
   gravarPropostaTravada,
-  id,
   mandatoVigente,
   objecoesDaConta,
   paraMotor,
@@ -570,7 +570,7 @@ negociadorRotas.post(
     if (b.acao === 'editar') {
       const ed = (b.contraproposta && typeof b.contraproposta === 'object' ? b.contraproposta : null) as Record<string, unknown> | null;
       if (b.contraproposta !== undefined && b.contraproposta !== null && !ed) return erro(res, 422, 'DADOS_INVALIDOS', 'contraproposta: use um objeto.');
-      if (ed && !(Number.isInteger(ed.valor_c) && (ed.valor_c as number) > 0)) return erro(res, 422, 'DADOS_INVALIDOS', 'contraproposta.valor_c: informe o valor em centavos.');
+      if (ed && !centavosValidos(ed.valor_c)) return erro(res, 422, 'DADOS_INVALIDOS', 'contraproposta.valor_c: informe o valor em centavos.');
       movimento = {
         ...sugerida,
         movimento: ed ? 'contraproposta' : sugerida.movimento,
@@ -636,6 +636,12 @@ negociadorRotas.post(
         const item = cp0.concessao && agora.mandato ? itemDoMandato(cp0.concessao, agora.mandato.concessoes) : null;
         movimento = { ...movimento, contraproposta: { ...cp0, concessao: item?.item ?? cp0.concessao, contrapartida: item?.contrapartida ?? null } };
       }
+      // Sem validade no movimento, a padrão do mandato (P16 bloco 3): a mesma vale no texto ao cliente e na proposta.
+      if (temContraproposta) {
+        const cp0 = movimento.contraproposta!;
+        const horasResolvidas = cp0.validade_horas ?? agora.mandato?.validade_contraproposta_horas ?? null;
+        movimento = { ...movimento, contraproposta: { ...cp0, validade_horas: horasResolvidas } };
+      }
       if (temContraproposta && !escreveu) {
         const cp0 = movimento.contraproposta!;
         const item = cp0.concessao && cp0.contrapartida ? { item: cp0.concessao, limite: '', contrapartida: cp0.contrapartida } : null;
@@ -654,6 +660,7 @@ negociadorRotas.post(
       let proposta: Linha | null = null;
       if (temContraproposta) {
         const cp = movimento.contraproposta!;
+        const horas = cp.validade_horas;
         const r = await gravarPropostaTravada(trx, nid!, {
           direcao: 'vendedor',
           autor_tipo: editada ? (soNegociador(req) ? 'negociador_humano' : 'corretor') : 'negociador_ia',
@@ -662,7 +669,7 @@ negociadorRotas.post(
           condicoes: cp.condicoes,
           concessao: cp.concessao,
           contrapartida: cp.contrapartida,
-          validade_ate: cp.validade_horas ? new Date(Date.now() + cp.validade_horas * 3600e3) : null,
+          validade_ate: horas ? new Date(Date.now() + horas * 3600e3) : null,
           canal,
           estado: 'enviada',
         });

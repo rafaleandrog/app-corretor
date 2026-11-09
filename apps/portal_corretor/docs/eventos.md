@@ -40,11 +40,12 @@ Os eventos são sempre da **sua conta**: o corretor de outra conta não recebe n
 
 Conectar ou desconectar um canal (hoje, o Instagram) fica também na **trilha de auditoria** da
 plataforma, que o administrador da instância consulta: `canal_conectado` e `canal_desconectado` guardam
-quem fez (o nome de quem estava logado) e qual canal. É o único caso em que um nome vai no evento, e é o
-seu, não o de um cliente.
+quem fez (o nome de quem estava logado) e qual canal. A contraproposta que você confirma **abaixo do
+ponto de recuo** (`contraproposta_abaixo_do_recuo`) também fica na trilha, com o seu nome e o número
+da negociação, sem valores. São os únicos casos em que um nome vai no evento, e é o seu, não o de um cliente.
 
 ## O que ainda não existe
 
 Avisos do WhatsApp e do Mensageiro (mensagem que falhou, conversa passada do Mensageiro a você) chegam
-com a conexão do WhatsApp; a decisão do corretor sobre uma proposta ganha aviso próprio na tela de
-Negociações; parcerias, reservas e cotas são de versões futuras.
+com a conexão do WhatsApp; a decisão do proprietário registrada por você avisa como `proposta_decidida` (ver
+[Negociação e mandato](negociacao.md)); parcerias, reservas e cotas são de versões futuras.

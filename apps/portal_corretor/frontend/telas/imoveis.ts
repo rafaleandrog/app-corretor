@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ABAS_IMOVEIS, APELIDOS_IMOVEIS } from '../../comum/imoveis';
+import { reaisCurto } from '../../comum/estudio';
 import {
   abaDaUrl,
   abaNaUrl,
@@ -10,20 +11,21 @@ import {
   chamarApi,
   chip,
   corQualidade,
+  enviar,
   filtrosDaUrl,
   filtrosNaUrl,
   gesto,
   itemDaUrl,
   itemNaUrl,
+  mensagemDeErro,
   pedidoDeCriar,
-  reais,
   ROTULO_TIPO_IMOVEL,
   SITUACAO_IMOVEL,
   type ImovelCartao,
   type OpcoesAba,
 } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
-import { botaoAssistenteColuna, moldura } from '../moldura.js';
+import { cabecalhoColuna, moldura } from '../moldura.js';
 import { irParaComQuery } from '../criar.js';
 import { contextoEmpreendimento } from './empreendimentos.js';
 import './empreendimentos.js';
@@ -31,6 +33,7 @@ import { EVENTO_EMPREENDIMENTO_MUDOU } from './ficha-empreendimento.js';
 import { EVENTO_IMOVEL_MUDOU, EVENTO_RESOLVER_FALTA } from './ficha-imovel.js';
 import './ficha-empreendimento.js';
 import { registrarLista, soltarLista } from '../atalhos.js';
+import './mandato.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -48,10 +51,17 @@ export const abaImoveis = () => abaDaUrl(ABAS.map((a) => a.id), OPCOES_ABA);
 
 /** Chips da carteira (P06): uma situação de cada vez; "Todos" tira o filtro. */
 export const CHIPS_SITUACAO = [
-  { valor: '', rotulo: 'Todos' },
+  { valor: '', rotulo: 'Todas' },
   { valor: 'ativo', rotulo: 'Ativos' },
   { valor: 'rascunho', rotulo: 'Rascunhos' },
   { valor: 'vendido', rotulo: 'Vendidos' },
+] as const;
+
+/** Visibilidade (P06): "Todas" primeiro (D-122), depois quem está na página e quem não está. */
+export const CHIPS_VISIBILIDADE = [
+  { valor: '', rotulo: 'Todas' },
+  { valor: 'true', rotulo: 'Públicos' },
+  { valor: 'false', rotulo: 'Privados' },
 ] as const;
 
 /** Item escolhido: o do caminho (`/imoveis/7`) vale mais que o `?item=`. */
@@ -173,6 +183,8 @@ export class PcListaImoveis extends LitElement {
   private consulta() {
     const q = new URLSearchParams();
     for (const k of ['busca', 'situacao']) if (this.filtros.get(k)) q.set(k, this.filtros.get(k)!);
+    const vis = this.filtros.get('visibilidade');
+    if (vis === 'true' || vis === 'false') q.set('publicado_pagina', vis);
     return q;
   }
 
@@ -213,12 +225,14 @@ export class PcListaImoveis extends LitElement {
 
   private item(i: Imovel) {
     const s = SITUACAO_IMOVEL[i.situacao] ?? { rotulo: i.situacao, cor: 'padrao' };
-    const local = [i.bairro, i.cidade].filter(Boolean).join(', ');
-    return html`<urbi-linha>
+    // Título curto na primeira linha; bairro (ou cidade) e preço embaixo, como a referência P06. O código
+    // fica no `title`. Tudo `truncar`: nada rola para o lado na coluna de 360 (#180).
+    const local = i.bairro || i.cidade || '';
+    return html`<urbi-linha title=${i.codigo}>
       <urbi-avatar nome=${i.codigo} foto=${i.capa_url ?? ''} icone=${i.capa_url ? '' : 'fa-solid fa-image'} tamanho="48"></urbi-avatar>
       <urbi-stack>
-        <urbi-prosa truncar>${i.codigo} · ${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</urbi-prosa>
-        <urbi-prosa papel="fraco" truncar>${[i.preco_c ? reais(i.preco_c) : null, local].filter(Boolean).join(' · ')}</urbi-prosa>
+        <urbi-prosa truncar>${i.titulo ?? ROTULO_TIPO_IMOVEL[i.tipo] ?? i.tipo}</urbi-prosa>
+        <urbi-prosa papel="fraco" truncar>${[local, i.preco_c ? reaisCurto(i.preco_c) : 'Sob consulta'].filter(Boolean).join(' · ')}</urbi-prosa>
         <urbi-linha quebrar>
           <urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>
           <urbi-badge cor=${corQualidade(i.qualidade.nota)} title="Qualidade do anúncio">${i.qualidade.nota}</urbi-badge>
@@ -250,18 +264,14 @@ export class PcListaImoveis extends LitElement {
 
   render() {
     const situacao = this.filtros.get('situacao') ?? '';
+    const visibilidade = this.filtros.get('visibilidade') ?? '';
     const abas = ABAS.map((a) => ({
       ...a,
       label: `${a.label}${a.id === 'carteira' ? (this.carregando && !this.imoveis.length ? '' : ` (${this.total})`) : this.totalEmpreendimentos === null ? '' : ` (${this.totalEmpreendimentos})`}`,
     }));
+    // Cabeçalho comum da moldura (D-128): título, Novo e Assistente, botões de 34 px.
     return html`<urbi-stack>
-      <urbi-linha justificar="entre">
-        <urbi-prosa papel="titulo">Imóveis</urbi-prosa>
-        <urbi-linha>
-          ${this.aba === 'carteira' ? html`<urbi-botao pequeno icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo</urbi-botao>` : nothing}
-          ${botaoAssistenteColuna()}
-        </urbi-linha>
-      </urbi-linha>
+      ${cabecalhoColuna('Imóveis', this.aba === 'carteira' ? html`<urbi-botao icone="fa-solid fa-plus" @click=${() => this.novo()}>Novo</urbi-botao>` : nothing)}
       <urbi-abas .abas=${abas} ativa=${this.aba} @urbi:aba-selecionar=${(e: CustomEvent) => e.detail?.id !== this.aba && this.aoTrocarAba(e.detail?.id)}>
         <urbi-hospedeiro slot=${this.aba}>
           ${this.aba === 'empreendimentos'
@@ -269,11 +279,10 @@ export class PcListaImoveis extends LitElement {
             : html`<urbi-stack>
                 <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Código, título, bairro ou cidade"
                   valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
-                <urbi-linha quebrar>
-                  ${CHIPS_SITUACAO.map(
-                    (c) => html`<urbi-badge interativo cor="info" ?ativo=${situacao === c.valor} @click=${() => this.filtrar({ situacao: c.valor })}>${c.rotulo}</urbi-badge>`,
-                  )}
-                </urbi-linha>
+                <urbi-chips-atalho .opcoes=${CHIPS_SITUACAO.map((c) => ({ id: c.valor || 'todas', rotulo: c.rotulo }))} ativo=${situacao || 'todas'}
+                  @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ situacao: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>
+                <urbi-chips-atalho .opcoes=${CHIPS_VISIBILIDADE.map((c) => ({ id: c.valor || 'todas', rotulo: c.rotulo }))} ativo=${visibilidade || 'todas'}
+                  @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ visibilidade: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>
                 ${this.carteira()}
               </urbi-stack>`}
         </urbi-hospedeiro>
@@ -286,6 +295,7 @@ interface Contexto {
   qualidade: { nota: number; faltas: string[] };
   sem_creci: boolean;
   numeros: { visitas: number; enviados: number; cliques: number; negocios: number };
+  anunciavel: boolean;
   combinam: { id: number; nome: string; temperatura: string | null; motivos: string[] }[];
 }
 
@@ -307,6 +317,7 @@ export class PcContextoImovel extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
+    void this.lerMandato();
     window.addEventListener(EVENTO_IMOVEL_MUDOU, this.aoMudar);
   }
 
@@ -328,6 +339,79 @@ export class PcContextoImovel extends LitElement {
     }
   }
 
+  @state() private enviando: number | null = null;
+  @state() private enviados = new Set<number>();
+  /** A negociação em andamento deste imóvel e o mandato vigente dela (P06: o Mandato resumido). */
+  @state() private negociacao: { id: number; conduzida_por: string; negociador_usuario_id: number | null; mandato: Record<string, any> | null } | null = null;
+  @state() private recuoAberto = false;
+  @state() private editandoMandato = false;
+
+  /** Lê a negociação em andamento do imóvel e o mandato dela; sem negociação, o cartão não aparece. */
+  private async lerMandato() {
+    const g = gesto();
+    try {
+      const r = await g.esperar(chamarApi(`/negociacoes?imovel_id=${this.imovelId}&estado=ativa,aguardando_corretor,aguardando_cliente,aguardando_proprietario,pausada&por_pagina=1`));
+      const n = r?.dados?.[0];
+      if (!n) return void (this.negociacao = null);
+      const m = await g.esperar(chamarApi(`/negociacoes/${n.id}/mandato`));
+      this.negociacao = { id: Number(n.id), conduzida_por: n.conduzida_por, negociador_usuario_id: n.negociador_usuario_id ?? null, mandato: m?.vigente ?? null };
+    } catch (e) {
+      if (g.encerrado(e)) return;
+      this.negociacao = null; // o resumo é bônus: sem ele, a coluna segue
+    }
+  }
+
+  /**
+   * Mandato resumido (P06): preço pedido, alvo e o recuo mascarado ("•••• mostrar"), com Definir (ou
+   * Editar) mandato, que abre o P16. Só com uma negociação em andamento deste imóvel.
+   */
+  private cartaoMandato() {
+    const n = this.negociacao;
+    if (!n) return nothing;
+    const m = n.mandato;
+    return html`<urbi-card titulo="Mandato" icone="fa-solid fa-file-shield">
+      ${m
+        ? html`<urbi-stack>
+            <urbi-prosa>Preço pedido ${reaisCurto(m.preco_pedido_c)}</urbi-prosa>
+            <urbi-prosa>Alvo ${reaisCurto(m.alvo_c)}</urbi-prosa>
+            <urbi-linha>
+              <urbi-prosa>Recuo ${this.recuoAberto ? reaisCurto(m.recuo_c) : '••••'}</urbi-prosa>
+              <urbi-botao variante="texto" @click=${() => (this.recuoAberto = !this.recuoAberto)}>${this.recuoAberto ? 'esconder' : 'mostrar'}</urbi-botao>
+            </urbi-linha>
+          </urbi-stack>`
+        : html`<urbi-prosa papel="dica">Há uma negociação deste imóvel sem mandato: sem ele, o Negociador não age.</urbi-prosa>`}
+      <urbi-botao variante=${m ? 'secundario' : 'primario'} icone=${m ? 'fa-solid fa-pen' : 'fa-solid fa-plus'} @click=${() => (this.editandoMandato = true)}>${m ? 'Editar mandato' : 'Definir mandato'}</urbi-botao>
+      ${this.editandoMandato
+        ? html`<pc-mandato-modal .negociacaoId=${n.id} .imovelId=${this.imovelId} .atual=${m} .conduzidaPor=${n.conduzida_por} .negociadorId=${Number(n.negociador_usuario_id) || 0}
+            .aoFechar=${(salvou: boolean) => {
+              this.editandoMandato = false;
+              if (salvou) void this.lerMandato();
+            }}></pc-mandato-modal>`
+        : nothing}
+    </urbi-card>`;
+  }
+
+  /**
+   * "Enviar" (P06): envia o imóvel de verdade (`POST /envios`), sem sair da tela. A rota registra o
+   * envio, a mensagem na conversa do cliente (com o cartão do imóvel) e o link rastreado.
+   */
+  private async enviar(c: Contexto['combinam'][number]) {
+    if (this.enviando) return;
+    const g = gesto();
+    this.enviando = c.id;
+    try {
+      await g.esperar(enviar('POST', '/envios', { contato_id: c.id, imovel_id: this.imovelId, tipo: 'imovel', canal: 'whatsapp' }));
+      this.enviados = new Set([...this.enviados, c.id]);
+      urbiVerso.notificar(`Imóvel enviado a ${c.nome}. A mensagem pronta está na conversa dele.`, 'sucesso');
+      window.dispatchEvent(new CustomEvent(EVENTO_IMOVEL_MUDOU, { detail: { id: this.imovelId } }));
+    } catch (e) {
+      if (g.encerrado(e)) return;
+      await urbiVerso.alertar({ titulo: 'Não foi possível enviar', mensagem: mensagemDeErro(e), tipo: 'erro' });
+    } finally {
+      this.enviando = null;
+    }
+  }
+
   private resolver(falta: string) {
     window.dispatchEvent(new CustomEvent(EVENTO_RESOLVER_FALTA, { detail: { id: this.imovelId, falta } }));
   }
@@ -335,7 +419,7 @@ export class PcContextoImovel extends LitElement {
   render() {
     if (this.falha && !this.dados) return estadoDaFalha(this.falha, () => this.carregar());
     if (!this.dados) return estadoTela('carregando');
-    const { qualidade, numeros, combinam } = this.dados;
+    const { qualidade, numeros, combinam, anunciavel } = this.dados;
     return html`<urbi-stack>
       <urbi-card titulo="Qualidade do anúncio" icone="fa-solid fa-list-check">
         <urbi-stack>
@@ -355,14 +439,18 @@ export class PcContextoImovel extends LitElement {
         </urbi-stack>
       </urbi-card>
       <urbi-card titulo="Últimos 30 dias" icone="fa-solid fa-chart-simple">
-        <urbi-grid min="110px">
+        <!-- Uma coluna de KPIs: a grade de 2 colunas cortava rótulo e cartão nos 340 px (#180). -->
+        <urbi-stack>
           <urbi-kpi rotulo="Visitas" .valor=${numeros.visitas}></urbi-kpi>
           <urbi-kpi rotulo="Enviado a" .valor=${numeros.enviados}></urbi-kpi>
           <urbi-kpi rotulo="Cliques nos envios" .valor=${numeros.cliques}></urbi-kpi>
           <urbi-kpi rotulo="Negócios ligados" .valor=${numeros.negocios}></urbi-kpi>
-        </urbi-grid>
+        </urbi-stack>
       </urbi-card>
       <urbi-card titulo="Clientes que combinam" icone="fa-solid fa-user-check">
+        ${combinam.length && !anunciavel
+          ? html`<urbi-prosa papel="dica">Para enviar este imóvel, ele precisa estar ativo ou reservado, com autorização de venda assinada e vigente.</urbi-prosa>`
+          : ''}
         ${combinam.length
           ? html`<urbi-lista separador .itens=${combinam} .render_item=${(c: Contexto['combinam'][number]) => html`<urbi-linha justificar="entre">
               <urbi-stack>
@@ -372,10 +460,14 @@ export class PcContextoImovel extends LitElement {
                 </urbi-linha>
                 <urbi-prosa papel="fraco">Combina em ${c.motivos.join(', ')}</urbi-prosa>
               </urbi-stack>
-              <urbi-botao pequeno variante="secundario" icone="fa-solid fa-paper-plane" href=${urbiVerso.href(`/clientes/${c.id}`)}>Enviar</urbi-botao>
+              ${anunciavel
+                ? html`<urbi-botao variante="secundario" icone="fa-solid fa-paper-plane" ?carregando=${this.enviando === c.id}
+                    ?desabilitado=${this.enviados.has(c.id)} @click=${() => this.enviar(c)}>${this.enviados.has(c.id) ? 'Enviado' : 'Enviar'}</urbi-botao>`
+                : ''}
             </urbi-linha>`}></urbi-lista>`
           : html`<urbi-prosa papel="dica">Nenhum comprador com perfil de busca que combine (tipo, região, preço, quartos, vagas ou área).</urbi-prosa>`}
       </urbi-card>
+      ${this.cartaoMandato()}
     </urbi-stack>`;
   }
 }

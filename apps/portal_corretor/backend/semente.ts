@@ -3,6 +3,7 @@ import { CONFIGURACOES_PADRAO } from '../comum/conta';
 import { MARCA_PADRAO } from '../comum/estudio';
 import { TEMAS } from '../comum/pagina';
 import { PLAYBOOK_OBJECOES_PADRAO } from '../comum/negociacao';
+import { caracteristicasNaVitrine } from './vitrine';
 
 // Semente de demonstração (spec 12.2), idempotente: roda a cada boot e só cria o que falta.
 // Alcança apenas as contas cujo nome termina em "(demo)" — as contas de teste da equipe, criadas à
@@ -148,9 +149,27 @@ async function objecoesDaConta(ctx: ContextoListener, contaId: number): Promise<
 // As tarefas são independentes: a falha de uma não impede as outras. Se alguma falhar, o hook lança
 // no fim com as mensagens — o shell registra `iniciar_falhou` e a app segue operacional
 // (overview.md § Hooks de ciclo de vida); no próximo boot, cada uma retoma só o que falta.
+/** #179: republica as características dos imóveis já publicados, conta a conta (idempotente). */
+export async function republicarCaracteristicas(ctx: ContextoListener): Promise<number> {
+  if (!ctx.dados?.comConta || !ctx.contas) return 0;
+  let total = 0;
+  const falhas: string[] = [];
+  for (const conta of await ctx.contas.listarAtivas()) {
+    try {
+      await ctx.dados.comConta(conta.id, async (trx) => {
+        total += await caracteristicasNaVitrine(trx, conta.id);
+      });
+    } catch (e) {
+      falhas.push(`${conta.nome}: ${(e as Error).message}`);
+    }
+  }
+  if (falhas.length) throw new Error(`Características da vitrine incompletas — ${falhas.join('; ')}`);
+  return total;
+}
+
 export const aoIniciar: AoIniciarApp = async (ctx) => {
   const falhas: string[] = [];
-  for (const tarefa of [semear, levarTemaParaMarca, semearObjecoes]) {
+  for (const tarefa of [semear, levarTemaParaMarca, semearObjecoes, republicarCaracteristicas]) {
     try {
       await tarefa(ctx);
     } catch (e) {

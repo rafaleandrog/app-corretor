@@ -5,6 +5,9 @@ import { PLAYBOOK_OBJECOES_PADRAO } from '../../comum/negociacao';
 import { reaisParaCentavos } from '../../comum/crm';
 import { buscaDoGesto, chamarApi, contaDeTrabalho, data, dataHora, ehContaTrocada, enviar, seNaoContaTrocada, filtrosDaUrl, filtrosNaUrl, gesto, mensagemDeErro, reais, soNegociador, type Gesto } from '../apoio.js';
 import { moldura } from '../moldura.js';
+import { acoesComMais, type Acao } from '../visual.js';
+import { haQuanto } from '../../comum/conversas';
+import { MOTIVOS_PERDA, ROTULO_MOTIVO_PERDA } from '../../comum/crm';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import './mandato.js';
 import { registrarLista, soltarLista } from '../atalhos.js';
@@ -56,6 +59,13 @@ const FILTROS = [
   { id: 'encerradas', rotulo: 'Encerradas', estados: 'ganha,perdida' },
 ];
 
+/**
+ * A negociação mudou (oferta, decisão, passagem, assumir/devolver, mandato, encerramento): a lista relê
+ * para mostrar a última oferta, o estado e quem conduz de agora (#188).
+ */
+export const EVENTO_NEGOCIACAO_MUDOU = 'pc-negociacao-mudou';
+const avisarQueMudou = (id: number) => window.dispatchEvent(new CustomEvent(EVENTO_NEGOCIACAO_MUDOU, { detail: { id } }));
+
 /** "−9%": a última oferta do comprador contra o preço pedido do mandato. */
 export function diferencaDoPedido(oferta_c: number | null | undefined, pedido_c: number | null | undefined): string | null {
   if (!oferta_c || !pedido_c) return null;
@@ -71,6 +81,21 @@ function quem(p: Linha): string {
   if (soNegociador()) return p.autor_tipo === 'negociador_humano' ? `Negociador${p.autor_nome ? ` (${p.autor_nome})` : ''}` : 'Corretor';
   return p.autor_tipo === 'negociador_humano' ? `Negociador${p.autor_nome ? ` (${p.autor_nome})` : ''}` : 'Você (vendedor)';
 }
+
+/**
+ * A recusa do envio é só por ficar abaixo do recuo (D-120)? Então o corretor pode confirmar. O 422
+ * `MOVIMENTO_BLOQUEADO` lista em `detalhes` cada garantia que barrou ("ABAIXO_DO_RECUO: …"); abaixo do
+ * recuo o passo também falha (ele é medido até o recuo). O negociador humano nunca confirma.
+ */
+export function abaixoDoRecuoConfirmavel(e: unknown): boolean {
+  const f = e as { codigo?: string; detalhes?: string[] };
+  if (soNegociador() || f?.codigo !== 'MOVIMENTO_BLOQUEADO' || !Array.isArray(f.detalhes)) return false;
+  const codigos = f.detalhes.map((d) => String(d).split(':')[0].trim());
+  return codigos.includes('ABAIXO_DO_RECUO') && codigos.every((c) => c === 'ABAIXO_DO_RECUO' || c === 'PASSO_ACIMA_DO_LIMITE');
+}
+
+/** "R$ 1,32 mi" / "R$ 920 mil": cabe na linha da lista de 360 px. */
+const reaisCurtos = (c: number) => (c >= 100_000_000 ? `R$ ${(c / 100_000_000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} mi` : c >= 100_000 ? `R$ ${Math.round(c / 100_000)} mil` : reais(c));
 
 const centavosDigitados = (v: unknown): number | null => {
   const c = reaisParaCentavos(v);
@@ -155,8 +180,164 @@ class NegociacaoAberta {
       if (this.vida.vivo()) {
         this.s.ocupado = false;
         await this.carregar();
+        avisarQueMudou(this.id);
       }
     }
+  }
+
+  /**
+   * Nova contraproposta (D-120): a do corretor (ou do negociador humano), sem depender de sugestão. Sai
+   * pelo portal ou pelo Fazer agora, com as validações de 10.9.7 no backend. Abaixo do ponto de recuo, o
+   * corretor recebe o aviso e confirma (fica na trilha de auditoria); o negociador humano é bloqueado.
+   */
+  novaContraproposta() {
+    return this.semAvisoDeOutraConta(() => this.novaContrapropostaNaConta());
+  }
+
+  private async novaContrapropostaNaConta() {
+    const m = this.s.mandato;
+    const concessoes = ((m?.concessoes ?? []) as Linha[]).filter((c) => c.item);
+    const v = await this.vida.esperar(urbiVerso.formulario({
+      titulo: 'Nova contraproposta',
+      mensagem: 'A sua contraproposta, sem depender de sugestão. O app confere o mandato antes de enviar: passo, rodadas, concessões, validade e sigilo.',
+      campos: [
+        { nome: 'valor', tipo: 'texto', rotulo: 'Valor (R$)', placeholder: '1.400.000', obrigatorio: true },
+        { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)', placeholder: 'à vista, entrada de 30%' },
+        ...(concessoes.length
+          ? [{ nome: 'concessao', tipo: 'selecao' as const, rotulo: 'Concessão (do mandato)', valor: '', opcoes: [{ valor: '', rotulo: 'Nenhuma' }, ...concessoes.map((c) => ({ valor: String(c.item), rotulo: `${c.item} ↔ ${c.contrapartida}` }))] }]
+          : []),
+        { nome: 'validade_horas', tipo: 'texto', rotulo: 'Vale por (horas; vazio = a do mandato)', placeholder: m?.validade_contraproposta_horas ? String(m.validade_contraproposta_horas) : '48' },
+        { nome: 'mensagem', tipo: 'texto_longo', rotulo: 'Mensagem ao cliente (opcional)', placeholder: 'Em branco, sai a mensagem montada pelo app.' },
+        { nome: 'canal', tipo: 'selecao', rotulo: 'Enviar por', valor: 'portal', opcoes: [{ valor: 'portal', rotulo: 'Portal do cliente' }, { valor: 'wa_me', rotulo: 'Fazer agora (WhatsApp do seu celular)' }] },
+      ],
+      rotuloConfirmar: 'Enviar contraproposta',
+    } as Parameters<UrbiVersoAPI['formulario']>[0]));
+    if (!v) return;
+    const valor_c = centavosDigitados(v.valor);
+    if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.400.000.', tipo: 'alerta' });
+    const item = concessoes.find((c) => String(c.item) === String(v.concessao ?? ''));
+    const horas = Number(String(v.validade_horas ?? '').trim());
+    const canal = v.canal === 'wa_me' ? 'wa_me' : 'portal';
+    const corpo: Record<string, unknown> = {
+      direcao: 'vendedor',
+      valor_c,
+      canal,
+      condicoes: v.condicoes ? String(v.condicoes) : null,
+      concessao: item ? String(item.item) : null,
+      contrapartida: item ? String(item.contrapartida) : null,
+      ...(Number.isInteger(horas) && horas > 0 ? { validade_horas: horas } : {}),
+      ...(String(v.mensagem ?? '').trim() ? { mensagem: String(v.mensagem).trim() } : {}),
+    };
+    // A janela do Fazer agora abre no próprio clique (senão o navegador bloqueia) e recebe o link depois.
+    const janela = canal === 'wa_me' ? window.open('', '_blank') : null;
+    let r: Linha | null = null;
+    const ok = await this.agir('A contraproposta não foi enviada', async () => {
+      try {
+        r = await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/propostas`, corpo));
+      } catch (e) {
+        // D-120: abaixo do recuo, só o corretor, e só confirmando. A confirmação fica registrada.
+        // Conta trocada com o envio em voo: segue para o `agir`, que termina em silêncio.
+        if (this.vida.encerrado(e) || !abaixoDoRecuoConfirmavel(e)) throw e;
+        const sim = await this.vida.esperar(urbiVerso.confirmar({
+          titulo: 'Abaixo do ponto de recuo',
+          mensagem: `${reais(valor_c)} fica abaixo do ponto de recuo do mandato. Enviar mesmo assim? O envio fica registrado na trilha de auditoria, com o seu nome.`,
+          rotuloConfirmar: 'Enviar abaixo do recuo',
+          perigo: true,
+        }));
+        if (!sim) {
+          janela?.close();
+          return;
+        }
+        r = await this.vida.esperar(enviar('POST', `/negociacoes/${this.id}/propostas`, { ...corpo, confirmar_abaixo_do_recuo: true }));
+      }
+    });
+    const resposta = r as Linha | null;
+    if (!ok || !resposta) return void janela?.close();
+    if (canal === 'wa_me') {
+      if (resposta.link && janela) janela.location.href = resposta.link;
+      else {
+        janela?.close();
+        await urbiVerso.alertar({ titulo: 'Mensagem pronta', mensagem: [resposta.texto ?? '', resposta.link ? `Abra no WhatsApp: ${resposta.link}` : ''].filter(Boolean).join('\n\n'), tipo: 'info' });
+      }
+    } else urbiVerso.notificar('Contraproposta enviada pelo portal do cliente.', 'sucesso');
+  }
+
+  /**
+   * Registrar a decisão do proprietário (P15) sobre o acordo levado a ele: aceita (encerra ganha),
+   * recusa, ou contraproposta do proprietário (`PATCH /propostas/:id`). Só o corretor.
+   */
+  registrarDecisao(decisao: 'aceita' | 'recusa' | 'contraproposta') {
+    return this.semAvisoDeOutraConta(() => this.registrarDecisaoNaConta(decisao));
+  }
+
+  private async registrarDecisaoNaConta(decisao: 'aceita' | 'recusa' | 'contraproposta') {
+    const acordo = ((this.s.detalhe?.propostas ?? []) as Linha[]).filter((p) => p.direcao === 'comprador' && p.estado === 'aceita').pop();
+    if (!acordo) return;
+    let corpo: Record<string, unknown> = { decisao };
+    if (decisao === 'contraproposta') {
+      const v = await this.vida.esperar(urbiVerso.formulario({
+        titulo: 'Contraproposta do proprietário',
+        campos: [
+          { nome: 'valor', tipo: 'texto', rotulo: 'Valor que o proprietário aceita (R$)', placeholder: '1.420.000', obrigatorio: true },
+          { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
+        ],
+        rotuloConfirmar: 'Registrar',
+      }));
+      if (!v) return;
+      const valor_c = centavosDigitados(v.valor);
+      if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.420.000.', tipo: 'alerta' });
+      corpo = { ...corpo, valor_c, condicoes: v.condicoes ? String(v.condicoes) : null };
+    } else {
+      const sim = await this.vida.esperar(urbiVerso.confirmar({
+        titulo: decisao === 'aceita' ? 'O proprietário aceitou' : 'O proprietário recusou',
+        mensagem: decisao === 'aceita'
+          ? `A negociação se encerra como ganha por ${reais(acordo.valor_c)}, e o negócio fica com esse valor.`
+          : 'A oferta do comprador fica recusada e a negociação volta para você.',
+        rotuloConfirmar: 'Registrar decisão',
+      }));
+      if (!sim) return;
+    }
+    await this.agir('Não foi possível registrar a decisão', async () => {
+      const r = await this.vida.esperar(enviar('PATCH', `/propostas/${acordo.id}`, corpo));
+      urbiVerso.notificar(
+        decisao === 'aceita'
+          ? `Negociação ganha.${r?.comissao_prevista_c ? ` Comissão prevista: ${reais(r.comissao_prevista_c)}.` : ''}`
+          : 'Decisão do proprietário registrada.',
+        'sucesso',
+      );
+    });
+  }
+
+  /** Encerrar (menu "mais" do cabeçalho): ganha com o valor final, ou perdida com o motivo. */
+  encerrar(como: 'ganha' | 'perdida') {
+    return this.semAvisoDeOutraConta(async () => {
+      const oferta = this.ultimaOferta();
+      const v = await this.vida.esperar(urbiVerso.formulario(
+        como === 'ganha'
+          ? {
+              titulo: 'Encerrar como ganha',
+              mensagem: 'O valor final passa a ser o valor do negócio, e o app calcula a comissão prevista.',
+              campos: [{ nome: 'valor', tipo: 'texto', rotulo: 'Valor final (R$)', obrigatorio: true, valor: oferta ? (oferta.valor_c / 100).toLocaleString('pt-BR') : '' }],
+              rotuloConfirmar: 'Encerrar como ganha',
+            }
+          : {
+              titulo: 'Encerrar como perdida',
+              campos: [{ nome: 'motivo', tipo: 'selecao', rotulo: 'Motivo', obrigatorio: true, opcoes: MOTIVOS_PERDA.map((mo) => ({ valor: mo, rotulo: ROTULO_MOTIVO_PERDA[mo] ?? mo })) }],
+              rotuloConfirmar: 'Encerrar como perdida',
+            },
+      ));
+      if (!v) return;
+      const corpo: Record<string, unknown> = { estado: como };
+      if (como === 'ganha') {
+        const valor_c = centavosDigitados(v.valor);
+        if (!valor_c) return void urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.400.000.', tipo: 'alerta' });
+        corpo.valor_final_c = valor_c;
+      } else corpo.motivo_perda = String(v.motivo);
+      await this.agir('Não foi possível encerrar', async () => {
+        const r = await this.vida.esperar(enviar('PATCH', `/negociacoes/${this.id}`, corpo));
+        urbiVerso.notificar(como === 'ganha' ? `Negociação ganha.${r?.comissao_prevista_c ? ` Comissão prevista: ${reais(r.comissao_prevista_c)}.` : ''}` : 'Negociação encerrada como perdida.', 'sucesso');
+      });
+    });
   }
 
   ultimaOferta(): Linha | null {
@@ -358,9 +539,12 @@ export class PcNegociacoesLista extends LitElement {
   @state() private falha: string | null = null;
   private geracao = 0;
 
+  private aoMudar = () => void this.carregar();
+
   connectedCallback() {
     super.connectedCallback();
     void this.carregar();
+    window.addEventListener(EVENTO_NEGOCIACAO_MUDOU, this.aoMudar);
     if (this.atalhos) {
       registrarLista(this, { ids: () => this.linhas.map((n) => Number(n.id)), atual: () => this.selecionado, escolher: (id) => this.aoEscolher(id) });
     }
@@ -369,6 +553,7 @@ export class PcNegociacoesLista extends LitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     soltarLista(this);
+    window.removeEventListener(EVENTO_NEGOCIACAO_MUDOU, this.aoMudar);
   }
 
   private filtro() {
@@ -386,6 +571,9 @@ export class PcNegociacoesLista extends LitElement {
       if (g !== this.geracao) return;
       // "Negociador": em andamento com o Negociador conduzindo (a rota filtra só o estado).
       this.linhas = f.id === 'negociador' ? r.dados.filter((n: Linha) => n.conduzida_por !== 'corretor') : r.dados;
+      // Sem `?item=`, a tela abre na primeira negociação (como a referência P15). No celular (M8), não:
+      // lá a lista é a primeira coluna e a negociação abre no toque.
+      if (this.atalhos && !this.selecionado && this.linhas.length && window.innerWidth > 900) this.aoEscolher(Number(this.linhas[0].id));
     } catch (e) {
       if (g === this.geracao && !ehContaTrocada(e)) this.falha = (e as Error).message;
     } finally {
@@ -398,15 +586,17 @@ export class PcNegociacoesLista extends LitElement {
     void this.carregar();
   }
 
+  /** Cliente, imóvel, última oferta × pedido, quem conduz e o tempo desde a última rodada (P15, #178). */
   private linha(n: Linha) {
     const dif = diferencaDoPedido(n.ultima_oferta_c, n.preco_pedido_c);
     return html`<urbi-stack>
-      <urbi-linha justificar="entre" quebrar>
-        <urbi-prosa>${n.contato_nome}</urbi-prosa>
+      <urbi-linha justificar="entre">
+        <urbi-prosa truncar>${n.contato_nome ?? 'Cliente'}</urbi-prosa>
         <urbi-badge cor=${COR_ESTADO[n.estado] ?? ''}>${ROTULO_ESTADO[n.estado] ?? n.estado}</urbi-badge>
       </urbi-linha>
-      <urbi-prosa papel="secundario">${n.imovel_titulo ?? n.imovel_codigo ?? ''}${n.ultima_oferta_c ? ` · última oferta ${reais(n.ultima_oferta_c)}${dif ? ` · ${dif}` : ''}` : ' · sem oferta'}</urbi-prosa>
-      <urbi-prosa papel="fraco">${quemConduz(n)}${n.ultima_oferta_em ? ` · última oferta em ${dataHora(n.ultima_oferta_em)}` : ''}</urbi-prosa>
+      <urbi-prosa papel="secundario" truncar>${n.imovel_titulo ?? n.imovel_codigo ?? n.codigo ?? ''}</urbi-prosa>
+      <urbi-prosa papel="secundario" truncar>${n.ultima_oferta_c ? `${reaisCurtos(n.ultima_oferta_c)}${n.preco_pedido_c ? ` × ${reaisCurtos(n.preco_pedido_c)}` : ''}${dif ? ` · ${dif}` : ''}` : 'sem oferta'}</urbi-prosa>
+      <urbi-prosa papel="fraco" truncar>${quemConduz(n)}${n.ultima_rodada_em ? ` · ${haQuanto(n.ultima_rodada_em)}` : ''}</urbi-prosa>
     </urbi-stack>`;
   }
 
@@ -480,15 +670,21 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
       canal: CANAL[p.canal] ?? p.canal,
       quando: dataHora(p.criado_em),
     }));
+    // Lista compacta, uma rodada por item (#180 e #190): a tabela de 8 colunas passava da coluna central e,
+    // no celular, virava rótulos empilhados. Rodada, quem e valor na linha de cima; o resto, embaixo.
+    type Degrau = (typeof linhas)[number];
     return html`<urbi-card titulo="Escada de propostas" icone="fa-solid fa-stairs">
       ${linhas.length
-        ? html`<urbi-tabela responsivo="multiline" .linhas=${linhas} .colunas=${[
-            { id: 'rodada', label: 'Rodada' }, { id: 'quem', label: 'Quem' }, { id: 'valor', label: 'Valor' }, { id: 'condicoes', label: 'Condições' },
-            { id: 'concessao', label: 'Concessão' }, { id: 'contrapartida', label: 'Contrapartida' }, { id: 'canal', label: 'Canal' }, { id: 'quando', label: 'Quando' },
-          ]}></urbi-tabela>`
+        ? html`<urbi-lista separador .itens=${linhas} .render_item=${(p: Degrau) => html`<urbi-stack>
+            <urbi-linha justificar="entre">
+              <urbi-prosa truncar>R${p.rodada} · ${p.quem}</urbi-prosa>
+              <urbi-prosa><strong>${p.valor}</strong></urbi-prosa>
+            </urbi-linha>
+            <urbi-prosa papel="fraco">${[p.condicoes !== '—' ? p.condicoes : null, p.concessao !== '—' ? `${p.concessao} ↔ ${p.contrapartida}` : null, p.canal, p.quando].filter(Boolean).join(' · ')}</urbi-prosa>
+          </urbi-stack>`}></urbi-lista>`
         : html`<urbi-prosa papel="dica">Nenhuma proposta ainda. Registre a oferta do cliente para começar.</urbi-prosa>`}
-      <urbi-linha>
-        <urbi-botao pequeno variante="secundario" icone="fa-solid fa-plus" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.registrarOferta()}>Registrar oferta do cliente</urbi-botao>
+      <urbi-linha quebrar>
+        <urbi-botao variante="secundario" icone="fa-solid fa-plus" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.registrarOferta()}>Registrar oferta do cliente</urbi-botao>
       </urbi-linha>
     </urbi-card>`;
   }
@@ -515,11 +711,16 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
       ${bloqueada ? html`<urbi-banner variante="alerta">Bloqueada pelas regras do mandato: edite antes de enviar, ou descarte.</urbi-banner>` : ''}
       <urbi-linha quebrar>
         ${cp?.valor_c
-          ? html`<urbi-botao pequeno icone="fa-solid fa-paper-plane" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('portal')}>Enviar</urbi-botao>
-              <urbi-botao pequeno variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('wa_me')}>Fazer agora</urbi-botao>
-              <urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.editar()}>Editar</urbi-botao>`
-          : html`<urbi-botao pequeno icone="fa-solid fa-pen" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.editar()}>Revisar e enviar</urbi-botao>`}
-        <urbi-botao pequeno variante="texto" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.descartar()}>Descartar</urbi-botao>
+          ? html`<urbi-botao icone="fa-solid fa-paper-plane" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('portal')}>Enviar</urbi-botao>
+              <urbi-botao variante="secundario" icone="fa-brands fa-whatsapp" ?desabilitado=${bloqueada || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('wa_me')}>Fazer agora</urbi-botao>`
+          : html`<urbi-botao icone="fa-solid fa-pen" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.editar()}>Revisar e enviar</urbi-botao>`}
+        <urbi-dropdown flutuante>
+          <urbi-botao slot="trigger" variante="texto" icone="fa-solid fa-ellipsis" ?desabilitado=${this.n!.s.ocupado}>Mais</urbi-botao>
+          <div slot="menu">
+            ${cp?.valor_c ? html`<urbi-dropdown-item icone="fa-solid fa-pen" @urbi:dropdown-select=${() => void this.n!.editar()}>Editar</urbi-dropdown-item>` : ''}
+            <urbi-dropdown-item icone="fa-solid fa-trash" perigo @urbi:dropdown-select=${() => void this.n!.descartar()}>Descartar</urbi-dropdown-item>
+          </div>
+        </urbi-dropdown>
       </urbi-linha>
     </urbi-card>`;
   }
@@ -529,15 +730,27 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
     if (!d) return falha ? estadoDaFalha(falha, () => void this.n!.carregar()) : estadoTela('carregando');
     const resumo = d.mandato as Linha | null;
     const encerrada = d.estado === 'ganha' || d.estado === 'perdida';
+    // Quem está na tela conduz? O corretor, como `corretor`; o negociador humano, como `humano` (D7).
+    const conduzo = d.conduzida_por === (soNegociador() ? 'humano' : 'corretor');
+    const principal: Acao = conduzo
+      ? { rotulo: 'Devolver ao Negociador', icone: 'fa-solid fa-robot', aoEscolher: () => void this.n!.conduzir('devolver') }
+      : { rotulo: 'Assumir', icone: 'fa-solid fa-hand', aoEscolher: () => void this.n!.conduzir('assumir') };
+    // Encerrar é só do corretor (spec 14), no menu "mais" do cabeçalho.
+    const mais: Acao[] = soNegociador()
+      ? []
+      : [
+          { rotulo: 'Encerrar como ganha', icone: 'fa-solid fa-trophy', aoEscolher: () => void this.n!.encerrar('ganha') },
+          { rotulo: 'Encerrar como perdida', icone: 'fa-solid fa-xmark', perigo: true, aoEscolher: () => void this.n!.encerrar('perdida') },
+        ];
+    // "Ana Ribeiro · Casa 4 quartos, Jardim Botânico" (P15) e, no celular (M8), "· rodada 4 de 4".
+    const titulo = [d.contato_nome ?? 'Cliente', d.imovel_titulo ?? d.imovel_codigo ?? d.codigo].filter(Boolean).join(' · ');
     return html`<urbi-stack>
       <urbi-linha justificar="entre" quebrar>
-        <urbi-prosa papel="titulo">${d.contato_nome} · ${d.imovel_titulo ?? d.imovel_codigo ?? ''}</urbi-prosa>
-        ${encerrada
-          ? ''
-          : // Quem está na tela conduz? O corretor, como `corretor`; o negociador humano, como `humano` (D7).
-            d.conduzida_por === (soNegociador() ? 'humano' : 'corretor')
-            ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-robot" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.conduzir('devolver')}>Devolver ao Negociador</urbi-botao>`
-            : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-hand" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.conduzir('assumir')}>Assumir</urbi-botao>`}
+        <urbi-stack>
+          <urbi-prosa papel="titulo">${titulo}</urbi-prosa>
+          <urbi-prosa papel="fraco">${d.codigo}${d.imovel_codigo ? ` · ${d.imovel_codigo}` : ''} · rodada ${d.rodadas ?? 0}${resumo?.rodadas_max ? ` de ${resumo.rodadas_max}` : ''}</urbi-prosa>
+        </urbi-stack>
+        ${encerrada ? '' : acoesComMais(principal, mais)}
       </urbi-linha>
       <urbi-linha quebrar>
         <urbi-badge cor=${COR_ESTADO[d.estado] ?? ''}>${ROTULO_ESTADO[d.estado] ?? d.estado}</urbi-badge>
@@ -549,6 +762,13 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
       </urbi-linha>
       ${this.faixa(d, m)}
       ${encerrada ? '' : this.sugestao(d)}
+      ${encerrada || d.estado === 'aguardando_proprietario'
+        ? ''
+        : html`<urbi-linha quebrar>
+            <urbi-botao variante="secundario" icone="fa-solid fa-reply" ?desabilitado=${this.n!.s.ocupado || !m}
+              title=${m ? nothing : 'Defina o mandato antes'} @click=${() => void this.n!.novaContraproposta()}>Nova contraproposta</urbi-botao>
+            ${m ? '' : html`<urbi-prosa papel="fraco">Sem mandato, nenhuma contraproposta sai: defina o mandato à direita.</urbi-prosa>`}
+          </urbi-linha>`}
       ${this.escada(d)}
       ${d.ultima_fala ? html`<urbi-card titulo="Última fala do cliente" icone="fa-solid fa-comment"><urbi-prosa pre>${d.ultima_fala.texto}</urbi-prosa><urbi-prosa papel="fraco">${dataHora(d.ultima_fala.em)}</urbi-prosa></urbi-card>` : ''}
     </urbi-stack>`;
@@ -697,10 +917,19 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
     return html`<urbi-card titulo="Próximo movimento" icone="fa-solid fa-forward">
       ${cp?.valor_c
         ? html`<urbi-prosa>Contraproposta de ${reais(cp.valor_c)}${cp.condicoes ? `, ${cp.condicoes}` : ''}${cp.concessao ? `, com ${cp.concessao} pedindo ${cp.contrapartida ?? 'contrapartida'}` : ''}.</urbi-prosa>
-            <urbi-botao pequeno ?desabilitado=${!!d.sugestao.bloqueado_por || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('portal')}>Usar sugestão</urbi-botao>`
-        : html`<urbi-prosa papel="dica">${d.estado === 'aguardando_proprietario' ? 'O acordo está com o proprietário.' : 'Peça uma sugestão ao Negociador no centro, ou registre a oferta do cliente.'}</urbi-prosa>`}
+            <urbi-botao ?desabilitado=${!!d.sugestao.bloqueado_por || this.n!.s.ocupado} @click=${() => void this.n!.aprovar('portal')}>Usar sugestão</urbi-botao>`
+        : d.estado === 'aguardando_proprietario'
+          ? soNegociador()
+            ? html`<urbi-prosa papel="dica">O acordo está com o proprietário; o corretor registra a decisão dele.</urbi-prosa>`
+            : html`<urbi-prosa>O acordo está com o proprietário. Registre a decisão dele:</urbi-prosa>
+                <urbi-linha quebrar>
+                  <urbi-botao icone="fa-solid fa-check" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.registrarDecisao('aceita')}>Aceita</urbi-botao>
+                  <urbi-botao variante="secundario" icone="fa-solid fa-xmark" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.registrarDecisao('recusa')}>Recusa</urbi-botao>
+                  <urbi-botao variante="secundario" icone="fa-solid fa-reply" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.registrarDecisao('contraproposta')}>Contraproposta do proprietário</urbi-botao>
+                </urbi-linha>`
+          : html`<urbi-prosa papel="dica">Peça uma sugestão ao Negociador no centro, ou registre a oferta do cliente.</urbi-prosa>`}
       ${podePassar
-        ? html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-handshake" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.passarAoProprietario()}>Passar ao proprietário</urbi-botao>
+        ? html`<urbi-botao variante="secundario" icone="fa-solid fa-handshake" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.passarAoProprietario()}>Passar ao proprietário</urbi-botao>
             <urbi-prosa papel="fraco">Aceitar a oferta de ${reais(oferta!.valor_c)} é sempre seu: o Negociador nunca fecha o acordo.</urbi-prosa>`
         : soNegociador() && oferta && !['aguardando_proprietario', 'ganha', 'perdida'].includes(d.estado)
           ? html`<urbi-prosa papel="fraco">Aceitar o acordo é do corretor: quando o comprador topar, avise o corretor.</urbi-prosa>`
@@ -717,10 +946,10 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       ${this.cartaoLeitura(d)}
       ${this.cartaoProximo(d)}
       ${this.editando
-        ? html`<pc-mandato-modal .negociacaoId=${d.id} .imovelId=${d.imovel_id} .atual=${m} .conduzidaPor=${d.conduzida_por}
+        ? html`<pc-mandato-modal .negociacaoId=${d.id} .imovelId=${d.imovel_id} .atual=${m} .conduzidaPor=${d.conduzida_por} .negociadorId=${Number(d.negociador_usuario_id) || 0}
             .aoFechar=${(salvou: boolean) => {
               this.editando = false;
-              if (salvou) void this.n!.carregar();
+              if (salvou) void this.n!.carregar().then(() => avisarQueMudou(d.id));
             }}></pc-mandato-modal>`
         : ''}
     </urbi-stack>`;
@@ -792,6 +1021,54 @@ async function novaPropostaNoGesto(g: Gesto, foco?: { id: number; nome: string }
     await urbiVerso.alertar({ titulo: 'Não foi possível registrar a proposta', mensagem: mensagemDeErro(e), tipo: 'erro' });
     return null;
   }
+}
+
+/**
+ * Proposta pela conversa (P02, D-127): o registro de proposta ligado ao negócio do contato, que CRIA ou
+ * ABRE a negociação. Com uma negociação em andamento do cliente, ela é a escolha; com negócios abertos de
+ * compra (com imóvel) sem negociação, cada um vira uma escolha que cria a negociação (`POST /negociacoes`,
+ * evento `negociacao_iniciada` e o aviso "Negociação aberta" na conversa). A oferta é opcional. Sem
+ * nenhuma das duas, cai na Nova proposta (escolha do imóvel pela busca). Devolve o id da negociação.
+ */
+export async function propostaDoContato(g: Gesto, contato: { id: number; nome: string }): Promise<number | null> {
+  const [neg, ficha] = await g.esperar(Promise.all([
+    chamarApi(`/negociacoes?contato_id=${contato.id}&estado=${FILTROS[0].estados}&por_pagina=50`),
+    chamarApi(`/contatos/${contato.id}`),
+  ]));
+  const abertas: Linha[] = neg?.dados ?? [];
+  const ocupados = new Set(abertas.map((n) => Number(n.negocio_id)));
+  const livres: Linha[] = ((ficha?.negocios ?? []) as Linha[]).filter((n) => n.etapa_tipo === 'aberta' && n.pipeline === 'compra' && n.imovel_id && !ocupados.has(Number(n.id)));
+  const escolhas = [
+    ...abertas.map((n) => ({ valor: `neg:${n.id}`, rotulo: `${n.codigo} · ${n.imovel_titulo ?? n.imovel_codigo ?? 'imóvel'} (em andamento)` })),
+    ...livres.map((n) => ({ valor: `negocio:${n.id}:${n.imovel_id}`, rotulo: `${n.titulo ?? 'Negócio'}${n.imovel_codigo ? ` · ${n.imovel_codigo}` : ''} (abrir negociação)` })),
+  ];
+  if (!escolhas.length) return novaProposta(contato);
+  const v = await g.esperar(urbiVerso.formulario({
+    titulo: `Proposta · ${contato.nome}`,
+    mensagem: 'Escolha o negócio. Sem negociação ainda, ela é aberta agora; a oferta é opcional (registre-a se o cliente já disse um valor).',
+    campos: [
+      { nome: 'escolha', tipo: 'selecao', rotulo: 'Negócio e imóvel', obrigatorio: true, valor: escolhas[0].valor, opcoes: escolhas },
+      { nome: 'valor', tipo: 'texto', rotulo: 'Oferta do cliente (R$, opcional)', placeholder: '1.320.000' },
+      { nome: 'condicoes', tipo: 'texto', rotulo: 'Condições (opcional)' },
+    ],
+    rotuloConfirmar: 'Abrir a negociação',
+  }));
+  if (!v) return null;
+  const digitado = String(v.valor ?? '').trim();
+  const valor_c = digitado ? centavosDigitados(digitado) : null;
+  if (digitado && !valor_c) {
+    await urbiVerso.alertar({ titulo: 'Valor inválido', mensagem: 'Digite o valor em reais, por exemplo 1.320.000.', tipo: 'alerta' });
+    return null;
+  }
+  const [tipo, a, b] = String(v.escolha).split(':');
+  let nid = Number(a);
+  if (tipo === 'negocio') {
+    const criada = await g.esperar(enviar('POST', '/negociacoes', { negocio_id: Number(a), imovel_id: Number(b) }));
+    nid = Number(criada.id);
+    urbiVerso.notificar(`Negociação ${criada.codigo} aberta.`, 'sucesso');
+  }
+  if (valor_c) await g.esperar(enviar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c, condicoes: v.condicoes ? String(v.condicoes) : null }));
+  return nid;
 }
 
 /**

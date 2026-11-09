@@ -2,7 +2,7 @@ import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { CANAIS_ABORDAGEM, iso, ordenarFila, taxasDePassagem, TEMPERATURAS, ultimoSinal, type TipoFila } from '../comum/funil';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { etapasDaConta, registrar } from './crm';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
 import { limiteParado } from '../comum/crm';
@@ -22,10 +22,6 @@ guardarCorretor(funilRotas, ['/funil', '/inicio', '/abordagens']);
 
 type Linha = Record<string, any>;
 const DIA = 86400e3;
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const agora = () => new Date().toISOString();
 const ROTULO_CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 

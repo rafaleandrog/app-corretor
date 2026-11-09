@@ -506,6 +506,29 @@ test('decisão: aprovar grava a contraproposta; editar revalida (nem o corretor 
   criterioDoDono(banco);
 });
 
+test('decisão sem validade_horas: o texto ao cliente cita a validade padrão do mandato e a proposta grava a mesma', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const ev = eventosFalsos();
+  const b = await base(banco, 100);
+  const sugestao = resposta({ movimento: 'contraproposta', contraproposta: { valor_c: 146_000_000, condicoes: null, concessao: null, contrapartida: null, validade_horas: null }, mensagem: 'rascunho' });
+  const ia = iaSimulada([sugestao]);
+  const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { eventos: ev, ia } };
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const nid = await negociacaoPronta(chamar, b, { ...MANDATO, validade_contraproposta_horas: 48 });
+    await chamar('POST', `/negociacoes/${nid}/propostas`, { direcao: 'comprador', valor_c: 140_000_000 });
+    const s1 = (await chamar('POST', `/negociacoes/${nid}/sugestao`, { mensagem_cliente: 'Faço 1,4 mi.' })).corpo;
+    assert.equal(s1.passagem, false, JSON.stringify(s1));
+    const antes = Date.now();
+    const r = await chamar('POST', `/negociacoes/${nid}/decisao`, { acao: 'aprovar', execucao_id: s1.execucao_id, canal: 'wa_me' });
+    assert.equal(r.status, 200, JSON.stringify(r.corpo));
+    assert.match(r.corpo.texto, /vale por 48 horas/, 'o texto ao cliente informa o prazo');
+    const ate = new Date(r.corpo.proposta.validade_ate).getTime();
+    assert.ok(Math.abs(ate - (antes + 48 * 3600e3)) < 60_000, 'a proposta grava os mesmos 48 h');
+    const exec = banco.linhas('negociador_execucoes').find((e) => e.id === s1.execucao_id)!;
+    assert.match(String(exec.mensagem_enviada), /vale por 48 horas/);
+  });
+});
+
 test('aceite do acordo: só o corretor; quem não é corretor recebe 403', async () => {
   const banco = new BancoFalso(UNICOS);
   const ev = eventosFalsos();

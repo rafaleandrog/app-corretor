@@ -358,3 +358,15 @@ test('equipe da plataforma não alcança imóveis', async () => {
     assert.equal((await chamar('POST', '/visitas/1/feedback', { nota: 3 })).status, 403);
   });
 });
+
+import { rascunhoSemTipo as rascunhoSemTipoDoConserto } from '../comum/imoveis';
+import { obrigatoriosVazios as obrigatoriosVaziosDoConserto } from '../comum/imoveis';
+
+test('Rascunho das fotos com cidade preenchida e tipo de reserva continua sem tipo escolhido e o "Tipo" segue obrigatório', () => {
+  const rascunho = { situacao: 'rascunho', tipo: 'outro', cidade: 'Brasília' };
+  assert.equal(rascunhoSemTipoDoConserto(rascunho), true);
+  // A tela zera o tipo nesse caso (doImovel): o obrigatório do passo Dados aponta o Tipo e a cidade preenchida não o esconde.
+  assert.deepEqual(obrigatoriosVaziosDoConserto({ tipo: '', cidade: 'Brasília' }), ['Tipo']);
+  assert.equal(rascunhoSemTipoDoConserto({ situacao: 'ativo', tipo: 'outro', cidade: '' }), false);
+  assert.equal(rascunhoSemTipoDoConserto({ situacao: 'rascunho', tipo: 'casa', cidade: '' }), false);
+});

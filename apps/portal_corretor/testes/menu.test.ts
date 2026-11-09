@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { MENU, MENU_NEGOCIADOR, resolverEndereco, type ChaveTela } from '../frontend/enderecos';
+import { destinoDoNegociador, MENU, MENU_NEGOCIADOR, resolverEndereco, type ChaveTela } from '../frontend/enderecos';
 import { irPara } from '../frontend/atalhos';
 
 // Menu do app pelo shell (D-114, que revê D-113 e o #166): o `nav` do manifesto traz as telas do
@@ -60,7 +60,14 @@ test('menu do app (nav, D-114): as oito telas do corretor na ordem de 11.0.1 e E
   assert.deepEqual(rotasDoNav(manifesto.nav), [...OITO.map(([, r]) => r), '/corretores']);
   // O `MENU` da app (busca, Criar, celular) é o mesmo do `nav`; o negociador humano vê só Hoje e Negociações.
   assert.deepEqual(MENU.map((m) => [m.titulo, m.rota]), OITO.map(([t, r]) => [t, r]));
-  assert.deepEqual(MENU_NEGOCIADOR.map((m) => m.rota), ['/', '/negociacoes']);
+  assert.deepEqual(MENU_NEGOCIADOR.map((m) => m.rota), ['/negociacoes']);
+  // D-125: qualquer outra rota leva às Negociações; a notificação leva à mesma negociação.
+  assert.equal(destinoDoNegociador('/negociacoes', '?item=3'), null);
+  assert.equal(destinoDoNegociador('/', ''), '/negociacoes');
+  assert.equal(destinoDoNegociador('/imoveis', '?item=9'), '/negociacoes');
+  assert.equal(destinoDoNegociador('/clientes', '?visao=negociacoes&item=47'), '/negociacoes?item=47');
+  assert.equal(destinoDoNegociador('/clientes', '?item=47'), '/negociacoes');
+  assert.equal(destinoDoNegociador('/assistente', ''), '/negociacoes');
   // Nenhum item do nav aponta para uma tela que não existe.
   for (const rota of rotasDoNav(manifesto.nav)) assert.ok(resolverEndereco(rota).chave, `${rota} abre uma tela`);
 });

@@ -1,11 +1,12 @@
 import '@urbiverso/sdk/express';
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
-import { assincrono, erro, guardarCorretor } from './acesso';
+import { assincrono, erro, guardarCorretor, id } from './acesso';
 import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
 import { criarLink } from './vitrine';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
+import { imovelAnunciavel } from './imoveis';
 
 // Envios (bloco 4b, spec 6.15): o histórico de tudo que o corretor mandou a cada cliente. Nesta
 // versão o envio é registrado pelo corretor (ele manda pelo próprio WhatsApp). Com a página no ar e
@@ -15,10 +16,6 @@ guardarCorretor(enviosRotas, ['/envios']);
 
 const TIPOS = ['imovel', 'arquivo', 'mensagem', 'localizacao', 'simulacao'] as const;
 const CANAIS = ['whatsapp', 'email', 'presencial'] as const;
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const reais = (c: number | null | undefined) => (c ? (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'preço sob consulta');
 
 enviosRotas.post(
@@ -35,6 +32,11 @@ enviosRotas.post(
     const imovel = iid ? await dados.buscar('imoveis', iid) : null;
     if (tipo === 'imovel' && !imovel) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o imóvel enviado.');
     if (iid && !imovel) return erro(res, 422, 'DADOS_INVALIDOS', 'Imóvel não encontrado.');
+    // O cartão do imóvel que o app monta para o WhatsApp (tipo imóvel + canal whatsapp) só leva o que é anunciável
+    // (ativo ou reservado, com autorização vigente). Registro de algo já enviado fora do app (e-mail, presencial,
+    // arquivo, simulação) não é barrado: o fato aconteceu e Números não pode perdê-lo.
+  // Só o cartão: localização e mensagem com imovel_id não passam por esta guarda (decisão aberta no plano).
+    if (imovel && tipo === 'imovel' && canal === 'whatsapp' && !(await imovelAnunciavel(req, imovel))) return erro(res, 422, 'IMOVEL_NAO_ANUNCIAVEL', 'Este imóvel não pode ser enviado: precisa estar ativo ou reservado, com autorização de venda assinada e vigente.');
     const nid = id(req.body?.negocio_id);
     const negocio = nid ? await dados.buscar('negocios', nid) : null;
     if (nid && (!negocio || negocio.contato_id !== cid)) return erro(res, 422, 'DADOS_INVALIDOS', 'Negócio não encontrado para este cliente.');

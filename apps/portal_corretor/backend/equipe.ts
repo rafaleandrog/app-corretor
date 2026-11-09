@@ -2,7 +2,7 @@ import '@urbiverso/sdk/express';
 import { Router } from 'express';
 import type { StatusConviteApp } from '@urbiverso/sdk';
 import { emailValido } from '../comum/conta';
-import { assincrono, erro, exigirPapel } from './acesso';
+import { assincrono, erro, exigirPapel, id } from './acesso';
 
 // Equipe da plataforma › Corretores. A equipe (`operacao`) convida cada corretor para uma conta
 // nova — um corretor, uma conta (spec 4.4). O shell cria usuário e conta só quando o convite é
@@ -62,8 +62,8 @@ equipeRotas.post(
 equipeRotas.post(
   '/convites/:id/revogar',
   assincrono(async (req, res) => {
-    const conviteId = Number(req.params.id);
-    if (!Number.isInteger(conviteId) || conviteId <= 0) return erro(res, 404, 'NAO_ENCONTRADO', 'Convite não encontrado.');
+    const conviteId = id(req.params.id);
+    if (!conviteId) return erro(res, 404, 'NAO_ENCONTRADO', 'Convite não encontrado.');
     await req.shell!.externos.revogarConvite({ conviteId });
     res.json({ id: conviteId, status: 'revogado' });
   }),

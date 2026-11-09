@@ -185,6 +185,8 @@ export class Estudio {
   private escolhaConferida = false;
   /** "Novo post" do menu Criar (`?criar=post` ao nascer): abre o formulário depois da primeira carga. */
   private criarPost = false;
+  /** "Criar conteúdo" da ficha do imóvel (`?criar=post&imovel=<id>`): o imóvel já vem escolhido no pedido. */
+  private imovelDoPedido: number | null = null;
   private trabalhando: string | null = null;
   /** Peça com arte que abriu o "Trocar a arte" (a peça sem arte já mostra o envio). */
   private trocando: number | null = null;
@@ -215,7 +217,12 @@ export class Estudio {
     this.conta = contaDeTrabalho();
     Estudio.aoNascer?.(this);
     if (this.conta === null) return;
+    const imovel = Number(filtrosDaUrl().get('imovel')) || null;
     this.criarPost = pedidoDeCriar('post');
+    if (this.criarPost && imovel) {
+      this.imovelDoPedido = imovel;
+      filtrosNaUrl(filtrosDaUrl(), {}, ['imovel']);
+    }
     // Fora do desenho em curso: a carga pede redesenho, e a diretiva está no meio de um.
     queueMicrotask(() => this.solto(this.carregar()));
   }
@@ -360,7 +367,15 @@ export class Estudio {
     }
     const campos: CampoFormulario[] = [
       { nome: 'pedido', tipo: 'texto_longo', rotulo: 'O que você quer?', valor: falado, placeholder: 'Ex.: post de lançamento desta casa e um story, tom sofisticado.' },
-      { nome: 'imovel_id', tipo: 'selecao', rotulo: 'Imóvel', pesquisavel: true, valor: '', opcoes: [{ valor: '', rotulo: 'Sem imóvel (peça institucional)' }, ...imoveis.map(opcaoImovel)] },
+      {
+        nome: 'imovel_id',
+        tipo: 'selecao',
+        rotulo: 'Imóvel',
+        pesquisavel: true,
+        // Vindo da ficha (Criar conteúdo), o imóvel já escolhido, se for desta conta e anunciável.
+        valor: this.imovelDoPedido && imoveis.some((i) => Number(i.id) === this.imovelDoPedido) ? String(this.imovelDoPedido) : '',
+        opcoes: [{ valor: '', rotulo: 'Sem imóvel (peça institucional)' }, ...imoveis.map(opcaoImovel)],
+      },
       { nome: 'objetivo', tipo: 'selecao', rotulo: 'Objetivo', valor: 'novo_imovel', opcoes: OBJETIVOS.map((o) => ({ valor: o, rotulo: ROTULO_OBJETIVO[o] })) },
       ...FORMATOS.map((f): CampoFormulario => ({ nome: `f_${f}`, tipo: 'booleano', rotulo: ROTULO_FORMATO[f], valor: f === 'post_1x1' })),
     ];

@@ -91,6 +91,9 @@ test('GET /atividades: nome do contato e código do imóvel da visita; ?contato_
     const ana = (await chamar('POST', '/contatos', { nome: 'Ana Ribeiro', telefone: '61911110001' })).corpo;
     const bia = (await chamar('POST', '/contatos', { nome: 'Bia', telefone: '61911110002' })).corpo;
     const im = (await chamar('POST', '/imoveis', { tipo: 'casa', titulo: 'Casa do Lago', bairro: 'Lago Sul', cidade: 'Brasília' })).corpo;
+    // Anunciável (envio só aceita imóvel ativo com autorização vigente).
+    banco.linhas('imoveis').find((i) => i.id === im.id)!.situacao = 'ativo';
+    await banco.dados(100).criar('autorizacoes_venda', { imovel_id: im.id, situacao: 'assinada', inicio: '2020-01-01', fim: '2099-12-31', documento_midia_id: 1 });
     await chamar('POST', '/atividades', { tipo: 'visita', titulo: 'Visita', quando: '2026-12-01T13:00:00Z', contato_id: ana.id, imovel_id: im.id });
     await chamar('POST', '/atividades', { tipo: 'ligacao', titulo: 'Ligar', quando: '2026-12-02T13:00:00Z', contato_id: bia.id });
     const todas = (await chamar('GET', '/atividades?status=pendente')).corpo;
@@ -139,6 +142,9 @@ test('GET /funil/quadro: o último sinal de cada cartão vem da linha do tempo o
     assert.equal(q.negocios[0].ultimo_sinal?.texto, 'Pediu fotos da casa');
     // Um clique mais recente no envio vence a nota.
     const im = (await chamar('POST', '/imoveis', { tipo: 'casa', titulo: 'Casa do Lago', bairro: 'Lago Sul', cidade: 'Brasília' })).corpo;
+    // Anunciável (envio só aceita imóvel ativo com autorização vigente).
+    banco.linhas('imoveis').find((i) => i.id === im.id)!.situacao = 'ativo';
+    await banco.dados(100).criar('autorizacoes_venda', { imovel_id: im.id, situacao: 'assinada', inicio: '2020-01-01', fim: '2099-12-31', documento_midia_id: 1 });
     const e = (await chamar('POST', '/envios', { contato_id: ana.id, tipo: 'imovel', imovel_id: im.id, canal: 'whatsapp' })).corpo;
     const envio = banco.linhas('envios').find((x) => x.id === (e.envio?.id ?? e.id))!;
     Object.assign(envio, { cliques: 2, primeiro_clique_em: new Date(Date.now() + 1000).toISOString(), imovel_titulo: 'Casa do Lago' });

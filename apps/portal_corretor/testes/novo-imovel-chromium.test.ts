@@ -48,8 +48,9 @@ window.urbiVerso = {
     if (caminho === '/imoveis/ia') return { fotos: true, conteudo: false };
     if (caminho.startsWith('/dados/portal_corretor/imovel_midias/__upload')) return { upload_id: 500 + chamadas.length };
     if (caminho === '/imoveis' && metodo === 'POST') {
-      if (!corpo.tipo || !corpo.cidade) throw Object.assign(new Error('Confira o imóvel.'), { status: 422 });
-      banco.imovel = { id: 7, codigo: 'IM-0007', situacao: 'rascunho', publicado_pagina: false, ...corpo };
+      // Como a rota: sem tipo e cidade, só o rascunho vazio (P07: fotos primeiro), que nasce "outro".
+      if (!corpo.rascunho && (!corpo.tipo || !corpo.cidade)) throw Object.assign(new Error('Confira o imóvel.'), { status: 422 });
+      banco.imovel = { id: 7, codigo: 'IM-0007', situacao: 'rascunho', publicado_pagina: false, ...corpo, tipo: corpo.tipo || 'outro' };
       return banco.imovel;
     }
     const m = caminho.match(/^\\/imoveis\\/(\\d+)(\\/.*)?$/);
@@ -160,7 +161,7 @@ async function montar(pw: any) {
   return { navegador, pagina };
 }
 
-test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas características, obrigatório destacado e retomada', async (t) => {
+test('Novo imóvel no Chromium: 4 passos, fotos primeiro, rascunho na primeira foto, IA nas características, obrigatório só depois de mexer, valores no formato brasileiro', async (t) => {
   const pw = playwright();
   if (!pw) return t.skip('Playwright não instalado neste ambiente');
   const { navegador, pagina } = await montar(pw);
@@ -169,7 +170,7 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
   try {
     await pagina.goto(`${ORIGEM}/portal_corretor/imoveis/novo`);
     await espera();
-    // Passo 1: "Passo 1 de 4", o botão grande de fotos travado até tipo e cidade; passos à esquerda; qualidade à direita.
+    // Passo 1: "Passo 1 de 4", o botão grande de fotos no topo e livre (P07 e M3: fotos primeiro); passos à esquerda; qualidade à direita.
     const inicio = await pagina.evaluate(() => {
       const w = window as any;
       return {
@@ -186,7 +187,8 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     assert.match(inicio.esquerda, /Fotos .*Dados .*Autorização .*Onde aparece/);
     assert.match(inicio.esquerda, /Nenhum passo pede CRECI/);
     assert.match(inicio.direita, /Qualidade agora · 0/);
-    assert.equal(inicio.travado, true, 'sem tipo e cidade, as fotos não têm onde ficar');
+    assert.equal(inicio.travado, false, 'as fotos vêm primeiro, sem pedir tipo e cidade');
+    assert.doesNotMatch(inicio.centro, /Obrigatório/, 'a tela não abre em vermelho (#182, item 4)');
     assert.equal(inicio.estilos, 0, 'sem CSS próprio');
 
     // Estrutura (moldura.ts, D-114): urbi-3-colunas > 3 urbi-hospedeiro[expandir] nos slots
@@ -219,13 +221,7 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     assert.equal(estrutura.dentro, true, 'as três colunas começam dentro do viewport');
     assert.deepEqual(await ev(`rodape()`), ['Voltar [desabilitado]', 'Salvar rascunho', 'Próximo: dados'], 'passo 1: sem volta');
 
-    // Tipo e cidade liberam as fotos; a primeira foto cria o rascunho, a IA lê e sugere a capa.
-    await ev(`(() => {
-      disparar(todos('urbi-select')[0], 'urbi:select-change', { valor: 'casa' });
-      disparar(todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade'), 'urbi:input-change', { valor: 'Brasília' });
-    })()`);
-    await espera();
-    assert.equal(await ev(`todos('urbi-seletor-arquivo')[0].hasAttribute('desabilitado')`), false);
+    // A primeira foto cria o rascunho vazio (sem tipo nem cidade), a IA lê e sugere a capa.
     await ev(`disparar(todos('urbi-seletor-arquivo')[0], 'urbi:seletor-arquivo-change', {
       arquivos: [new File(['a'], 'varanda.jpg', { type: 'image/jpeg' }), new File(['b'], 'fachada.jpg', { type: 'image/jpeg' })] })`);
     await pagina.waitForTimeout(200);
@@ -238,8 +234,11 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     assert.match(fotos.centro, /Capa sugerida Fachada/, 'a fachada vira a capa sugerida');
     assert.match(fotos.direita, /Li 2 foto\(s\)/);
     assert.match(fotos.direita, /varanda/);
-    assert.match(fotos.direita, /2 cliente\(s\) da sua carteira combinam/);
+    assert.match(fotos.direita, /avisar 2 cliente\(s\) que combinam/);
+    assert.match(fotos.direita, /Depois de salvar posso:/);
+    assert.match(fotos.centro, /A IA já entendeu/);
     assert.equal(fotos.url, '?item=7&passo=fotos');
+    assert.equal(await ev(`window.banco.imovel.rascunho`), true, 'rascunho vazio: tipo e cidade vêm no passo 2');
 
     // Passo 2: as características vêm da leitura das fotos, com o rótulo; cidade apagada fica destacada e não avança.
     await ev(`botao('Próximo').click()`);
@@ -253,14 +252,17 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     assert.equal(dados.valor, 'varanda');
     assert.equal(dados.url, '?item=7&passo=dados');
     assert.deepEqual(await ev(`rodape()`), ['Voltar', 'Salvar rascunho', 'Próximo: autorização'], 'passo 2: Voltar habilitado');
-    await ev(`disparar(todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade'), 'urbi:input-change', { valor: '' })`);
-    await espera();
-    assert.equal(await ev(`todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade').getAttribute('erro')`), 'Obrigatório');
+    // Ninguém mexeu ainda: tipo e cidade vazios, sem vermelho; ao tentar avançar, o destaque aparece e não avança.
+    assert.equal(await ev(`todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade').getAttribute('erro')`), '');
     await ev(`botao('Próximo').click()`);
     await espera();
     assert.match(await ev(`coluna('pc-novo-imovel-passo')`), /Dados Passo 2 de 4/, 'obrigatório vazio não avança');
-    // Preenchido, avança e salva os dados (PATCH) ao sair do passo.
+    assert.equal(await ev(`todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade').getAttribute('erro')`), 'Obrigatório');
+    // Preenchido, avança e salva os dados (PATCH) ao sair do passo. Preço e área em texto, no formato brasileiro (#185).
+    await ev(`disparar(todos('urbi-select')[0], 'urbi:select-change', { valor: 'casa' })`);
     await ev(`disparar(todos('urbi-input').find((i) => i.getAttribute('label') === 'Cidade'), 'urbi:input-change', { valor: 'Brasília' })`);
+    await ev(`disparar(todos('urbi-input').find((i) => i.getAttribute('label') === 'Preço (R$)'), 'urbi:input-change', { valor: '1.450.000' })`);
+    await ev(`disparar(todos('urbi-input').find((i) => i.getAttribute('label') === 'Área útil (m²)'), 'urbi:input-change', { valor: '120,5' })`);
     await ev(`disparar(todos('urbi-input-numero').find((i) => i.getAttribute('label') === 'Quartos'), 'urbi:input-numero-change', { valor: 4 })`);
     await espera();
     await ev(`botao('Próximo').click()`);
@@ -275,6 +277,9 @@ test('Novo imóvel no Chromium: 4 passos, rascunho na primeira foto, IA nas cara
     assert.equal(autorizacao.patch, true);
     assert.equal(autorizacao.banco.quartos, 4);
     assert.equal(autorizacao.banco.caracteristicas, 'varanda');
+    assert.equal(autorizacao.banco.tipo, 'casa');
+    assert.equal(autorizacao.banco.preco, '1.450.000', 'o texto vai como digitado; o backend lê (validarImovel)');
+    assert.equal(autorizacao.banco.area_util_m2, '120,5');
 
     // Passo 4: sem autorização, "Público" não fica escolhido; Concluir com "Só você" vai à ficha.
     await ev(`botao('Próximo').click()`);

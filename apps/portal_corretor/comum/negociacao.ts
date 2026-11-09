@@ -1,7 +1,7 @@
 // Negociação (spec 6.16, 10.9): vocabulário, validação do mandato, sigilo e o playbook padrão de
 // objeções (Apêndice D). Sem dependência de backend: o motor do Negociador (D2) e as telas (D3, D4)
 // usam as mesmas regras.
-import { reaisParaCentavos } from './crm';
+import { centavosValidos, reaisParaCentavos } from './crm';
 
 export const ESTADOS_NEGOCIACAO = ['ativa', 'aguardando_cliente', 'aguardando_corretor', 'aguardando_proprietario', 'ganha', 'perdida', 'pausada'] as const;
 export type EstadoNegociacao = (typeof ESTADOS_NEGOCIACAO)[number];
@@ -97,6 +97,8 @@ export interface MandatoValido {
   passo_max_pct: number;
   rodadas_max: number;
   validade: string;
+  /** Validade padrão de cada contraproposta, em horas (P16 bloco 3); null = sem prazo. */
+  validade_contraproposta_horas: number | null;
   autonomia: (typeof AUTONOMIAS)[number];
   autorizacao_proprietario: AutorizacaoProprietario | null;
 }
@@ -111,7 +113,7 @@ export interface RecusaMandato {
   detalhes?: string[];
 }
 
-const centavos = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null);
+const centavos = (v: unknown) => (centavosValidos(v) ? v : null);
 const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
 // `Date.parse` aceita dia que não existe ('2026-02-31' vira 3 de março): a data só vale se voltar igual.
 const dataValida = (v: unknown): v is string => {
@@ -139,6 +141,11 @@ export function validarMandato(corpo: Record<string, unknown>): { ok: true; dado
   const rodadas_max = corpo.rodadas_max === undefined || corpo.rodadas_max === null ? RODADAS_MAX_PADRAO : Number(corpo.rodadas_max);
   if (!Number.isInteger(rodadas_max) || rodadas_max < 1 || rodadas_max > 50) erros.push('rodadas_max: use um número inteiro de 1 a 50.');
   if (!dataValida(corpo.validade)) erros.push('validade: informe a data no formato AAAA-MM-DD.');
+  const vch = corpo.validade_contraproposta_horas;
+  const validade_contraproposta_horas = vch === undefined || vch === null || vch === '' ? null : Number(vch);
+  if (validade_contraproposta_horas !== null && !(Number.isInteger(validade_contraproposta_horas) && validade_contraproposta_horas >= 1 && validade_contraproposta_horas <= 720)) {
+    erros.push('validade_contraproposta_horas: use horas inteiras, de 1 a 720 (30 dias).');
+  }
   const autonomia = corpo.autonomia === undefined ? 'pergunta_antes' : corpo.autonomia;
   if (!(AUTONOMIAS as readonly unknown[]).includes(autonomia)) erros.push('autonomia: use sugere, pergunta_antes ou faz_sozinho.');
   if (corpo.batna_vendedor !== undefined && corpo.batna_vendedor !== null && typeof corpo.batna_vendedor !== 'string') erros.push('batna_vendedor: use texto.');
@@ -194,6 +201,7 @@ export function validarMandato(corpo: Record<string, unknown>): { ok: true; dado
       passo_max_pct,
       rodadas_max,
       validade: corpo.validade as string,
+      validade_contraproposta_horas,
       autonomia: autonomia as MandatoValido['autonomia'],
       autorizacao_proprietario,
     },
@@ -331,6 +339,8 @@ export interface FormularioMandato {
   passo_pct: string;
   rodadas: string;
   validade: string;
+  /** Validade padrão de cada contraproposta, em horas (P16 bloco 3); vazio = sem prazo. */
+  validade_cp?: string;
   autonomia: string;
   autorizacao: AutorizacaoProprietario | null;
 }
@@ -356,6 +366,7 @@ export function corpoDoFormularioMandato(f: FormularioMandato): Record<string, u
     passo_max_pct: Number.isFinite(passo) ? passo / 100 : NaN,
     rodadas_max: Number(f.rodadas),
     validade: f.validade,
+    validade_contraproposta_horas: String(f.validade_cp ?? '').trim() ? Number(String(f.validade_cp).trim()) : null,
     autonomia: f.autonomia,
     autorizacao_proprietario: f.autorizacao,
   };

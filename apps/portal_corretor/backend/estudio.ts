@@ -23,7 +23,7 @@ import {
   type TextosPeca,
 } from '../comum/estudio';
 import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { uploadRecusado } from './imoveis';
 import { contaDoRequest, ressincronizarMarca } from './vitrine';
 import { publicarEvento } from './eventos';
@@ -36,10 +36,6 @@ export const estudioRotas: Router = Router();
 guardarCorretor(estudioRotas, ['/estudio']);
 
 const TTL = 3600;
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const texto = (v: unknown, limite: number) => (typeof v === 'string' ? v.trim().slice(0, limite) : '');
 const hoje = (req: Request) => new Date().toLocaleDateString('sv-SE', { timeZone: req.contexto?.fuso || 'America/Sao_Paulo' });
 

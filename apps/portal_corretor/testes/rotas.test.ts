@@ -35,7 +35,7 @@ test('manifesto e backend andam juntos: rotas públicas, webhooks, eventos e pá
   // Os eventos da negociação (D1, D2 e D5) só notificam: nenhum listener do app reage a eles.
   const soNotificam = [
     'negociacao_iniciada', 'proposta_recebida', 'proposta_aceite_cliente', 'proposta_registrada', 'mandato_alterado', 'negociacao_encerrada', 'negociacao_limite_atingido',
-    'objecao_detectada', 'contraproposta_sugerida', 'contraproposta_enviada', 'negociacao_acordo_proposto', 'negociacao_assumida', 'negociacao_devolvida',
+    'objecao_detectada', 'contraproposta_sugerida', 'contraproposta_enviada', 'contraproposta_abaixo_do_recuo', 'proposta_decidida', 'negociacao_acordo_proposto', 'negociacao_assumida', 'negociacao_devolvida',
     // Conversas (P02, D-116, D-118): avisam; nenhum listener até o Mensageiro.
     'mensagem_recebida', 'mensagem_enviada', 'envio_criado', 'conversa_assumida', 'conversa_devolvida',
     // Bloco de eventos (13.1, D-118, etapa 4): avisos e trilha; os gatilhos de agente assinam, não há listener na app.

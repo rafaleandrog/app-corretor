@@ -1,6 +1,6 @@
 import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { registrar } from './crm';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
 import { publicarEvento } from './eventos';
@@ -15,10 +15,6 @@ export const clienteRotas: Router = Router();
 guardarCorretor(clienteRotas, ['/selecoes', '/contatos', '/tarefas-cliente']);
 
 const MAX_ITENS = 12;
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const eu = (req: Request) => req.contexto!.usuario.id;
 const hoje = (req: Request) => new Date().toLocaleDateString('sv-SE', { timeZone: req.contexto?.fuso || 'America/Sao_Paulo' });
 const texto = (v: unknown, limite: number) => (typeof v === 'string' ? v.trim().slice(0, limite) || null : null);

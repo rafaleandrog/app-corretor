@@ -100,7 +100,7 @@ ficha abre na **Linha do tempo**; a aba aberta fica no endereço (`?secao=`) e v
     cliente.
   - **Cadastro:** origem e campanha, data de cadastro, observações e o **consentimento** numa linha
     (registrado em … · revogar, ou registrar). O lápis edita o contato.
-- **Linha do tempo:** **Registrar contato** (nota livre) e **Registrar envio** no topo; abaixo, tudo o
+- **Linha do tempo:** **Registrar contato** (nota livre) e **Registrar envio** no topo (por e-mail ou pessoalmente, o registro não exige imóvel anunciável; só o cartão pelo WhatsApp exige); abaixo, tudo o
   que aconteceu com o contato, com autor e hora.
 - **Enviados:** imóveis, arquivos e mensagens registrados, com os cliques no link; o **+** registra um
   envio (ver [Enviados ao cliente](desempenho.md#enviados-ao-cliente)).

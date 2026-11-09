@@ -198,6 +198,15 @@ export interface Acao {
   aoEscolher?: () => void;
 }
 
+/**
+ * Escolha num menu (Criar, "mais"): fecha o menu antes de agir (#182, item 3). O formulário ou a tela
+ * nova abrem com o menu já fechado, em vez de ficar por cima deles (`aberto` é a prop do `urbi-dropdown`).
+ */
+export function fecharMenu(ev: Event) {
+  const menu = (ev.target as HTMLElement | null)?.closest?.('urbi-dropdown') as (HTMLElement & { aberto?: boolean }) | null;
+  if (menu) menu.aberto = false;
+}
+
 export function acoesComMais(principal: Acao, secundarias: Acao[]): TemplateResult {
   const botao = principal.sub
     ? html`<urbi-botao icone=${principal.icone ?? nothing} href=${urbiVerso.href(principal.sub)}>${principal.rotulo}</urbi-botao>`
@@ -210,7 +219,7 @@ export function acoesComMais(principal: Acao, secundarias: Acao[]): TemplateResu
           <div slot="menu">
             ${secundarias.map(
               (a) => html`<urbi-dropdown-item icone=${a.icone ?? nothing} ?perigo=${!!a.perigo}
-                @urbi:dropdown-select=${() => (a.sub ? urbiVerso.navegarSub(a.sub) : a.aoEscolher?.())}>${a.rotulo}</urbi-dropdown-item>`,
+                @urbi:dropdown-select=${(ev: Event) => (fecharMenu(ev), a.sub ? urbiVerso.navegarSub(a.sub) : a.aoEscolher?.())}>${a.rotulo}</urbi-dropdown-item>`,
             )}
           </div>
         </urbi-dropdown>`

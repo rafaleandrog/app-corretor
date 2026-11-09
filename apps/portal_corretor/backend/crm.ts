@@ -15,7 +15,7 @@ import {
   type Pipeline,
 } from '../comum/crm';
 import { gerarCsv } from '../comum/csv';
-import { assincrono, erro, guardarCorretor, MENSAGEM_VARIAS_CONTAS, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, id, MENSAGEM_VARIAS_CONTAS, primeiro } from './acesso';
 import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
 import { encerrarAcessosDoCliente, tentarPortal } from './portal';
 import { iso, MARCO_PADRAO } from '../comum/funil';
@@ -48,10 +48,6 @@ const LIMITE_IMPORTACAO = 2000;
 const LIMITE_PREVIA = 50;
 const eu = (req: Request) => req.contexto!.usuario.id;
 import { publicarEvento } from './eventos';
-const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 const agora = () => new Date().toISOString();
 const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
 

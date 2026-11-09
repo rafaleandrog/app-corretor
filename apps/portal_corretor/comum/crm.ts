@@ -245,6 +245,15 @@ export function validarAtividade(corpo: Record<string, unknown>, parcial = false
   return { ok: true, dados: d };
 }
 
+/**
+ * Maior valor em centavos que as colunas de dinheiro guardam (`inteiro` vira `INTEGER` no banco):
+ * R$ 21.474.836,47. Acima disso a validação recusa (422), em vez de o banco estourar em 500 (#39).
+ */
+export const CENTAVOS_MAXIMO = 2_147_483_647;
+
+/** Centavos inteiros positivos que cabem na coluna. */
+export const centavosValidos = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0 && v <= CENTAVOS_MAXIMO;
+
 /** Dinheiro chega em reais (número ou "1.234,56") e sai em centavos inteiros (spec: sempre centavos). */
 export function reaisParaCentavos(v: unknown): number | null | undefined {
   if (v === undefined) return undefined;
@@ -254,7 +263,8 @@ export function reaisParaCentavos(v: unknown): number | null | undefined {
     typeof v === 'number'
       ? v
       : Number(String(v).replace(/[R$\s]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.'));
-  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN;
+  const c = Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : NaN;
+  return c <= CENTAVOS_MAXIMO ? c : NaN;
 }
 
 /**

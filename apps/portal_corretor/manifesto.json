@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.48",
+  "versao": "0.1.49",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -43,7 +43,7 @@
   "roles_externos": {
     "escrita": {
       "corretor": "Corretor: usa o app inteiro na própria conta",
-      "negociador": "Negociador: conduz as negociações atribuídas pelo corretor, dentro do mandato (sem ver recuo, alvo nem BATNA e sem aceitar o acordo final)"
+      "negociador": "Negociador: conduz as negociações atribuídas pelo corretor, dentro do mandato; vê o mandato completo (inclusive recuo, alvo e BATNA) só em leitura e não aceita o acordo final"
     }
   },
   "provisiona_externos": {
@@ -447,6 +447,42 @@
         "proposta_id"
       ],
       "conteudo": "Contraproposta enviada",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true
+    },
+    "contraproposta_abaixo_do_recuo": {
+      "descricao": "O corretor confirmou e enviou uma contraproposta abaixo do ponto de recuo do mandato (D-120).",
+      "campos": [
+        "negociacao_id",
+        "proposta_id",
+        "ator_id",
+        "ator_nome"
+      ],
+      "conteudo": "Contraproposta abaixo do recuo enviada por {ator_nome}",
+      "api": "negociacoes/{negociacao_id}",
+      "rota": "clientes?visao=negociacoes&item={negociacao_id}",
+      "segregado_por_conta": true,
+      "auditavel": {
+        "categoria": "aprovacao",
+        "ator": {
+          "id": "ator_id",
+          "desc": "ator_nome"
+        },
+        "alvo": {
+          "tipo": "negociacao",
+          "id": "negociacao_id",
+          "desc": "negociacao_id"
+        }
+      }
+    },
+    "proposta_decidida": {
+      "descricao": "O corretor registrou a decisão do proprietário (aceita, recusa ou contraproposta) sobre o acordo.",
+      "campos": [
+        "negociacao_id",
+        "proposta_id"
+      ],
+      "conteudo": "Decisão do proprietário registrada",
       "api": "negociacoes/{negociacao_id}",
       "rota": "clientes?visao=negociacoes&item={negociacao_id}",
       "segregado_por_conta": true

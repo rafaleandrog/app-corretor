@@ -1,4 +1,5 @@
 import '@urbiverso/sdk/express';
+import { centavosValidos } from '../comum/crm';
 import { Router, type Request } from 'express';
 import type { HelperDados } from '@urbiverso/sdk';
 import {
@@ -19,11 +20,14 @@ import {
   type Concessao,
   type Direcao,
 } from '../comum/negociacao';
-import { validarMovimento, type MandatoMotor, type PropostaResumo, type ResultadoValidacao } from '../comum/negociador';
+import { mensagemDoEnvioAutomatico, validarMovimento, type MandatoMotor, type PropostaResumo, type ResultadoValidacao } from '../comum/negociador';
 import { inicioDoMes } from '../comum/negociador-ajustes';
 import type { Conducao } from '../comum/negociador-gatilhos';
-import { assincrono, ehCorretor, erro, guardarNegociacao, negociacoesAtribuidas, primeiro, salvarUnico, soNegociador } from './acesso';
+import { assincrono, ehCorretor, erro, guardarCorretor, guardarNegociacao, id, negociacoesAtribuidas, primeiro, salvarUnico, soNegociador } from './acesso';
 import { avisarNegociador, conducaoNova, negociadoresDaConta, shellConfereNegociadores } from './negociador-padrao';
+import { linkWhatsapp } from '../comum/pagina';
+import { publicarEvento } from './eventos';
+import { registrarMensagem } from './conversas';
 import { tentarPortal } from './portal';
 import { contaDoRequest } from './vitrine';
 
@@ -38,16 +42,14 @@ import { contaDoRequest } from './vitrine';
 // resposta do vendedor que ele registra passa pelas mesmas validações do Negociador IA (10.9.7).
 export const negociacaoRotas = Router();
 guardarNegociacao(negociacaoRotas);
+// A decisão do proprietário (`PATCH /propostas/:id`) é só do corretor, na conta ativa.
+guardarCorretor(negociacaoRotas, ['/propostas']);
 
 /** O que é só do corretor (spec 14): o negociador humano recebe 403 `SO_O_CORRETOR`. */
 export const MENSAGEM_SO_O_CORRETOR = 'Só o corretor da conta faz isto: o negociador conduz a negociação dentro do mandato.';
 
 type Linha = Record<string, any>;
 
-export const id = (v: unknown) => {
-  const n = Number(v);
-  return Number.isInteger(n) && n > 0 ? n : null;
-};
 export const texto = (v: unknown, limite: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, limite) : null);
 export const encerrada = (n: Linha) => (ENCERRADOS as readonly string[]).includes(n.estado);
 const violouUnico = (e: unknown) => (e as { code?: string })?.code === '23505';
@@ -145,6 +147,7 @@ export function paraMotor(m: Linha | null): MandatoMotor | null {
     validade: m.validade instanceof Date ? m.validade.toISOString().slice(0, 10) : String(m.validade).slice(0, 10),
     autonomia: m.autonomia,
     autorizacao_proprietario: m.autorizacao_proprietario ?? null,
+    validade_contraproposta_horas: m.validade_contraproposta_horas ? Number(m.validade_contraproposta_horas) : null,
   };
 }
 
@@ -163,6 +166,25 @@ export const paraResumo = (p: Linha): PropostaResumo => ({
 /** `decimal` chega como texto do banco: a fração volta como número. */
 function normalizarMandato(m: Linha): Linha {
   return { ...m, passo_max_pct: Number(m.passo_max_pct) };
+}
+
+/**
+ * Nome do cliente e título e código do imóvel de cada negociação (#178), lidos pela conta ativa
+ * (`req.dados`). Não são sigilosos: a lista e o cabeçalho de P15 e M8 mostram "Ana Ribeiro · Casa
+ * 4 quartos, Jardim Botânico". Contato ou imóvel removido sai como `null` (a tela mostra o código).
+ */
+export async function rotulosDasNegociacoes(dados: HelperDados, negociacoes: Linha[]) {
+  const ids = (campo: string) => [...new Set(negociacoes.map((n) => Number(n[campo])).filter((v) => v > 0))];
+  const [contatos, imoveis] = await Promise.all([
+    ids('contato_id').length ? dados.varrerTudo('contatos', { filtros: { id: ids('contato_id').join(',') }, maximo: 500 }) : [],
+    ids('imovel_id').length ? dados.varrerTudo('imoveis', { filtros: { id: ids('imovel_id').join(',') }, maximo: 500 }) : [],
+  ]);
+  const nome = new Map(contatos.map((c) => [Number(c.id), (c.nome as string) ?? null]));
+  const imovel = new Map(imoveis.map((i) => [Number(i.id), i]));
+  return (n: Linha) => {
+    const im = imovel.get(Number(n.imovel_id));
+    return { contato_nome: nome.get(Number(n.contato_id)) ?? null, imovel_titulo: (im?.titulo as string) ?? null, imovel_codigo: (im?.codigo as string) ?? null };
+  };
 }
 
 negociacaoRotas.get(
@@ -187,14 +209,19 @@ negociacaoRotas.get(
     const r = await dados.listar('negociacoes', { filtros, ordenar: 'atualizado_em', ordem: 'desc', pagina, por_pagina });
     const ids = r.dados.map((n) => n.id);
     const mandatos = r.dados.map((n) => n.mandato_id).filter(Boolean);
-    const [ofertas, vigentes] = await Promise.all([
-      ids.length
-        ? dados.varrerTudo('propostas', { filtros: { negociacao_id: ids.join(','), direcao: 'comprador' }, ordenar: 'id', ordem: 'desc', maximo: 5000 })
-        : [],
+    const [todas, vigentes, rotulos] = await Promise.all([
+      ids.length ? dados.varrerTudo('propostas', { filtros: { negociacao_id: ids.join(',') }, ordenar: 'id', ordem: 'desc', maximo: 5000 }) : [],
       mandatos.length ? dados.varrerTudo('mandatos_negociacao', { filtros: { id: mandatos.join(',') }, maximo: 100 }) : [],
+      rotulosDasNegociacoes(dados, r.dados),
     ]);
+    // A última oferta do comprador (× pedido) e a última rodada de qualquer lado ("há 2 dias", P15).
     const ultima = new Map<number, Linha>();
-    for (const p of ofertas) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
+    const rodada = new Map<number, Linha>();
+    for (const p of todas) {
+      const n = Number(p.negociacao_id);
+      if (!rodada.has(n)) rodada.set(n, p);
+      if (p.direcao === 'comprador' && !ultima.has(n)) ultima.set(n, p);
+    }
     // Da lista só sai o preço pedido do mandato (não é sigiloso): a tela mostra "última oferta × pedido".
     const pedido = new Map(vigentes.map((m) => [Number(m.id), Number(m.preco_pedido_c)]));
     const linhas = r.dados.map((n) => ({
@@ -202,6 +229,8 @@ negociacaoRotas.get(
       ultima_oferta_c: ultima.get(Number(n.id))?.valor_c ?? null,
       ultima_oferta_em: ultima.get(Number(n.id))?.criado_em ?? null,
       preco_pedido_c: n.mandato_id ? (pedido.get(Number(n.mandato_id)) ?? null) : null,
+      ultima_rodada_em: rodada.get(Number(n.id))?.criado_em ?? null,
+      ...rotulos(n),
     }));
     res.json(semSigilo({ ...r, dados: linhas }));
   }),
@@ -245,6 +274,18 @@ negociacaoRotas.post(
  */
 export async function depoisDeCriar(req: Request, negociacao: Linha) {
   await publicar(req, 'negociacao_iniciada', { negociacao_id: Number(negociacao.id), negocio_id: Number(negociacao.negocio_id) });
+  // D-127: a conversa do cliente ganha o aviso de sistema "Negociação aberta" (como "assumiu a conversa").
+  // Falha aqui não desfaz a negociação: a conversa é um registro a mais.
+  if (negociacao.contato_id) {
+    try {
+      await registrarMensagem(req.dados!, {
+        contato_id: Number(negociacao.contato_id), direcao: 'saida', autor_tipo: 'sistema', canal: 'sistema', tipo: 'sistema',
+        conteudo: `Negociação aberta (${negociacao.codigo})`, dados: { negociacao_id: Number(negociacao.id) },
+      });
+    } catch (e) {
+      console.warn(`[portal_corretor] aviso da negociação na conversa não gravado: ${(e as Error).message}`);
+    }
+  }
   await portalDa(req, negociacao);
   if (negociacao.conduzida_por === 'humano' && negociacao.negociador_usuario_id) {
     await avisarNegociador(req.notificacoes, Number(negociacao.negociador_usuario_id), negociacao);
@@ -331,11 +372,12 @@ negociacaoRotas.get(
     const nid = id(req.params.id);
     const negociacao = nid ? await dados.buscar('negociacoes', nid) : null;
     if (!negociacao) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
-    const [mandato, propostas, objecoes, execucoes] = await Promise.all([
+    const [mandato, propostas, objecoes, execucoes, rotulos] = await Promise.all([
       mandatoVigente(dados, negociacao),
       dados.varrerTudo('propostas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
       dados.varrerTudo('objecoes_detectadas', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'asc', maximo: 500 }),
       dados.listar('negociador_execucoes', { filtros: { negociacao_id: nid }, ordenar: 'id', ordem: 'desc', por_pagina: 20 }),
+      rotulosDasNegociacoes(dados, [negociacao]),
     ]);
     // Para a tela (P15): a última fala do cliente registrada e a sugestão do Negociador que espera o
     // corretor. A saída gravada já é a guardável (o que vazaria o sigilo foi retido no motor, D2).
@@ -347,7 +389,7 @@ negociacaoRotas.get(
       ? { execucao_id: pendente.id, resposta: pendente.saida ?? null, validacoes: pendente.validacoes?.verificacoes ?? [], bloqueado_por: pendente.bloqueado_por ?? null, criado_em: pendente.criado_em }
       : null;
     // O mandato aparece aqui só no resumo, sem recuo, alvo nem BATNA (o completo é a rota /mandato).
-    res.json(semSigilo({ ...negociacao, mandato, propostas, objecoes, ultima_fala: fala ? { texto: fala.mensagem_cliente, em: fala.criado_em } : null, sugestao }));
+    res.json(semSigilo({ ...negociacao, ...rotulos(negociacao), mandato, propostas, objecoes, ultima_fala: fala ? { texto: fala.mensagem_cliente, em: fala.criado_em } : null, sugestao }));
   }),
 );
 
@@ -377,7 +419,7 @@ negociacaoRotas.patch(
     }
     for (const campo of ['teto_estimado_comprador_c', 'valor_final_c']) {
       if (b[campo] === undefined) continue;
-      if (b[campo] !== null && !(Number.isInteger(b[campo]) && (b[campo] as number) >= 0)) erros.push(`${campo}: use centavos (inteiro).`);
+      if (b[campo] !== null && !(centavosValidos(b[campo]) || b[campo] === 0)) erros.push(`${campo}: use centavos (inteiro, até R$ 21.474.836,47).`);
       else mudancas[campo] = b[campo];
     }
     if (b.fonte_estimativa !== undefined) mudancas.fonte_estimativa = texto(b.fonte_estimativa, 300);
@@ -407,8 +449,92 @@ negociacaoRotas.patch(
     const salva = await dados.atualizarSe('negociacoes', nid!, mudancas, condicoes);
     if (!salva) return erro(res, 409, 'NEGOCIACAO_ALTERADA', 'A negociação mudou enquanto você editava. Abra de novo.');
     if (fim) await publicar(req, 'negociacao_encerrada', { negociacao_id: nid! });
+    // Ganha: o valor final vira o valor do negócio, e a comissão prevista sai dele (P15, "Encerrar").
+    const comissao_prevista_c = mudancas.estado === 'ganha' ? await comissaoPrevista(dados, salva) : null;
     await portalDa(req, salva);
-    res.json(semSigilo(salva));
+    res.json(semSigilo({ ...salva, comissao_prevista_c }));
+  }),
+);
+
+/**
+ * Negociação ganha (P15, "Encerrar"): o valor final passa a ser o valor do negócio, e a comissão
+ * prevista é esse valor × a comissão do negócio. Devolve a comissão em centavos (ou null sem comissão).
+ */
+export async function comissaoPrevista(dados: HelperDados, negociacao: Linha): Promise<number | null> {
+  const valor = Number(negociacao.valor_final_c);
+  const negocio = negociacao.negocio_id ? await dados.buscar('negocios', Number(negociacao.negocio_id)) : null;
+  if (!negocio || !(valor > 0)) return null;
+  if (Number(negocio.valor_estimado_c) !== valor) await dados.atualizar('negocios', Number(negocio.id), { valor_estimado_c: valor });
+  const pct = negocio.comissao_pct === null || negocio.comissao_pct === undefined ? null : Number(negocio.comissao_pct);
+  return pct ? Math.round(valor * pct) : null;
+}
+
+const DECISOES_PROPRIETARIO = ['aceita', 'recusa', 'contraproposta'] as const;
+
+/**
+ * Decisão do proprietário sobre o acordo levado a ele (P15, "Registrar decisão"; D-15, D-98): só o
+ * corretor registra. Aceita encerra a negociação como ganha pelo valor da proposta (com a comissão
+ * prevista); recusa e contraproposta do proprietário devolvem a negociação ao corretor, e a
+ * contraproposta vira uma rodada do proprietário na escada. Evento `proposta_decidida`, só ids.
+ */
+negociacaoRotas.patch(
+  '/propostas/:id',
+  assincrono(async (req, res) => {
+    if (!ehCorretor(req)) return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
+    const dados = req.dados!;
+    const pid = id(req.params.id);
+    const proposta = pid ? await dados.buscar('propostas', pid) : null;
+    if (!proposta) return erro(res, 404, 'NAO_ENCONTRADO', 'Proposta não encontrada.');
+    const nid = Number(proposta.negociacao_id);
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    if (!(DECISOES_PROPRIETARIO as readonly unknown[]).includes(b.decisao)) return erro(res, 422, 'DADOS_INVALIDOS', 'decisao: use aceita, recusa ou contraproposta.');
+    if (b.decisao === 'contraproposta' && !centavosValidos(b.valor_c)) return erro(res, 422, 'DADOS_INVALIDOS', 'Informe o valor da contraproposta do proprietário.');
+    const r = await dados.transaction(async (trx) => {
+      const viva = await trx.buscar('negociacoes', nid, { travar: true });
+      if (!viva) return { recusa: 404 as const };
+      if (encerrada(viva)) return { recusa: 'encerrada' as const };
+      if (viva.estado !== 'aguardando_proprietario') return { recusa: 'sem_acordo' as const };
+      const atual = await trx.buscar('propostas', pid!);
+      if (!atual || atual.direcao !== 'comprador' || atual.estado !== 'aceita') return { recusa: 'proposta' as const };
+      if (b.decisao === 'aceita') {
+        const salva = await trx.atualizar('negociacoes', nid, { estado: 'ganha', valor_final_c: Number(atual.valor_c), encerrada_em: new Date() });
+        return { negociacao: salva ?? viva, nova: null };
+      }
+      await trx.atualizar('propostas', pid!, { estado: 'recusada' });
+      let nova: Linha | null = null;
+      if (b.decisao === 'contraproposta') {
+        const g = await gravarPropostaTravada(trx, nid, {
+          direcao: 'proprietario',
+          autor_tipo: 'proprietario',
+          autor_usuario_id: req.contexto?.usuario.id ?? null,
+          valor_c: b.valor_c as number,
+          condicoes: texto(b.condicoes, 500),
+          concessao: null,
+          contrapartida: null,
+          validade_ate: null,
+          canal: 'registro',
+          estado: 'registrada',
+        });
+        if (!('proposta' in g)) throw new Error(`negociação ${nid} recusou a proposta sob a própria trava`);
+        nova = g.proposta;
+      }
+      const salva = await trx.atualizar('negociacoes', nid, { estado: 'aguardando_corretor' });
+      return { negociacao: salva ?? viva, nova };
+    });
+    if ('recusa' in r) {
+      if (r.recusa === 404) return erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA);
+      if (r.recusa === 'encerrada') return erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
+      if (r.recusa === 'sem_acordo') return erro(res, 409, 'SEM_ACORDO', 'Esta negociação não está aguardando o proprietário.');
+      return erro(res, 409, 'PROPOSTA_INDISPONIVEL', 'A decisão do proprietário é sobre a proposta do comprador aceita por você.');
+    }
+    await publicar(req, 'proposta_decidida', { negociacao_id: nid, proposta_id: pid! });
+    let comissao_prevista_c: number | null = null;
+    if (b.decisao === 'aceita') {
+      await publicar(req, 'negociacao_encerrada', { negociacao_id: nid });
+      comissao_prevista_c = await comissaoPrevista(dados, r.negociacao);
+    }
+    await portalDa(req, r.negociacao);
+    res.json(semSigilo({ ok: true, decisao: b.decisao, negociacao: r.negociacao, proposta: r.nova, comissao_prevista_c }));
   }),
 );
 
@@ -550,12 +676,12 @@ negociacaoRotas.post(
     const b = (req.body ?? {}) as Record<string, unknown>;
     const erros: string[] = [];
     if (!(DIRECOES as readonly unknown[]).includes(b.direcao)) erros.push('direcao: use comprador, vendedor ou proprietario.');
-    if (!(Number.isInteger(b.valor_c) && (b.valor_c as number) > 0)) erros.push('valor_c: informe o valor em centavos.');
-    let validade_ate: Date | null = null;
+    if (!centavosValidos(b.valor_c)) erros.push('valor_c: informe o valor em centavos (até R$ 21.474.836,47).');
+    let validadeInformada: Date | null = null;
     if (b.validade_ate !== undefined && b.validade_ate !== null) {
       const d = typeof b.validade_ate === 'string' ? new Date(b.validade_ate) : null;
       if (!d || Number.isNaN(d.getTime())) erros.push('validade_ate: use data e hora (ISO).');
-      else validade_ate = d;
+      else validadeInformada = d;
     }
     for (const campo of ['concessao', 'contrapartida']) {
       if (b[campo] !== undefined && b[campo] !== null && typeof b[campo] !== 'string') erros.push(`${campo}: use texto.`);
@@ -564,36 +690,73 @@ negociacaoRotas.post(
     // A decisão do proprietário é registrada só pelo corretor (spec 14).
     const humano = soNegociador(req);
     if (humano && b.direcao === 'proprietario') return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_SO_O_CORRETOR);
-    // No D1 só existe o registro feito pelo corretor. Enviar pelo portal ou pelo Fazer agora passa
-    // pelas validações do mandato no código (10.9.7), que chegam com o motor do Negociador (D2).
+    // Registro (o que aconteceu fora do app) ou envio da contraproposta do vendedor pelo portal ou pelo
+    // Fazer agora (D-120, "Nova contraproposta"): o envio passa pelas validações de 10.9.7 no código.
     const canal = b.canal ?? 'registro';
-    if (canal !== 'registro') {
-      return erro(res, 422, 'CANAL_INDISPONIVEL', 'Por enquanto, só o registro de proposta está disponível; o envio pelo portal e pelo Fazer agora chega em seguida.');
+    if (canal !== 'registro' && canal !== 'portal' && canal !== 'wa_me') {
+      return erro(res, 422, 'CANAL_INDISPONIVEL', 'Canal: use registro, portal ou wa_me (Fazer agora). O WhatsApp do app ainda não existe.');
+    }
+    const envio = canal !== 'registro';
+    if (envio && b.direcao !== 'vendedor') return erro(res, 422, 'DADOS_INVALIDOS', 'Só a contraproposta do vendedor sai pelo portal ou pelo Fazer agora.');
+    // Com o acordo levado ao proprietário, nenhuma contraproposta sai até a decisão dele. Esta leitura é
+    // só o atalho; quem decide é a linha relida sob a trava (no `validar` abaixo), porque o "Aceitar
+    // acordo" pode entrar entre esta leitura e a transação.
+    const ACORDO_PROPOSTO = 'O acordo está com o proprietário: registre a decisão dele antes de enviar outra contraproposta.';
+    if (envio && negociacao.estado === 'aguardando_proprietario') return erro(res, 409, 'ACORDO_PROPOSTO', ACORDO_PROPOSTO);
+    const contato = envio && negociacao.contato_id ? await dados.buscar('contatos', Number(negociacao.contato_id)) : null;
+    if (canal === 'wa_me' && !linkWhatsapp(contato?.telefone, '-')) {
+      return erro(res, 422, 'SEM_WHATSAPP', 'O cliente não tem um telefone de WhatsApp válido no cadastro. Envie pelo portal ou corrija o telefone do contato.');
     }
     const direcao = b.direcao as Direcao;
     const concessao = texto(b.concessao, 200);
     const contrapartida = texto(b.contrapartida, 200);
+    const mensagemDoCorretor = envio ? texto(b.mensagem, 1000) : null;
+    const validade_horas = Number.isInteger(b.validade_horas) && (b.validade_horas as number) > 0 && (b.validade_horas as number) <= 720 ? (b.validade_horas as number) : null;
+    // Abaixo do ponto de recuo (D-120): só o corretor, e só com a confirmação explícita da tela. O
+    // passo é medido até o recuo, então abaixo dele também não vale; as outras garantias continuam.
+    const confirmouAbaixo = envio && !humano && b.confirmar_abaixo_do_recuo === true;
+    let abaixoDoRecuo = false;
+    let validadeDoMandato: number | null = null;
+    let acordoNoProprietario = false;
     // A resposta do vendedor registrada pelo negociador humano passa pelas mesmas 7 garantias do
     // Negociador IA (10.9.7): piso, passo, rodadas, concessões, sigilo e validade, com o mandato e as
     // propostas lidos sob a trava. O registro é a resposta que ele deu fora do app, pelo próprio
     // celular: o canal validado é o do Fazer agora (`wa_me`, D-107). O corretor registra o que o dono
     // decidiu, sem essa trava; a decisão do proprietário é só dele (403 acima).
     const validar =
-      humano && direcao === 'vendedor'
-        ? async (trx: HelperDados, viva: Linha, anteriores: Linha[]) =>
-            validarMovimento(
+      (humano && direcao === 'vendedor') || envio
+        ? async (trx: HelperDados, viva: Linha, anteriores: Linha[]): Promise<ResultadoValidacao> => {
+            // Decidido sobre a linha travada: com o acordo no proprietário, o envio não grava nada.
+            if (envio && viva.estado === 'aguardando_proprietario') {
+              acordoNoProprietario = true;
+              return { ok: false, bloqueado_por: [], verificacoes: [], passa_ao_corretor: false };
+            }
+            const mandato = paraMotor(await mandatoVigente(trx, viva));
+            validadeDoMandato = mandato?.validade_contraproposta_horas ?? null;
+            const v = validarMovimento(
               {
                 movimento: 'contraproposta',
-                contraproposta: { valor_c: b.valor_c as number, condicoes: texto(b.condicoes, 500), concessao, contrapartida, validade_horas: null },
-                mensagem: null,
+                contraproposta: { valor_c: b.valor_c as number, condicoes: texto(b.condicoes, 500), concessao, contrapartida, validade_horas },
+                mensagem: mensagemDoCorretor,
               },
-              paraMotor(await mandatoVigente(trx, viva)),
+              mandato,
               anteriores.map(paraResumo),
-              { hoje: new Date().toLocaleDateString('sv-SE', { timeZone: req.contexto?.fuso || 'America/Sao_Paulo' }), canal: 'wa_me', automatico: false },
-            )
+              { hoje: new Date().toLocaleDateString('sv-SE', { timeZone: req.contexto?.fuso || 'America/Sao_Paulo' }), canal: envio ? (canal as string) : 'wa_me', automatico: false },
+            );
+            const resto = v.bloqueado_por.filter((c) => c !== 'ABAIXO_DO_RECUO' && c !== 'PASSO_ACIMA_DO_LIMITE');
+            if (!v.ok && confirmouAbaixo && v.bloqueado_por.includes('ABAIXO_DO_RECUO') && !resto.length && !v.passa_ao_corretor) {
+              abaixoDoRecuo = true;
+              return { ...v, ok: true };
+            }
+            return v;
+          }
         : undefined;
-    const resultado = await dados.transaction((trx) =>
-      gravarPropostaTravada(trx, nid!, {
+    const validade_ate = (): Date | null => {
+      const horas = validade_horas ?? validadeDoMandato;
+      return envio && horas ? new Date(Date.now() + horas * 3600e3) : validadeInformada;
+    };
+    const resultado = await dados.transaction(async (trx) => {
+      const r = await gravarPropostaTravada(trx, nid!, {
         direcao,
         // A resposta do vendedor registrada pelo negociador humano leva o rótulo dele na escada (11.6).
         autor_tipo: humano && direcao === 'vendedor' ? 'negociador_humano' : AUTOR_DO_REGISTRO[direcao],
@@ -602,18 +765,30 @@ negociacaoRotas.post(
         condicoes: texto(b.condicoes, 500),
         concessao,
         contrapartida,
-        validade_ate,
-        canal,
-        estado: 'registrada',
-      }, validar),
-    );
+        validade_ate: null,
+        canal: canal as string,
+        estado: envio ? 'enviada' : 'registrada',
+      }, validar);
+      if (!('proposta' in r)) return r;
+      // A validade sai do pedido ou, sem ela, do padrão do mandato (P16 bloco 3), lido sob a trava.
+      const ate = validade_ate();
+      const proposta = (ate ? await trx.atualizar('propostas', Number(r.proposta.id), { validade_ate: ate }) : null) ?? r.proposta;
+      // Enviada ao cliente: a vez é dele (como na aprovação da sugestão).
+      if (envio && r.negociacao.estado !== 'aguardando_cliente') await trx.atualizarSe('negociacoes', nid!, { estado: 'aguardando_cliente' }, { estado: r.negociacao.estado });
+      return { ...r, proposta };
+    });
     if ('recusa' in resultado) {
       if (resultado.recusa === 'bloqueado') {
+        if (acordoNoProprietario) return erro(res, 409, 'ACORDO_PROPOSTO', ACORDO_PROPOSTO);
         const { validacao } = resultado;
         return res.status(422).json({
           erro: true,
           codigo: 'MOVIMENTO_BLOQUEADO',
-          mensagem: 'Esta contraproposta não pode ser registrada: está fora do mandato.',
+          mensagem:
+            !humano && envio && validacao.bloqueado_por.includes('ABAIXO_DO_RECUO')
+              ? 'Esta contraproposta fica abaixo do ponto de recuo do mandato. Confirme para enviar mesmo assim (fica registrado).'
+              : 'Esta contraproposta não pode sair: está fora do mandato.',
+          confirmar_abaixo_do_recuo: !humano && envio && validacao.bloqueado_por.includes('ABAIXO_DO_RECUO') && validacao.bloqueado_por.every((c) => c === 'ABAIXO_DO_RECUO' || c === 'PASSO_ACIMA_DO_LIMITE'),
           bloqueado_por: validacao.bloqueado_por,
           detalhes: validacao.verificacoes.filter((v) => !v.ok).map((v) => `${v.codigo}: ${v.detalhe}`),
         });
@@ -621,9 +796,28 @@ negociacaoRotas.post(
       return resultado.recusa === 404 ? erro(res, 404, 'NAO_ENCONTRADO', NAO_ENCONTRADA) : erro(res, 409, 'NEGOCIACAO_ENCERRADA', MENSAGEM_ENCERRADA);
     }
     const { proposta } = resultado;
-    await publicar(req, direcao === 'comprador' ? 'proposta_recebida' : 'proposta_registrada', { negociacao_id: nid!, proposta_id: proposta.id });
+    if (envio) await publicar(req, 'contraproposta_enviada', { negociacao_id: nid!, proposta_id: proposta.id });
+    else await publicar(req, direcao === 'comprador' ? 'proposta_recebida' : 'proposta_registrada', { negociacao_id: nid!, proposta_id: proposta.id });
+    // D-120: o envio abaixo do recuo fica na trilha de auditoria da plataforma (quem, qual negociação).
+    if (abaixoDoRecuo) {
+      await publicarEvento(req, 'contraproposta_abaixo_do_recuo', {
+        negociacao_id: nid!,
+        proposta_id: Number(proposta.id),
+        ator_id: req.contexto!.usuario.id,
+        ator_nome: (req.contexto!.usuario.nome ?? '').trim() || `Usuário ${req.contexto!.usuario.id}`,
+      });
+    }
     await portalDa(req, negociacao);
-    res.status(201).json(semSigilo(proposta));
+    if (!envio) return res.status(201).json(semSigilo(proposta));
+    // Fazer agora: o texto pronto e o wa.me do cliente; o envio é do celular do corretor (D-107).
+    const item = concessao && contrapartida ? { item: concessao, limite: '', contrapartida } : null;
+    const horas = proposta.validade_ate ? Math.round((new Date(proposta.validade_ate).getTime() - Date.now()) / 3600e3) : null;
+    const textoPronto =
+      mensagemDoCorretor ??
+      mensagemDoEnvioAutomatico({ valor_c: Number(proposta.valor_c), item, validade_horas: horas, primeiro_nome: String(contato?.nome ?? '').split(/\s+/)[0] });
+    res.status(201).json(
+      semSigilo({ ...proposta, abaixo_do_recuo: abaixoDoRecuo, texto: textoPronto, link: canal === 'wa_me' ? linkWhatsapp(contato?.telefone, textoPronto) : null }),
+    );
   }),
 );
 
