@@ -133,7 +133,7 @@ export function filtrosNaUrl(filtros: URLSearchParams, mudancas: Record<string, 
 export interface OpcoesAba {
   /** Parâmetro da query que guarda a aba (padrão `aba`; Clientes usa `visao`). */
   chave?: string;
-  /** Caminho antigo → aba que ele abre (`/funil` → `quadro`), quando a query não diz. */
+  /** Caminho antigo → aba que ele abre (`/funil` → `quadro`), quando a query não diz; um valor antigo de aba (sem barra, `marca` → `conta`) também vale na query. */
   apelidos?: Record<string, string>;
   /** Rota canônica da tela: gravar a aba num apelido leva a barra para ela. */
   rota?: string;
@@ -144,7 +144,8 @@ const subAtual = () => urbiVerso.subRota().replace(/(.)\/+$/, '$1') || '/';
 
 /** Aba do `urbi-abas` lida da query, depois do apelido do caminho; fora da lista, a primeira (pedido ao shell 8). */
 export function abaDaUrl(abas: string[], { chave = 'aba', apelidos = {} }: OpcoesAba = {}) {
-  const aba = filtrosDaUrl().get(chave) ?? apelidos[subAtual()] ?? '';
+  const naQuery = filtrosDaUrl().get(chave);
+  const aba = naQuery === null ? (apelidos[subAtual()] ?? '') : (apelidos[naQuery] ?? naQuery);
   return abas.includes(aba) ? aba : abas[0];
 }
 

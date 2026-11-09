@@ -21,28 +21,31 @@ export type AbaAjustes = (typeof ABAS_AJUSTES)[number]['id'];
 /** A seção que abre quando o endereço não diz qual. */
 export const ABA_PADRAO: AbaAjustes = 'conta';
 
-/** Apelidos de seção: a Marca virou parte de Conta e marca (P13). */
-const APELIDOS: Record<string, AbaAjustes> = { marca: 'conta' };
+/** Rota canônica da tela: gravar a seção num apelido (`/conta`, `/ajustes/conexoes`) leva a barra para ela. */
+export const ROTA_AJUSTES = '/ajustes';
+
+/** Ids na ordem que `abaDaUrl` espera: a seção padrão primeiro, porque é a que abre quando o endereço não diz qual. */
+export const ABAS_AJUSTES_IDS: string[] = [ABA_PADRAO, ...ABAS_AJUSTES.map((a) => a.id).filter((id) => id !== ABA_PADRAO)];
 
 const IDS = new Set<string>(ABAS_AJUSTES.map((a) => a.id));
 export const ehAbaAjustes = (id: string | null | undefined): id is AbaAjustes => !!id && IDS.has(id);
 
-/** Seção de um id (`?aba=` ou `/ajustes/<id>`), com os apelidos; desconhecido: `null`. */
-const secao = (id: string | null | undefined): AbaAjustes | null => (ehAbaAjustes(id) ? id : (id && APELIDOS[id]) || null);
-
 /**
- * Seção que um endereço abre. O SDK não redireciona, então os endereços antigos continuam vivos como
- * apelidos: `/conta` abre Conta e marca, `/ajustes/<seção>` abre a seção (`/ajustes/marca` abre Conta e
- * marca), e `/ajustes/conexoes` segue sendo o retorno do Instagram cadastrado na Meta. Em `/ajustes`,
+ * Opções de `abaDaUrl`/`abaNaUrl` (frontend/visual.ts) para Ajustes. O SDK não redireciona, então os
+ * endereços antigos seguem vivos como apelidos: `/conta` abre Conta e marca, `/ajustes/<seção>` abre a
+ * seção (`/ajustes/marca` abre Conta e marca) e `/ajustes/conexoes` segue sendo o retorno do Instagram
+ * cadastrado na Meta. A chave `marca` (sem barra) é o valor antigo de `?aba=marca`. Em `/ajustes`,
  * vale `?aba=`; sem ela, ou com uma desconhecida, Conta e marca.
  */
-export function abaDoEndereco(sub: string, busca = ''): AbaAjustes | null {
-  if (sub === '/conta') return 'conta';
-  const m = sub.match(/^\/ajustes(?:\/([a-z_]+))?$/);
-  if (!m) return null;
-  if (m[1]) return secao(m[1]);
-  return secao(new URLSearchParams(busca).get('aba')) ?? ABA_PADRAO;
-}
+export const OPCOES_ABA_AJUSTES: { apelidos: Record<string, string>; rota: string } = {
+  apelidos: {
+    marca: 'conta',
+    '/conta': 'conta',
+    '/ajustes/marca': 'conta',
+    ...Object.fromEntries(ABAS_AJUSTES.map((a) => [`/ajustes/${a.id}`, a.id])),
+  },
+  rota: ROTA_AJUSTES,
+};
 
 /** O que o menu de Ajustes sabe da conta para a linha de estado de cada seção (P12, diagnóstico 3.10). */
 export interface EstadoAjustes {
