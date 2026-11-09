@@ -6,6 +6,7 @@ declare const urbiVerso: UrbiVersoAPI;
 // formatação de data e dinheiro em pt-BR. Chip, cartão de imóvel, estado na URL e "mais" moram em
 // `visual.ts` e saem daqui também.
 export * from './visual.js';
+import { fraseDoErro } from './estados';
 
 // Conta ativa de escrita. Quem tem várias contas (o admin do app, por exemplo) precisa dizer em qual
 // grava: o shell só aceita escrita em tabela segregada com `X-Conta` (contas.md § Escrita com N
@@ -244,11 +245,27 @@ export async function enviar(metodo: 'POST' | 'PUT' | 'PATCH', rota: string, cor
   });
 }
 
+/**
+ * Leitura do funil (quadro, etapas, playbook) que prepara a conta nova (issue #32): os GET não gravam, e
+ * respondem `preparar: true` quando a conta ainda não tem etapas ou abordagens. Aí a tela pede a escrita
+ * (`POST /funil/preparar`, idempotente) e lê de novo, uma vez. Se a preparação falhar, fica a leitura.
+ */
+export async function lerPreparandoFunil(rota: string): Promise<any> {
+  const r = await chamarApi(rota);
+  if (!r?.preparar) return r;
+  try {
+    await enviar('POST', '/funil/preparar');
+  } catch (e) {
+    if (ehContaTrocada(e)) throw e;
+    console.error('[portal_corretor]', e);
+    return r;
+  }
+  return chamarApi(rota);
+}
+
+/** A frase do erro para a tela: nunca a mensagem crua da plataforma (#177, `fraseDoErro` em `estados.ts`). */
 export function mensagemDeErro(e: unknown): string {
-  const falha = e as Error & { detalhes?: string[]; codigo?: string };
-  // DUPLICATA traz o id do contato existente em `detalhes`: não é texto para o usuário.
-  if (falha.codigo === 'DUPLICATA') return falha.message;
-  return falha.detalhes?.length ? falha.detalhes.join('\n') : falha.message;
+  return fraseDoErro(e);
 }
 
 /**

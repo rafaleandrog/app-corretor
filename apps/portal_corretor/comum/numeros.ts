@@ -198,6 +198,16 @@ export function serieDeLeads(negocios: NegocioNum[], dias: number, agora = new D
  * não tem horário de atendimento configurável (Ajustes › Horário de atendimento guarda só prazos):
  * quando tiver, este padrão dá lugar ao do corretor.
  */
+/**
+ * Valor em reais para um KPI (P10, #180): sem centavos a partir de R$ 1.000 (o cartão quebrava em
+ * "R$ 104.825, / 00"); abaixo disso, com centavos. Sem valor, "—".
+ */
+export function reaisKpi(centavos: number | null | undefined): string {
+  if (centavos === null || centavos === undefined || !Number.isFinite(centavos)) return '—';
+  const inteiro = Math.abs(centavos) >= 100_000;
+  return (centavos / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: inteiro ? 0 : 2, maximumFractionDigits: inteiro ? 0 : 2 });
+}
+
 export const HORARIO_COMERCIAL = { inicio: 8, fim: 19 } as const;
 export const foraDoHorario = (hora: number) => hora < HORARIO_COMERCIAL.inicio || hora >= HORARIO_COMERCIAL.fim;
 

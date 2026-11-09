@@ -485,6 +485,7 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     const agendada = banco.linhas('pecas').find((x) => x.id === peca.id)!;
     await reagir.publicacao_programada({ payload: { peca_id: peca.id, agendada_para: new Date(agendada.agendada_para as string).toISOString() }, conta_id: 100 } as never, ctx);
     await ok(chamar('POST', '/conexoes/instagram/desconectar'), 'desconectar'); // canal_desconectado (auditável)
+    await ok(chamar('PUT', '/negociador/config', { estilo: 'firme' }), 'ajustes do Negociador'); // negociador_config_alterada (auditável)
     await ok(chamar('PATCH', `/imoveis/${im.id}`, { situacao: 'vendido' }), 'vendido'); // imovel_vendido
     // autorizacao_vencendo: a rotina avisa a autorização que vence em 10 dias, uma vez só, na conta dela.
     // Não avisa: a não assinada, a fora da janela de 30 dias e a de conta inativa (a 200 não está em `ctxSistema`).

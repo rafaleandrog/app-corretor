@@ -126,7 +126,7 @@ test('demonstração convive com imóvel e origem já cadastrados e explica etap
     assert.equal(banco.linhas('origens').filter((o) => o.conta_id === 300 && o.canal === 'portal').length, 1, 'origem existente reaproveitada');
   });
   await comServidor(rotas, D, banco, {}, async (chamar) => {
-    await chamar('GET', '/funil/etapas?pipeline=compra'); // semeia as etapas padrão
+    await chamar('POST', '/funil/preparar', {}); // semeia as etapas padrão (issue #32: o GET não grava)
     // A conta 400 recebe o conjunto do segundo corretor, que usa "Em atendimento".
     banco.linhas('etapas_funil').find((e) => e.conta_id === 400 && e.nome === 'Em atendimento')!.nome = 'Atendendo';
     const r = await chamar('POST', '/demo/semear', {});

@@ -51,7 +51,7 @@ export class PcTelaFichaEmpreendimento extends LitElement {
       this.ficha = await this.vida.esperar(chamarApi(`/empreendimentos/${this.empreendimentoId}`));
     } catch (e) {
       if (this.vida.encerrado(e)) throw e;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 
@@ -177,7 +177,7 @@ export class PcTelaFichaEmpreendimento extends LitElement {
         ${e.descricao ? html`<urbi-prosa papel="dica" pre>${e.descricao}</urbi-prosa>` : ''}
       </urbi-card>
       <urbi-card titulo="Materiais" icone="fa-solid fa-folder-open">
-        <urbi-seletor-arquivo accept="application/pdf,image/jpeg,image/png,image/webp" ?desabilitado=${this.enviando} texto="Enviar material"
+        <urbi-seletor-arquivo label="Material do empreendimento" accept="application/pdf,image/jpeg,image/png,image/webp" ?desabilitado=${this.enviando} texto="Enviar material"
           @urbi:seletor-arquivo-change=${(ev: CustomEvent) => this.enviarMaterial(ev)}></urbi-seletor-arquivo>
         ${materiais.length
           ? html`<urbi-lista separador .itens=${materiais} .render_item=${(m: Linha) => html`<urbi-linha justificar="entre" quebrar>

@@ -3,6 +3,7 @@ import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { chamarApi, ehContaTrocada, enviar, mensagemDeErro, seNaoContaTrocada } from '../apoio';
 import { contatoDoEndereco } from '../enderecos';
 import { estadoTela } from '../estados';
+import { perguntasSugeridas } from '../../comum/assistente';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -56,6 +57,8 @@ const conversa = {
   /** Slot `assistente` liberado (`GET /assistente/ia`); `null` enquanto a sonda não voltou. */
   ia: null as boolean | null,
   pensando: false,
+  /** Texto que um chip de pergunta sugerida pôs no campo (`valorInicial` do chat; volta a '' ao enviar). */
+  rascunho: '',
   seq: 0,
   /**
    * A conta de trabalho dona da conversa (`contaDeTrabalho`). `undefined`: ainda nenhuma. A conversa é
@@ -172,6 +175,7 @@ async function perguntar(pergunta: string) {
   if (conversa.pensando) throw new Error('Aguarde a resposta anterior.');
   const historico = conversa.mensagens.slice(-6).map((m) => ({ autor: m.autorId === ASSISTENTE ? 'assistente' : 'eu', texto: m.bruto }));
   anotar(meuId(), p);
+  conversa.rascunho = '';
   conversa.pensando = true;
   conversa.proposta = null;
   conversa.irPara = null;
@@ -220,6 +224,16 @@ function recusar() {
   anotar(ASSISTENTE, 'Combinado, não fiz nada.');
 }
 
+/** Chip de pergunta sugerida: preenche o campo do chat com a pergunta, para o corretor enviar ou ajustar. */
+export function preencherPergunta(pergunta: string) {
+  conversa.rascunho = pergunta;
+  conversa.atualizar();
+}
+
+/** Exemplo da conversa vazia (P05): o que dá para perguntar e pedir. */
+export const EXEMPLO_CONVERSA_VAZIA =
+  'Pergunte sobre o app ou peça algo. Por exemplo: “Como conecto meu Instagram?” ou “Crie um lembrete para ligar para a Ana amanhã às 10 h”. Eu respondo com o artigo da ajuda e, quando for uma ação, mostro o que vou fazer para você confirmar.';
+
 /**
  * O painel da coluna de contexto (P05) em duas peças: `topo` (título com fechar, aviso de IA
  * indisponível, contato em foco, ação proposta) e `chat`, com `expandir`. O chat tem de ser filho
@@ -229,28 +243,35 @@ function recusar() {
 export function painelAssistente(): { topo: TemplateResult; chat: TemplateResult } {
   const { proposta, irPara, contato } = conversa;
   const topo = html`
-    <urbi-linha justificar="entre">
+    <urbi-linha justificar="entre" alinhar="centro">
       <urbi-prosa papel="secao">Assistente</urbi-prosa>
-      <urbi-botao variante="texto" pequeno icone="fa-solid fa-xmark" @click=${() => fecharAssistente()}>Fechar</urbi-botao>
+      <urbi-botao variante="texto" icone="fa-solid fa-xmark" ariaLabel="Fechar o Assistente" title="Fechar" @click=${() => fecharAssistente()}></urbi-botao>
     </urbi-linha>
     ${conversa.ia === false ? estadoTela('ia_indisponivel', { mensagem: 'IA indisponível agora: respondo com os artigos da ajuda do app.' }) : ''}
     ${contato
       ? html`<urbi-linha quebrar>
           <urbi-badge>Sobre: ${contato.nome}</urbi-badge>
-          <urbi-botao variante="texto" pequeno @click=${() => ((conversa.contato = null), conversa.atualizar())}>Tirar</urbi-botao>
+          <urbi-botao variante="texto" @click=${() => ((conversa.contato = null), conversa.atualizar())}>Tirar</urbi-botao>
         </urbi-linha>`
       : ''}
+    ${conversa.mensagens.length ? '' : html`<urbi-prosa papel="dica">${EXEMPLO_CONVERSA_VAZIA}</urbi-prosa>`}
+    <urbi-linha quebrar aria-label="Perguntas sugeridas">
+      ${perguntasSugeridas(conversa.telaAnterior).map(
+        (p) => html`<urbi-badge interativo cor="info" quebra-linha title="Preencher com esta pergunta" @click=${() => preencherPergunta(p)}>${p}</urbi-badge>`,
+      )}
+    </urbi-linha>
     ${proposta
-      ? html`<urbi-card titulo="Posso fazer isto?" icone="fa-solid fa-circle-question">
+      ? html`<urbi-card titulo="Vou fazer isto" icone="fa-solid fa-circle-question">
           <urbi-prosa>${proposta.resumo}</urbi-prosa>
+          <urbi-prosa papel="dica">Nada é feito sem a sua confirmação.</urbi-prosa>
           <urbi-linha>
             <urbi-botao icone="fa-solid fa-check" @click=${() => confirmar()}>Confirmar</urbi-botao>
-            <urbi-botao variante="secundario" @click=${() => recusar()}>Agora não</urbi-botao>
+            <urbi-botao variante="secundario" @click=${() => recusar()}>Cancelar</urbi-botao>
           </urbi-linha>
         </urbi-card>`
       : ''}
     ${irPara
-      ? html`<urbi-linha><urbi-botao variante="secundario" pequeno icone="fa-solid fa-arrow-right" href=${urbiVerso.href(irPara.sub)}>Abrir ${irPara.nome}</urbi-botao></urbi-linha>`
+      ? html`<urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-arrow-right" href=${urbiVerso.href(irPara.sub)}>Ir para ${irPara.nome}</urbi-botao></urbi-linha>`
       : ''}
   `;
   const chat = html`<urbi-chat
@@ -258,10 +279,11 @@ export function painelAssistente(): { topo: TemplateResult; chat: TemplateResult
       expandir
       .itens=${conversa.mensagens}
       .usuarioAtualId=${meuId()}
+      .valorInicial=${conversa.rascunho}
       markdown
       audio
       chave-audio="portal_corretor:assistente"
-      placeholder=${conversa.pensando ? 'Pensando…' : 'Pergunte sobre o app, um cliente ou peça um lembrete'}
+      placeholder=${conversa.pensando ? 'Pensando…' : 'Pergunte ou peça algo'}
       .aoEnviar=${(d: { texto: string }) => perguntar(d.texto)}
     ></urbi-chat>`;
   return { topo, chat };

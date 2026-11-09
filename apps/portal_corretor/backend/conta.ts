@@ -1,11 +1,12 @@
 import '@urbiverso/sdk/express';
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import {
   CONFIGURACOES_PADRAO,
   validarConfiguracoes,
   validarMeuPerfil,
   validarPerfilConta,
 } from '../comum/conta';
+import { contaDoRequest } from './vitrine';
 import { assincrono, erro, exigirPapel, MENSAGEM_SEM_CONTA, primeiro, salvarUnico, semConta } from './acesso';
 
 // Ajustes › Conta e Atendimento. Tudo aqui é da conta do corretor logado: as três tabelas são
@@ -23,14 +24,16 @@ contaRotas.get(
   assincrono(async (req, res) => {
     const dados = req.dados!;
     const [perfil, configuracoes, meuPerfil] = await Promise.all([
-      primeiro(dados, 'perfil_conta', { chave: 'conta' }),
+      primeiro(dados, 'perfil_conta', { chave: 'conta', conta_id: contaDoRequest(req) }),
       primeiro(dados, 'configuracoes_conta', { chave: 'conta' }),
       primeiro(dados, 'perfis_corretor', { usuario_id: req.contexto!.usuario.id }),
     ]);
     res.json({
       perfil: perfil ?? null,
       configuracoes: configuracoes ?? { ...CONFIGURACOES_PADRAO, padrao: true },
-      meu_perfil: meuPerfil ?? { creci: null, telefone: null },
+      meu_perfil: meuPerfil ?? { creci: null, telefone: null, nome_profissional: null, regioes: null },
+      // #33: o admin do app numa conta que não é de demonstração não grava perfil de corretor.
+      admin_em_conta_real: await adminEmContaReal(req),
     });
   }),
 );
@@ -58,9 +61,25 @@ contaRotas.put(
   }),
 );
 
+/**
+ * Administrador do app que não é corretor (o SDK não lhe entrega papéis) numa conta que não é de
+ * demonstração: o perfil de corretor dele não é gravado ali (#33), para a avaliação do app não deixar
+ * resíduo na conta de um corretor real. Na conta "(demo)" ele grava normalmente.
+ */
+export async function adminEmContaReal(req: Request): Promise<boolean> {
+  if (req.contexto?.nivelApp !== 'admin' || req.contexto?.rolesApp?.includes('corretor')) return false;
+  // Só o perfil da conta ativa decide: quem atende várias contas lê o conjunto (nunca `primeiro` sem conta).
+  const perfil = await primeiro(req.dados!, 'perfil_conta', { chave: 'conta', conta_id: contaDoRequest(req) });
+  return !perfil?.demo;
+}
+
+export const MENSAGEM_ADMIN_EM_CONTA_REAL =
+  'Você está como administrador do app numa conta que não é de demonstração: o seu perfil de corretor não é gravado aqui. Para avaliar o app, use uma conta de demonstração (nome terminado em “(demo)”).';
+
 contaRotas.put(
   '/meu-perfil',
   assincrono(async (req, res) => {
+    if (await adminEmContaReal(req)) return erro(res, 403, 'SO_O_CORRETOR', MENSAGEM_ADMIN_EM_CONTA_REAL);
     const v = validarMeuPerfil(req.body ?? {});
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira seus dados.', v.erros);
     // `usuario_id` vem sempre do contexto, nunca do corpo: o corretor só edita o próprio perfil.

@@ -221,3 +221,48 @@ test('jornada vira eventos (começo, seleção recebida, visita feita) sem dado 
     assert.deepEqual(r.tarefas, []);
   });
 });
+
+test('#80: limite de 20 pendências sob a trava (422, nunca 500), entrega repetida ao mesmo tempo não duplica, outro cliente e sem papel', async () => {
+  limparLimites();
+  const banco = new BancoFalso(UNICOS);
+  const shell = shellFalso();
+  let cliente = 0;
+  let outro = 0;
+  let link = '';
+  await comServidor(rotas, A, banco, shell, async (chamar) => {
+    cliente = (await chamar('POST', '/contatos', { nome: 'Cliente', telefone: '61977770101' })).corpo.id;
+    outro = (await chamar('POST', '/contatos', { nome: 'Outro', telefone: '61977770102' })).corpo.id;
+    link = (await chamar('POST', `/contatos/${cliente}/portal`)).corpo.link;
+    await chamar('POST', `/contatos/${outro}/portal`);
+    for (let i = 0; i < 18; i++) assert.equal((await chamar('POST', `/contatos/${cliente}/tarefas-cliente`, { texto: `Pendência ${i}` })).status, 201);
+    // Dois pedidos juntos com 18 abertas: os dois cabem (19 e 20); o terceiro, junto com o quarto, não.
+    const [a, b] = await Promise.all([1, 2].map((i) => chamar('POST', `/contatos/${cliente}/tarefas-cliente`, { texto: `Junta ${i}` })));
+    assert.deepEqual([a.status, b.status], [201, 201]);
+    const [c, d] = await Promise.all([3, 4].map((i) => chamar('POST', `/contatos/${cliente}/tarefas-cliente`, { texto: `Junta ${i}` })));
+    assert.deepEqual([c.status, d.status], [422, 422]);
+    assert.equal(c.corpo.codigo, 'LIMITE');
+    assert.equal(banco.linhas('tarefas_cliente').filter((t) => t.contato_id === cliente).length, 20);
+    // A pendência de A não aparece nem some pelo portal do outro cliente da mesma conta.
+    const portais = banco.linhas('vitrine_publica').filter((l) => l.tipo === 'portal' && l.conta === 100).map((l) => l.dados.tarefas.length).sort((x, y) => x - y);
+    assert.deepEqual(portais, [0, 20]);
+  });
+  // Quem não é corretor (o perfil do cliente, sem papel): 403 em criar e remover.
+  await comServidor(rotas, { usuario: 8, conta: 100, papeis: ['cliente'] as any }, banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', `/contatos/${cliente}/tarefas-cliente`, { texto: 'x' })).status, 403);
+    const id = banco.linhas('tarefas_cliente')[0].id;
+    assert.equal((await chamar('PATCH', `/tarefas-cliente/${id}/remover`)).status, 403);
+  });
+  // Duas entregas do mesmo "feito" ao mesmo tempo: uma hora, uma linha do tempo.
+  const tarefa = banco.linhas('tarefas_cliente').find((t) => t.contato_id === cliente)!.id;
+  const ctxA = { conta_id: 100, contato_id: cliente };
+  const ok = await chamarWebhook(ctxA, { tipo: 'tarefa_feita', tarefa });
+  const ctx = banco.ctxSistema([{ id: 100, nome: 'A' }]);
+  await Promise.all([1, 2].map(() => reagir.acao_cliente_recebida({ payload: ok.publicados[0].payload, conta_id: 100 }, ctx)));
+  assert.equal(banco.linhas('linha_do_tempo').filter((l) => l.tipo === 'portal.tarefa_feita').length, 1);
+  // Pelo portal do outro cliente, a pendência de A não fica feita.
+  const outra = banco.linhas('tarefas_cliente').filter((t) => t.contato_id === cliente && !t.feita_em)[0].id;
+  const alheio = await chamarWebhook({ conta_id: 100, contato_id: outro }, { tipo: 'tarefa_feita', tarefa: outra });
+  await reagir.acao_cliente_recebida({ payload: alheio.publicados[0].payload, conta_id: 100 }, ctx);
+  assert.equal(banco.linhas('tarefas_cliente').find((t) => t.id === outra)!.feita_em ?? null, null);
+  void link;
+});

@@ -277,7 +277,7 @@ export class PcListaImoveis extends LitElement {
           ${this.aba === 'empreendimentos'
             ? keyed(this.versaoEmpreendimentos, html`<pc-lista-empreendimentos .selecionado=${this.selecionado} .aoEscolher=${this.aoEscolher}></pc-lista-empreendimentos>`)
             : html`<urbi-stack>
-                <urbi-input icone="fa-solid fa-magnifying-glass" placeholder="Código, título, bairro ou cidade"
+                <urbi-input label="Buscar imóvel" icone="fa-solid fa-magnifying-glass" placeholder="Código, título, bairro ou cidade"
                   valor=${this.filtros.get('busca') ?? ''} @urbi:input-change=${(e: CustomEvent) => this.filtrar({ busca: e.detail.valor })}></urbi-input>
                 <urbi-chips-atalho .opcoes=${CHIPS_SITUACAO.map((c) => ({ id: c.valor || 'todas', rotulo: c.rotulo }))} ativo=${situacao || 'todas'}
                   @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ situacao: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>
@@ -439,7 +439,7 @@ export class PcContextoImovel extends LitElement {
         </urbi-stack>
       </urbi-card>
       <urbi-card titulo="Últimos 30 dias" icone="fa-solid fa-chart-simple">
-        <!-- Uma coluna de KPIs: a grade de 2 colunas cortava rótulo e cartão nos 340 px (#180). -->
+        <!-- Uma coluna de KPIs: a grade de 2 colunas cortava rótulo e cartão nos 340 px (issue 180). -->
         <urbi-stack>
           <urbi-kpi rotulo="Visitas" .valor=${numeros.visitas}></urbi-kpi>
           <urbi-kpi rotulo="Enviado a" .valor=${numeros.enviados}></urbi-kpi>

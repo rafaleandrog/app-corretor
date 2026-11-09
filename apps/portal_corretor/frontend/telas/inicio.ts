@@ -1,6 +1,6 @@
 import { html, nothing } from 'lit';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { abaDaUrl, abaNaUrl, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, gesto, mensagemDeErro, noCelular, noGesto, reais, type OpcoesAba } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, avisoCreci, chamarApi, chip, contaDeTrabalho, dataHora, enviar, gesto, lerPreparandoFunil, mensagemDeErro, noCelular, noGesto, reais, type OpcoesAba } from '../apoio.js';
 import { ABAS_INICIO, APELIDOS_INICIO, type TipoFila } from '../../comum/funil';
 import { ACOES_FILA, cargaVazia, entrarEmHoje, FILA_VISIVEL, iniciarCarga, marcarEntrada, mostrarTudo, motivoDoItem, precisaCarregar, receberCarga, telaDeHoje, type AcaoFila, type PassoInicial } from '../../comum/hoje';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
@@ -111,7 +111,7 @@ async function carregar(atualizar: () => void) {
   // A carga é da conta de agora: trocada no meio, a resposta (ou a falha) não é gravada como desta.
   const g = gesto();
   try {
-    const [dados, ia] = await g.esperar(Promise.all([chamarApi('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]));
+    const [dados, ia] = await g.esperar(Promise.all([lerPreparandoFunil('/inicio'), chamarApi('/assistente/ia').then((r) => !!r?.assistente, () => false)]));
     const antes = estado.carga;
     estado.carga = receberCarga(antes, geracao, { dados });
     if (estado.carga !== antes) estado.ia = ia;
@@ -499,7 +499,7 @@ function direita(d: DadosHoje, atualizar: () => void) {
               <urbi-kpi rotulo="Leads" .valor=${s.leads ?? 0}></urbi-kpi>
               <urbi-kpi rotulo="Visitas feitas" .valor=${s.visitas ?? 0}></urbi-kpi>
             </urbi-grid>
-            <!-- Valor em reais na linha inteira do cartão: numa célula da grade ele quebrava ou rolava (#164). -->
+            <!-- Valor em reais na linha inteira do cartão: numa célula da grade ele quebrava ou rolava (issue 164). -->
             <urbi-kpi rotulo="Comissão prevista" formato="texto" .valor=${s.previsao_c === null || s.previsao_c === undefined ? '—' : reais(s.previsao_c)}></urbi-kpi>
           </urbi-stack>
         </urbi-card>`

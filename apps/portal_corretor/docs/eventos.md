@@ -28,7 +28,7 @@ Os eventos são sempre da **sua conta**: o corretor de outra conta não recebe n
 | Você manda uma mensagem, um imóvel, um arquivo ou o link do portal | `mensagem_enviada`, `envio_criado`, `acesso_cliente_convidado` |
 | Você assume ou devolve uma conversa ao Negociador | `conversa_assumida`, `conversa_devolvida` |
 | Entra uma atividade na agenda; uma visita é marcada; você registra o retorno de uma visita | `atividade_criada`, `visita_agendada`, `visita_feedback`, e o `lembrete_visita` na hora combinada |
-| Uma planilha de contatos é importada | `contatos_importados` |
+| Uma planilha ou um arquivo de contatos do celular é importado (um aviso por parte enviada, quando a importação vai em partes) | `contatos_importados` |
 | Um negócio muda de etapa, é ganho ou perdido | `negocio_etapa_mudou`, `negocio_ganho`, `negocio_perdido` |
 | Um imóvel entra, é anunciado, baixa de preço, muda de visibilidade ou é vendido | `imovel_criado`, `imovel_ativado`, `imovel_preco_reduzido`, `imovel_visibilidade_mudou`, `imovel_vendido` |
 | Uma autorização de venda vence em até 30 dias (aviso diário, uma vez por autorização) | `autorizacao_vencendo` |
@@ -43,7 +43,9 @@ Conectar ou desconectar um canal (hoje, o Instagram) fica também na **trilha de
 plataforma, que o administrador da instância consulta: `canal_conectado` e `canal_desconectado` guardam
 quem fez (o nome de quem estava logado) e qual canal. A contraproposta que você confirma **abaixo do
 ponto de recuo** (`contraproposta_abaixo_do_recuo`) também fica na trilha, com o seu nome e o número
-da negociação, sem valores. São os únicos casos em que um nome vai no evento, e é o seu, não o de um cliente.
+da negociação, sem valores. Mudar os **ajustes do Negociador** (ligar ou pausar, quem negocia, estilo,
+gatilhos, instruções) também fica na trilha (`negociador_config_alterada`), com o seu nome e o número
+da configuração, sem o conteúdo. São os únicos casos em que um nome vai no evento, e é o seu, não o de um cliente.
 
 ## O que ainda não existe
 

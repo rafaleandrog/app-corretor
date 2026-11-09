@@ -29,6 +29,7 @@ function metaFalsa(tipoConta = 'BUSINESS') {
     if (url.includes('fields=status_code')) return ok({ status_code: 'FINISHED' });
     if (url.endsWith('/media_publish')) return ok({ id: 'm1' });
     if (url.includes('fields=permalink')) return ok({ permalink: 'https://www.instagram.com/p/abc/' });
+    if (url.includes('/content_publishing_limit')) return ok({ data: [{ quota_usage: 3, config: { quota_total: 100, quota_duration: 86400 } }] });
     return new Response(JSON.stringify({ error: { message: 'inesperado', code: 1 } }), { status: 400 });
   };
   return chamadas;
@@ -342,4 +343,76 @@ test('revisão 2: peça com erro sem aprovação (de antes da D-86) pode ser apr
     const ok = await chamar('POST', `/estudio/pecas/${p.id}/aprovar`);
     assert.deepEqual([ok.status, ok.corpo.estado], [200, 'aprovada']);
   });
+});
+
+test('P12: Testar publicação confere a conexão sem publicar; desconectar apaga o token e GET /conexoes volta null; "Conectar" × "Reconectar"', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const chamadas = metaFalsa();
+  await comServidor(rotas, ator(100), banco, shell, async (chamar) => {
+    assert.equal((await chamar('GET', '/conexoes')).corpo.ja_conectou, false, 'nunca conectou: a tela diz Conectar');
+    assert.equal((await chamar('POST', '/conexoes/instagram/testar')).corpo.codigo, 'INSTAGRAM_DESCONECTADO');
+    await chamar('POST', '/conexoes/instagram/retorno', { code: 'x' });
+    const antes = chamadas.length;
+    const t = await chamar('POST', '/conexoes/instagram/testar');
+    assert.equal(t.status, 200, JSON.stringify(t.corpo));
+    assert.deepEqual([t.corpo.usuario, t.corpo.stories, t.corpo.usadas_24h, t.corpo.limite_24h], ['joao.corretor', true, 3, 100]);
+    const novas = chamadas.slice(antes).map((c) => c.url);
+    assert.equal(novas.length, 1);
+    assert.match(novas[0], /\/17841400000000001\/content_publishing_limit\?/);
+    assert.ok(!novas.some((u) => /\/media(_publish)?$/.test(u)), 'o teste não publica nada');
+    assert.ok(!JSON.stringify(t.corpo).includes('longo-1'), 'o token não volta');
+    const d = await chamar('POST', '/conexoes/instagram/desconectar');
+    assert.equal(d.status, 200);
+    const c = (await chamar('GET', '/conexoes')).corpo;
+    assert.equal(c.instagram, null);
+    assert.equal(c.ja_conectou, true, 'já conectou antes: a tela diz Reconectar');
+  });
+  const canal = banco.linhas('canais_sociais')[0];
+  assert.equal(canal.token, null, 'o token foi apagado');
+  assert.ok(canal.desconectado_em);
+  // Outra conta não testa a conexão de A.
+  await comServidor(rotas, ator(200), banco, shell, async (chamar) => {
+    assert.equal((await chamar('POST', '/conexoes/instagram/testar')).corpo.codigo, 'INSTAGRAM_DESCONECTADO');
+    assert.equal((await chamar('GET', '/conexoes')).corpo.ja_conectou, false);
+  });
+});
+
+test('status: conectar/desconectar duas vezes (2 linhas em canais_sociais) responde 200 com ja_conectou true', async () => {
+  const banco = new BancoFalso(UNICOS);
+  metaFalsa();
+  await comServidor(rotas, ator(100), banco, shell, async (chamar) => {
+    for (let i = 0; i < 2; i++) {
+      await chamar('POST', '/conexoes/instagram/retorno', { code: 'x' });
+      assert.equal((await chamar('POST', '/conexoes/instagram/desconectar')).status, 200);
+    }
+    const r = await chamar('GET', '/conexoes');
+    assert.equal(r.status, 200, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.ja_conectou, true);
+    assert.equal(r.corpo.instagram, null);
+  });
+});
+
+test('#73: evento agendado que chega para peça de volta a rascunho (migração 001) não publica nada', async () => {
+  const banco = new BancoFalso(UNICOS);
+  const chamadas = metaFalsa();
+  const ev = eventosFalsos();
+  let pecaId = 0;
+  let payload: any = null;
+  await comServidor(rotas, ator(100, { eventos: ev }), banco, shell, async (chamar) => {
+    await chamar('POST', '/conexoes/instagram/retorno', { code: 'x' });
+    const p = await pecaAprovada(chamar);
+    pecaId = p.id;
+    const quando = new Date(Date.now() + 2 * 3600e3).toISOString();
+    assert.equal((await chamar('POST', `/estudio/pecas/${p.id}/agendar`, { quando })).status, 200);
+    payload = ev.agendados[0].payload;
+  });
+  // A migração 001 devolveu a peça a rascunho (sem aprovação) e o agendamento não foi cancelado.
+  Object.assign(banco.linhas('pecas').find((x) => x.id === pecaId)!, { estado: 'rascunho', aprovada_em: null });
+  const antes = chamadas.length;
+  const ctx = { ...banco.ctxSistema([{ id: 100, nome: 'A' }]), arquivos, shell };
+  await reagir.publicacao_programada({ payload, conta_id: 100 }, ctx as any);
+  const peca = banco.linhas('pecas').find((x) => x.id === pecaId)!;
+  assert.equal(peca.estado, 'rascunho');
+  assert.equal(peca.publicacao_id ?? null, null);
+  assert.ok(!chamadas.slice(antes).some((c) => /\/media(_publish)?$/.test(c.url)), 'nada vai ao Instagram');
 });

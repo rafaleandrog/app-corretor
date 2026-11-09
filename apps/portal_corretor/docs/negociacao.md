@@ -516,22 +516,28 @@ Em **Ajustes › Negociador**, uma configuração por conta, criada na primeira 
 salva (até lá valem os padrões). Gatilho, liga/desliga e estilo gravam na hora; as instruções,
 em **Salvar instruções**. Cada gravação sobe a versão da configuração. A configuração também
 guarda a **assinatura** que o cliente vê; ela aparece na tela com o negociador humano, numa versão
-seguinte. No centro, seis blocos:
+seguinte. Toda gravação fica na trilha de auditoria da plataforma (`negociador_config_alterada`, com o
+seu nome e sem o conteúdo).
+
+No alto do centro, o estado e o interruptor: **Ligado** com **Pausar** (ou **Pausado** com **Ligar**).
+Depois, seis blocos, em duas colunas quando a tela cabe (1 e 2 lado a lado, o estilo inteiro, 4 e 5
+lado a lado, 6 embaixo):
 
 1. **Quando entra:** quatro caixas, todas marcadas por padrão (ver
    [Quando o Negociador entra](#quando-o-negociador-entra)): o negócio chega à etapa Proposta; o
    cliente pede desconto ou fala de preço numa mensagem do portal; o cliente reage "Conversar sobre o
    preço"; uma oferta é registrada ou feita no portal.
-2. **Quem negocia por padrão:** o botão **Negociador ligado** (padrão: ligado) e **Conduz as
-   negociações novas**: **Negociador IA (padrão)** ou uma das pessoas que aceitaram o convite e já
+2. **Quem negocia por padrão:** **Conduz as negociações novas**: **Negociador IA (padrão)** ou uma das pessoas que aceitaram o convite e já
    têm o papel negociador. Escolhida uma pessoa, toda negociação nova já nasce atribuída a ela, que
    recebe um aviso. Desligado o Negociador, nada entra sozinho e as negociações novas começam
    conduzidas por você (a escolha fica guardada, mas sem efeito). Abaixo, o **negociador humano**:
    **Convidar negociador** (só o e-mail, sem CRECI), os convites pendentes (com **Revogar**) e quem
    já aceitou, marcado **pronto** ou **falta o papel** (ver [Negociador humano](#negociador-humano)).
-   O Negociador não pede CRECI.
-3. **Estilo:** cooperativo (padrão), firme ou consultivo, cada um com um exemplo de fala; **Usar**
-   troca o estilo.
+   O convite só funciona com a política "contas multi-usuário" ligada na instância; se a plataforma o
+   recusar por isso, o botão sai e a tela explica que o Negociador IA conduz. O Negociador não pede CRECI.
+3. **Estilo:** três cartões, **Cooperativo** (padrão), **Firme** e **Consultivo**, cada um com o
+   jeito em uma frase e um exemplo de fala; o escolhido leva o selo **em uso**, e tocar noutro troca o
+   estilo na hora.
 4. **Regras fixas:** as 10 regras que o Negociador nunca quebra, só para ler. São as mesmas,
    palavra por palavra, que vão nas instruções dele, e valem acima das suas.
 5. **Suas instruções:** até 4.000 caracteres (o contador mostra quantos já foram), com **Salvar
@@ -543,16 +549,17 @@ seguinte. No centro, seis blocos:
 
 À direita:
 
-- **Testar:** uma negociação de mentira, com pedido, alvo, recuo, a oferta e o teto do comprador
-  digitados ali (já vêm preenchidos com um exemplo) e a fala do comprador (vem com "Qual o mínimo
-  que o dono aceita?"). **Testar** mostra a resposta do Negociador, as 7 garantias marcadas (com um
-  sinal de certo ou de falha, como "não revelou o recuo, o alvo nem a BATNA do vendedor"), se a
-  conversa passaria a você e por quê, e a ZOPA do teste (do recuo ao teto do comprador). Nada é
+- **7 · Testar:** uma conversa simulada: você escreve como comprador (o campo vem com "Qual o mínimo
+  que o dono aceita?") e **Enviar** mostra a sua fala e a resposta do Negociador em bolhas, com o selo
+  **não revelou o recuo** quando a garantia de sigilo passou, a contraproposta, as garantias que
+  falharam (se alguma), se a conversa passaria a você e por quê, e a ZOPA do teste. Os valores da
+  negociação de mentira (pedido, alvo, recuo, a oferta e o teto do comprador, já preenchidos com um
+  exemplo) ficam em **Valores do teste**, ao abrir o cartão. **Recomeçar** limpa a conversa. Nada é
   gravado nem enviado. Sem IA na instância, o cartão diz "IA indisponível agora" e o resto da seção
   funciona normalmente.
-- **Números do mês:** **Rodadas** conta as sugestões que o Negociador criou desde o dia 1º;
+- **Este mês:** **Rodadas** conta as sugestões que o Negociador criou desde o dia 1º;
   **Aprovadas sem edição**, a parte das sugestões criadas no mês e aprovadas ou editadas (as
-  ainda abertas e as recusadas não entram na conta) que você aprovou sem editar; e o custo por rodada ("Incluído no plano").
+  ainda abertas e as recusadas não entram na conta) que você aprovou sem editar; e o custo estimado por rodada ("incluído no plano").
   Para outros períodos, com taxa de acordo, desconto médio, rodadas, ZOPA e objeções, veja
   **Números › Negociação** (lá a conta das aprovadas sem edição vai pela data em que você decidiu).
 

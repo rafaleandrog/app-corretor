@@ -3,10 +3,10 @@ import { Router, type Request } from 'express';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { CANAIS_ABORDAGEM, iso, ordenarFila, taxasDePassagem, TEMPERATURAS, ultimoSinal, type TipoFila } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
-import { etapasDaConta, registrar } from './crm';
+import { registrar } from './crm';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
 import { limiteParado } from '../comum/crm';
-import { etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
+import { etapasPorId, funilPrecisaPreparo, playbookDaConta, prepararFunil, proximaAbordagem, reclassificar } from './inteligencia';
 import { numerosDaSemana } from './numeros';
 import { contaDoRequest, paginaDaConta } from './vitrine';
 import { dicaDoAssistente, primeirosPassos } from '../comum/hoje';
@@ -44,7 +44,6 @@ funilRotas.get(
   assincrono(async (req, res) => {
     const pipeline = req.query.pipeline === 'venda_captacao' ? 'venda_captacao' : 'compra';
     const dados = req.dados!;
-    await etapasDaConta(dados); // semeia na primeira vez
     const etapas = await etapasPorId(dados);
     const daqui = [...etapas.values()].filter((e) => e.pipeline === pipeline && e.ativa).sort((a, b) => a.ordem - b.ordem);
     // Os dois funis: as contagens da coluna da esquerda (P03) contam os negócios abertos de cada um.
@@ -123,7 +122,18 @@ funilRotas.get(
         };
       })
       .filter((k) => (!temperatura || k.temperatura === temperatura) && (!parado || (iso(k.ultimo_contato_em) ?? '') < parado));
-    res.json({ pipeline, etapas: daqui, negocios: cartoes, funis, temperaturas, passagem });
+    res.json({ pipeline, etapas: daqui, negocios: cartoes, funis, temperaturas, passagem, preparar: !etapas.size || !playbook.length });
+  }),
+);
+
+// ---------- Preparar o funil da conta (issue #32) ----------
+
+funilRotas.post(
+  '/funil/preparar',
+  assincrono(async (req, res) => {
+    const conta = req.contexto?.contaEscrita;
+    await prepararFunil(req.dados!, conta ? { conta_id: conta } : {});
+    res.json({ ok: true });
   }),
 );
 
@@ -133,7 +143,6 @@ funilRotas.get(
   '/funil/playbook',
   assincrono(async (req, res) => {
     const dados = req.dados!;
-    await etapasDaConta(dados);
     const etapas = await etapasPorId(dados);
     const playbook = await playbookDaConta(dados, etapas);
     const linhas = playbook
@@ -142,7 +151,9 @@ funilRotas.get(
       .sort((a, b) => a.ordem - b.ordem || TEMPERATURAS.indexOf((b as Linha).temperatura) - TEMPERATURAS.indexOf((a as Linha).temperatura));
     // Etapas em andamento sem abordagem (criadas pelo corretor): a tela oferece cadastrar.
     const semAbordagem = [...etapas.values()].filter((e) => e.ativa && e.tipo === 'aberta' && !playbook.some((p) => p.etapa_id === e.id));
-    res.json({ abordagens: linhas, etapas_sem_abordagem: semAbordagem });
+    // Conta ainda sem etapas ou sem abordagens (criada depois do último início do app): a tela pede
+    // `POST /funil/preparar`, que semeia o padrão (issue #32: o GET não grava).
+    res.json({ abordagens: linhas, etapas_sem_abordagem: semAbordagem, preparar: !etapas.size || !playbook.length });
   }),
 );
 
@@ -254,7 +265,6 @@ export async function filaDoDia(dados: HelperDados, fuso: string): Promise<ItemF
   const ag = agora();
   const hoje = limitesDoDia(fuso);
   const amanha = limitesDoDia(fuso, 1);
-  await etapasDaConta(dados);
   const etapas = await etapasPorId(dados);
   const [quentes, negocios, visitas, passos, playbook] = await Promise.all([
     dados.listar('contatos', { filtros: { temperatura: 'quente', 'ultimo_contato_em[lt]': new Date(Date.now() - DIA).toISOString() }, ordenar: 'ultimo_contato_em', ordem: 'asc', por_pagina: 50 }),
@@ -438,7 +448,7 @@ funilRotas.get(
   assincrono(async (req: Request, res) => {
     const dados = req.dados!;
     const fuso = req.contexto?.fuso || 'America/Sao_Paulo';
-    const [fila, conta, precisa, agenda_hoje] = await Promise.all([filaDoDia(dados, fuso), estadoDaConta(req), passagens(dados), agendaDeHoje(dados, fuso)]);
+    const [fila, conta, precisa, agenda_hoje, preparar] = await Promise.all([filaDoDia(dados, fuso), estadoDaConta(req), passagens(dados), agendaDeHoje(dados, fuso), funilPrecisaPreparo(dados)]);
     // A faixa da semana é complementar: se o cálculo falhar, a fila do dia continua de pé.
     const semana = await numerosDaSemana(dados).catch(() => null);
     // A demonstração só se oferece em conta de teste ainda sem nenhum contato.
@@ -452,6 +462,8 @@ funilRotas.get(
       sem_creci: conta.sem_creci,
       semana,
       demo_disponivel,
+      // Sem playbook a fila não traz abordagem vencida; o GET não grava, então a tela pede `POST /funil/preparar`.
+      preparar,
       dica: dicaValidada(fila, conta.primeiros_passos, fuso),
     });
   }),

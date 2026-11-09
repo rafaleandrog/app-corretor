@@ -31,7 +31,7 @@ export class PcTelaAgenda extends LitElement {
       this.total = r.total ?? r.dados.length;
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 

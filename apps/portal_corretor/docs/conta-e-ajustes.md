@@ -8,8 +8,11 @@ descricao: A tela de Ajustes (Mensageiro, Negociador, Conexões, Conta e marca, 
 **Ajustes** é a última tela do menu. Ela segue o desenho novo das outras telas, em três colunas (no
 celular, uma por vez, em abas):
 
-- **à esquerda**, as seções;
-- **no centro**, o conteúdo da seção escolhida (cada bloco tem o botão de lápis para editar);
+- **à esquerda**, as seções, cada uma com uma linha do que está valendo (por exemplo, "Instagram
+  conectado" em Conexões ou "ligado · IA · cooperativo" no Negociador);
+- **no centro**, o conteúdo da seção escolhida. Em **Conta e marca**, os campos ficam na própria tela,
+  com **Salvar perfil e conta** e **Salvar marca**; em Horário de atendimento, o bloco tem o botão de
+  lápis para editar;
 - **à direita**, uma ajuda curta da seção e o botão **Perguntar ao Assistente**. Em Conta e marca,
   aparece ali também o aviso do CRECI, quando ele falta; no Negociador, o simulador e os números do mês.
 
@@ -17,8 +20,8 @@ celular, uma por vez, em abas):
 |---|---|
 | **Mensageiro** | Ainda nada para configurar: o Mensageiro chega com a conexão do WhatsApp |
 | **Negociador** | Quando entra (quatro momentos), quem negocia por padrão (o Negociador IA ou uma pessoa, com **Convidar negociador**, só o e-mail, e os convites), estilo, regras fixas, suas instruções e respostas a objeções; à direita, **Testar** e os números do mês — ver [Ajustes do Negociador](negociacao.md#ajustes-do-negociador) e [Negociador humano](negociacao.md#negociador-humano) |
-| **Conexões** | O Instagram, o WhatsApp ("ainda não disponível") e a Agenda ("fase 6") — ver [Conexões (Instagram)](conexoes.md) |
-| **Conta e marca** | Seus dados (CRECI e telefone), os dados da conta e a marca (logo, sua foto, cores, estilo e assinatura) |
+| **Conexões** | O Instagram (com **Testar publicação**), o WhatsApp (os três passos, quando chegar) e a Agenda ("fase 6") — ver [Conexões (Instagram)](conexoes.md) |
+| **Conta e marca** | Seu perfil (nome profissional, CRECI, WhatsApp e regiões que atende), os dados da conta e a marca (logo, sua foto, cores, estilo, assinatura e tom de voz) |
 | **Funil e abordagens** | Etapas de cada funil e a abordagem por etapa e temperatura — ver [Funil](funil.md) |
 | **Horário de atendimento** | As regras de atendimento, abaixo |
 | **Privacidade** | O consentimento dos clientes (que fica na ficha de cada um) e **Exportar contatos** |
@@ -30,7 +33,20 @@ link direto, e recarregar a tela volta à mesma seção. Os endereços antigos c
 - `/ajustes/marca` e `?aba=marca` também abrem Conta e marca, porque a Marca agora fica nessa seção;
 - `/ajustes/conexoes` e `/ajustes/funil` abrem as seções deles.
 
-## Conta › Seus dados: CRECI e telefone
+## Conta e marca › Seu perfil
+
+Os campos ficam na tela; **Salvar perfil e conta** grava o seu perfil e, se mudou, a conta. Um erro
+de preenchimento aparece logo acima do botão, com os campos como você deixou.
+
+- **Nome profissional**: o nome com que os clientes te conhecem. Ele aparece no topo da seleção e do
+  portal do cliente e é o nome sugerido da sua página (quando a página tem nome próprio, vale o da
+  página). Sem ele, vale o seu nome de usuário da plataforma.
+- **Regiões que atende**: texto livre, por exemplo "Lago Sul, Sudoeste, Jardim Botânico".
+- A **foto** do perfil fica em **Sua marca**, logo abaixo.
+
+**Administrador do app numa conta que não é de demonstração:** o seu perfil de corretor não é gravado
+(os campos ficam desligados, com o aviso). Para avaliar o app sem deixar dados na conta de um corretor
+real, use uma conta de demonstração (nome terminado em "(demo)"). Os dados da conta continuam editáveis.
 
 - **CRECI** (opcional): é aqui que você cadastra. O formato usual é `UF-número-F` (pessoa física)
   ou `-J` (pessoa jurídica), por exemplo `DF-12345-F`. Pode digitar em minúsculas: o app passa
@@ -43,11 +59,11 @@ link direto, e recarregar a tela volta à mesma seção. Os endereços antigos c
   página e "o que falta" na ficha do imóvel), aparece só o aviso discreto *"Adicione seu CRECI ao
   perfil para que ele apareça nos anúncios"*, com o atalho **Ajustes › Conta e marca**, e também na coluna da direita desta seção. O CRECI jurídico da
   conta também vale: com ele, o aviso some.
-- **Telefone (WhatsApp)** com DDD, por exemplo `(61) 99999-9999` (o zero antes do DDD pode ficar).
+- **WhatsApp** com DDD, por exemplo `(61) 99999-9999` (o zero antes do DDD pode ficar).
   Sem o `+` do país, o app entende que é um número do Brasil e exige DDD e 8 ou 9 dígitos.
 - Não há verificação nem selo do CRECI: o app não mostra "verificado" nem "não verificado".
 
-## Conta › Conta
+## Conta e marca › Conta
 
 - **Nome da conta**: o nome com que você trabalha; nas próximas versões aparece na sua página e
   para os seus clientes.
@@ -74,7 +90,11 @@ conta só: ela recomeça vazia na conta nova.
 
 ## A marca
 
-A seção **Conta e marca** guarda também a marca da conta, e ela é uma só para tudo o que o cliente vê:
+A seção **Conta e marca** guarda também a marca da conta, e ela é uma só para tudo o que o cliente vê.
+Na tela: **Logo** e **Sua foto** com a prévia e o botão de trocar (salvos ao escolher o arquivo), **Cor
+principal** e **Cor de apoio** com a amostra da cor (o seletor de cor do navegador), o **estilo das
+artes**, a **assinatura** e o **tom de voz** (Próximo e direto · Sofisticado · Formal), que vai para
+os textos que a IA escreve nas peças do Estúdio. **Salvar marca** grava cores, estilo, assinatura e tom.
 
 | Onde | O que da marca aparece |
 |---|---|

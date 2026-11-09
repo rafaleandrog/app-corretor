@@ -891,11 +891,23 @@ negociacaoRotas.put(
       else valores.assinatura_humana = texto(b.assinatura_humana, 120);
     }
     if (erros.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira os ajustes do Negociador.', erros);
+    // Só conta alteração efetiva: cada chave enviada contra o valor atual (gatilhos já mesclados).
+    // Sem ela, nada é gravado nem publicado (a trilha auditável é imutável).
+    const mudou = Object.entries(valores).some(([k, v]) => JSON.stringify(v ?? null) !== JSON.stringify((atual as Record<string, unknown>)[k] ?? null));
+    if (!mudou) return res.json(atual);
     // A primeira gravação leva os padrões junto (a linha nasce aqui, nunca dentro de um GET).
     const base = atual.padrao
       ? { ligado: atual.ligado, conduz_padrao: atual.conduz_padrao, gatilhos: atual.gatilhos, estilo: atual.estilo }
       : {};
-    await salvarUnico(dados, 'config_negociador', { chave: 'conta' }, { ...base, ...valores, versao: atual.versao + 1 });
+    const salva = await salvarUnico(dados, 'config_negociador', { chave: 'conta' }, { ...base, ...valores, versao: atual.versao + 1 });
+    // Auditável (13.1, P17): quem mudou os ajustes do Negociador fica na trilha da plataforma. Só ids e o
+    // nome de quem agiu (como `canal_conectado`); o que mudou fica na linha, nunca no evento.
+    await publicarEvento(req, 'negociador_config_alterada', {
+      config_id: Number(salva.id),
+      tipo: 'negociador',
+      ator_id: req.contexto!.usuario.id,
+      ator_nome: (req.contexto!.usuario.nome ?? '').trim() || `Usuário ${req.contexto!.usuario.id}`,
+    });
     res.json(await configDaConta(dados));
   }),
 );

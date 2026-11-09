@@ -14,9 +14,9 @@ import {
   validarEtapas,
   type Pipeline,
 } from '../comum/crm';
-import { gerarCsv } from '../comum/csv';
+import { gerarCsv, LIMITE_LINHAS_IMPORTACAO } from '../comum/csv';
 import { assincrono, erro, guardarCorretor, id, MENSAGEM_VARIAS_CONTAS, primeiro } from './acesso';
-import { classificarManual, etapasPorId, playbookDaConta, proximaAbordagem, reclassificar } from './inteligencia';
+import { classificarManual, etapasPorId, playbookDaConta, prepararFunil, proximaAbordagem, reclassificar } from './inteligencia';
 import { encerrarAcessosDoCliente, tentarPortal } from './portal';
 import { iso, MARCO_PADRAO } from '../comum/funil';
 import { entrarPelaEtapaProposta } from './negociador-entrada';
@@ -43,7 +43,7 @@ export const crmRotas: Router = Router();
 guardarCorretor(crmRotas, ['/contatos', '/negocios', '/atividades', '/funil', '/visitas']);
 
 const POR_PAGINA = 50;
-const LIMITE_IMPORTACAO = 2000;
+const LIMITE_IMPORTACAO = LIMITE_LINHAS_IMPORTACAO;
 /** Linhas aceitas na prévia da importação (`simular`): a tela manda 10. */
 const LIMITE_PREVIA = 50;
 const eu = (req: Request) => req.contexto!.usuario.id;
@@ -90,20 +90,14 @@ async function origem(dados: HelperDados, canal: unknown, campanha: unknown): Pr
   }
 }
 
-/** Etapas da conta; na primeira vez, semeia o padrão (spec 6.2). */
+/**
+ * Etapas da conta, só leitura (issue #32: nenhum GET grava). Conta ainda sem etapas devolve lista
+ * vazia; quem precisa delas para gravar chama `garantirEtapas` antes, e as telas de leitura pedem
+ * `POST /funil/preparar` quando a resposta traz `preparar: true`.
+ */
 export async function etapasDaConta(dados: HelperDados, pipeline?: Pipeline) {
-  let r = await dados.listar('etapas_funil', { por_pagina: 200, ordenar: 'ordem', ordem: 'asc' });
-  if (!r.dados.length) {
-    for (const e of ETAPAS_PADRAO) {
-      try {
-        await dados.criar('etapas_funil', { ...e, ativa: true, marco: MARCO_PADRAO[e.nome] ?? null });
-      } catch (err) {
-        if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
-      }
-    }
-    r = await dados.listar('etapas_funil', { por_pagina: 200, ordenar: 'ordem', ordem: 'asc' });
-  }
-  return r.dados.filter((e) => !pipeline || e.pipeline === pipeline);
+  const linhas = await dados.varrerTudo('etapas_funil', { ordenar: 'ordem', ordem: 'asc', maximo: 5000 });
+  return linhas.filter((e) => !pipeline || e.pipeline === pipeline);
 }
 
 /**
@@ -239,6 +233,9 @@ crmRotas.post(
     if (!linhas.length) return erro(res, 422, 'DADOS_INVALIDOS', 'Nenhuma linha para importar.');
     if (linhas.length > LIMITE_IMPORTACAO) return erro(res, 422, 'DADOS_INVALIDOS', `Importe no máximo ${LIMITE_IMPORTACAO} linhas por vez.`);
     const dados = req.dados!;
+    // Número da primeira linha do envio na planilha (a 1 é o cabeçalho): a tela manda em lotes (#40) e o
+    // relatório de cada lote sai com o número da linha do arquivo original.
+    const primeiraLinha = Number.isInteger(req.body?.primeira_linha) && req.body.primeira_linha >= 2 && req.body.primeira_linha <= 1_000_000 ? (req.body.primeira_linha as number) : 2;
     // Prévia (P14): o que aconteceria em cada linha, sem gravar nada. A mesma validação e a mesma
     // busca de repetidos da importação; um repetido dentro da própria planilha conta como "já existe".
     if (req.body?.simular === true) {
@@ -247,7 +244,7 @@ crmRotas.post(
       const vistos = new Set<string>();
       const previa = [];
       for (const [i, bruta] of linhas.entries()) {
-        const linha = i + 2;
+        const linha = i + primeiraLinha;
         const v = validarContato(bruta ?? {});
         if (!v.ok) {
           previa.push({ linha, acao: 'ignorada', motivo: v.erros.join(' ') });
@@ -268,7 +265,7 @@ crmRotas.post(
     const relatorio = { criados: 0, unidos: 0, pulados: 0, rejeitados: [] as { linha: number; motivo: string }[] };
     for (const [i, bruta] of linhas.entries()) {
       // Linha da planilha como o corretor a vê: a 1 é o cabeçalho.
-      const linha = i + 2;
+      const linha = i + primeiraLinha;
       const rejeitar = (motivo: string) => relatorio.rejeitados.push({ linha, motivo });
       const v = validarContato(bruta ?? {});
       if (!v.ok) {
@@ -285,7 +282,7 @@ crmRotas.post(
           (v.dados.email && (await primeiro(dados, 'contatos', { email: v.dados.email }))) ||
           null;
         if (!existente) {
-          // Importado entra sem consentimento: o Mensageiro só fala com ele por modelo aprovado (D-20).
+          // Importado entra sem consentimento registrado (12.1); o corretor registra na ficha.
           // A data da importação conta como último contato, para o filtro "parados há N dias" o alcançar.
           const c = await dados.criar('contatos', { papeis: 'comprador', ...v.dados, responsavel_id: eu(req), origem_id, ultimo_contato_em: agora() });
           await registrar(dados, req, { tipo: 'contato.importado', alvo_tipo: 'contato', alvo_id: c.id, contato_id: c.id, resumo: `Importado de ${arquivo ?? 'planilha'}` });
@@ -455,6 +452,8 @@ crmRotas.post(
     const contato = cid ? await dados.buscar('contatos', cid) : null;
     if (!contato) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o contato do negócio.');
     const pipeline = (PIPELINES as readonly string[]).includes(req.body?.pipeline) ? (req.body.pipeline as Pipeline) : 'compra';
+    const contaFunil = req.contexto?.contaEscrita;
+    await prepararFunil(dados, contaFunil ? { conta_id: contaFunil } : {});
     const etapas = await etapasDaConta(dados, pipeline);
     const primeira = etapas.find((e) => e.ativa && e.tipo === 'aberta');
     if (!primeira) return erro(res, 409, 'SEM_ETAPA', 'Este funil não tem etapa em andamento ativa. Revise em Ajustes › Funil.');
@@ -779,7 +778,11 @@ crmRotas.get(
   '/funil/etapas',
   assincrono(async (req, res) => {
     const pipeline = (PIPELINES as readonly string[]).includes(req.query.pipeline as string) ? (req.query.pipeline as Pipeline) : undefined;
-    res.json({ etapas: await etapasDaConta(req.dados!, pipeline) });
+    const dados = req.dados!;
+    const etapas = await etapasDaConta(dados, pipeline);
+    // Conta ainda sem etapas ou sem abordagens: a tela pede `POST /funil/preparar` (issue #32).
+    const [algumaEtapa, algumaAbordagem] = await Promise.all([dados.listar('etapas_funil', { por_pagina: 1 }), dados.listar('playbook_funil', { por_pagina: 1 })]);
+    res.json({ etapas, preparar: !algumaEtapa.dados.length || !algumaAbordagem.dados.length });
   }),
 );
 
@@ -791,6 +794,8 @@ crmRotas.put(
     const v = validarEtapas(pipeline, req.body?.etapas);
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira as etapas.', v.erros);
     const dados = req.dados!;
+    const contaFunil = req.contexto?.contaEscrita;
+    await prepararFunil(dados, contaFunil ? { conta_id: contaFunil } : {}); // etapasDaConta é só leitura: a conta ganha as etapas padrão antes de qualquer escrita
     const atuais = await etapasDaConta(dados, pipeline);
     const porId = new Map(atuais.map((e) => [e.id, e]));
     for (const e of v.dados) if (e.id && !porId.has(e.id)) return erro(res, 422, 'DADOS_INVALIDOS', 'Etapa de outro funil ou inexistente.');

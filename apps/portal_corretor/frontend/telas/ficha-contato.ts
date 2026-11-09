@@ -9,7 +9,7 @@ import { tarefaDaAbordagem } from '../../comum/funil';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
 import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
-import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, seNaoContaTrocada, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE } from '../apoio.js';
+import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, seNaoContaTrocada, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE, lerPreparandoFunil } from '../apoio.js';
 import { formatarTelefone } from '../../comum/crm';
 import { DICA_IA_INDISPONIVEL, estadoDaFalha, estadoTela } from '../estados.js';
 import { registrarEdicao, soltarEdicao } from '../atalhos.js';
@@ -218,7 +218,7 @@ export class FichaContato {
     try {
       const [ficha, etapas, envios] = await this.vida.esperar(Promise.all([
         chamarApi(`/contatos/${this.contatoId}`),
-        chamarApi('/funil/etapas'),
+        lerPreparandoFunil('/funil/etapas'),
         // O histórico de envios é complementar: se falhar, a ficha abre sem ele.
         chamarApi(`/envios?contato_id=${this.contatoId}`).catch(() => ({ dados: [] })),
       ]));
@@ -715,8 +715,8 @@ export class FichaContato {
           ? html`<urbi-prosa>Consentimento registrado em ${dataHora(consentimento.aceito_em)} (${consentimento.canal}).</urbi-prosa>
               <urbi-botao variante="texto" @click=${() => this.consentimento(false)}>Revogar</urbi-botao>`
           : html`<urbi-prosa papel="dica">${declarado
-                ? `Declarou consentimento no formulário da página em ${dataHora(declarado.aceito_em)}. Confirme com o cliente antes de registrar: até lá, o atendimento automático só usa mensagens-modelo aprovadas.`
-                : 'Sem consentimento: o atendimento automático só usa mensagens-modelo aprovadas.'}</urbi-prosa>
+                ? `Declarou consentimento no formulário da página em ${dataHora(declarado.aceito_em)}. Confirme com o cliente antes de registrar: até lá, a ficha não conta o consentimento.`
+                : 'Sem consentimento registrado. Confirme com o cliente antes de mandar mensagens.'}</urbi-prosa>
               <urbi-botao variante="texto" @click=${() => this.consentimento(true)}>${declarado ? 'Confirmar' : 'Registrar'}</urbi-botao>`}
       </urbi-linha>
     </urbi-card>`;
@@ -844,7 +844,7 @@ export class FichaContato {
       URL.revokeObjectURL(url);
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
+      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     }
   }
 

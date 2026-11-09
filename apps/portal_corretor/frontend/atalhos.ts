@@ -183,7 +183,8 @@ export function abrirBusca() {
           tipo: 'busca',
           rotulo: 'Cliente, imóvel ou negociação',
           placeholder: `Nome, telefone, e-mail, código ou bairro (${BUSCA_MIN}+ letras)`,
-          obrigatorio: true,
+          // Campo de busca não leva o asterisco de obrigatório (#182, item 1): sem escolha, "Abrir" não
+          // abre nada. Com menos de BUSCA_MIN letras, nada é buscado (`buscar` devolve vazio).
           buscar,
         },
       ],

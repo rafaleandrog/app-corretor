@@ -2,8 +2,8 @@ import { LitElement, html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { ABAS_AJUSTES, ABA_PADRAO, abaDoEndereco, ehAbaAjustes, type AbaAjustes } from '../../comum/ajustes';
-import { avisoCreci, chamarApi, chamarFetch, gesto } from '../apoio.js';
+import { ABAS_AJUSTES, ABA_PADRAO, abaDoEndereco, ehAbaAjustes, linhaDeEstado, type AbaAjustes, type EstadoAjustes } from '../../comum/ajustes';
+import { avisoCreci, chamarApi, chamarFetch, contaDeTrabalho, gesto, mensagemDeErro } from '../apoio.js';
 import { estadoTela } from '../estados.js';
 import { cabecalhoColuna, moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -53,6 +53,39 @@ const AJUDA: Record<AbaAjustes, { titulo: string; texto: string }> = {
   },
 };
 
+// Linha de estado do menu (P12, diagnóstico 3.10): lida uma vez por entrada em Ajustes e por conta, e de
+// novo quando uma seção salva (`pc-ajustes-mudou`). Cada leitura é independente: a que falhar deixa a
+// linha descritiva da seção. Só a leitura mais recente da conta de agora vale.
+const estadoMenu = { conta: undefined as number | null | undefined, dados: {} as EstadoAjustes, seq: 0 };
+let redesenharMenu: () => void = () => {};
+
+/** Relê o estado das seções do menu (conexões, Negociador, prazos do atendimento). */
+export function lerEstadoDoMenu() {
+  const minha = ++estadoMenu.seq;
+  const conta = contaDeTrabalho();
+  if (estadoMenu.conta !== conta) estadoMenu.dados = {};
+  estadoMenu.conta = conta;
+  const g = gesto();
+  const ler = <T,>(rota: string, tomar: (r: any) => T) =>
+    g.esperar(chamarApi(rota)).then(tomar, (e) => (g.encerrado(e) ? undefined : null));
+  void Promise.all([
+    ler('/conexoes', (r) => (!r?.disponivel ? 'indisponivel' : r.instagram ? (r.instagram.ultimo_erro ? 'atencao' : 'conectado') : 'desconectado') as EstadoAjustes['instagram']),
+    ler('/negociador/config', (r) => (r ? { ligado: !!r.ligado, estilo: String(r.estilo ?? ''), conduz_padrao: String(r.conduz_padrao ?? 'ia') } : null)),
+    ler('/conta', (r) => r?.configuracoes ?? null),
+  ]).then(([instagram, negociador, configuracoes]) => {
+    if (minha !== estadoMenu.seq || !g.vivo()) return;
+    estadoMenu.dados = { instagram: instagram ?? null, negociador: negociador ?? null, configuracoes: configuracoes ?? null };
+    redesenharMenu();
+  });
+}
+
+if (typeof window !== 'undefined') window.addEventListener?.('pc-ajustes-mudou', () => lerEstadoDoMenu());
+
+/** Cada entrada em Ajustes (e cada troca de conta) relê a linha de estado do menu. */
+export function aoAbrirAjustes() {
+  lerEstadoDoMenu();
+}
+
 function conteudo(aba: AbaAjustes) {
   switch (aba) {
     case 'mensageiro':
@@ -85,6 +118,8 @@ function conteudo(aba: AbaAjustes) {
  * Só a seção aberta é montada: cada uma carrega o que é dela ao aparecer.
  */
 export function renderAjustes(atualizar: () => void) {
+  redesenharMenu = atualizar;
+  if (estadoMenu.conta === undefined) lerEstadoDoMenu();
   const aba = abaAtual();
   const escolher = (id: string) => {
     if (!ehAbaAjustes(id) || id === aba) return;
@@ -96,7 +131,10 @@ export function renderAjustes(atualizar: () => void) {
     <urbi-lista clicavel separador .itens=${ABAS_AJUSTES}
       .itemAtivo=${(s: (typeof ABAS_AJUSTES)[number]) => s.id === aba}
       .indicador=${(s: (typeof ABAS_AJUSTES)[number]) => (s.id === aba ? 'var(--cor-primaria)' : '')}
-      .render_item=${(s: (typeof ABAS_AJUSTES)[number]) => html`<urbi-linha><urbi-icone classe=${s.icone}></urbi-icone><urbi-prosa>${s.label}</urbi-prosa></urbi-linha>`}
+      .render_item=${(s: (typeof ABAS_AJUSTES)[number]) => html`<urbi-linha alinhar="centro"><urbi-icone classe=${s.icone}></urbi-icone><urbi-stack>
+        <urbi-prosa>${s.label}</urbi-prosa>
+        <urbi-prosa papel="fraco">${linhaDeEstado(s.id, estadoMenu.dados)}</urbi-prosa>
+      </urbi-stack></urbi-linha>`}
       @urbi:lista-click=${(e: CustomEvent) => escolher(String(e.detail.item?.id))}></urbi-lista>
   </urbi-stack>`;
   const ajuda = AJUDA[aba];
@@ -106,7 +144,7 @@ export function renderAjustes(atualizar: () => void) {
     ${aba === 'negociador' ? html`<pc-negociador-teste></pc-negociador-teste>` : nothing}
     <urbi-card titulo="Assistente" icone="fa-solid fa-comments">
       <urbi-prosa papel="secundario">Ficou com dúvida sobre esta seção? Pergunte ao Assistente: ele conhece a ajuda do app.</urbi-prosa>
-      <urbi-linha><urbi-botao pequeno variante="secundario" icone="fa-solid fa-comments" @click=${() => abrirAssistente()}>Perguntar ao Assistente</urbi-botao></urbi-linha>
+      <urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-comments" @click=${() => abrirAssistente()}>Perguntar ao Assistente</urbi-botao></urbi-linha>
     </urbi-card>
   </urbi-stack>`;
   // Trocar de seção recria o centro: nada da anterior fica na tela.
@@ -173,7 +211,7 @@ export class PcAjustesPrivacidade extends LitElement {
       URL.revokeObjectURL(url);
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: (e as Error).message, tipo: 'erro' });
+      await urbiVerso.alertar({ titulo: 'Não foi possível exportar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.exportando = false;
     }
@@ -183,11 +221,11 @@ export class PcAjustesPrivacidade extends LitElement {
     return html`<urbi-stack>
       <urbi-card titulo="Consentimento dos clientes" icone="fa-solid fa-handshake-simple">
         <urbi-prosa papel="secundario">Cada cliente diz se aceita receber mensagens suas e do atendimento automático. Você registra ou revoga isso na ficha dele, no cartão Cadastro (aba Resumo).</urbi-prosa>
-        <urbi-linha><urbi-botao pequeno variante="secundario" icone="fa-solid fa-address-book" href=${urbiVerso.href('/clientes')}>Abrir Clientes</urbi-botao></urbi-linha>
+        <urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-address-book" href=${urbiVerso.href('/clientes')}>Abrir Clientes</urbi-botao></urbi-linha>
       </urbi-card>
       <urbi-card titulo="Exportar os seus contatos" icone="fa-solid fa-file-export">
         <urbi-prosa papel="secundario">Baixa a planilha com os contatos da sua conta. Para tirar um contato da lista, use Remover na ficha dele: o histórico fica guardado.</urbi-prosa>
-        <urbi-linha><urbi-botao pequeno variante="secundario" icone="fa-solid fa-file-export" ?carregando=${this.exportando} @click=${() => void this.exportar()}>Exportar contatos</urbi-botao></urbi-linha>
+        <urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-file-export" ?carregando=${this.exportando} @click=${() => void this.exportar()}>Exportar contatos</urbi-botao></urbi-linha>
       </urbi-card>
     </urbi-stack>`;
   }

@@ -52,7 +52,7 @@ Na **Lista**:
   **origem** (por onde o contato chegou) e mostra quantos estão ligados. Tudo combina com a busca e
   com o filtro pronto.
 - A busca e os filtros ficam no endereço da página: dá para voltar ou guardar o link.
-- **Novo:** nome, telefone ou e-mail, papel (comprador ou proprietário) e por onde chegou. Sem papel
+- **Novo** (o diálogo **Novo cliente**, o mesmo nome do menu Criar): nome, telefone ou e-mail, papel (comprador ou proprietário) e por onde chegou. Sem papel
   informado, o contato entra como comprador. O telefone é guardado no formato internacional
   (`+55…`); sem o `+`, o app assume Brasil. Salvo, a ficha do contato novo abre. Se o app recusar
   (telefone inválido, nome em branco), o formulário reabre com o que você digitou e a mensagem no
@@ -194,14 +194,20 @@ cliente e o local. Clicar nela abre Hoje na agenda dos próximos 14 dias.
 
 O lembrete para o cliente, pelo WhatsApp, chega com o Mensageiro.
 
-## Importar planilha
+## Importar planilha ou contatos do celular
 
-**Clientes › Importar** recebe um arquivo CSV com cabeçalho (no Excel: Salvar como › CSV). A tela
-tem três colunas: à esquerda, de onde vêm os contatos; no meio, o arquivo, as colunas e a prévia; à
-direita, as regras.
+**Clientes › Importar** recebe um arquivo CSV com cabeçalho (no Excel: Salvar como › CSV) ou o
+arquivo vCard (`.vcf`) dos contatos do celular. A tela tem três colunas: à esquerda, de onde vêm os
+contatos; no meio, o arquivo, as colunas e a prévia; à direita, as regras.
 
-- **Fontes (esquerda).** Hoje, só a planilha (CSV). Contatos do celular (vCard) e a ligação direta
-  com outro CRM aparecem como "em breve". A planilha exportada de outro CRM já entra pela planilha.
+- **Fontes (esquerda).** **Planilha ou CSV** e **Contatos do celular** (vCard). **Outro CRM, direto**
+  aparece como "fase 2", sem ação: a planilha exportada de outro CRM já entra pela planilha.
+- **Contatos do celular.** Exporte os contatos como vCard (no iPhone, em iCloud › Contatos ›
+  Exportar vCard; no Android, em Contatos › Exportar) e escolha o arquivo. O app lê o arquivo no
+  navegador e transforma cada contato numa linha com **Nome**, **Telefone** (o celular, se houver
+  mais de um), **E-mail** e **Observações** (a nota do contato); daí em diante é igual à planilha
+  (colunas, prévia, importação). Contato sem nome e sem telefone fica de fora. Um arquivo `.vcf`
+  escolhido com a fonte Planilha também é reconhecido.
 
 No meio:
 
@@ -218,22 +224,26 @@ No meio:
    contato, já existe (e o que a regra de repetidos faz com ele) ou ignorada, com o motivo. A prévia
    usa a mesma validação e a mesma busca de repetidos da importação, sem gravar nada; uma linha
    repetida dentro da própria planilha aparece como "já existe".
-5. **Importar N contatos** e o relatório: quantos foram criados, unidos a contatos existentes,
-   pulados e rejeitados, com a linha da planilha (contando o cabeçalho como linha 1) e o motivo de
-   cada rejeição. Uma linha que esbarra no telefone de outro contato (por exemplo, cadastrado ao
-   mesmo tempo) é rejeitada, e as demais seguem.
+5. **Importar N contatos** (N são as linhas com nome) e o relatório: quantos foram criados, unidos a
+   contatos existentes, pulados e rejeitados, com a linha da planilha (contando o cabeçalho como
+   linha 1) e o motivo de cada rejeição. Uma linha que esbarra no telefone de outro contato (por
+   exemplo, cadastrado ao mesmo tempo) é rejeitada, e as demais seguem. **Baixar relatório** baixa
+   uma planilha com as linhas rejeitadas: o número da linha, o motivo e as células originais, para
+   corrigir e importar de novo. **Cancelar** limpa o arquivo e recomeça.
 
 À direita:
 
-- **Se o contato já existir** (mesmo telefone; se o telefone não achar ninguém, mesmo e-mail):
-  **Pular** (fica como está), **Completar** (preenche só os campos vazios) ou **Substituir** (a
-  planilha substitui os dados). Coluna não mapeada não apaga nem troca nada: sem a coluna de papel,
+- **Se o contato já existir** (mesmo telefone; se o telefone não achar ninguém, mesmo e-mail): uma
+  das três opções, cada uma com a explicação: **Pular** (fica como está), **Completar** (preenche só
+  os campos vazios) ou **Substituir** (a planilha substitui os dados). Coluna não mapeada não apaga nem troca nada: sem a coluna de papel,
   o contato existente fica com os papéis que tinha (o novo entra como comprador).
 - **Consentimento**: contatos importados entram sem consentimento registrado (ver abaixo).
 
-Limite de 2.000 linhas por vez, e cada importação envia no máximo 100 kB (limite da plataforma):
-com nome, telefone, e-mail e observação, isso dá algumas centenas de linhas. Quando o envio passa
-disso, a tela avisa o tamanho antes de importar; divida a planilha. Contatos importados entram
+Limite de 2.000 linhas por vez, com quantas colunas a planilha tiver. Como a plataforma aceita no
+máximo 100 kB por envio, o app manda a importação em partes (até 400 linhas e cerca de 80 kB cada),
+uma depois da outra, e soma os relatórios; a tela mostra "Enviando a parte N de M". Se uma parte
+falhar, o que já entrou fica, o relatório mostra até onde foi e o aviso diz a partir de qual linha
+importar de novo. Contatos importados entram
 **sem consentimento** e com origem "importação".
 
 ## Exportar

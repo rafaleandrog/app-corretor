@@ -11,8 +11,8 @@ descricao: Os números do corretor (leads, conversão por etapa e por canal, gr�
 colunas (no celular, uma por vez, com abas):
 
 - **À esquerda, os relatórios:** **Resumo** · **Funil e conversão** · **Origem dos contatos** ·
-  **Tempo de resposta** · **Conteúdo** · **Negociação**, e ainda **Mensageiro**, marcado "em
-  breve" (chega com o WhatsApp). Créditos não entram em Números.
+  **Conteúdo** · **Negociação**. Números abre em **Funil e conversão**. Tempo de resposta e
+  Mensageiro só aparecem quando o WhatsApp chegar, e Créditos não entram em Números.
   O relatório aberto fica no endereço (`/numeros?relatorio=funil`; o antigo `?item=` também abre).
 - **No centro, o relatório aberto.** No alto, o título e três escolhas:
   - o **período**: 7, 30 ou 90 dias, ou 12 meses (`?dias=30`), sempre comparado ao período anterior
@@ -43,6 +43,9 @@ colunas (no celular, uma por vez, com abas):
     Só números da conta, nenhum dado de cliente;
   - **Perguntar ao Assistente**.
 
+Os quatro números de cada relatório ficam numa linha (no celular, em pílulas). Valores em reais
+de R$ 1.000 para cima aparecem sem centavos ("R$ 104.825"); abaixo disso, com centavos.
+
 ### Resumo
 
 Quatro números: **Leads**, **Conversão total**, **Vendas** e **Comissão prevista**. Abaixo de cada
@@ -70,14 +73,11 @@ Quatro números: **Contatos** (os leads), **Contato → visita**, **Visita → p
 em andamento e perdidos hoje) e a tabela **Por canal**: leads, quantos visitaram, em andamento,
 ganhos, perdidos e a conversão de cada canal.
 
-### Tempo de resposta, Conteúdo e Mensageiro
+### Conteúdo
 
-- **Tempo de resposta** depende das conversas do WhatsApp, que ainda não estão disponíveis: o
-  relatório explica isso em vez de mostrar zero.
-- **Conteúdo** mostra as **peças publicadas** pelo Estúdio no período e os **leads do Instagram**
-  (pela origem do contato), com a comparação. Alcance, cliques e leads de cada peça ainda não têm
-  fonte.
-- **Mensageiro** aparece como "em breve".
+**Conteúdo** mostra as **peças publicadas** pelo Estúdio no período e os **leads do Instagram**
+(pela origem do contato), com a comparação. Alcance, cliques e leads de cada peça ainda não têm
+fonte.
 
 ### Negociação
 
@@ -151,8 +151,8 @@ mesma posição. Intervalo de um dia em 7 e 30 dias, de uma semana em 90 dias e 
 em 12 meses.
 
 Ainda sem fonte: tempo de primeiro atendimento e números do atendimento automático (o Mensageiro),
-que chegam com o WhatsApp; alcance do conteúdo; custo por lead, comissão recebida e metas, em
-versões seguintes.
+que chegam com o WhatsApp; alcance do conteúdo; custo por lead e por venda (o investimento por
+canal ainda não se informa no app), comissão recebida e metas, em versões seguintes.
 
 **Hoje** mostra, à direita, **Sua semana**: contatos novos, leads e visitas feitas nos últimos 7 dias
 e a comissão prevista.

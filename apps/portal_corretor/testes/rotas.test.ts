@@ -42,7 +42,7 @@ test('manifesto e backend andam juntos: rotas públicas, webhooks, eventos e pá
     'acesso_cliente_convidado', 'atividade_criada', 'visita_agendada', 'visita_feedback', 'visita_pedida', 'contatos_importados',
     'negocio_etapa_mudou', 'negocio_ganho', 'negocio_perdido', 'imovel_criado', 'imovel_ativado', 'imovel_preco_reduzido', 'imovel_vendido',
     'imovel_visibilidade_mudou', 'autorizacao_vencendo', 'pagina_publicada', 'peca_pronta', 'publicacao_feita', 'publicacao_falhou',
-    'integracao_erro', 'canal_conectado', 'canal_desconectado',
+    'integracao_erro', 'canal_conectado', 'canal_desconectado', 'negociador_config_alterada',
   ];
   for (const e of soNotificam) assert.ok(m.eventos[e], `evento ${e} declarado`);
   const comListener = Object.keys(m.eventos).filter((e) => !soNotificam.includes(e));

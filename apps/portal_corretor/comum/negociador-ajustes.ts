@@ -18,18 +18,21 @@ export const ROTULO_GATILHO: Record<(typeof GATILHOS)[number], string> = {
  */
 export const GATILHOS_EM_USO = ['etapa_proposta', 'pedido_desconto', 'reacao_preco', 'oferta_registrada'] as const satisfies readonly (typeof GATILHOS)[number][];
 
-/** Os 3 estilos, cada um com uma frase de exemplo (P17, item 3). */
-export const ESTILO_NEGOCIADOR: Record<(typeof ESTILOS)[number], { rotulo: string; exemplo: string }> = {
+/** Os 3 estilos, cada um com o jeito em uma frase e uma mensagem de exemplo (P17, item 3). */
+export const ESTILO_NEGOCIADOR: Record<(typeof ESTILOS)[number], { rotulo: string; jeito: string; exemplo: string }> = {
   cooperativo: {
     rotulo: 'Cooperativo',
+    jeito: 'Busca o acordo bom para os dois lados e concede sempre com uma contrapartida.',
     exemplo: '"Entendo, Ana. Se a entrega em 60 dias ajudar, consigo levar ao proprietário R$ 1.380.000 com entrada de 30%."',
   },
   firme: {
     rotulo: 'Firme',
+    jeito: 'Segura o preço e só mexe nele em troca de algo claro.',
     exemplo: '"Ana, o valor está alinhado com os vizinhos. Para mexer nele, preciso de uma entrada maior."',
   },
   consultivo: {
     rotulo: 'Consultivo',
+    jeito: 'Explica com dados do mercado antes de falar de valor.',
     exemplo: '"Ana, o m² aqui está abaixo dos comparáveis do bairro. Posso te mostrar a conta antes de falarmos de valor?"',
   },
 };
@@ -58,3 +61,6 @@ export const POLITICA_CONVITE = 'O convite exige a política "permite contas mul
 export const LIMITE_EVENTOS = 'Quem entra na conta vê os contatos que chegam pela sua página e os recados dos clientes: convide só quem pode ver isso.';
 /** O diálogo de convite, curto (#151): a política, o passo do administrador e o que a pessoa passa a ver. */
 export const MENSAGEM_CONVITE = `${POLITICA_CONVITE} Depois do aceite, o administrador dá a ela o papel negociador. ${LIMITE_EVENTOS}`;
+
+/** Selo do teste quando a garantia de sigilo passou (P17, 7 · Testar). */
+export const SELO_SIGILO = 'não revelou o recuo';

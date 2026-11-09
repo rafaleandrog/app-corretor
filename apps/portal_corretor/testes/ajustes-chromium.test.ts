@@ -51,7 +51,7 @@ window.urbiVerso = {
     if (caminho === '/negociador/numeros') return { desde: '2026-10-01', rodadas: 12, decididas: 8, aprovadas_sem_edicao: 6 };
     if (caminho === '/negociador/teste') return {
       resposta: { mensagem: 'Entendo. O vendedor propõe R$ 1.420.000.', contraproposta: { valor_c: 142000000 } },
-      validacoes: [{ ok: true, descricao: 'não revelou o recuo, o alvo nem a BATNA do vendedor', frase: '✓ não revelou o recuo, o alvo nem a BATNA do vendedor' }],
+      validacoes: [{ garantia: 'sigilo', ok: true, descricao: 'não revelou o recuo, o alvo nem a BATNA do vendedor', frase: '✓ não revelou o recuo, o alvo nem a BATNA do vendedor' }],
       passagem: false, motivos_passagem: [], zopa: { existe: true, de_c: 136000000, ate_c: 140000000 },
     };
     if (caminho === '/conexoes') return { instagram: null, disponivel: true, retorno: 'https://app.exemplo/portal_corretor/ajustes/conexoes' };
@@ -131,8 +131,20 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     let r: any = await ler();
     assert.deepEqual(r.secoes, ['Mensageiro', 'Negociador', 'Conexões', 'Conta e marca', 'Funil e abordagens', 'Horário de atendimento', 'Privacidade']);
     assert.deepEqual(r.ativa, ['conta']);
-    assert.match(r.centro, /Seus dados/);
+    // P13 (grupo 5): formulário na tela com Salvar, não diálogo; campos com rótulo no primitivo (#192).
+    assert.match(r.centro, /Seu perfil/);
     assert.match(r.centro, /Sua marca/);
+    assert.match(r.centro, /Salvar perfil e conta/);
+    assert.match(r.centro, /Salvar marca/);
+    assert.match(r.centro, /Tom de voz/);
+    assert.doesNotMatch(r.centro, /em verificação|verificado/, 'CRECI sem estado de verificação (D-93)');
+    const rotulos = await pagina.evaluate(() => {
+      const w = window as any;
+      const centro = document.querySelector('urbi-hospedeiro[slot="centro"]');
+      return [...w.todos(centro, 'urbi-input'), ...w.todos(centro, 'urbi-select'), ...w.todos(centro, 'urbi-seletor-arquivo')].map((x: any) => x.getAttribute('label'));
+    });
+    for (const l of ['Nome profissional', 'CRECI (opcional)', 'WhatsApp', 'Regiões que atende', 'Cor principal', 'Cor de apoio', 'Logo', 'Sua foto (opcional)']) assert.ok(rotulos.includes(l), l);
+    assert.ok(rotulos.every((l: string | null) => !!l), 'todo campo com rótulo');
     assert.doesNotMatch(r.centro, /Adicione seu CRECI/, 'o aviso do CRECI saiu do centro');
     assert.match(r.direita, /Adicione seu CRECI ao perfil/);
     assert.match(r.direita, /Perguntar ao Assistente/);
@@ -177,7 +189,12 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.match(r.centro, /0 de 4\.000/);
     assert.doesNotMatch(r.centro, /CRECI/);
     assert.match(r.direita, /7 · Testar/);
-    assert.match(r.direita, /Números do mês/);
+    assert.match(r.direita, /Este mês/);
+    // Grupo 5: interruptor Ligado · Pausar no cabeçalho do centro; estilo em três cartões; duas colunas.
+    assert.match(r.centro, /^Negociador Ligado Pausar/);
+    const grades = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-grid').map((g: any) => g.getAttribute('min')));
+    assert.ok(grades.includes('260px'), JSON.stringify(grades));
+    assert.match(r.centro, /Cooperativo em uso/);
     const marcados = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-checkbox').map((c: any) => c.hasAttribute('marcado')));
     // Os quatro gatilhos de 10.9.4, todos com leitor no backend (F3); desmarcar um grava só ele.
     assert.deepEqual(marcados, [true, true, false, true]);
@@ -196,7 +213,7 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.equal(kpis['Aprovadas sem edição'], '75%');
     await pagina.evaluate(() => {
       const w = window as any;
-      const b = w.todos(document.querySelector('urbi-hospedeiro[slot="direita"]'), 'urbi-botao').find((x: any) => /Testar/.test(x.textContent));
+      const b = w.todos(document.querySelector('urbi-hospedeiro[slot="direita"]'), 'urbi-botao').find((x: any) => x.textContent.trim() === 'Enviar');
       b.click();
     });
     await esperar();
@@ -207,7 +224,9 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     assert.equal(corpo.teto_estimado_c, 140000000);
     assert.equal(corpo.mensagem_cliente, 'Qual o mínimo que o dono aceita?');
     r = await ler();
-    assert.match(r.direita, /não revelou o recuo, o alvo nem a BATNA do vendedor/);
+    // A conversa simulada: a fala do comprador, a resposta do Negociador em bolha e o selo de sigilo.
+    assert.match(r.direita, /Você, como comprador Qual o mínimo que o dono aceita\? Negociador · teste/);
+    assert.match(r.direita, /não revelou o recuo/);
     assert.doesNotMatch(r.direita, /✓/, 'a marca é ícone, não glifo');
     assert.match(r.direita, /Contraproposta: R\$\s?1\.420\.000/);
     assert.match(r.direita, /ZOPA deste teste: de R\$\s?1\.360\.000,00 a R\$\s?1\.400\.000,00/);
@@ -220,7 +239,8 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     await esperar();
     await pagina.evaluate(() => {
       const w = window as any;
-      w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-botao').find((x: any) => x.textContent.trim() === 'Usar').click();
+      const cartao = w.todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-card').find((x: any) => x.getAttribute('titulo') === 'Firme');
+      cartao.dispatchEvent(new CustomEvent('urbi:card-click', { bubbles: true, composed: true }));
     });
     await esperar();
     const instrucao = await pagina.evaluate(() => (window as any).todos(document.querySelector('urbi-hospedeiro[slot="centro"]'), 'urbi-textarea')[0].getAttribute('valor'));
@@ -248,8 +268,10 @@ test('Ajustes no Chromium: seções à esquerda, conteúdo no centro, ajuda à d
     r = await ler();
     assert.deepEqual(r.ativa, ['conexoes']);
     assert.match(r.centro, /Conectar Instagram/);
-    assert.match(r.centro, /WhatsApp ainda não disponível/);
-    assert.match(r.centro, /Agenda fase 6/);
+    // WhatsApp com os 3 passos e o botão desligado (D-119, D-78); Agenda na fase 6 (grupo 5).
+    assert.match(r.centro, /WhatsApp chega numa próxima versão/);
+    assert.match(r.centro, /Entrar com a sua conta da Meta.*Digitar o número.*Confirmar no celular/);
+    assert.match(r.centro, /Agenda opcional · fase 6/);
     assert.match(r.direita, /Por que conectar aqui/);
 
     // Apelidos: /ajustes/marca e ?aba=marca abrem Conta e marca; /conta também. Com CRECI, sem aviso.

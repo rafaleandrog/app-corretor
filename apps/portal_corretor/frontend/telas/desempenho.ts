@@ -2,9 +2,9 @@ import { html, nothing } from 'lit';
 import type { UrbiColunaTabela, UrbiVersoAPI } from '@urbiverso/sdk';
 import { CANAIS } from '../../comum/crm';
 import { gerarCsv } from '../../comum/csv';
-import { linhasCsvNumeros, type RespostaNumeros } from '../../comum/numeros';
+import { linhasCsvNumeros, reaisKpi, type RespostaNumeros } from '../../comum/numeros';
 import { rotuloObjecao } from '../../comum/numeros-negociacao';
-import { chamarApi, contaDeTrabalho, filtrosDaUrl, gesto, filtrosNaUrl, reais, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
+import { chamarApi, contaDeTrabalho, filtrosDaUrl, gesto, filtrosNaUrl, ROTULO_MOTIVO_PERDA, ROTULO_ORIGEM } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 import { cabecalhoColuna, moldura } from '../moldura.js';
 import { abrirAssistente } from './assistente.js';
@@ -14,10 +14,11 @@ declare const urbiVerso: UrbiVersoAPI;
 type Linha = Record<string, any>;
 
 // Números (P10, spec 11.1 e 11.2; `/desempenho` é apelido, D-103) na moldura do Padrão B:
-// - esquerda: os relatórios (Resumo · Funil e conversão · Origem dos contatos · Tempo de resposta ·
-//   Conteúdo · Negociação (D6, `GET /numeros/negociacao`); Mensageiro "em breve", até o bloco 7;
-//   Créditos não entram, D-87);
-// - centro: o relatório aberto, com o título e os chips de período, Comparar e origem;
+// - esquerda: os relatórios (Resumo · Funil e conversão · Origem dos contatos · Conteúdo · Negociação
+//   (D6, `GET /numeros/negociacao`)). Tempo de resposta, Mensageiro e Créditos só entram com os blocos 6
+//   e 7 (spec 11.1 P10; nada sem uso na versão corrente, spec 2.6 e 15.9, #182 item 9; D-87);
+// - centro: o relatório aberto (Funil e conversão por padrão, `?relatorio=funil`), com o título e os
+//   chips de período, Comparar e origem, e quatro números numa linha (`urbi-grid min="140px"`);
 // - direita: "O que melhorar" com [Ver os N clientes] (abre Clientes filtrado), as melhores origens
 //   e [Exportar CSV].
 // Os dados vivem no módulo (centro e direita leem a mesma resposta de `GET /numeros`); `aoAbrirNumeros`
@@ -32,15 +33,15 @@ const PERIODOS = [
 ];
 
 export const RELATORIOS = [
-  { id: 'resumo', titulo: 'Resumo', descricao: 'os números que importam', emBreve: false },
-  { id: 'funil', titulo: 'Funil e conversão', descricao: 'onde os clientes param', emBreve: false },
-  { id: 'origem', titulo: 'Origem dos contatos', descricao: 'de onde vêm e até onde chegam', emBreve: false },
-  { id: 'tempo', titulo: 'Tempo de resposta', descricao: 'você e o Mensageiro', emBreve: false },
-  { id: 'conteudo', titulo: 'Conteúdo', descricao: 'peças publicadas pelo Estúdio', emBreve: false },
-  { id: 'mensageiro', titulo: 'Mensageiro', descricao: 'em breve, com o WhatsApp', emBreve: true },
-  { id: 'negociacao', titulo: 'Negociação', descricao: 'propostas, acordos e o Negociador', emBreve: false },
+  { id: 'resumo', titulo: 'Resumo', descricao: 'leads, conversão, vendas e comissão' },
+  { id: 'funil', titulo: 'Funil e conversão', descricao: 'onde os clientes param' },
+  { id: 'origem', titulo: 'Origem dos contatos', descricao: 'de onde vêm e até onde chegam' },
+  { id: 'conteudo', titulo: 'Conteúdo', descricao: 'peças publicadas pelo Estúdio' },
+  { id: 'negociacao', titulo: 'Negociação', descricao: 'propostas, acordos e o Negociador' },
 ] as const;
 type Relatorio = (typeof RELATORIOS)[number];
+/** Números abre em Funil e conversão (spec 11.1 P10, `/numeros?relatorio=funil`). */
+export const RELATORIO_PADRAO: Relatorio = RELATORIOS[1];
 
 const canal = (c: string) => ROTULO_ORIGEM[c] ?? (c === 'nao_informada' ? 'Não informada' : c);
 const motivo = (m: string) => ROTULO_MOTIVO_PERDA[m] ?? (m === 'sem_motivo' ? 'Sem motivo' : m);
@@ -64,7 +65,7 @@ function lerFiltros() {
   const dias = PERIODOS.some((p) => p.valor === f.get('dias')) ? Number(f.get('dias')) : 30;
   const origem = (CANAIS as readonly string[]).includes(f.get('origem') ?? '') ? f.get('origem')! : '';
   const id = f.get('relatorio') ?? f.get('item');
-  const relatorio = RELATORIOS.find((r) => r.id === id) ?? RELATORIOS[0];
+  const relatorio = RELATORIOS.find((r) => r.id === id) ?? RELATORIO_PADRAO;
   return { dias, origem, comparar: f.get('comparar') !== '0', relatorio };
 }
 
@@ -193,12 +194,12 @@ function relatorioResumo(d: Linha) {
       ${kpi('Leads', a.leads, v(a.leads, b.leads))}
       ${kpi('Conversão total', pct(a.conversao_total), v(a.conversao_total, b.conversao_total, true))}
       ${kpi('Vendas', a.ganhos, v(a.ganhos, b.ganhos))}
-      ${kpi('Comissão prevista', d.previsao.valor_c === null ? '—' : reais(d.previsao.valor_c),
+      ${kpi('Comissão prevista', reaisKpi(d.previsao.valor_c),
         d.previsao.sem_dados ? `${d.previsao.sem_dados} negócio(s) sem valor ou comissão ficaram de fora` : 'Ponderada pela chance de cada etapa')}
     </urbi-grid>
     <urbi-card titulo="Resultados" icone="fa-solid fa-trophy">
       <urbi-grid min="140px">
-        ${kpi('VGV', a.vgv_c === null ? '—' : reais(a.vgv_c))}
+        ${kpi('VGV', reaisKpi(a.vgv_c))}
         ${kpi('Ciclo médio', a.ciclo_medio_dias === null ? '—' : `${a.ciclo_medio_dias} dias`)}
         ${kpi('Visitas feitas', a.visitas ?? '—', a.visitas === null ? 'sem origem: só com Todas as origens' : v(a.visitas, b.visitas))}
         ${kpi('Captações', a.captacoes, v(a.captacoes, b.captacoes))}
@@ -229,7 +230,7 @@ function relatorioFunil(d: Linha) {
       ${kpi('Contatos', a.leads, v(a.leads, b.leads))}
       ${kpi('Contato → visita', pct(a.lead_visita), v(a.lead_visita, b.lead_visita, true) || 'da turma do período')}
       ${kpi('Visita → proposta', pct(a.visita_proposta), v(a.visita_proposta, b.visita_proposta, true))}
-      ${kpi('Ganhos', a.ganhos, a.vgv_c ? `${reais(a.vgv_c)} em vendas` : v(a.ganhos, b.ganhos))}
+      ${kpi('Ganhos', a.ganhos, a.vgv_c ? `${reaisKpi(a.vgv_c)} em vendas` : v(a.ganhos, b.ganhos))}
     </urbi-grid>
     <urbi-card titulo="Até onde os contatos chegaram" icone="fa-solid fa-chart-simple">
       <urbi-stack>
@@ -303,7 +304,7 @@ function relatorioConteudo(d: Linha) {
   const c = d.conteudo ?? { publicadas: 0, publicadas_anterior: 0 };
   const insta = (d.atual.por_origem as Linha[]).find((o) => o.canal === 'instagram');
   const instaAntes = (d.anterior.por_origem as Linha[]).find((o) => o.canal === 'instagram');
-  return html`<urbi-grid min="160px">
+  return html`<urbi-grid min="140px">
       ${kpi('Peças publicadas', c.publicadas, variacao(d.dias, c.publicadas, c.publicadas_anterior))}
       ${kpi('Leads do Instagram', insta?.leads ?? 0, variacao(d.dias, insta?.leads ?? 0, instaAntes?.leads ?? 0))}
     </urbi-grid>
@@ -312,17 +313,8 @@ function relatorioConteudo(d: Linha) {
         Alcance, cliques e leads de cada peça precisam das métricas do Instagram por publicação, que o app ainda não lê.
         Por enquanto, os leads que chegam pelo Instagram contam pela origem do contato.
       </urbi-prosa>
-      <urbi-linha><urbi-botao variante="secundario" pequeno href=${urbiVerso.href('/estudio')}>Abrir o Estúdio</urbi-botao></urbi-linha>
+      <urbi-linha><urbi-botao variante="secundario" href=${urbiVerso.href('/estudio')}>Abrir o Estúdio</urbi-botao></urbi-linha>
     </urbi-card>`;
-}
-
-function relatorioSemFonte(rel: Relatorio) {
-  const textos: Record<string, [string, string]> = {
-    tempo: ['O tempo de resposta chega com o WhatsApp', 'Quanto você (e o Mensageiro) leva para responder um contato depende das conversas pelo WhatsApp, que ainda não estão disponíveis.'],
-    mensageiro: ['Em breve: o relatório do Mensageiro', 'Atendimentos do Mensageiro e quantos viraram visita aparecem aqui quando ele chegar, com o WhatsApp.'],
-  };
-  const [mensagem, submensagem] = textos[rel.id] ?? ['Em breve', ''];
-  return estadoTela('vazio', { icone: rel.emBreve ? 'fa-solid fa-hourglass-half' : 'fa-solid fa-stopwatch', mensagem, submensagem });
 }
 
 // ── Relatório Negociação (D6, spec 11.2) ─────────────────────────────────────
@@ -351,7 +343,7 @@ function relatorioNegociacao(n: Linha) {
   // Período anterior alinhado às categorias exibidas (as do atual); categoria ausente no anterior conta 0 objeções.
   const objecoesAntes = (b.objecoes as { categoria: string; quantidade: number }[]) ?? [];
   const desconto = a.desconto_medio === null ? null : `${(Math.round(a.desconto_medio * 1000) / 10).toLocaleString('pt-BR')}%`;
-  return html`<urbi-grid min="160px">
+  return html`<urbi-grid min="140px">
       ${kpiOuFrase('Propostas recebidas', a.propostas_recebidas ? a.propostas_recebidas.toLocaleString('pt-BR') : null, 'Nenhuma proposta no período',
         v(a.propostas_recebidas, b.propostas_recebidas))}
       ${kpiOuFrase('Taxa de acordo', a.taxa_acordo === null ? null : pct(a.taxa_acordo), 'Nenhuma negociação encerrada no período',
@@ -362,7 +354,7 @@ function relatorioNegociacao(n: Linha) {
         com('Média nos acordos do período', a.rodadas_medias, b.rodadas_medias))}
     </urbi-grid>
     <urbi-card titulo="Acordos e o Negociador" icone="fa-solid fa-handshake">
-      <urbi-grid min="160px">
+      <urbi-grid min="140px">
         ${kpiOuFrase('Acordos dentro da ZOPA', a.dentro_zopa === null ? null : pct(a.dentro_zopa),
           a.ganhas ? 'Nenhum acordo com o teto do comprador estimado' : 'Nenhum acordo no período',
           com(a.zopa_sem_estimativa ? `${a.zopa_sem_estimativa} acordo(s) sem recuo, teto estimado do comprador ou valor final ficaram de fora` : 'Entre o seu recuo e o teto estimado do comprador',
@@ -394,7 +386,6 @@ function centro(rel: Relatorio) {
   const d = estado.dados;
   let corpo: unknown;
   if (rel.id === 'negociacao') corpo = centroNegociacao();
-  else if (rel.emBreve || rel.id === 'tempo') corpo = relatorioSemFonte(rel);
   else if (!d) corpo = estado.falha ? estadoDaFalha(estado.falha, () => void carregar()) : estadoTela('carregando', { mensagem: 'Carregando os números…' });
   else if (rel.id === 'funil') corpo = relatorioFunil(d);
   else if (rel.id === 'origem') corpo = relatorioOrigem(d);
@@ -421,7 +412,6 @@ function lista(rel: Relatorio) {
           <urbi-prosa>${r.titulo}</urbi-prosa>
           <urbi-prosa papel="fraco">${r.descricao}</urbi-prosa>
         </urbi-stack>
-        ${r.emBreve ? html`<urbi-badge>em breve</urbi-badge>` : nothing}
       </urbi-linha>`}
       @urbi:lista-click=${(e: CustomEvent) => mudar({ relatorio: (e.detail.item as Relatorio).id }, false)}></urbi-lista>
   </urbi-stack>`;
@@ -457,7 +447,7 @@ function contexto() {
       <urbi-stack>
         <urbi-prosa>${m.texto}</urbi-prosa>
         ${m.motivo && m.clientes
-          ? html`<urbi-linha><urbi-botao pequeno icone="fa-solid fa-users" @click=${() => verClientes(m)}>Ver os ${m.clientes} ${m.clientes === 1 ? 'cliente' : 'clientes'}</urbi-botao></urbi-linha>`
+          ? html`<urbi-linha><urbi-botao icone="fa-solid fa-users" @click=${() => verClientes(m)}>Ver os ${m.clientes} ${m.clientes === 1 ? 'cliente' : 'clientes'}</urbi-botao></urbi-linha>`
           : nothing}
         <urbi-prosa papel="fraco">Leitura feita com os números do período, sem IA.</urbi-prosa>
       </urbi-stack>

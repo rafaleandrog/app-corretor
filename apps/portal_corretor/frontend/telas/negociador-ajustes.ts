@@ -3,19 +3,22 @@ import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { ESTILOS, LIMITE_INSTRUCOES } from '../../comum/negociacao';
 import { PROMPT_PARTE_2_PADRAO, REGRAS_FIXAS } from '../../comum/negociador';
-import { contadorInstrucoes, CUSTO_POR_RODADA, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, LIMITE_EVENTOS, MENSAGEM_CONVITE, PERGUNTA_TESTE, POLITICA_CONVITE, ROTULO_GATILHO } from '../../comum/negociador-ajustes';
+import { contadorInstrucoes, CUSTO_POR_RODADA, ESTILO_NEGOCIADOR, GATILHOS_EM_USO, LIMITE_EVENTOS, MENSAGEM_CONVITE, PERGUNTA_TESTE, POLITICA_CONVITE, ROTULO_GATILHO, SELO_SIGILO } from '../../comum/negociador-ajustes';
 import { reaisParaCentavos } from '../../comum/crm';
-import { chamarApi, enviar, gesto, mensagemDeErro, reais } from '../apoio.js';
+import { chamarApi, enviar, escolhaUnica, gesto, mensagemDeErro, reais } from '../apoio.js';
 import { estadoDaFalha, estadoTela } from '../estados.js';
 
 declare const urbiVerso: UrbiVersoAPI;
 
 // Ajustes › Negociador (P17, spec 11.1; item D4): como o Negociador trata propostas e contrapropostas.
-// No centro, numa grade, 1 Quando entra · 2 Quem negocia · 3 Estilo · 4 Regras fixas (só exibidas,
-// da MESMA constante que monta o prompt do motor) · 5 Suas instruções · 6 Respostas a objeções. À
-// direita, 7 Testar (o simulador de `/negociador/teste`, que não grava nada) e os números do mês. Os
-// dados são os de `/negociador/config` e `/negociador/objecoes` (D1). Em "Quem negocia", o convite do
-// negociador humano (D7): só o e-mail, sem CRECI (D-94), a lista de convites e quem já aceitou.
+// No centro, com o interruptor Ligado · Pausar no cabeçalho, em duas colunas quando cabem
+// (`urbi-grid min="260px"`): 1 Quando entra e 2 Quem negocia; 3 Estilo como três cartões selecionáveis
+// com exemplo e "em uso"; 4 Regras fixas (só exibidas, da MESMA constante que monta o prompt do motor)
+// e 5 Suas instruções; 6 Respostas a objeções embaixo. À direita, 7 Testar como conversa simulada (o
+// simulador de `/negociador/teste`, que não grava nada) e os números do mês. Os dados são os de
+// `/negociador/config` e `/negociador/objecoes` (D1). Em "Quem negocia", o convite do negociador humano
+// (D7): só o e-mail, sem CRECI (D-94), e só com a política multi-usuário (D-108): recusado por ela, o
+// botão sai e a tela diz por quê.
 
 type Linha = Record<string, any>;
 
@@ -37,6 +40,8 @@ export class PcAjustesNegociador extends LitElement {
   @state() private salvando = false;
   /** Convites de negociador da conta e quem aceitou (D7); `indisponivel` diz por que não carregou. */
   @state() private equipe: { convites: Linha[]; negociadores: Linha[]; indisponivel: string | null } | null = null;
+  /** O convite foi recusado pela política "contas multi-usuário" desligada (D-108): o botão sai. */
+  @state() private semMultiUsuario = false;
   /**
    * A conta em que a tela nasceu (a troca de conta a recria). Toda continuação passa por `vida.esperar`:
    * trocada a conta com o diálogo aberto (preenchido com dado de A) ou o envio em voo, nada sai com o
@@ -100,6 +105,7 @@ export class PcAjustesNegociador extends LitElement {
         else urbiVerso.notificar('Convite enviado.', 'sucesso');
       } catch (e) {
         if (this.vida.encerrado(e)) throw e;
+        if ((e as { codigo?: string })?.codigo === 'CONVITE_MULTI_USUARIO_BLOQUEADO') this.semMultiUsuario = true;
         await this.vida.esperar(urbiVerso.alertar({ titulo: 'Não foi possível convidar', mensagem: mensagemDeErro(e), tipo: 'erro' }));
       }
       await this.carregarEquipe();
@@ -127,9 +133,11 @@ export class PcAjustesNegociador extends LitElement {
     const ROTULO: Record<string, string> = { emitido: 'pendente', resgatado: 'aceito', expirado: 'expirado', invalidado: 'invalidado', revogado: 'revogado' };
     return html`<urbi-linha justificar="entre" quebrar>
         <urbi-prosa>Negociador humano</urbi-prosa>
-        ${eq?.indisponivel ? nothing : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-user-plus" @click=${() => void this.convidar()}>Convidar negociador</urbi-botao>`}
+        ${eq?.indisponivel || this.semMultiUsuario ? nothing : html`<urbi-botao variante="secundario" icone="fa-solid fa-user-plus" @click=${() => void this.convidar()}>Convidar negociador</urbi-botao>`}
       </urbi-linha>
-      ${eq?.indisponivel ? nothing : html`<urbi-prosa papel="dica">${POLITICA_CONVITE} ${LIMITE_EVENTOS}</urbi-prosa>`}
+      ${this.semMultiUsuario
+        ? html`<urbi-prosa papel="dica">Esta instalação não permite mais de uma pessoa por conta (política "contas multi-usuário" desligada): o Negociador IA conduz as negociações. Fale com a equipe da plataforma se precisar de um negociador humano.</urbi-prosa>`
+        : eq?.indisponivel ? nothing : html`<urbi-prosa papel="dica">${POLITICA_CONVITE} ${LIMITE_EVENTOS}</urbi-prosa>`}
       ${!eq
         ? html`<urbi-loading></urbi-loading>`
         : eq.indisponivel
@@ -150,7 +158,7 @@ export class PcAjustesNegociador extends LitElement {
                     <urbi-linha>
                       <urbi-badge>${ROTULO[c.status] ?? c.status}</urbi-badge>
                       ${c.status === 'emitido'
-                        ? html`<urbi-botao pequeno variante="texto" ariaLabel=${`Revogar o convite de ${c.email}`} @click=${() => void this.revogar(c)}>Revogar</urbi-botao>`
+                        ? html`<urbi-botao variante="texto" ariaLabel=${`Revogar o convite de ${c.email}`} @click=${() => void this.revogar(c)}>Revogar</urbi-botao>`
                         : nothing}
                     </urbi-linha>
                   </urbi-linha>`,
@@ -199,6 +207,7 @@ export class PcAjustesNegociador extends LitElement {
       this.config = await this.vida.esperar(enviar('PUT', '/negociador/config', mudanca));
       if ('instrucoes_corretor' in mudanca) this.instrucoes = this.config!.instrucoes_corretor ?? '';
       urbiVerso.notificar(aviso, 'sucesso');
+      window.dispatchEvent(new CustomEvent('pc-ajustes-mudou'));
     } catch (e) {
       if (this.vida.encerrado(e)) return;
       await urbiVerso.alertar({ titulo: 'Não foi possível salvar', mensagem: mensagemDeErro(e), tipo: 'erro' });
@@ -258,9 +267,17 @@ export class PcAjustesNegociador extends LitElement {
     if (this.falha) return estadoDaFalha(this.falha, () => void this.carregar());
     const c = this.config;
     if (!c) return estadoTela('carregando');
+    const estilos = ESTILOS.map((e) => ({ id: e, rotulo: ESTILO_NEGOCIADOR[e].rotulo, explicacao: ESTILO_NEGOCIADOR[e].jeito, exemplo: ESTILO_NEGOCIADOR[e].exemplo }));
     return html`<urbi-stack>
-      <urbi-prosa papel="titulo">Negociador</urbi-prosa>
-      <urbi-grid min="320px">
+      <urbi-linha justificar="entre" alinhar="centro" quebrar>
+        <urbi-prosa papel="titulo">Negociador</urbi-prosa>
+        <urbi-linha alinhar="centro">
+          <urbi-badge cor=${c.ligado ? 'sucesso' : 'padrao'}>${c.ligado ? 'Ligado' : 'Pausado'}</urbi-badge>
+          <urbi-botao variante="secundario" icone=${c.ligado ? 'fa-solid fa-pause' : 'fa-solid fa-play'} ?carregando=${this.salvando}
+            @click=${() => void this.gravar({ ligado: !c.ligado }, c.ligado ? 'Negociador pausado.' : 'Negociador ligado.')}>${c.ligado ? 'Pausar' : 'Ligar'}</urbi-botao>
+        </urbi-linha>
+      </urbi-linha>
+      <urbi-grid min="260px">
         <urbi-card expandir titulo="1 · Quando entra" icone="fa-solid fa-bolt">
           <urbi-prosa papel="dica">O Negociador começa a atuar quando:</urbi-prosa>
           ${GATILHOS_EM_USO.map(
@@ -270,32 +287,18 @@ export class PcAjustesNegociador extends LitElement {
           )}
         </urbi-card>
         <urbi-card expandir titulo="2 · Quem negocia por padrão" icone="fa-solid fa-user-gear">
-          <urbi-linha justificar="entre">
-            <urbi-prosa>Negociador ligado</urbi-prosa>
-            <urbi-toggle ?checked=${c.ligado} ?disabled=${this.salvando} ariaLabel="Negociador ligado"
-              @urbi-toggle:change=${(e: CustomEvent) =>
-                void this.gravar({ ligado: !!e.detail }, e.detail ? 'Negociador ligado.' : 'Negociador desligado.', { el: e.target, prop: 'checked', anterior: c.ligado })}></urbi-toggle>
-          </urbi-linha>
           ${this.quemConduz(c)}
           ${this.pessoas()}
         </urbi-card>
-        <urbi-card expandir titulo="3 · Estilo" icone="fa-solid fa-comment-dots">
-          ${ESTILOS.map((e) => {
-            const s = ESTILO_NEGOCIADOR[e];
-            const ativo = c.estilo === e;
-            return html`<urbi-stack>
-              <urbi-linha justificar="entre">
-                <urbi-prosa papel="secao">${s.rotulo}</urbi-prosa>
-                ${ativo
-                  ? html`<urbi-badge cor="sucesso">em uso</urbi-badge>`
-                  : html`<urbi-botao pequeno variante="texto" ariaLabel=${`Usar o estilo ${s.rotulo}`} ?desabilitado=${this.salvando} @click=${() => void this.gravar({ estilo: e }, `Estilo ${s.rotulo.toLowerCase()}.`)}>Usar</urbi-botao>`}
-              </urbi-linha>
-              <urbi-prosa papel="secundario">${s.exemplo}</urbi-prosa>
-            </urbi-stack>`;
-          })}
-        </urbi-card>
+      </urbi-grid>
+      <urbi-card titulo="3 · Estilo" icone="fa-solid fa-comment-dots">
+        <urbi-grid min="200px">
+          ${escolhaUnica(estilos, c.estilo as (typeof ESTILOS)[number], (e) => void this.gravar({ estilo: e }, `Estilo ${ESTILO_NEGOCIADOR[e].rotulo.toLowerCase()}.`), { desabilitado: this.salvando, nome: 'Estilo' })}
+        </urbi-grid>
+      </urbi-card>
+      <urbi-grid min="260px">
         <urbi-card expandir titulo="4 · Regras fixas" icone="fa-solid fa-shield-halved">
-          <urbi-prosa papel="dica">Valem sempre, acima das suas instruções. Não se editam.</urbi-prosa>
+          <urbi-prosa papel="dica">Da plataforma: valem sempre, acima das suas instruções, e não podem ser desligadas.</urbi-prosa>
           ${REGRAS_FIXAS.map((r) => html`<urbi-linha><urbi-icone classe="fa-solid fa-check"></urbi-icone><urbi-prosa>${r}</urbi-prosa></urbi-linha>`)}
         </urbi-card>
         <urbi-card expandir titulo="5 · Suas instruções" icone="fa-solid fa-pen-to-square">
@@ -305,40 +308,50 @@ export class PcAjustesNegociador extends LitElement {
           <urbi-linha justificar="entre" quebrar>
             <urbi-prosa papel="fraco">${contadorInstrucoes(this.instrucoes, LIMITE_INSTRUCOES)}${c.instrucoes_corretor ? '' : ' · em branco, vale o modelo'}</urbi-prosa>
             <urbi-linha>
-              ${this.instrucoes.trim() ? nothing : html`<urbi-botao pequeno variante="texto" @click=${() => (this.instrucoes = PROMPT_PARTE_2_PADRAO)}>Começar do modelo</urbi-botao>`}
-              <urbi-botao pequeno icone="fa-solid fa-check" ?carregando=${this.salvando} @click=${() => this.salvarInstrucoes()}>Salvar instruções</urbi-botao>
+              ${this.instrucoes.trim() ? nothing : html`<urbi-botao variante="texto" @click=${() => (this.instrucoes = PROMPT_PARTE_2_PADRAO)}>Começar do modelo</urbi-botao>`}
+              <urbi-botao icone="fa-solid fa-check" ?carregando=${this.salvando} @click=${() => this.salvarInstrucoes()}>Salvar instruções</urbi-botao>
             </urbi-linha>
           </urbi-linha>
         </urbi-card>
-        <urbi-card expandir titulo="6 · Respostas a objeções" icone="fa-solid fa-comments">
-          <urbi-lista separador .itens=${this.objecoes} .render_item=${(o: Linha) => html`<urbi-linha justificar="entre" quebrar>
-              <urbi-stack>
-                <urbi-linha quebrar>
-                  <urbi-prosa>${o.titulo}</urbi-prosa>
-                  <urbi-badge cor=${o.usando === 'corretor' ? 'info' : 'padrao'}>${o.usando === 'corretor' ? 'Minha resposta' : 'Padrão'}</urbi-badge>
-                </urbi-linha>
-                <urbi-prosa papel="fraco">"${o.fala_cliente}"</urbi-prosa>
-              </urbi-stack>
-              <urbi-linha>
-                <urbi-botao pequeno variante="texto" ariaLabel=${`Editar a resposta a ${o.titulo}`} @click=${() => void this.editarObjecao(o)}>Editar</urbi-botao>
-                ${o.minha ? html`<urbi-botao pequeno variante="texto" ariaLabel=${`Voltar ao padrão: ${o.titulo}`} @click=${() => void this.objecao({ categoria: o.categoria, usar_padrao: true }, 'Voltou ao padrão.')}>Voltar ao padrão</urbi-botao>` : nothing}
-              </urbi-linha>
-            </urbi-linha>`}></urbi-lista>
-        </urbi-card>
       </urbi-grid>
+      <urbi-card titulo="6 · Respostas a objeções" icone="fa-solid fa-comments">
+        <urbi-lista separador .itens=${this.objecoes} .render_item=${(o: Linha) => html`<urbi-linha justificar="entre" quebrar>
+            <urbi-stack>
+              <urbi-linha quebrar>
+                <urbi-prosa>${o.titulo}</urbi-prosa>
+                <urbi-badge cor=${o.usando === 'corretor' ? 'info' : 'padrao'}>${o.usando === 'corretor' ? 'Minha resposta' : 'Padrão'}</urbi-badge>
+              </urbi-linha>
+              <urbi-prosa papel="fraco">"${o.fala_cliente}"</urbi-prosa>
+            </urbi-stack>
+            <urbi-linha>
+              <urbi-botao variante="texto" ariaLabel=${`Editar a resposta a ${o.titulo}`} @click=${() => void this.editarObjecao(o)}>Editar</urbi-botao>
+              ${o.minha ? html`<urbi-botao variante="texto" ariaLabel=${`Voltar ao padrão: ${o.titulo}`} @click=${() => void this.objecao({ categoria: o.categoria, usar_padrao: true }, 'Voltou ao padrão.')}>Voltar ao padrão</urbi-botao>` : nothing}
+            </urbi-linha>
+          </urbi-linha>`}></urbi-lista>
+      </urbi-card>
     </urbi-stack>`;
   }
 }
 
 /**
- * 7 · Testar (P17, direita): o motor sobre uma negociação fictícia, sem gravar nada. Os valores são os
- * do teste, digitados aqui; a resposta volta com as 7 verificações ("não revelou o recuo…") e a ZOPA, do recuo ao teto do comprador.
+ * 7 · Testar (P17, direita): o motor sobre uma negociação fictícia, sem gravar nada, como uma conversa
+ * simulada: o corretor escreve como comprador e a resposta do Negociador volta em bolha, com o selo "não
+ * revelou o recuo" quando a garantia de sigilo passou. Os valores do teste ficam no "Valores do teste"
+ * (o detalhe do cartão). Os balões são `urbi-badge quebra-linha` alinhados por `urbi-linha` (o `urbi-chat`
+ * pede a altura de uma coluna inteira, que este cartão não tem; diferença de primitivo, D-124).
  */
+interface FalaTeste {
+  quem: 'comprador' | 'negociador';
+  texto: string;
+  detalhe?: Linha;
+}
+
 @customElement('pc-negociador-teste')
 export class PcNegociadorTeste extends LitElement {
   @state() private ia: boolean | null = null;
-  @state() private valores = { pedido: '1.450.000', alvo: '1.400.000', recuo: '1.360.000', oferta: '1.320.000', teto: '1.400.000', mensagem: PERGUNTA_TESTE };
-  @state() private resultado: Linha | null = null;
+  @state() private valores = { pedido: '1.450.000', alvo: '1.400.000', recuo: '1.360.000', oferta: '1.320.000', teto: '1.400.000' };
+  @state() private rascunho = PERGUNTA_TESTE;
+  @state() private conversa: FalaTeste[] = [];
   @state() private testando = false;
   @state() private numeros: Linha | null = null;
   /** A conta em que o painel nasceu: resposta (ou falha) que volta depois da troca não entra na tela. */
@@ -358,24 +371,32 @@ export class PcNegociadorTeste extends LitElement {
 
   private async testar() {
     const v = this.valores;
+    const fala = this.rascunho.trim();
+    if (!fala) return;
     const [pedido, alvo, recuo, oferta, teto] = [v.pedido, v.alvo, v.recuo, v.oferta, v.teto].map((x) => reaisParaCentavos(x));
     // O teto pode ficar em branco (desconhecido: sem ZOPA na resposta); escrito, tem que ser válido.
     if (!pedido || !alvo || !recuo || !oferta || Number.isNaN(teto)) {
-      await urbiVerso.alertar({ titulo: 'Valores inválidos', mensagem: 'Escreva os valores em reais, por exemplo 1.360.000.', tipo: 'alerta' });
+      await urbiVerso.alertar({ titulo: 'Valores inválidos', mensagem: 'Abra "Valores do teste" e escreva os valores em reais, por exemplo 1.360.000.', tipo: 'alerta' });
       return;
     }
     if (!this.vida.vivo()) return;
     this.testando = true;
-    this.resultado = null;
+    const bolha: FalaTeste = { quem: 'comprador', texto: fala };
+    this.conversa = [...this.conversa, bolha];
+    this.rascunho = '';
     try {
-      this.resultado = await this.vida.esperar(enviar('POST', '/negociador/teste', {
+      const r = await this.vida.esperar(enviar('POST', '/negociador/teste', {
         mandato: { preco_pedido_c: pedido, alvo_c: alvo, recuo_c: recuo, autonomia: 'pergunta_antes' },
         propostas: [{ direcao: 'comprador', valor_c: oferta }],
-        mensagem_cliente: v.mensagem,
+        mensagem_cliente: fala,
         teto_estimado_c: teto ?? null,
       }));
+      this.conversa = [...this.conversa, { quem: 'negociador', texto: r.resposta?.mensagem || 'O Negociador não escreveu mensagem nesta rodada.', detalhe: r }];
     } catch (e) {
       if (this.vida.encerrado(e)) return;
+      // A fala volta ao campo (sem pisar no que o corretor já tenha digitado) e a bolha pendente sai.
+      this.conversa = this.conversa.filter((f) => f !== bolha);
+      if (!this.rascunho.trim()) this.rascunho = fala;
       await urbiVerso.alertar({ titulo: 'Não foi possível testar', mensagem: mensagemDeErro(e), tipo: 'erro' });
     } finally {
       this.testando = false;
@@ -386,18 +407,18 @@ export class PcNegociadorTeste extends LitElement {
     return html`<urbi-input label=${rotulo} valor=${this.valores[chave]} @urbi:input-change=${(e: CustomEvent) => (this.valores = { ...this.valores, [chave]: String(e.detail.valor ?? '') })}></urbi-input>`;
   }
 
-  private resposta() {
-    const r = this.resultado;
-    if (!r) return nothing;
+  /** O que veio junto da resposta: a contraproposta, as garantias, a passagem a você e a ZOPA. */
+  private detalhe(r: Linha) {
     const cp = r.resposta?.contraproposta;
     const z = r.zopa;
+    const sigilo = (r.validacoes ?? []).find((x: Linha) => x.garantia === 'sigilo');
     return html`<urbi-stack>
-      ${r.resposta?.mensagem ? html`<urbi-prosa pre>${r.resposta.mensagem}</urbi-prosa>` : nothing}
+      ${sigilo?.ok ? html`<urbi-linha><urbi-badge cor="sucesso">${SELO_SIGILO}</urbi-badge></urbi-linha>` : nothing}
       ${cp?.valor_c ? html`<urbi-prosa papel="secundario">Contraproposta: ${reais(cp.valor_c)}${cp.concessao ? ` · ${cp.concessao}` : ''}</urbi-prosa>` : nothing}
-      ${(r.validacoes ?? []).map(
+      ${(r.validacoes ?? []).filter((x: Linha) => !x.ok).map(
         (x: Linha) => html`<urbi-linha>
-          <urbi-icone classe=${x.ok ? 'fa-solid fa-check' : 'fa-solid fa-xmark'}></urbi-icone>
-          <urbi-prosa papel=${x.ok ? 'sucesso' : 'alerta'}>${x.descricao}</urbi-prosa>
+          <urbi-icone classe="fa-solid fa-xmark"></urbi-icone>
+          <urbi-prosa papel="alerta">${x.descricao}</urbi-prosa>
         </urbi-linha>`,
       )}
       ${r.passagem ? html`<urbi-prosa papel="alerta">Passaria a você${(r.motivos_passagem ?? []).length ? `: ${r.motivos_passagem.map((m: Linha) => m.descricao).join('; ')}` : '.'}</urbi-prosa>` : nothing}
@@ -405,26 +426,50 @@ export class PcNegociadorTeste extends LitElement {
     </urbi-stack>`;
   }
 
+  private bolhas() {
+    return this.conversa.map((f) =>
+      f.quem === 'comprador'
+        ? html`<urbi-linha justificar="fim"><urbi-stack>
+            <urbi-prosa papel="fraco">Você, como comprador</urbi-prosa>
+            <urbi-badge cor="info" quebra-linha>${f.texto}</urbi-badge>
+          </urbi-stack></urbi-linha>`
+        : html`<urbi-linha justificar="inicio"><urbi-stack>
+            <urbi-prosa papel="fraco">Negociador · teste</urbi-prosa>
+            <urbi-badge quebra-linha>${f.texto}</urbi-badge>
+            ${f.detalhe ? this.detalhe(f.detalhe) : nothing}
+          </urbi-stack></urbi-linha>`,
+    );
+  }
+
   render() {
     const n = this.numeros;
     return html`<urbi-stack>
       <urbi-card titulo="7 · Testar" icone="fa-solid fa-flask">
-        <urbi-prosa papel="dica">Faça o papel do comprador numa negociação de mentira. Nada é gravado nem enviado.</urbi-prosa>
+        <urbi-prosa papel="dica">Faça o papel do comprador. Nada é gravado nem enviado.</urbi-prosa>
         ${this.ia === false
           ? estadoTela('ia_indisponivel', { mensagem: 'IA indisponível agora: o teste volta quando ela voltar. O resto dos ajustes funciona normalmente.' })
-          : html`<urbi-grid min="140px">
-                ${this.campo('Pedido (R$)', 'pedido')}${this.campo('Alvo (R$)', 'alvo')}${this.campo('Recuo (R$)', 'recuo')}${this.campo('Oferta do comprador (R$)', 'oferta')}${this.campo('Teto do comprador (R$)', 'teto')}
-              </urbi-grid>
-              <urbi-textarea label="O comprador diz" rows="2" valor=${this.valores.mensagem} @urbi:input-change=${(e: CustomEvent) => (this.valores = { ...this.valores, mensagem: String(e.detail.valor ?? '') })}></urbi-textarea>
-              <urbi-linha><urbi-botao pequeno icone="fa-solid fa-play" ?carregando=${this.testando} ?desabilitado=${this.ia === null} @click=${() => void this.testar()}>Testar</urbi-botao></urbi-linha>
-              ${this.resposta()}`}
+          : html`<urbi-stack>
+                ${this.bolhas()}
+                ${this.testando ? html`<urbi-prosa papel="fraco">O Negociador está respondendo…</urbi-prosa>` : nothing}
+                <urbi-textarea label="Escreva como comprador" rows="2" valor=${this.rascunho} @urbi:input-change=${(e: CustomEvent) => (this.rascunho = String(e.detail.valor ?? ''))}></urbi-textarea>
+                <urbi-linha justificar="entre">
+                  ${this.conversa.length ? html`<urbi-botao variante="texto" ?desabilitado=${this.testando} @click=${() => ((this.conversa = []), (this.rascunho = PERGUNTA_TESTE))}>Recomeçar</urbi-botao>` : html`<span></span>`}
+                  <urbi-botao icone="fa-solid fa-paper-plane" ?carregando=${this.testando} ?desabilitado=${this.ia === null || !this.rascunho.trim()} @click=${() => void this.testar()}>Enviar</urbi-botao>
+                </urbi-linha>
+              </urbi-stack>`}
+        <div slot="detalhe">
+          <urbi-prosa papel="secao">Valores do teste</urbi-prosa>
+          <urbi-grid min="140px">
+            ${this.campo('Pedido (R$)', 'pedido')}${this.campo('Alvo (R$)', 'alvo')}${this.campo('Recuo (R$)', 'recuo')}${this.campo('Oferta do comprador (R$)', 'oferta')}${this.campo('Teto do comprador (R$)', 'teto')}
+          </urbi-grid>
+        </div>
       </urbi-card>
-      <urbi-card titulo="Números do mês" icone="fa-solid fa-chart-simple">
+      <urbi-card titulo="Este mês" icone="fa-solid fa-chart-simple">
         <urbi-grid min="140px">
           <urbi-kpi rotulo="Rodadas" .valor=${n?.rodadas ?? '—'}></urbi-kpi>
           <urbi-kpi rotulo="Aprovadas sem edição" formato="texto" .valor=${n ? (n.decididas ? `${Math.round((n.aprovadas_sem_edicao / n.decididas) * 100)}%` : '—') : '—'}></urbi-kpi>
-          <urbi-kpi rotulo="Custo por rodada" formato="texto" .valor=${CUSTO_POR_RODADA}></urbi-kpi>
         </urbi-grid>
+        <urbi-prosa papel="fraco">Custo estimado por rodada: ${CUSTO_POR_RODADA.toLowerCase()}.</urbi-prosa>
       </urbi-card>
     </urbi-stack>`;
   }

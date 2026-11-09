@@ -2,8 +2,8 @@ import { LitElement, html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
-import { MAX_REFERENCIAS } from '../../comum/estudio';
-import { chamarApi, enviar, gesto, mensagemDeErro, subirArquivo } from '../apoio';
+import { MAX_REFERENCIAS, ROTULO_TOM_VOZ, TONS_VOZ, type TomVoz } from '../../comum/estudio';
+import { chamarApi, enviar, escolhaUnica, gesto, mensagemDeErro, subirArquivo } from '../apoio';
 
 declare const urbiVerso: UrbiVersoAPI;
 
@@ -12,7 +12,9 @@ interface Marca {
   cor_secundaria: string;
   estilo: string;
   assinatura: string | null;
+  tom_voz?: TomVoz;
   logo_url: string | null;
+  foto_url?: string | null;
   /** Imagens que o corretor admira (D-86): entram, se ele marcar, na instrução de "Fazer em outra ferramenta". */
   referencias: { id: number; url: string }[];
   /** Só em resposta que ressincronizou o que está no ar (salvar, foto, republicar): true = não acompanhou. Ausente (logo) = nada a dizer. */
@@ -25,13 +27,35 @@ const ESTILOS = [
   { valor: 'minimalista', rotulo: 'Minimalista' },
 ];
 
-// Ajustes › Conta e marca (D-81, D-85): logo, foto, cores, estilo e assinatura. A marca é única: o Estúdio a
-// usa nas artes, e a cor principal e a foto valem na página pública, nas seleções e no portal.
-// Mesmas rotas de antes (`/estudio/marca`); só o lugar na tela mudou.
+// Ajustes › Conta e marca (D-81, D-85, P13): logo e foto com rótulo e prévia, cores com amostra (#182
+// item 6), estilo, assinatura e tom de voz, num formulário na tela com Salvar. A marca é única: o Estúdio
+// a usa nas artes (o tom de voz vai aos textos), e a cor principal e a foto valem na página pública, nas
+// seleções e no portal. Mesmas rotas de antes (`/estudio/marca`).
+
+interface RascunhoMarca {
+  cor_primaria: string;
+  cor_secundaria: string;
+  estilo: string;
+  assinatura: string;
+  tom_voz: TomVoz;
+}
+
+const rascunhoDaMarca = (m: Marca): RascunhoMarca => ({
+  cor_primaria: m.cor_primaria,
+  cor_secundaria: m.cor_secundaria,
+  estilo: m.estilo,
+  assinatura: m.assinatura ?? '',
+  tom_voz: m.tom_voz ?? 'proximo',
+});
+
+/** Os tons de voz como opções de escolha única (os "rádios" da referência). */
+export const OPCOES_TOM_VOZ = TONS_VOZ.map((id) => ({ id, ...ROTULO_TOM_VOZ[id] }));
 @customElement('pc-tela-marca')
 export class PcTelaMarca extends LitElement {
   @state() private marca: Marca | null = null;
   @state() private falha: string | null = null;
+  @state() private rascunho: RascunhoMarca | null = null;
+  @state() private salvando = false;
   /** Salvar gravou a marca, mas o que está no ar não acompanhou: fica até refazer dar certo. */
   @state() private desatualizada = false;
   @state() private refazendo = false;
@@ -63,9 +87,10 @@ export class PcTelaMarca extends LitElement {
     this.falha = null;
     try {
       this.marca = await this.vida.esperar(chamarApi('/estudio/marca'));
+      this.rascunho = rascunhoDaMarca(this.marca!);
     } catch (e) {
       if (this.vida.encerrado(e)) return;
-      this.falha = (e as Error).message;
+      this.falha = mensagemDeErro(e);
     }
   }
 
@@ -88,22 +113,21 @@ export class PcTelaMarca extends LitElement {
     }
   }
 
-  private editar() {
-    return this.semAvisoDeOutraConta(() => this.editarNaConta());
+  private mudar<K extends keyof RascunhoMarca>(campo: K, valor: RascunhoMarca[K]) {
+    if (this.rascunho) this.rascunho = { ...this.rascunho, [campo]: valor };
   }
 
-  private async editarNaConta() {
-    const m = this.marca!;
-    const v = await this.vida.esperar(urbiVerso.formulario({
-      titulo: 'Sua marca',
-      campos: [
-        { nome: 'cor_primaria', tipo: 'texto', rotulo: 'Cor principal (#RRGGBB)', obrigatorio: true, valor: m.cor_primaria },
-        { nome: 'cor_secundaria', tipo: 'texto', rotulo: 'Cor de apoio (#RRGGBB)', obrigatorio: true, valor: m.cor_secundaria },
-        { nome: 'estilo', tipo: 'selecao', rotulo: 'Estilo', opcoes: ESTILOS, valor: m.estilo },
-        { nome: 'assinatura', tipo: 'texto', rotulo: 'Assinatura curta (opcional)', valor: m.assinatura ?? '', placeholder: 'Ex.: Seu corretor no Lago Sul' },
-      ],
-    }));
-    if (v) await this.acao(() => enviar('PUT', '/estudio/marca', v), 'Marca salva.');
+  /** Salvar marca (P13): o formulário inteiro num `PUT /estudio/marca`, como antes. */
+  private async salvar() {
+    const r = this.rascunho;
+    if (!r || this.salvando) return;
+    this.salvando = true;
+    try {
+      const ok = await this.acao(() => enviar('PUT', '/estudio/marca', { ...r, assinatura: r.assinatura }), 'Marca salva.');
+      if (ok && this.marca) this.rascunho = rascunhoDaMarca(this.marca);
+    } finally {
+      this.salvando = false;
+    }
   }
 
   /** Refaz a página no ar (se publicada), as seleções e os portais com a marca salva. */
@@ -162,38 +186,68 @@ export class PcTelaMarca extends LitElement {
 
   render() {
     if (this.falha) {
-      return html`<urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" pequeno variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner>`;
+      return html`<urbi-banner variante="erro">${this.falha}<urbi-botao slot="acao" variante="secundario" @click=${() => this.carregar()}>Tentar de novo</urbi-botao></urbi-banner>`;
     }
-    if (!this.marca) return html`<urbi-loading></urbi-loading>`;
+    if (!this.marca || !this.rascunho) return html`<urbi-loading></urbi-loading>`;
     const m = this.marca;
+    const r = this.rascunho;
     const aviso = this.desatualizada
-      ? html`<urbi-banner variante="alerta">A marca foi salva, mas a sua página, as seleções ou o portal do cliente ainda mostram a marca anterior.<urbi-botao slot="acao" pequeno variante="secundario" icone="fa-solid fa-rotate" ?carregando=${this.refazendo} @click=${() => this.refazer()}>Atualizar o que está no ar</urbi-botao></urbi-banner>`
+      ? html`<urbi-banner variante="alerta">A marca foi salva, mas a sua página, as seleções ou o portal do cliente ainda mostram a marca anterior.<urbi-botao slot="acao" variante="secundario" icone="fa-solid fa-rotate" ?carregando=${this.refazendo} @click=${() => this.refazer()}>Atualizar o que está no ar</urbi-botao></urbi-banner>`
       : '';
     return html`${aviso}<urbi-card titulo="Sua marca" icone="fa-solid fa-palette">
-      <span slot="acoes"><urbi-botao variante="fantasma" pequeno icone="fa-solid fa-pen" ariaLabel="Editar a marca" title="Editar" @click=${() => this.editar()}></urbi-botao></span>
-      <urbi-linha quebrar>
-        <urbi-avatar nome="Logo" foto=${m.logo_url ?? ''} icone=${m.logo_url ? '' : 'fa-solid fa-image'} tamanho="56"></urbi-avatar>
-        <urbi-prosa papel="secundario">Cores ${m.cor_primaria} e ${m.cor_secundaria} · estilo ${ESTILOS.find((e) => e.valor === m.estilo)?.rotulo ?? m.estilo}${m.assinatura ? ` · "${m.assinatura}"` : ''}</urbi-prosa>
-      </urbi-linha>
-      <urbi-linha quebrar>
-        <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Logo (PNG com fundo transparente fica melhor)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('logo', e)}></urbi-seletor-arquivo>
-        <urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" dica="Sua foto (opcional)" @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('foto', e)}></urbi-seletor-arquivo>
-      </urbi-linha>
-      <urbi-prosa papel="dica">Esta marca vale em todo lugar: nas artes do Estúdio, na sua página, nas seleções e no portal do cliente. A cor principal e a sua foto aparecem para o cliente; salvar já atualiza o que está no ar e, se não conseguir, avisa aqui.</urbi-prosa>
+      <urbi-stack>
+        <urbi-prosa papel="secundario">Usada nas artes do Estúdio, na sua página, nas seleções e no portal do cliente.</urbi-prosa>
+        <urbi-grid min="220px">
+          <urbi-stack>
+            <urbi-linha alinhar="centro">
+              <urbi-avatar nome="Logo" foto=${m.logo_url ?? ''} icone=${m.logo_url ? '' : 'fa-solid fa-image'} tamanho="56"></urbi-avatar>
+              <urbi-prosa papel="fraco">${m.logo_url ? 'Logo atual' : 'Sem logo'}</urbi-prosa>
+            </urbi-linha>
+            <urbi-seletor-arquivo label="Logo" texto=${m.logo_url ? 'Trocar o logo' : 'Enviar o logo'} icone="fa-solid fa-image" accept="image/png,image/jpeg,image/webp"
+              @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('logo', e)}></urbi-seletor-arquivo>
+            <urbi-prosa papel="dica">PNG com fundo transparente fica melhor.</urbi-prosa>
+          </urbi-stack>
+          <urbi-stack>
+            <urbi-linha alinhar="centro">
+              <urbi-avatar nome="Sua foto" foto=${m.foto_url ?? ''} icone=${m.foto_url ? '' : 'fa-solid fa-user'} tamanho="56"></urbi-avatar>
+              <urbi-prosa papel="fraco">${m.foto_url ? 'Sua foto atual' : 'Sem foto'}</urbi-prosa>
+            </urbi-linha>
+            <urbi-seletor-arquivo label="Sua foto (opcional)" texto=${m.foto_url ? 'Trocar a foto' : 'Enviar a foto'} icone="fa-solid fa-user" accept="image/png,image/jpeg,image/webp"
+              @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('foto', e)}></urbi-seletor-arquivo>
+            <urbi-prosa papel="dica">Aparece na sua página e no portal do cliente.</urbi-prosa>
+          </urbi-stack>
+        </urbi-grid>
+        <urbi-grid min="160px">
+          <urbi-input label="Cor principal" tipo="color" valor=${r.cor_primaria} @urbi:input-change=${(e: CustomEvent) => this.mudar('cor_primaria', String(e.detail.valor))}></urbi-input>
+          <urbi-input label="Cor de apoio" tipo="color" valor=${r.cor_secundaria} @urbi:input-change=${(e: CustomEvent) => this.mudar('cor_secundaria', String(e.detail.valor))}></urbi-input>
+          <urbi-select label="Estilo das artes" valor=${r.estilo} .opcoes=${ESTILOS} @urbi:select-change=${(e: CustomEvent) => this.mudar('estilo', String(e.detail.valor))}></urbi-select>
+        </urbi-grid>
+        <urbi-prosa papel="fraco">Cor principal ${r.cor_primaria.toUpperCase()} · cor de apoio ${r.cor_secundaria.toUpperCase()}</urbi-prosa>
+        <urbi-input label="Assinatura curta (opcional)" valor=${r.assinatura} placeholder="Ex.: Seu corretor no Lago Sul"
+          @urbi:input-change=${(e: CustomEvent) => this.mudar('assinatura', String(e.detail.valor ?? ''))}></urbi-input>
+        <urbi-prosa papel="secao">Tom de voz (artes do Estúdio)</urbi-prosa>
+        <urbi-grid min="180px">
+          ${escolhaUnica(OPCOES_TOM_VOZ, r.tom_voz, (id) => this.mudar('tom_voz', id), { selo: 'escolhido', nome: 'Tom de voz (artes do Estúdio)' })}
+        </urbi-grid>
+        <urbi-prosa papel="dica">Esta marca vale em todo lugar. A cor principal e a sua foto aparecem para o cliente; salvar já atualiza o que está no ar e, se não conseguir, avisa aqui. Logo e foto são salvos ao escolher o arquivo.</urbi-prosa>
+        <urbi-linha justificar="fim">
+          <urbi-botao icone="fa-solid fa-check" ?carregando=${this.salvando} @click=${() => void this.salvar()}>Salvar marca</urbi-botao>
+        </urbi-linha>
+      </urbi-stack>
     </urbi-card>
     <urbi-card titulo="Referências" icone="fa-solid fa-images">
       ${m.referencias.length
         ? html`<urbi-linha quebrar>
             ${m.referencias.map(
-              (r, i) => html`<urbi-linha>
-                <urbi-avatar nome=${`Referência ${i + 1}`} foto=${r.url} tamanho="56"></urbi-avatar>
-                <urbi-botao variante="fantasma" pequeno icone="fa-solid fa-trash" ariaLabel=${`Tirar a referência ${i + 1}`} title="Tirar" @click=${() => this.tirarReferencia(r.id)}></urbi-botao>
+              (ref, i) => html`<urbi-linha>
+                <urbi-avatar nome=${`Referência ${i + 1}`} foto=${ref.url} tamanho="56"></urbi-avatar>
+                <urbi-botao variante="fantasma" icone="fa-solid fa-trash" ariaLabel=${`Tirar a referência ${i + 1}`} title="Tirar" @click=${() => this.tirarReferencia(ref.id)}></urbi-botao>
               </urbi-linha>`,
             )}
           </urbi-linha>`
         : ''}
       ${m.referencias.length < MAX_REFERENCIAS
-        ? keyed(this.seletorRefs, html`<urbi-seletor-arquivo accept="image/png,image/jpeg,image/webp" multiplo dica=${`Posts ou artes que você admira (até ${MAX_REFERENCIAS})`} @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarReferencias(e)}></urbi-seletor-arquivo>`)
+        ? keyed(this.seletorRefs, html`<urbi-seletor-arquivo label="Referências" accept="image/png,image/jpeg,image/webp" multiplo dica=${`Posts ou artes que você admira (até ${MAX_REFERENCIAS})`} @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarReferencias(e)}></urbi-seletor-arquivo>`)
         : ''}
       <urbi-prosa papel="dica">Só você vê. No Estúdio, "Fazer em outra ferramenta" pergunta quais referências entram na instrução, como inspiração de estilo.</urbi-prosa>
     </urbi-card>`;

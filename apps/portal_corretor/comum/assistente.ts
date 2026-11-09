@@ -33,6 +33,32 @@ export const TELAS_APP: Record<string, { nome: string; doc: string }> = {
   '/empreendimentos': { nome: 'Imóveis › Empreendimentos', doc: 'imoveis' },
 };
 
+/**
+ * Perguntas sugeridas em chips no topo do Assistente (P05, diagnóstico 3.4): três por tela, das do
+ * roteiro R.8.2 e da referência, que o corretor toca para preencher o campo. Tela sem lista própria usa
+ * as de Hoje.
+ */
+export const PERGUNTAS_SUGERIDAS: Record<string, readonly [string, string, string]> = {
+  '/': ['Quem atendo primeiro?', 'Onde vejo a agenda da semana?', 'Crie um lembrete para ligar amanhã às 10 h'],
+  '/clientes': ['Como importo uma planilha de contatos?', 'Como mando uma seleção de imóveis para o cliente?', 'Como registro o consentimento do cliente?'],
+  '/imoveis': ['Como cadastro a autorização de venda?', 'A IA escreve a descrição do imóvel?', 'O que eu ofereço para um proprietário?'],
+  '/imoveis/novo': ['Quais dados o anúncio precisa ter?', 'A IA escreve a descrição do imóvel?', 'Como cadastro a autorização de venda?'],
+  '/numeros': ['Onde vejo a conversão e o VGV?', 'Por que estou perdendo clientes?', 'Qual origem traz mais vendas?'],
+  '/pagina': ['Como publico a minha página?', 'Por que um imóvel não aparece na minha página?', 'Para onde vai o contato que preenche o formulário?'],
+  '/estudio': ['Como agendo um post para sexta?', 'Dá para usar o Canva para fazer a arte?', 'Onde mudo as cores da minha marca?'],
+  '/ajustes': ['Onde cadastro meu CRECI?', 'Como conecto meu Instagram?', 'Como mudo as etapas do funil?'],
+  '/ajustes/negociador': ['O Negociador revela o meu ponto de recuo?', 'Quando o Negociador entra na conversa?', 'Como mudo o estilo do Negociador?'],
+  '/ajustes/conexoes': ['Como conecto meu Instagram?', 'Que tipo de conta do Instagram eu preciso?', 'Quando chega o WhatsApp?'],
+  '/ajustes/conta': ['Onde cadastro meu CRECI?', 'Onde mudo as cores da minha marca?', 'Para que serve o tom de voz?'],
+  '/ajustes/funil': ['Como mudo as etapas do funil?', 'Como o app decide a temperatura do contato?', 'O que é a abordagem do playbook?'],
+};
+
+/** As três perguntas da tela (pela tela base do endereço; sem lista própria, as de Hoje). */
+export function perguntasSugeridas(sub: string): readonly string[] {
+  const base = telaBase(sub);
+  return PERGUNTAS_SUGERIDAS[base] ?? PERGUNTAS_SUGERIDAS[base.replace(/\/[^/]+$/, '')] ?? PERGUNTAS_SUGERIDAS['/'];
+}
+
 /** Apelidos que não são aba de outra tela: o endereço antigo responde pela tela nova. */
 const APELIDOS: Record<string, string> = { '/conta': '/ajustes/conta', '/desempenho': '/numeros', '/assistente': '/' };
 

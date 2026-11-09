@@ -336,7 +336,9 @@ test('Estúdio no Chromium: Instagram desconectado e IA indisponível são faixa
     });
     assert.deepEqual(s.filhos, ['urbi-banner:info', 'urbi-banner:alerta', 'urbi-stack', 'urbi-redator']);
     assert.match(s.texto, /IA indisponível agora: os textos saem do modelo do app/);
-    assert.match(s.texto, /Instagram não conectado.*Reconectar/);
+    // Quem nunca conectou vê "Conectar" (#182, item 5).
+    assert.match(s.texto, /Instagram não conectado.*Conectar/);
+    assert.doesNotMatch(s.texto, /Reconectar/);
     assert.match(s.texto, /Escolha um pedido na lista/);
     assert.match(s.esquerda, /Instagram não conectado/);
     assert.equal(s.painel, 'esquerda', 'sem pedido escolhido, o celular abre na lista');

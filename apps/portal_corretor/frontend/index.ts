@@ -14,7 +14,7 @@ import { aoAbrirNumeros, renderNumeros } from './telas/desempenho.js';
 import { aoAbrirPagina, renderPagina } from './telas/pagina.js';
 import './telas/previa-pagina.js';
 import { renderEstudio } from './telas/estudio.js';
-import { renderAjustes } from './telas/ajustes.js';
+import { aoAbrirAjustes, renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, contaDoAssistente, lembrarTela } from './telas/assistente.js';
 import { destinoDoNegociador, fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
@@ -75,9 +75,16 @@ const TELAS: Record<ChaveTela, Tela> = {
   estudio: { titulo: 'Estúdio', papel: 'corretor', moldura: true, render: (_p, app, chave) => renderEstudio(() => app?.requestUpdate(), chave) },
   pagina: { titulo: 'Página', papel: 'corretor', moldura: true, aoAbrir: aoAbrirPagina, render: (_p, app) => renderPagina(() => app?.requestUpdate()) },
   numeros: { titulo: 'Números', papel: 'corretor', moldura: true, aoAbrir: aoAbrirNumeros, render: (_p, app) => renderNumeros(() => app?.requestUpdate()) },
-  ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
+  ajustes: { titulo: 'Ajustes', papel: 'corretor', moldura: true, aoAbrir: aoAbrirAjustes, render: (_p, app) => renderAjustes(() => app?.requestUpdate()) },
   corretores: { titulo: 'Corretores', papel: 'operacao', render: () => html`<pc-tela-corretores></pc-tela-corretores>` },
 };
+
+/**
+ * Sem conta (#33): as telas do corretor trabalham dentro de uma conta. Para avaliar o app, a conta certa é
+ * uma de demonstração, para não deixar perfil nem dados de teste na conta de um corretor real.
+ */
+export const MENSAGEM_SEM_CONTA_TELA =
+  'As telas do corretor trabalham sempre dentro de uma conta, e nada é gravado sem ela. Para avaliar o app, associe seu usuário a uma conta de demonstração (nome terminado em “(demo)”) em Admin › Acesso › Contas, ou peça a quem cuida das contas da plataforma, e recarregue a página. Evite usar a conta de um corretor real: o que você salvar fica nela.';
 
 // Tag fixa pela plataforma: `app-` + appId com hífens.
 @customElement('app-portal-corretor')
@@ -208,7 +215,7 @@ export class AppPortalCorretor extends LitElement {
     // Sem conta não há carteira para mostrar: explica o que fazer em vez de cada tela dar erro.
     if (this.faltaConta(tela)) {
       return html`<urbi-estado-vazio expandir icone="fa-solid fa-building-user" mensagem="Você ainda não está em nenhuma conta"
-        submensagem="As telas do corretor trabalham sempre dentro de uma conta. Associe seu usuário a uma conta em Admin › Acesso › Contas (ou peça a quem cuida das contas da plataforma) e recarregue a página."></urbi-estado-vazio>`;
+        submensagem=${MENSAGEM_SEM_CONTA_TELA}></urbi-estado-vazio>`;
     }
     // `keyed` pelo endereço e pela navegação: trocar de cliente recria a tela em vez de reaproveitar o estado.
     const conteudo = keyed(this.chaveDaTela(), tela.render(param, this, this.chaveDaTela));

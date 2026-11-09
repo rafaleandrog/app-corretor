@@ -260,9 +260,15 @@ clienteRotas.post(
     const t = texto(req.body?.texto, 200);
     if (!t) return erro(res, 422, 'DADOS_INVALIDOS', 'Escreva o que falta do cliente.');
     const conta = contaDoRequest(req);
-    const abertas = await dados.varrerTudo('tarefas_cliente', { filtros: { conta_id: conta, contato_id: contato.id, 'feita_em[nulo]': 'true' }, maximo: MAX_TAREFAS_ABERTAS + 1 });
-    if (abertas.length >= MAX_TAREFAS_ABERTAS) return erro(res, 422, 'LIMITE', `O cliente já tem ${MAX_TAREFAS_ABERTAS} pendências abertas. Remova alguma antes.`);
-    const tarefa = await dados.criar('tarefas_cliente', { contato_id: contato.id, texto: t, criada_por_id: eu(req) });
+    // Contar e criar sob a trava do contato (#80): dois pedidos ao mesmo tempo não passam do limite, e a
+    // contagem é pelo `total` (não lança com mais linhas do que o teto, como o `varrerTudo` lançaria).
+    const tarefa = await dados.transaction(async (trx) => {
+      await trx.buscar('contatos', contato.id, { travar: true });
+      const abertas = await trx.listar('tarefas_cliente', { filtros: { conta_id: conta, contato_id: contato.id, 'feita_em[nulo]': 'true' }, por_pagina: 1 });
+      if (abertas.total >= MAX_TAREFAS_ABERTAS) return null;
+      return trx.criar('tarefas_cliente', { contato_id: contato.id, texto: t, criada_por_id: eu(req) });
+    });
+    if (!tarefa) return erro(res, 422, 'LIMITE', `O cliente já tem ${MAX_TAREFAS_ABERTAS} pendências abertas. Remova alguma antes.`);
     await registrar(dados, req, { tipo: 'portal.tarefa_pedida', alvo_tipo: 'contato', alvo_id: contato.id, contato_id: contato.id, resumo: `Pediu ao cliente: ${t}` });
     await tentarPortal(dados, conta, contato.id, await corretor(req), { fuso: req.contexto?.fuso });
     res.status(201).json(tarefa);

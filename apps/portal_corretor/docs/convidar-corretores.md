@@ -11,6 +11,12 @@ Início do app abre direto nesta tela. O administrador do app, que o próprio ap
 e equipe ao mesmo tempo (por isso o Início abre Hoje para ele), chega a ela pelo menu do app, no nome
 do app no alto da página, no grupo Equipe da plataforma, abaixo das telas do corretor.
 
+**Administrador do app sem o papel Equipe.** Ser administrador do app não basta para convidar: a
+plataforma só aceita o convite de quem tem o papel `operacao`. Sem ele, a tela não mostra a lista nem
+o botão **Convidar corretor**; mostra o aviso "Para convidar corretores, falta o papel Equipe", com o
+caminho: peça a quem administra a plataforma para atribuir a você o papel **Equipe (operacao)** deste
+app em **Configurações › Usuários**, seção **Equipe**, e abra a tela de novo.
+
 ## Passo a passo
 
 1. Clique em **Convidar corretor**, informe o e-mail dele e o **nome da conta** (o nome dele ou da
@@ -42,9 +48,11 @@ Corretor**:
 - o **nível padrão de externos** em **escrita** (é o nível com que o corretor usa o app);
 - o **e-mail de sistema** da instância, sem o qual o convite não sai.
 
-Se algo faltar, o convite é recusado e a mensagem traz o código da plataforma — por exemplo,
-`PROVISIONA_NAO_LIBERADA` (provisionamento ou "criar conta" não liberados) ou
-`EMAIL_SISTEMA_INDISPONIVEL` (e-mail de sistema desligado).
+Se algo faltar, o convite é recusado e a tela diz o que falta em frase do app (o código técnico da
+plataforma fica só no console do navegador): por exemplo, "O convite de corretores ainda não foi
+liberado para este app" (`PROVISIONA_NAO_LIBERADA`: provisionamento ou "criar conta" não liberados) ou
+"O envio de e-mails da plataforma está indisponível agora" (`EMAIL_SISTEMA_INDISPONIVEL`: e-mail de
+sistema desligado).
 
 ## Regras que valem sempre
 

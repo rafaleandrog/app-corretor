@@ -40,10 +40,21 @@ export interface DadosMarca {
   cor_secundaria: string;
   estilo: string;
   assinatura: string | null;
+  /** Tom de voz das artes (P13). Ausente no corpo: fica o gravado. */
+  tom_voz?: TomVoz;
 }
 
+/** Tom de voz da marca (P13): usado nos textos das artes do Estúdio. */
+export const TONS_VOZ = ['proximo', 'sofisticado', 'formal'] as const;
+export type TomVoz = (typeof TONS_VOZ)[number];
+export const ROTULO_TOM_VOZ: Record<TomVoz, { rotulo: string; explicacao: string }> = {
+  proximo: { rotulo: 'Próximo e direto', explicacao: 'Fala como você fala com o cliente: frases curtas, você, sem jargão.' },
+  sofisticado: { rotulo: 'Sofisticado', explicacao: 'Valoriza detalhes e acabamento, com vocabulário mais elaborado.' },
+  formal: { rotulo: 'Formal', explicacao: 'Tratamento respeitoso e objetivo, sem gírias nem exclamações.' },
+};
+
 /** A marca até o corretor salvar a dele (os mesmos padrões de `marca_conta` no schema). */
-export const MARCA_PADRAO = { cor_primaria: '#0b5394', cor_secundaria: '#f2b705', estilo: 'moderno' } as const;
+export const MARCA_PADRAO = { cor_primaria: '#0b5394', cor_secundaria: '#f2b705', estilo: 'moderno', tom_voz: 'proximo' } as const;
 
 export function validarMarca(corpo: Record<string, unknown>): Resultado<DadosMarca> {
   const erros: string[] = [];
@@ -57,8 +68,13 @@ export function validarMarca(corpo: Record<string, unknown>): Resultado<DadosMar
   const estilo = (ESTILOS as readonly string[]).includes(corpo.estilo as string) ? (corpo.estilo as string) : null;
   if (!estilo) erros.push('Escolha um estilo.');
   const assinatura = typeof corpo.assinatura === 'string' ? corpo.assinatura.trim().slice(0, 60) || null : null;
+  let tom: TomVoz | undefined;
+  if (corpo.tom_voz !== undefined) {
+    if ((TONS_VOZ as readonly unknown[]).includes(corpo.tom_voz)) tom = corpo.tom_voz as TomVoz;
+    else erros.push('Escolha um tom de voz.');
+  }
   if (erros.length) return { ok: false, erros };
-  return { ok: true, dados: { cor_primaria: primaria, cor_secundaria: secundaria, estilo: estilo!, assinatura } };
+  return { ok: true, dados: { cor_primaria: primaria, cor_secundaria: secundaria, estilo: estilo!, assinatura, ...(tom ? { tom_voz: tom } : {}) } };
 }
 
 /** Só o que pode aparecer num anúncio: nunca proprietário, comissão nem endereço além da preferência. */
@@ -157,9 +173,11 @@ export const INSTRUCAO_PECA =
   'hashtags: de 4 a 8, sem o símbolo #, locais quando houver bairro ou cidade.';
 
 /** O que a IA recebe: o pedido e só os dados públicos do imóvel. */
-export function contextoPeca(pedido: string, im: ImovelArte | null, objetivo: Objetivo, formato: Formato): string {
+export function contextoPeca(pedido: string, im: ImovelArte | null, objetivo: Objetivo, formato: Formato, tom?: string | null): string {
+  const t = tom && (TONS_VOZ as readonly string[]).includes(tom) ? ROTULO_TOM_VOZ[tom as TomVoz] : null;
   return [
     `Pedido do corretor: ${pedido.slice(0, 1000) || '(sem pedido, use o objetivo)'}`,
+    t ? `Tom de voz da marca: ${t.rotulo}. ${t.explicacao}` : null,
     `Objetivo da peça: ${ROTULO_OBJETIVO[objetivo]}`,
     `Formato: ${ROTULO_FORMATO[formato]}`,
     im ? `Imóvel: ${ROTULO_TIPO[im.tipo] ?? 'Imóvel'}${im.titulo ? ` — ${im.titulo}` : ''}` : 'Peça institucional, sem imóvel.',

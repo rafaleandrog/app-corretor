@@ -122,6 +122,12 @@ Abaixo das etapas, a tabela de abordagens por etapa e temperatura. O app semeia 
 para cada etapa da semente e cada temperatura; toque numa linha para mudar o texto, o canal e o
 prazo. Etapas criadas pelo corretor começam sem abordagem: use **Nova abordagem**.
 
+**Quando as etapas e abordagens padrão entram na conta.** Ao iniciar, o app prepara toda conta ativa
+que ainda não tem etapas nem abordagens. A conta criada depois disso é preparada na primeira vez que
+uma tela do funil (Funil, Ajustes › Funil e abordagens, a ficha do cliente) abre, por um pedido de
+gravação próprio (`POST /funil/preparar`), ou no primeiro negócio criado. Nenhuma leitura grava nada:
+quem atende várias contas abre as telas sem escolher conta antes.
+
 ## Hoje (antes, Início)
 
 **Hoje** responde "o que eu faço agora". Ela vem em três colunas (no celular, uma por vez, em abas:

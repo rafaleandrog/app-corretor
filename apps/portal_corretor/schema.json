@@ -88,6 +88,14 @@
           "limite": 16,
           "formato": "^[+][1-9][0-9]{7,14}$"
         },
+        "nome_profissional": {
+          "tipo": "texto",
+          "limite": 120
+        },
+        "regioes": {
+          "tipo": "texto",
+          "limite": 300
+        },
         "ativo": {
           "tipo": "booleano",
           "obrigatorio": true,
@@ -1885,6 +1893,17 @@
         "assinatura": {
           "tipo": "texto",
           "limite": 60
+        },
+        "tom_voz": {
+          "tipo": "texto",
+          "limite": 20,
+          "obrigatorio": true,
+          "padrao": "proximo",
+          "opcoes": [
+            "proximo",
+            "sofisticado",
+            "formal"
+          ]
         }
       }
     },

@@ -8,7 +8,7 @@ import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
 import { etapasDaConta } from './crm';
 import { CORES_AMBIENTE, documentoDeExemplo, fotoDeExemplo } from './demo-arquivos';
 import { registrarMensagem } from './conversas';
-import { reclassificar } from './inteligencia';
+import { prepararFunil, reclassificar } from './inteligencia';
 import { enderecoLivre, publicarPagina } from './pagina';
 import { corretorDaConta, publicarSelecao, sincronizarPortal } from './portal';
 import { contaDoRequest, origemPublica, paginaDaConta, publicavel, sincronizarTudo } from './vitrine';
@@ -198,6 +198,7 @@ demoRotas.post(
       return res.json({ completado: feito, avisos });
     }
     const eu = req.contexto!.usuario.id;
+    await prepararFunil(dados, { conta_id: contaDoRequest(req) });
     const etapas = await etapasDaConta(dados);
     const etapa = (nome: string) => etapas.find((e) => e.pipeline === 'compra' && e.nome === nome);
     const faltando = conjunto.pessoas.find((p) => !etapa(p.etapa));

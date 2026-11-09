@@ -16,7 +16,14 @@ export interface PerfilConta {
 export interface MeuPerfil {
   creci: string | null;
   telefone: string | null;
+  /** Nome que aparece para os clientes (P13); sem ele, vale o nome do usuário. Ausente: fica o gravado. */
+  nome_profissional?: string | null;
+  /** Regiões que atende, em texto livre ("Lago Sul, Sudoeste"). Ausente: fica o gravado. */
+  regioes?: string | null;
 }
+
+export const LIMITE_NOME_PROFISSIONAL = 120;
+export const LIMITE_REGIOES = 300;
 
 export interface Configuracoes {
   prazo_primeiro_atendimento_min: number;
@@ -110,14 +117,23 @@ export function validarPerfilConta(corpo: Record<string, unknown>): Resultado<Pe
 export function validarMeuPerfil(corpo: Record<string, unknown>): Resultado<MeuPerfil> {
   const erros: string[] = [];
   const avisos: string[] = [];
-  exigirTexto(corpo, ['creci', 'telefone'], erros);
+  exigirTexto(corpo, ['creci', 'telefone', 'nome_profissional', 'regioes'], erros);
   const creci = normalizarCreci(corpo.creci);
   if (creci && creci.length > LIMITE_CRECI) erros.push(`O CRECI tem no máximo ${LIMITE_CRECI} caracteres.`);
   else if (creci && !creciValido(creci)) avisos.push(AVISO_FORMATO_CRECI);
   const telefone = normalizarTelefone(corpo.telefone);
   if (telefone && !telefoneValido(telefone)) erros.push('Telefone inválido. Use DDD e número, ex.: (61) 99999-9999.');
+  const extras: Pick<MeuPerfil, 'nome_profissional' | 'regioes'> = {};
+  if (corpo.nome_profissional !== undefined) {
+    extras.nome_profissional = opcional(corpo.nome_profissional)?.replace(/\s+/g, ' ') ?? null;
+    if ((extras.nome_profissional?.length ?? 0) > LIMITE_NOME_PROFISSIONAL) erros.push(`O nome profissional tem no máximo ${LIMITE_NOME_PROFISSIONAL} caracteres.`);
+  }
+  if (corpo.regioes !== undefined) {
+    extras.regioes = opcional(corpo.regioes)?.replace(/\s+/g, ' ') ?? null;
+    if ((extras.regioes?.length ?? 0) > LIMITE_REGIOES) erros.push(`As regiões que atende têm no máximo ${LIMITE_REGIOES} caracteres.`);
+  }
   if (erros.length) return { ok: false, erros };
-  return { ok: true, dados: { creci, telefone }, avisos };
+  return { ok: true, dados: { creci, telefone, ...extras }, avisos };
 }
 
 function inteiroEntre(v: unknown, min: number, max: number): number | null {

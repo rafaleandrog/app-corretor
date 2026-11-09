@@ -1,4 +1,5 @@
 import type { HelperDados } from '@urbiverso/sdk';
+import { ETAPAS_PADRAO } from '../comum/crm';
 import { classificar, deveTrocar, iso as instante, MARCO_PADRAO, PLAYBOOK_PADRAO, venceEm, type Classificacao, type Temperatura } from '../comum/funil';
 
 // Inteligência do Funil por regras (bloco 4): reclassifica a temperatura a cada sinal e aponta a
@@ -10,9 +11,9 @@ const DIA = 86400e3;
 
 /** Etapas por id, com o marco preenchido pelo nome quando a conta foi semeada antes dele. */
 export async function etapasPorId(dados: HelperDados, filtroConta: Record<string, unknown> = {}): Promise<Map<number, Linha>> {
-  const r = await dados.listar('etapas_funil', { filtros: filtroConta, por_pagina: 500 });
+  const linhas = await dados.varrerTudo('etapas_funil', { filtros: filtroConta, maximo: 2000 });
   const mapa = new Map<number, Linha>();
-  for (const e of r.dados) mapa.set(e.id, { ...e, marco: e.marco ?? MARCO_PADRAO[e.nome] ?? null });
+  for (const e of linhas) mapa.set(e.id, { ...e, marco: e.marco ?? MARCO_PADRAO[e.nome] ?? null });
   return mapa;
 }
 
@@ -91,23 +92,67 @@ export async function classificarManual(dados: HelperDados, contatoId: number, t
   await dados.criar('classificacoes', { contato_id: contatoId, temperatura, motivo: texto, sinais: null, autor: 'corretor', em });
 }
 
-/** Playbook da conta por (etapa, temperatura); semeia o padrão na primeira leitura (spec 6.15). */
-export async function playbookDaConta(dados: HelperDados, etapas: Map<number, Linha>): Promise<Linha[]> {
-  let r = await dados.listar('playbook_funil', { por_pagina: 1000 });
-  if (!r.dados.length) {
-    for (const e of etapas.values()) {
-      if (!e.ativa || e.tipo !== 'aberta' || !e.marco) continue;
-      for (const a of PLAYBOOK_PADRAO.filter((x) => x.marco === e.marco)) {
-        try {
-          await dados.criar('playbook_funil', { etapa_id: e.id, temperatura: a.temperatura, abordagem: a.abordagem, canal_sugerido: a.canal_sugerido, prazo_horas: a.prazo_horas });
-        } catch (err) {
-          if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
-        }
+/**
+ * Semeia as etapas padrão (spec 6.2) na conta que ainda não tem nenhuma. Só em caminho de escrita:
+ * `aoIniciar` (contas que já existem), `POST /funil/preparar`, criar negócio e a demonstração.
+ * Idempotente; duas chamadas juntas caem no único (23505) e seguem.
+ */
+export async function garantirEtapas(dados: HelperDados, filtroConta: Record<string, unknown> = {}) {
+  const existe = await dados.listar('etapas_funil', { filtros: filtroConta, por_pagina: 1 });
+  if (!existe.dados.length) {
+    for (const e of ETAPAS_PADRAO) {
+      try {
+        await dados.criar('etapas_funil', { ...e, ativa: true, marco: MARCO_PADRAO[e.nome] ?? null });
+      } catch (err) {
+        if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
       }
     }
-    r = await dados.listar('playbook_funil', { por_pagina: 1000 });
   }
-  return r.dados;
+}
+
+/**
+ * Playbook da conta por (etapa, temperatura), todas as linhas, só leitura (issue #32, spec 6.15). Vazio
+ * até `garantirPlaybook` semear. `filtroConta` é obrigatório em contexto SISTEMA, que enxerga todas as contas.
+ */
+export async function playbookDaConta(dados: HelperDados, _etapas?: Map<number, Linha>, filtroConta: Record<string, unknown> = {}): Promise<Linha[]> {
+  return dados.varrerTudo('playbook_funil', { filtros: filtroConta, maximo: 5000 });
+}
+
+/** A conta ainda não tem etapas ou abordagens? Leitura barata que alimenta o `preparar: true` das telas. */
+export async function funilPrecisaPreparo(dados: HelperDados, filtroConta: Record<string, unknown> = {}): Promise<boolean> {
+  const [etapas, playbook] = await Promise.all([
+    dados.listar('etapas_funil', { filtros: filtroConta, por_pagina: 1 }),
+    dados.listar('playbook_funil', { filtros: filtroConta, por_pagina: 1 }),
+  ]);
+  return !etapas.dados.length || !playbook.dados.length;
+}
+
+/**
+ * Semeia as abordagens padrão nas etapas em andamento (spec 10.4) quando a conta ainda não tem
+ * nenhuma. Só em caminho de escrita (`aoIniciar`, `POST /funil/preparar`, demonstração).
+ */
+export async function garantirPlaybook(dados: HelperDados, etapas: Map<number, Linha>, filtroConta: Record<string, unknown> = {}) {
+  if ((await dados.listar('playbook_funil', { filtros: filtroConta, por_pagina: 1 })).dados.length) return;
+  for (const e of etapas.values()) {
+    if (!e.ativa || e.tipo !== 'aberta' || !e.marco) continue;
+    for (const a of PLAYBOOK_PADRAO.filter((x) => x.marco === e.marco)) {
+      try {
+        await dados.criar('playbook_funil', { etapa_id: e.id, temperatura: a.temperatura, abordagem: a.abordagem, canal_sugerido: a.canal_sugerido, prazo_horas: a.prazo_horas });
+      } catch (err) {
+        if ((err as { code?: string })?.code !== '23505') throw err; // outra requisição semeou junto
+      }
+    }
+  }
+}
+
+/**
+ * Semeia etapas e abordagens padrão na conta que ainda não as tem. É a escrita que antes acontecia
+ * dentro dos GET: as telas chamam quando a leitura responde `preparar: true`. Idempotente. Toda leitura
+ * daqui é da conta de `filtroConta` (a ativa, `contexto.contaEscrita`); sem filtro vale o que `dados` já escopa.
+ */
+export async function prepararFunil(dados: HelperDados, filtroConta: Record<string, unknown> = {}) {
+  await garantirEtapas(dados, filtroConta);
+  await garantirPlaybook(dados, await etapasPorId(dados, filtroConta), filtroConta);
 }
 
 export interface ProximaAbordagem {

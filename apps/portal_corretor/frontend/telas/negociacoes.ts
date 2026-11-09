@@ -575,7 +575,7 @@ export class PcNegociacoesLista extends LitElement {
       // lá a lista é a primeira coluna e a negociação abre no toque.
       if (this.atalhos && !this.selecionado && this.linhas.length && window.innerWidth > 900) this.aoEscolher(Number(this.linhas[0].id));
     } catch (e) {
-      if (g === this.geracao && !ehContaTrocada(e)) this.falha = (e as Error).message;
+      if (g === this.geracao && !ehContaTrocada(e)) this.falha = mensagemDeErro(e);
     } finally {
       if (g === this.geracao) this.carregando = false;
     }

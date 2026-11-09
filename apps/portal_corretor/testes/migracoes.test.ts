@@ -22,7 +22,11 @@ function contextoMigracao(banco: BancoFalso) {
       return alvo ? Object.assign(alvo, d) : null;
     },
   };
-  const eventos = { cancelarAgendamento: async (id: number) => (cancelados.push(id), true) };
+  // Igual ao contrato do helper `eventos` da migração (upgrade-e-migracoes.md § Helper eventos): sem
+  // `cancelarAgendamento`, que só existe em `req.eventos` (#73). O evento que fica órfão não publica: o
+  // listener confere o estado da peça (testes/instagram.test.ts, "#73").
+  const eventos = {} as { cancelarAgendamento?: (id: number) => Promise<boolean> };
+  void cancelados;
   const relato = { avisar: (m: string) => avisos.push(m), erro: (m: string) => avisos.push(m) };
   return { ctx: { dados, eventos, relato }, cancelados, avisos };
 }
@@ -43,9 +47,9 @@ test('migração 001: rascunho agendado pela janela volta a rascunho, conta "jan
   const m = contextoMigracao(banco);
   await semJanela(m.ctx);
   const peca = (id: number) => banco.linhas('pecas').find((p) => p.id === id)!;
-  // Sem aprovação, nas duas contas: volta a rascunho, sem agendamento, e o evento é cancelado.
+  // Sem aprovação, nas duas contas: volta a rascunho, sem agendamento (o helper da migração não cancela o evento).
   for (const id of [1, 3]) assert.deepEqual([peca(id).estado, peca(id).agendada_para, peca(id).agendamento_id], ['rascunho', null, null]);
-  assert.deepEqual(m.cancelados, [11, 13]);
+  assert.deepEqual(m.cancelados, []);
   // Aprovada continua agendada; o rascunho comum não muda.
   assert.deepEqual([peca(2).estado, peca(2).agendamento_id], ['agendada', 12]);
   assert.equal(peca(4).estado, 'rascunho');

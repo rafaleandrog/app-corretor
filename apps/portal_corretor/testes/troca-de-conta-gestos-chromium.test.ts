@@ -488,7 +488,7 @@ for (const modo of MODOS) {
       await p.evaluate(() => (window as any).liberar());
       await esperar(p);
       const r = await depoisDaTroca(p);
-      assert.deepEqual(r.alertas, [], 'o alerta "A importação falhou" de A não abre em B');
+      assert.deepEqual(r.alertas, [], 'o alerta "A importação parou" de A não abre em B');
       assert.deepEqual(r.avisos, []);
     });
   });
@@ -499,7 +499,7 @@ for (const modo of MODOS) {
       await semTroca(p);
       await p.evaluate(() => (window as any).liberar());
       await esperar(p);
-      assert.deepEqual((await depoisDaTroca(p)).alertas, ['A importação falhou']);
+      assert.deepEqual((await depoisDaTroca(p)).alertas, ['A importação parou']);
     });
   });
 
