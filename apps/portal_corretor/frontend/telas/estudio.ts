@@ -52,6 +52,8 @@ interface RespostaCriar {
   ia?: boolean;
   conferida?: boolean;
 }
+const FRASE_PECAS_PARCIAIS = 'Algumas peças já foram criadas; confira em Peças antes de pedir de novo.';
+const FORMATOS_DO_PACOTE = ['post_1x1', 'carrossel', 'story'];
 const FRASE_PECAS_EM_DUVIDA = 'A resposta não chegou, e as peças podem ter sido criadas. Cancele e confira a lista antes de criar de novo.';
 interface Marca {
   creci: string | null;
@@ -456,7 +458,8 @@ export class Estudio {
    * A rota cria uma peça por formato, sem chave de idempotência, e a IA pode passar do tempo do caminho:
    * na falha AMBÍGUA (rede, 5xx) a lista é relida antes de deixar reenviar. Apareceram peças novas deste
    * imóvel e objetivo: elas são o resultado (`conferida`), e nada é reenviado. Nenhuma: a falha volta (o
-   * reenvio é seguro). A releitura falhou: a frase da dúvida, e o corretor decide.
+   * reenvio é seguro). Só parte do conjunto pedido: a frase de criação parcial, e o formulário reabre. A releitura
+   * falhou: a frase da dúvida, e o corretor decide.
    */
   private async enviarCriacao(rota: string, corpo: Record<string, unknown>): Promise<RespostaCriar> {
     const antes = new Set(this.pecas.map((p) => p.id));
@@ -471,6 +474,12 @@ export class Estudio {
       if (this.falha) throw new Error(FRASE_PECAS_EM_DUVIDA);
       const novas = this.pecas.filter((p) => !antes.has(p.id) && (p.imovel_id ?? null) === (corpo.imovel_id ?? null) && p.objetivo === corpo.objetivo);
       if (!novas.length) throw e;
+      // Só é "criado" com o conjunto pedido completo (um formato por peça; o pacote tem os três). Parcial: a
+      // rota pode ainda estar criando as outras, ou parou no meio; não fecha como sucesso, e o formulário
+      // reabre com o aviso (reenviar pode repetir as que já existem: o corretor confere antes).
+      const pedidos = rota === '/estudio/pacote' ? FORMATOS_DO_PACOTE : ((corpo.formatos as string[] | undefined) ?? []);
+      const feitos = new Set(novas.map((p) => p.formato));
+      if (pedidos.some((f) => !feitos.has(f))) throw new Error(FRASE_PECAS_PARCIAIS);
       return { pecas: novas, conferida: true };
     } finally {
       if (this.vivo) {

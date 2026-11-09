@@ -236,4 +236,10 @@ test('falhaAmbigua (#187): rede e 5xx sem código do app podem ter gravado; a re
   assert.equal(falhaAmbigua(erro('A IA não respondeu.', { status: 503, codigo: 'IA_INDISPONIVEL' })), false, '503 com o código do app: recusou antes de gravar');
   assert.equal(falhaAmbigua(new Error('Digite o valor em reais.')), false, 'validação da própria tela');
   assert.equal(falhaAmbigua(new ContaTrocada()), false, 'conta trocada termina em silêncio');
+  // Modo reconexão do SDK: a escrita que caiu no restart pode ter gravado, com ou sem status (mesmo 4xx).
+  assert.equal(falhaAmbigua(erro('x', { codigo: 'PLATAFORMA_REINICIOU' })), true, 'sem status: foi rede');
+  assert.equal(falhaAmbigua(erro('x', { codigo: 'PLATAFORMA_REINICIOU', status: 502 })), true);
+  assert.equal(falhaAmbigua(erro('x', { codigo: 'PLATAFORMA_REINICIOU', status: 409 })), true, 'qualquer status');
+  assert.equal(falhaAmbigua(Object.assign(new Error('x'), { name: 'AbortError' })), true, 'o pedido pode ter saído');
+  assert.equal(falhaAmbigua(Object.assign(new Error('x'), { name: 'TimeoutError' })), true);
 });

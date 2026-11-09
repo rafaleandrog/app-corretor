@@ -124,8 +124,8 @@ async function idsDasPropostas(g: Gesto, nid: number): Promise<Set<number>> {
 /**
  * O POST da proposta falhou. Recusa do app (nada gravado): relança, e o formulário reabre para corrigir.
  * Falha ambígua: relê a escada. A proposta entrou (uma que não estava em `antes`, com a mesma direção e o
- * mesmo valor): devolve-a marcada `conferida`, e nada é reenviado. Não entrou: relança (reenviar é
- * seguro). A releitura também falhou: a frase da dúvida, e o corretor decide.
+ * mesmo valor): devolve-a marcada `conferida`, e nada é reenviado. Não entrou, ou a releitura falhou: a frase da
+ * dúvida (a proposta pode ainda estar sendo gravada), e o corretor confere a escada antes de reenviar.
  */
 export async function conferirProposta(g: Gesto, e: unknown, nid: number, antes: Set<number>, direcao: string, valor_c: number): Promise<Linha> {
   if (g.encerrado(e) || !falhaAmbigua(e)) throw e;
@@ -137,7 +137,9 @@ export async function conferirProposta(g: Gesto, e: unknown, nid: number, antes:
     throw new Error(FRASE_PROPOSTA_EM_DUVIDA);
   }
   const entrou = escada.find((p) => !antes.has(Number(p.id)) && p.direcao === direcao && Number(p.valor_c) === valor_c);
-  if (!entrou) throw e;
+  // A releitura vazia não prova que não gravou: a requisição original pode ainda estar rodando (sem chave de
+  // idempotência), então o formulário reabre dizendo que a proposta PODE ter sido registrada.
+  if (!entrou) throw new Error(FRASE_PROPOSTA_EM_DUVIDA);
   return { ...entrou, conferida: true };
 }
 

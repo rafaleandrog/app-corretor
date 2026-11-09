@@ -264,9 +264,13 @@ a atribuição): o formulário **reabre com o que você digitou** e o motivo no 
 o valor que não é número, a IA que não respondeu). Não confirmou o envio abaixo do recuo: nada sai e o
 formulário volta com o valor para ajustar; ao enviar de novo, a confirmação é pedida outra vez. Se a
 conexão cai depois do envio, o app relê a escada (ou a negociação, no pedido de sugestão) antes de
-deixar enviar de novo: se a contraproposta ou a oferta já entrou, ele não reenvia e avisa. As outras
-gravações (decisão, encerramento, atribuição) o servidor só aceita uma vez: repetidas, voltam com o
-motivo. No **Fazer agora**, a janela do WhatsApp abre a cada envio e só recebe o link depois de a
+deixar enviar de novo: se a contraproposta ou a oferta já entrou, ele não reenvia (a contraproposta avisa
+que foi registrada; a oferta e a Nova proposta apenas fecham o formulário, e a proposta aparece na escada).
+Se a releitura não a acha, o formulário reabre dizendo que a proposta **pode** ter sido registrada e
+manda conferir a escada antes de enviar de novo: a releitura imediata não prova que o servidor não gravou
+(o pedido original pode ainda estar rodando e não há chave de idempotência). Nas outras gravações, a
+**decisão** e o **encerramento** repetidos voltam com o motivo (por exemplo, negociação já encerrada); a
+**atribuição** repetida é aceita sem duplicar, e só uma negociação já encerrada a recusa (409). No **Fazer agora**, a janela do WhatsApp abre a cada envio e só recebe o link depois de a
 contraproposta ser gravada; se o envio falhar, ela fecha.
 
 ### Decisão do proprietário e encerramento

@@ -405,10 +405,14 @@ export async function formularioQueSalva<R = any>(o: OpcoesFormularioQueSalva<R>
  * app (o 500 de um evento publicado depois do commit, o 502/504 do caminho). Reenviar um POST que não é
  * idempotente duplicaria. A recusa do app (4xx, ou 5xx com o código dele, como `IA_INDISPONIVEL`) e o
  * `Error` da própria tela não são ambíguos: nada foi gravado. Conta trocada também não (termina em silêncio).
+ * Sempre ambíguas, mesmo com status 4xx: `codigo === 'PLATAFORMA_REINICIOU'` (o SDK, no modo reconexão, rejeita
+ * assim a escrita que caiu no restart; o `status` é o da falha, ou `undefined` se foi rede, e o servidor pode ter
+ * gravado) e `AbortError`/`TimeoutError` (o pedido pode ter saído antes de o cliente desistir).
  */
 export function falhaAmbigua(e: unknown): boolean {
   if (ehContaTrocada(e)) return false;
   const f = (e ?? {}) as { status?: unknown; codigo?: unknown; name?: unknown };
+  if (f.codigo === 'PLATAFORMA_REINICIOU' || f.name === 'AbortError' || f.name === 'TimeoutError') return true;
   if (typeof f.status === 'number') return f.status === 0 || (f.status >= 500 && !(typeof f.codigo === 'string' && CODIGOS_DO_APP.has(f.codigo)));
   return f.name === 'TypeError' || !(e instanceof Error);
 }

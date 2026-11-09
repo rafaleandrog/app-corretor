@@ -107,9 +107,11 @@ o Usar outra ferramenta do Estúdio e o Refazer a página com IA, entre outros).
 
 Onde reenviar repetiria algo para fora, o app confere antes de deixar enviar de novo: na **oferta**, na
 **contraproposta** e na **Nova proposta**, se a conexão cai, ele relê a escada de propostas e, se ela já
-entrou, não reabre (avisa que foi registrada; no **Fazer agora**, escreva ao cliente pelo WhatsApp do
-celular, porque a mensagem pronta não chegou). No **Pedir sugestão**, ele relê a negociação; no **Novo
-pedido** e no **Criar rápido** do Estúdio, a lista de peças. Se nem a releitura funcionar, o formulário
+entrou, não reabre (a contraproposta avisa que foi registrada e, no **Fazer agora**, escreva ao cliente pelo
+WhatsApp do celular, porque a mensagem pronta não chegou; a oferta e a Nova proposta só fecham o formulário).
+Se a releitura não a encontra, o formulário reabre dizendo que ela pode ter sido registrada: confira a escada. No **Pedir sugestão**, ele relê a negociação; no **Novo
+pedido** e no **Criar rápido** do Estúdio, a lista de peças (só se todas as peças pedidas já estiverem lá; se
+só algumas, o formulário reabre avisando que algumas já foram criadas: confira em Peças antes de pedir de novo). Se nem a releitura funcionar, o formulário
 reabre dizendo que pode ter entrado: **Cancele e confira** antes de enviar de novo. A janela do **Fazer
 agora** abre a cada envio e só recebe o link quando a contraproposta foi gravada; se falhar, ela fecha. A
 Nova proposta que já criou o negócio ou a negociação não os cria de novo ao reenviar. Na contraproposta

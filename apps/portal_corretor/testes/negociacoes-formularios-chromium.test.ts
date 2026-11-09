@@ -172,7 +172,7 @@ test('Nova contraproposta (#187): reabre com o digitado; janela por clique e só
     assert.equal(r.posts, 2, 'um envio por clique em Enviar');
     assert.equal(r.n, 2, 'reabriu uma vez');
     assert.deepEqual(r.f.valores, { ...CONTRA, canal: 'wa_me' }, 'com o que foi digitado');
-    assert.match(r.f.mensagem, /^Não foi possível salvar: Não foi possível concluir agora/);
+    assert.match(r.f.mensagem, /a proposta pode ter sido registrada\. Cancele e confira a escada de propostas antes de enviar de novo\./, 'a releitura vazia não prova que não gravou');
     assert.deepEqual(r.janelas, [[true, ''], [false, 'https://wa.me/5561999990001?text=Ana']], 'a janela da falha fechou sem link; a do envio que gravou recebeu o link');
     assert.deepEqual(r.alertas, []);
     assert.deepEqual(r.corpos[0], r.corpos[1], 'o reenvio leva os mesmos dados');
@@ -519,6 +519,67 @@ test('Nova proposta e Proposta pela conversa (#187): o passo que já gravou (neg
     assert.equal(r.negociacoes, 1, 'a negociação uma vez só');
     assert.equal(r.ofertas, 2, 'a oferta não tinha entrado: o reenvio é seguro');
     assert.deepEqual(r.f.valores, { escolha: 'negocio:60:7', valor: '1.300.000', condicoes: '' });
+  } finally {
+    await navegador.close();
+  }
+});
+
+test('Falha PLATAFORMA_REINICIOU (#187): conta como ambígua em qualquer status; relê a escada e não reenvia a que entrou; sem achá-la, diz que pode ter entrado', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  const esperar = () => pagina.waitForTimeout(200);
+  try {
+    // Registrar oferta: o restart derrubou a resposta (sem status), mas a escada relida tem a oferta.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.zerar();
+      w.rotas = (m: string, c: string) => {
+        if (m !== 'POST' || c !== '/negociacoes/1/propostas') return undefined;
+        w.escada = [...w.PROPOSTAS, { id: 88, direcao: 'comprador', valor_c: 133000000 }];
+        throw Object.assign(new Error('A plataforma reiniciou'), { codigo: 'PLATAFORMA_REINICIOU' });
+      };
+      w.fila = [{ valor: '1.330.000', condicoes: '' }, 'MESMO'];
+      w.clicar('pc-negociacao-foco', 'Registrar oferta do cliente');
+    });
+    await esperar();
+    let r: any = await pagina.evaluate(() => ({ posts: (window as any).posts('/negociacoes/1/propostas'), n: (window as any).forms.length }));
+    assert.equal(r.posts, 1, 'não reenviou');
+    assert.equal(r.n, 1, 'não reabriu');
+
+    // Mesmo com status 4xx e a escada sem a oferta: o formulário reabre com a frase da dúvida.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.zerar();
+      w.rotas = (m: string, c: string) => {
+        if (m !== 'POST' || c !== '/negociacoes/1/propostas') return undefined;
+        throw Object.assign(new Error('A plataforma reiniciou'), { codigo: 'PLATAFORMA_REINICIOU', status: 409 });
+      };
+      w.fila = [{ valor: '1.330.000', condicoes: '' }, null];
+      w.clicar('pc-negociacao-foco', 'Registrar oferta do cliente');
+    });
+    await esperar();
+    r = await pagina.evaluate(() => ({ posts: (window as any).posts('/negociacoes/1/propostas'), f: (window as any).form(1), alertas: (window as any).alertas.slice() }));
+    assert.equal(r.posts, 1);
+    assert.match(r.f.mensagem, /a proposta pode ter sido registrada\. Cancele e confira a escada de propostas antes de enviar de novo\./);
+    assert.equal(r.f.valores.valor, '1.330.000');
+
+    // Pedir sugestão: o pedido chegou (a negociação relida mudou) e o restart perdeu a resposta.
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.zerar();
+      w.rotas = (m: string, c: string) => {
+        if (m !== 'POST' || c !== '/negociacoes/1/sugestao') return undefined;
+        w.detalhe = { ...w.DETALHE, estado: 'aguardando_corretor', sugestao: { execucao_id: 14, resposta: { contraproposta: null, mensagem: 'Oi' }, validacoes: [], bloqueado_por: null } };
+        throw Object.assign(new Error('A plataforma reiniciou'), { codigo: 'PLATAFORMA_REINICIOU' });
+      };
+      w.fila = [{ mensagem_cliente: 'E aí?' }, 'MESMO'];
+      w.clicar('pc-negociacao-foco', 'Pedir sugestão');
+    });
+    await esperar();
+    r = await pagina.evaluate(() => ({ posts: (window as any).posts('/negociacoes/1/sugestao'), n: (window as any).forms.length }));
+    assert.equal(r.posts, 1, 'não pediu de novo');
+    assert.equal(r.n, 1);
   } finally {
     await navegador.close();
   }

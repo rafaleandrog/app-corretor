@@ -1470,3 +1470,52 @@ test('Estúdio no Chromium (#187): Novo pedido, Criar rápido e Outra ferramenta
     await navegador.close();
   }
 });
+
+test('Estúdio no Chromium (#187): falha ambígua (PLATAFORMA_REINICIOU) relê; conjunto completo fecha como criado, parcial reabre avisando', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(150);
+    const nova = (formato: string, id: number) => ({ id, pedido: 'Dois formatos', imovel_id: 5, objetivo: 'novo_imovel', formato, estado: 'rascunho', arquivos: [], criado_em: new Date().toISOString() });
+    // Pediu post e story; o restart perdeu a resposta e só o post existe: não é sucesso, reabre com o aviso.
+    let r: any = await pagina.evaluate(async (js: string) => {
+      const w = window as any;
+      new Function(js)();
+      w.CRIAR = true;
+      w.CRIADAS ??= [];
+      w.avisos = [];
+      w.fila = [{ pedido: 'Dois formatos', imovel_id: '5', objetivo: 'novo_imovel', f_post_1x1: true, f_story: true }, null];
+      w.FALHA_CRIAR = [() => {
+        w.CRIADAS.push({ ...w.PECAS[0], ...{ id: 960, pedido: 'Dois formatos', imovel_id: 5, objetivo: 'novo_imovel', formato: 'post_1x1', estado: 'rascunho', arquivos: [], criado_em: new Date().toISOString() } });
+        throw Object.assign(new Error('A plataforma reiniciou'), { codigo: 'PLATAFORMA_REINICIOU' });
+      }];
+      await w.estudio.novoPedido('Dois formatos').catch((e: Error) => { if (e.message !== 'cancelado') throw e; });
+      return { n: w.forms.length, mensagem: w.forms[1]?.mensagem, avisos: w.avisos.slice() };
+    }, formularioDeFila);
+    assert.equal(r.n, 2, 'reabriu');
+    assert.match(r.mensagem, /Algumas peças já foram criadas; confira em Peças antes de pedir de novo\./);
+    assert.deepEqual(r.avisos, []);
+
+    // Conjunto completo: fecha como criado, sem reenviar.
+    r = await pagina.evaluate(async ({ js, linhas }: { js: string; linhas: any[] }) => {
+      const w = window as any;
+      new Function(js)();
+      w.CRIAR = true;
+      w.CRIADAS ??= [];
+      w.avisos = [];
+      w.fila = [{ pedido: 'Dois formatos', imovel_id: '5', objetivo: 'novo_imovel', f_post_1x1: true, f_story: true }];
+      w.FALHA_CRIAR = [() => {
+        for (const l of linhas) w.CRIADAS.push({ ...w.PECAS[0], ...l });
+        throw Object.assign(new Error('A plataforma reiniciou'), { codigo: 'PLATAFORMA_REINICIOU' });
+      }];
+      await w.estudio.novoPedido('Dois formatos');
+      return { n: w.forms.length, avisos: w.avisos.slice() };
+    }, { js: formularioDeFila, linhas: [nova('post_1x1', 970), nova('story', 971)] });
+    assert.equal(r.n, 1, 'não reabriu');
+    assert.match(r.avisos.at(-1), /A resposta demorou, mas 2 peça\(s\) foram criadas/);
+  } finally {
+    await navegador.close();
+  }
+});
