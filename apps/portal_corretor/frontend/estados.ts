@@ -48,7 +48,7 @@ export function estadoTela(tipo: EstadoTela, op: OpcoesEstado = {}): TemplateRes
       // Frase curta para o corretor; o erro técnico fica no console do navegador, não na tela.
       return html`<urbi-banner variante="erro">
         ${op.mensagem ?? 'Não foi possível carregar agora.'}
-        ${op.aoTentar ? html`<urbi-botao slot="acao" pequeno variante="secundario" @click=${op.aoTentar}>Tentar de novo</urbi-botao>` : nothing}
+        ${op.aoTentar ? html`<urbi-botao slot="acao" variante="secundario" @click=${op.aoTentar}>Tentar de novo</urbi-botao>` : nothing}
       </urbi-banner>`;
     case 'sem_permissao':
       // Sem permissão e de outra conta são a mesma coisa para quem vê: "Não encontrado" (D-40).
