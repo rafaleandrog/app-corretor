@@ -19,11 +19,15 @@ const FONTES = arquivos('frontend').map((p) => ({ p, texto: readFileSync(p, 'utf
 const linha = (texto: string, i: number) => texto.slice(0, i).split('\n').length;
 
 /** Atributo que dá o nome a cada primitivo de campo. */
+// O valor não pode ser um literal vazio (`label=""`, `label=''`): atributo presente e sem texto não dá nome.
 const ATRIBUTO: Record<string, RegExp> = {
-  label: /(^|\s)\.?label=/,
-  rotulo: /(^|\s)\.?rotulo=/,
-  aria: /(^|\s)(aria-label=|\.ariaLabel=)/,
+  label: /(^|\s)\.?label=(?!""|'')/,
+  rotulo: /(^|\s)\.?rotulo=(?!""|'')/,
+  aria: /(^|\s)(aria-label=|\.ariaLabel=)(?!""|'')/,
 };
+
+/** O campo do `formulario` (objeto de primeiro nível) tem `rotulo` com valor; literal vazio ('', "", ``) não vale. */
+const rotuloOk = (obj: string) => /\brotulo\s*:\s*[^\s,}]/.test(obj) && !/\brotulo\s*:\s*(''|""|``)\s*(,|}|$)/.test(obj);
 const PRIMITIVOS: Record<string, keyof typeof ATRIBUTO> = {
   'urbi-input': 'label',
   'urbi-input-numero': 'label',
@@ -108,9 +112,22 @@ test('Rótulos (#192): todo campo do urbiVerso.formulario montado pelo app tem r
       // Campo do formulário tem `nome` (a chave da resposta); objeto sem `nome` é outra coisa (evento, balão).
       if (!obj || !/\bnome\s*:/.test(obj)) continue;
       vistos++;
-      if (!/\brotulo\s*:\s*[^\s,}]/.test(obj)) faltam.push(`${p}:${linha(texto, m.index!)} campo '${m[1]}' sem rotulo`);
+      if (!rotuloOk(obj)) faltam.push(`${p}:${linha(texto, m.index!)} campo '${m[1]}' sem rotulo`);
     }
   }
   assert.ok(vistos > 100, `varredura achou só ${vistos} campos de formulário`);
   assert.deepEqual(faltam, []);
+});
+
+test('Rótulos (#192): a checagem recusa rótulo vazio e aceita rótulo dinâmico', () => {
+  // Campos do formulario
+  for (const vazio of [`{ nome: 'a', tipo: 'texto', rotulo: '' }`, `{ nome: 'a', tipo: 'texto', rotulo: "", obrigatorio: true }`, `{ nome: 'a', tipo: 'texto', rotulo: \`\` }`, `{ nome: 'a', tipo: 'texto' }`])
+    assert.equal(rotuloOk(vazio), false, vazio);
+  for (const bom of [`{ nome: 'a', tipo: 'texto', rotulo: 'Nome' }`, `{ nome: 'a', tipo: 'texto', rotulo: titulo }`, `{ nome: 'a', tipo: 'texto', rotulo: c.nome ?? 'x', valor: 1 }`, `{ nome: 'a', tipo: 'texto', rotulo: \`Cor ${'$'}{n}\` }`])
+    assert.equal(rotuloOk(bom), true, bom);
+  // Atributos dos primitivos
+  for (const vazio of ['<urbi-input label="" valor="x">', "<urbi-input label=''>", '<urbi-input .label="">', '<urbi-toggle aria-label="">', '<urbi-input placeholder="a">'])
+    assert.equal(ATRIBUTO[vazio.includes('toggle') ? 'aria' : 'label'].test(vazio), false, vazio);
+  for (const bom of ['<urbi-input label="Nome">', '<urbi-input label=${expressao}>', '<urbi-input .label=${expressao}>', '<urbi-toggle aria-label=${x}>'])
+    assert.equal(ATRIBUTO[bom.includes('toggle') ? 'aria' : 'label'].test(bom), true, bom);
 });

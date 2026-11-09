@@ -134,6 +134,7 @@ test('Rótulos (#192): todo campo que o app monta em Ajustes, Novo imóvel, Impo
     // Ajustes: o caminho do menu (/ajustes) e cada seção por ?aba=, e os apelidos /ajustes/marca e /ajustes/conexoes.
     faltam.push(...(await semNome(pagina, '/portal_corretor/ajustes', 10)));
     faltam.push(...(await semNome(pagina, '/portal_corretor/ajustes/marca', 10)));
+    // Mínimo 0: `atendimento` (`pc-tela-conta`), `conexoes` (`pc-tela-conexoes`), `funil` (`pc-tela-funil-ajustes`) e `privacidade` (`pc-ajustes-privacidade`) entregam elementos próprios que este teste não registra; então este teste não alcança os campos dessas seções, e o 0 só prova que a página abre sem erro. A cobertura desses campos é da varredura estática de `testes/rotulos.test.ts`. `mensageiro` é só um estado vazio, sem campo.
     faltam.push(...(await semNome(pagina, '/portal_corretor/ajustes?aba=atendimento', 0)));
     faltam.push(...(await semNome(pagina, '/portal_corretor/ajustes?aba=negociador', 3)));
     for (const aba of ['conexoes', 'funil', 'privacidade', 'mensageiro']) faltam.push(...(await semNome(pagina, `/portal_corretor/ajustes?aba=${aba}`, 0)));
@@ -144,7 +145,8 @@ test('Rótulos (#192): todo campo que o app monta em Ajustes, Novo imóvel, Impo
       (window as any).SEMENTE = { imovel: { id: 7, codigo: 'IM-0007', situacao: 'rascunho', publicado_pagina: false, tipo: 'casa', cidade: 'Brasília' } };
     });
     faltam.push(...(await semNome(pagina, '/portal_corretor/imoveis/novo?item=7&passo=dados', 5)));
-    faltam.push(...(await semNome(pagina, '/portal_corretor/imoveis/novo?item=7&passo=autorizacao', 0)));
+    faltam.push(...(await semNome(pagina, '/portal_corretor/imoveis/novo?item=7&passo=autorizacao', 1)));
+    // Mínimo 0: o passo Onde é só uma `urbi-lista` clicável com as duas opções (Só você, Público), sem campo de primitivo; não usa `escolhaUnica`.
     faltam.push(...(await semNome(pagina, '/portal_corretor/imoveis/novo?item=7&passo=onde', 0)));
     // Importar (o botão Importar de Clientes): a origem e o arquivo; com um CSV lido, cada coluna mapeada.
     faltam.push(...(await semNome(pagina, '/portal_corretor/clientes/importar', 2)));
