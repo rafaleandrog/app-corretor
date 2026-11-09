@@ -175,7 +175,7 @@ export class PcTelaConexoes extends LitElement {
           <urbi-linha quebrar><urbi-badge>indisponível nesta instalação</urbi-badge></urbi-linha>
           <urbi-prosa papel="secundario">A conexão com o Instagram ainda não foi configurada pela equipe da plataforma. Enquanto isso, baixe as artes no Estúdio e publique pelo Instagram.</urbi-prosa>
           <urbi-linha><urbi-botao icone="fa-brands fa-instagram" desabilitado title="Indisponível até a equipe configurar a conexão com a Meta">Conectar Instagram</urbi-botao></urbi-linha>
-          <urbi-prosa papel="fraco">Para a equipe, endereço de retorno a cadastrar no app da Meta: ${d.retorno}</urbi-prosa>
+          <urbi-prosa papel="dica">Para a equipe, endereço de retorno a cadastrar no app da Meta: ${d.retorno}</urbi-prosa>
           <urbi-linha><urbi-botao variante="fantasma" icone="fa-solid fa-copy" @click=${() => this.copiarRetorno()}>Copiar endereço</urbi-botao></urbi-linha>
         </urbi-stack>
       </urbi-card>`;
@@ -194,7 +194,7 @@ export class PcTelaConexoes extends LitElement {
           <urbi-badge cor=${ig.ultimo_erro ? 'alerta' : 'sucesso'}>${ig.ultimo_erro ? 'Precisa de atenção' : 'Conectado'}</urbi-badge>
           <urbi-prosa>${ig.usuario ? `@${ig.usuario}` : 'Conta conectada'} · ${PODE_PUBLICAR(ig.tipo_conta)}.</urbi-prosa>
         </urbi-linha>
-        <urbi-prosa papel="fraco">Desde ${dataHora(ig.conectado_em)}${ig.token_expira_em ? ` · acesso renovado até ${data(ig.token_expira_em)}` : ''}</urbi-prosa>
+        <urbi-prosa papel="dica">Desde ${dataHora(ig.conectado_em)}${ig.token_expira_em ? ` · acesso renovado até ${data(ig.token_expira_em)}` : ''}</urbi-prosa>
         ${ig.ultimo_erro ? html`<urbi-banner variante="alerta">${ig.ultimo_erro}</urbi-banner>` : nothing}
         ${this.teste ? html`<urbi-banner variante=${this.teste.ok ? 'sucesso' : 'erro'}>${this.teste.texto}</urbi-banner>` : nothing}
         <urbi-linha quebrar>
@@ -221,7 +221,7 @@ export class PcTelaConexoes extends LitElement {
                 <urbi-badge>${i + 1}</urbi-badge>
                 <urbi-stack>
                   <urbi-prosa>${p.titulo}</urbi-prosa>
-                  <urbi-prosa papel="fraco">${p.texto}</urbi-prosa>
+                  <urbi-prosa papel="dica">${p.texto}</urbi-prosa>
                 </urbi-stack>
               </urbi-linha>`,
             )}

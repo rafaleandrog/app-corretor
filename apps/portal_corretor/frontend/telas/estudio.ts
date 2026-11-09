@@ -115,7 +115,7 @@ const AUTOR_ESTUDIO = -1;
 //   SILÊNCIO: não desenha, não avisa, não mexe na URL; o que ficou nela some com ela.
 //
 // A instância mora numa diretiva assíncrona do lit (`AsyncDirective`), e não num elemento próprio: a
-// moldura exige o `urbi-inbox` direto no body do `urbi-shell-page` (moldura.ts). `disconnected()` da
+// moldura exige o `urbi-3-colunas` (ou o `urbi-2x1`) direto no body do `urbi-shell-page` (moldura.ts). `disconnected()` da
 // diretiva faz o papel do `disconnectedCallback`.
 
 /** A instância saiu do DOM: a continuação para aqui, em silêncio. */
@@ -907,7 +907,7 @@ export class Estudio {
     return html`<urbi-stack>
       <urbi-linha quebrar>
         ${falta ? html`<urbi-badge cor="alerta">falta a arte</urbi-badge>` : html`<urbi-badge cor=${e.cor}>${e.rotulo}</urbi-badge>`}
-        <urbi-prosa papel="fraco">${ROTULO_FORMATO[p.formato as Formato] ?? p.formato} · ${ROTULO_OBJETIVO[p.objetivo as Objetivo] ?? p.objetivo}${semArte(p) ? '' : ` · ${MOTOR[p.motor] ?? p.motor}`}</urbi-prosa>
+        <urbi-prosa papel="dica">${ROTULO_FORMATO[p.formato as Formato] ?? p.formato} · ${ROTULO_OBJETIVO[p.objetivo as Objetivo] ?? p.objetivo}${semArte(p) ? '' : ` · ${MOTOR[p.motor] ?? p.motor}`}</urbi-prosa>
       </urbi-linha>
       ${p.estado === 'agendada' ? html`<urbi-prosa papel="secundario">Agendada para ${dataHora(p.agendada_para)}</urbi-prosa>` : nothing}
       ${p.estado === 'publicada' ? html`<urbi-prosa papel="secundario">Publicada em ${dataHora(p.publicada_em)}${p.publicada_por === 'fora' ? ' (por fora)' : ''}</urbi-prosa>` : nothing}
@@ -985,14 +985,14 @@ export class Estudio {
     return html`<urbi-stack>
       <urbi-stack>
         ${cabecalhoColuna('Estúdio')}
-        <urbi-linha>${ig.conectado ? html`<urbi-icone icone="instagram" familia="brands"></urbi-icone>` : nothing}<urbi-prosa papel=${ig.conectado ? 'fraco' : 'secundario'}>${ig.texto}</urbi-prosa></urbi-linha>
+        <urbi-linha>${ig.conectado ? html`<urbi-icone icone="instagram" familia="brands"></urbi-icone>` : nothing}<urbi-prosa papel=${ig.conectado ? 'dica' : 'secundario'}>${ig.texto}</urbi-prosa></urbi-linha>
       </urbi-stack>
       <urbi-prosa papel="secao">Criar rápido</urbi-prosa>
       <urbi-grid min="140px">
         ${CRIAR_RAPIDO.map(
           (a) => html`<urbi-card clicavel expandir titulo=${a.rotulo} icone=${a.icone} aria-disabled=${this.trabalhando ? 'true' : 'false'}
             @urbi:card-click=${() => !this.trabalhando && this.solto(this.criarRapido(a.id))}>
-            <urbi-prosa papel="fraco">${a.resumo}</urbi-prosa>
+            <urbi-prosa papel="dica">${a.resumo}</urbi-prosa>
           </urbi-card>`,
         )}
       </urbi-grid>
@@ -1007,7 +1007,7 @@ export class Estudio {
                 <urbi-prosa>${tituloPedido(x, x.pecas[0]?.imovel_codigo)}</urbi-prosa>
                 ${x.id === aberto ? html`<urbi-badge cor="info">aberto</urbi-badge>` : nothing}
               </urbi-linha>
-              <urbi-prosa papel="fraco">${resumoPedido(x)} · ${dataHora(x.criado_em)}</urbi-prosa>
+              <urbi-prosa papel="dica">${resumoPedido(x)} · ${dataHora(x.criado_em)}</urbi-prosa>
             </urbi-stack>`}
             @urbi:lista-click=${(e: CustomEvent) => this.abrirPedido((e.detail.item as Pedido).id)}></urbi-lista>`
         : pedidos.length
@@ -1063,7 +1063,7 @@ export class Estudio {
     const linhaSemana = (p: Peca, quando: string | null | undefined) => html`<urbi-linha justificar="entre">
       <urbi-stack>
         <urbi-prosa>${ROTULO_FORMATO[p.formato as Formato] ?? p.formato} · ${p.titulo ?? ''}</urbi-prosa>
-        <urbi-prosa papel="fraco">${dataHora(quando)}</urbi-prosa>
+        <urbi-prosa papel="dica">${dataHora(quando)}</urbi-prosa>
       </urbi-stack>
       <urbi-botao variante="fantasma" icone="fa-solid fa-arrow-right" @click=${() => this.abrirPeca(p.id)}>Abrir</urbi-botao>
     </urbi-linha>`;
@@ -1134,7 +1134,7 @@ export class Estudio {
     return html`<urbi-card titulo="Créditos do mês" icone="fa-solid fa-coins">
       <urbi-stack>
         <urbi-kpi rotulo="Créditos de IA usados" valor="—" formato="texto"></urbi-kpi>
-        <urbi-prosa papel="fraco">O consumo de IA ainda não chega ao app: aparece aqui quando a plataforma passar a informar.</urbi-prosa>
+        <urbi-prosa papel="dica">O consumo de IA ainda não chega ao app: aparece aqui quando a plataforma passar a informar.</urbi-prosa>
         <urbi-prosa papel="secundario">${doMes ? `${doMes} peça${doMes > 1 ? 's' : ''} escrita${doMes > 1 ? 's' : ''} pela IA neste mês.` : 'Nenhuma peça escrita pela IA neste mês.'}</urbi-prosa>
       </urbi-stack>
     </urbi-card>`;

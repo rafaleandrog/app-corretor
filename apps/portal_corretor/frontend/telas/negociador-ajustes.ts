@@ -152,7 +152,7 @@ export class PcAjustesNegociador extends LitElement {
       ${!eq
         ? html`<urbi-loading></urbi-loading>`
         : eq.indisponivel
-          ? html`<urbi-prosa papel="fraco">${eq.indisponivel}</urbi-prosa>`
+          ? html`<urbi-prosa papel="dica">${eq.indisponivel}</urbi-prosa>`
           : html`${eq.negociadores.length
                 ? eq.negociadores.map(
                     (n) => html`<urbi-linha justificar="entre" quebrar>
@@ -320,7 +320,7 @@ export class PcAjustesNegociador extends LitElement {
             erro=${this.instrucoes.trim().length > LIMITE_INSTRUCOES ? `Até ${LIMITE_INSTRUCOES.toLocaleString('pt-BR')} caracteres.` : ''}
             @urbi:input-change=${(e: CustomEvent) => (this.instrucoes = String(e.detail.valor ?? ''))}></urbi-textarea>
           <urbi-linha justificar="entre" quebrar>
-            <urbi-prosa papel="fraco">${contadorInstrucoes(this.instrucoes, LIMITE_INSTRUCOES)}${c.instrucoes_corretor ? '' : ' · em branco, vale o modelo'}</urbi-prosa>
+            <urbi-prosa papel="dica">${contadorInstrucoes(this.instrucoes, LIMITE_INSTRUCOES)}${c.instrucoes_corretor ? '' : ' · em branco, vale o modelo'}</urbi-prosa>
             <urbi-linha>
               ${this.instrucoes.trim() ? nothing : html`<urbi-botao variante="texto" @click=${() => (this.instrucoes = PROMPT_PARTE_2_PADRAO)}>Começar do modelo</urbi-botao>`}
               <urbi-botao icone="fa-solid fa-check" ?carregando=${this.salvando} @click=${() => this.salvarInstrucoes()}>Salvar instruções</urbi-botao>
@@ -335,7 +335,7 @@ export class PcAjustesNegociador extends LitElement {
                 <urbi-prosa>${o.titulo}</urbi-prosa>
                 <urbi-badge cor=${o.usando === 'corretor' ? 'info' : 'padrao'}>${o.usando === 'corretor' ? 'Minha resposta' : 'Padrão'}</urbi-badge>
               </urbi-linha>
-              <urbi-prosa papel="fraco">"${o.fala_cliente}"</urbi-prosa>
+              <urbi-prosa papel="dica">"${o.fala_cliente}"</urbi-prosa>
             </urbi-stack>
             <urbi-linha>
               <urbi-botao variante="texto" ariaLabel=${`Editar a resposta a ${o.titulo}`} @click=${() => void this.editarObjecao(o)}>Editar</urbi-botao>
@@ -444,11 +444,11 @@ export class PcNegociadorTeste extends LitElement {
     return this.conversa.map((f) =>
       f.quem === 'comprador'
         ? html`<urbi-linha justificar="fim"><urbi-stack>
-            <urbi-prosa papel="fraco">Você, como comprador</urbi-prosa>
+            <urbi-prosa papel="dica">Você, como comprador</urbi-prosa>
             <urbi-badge cor="info" quebra-linha>${f.texto}</urbi-badge>
           </urbi-stack></urbi-linha>`
         : html`<urbi-linha justificar="inicio"><urbi-stack>
-            <urbi-prosa papel="fraco">Negociador · teste</urbi-prosa>
+            <urbi-prosa papel="dica">Negociador · teste</urbi-prosa>
             <urbi-badge quebra-linha>${f.texto}</urbi-badge>
             ${f.detalhe ? this.detalhe(f.detalhe) : nothing}
           </urbi-stack></urbi-linha>`,
@@ -464,7 +464,7 @@ export class PcNegociadorTeste extends LitElement {
           ? estadoTela('ia_indisponivel', { mensagem: 'IA indisponível agora: o teste volta quando ela voltar. O resto dos ajustes funciona normalmente.' })
           : html`<urbi-stack>
                 ${this.bolhas()}
-                ${this.testando ? html`<urbi-prosa papel="fraco">O Negociador está respondendo…</urbi-prosa>` : nothing}
+                ${this.testando ? html`<urbi-prosa papel="dica">O Negociador está respondendo…</urbi-prosa>` : nothing}
                 <urbi-textarea label="Escreva como comprador" rows="2" valor=${this.rascunho} @urbi:input-change=${(e: CustomEvent) => (this.rascunho = String(e.detail.valor ?? ''))}></urbi-textarea>
                 <urbi-linha justificar="entre">
                   ${this.conversa.length ? html`<urbi-botao variante="texto" ?desabilitado=${this.testando} @click=${() => ((this.conversa = []), (this.rascunho = PERGUNTA_TESTE))}>Recomeçar</urbi-botao>` : html`<span></span>`}
@@ -483,7 +483,7 @@ export class PcNegociadorTeste extends LitElement {
           <urbi-kpi rotulo="Rodadas" .valor=${n?.rodadas ?? '—'}></urbi-kpi>
           <urbi-kpi rotulo="Aprovadas sem edição" formato="texto" .valor=${n ? (n.decididas ? `${Math.round((n.aprovadas_sem_edicao / n.decididas) * 100)}%` : '—') : '—'}></urbi-kpi>
         </urbi-grid>
-        <urbi-prosa papel="fraco">Custo estimado por rodada: ${CUSTO_POR_RODADA.toLowerCase()}.</urbi-prosa>
+        <urbi-prosa papel="dica">Custo estimado por rodada: ${CUSTO_POR_RODADA.toLowerCase()}.</urbi-prosa>
       </urbi-card>
     </urbi-stack>`;
   }

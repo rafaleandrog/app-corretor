@@ -699,10 +699,10 @@ export class FichaContato {
           ${c.email ? html`<urbi-botao variante="fantasma" icone="fa-solid fa-envelope" ariaLabel="E-mail" title="E-mail" href=${`mailto:${c.email}`}></urbi-botao>` : ''}
           ${this.menuMais()}
         </urbi-linha>
-        ${this.s.iaSondada && !this.s.ia.resumo ? html`<urbi-prosa papel="fraco">${DICA_IA_INDISPONIVEL}: Resumir volta quando a IA for liberada; a Mensagem sugerida usa o texto do playbook.</urbi-prosa>` : ''}
+        ${this.s.iaSondada && !this.s.ia.resumo ? html`<urbi-prosa papel="dica">${DICA_IA_INDISPONIVEL}: Resumir volta quando a IA for liberada; a Mensagem sugerida usa o texto do playbook.</urbi-prosa>` : ''}
         ${this.s.resumo
           ? html`<urbi-prosa papel="dica">${this.s.resumo}</urbi-prosa>
-              <urbi-prosa papel="fraco">Resumo feito pela IA agora, a partir do histórico; não fica gravado.</urbi-prosa>`
+              <urbi-prosa papel="dica">Resumo feito pela IA agora, a partir do histórico; não fica gravado.</urbi-prosa>`
           : ''}
       </urbi-stack>
     </urbi-card>`;
@@ -745,13 +745,13 @@ export class FichaContato {
           ? ''
           : html`<urbi-prosa papel="dica">Nada combinado e nenhum negócio em andamento. Use o lápis para combinar o próximo passo.</urbi-prosa>`}
       ${c.proximo_passo ? html`<urbi-prosa papel="secundario">Combinado: ${c.proximo_passo}${c.proximo_passo_em ? ` · ${dataHora(c.proximo_passo_em)}` : ''}</urbi-prosa>` : ''}
-      ${c.proximo_passo_cliente ? html`<urbi-prosa papel="fraco">No portal do cliente: ${c.proximo_passo_cliente}</urbi-prosa>` : ''}
+      ${c.proximo_passo_cliente ? html`<urbi-prosa papel="dica">No portal do cliente: ${c.proximo_passo_cliente}</urbi-prosa>` : ''}
       ${this.s.sugestao
         ? html`<urbi-chips-atalho ativo=${this.s.sugestao.objetivo}
               .opcoes=${[...(a ? [{ id: 'playbook', rotulo: 'Pelo playbook' }] : []), ...Object.entries(OBJETIVOS_MENSAGEM).map(([id, rotulo]) => ({ id, rotulo }))]}
               @urbi:chip-atalho:click=${(e: CustomEvent) => void this.sugerir(e.detail.id)}></urbi-chips-atalho>
             <urbi-prosa pre>${this.s.sugestao.mensagem}</urbi-prosa>
-            <urbi-prosa papel="fraco">${this.s.sugestao.ia
+            <urbi-prosa papel="dica">${this.s.sugestao.ia
               ? `Escrita pela IA a partir ${this.s.sugestao.objetivo === 'playbook' ? 'do playbook' : 'do objetivo'} e do histórico: revise antes de enviar.`
               : this.s.sugestao.objetivo === 'playbook' ? 'Texto do playbook (a IA da mensagem sugerida não está liberada).' : 'Modelo pronto (a IA da mensagem sugerida não está liberada): ajuste ao seu jeito.'}</urbi-prosa>
             <urbi-linha quebrar>
@@ -792,7 +792,7 @@ export class FichaContato {
     const linha = (x: Linha) => html`<urbi-linha justificar="entre" quebrar>
       <urbi-stack>
         <urbi-prosa>${ROTULO_TIPO_ATIVIDADE[x.tipo]}: ${x.titulo}</urbi-prosa>
-        <urbi-prosa papel="fraco">${dataHora(x.quando)}${x.local ? ` · ${x.local}` : ''}${this.visitaDe(x)}</urbi-prosa>
+        <urbi-prosa papel="dica">${dataHora(x.quando)}${x.local ? ` · ${x.local}` : ''}${this.visitaDe(x)}</urbi-prosa>
       </urbi-stack>
       <urbi-linha>
         ${this.s.ficha!.visitas.some((v: Linha) => v.atividade_id === x.id)
@@ -822,7 +822,7 @@ export class FichaContato {
       </urbi-linha>
       ${linha_do_tempo.length
         ? html`<urbi-lista separador .itens=${linha_do_tempo} .render_item=${(l: Linha) => html`<urbi-prosa>${l.resumo}</urbi-prosa>
-              <urbi-prosa papel="fraco">${dataHora(l.ocorrido_em)} · ${l.autor_nome ?? 'sistema'}</urbi-prosa>`}></urbi-lista>`
+              <urbi-prosa papel="dica">${dataHora(l.ocorrido_em)} · ${l.autor_nome ?? 'sistema'}</urbi-prosa>`}></urbi-lista>`
         : html`<urbi-prosa papel="dica">Nada registrado ainda. Anote cada conversa em Registrar contato.</urbi-prosa>`}
     </urbi-card>`;
   }
@@ -832,7 +832,7 @@ export class FichaContato {
       ${this.acao('Registrar envio', 'fa-solid fa-plus', () => void this.registrarEnvio())}
       ${this.s.envios.length
         ? html`<urbi-lista separador .itens=${this.s.envios} .render_item=${(e: Linha) => html`<urbi-prosa>${e.imovel_codigo ? `${e.imovel_codigo}${e.imovel_titulo ? ` · ${e.imovel_titulo}` : ''}` : (e.descricao ?? e.tipo)}</urbi-prosa>
-              <urbi-prosa papel="fraco">${dataHora(e.enviado_em)} · ${e.canal}${e.cliques ? ` · ${e.cliques} clique(s)` : ''}</urbi-prosa>`}></urbi-lista>`
+              <urbi-prosa papel="dica">${dataHora(e.enviado_em)} · ${e.canal}${e.cliques ? ` · ${e.cliques} clique(s)` : ''}</urbi-prosa>`}></urbi-lista>`
         : html`<urbi-prosa papel="dica">Nada registrado. Anote os imóveis e arquivos que mandar em Registrar envio: aqui aparecem os cliques.</urbi-prosa>`}
     </urbi-card>`;
   }
@@ -927,7 +927,7 @@ export class FichaContato {
       <urbi-card titulo="Enviados" icone="fa-solid fa-paper-plane">
         ${this.s.envios.length
           ? html`<urbi-lista separador .itens=${this.s.envios} .render_item=${(e: Linha) => html`<urbi-prosa>${e.imovel_codigo ? `${e.imovel_codigo}${e.imovel_titulo ? ` · ${e.imovel_titulo}` : ''}` : (e.descricao ?? e.tipo)}</urbi-prosa>
-                <urbi-prosa papel="fraco">${dataHora(e.enviado_em)} · ${e.primeiro_clique_em ? `aberto em ${dataHora(e.primeiro_clique_em)} · ${e.cliques} clique(s)` : 'ainda não aberto'}</urbi-prosa>`}></urbi-lista>`
+                <urbi-prosa papel="dica">${dataHora(e.enviado_em)} · ${e.primeiro_clique_em ? `aberto em ${dataHora(e.primeiro_clique_em)} · ${e.cliques} clique(s)` : 'ainda não aberto'}</urbi-prosa>`}></urbi-lista>`
           : html`<urbi-prosa papel="dica">Nada enviado ainda. Os envios registrados na ficha aparecem aqui, com a abertura e os cliques.</urbi-prosa>`}
       </urbi-card>
     </urbi-stack>`;

@@ -29,7 +29,7 @@ interface Ficha {
 
 /** Par rótulo/valor da grade de dados: só primitivos `urbi-*`. */
 const par = (rotulo: string, valor: unknown) => html`<urbi-stack>
-  <urbi-prosa papel="fraco">${rotulo}</urbi-prosa>
+  <urbi-prosa papel="dica">${rotulo}</urbi-prosa>
   ${typeof valor === 'string' ? html`<urbi-prosa>${valor}</urbi-prosa>` : valor}
 </urbi-stack>`;
 
@@ -214,7 +214,7 @@ export class PcTelaFichaImovel extends LitElement {
           const m = l as Linha;
           return html`<urbi-stack>
             <urbi-prosa>${m.legenda ?? ROTULO_TIPO_MIDIA[m.tipo]}</urbi-prosa>
-            <urbi-prosa papel="fraco">${[
+            <urbi-prosa papel="dica">${[
               ROTULO_TIPO_MIDIA[m.tipo],
               m.ia_ambiente ? `IA: ${ROTULO_AMBIENTE[m.ia_ambiente] ?? m.ia_ambiente}${m.ia_nota !== null ? `, nota ${m.ia_nota}` : ''}` : null,
               m.publica ? 'no anúncio' : 'interno',
@@ -526,7 +526,7 @@ export class PcTelaFichaImovel extends LitElement {
         ${this.acao('Editar descrição', 'fa-solid fa-pen', () => this.editarDescricao())}
         ${im.descricao
           ? html`<urbi-prosa pre>${im.descricao}</urbi-prosa>
-              <urbi-prosa papel="fraco">${im.descricao.length} caracteres${im.descricao.length < 400 ? ' (com 400 ou mais o anúncio ganha pontos)' : ''}</urbi-prosa>`
+              <urbi-prosa papel="dica">${im.descricao.length} caracteres${im.descricao.length < 400 ? ' (com 400 ou mais o anúncio ganha pontos)' : ''}</urbi-prosa>`
           : html`<urbi-prosa papel="dica">Sem descrição.</urbi-prosa>`}
         ${this.ia.conteudo
           ? html`<urbi-linha><urbi-botao variante="secundario" icone="fa-solid fa-wand-magic-sparkles" ?carregando=${this.escrevendo} @click=${() => this.escreverComIa()}>Melhorar com IA</urbi-botao></urbi-linha>`
@@ -542,7 +542,7 @@ export class PcTelaFichaImovel extends LitElement {
                   return html`<urbi-linha justificar="entre" quebrar>
                     <urbi-stack>
                       <urbi-prosa>${data(a.inicio)} a ${data(a.fim)} · ${a.exclusiva ? 'exclusiva' : 'sem exclusividade'} · ${Number(a.comissao_pct)}% · ${reais(a.preco_autorizado_c)}</urbi-prosa>
-                      <urbi-prosa papel="fraco">${a.proprietario_nome ?? ''}${a.permite_parceria ? ' · aceita parceria' : ''}${a.permite_portais ? ' · portais' : ''}${a.permite_placa ? ' · placa' : ''}</urbi-prosa>
+                      <urbi-prosa papel="dica">${a.proprietario_nome ?? ''}${a.permite_parceria ? ' · aceita parceria' : ''}${a.permite_portais ? ' · portais' : ''}${a.permite_placa ? ' · placa' : ''}</urbi-prosa>
                     </urbi-stack>
                     <urbi-linha quebrar>
                       <urbi-badge cor=${sa.cor}>${sa.rotulo}</urbi-badge>
@@ -591,7 +591,7 @@ export class PcTelaFichaImovel extends LitElement {
                     </urbi-linha>
                     ${v.feedback_em
                       ? html`<urbi-prosa papel="secundario">${v.feedback_nota ? `Nota ${v.feedback_nota}/5. ` : ''}${v.feedback_texto ?? ''}${v.compartilhar_com_proprietario ? '' : ' (não compartilhar com o proprietário)'}</urbi-prosa>`
-                      : html`<urbi-prosa papel="fraco">Sem retorno registrado.</urbi-prosa>`}
+                      : html`<urbi-prosa papel="dica">Sem retorno registrado.</urbi-prosa>`}
                   </urbi-stack>`}></urbi-lista>
               </div>`
           : html`<urbi-prosa papel="dica">Nenhuma visita. Agende pela ficha do cliente, escolhendo este imóvel.</urbi-prosa>`}

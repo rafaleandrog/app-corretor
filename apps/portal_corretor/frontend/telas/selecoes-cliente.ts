@@ -277,7 +277,7 @@ export class PcSelecoesCliente extends LitElement {
               <urbi-botao variante="fantasma" icone="fa-solid fa-ban" ariaLabel="Revogar seleção" title="Revogar" @click=${() => this.revogar(s)}></urbi-botao>`
           : ''}
       </urbi-linha>
-      <urbi-prosa papel="fraco">Enviada em ${data(s.enviada_em)}</urbi-prosa>
+      <urbi-prosa papel="dica">Enviada em ${data(s.enviada_em)}</urbi-prosa>
       <urbi-linha quebrar>
         ${s.itens.map((i: Linha) => html`<urbi-badge cor=${i.reacao ? COR_REACAO[i.reacao] : 'padrao'}>${i.imovel_codigo ?? `#${i.imovel_id}`}${i.reacao ? ` · ${ROTULO_REACAO[i.reacao]}` : ''}</urbi-badge>`)}
       </urbi-linha>
@@ -315,7 +315,7 @@ export class PcSelecoesCliente extends LitElement {
       ${this.portal?.ativo
         ? html`<urbi-linha quebrar>
               <urbi-badge cor="sucesso">link ativo</urbi-badge>
-              <urbi-prosa papel="fraco" inline>${this.portal.criado_em ? `gerado em ${data(this.portal.criado_em)} · ` : ''}${acesso}</urbi-prosa>
+              <urbi-prosa papel="dica" inline>${this.portal.criado_em ? `gerado em ${data(this.portal.criado_em)} · ` : ''}${acesso}</urbi-prosa>
             </urbi-linha>
             <urbi-linha quebrar>
               <urbi-botao variante="secundario" icone="fa-solid fa-plus" ?carregando=${this.ocupado} @click=${() => this.nova()}>Liberar item</urbi-botao>
@@ -339,7 +339,7 @@ export class PcSelecoesCliente extends LitElement {
                 <urbi-botao variante="fantasma" icone="fa-solid fa-trash" ariaLabel="Remover pendência" title="Remover" @click=${() => this.removerTarefa(t)}></urbi-botao>
               </urbi-linha>
             </urbi-linha>`}></urbi-lista>`
-        : html`<urbi-prosa papel="fraco">Nada pedido. Ex.: "confirmar a visita", "enviar a documentação".</urbi-prosa>`}
+        : html`<urbi-prosa papel="dica">Nada pedido. Ex.: "confirmar a visita", "enviar a documentação".</urbi-prosa>`}
       </urbi-stack></div>
     </urbi-card>`;
   }

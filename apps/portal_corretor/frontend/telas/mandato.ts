@@ -248,7 +248,7 @@ export class PcMandatoModal extends LitElement {
           <urbi-textarea label="BATNA do vendedor (o que ele faz se não houver acordo)" rows="2" valor=${f.batna}
             placeholder="Ex.: manter anunciado 60 dias; proposta de R$ 1,35 mi de outro comprador"
             @urbi:input-change=${(e: CustomEvent) => this.mudar({ batna: e.detail.valor })}></urbi-textarea>
-          <urbi-prosa papel="fraco">O ponto de recuo fica abaixo ou igual ao alvo, e o alvo abaixo ou igual ao preço pedido.</urbi-prosa>
+          <urbi-prosa papel="dica">O ponto de recuo fica abaixo ou igual ao alvo, e o alvo abaixo ou igual ao preço pedido.</urbi-prosa>
         </urbi-card>
         <urbi-card titulo="2 · Concessões e contrapartidas" icone="fa-solid fa-right-left">
           ${f.concessoes.map(
@@ -266,7 +266,7 @@ export class PcMandatoModal extends LitElement {
             <urbi-input label="Passo máximo por rodada (%)" tipo="number" valor=${f.passo_pct} @urbi:input-change=${(e: CustomEvent) => this.mudar({ passo_pct: e.detail.valor })}></urbi-input>
             <urbi-input label="Rodadas no máximo" tipo="number" valor=${f.rodadas} @urbi:input-change=${(e: CustomEvent) => this.mudar({ rodadas: e.detail.valor })}></urbi-input>
           </urbi-linha>
-          <urbi-prosa papel="fraco">O passo é a parte do que ainda falta até o recuo que se pode ceder numa rodada (40% é o padrão); cada concessão pede algo em troca.</urbi-prosa>
+          <urbi-prosa papel="dica">O passo é a parte do que ainda falta até o recuo que se pode ceder numa rodada (40% é o padrão); cada concessão pede algo em troca.</urbi-prosa>
         </urbi-card>
         <urbi-card titulo="3 · Prazo" icone="fa-solid fa-calendar">
           <urbi-linha quebrar>
@@ -274,14 +274,14 @@ export class PcMandatoModal extends LitElement {
             <urbi-input label="Cada contraproposta vale (horas)" valor=${f.validade_cp ?? ""} placeholder="48"
               @urbi:input-change=${(e: CustomEvent) => this.mudar({ validade_cp: e.detail.valor })}></urbi-input>
           </urbi-linha>
-          <urbi-prosa papel="fraco">Depois da data o Negociador não age e passa a negociação a você. A validade de cada contraproposta vale quando ela não traz a sua (vazio: sem prazo).</urbi-prosa>
+          <urbi-prosa papel="dica">Depois da data o Negociador não age e passa a negociação a você. A validade de cada contraproposta vale quando ela não traz a sua (vazio: sem prazo).</urbi-prosa>
         </urbi-card>
         <urbi-card titulo="4 · Quem negocia e autonomia" icone="fa-solid fa-robot">
           ${this.conduz === 'humano'
             ? html`<urbi-prosa>Quem negocia: o negociador da sua equipe.</urbi-prosa>`
             : html`<urbi-select label="Quem negocia" valor=${this.conduz} ?desabilitado=${this.trocando} .opcoes=${quem}
                 @urbi:select-change=${(e: CustomEvent) => void this.trocarQuemNegocia(e.detail.valor)}></urbi-select>`}
-          <urbi-prosa papel="fraco">Trocar aqui vale na hora, sem salvar.${this.negociadores.length ? '' : ' Um negociador humano aparece aqui quando a instância permite contas com várias pessoas e você convida alguém em Ajustes › Negociador.'}</urbi-prosa>
+          <urbi-prosa papel="dica">Trocar aqui vale na hora, sem salvar.${this.negociadores.length ? '' : ' Um negociador humano aparece aqui quando a instância permite contas com várias pessoas e você convida alguém em Ajustes › Negociador.'}</urbi-prosa>
           <urbi-prosa>O Negociador</urbi-prosa>
           <urbi-linha quebrar>
             ${autonomias.map(
@@ -295,7 +295,7 @@ export class PcMandatoModal extends LitElement {
                 <urbi-prosa>${this.textoDaAutorizacao(f.autorizacao)}</urbi-prosa>
                 <urbi-botao variante="texto" @click=${() => this.mudar({ autorizacao: null, autonomia: f.autonomia === 'faz_sozinho' ? 'pergunta_antes' : f.autonomia })}>Tirar</urbi-botao>
               </urbi-linha>`
-            : html`<urbi-prosa papel="fraco">"Faz sozinho" aparece quando a autorização do proprietário estiver registrada.</urbi-prosa>
+            : html`<urbi-prosa papel="dica">"Faz sozinho" aparece quando a autorização do proprietário estiver registrada.</urbi-prosa>
                 <urbi-linha quebrar>
                   <urbi-botao variante="secundario" icone="fa-solid fa-paperclip" ?desabilitado=${this.documentos === null} @click=${() => void this.anexarDocumento()}>Anexar documento</urbi-botao>
                   <urbi-botao variante="secundario" icone="fa-solid fa-message" @click=${() => void this.registrarAutorizacao()}>Registrar por mensagem</urbi-botao>

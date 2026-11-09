@@ -696,7 +696,7 @@ export class PcNovoImovelPassos extends ColunaNovoImovel {
     return html`<urbi-stack>
       <urbi-stack>
         ${cabecalhoColuna(e.ficha ? `${e.ficha.imovel.codigo} · rascunho` : 'Novo imóvel')}
-        <urbi-prosa papel="fraco">Leva cerca de 3 minutos. Nenhum passo pede CRECI.</urbi-prosa>
+        <urbi-prosa papel="dica">Leva cerca de 3 minutos. Nenhum passo pede CRECI.</urbi-prosa>
       </urbi-stack>
       <urbi-lista separador clicavel .itens=${passos} .itemAtivo=${(p: (typeof passos)[number]) => p.id === e.passo}
         .render_item=${(p: (typeof passos)[number]) => html`<urbi-linha>
@@ -705,7 +705,7 @@ export class PcNovoImovelPassos extends ColunaNovoImovel {
             : html`<urbi-badge>${p.i + 1}</urbi-badge>`}
           <urbi-stack>
             <urbi-prosa>${p.rotulo}</urbi-prosa>
-            <urbi-prosa papel="fraco" truncar>${resumoDoPasso(e, p.id)}</urbi-prosa>
+            <urbi-prosa papel="dica" truncar>${resumoDoPasso(e, p.id)}</urbi-prosa>
           </urbi-stack>
         </urbi-linha>`}
         @urbi:lista-click=${(ev: CustomEvent) => void e.irPara((ev.detail.item as (typeof passos)[number]).id)}></urbi-lista>
@@ -758,7 +758,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
               (m, i) => html`<urbi-stack>
                 <urbi-avatar nome=${m.legenda ?? 'Foto'} foto=${m.url ?? ''} tamanho="112"></urbi-avatar>
                 ${i === 0 ? html`<urbi-badge cor=${e.capaSugerida ? 'info' : 'padrao'}>${e.capaSugerida ? 'Capa sugerida' : 'Capa'}</urbi-badge>` : nothing}
-                <urbi-prosa papel="fraco" truncar>${m.ia_ambiente ? (ROTULO_AMBIENTE[m.ia_ambiente] ?? m.ia_ambiente) : (m.legenda ?? `Foto ${i + 1}`)}</urbi-prosa>
+                <urbi-prosa papel="dica" truncar>${m.ia_ambiente ? (ROTULO_AMBIENTE[m.ia_ambiente] ?? m.ia_ambiente) : (m.legenda ?? `Foto ${i + 1}`)}</urbi-prosa>
                 ${i > 0 ? html`<urbi-botao variante="fantasma" ariaLabel="Usar como capa" title="Usar como capa" ?desabilitado=${!!e.ocupado}
                   @click=${() => e.usarComoCapa(m)}>Usar como capa</urbi-botao>` : nothing}
                 <urbi-linha>
@@ -802,7 +802,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
       ${e.ia.conteudo
         ? html`<urbi-card titulo="Ditar o resto" icone="fa-solid fa-microphone">
             <urbi-stack>
-              <urbi-prosa papel="fraco">Fale (ou escreva) o que falta: "apartamento de 3 quartos no Sudoeste, 120 metros, um milhão e quatrocentos, condomínio de 1.200". A IA preenche os campos que você ainda não mexeu.</urbi-prosa>
+              <urbi-prosa papel="dica">Fale (ou escreva) o que falta: "apartamento de 3 quartos no Sudoeste, 120 metros, um milhão e quatrocentos, condomínio de 1.200". A IA preenche os campos que você ainda não mexeu.</urbi-prosa>
               <urbi-redator audio placeholder="Toque no microfone ou escreva…" chave-audio="novo-imovel-ditado" ?upload-em-andamento=${e.ditando}
                 @urbi:redator-enviar=${(ev: CustomEvent) => void e.ditar(String(ev.detail.texto ?? ''))}></urbi-redator>
               ${e.ditando ? html`<urbi-prosa papel="secundario">A IA está preenchendo…</urbi-prosa>` : nothing}
@@ -842,7 +842,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
             return html`<urbi-linha justificar="entre" quebrar>
               <urbi-stack>
                 <urbi-prosa>${data(a.inicio)} a ${data(a.fim)} · ${Number(a.comissao_pct)}% · ${reais(a.preco_autorizado_c)}</urbi-prosa>
-                <urbi-prosa papel="fraco">${a.proprietario_nome ?? ''}${a.exclusiva ? ' · exclusiva' : ''}</urbi-prosa>
+                <urbi-prosa papel="dica">${a.proprietario_nome ?? ''}${a.exclusiva ? ' · exclusiva' : ''}</urbi-prosa>
               </urbi-stack>
               <urbi-badge cor=${s.cor}>${s.rotulo}</urbi-badge>
             </urbi-linha>`;
@@ -857,7 +857,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
       <urbi-seletor-arquivo label="Anexar o documento assinado" icone="fa-solid fa-paperclip" texto="Escolher PDF ou foto"
         accept="application/pdf,image/jpeg,image/png,image/webp" ?desabilitado=${!!e.ocupado}
         @urbi:seletor-arquivo-change=${(ev: CustomEvent) => e.anexarDocumento(ev.detail.arquivo as File | null)}></urbi-seletor-arquivo>
-      ${documentos.length ? html`<urbi-prosa papel="fraco">${documentos.length} documento(s) anexado(s), todos internos.</urbi-prosa>` : nothing}
+      ${documentos.length ? html`<urbi-prosa papel="dica">${documentos.length} documento(s) anexado(s), todos internos.</urbi-prosa>` : nothing}
     </urbi-stack>`;
   }
 
@@ -880,7 +880,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
           <urbi-icone classe=${o.icone}></urbi-icone>
           <urbi-stack>
             <urbi-prosa>${o.titulo}${o.id === e.onde ? ' · escolhido' : ''}</urbi-prosa>
-            <urbi-prosa papel="fraco">${o.texto}</urbi-prosa>
+            <urbi-prosa papel="dica">${o.texto}</urbi-prosa>
           </urbi-stack>
         </urbi-linha>`}
         @urbi:lista-click=${(ev: CustomEvent) => e.escolherOnde((ev.detail.item as (typeof opcoesOnde)[number]).id)}></urbi-lista>

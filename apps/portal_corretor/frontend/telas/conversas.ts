@@ -235,7 +235,7 @@ export class PcConversasLista extends LitElement {
       <urbi-stack expandir>
         <urbi-linha justificar="entre">
           <urbi-prosa papel=${c.nao_lidas ? 'corpo' : 'secundario'}><strong>${c.contato_nome}</strong></urbi-prosa>
-          <urbi-prosa papel="fraco">${haQuanto(c.ultima_mensagem_em)}</urbi-prosa>
+          <urbi-prosa papel="dica">${haQuanto(c.ultima_mensagem_em)}</urbi-prosa>
         </urbi-linha>
         <urbi-prosa papel="secundario" truncar>${c.ultima_mensagem ?? 'Sem mensagens ainda'}</urbi-prosa>
         <urbi-linha quebrar gap="6px">
@@ -448,7 +448,7 @@ export class PcConversaMensagens extends ParteDaConversa {
         <urbi-stack>
           ${rotulo ? html`<urbi-prosa papel="dica">${rotulo}${canal ? ` · ${canal}` : ''}</urbi-prosa>` : nothing}
           ${corpo}
-          <urbi-prosa papel="fraco">${hora(m.em)}</urbi-prosa>
+          <urbi-prosa papel="dica">${hora(m.em)}</urbi-prosa>
         </urbi-stack>
       </urbi-card>
     </urbi-linha>`;
@@ -463,7 +463,7 @@ export class PcConversaMensagens extends ParteDaConversa {
     const partes: TemplateResult[] = [];
     let anterior: string | null = null;
     for (const m of d.mensagens) {
-      if (!mesmoDia(anterior, m.em)) partes.push(html`<urbi-linha justificar="centro"><urbi-prosa papel="fraco">${mesmoDia(m.em, new Date().toISOString()) ? 'Hoje' : dia(m.em)}</urbi-prosa></urbi-linha>`);
+      if (!mesmoDia(anterior, m.em)) partes.push(html`<urbi-linha justificar="centro"><urbi-prosa papel="dica">${mesmoDia(m.em, new Date().toISOString()) ? 'Hoje' : dia(m.em)}</urbi-prosa></urbi-linha>`);
       anterior = m.em;
       partes.push(this.bolha(m, d.contato.nome));
     }
@@ -851,7 +851,7 @@ export class PcConversaContexto extends ParteDaConversa {
       </urbi-card>
       ${perfil.length ? html`<urbi-linha quebrar gap="6px">${perfil.map((p) => html`<urbi-badge>${p}</urbi-badge>`)}</urbi-linha>` : nothing}
       <urbi-botao variante="secundario" bloco icone="fa-solid fa-chevron-right" href=${urbiVerso.href(`/clientes/${c.id}`)}>Abrir ficha completa</urbi-botao>
-      ${c.proximo_passo && this.ficha ? html`<urbi-prosa papel="fraco">Próximo passo: ${c.proximo_passo}${this.ficha.contato?.proximo_passo_em ? ` · ${dataCurta(this.ficha.contato.proximo_passo_em)}` : ''}</urbi-prosa>` : nothing}
+      ${c.proximo_passo && this.ficha ? html`<urbi-prosa papel="dica">Próximo passo: ${c.proximo_passo}${this.ficha.contato?.proximo_passo_em ? ` · ${dataCurta(this.ficha.contato.proximo_passo_em)}` : ''}</urbi-prosa>` : nothing}
     </urbi-stack>`;
   }
 }

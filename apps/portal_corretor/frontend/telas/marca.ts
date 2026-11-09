@@ -201,7 +201,7 @@ export class PcTelaMarca extends LitElement {
           <urbi-stack>
             <urbi-linha alinhar="centro">
               <urbi-avatar nome="Logo" foto=${m.logo_url ?? ''} icone=${m.logo_url ? '' : 'fa-solid fa-image'} tamanho="56"></urbi-avatar>
-              <urbi-prosa papel="fraco">${m.logo_url ? 'Logo atual' : 'Sem logo'}</urbi-prosa>
+              <urbi-prosa papel="dica">${m.logo_url ? 'Logo atual' : 'Sem logo'}</urbi-prosa>
             </urbi-linha>
             <urbi-seletor-arquivo label="Logo" texto=${m.logo_url ? 'Trocar o logo' : 'Enviar o logo'} icone="fa-solid fa-image" accept="image/png,image/jpeg,image/webp"
               @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('logo', e)}></urbi-seletor-arquivo>
@@ -210,7 +210,7 @@ export class PcTelaMarca extends LitElement {
           <urbi-stack>
             <urbi-linha alinhar="centro">
               <urbi-avatar nome="Sua foto" foto=${m.foto_url ?? ''} icone=${m.foto_url ? '' : 'fa-solid fa-user'} tamanho="56"></urbi-avatar>
-              <urbi-prosa papel="fraco">${m.foto_url ? 'Sua foto atual' : 'Sem foto'}</urbi-prosa>
+              <urbi-prosa papel="dica">${m.foto_url ? 'Sua foto atual' : 'Sem foto'}</urbi-prosa>
             </urbi-linha>
             <urbi-seletor-arquivo label="Sua foto (opcional)" texto=${m.foto_url ? 'Trocar a foto' : 'Enviar a foto'} icone="fa-solid fa-user" accept="image/png,image/jpeg,image/webp"
               @urbi:seletor-arquivo-change=${(e: CustomEvent) => this.enviarArquivo('foto', e)}></urbi-seletor-arquivo>
@@ -222,7 +222,7 @@ export class PcTelaMarca extends LitElement {
           <urbi-input label="Cor de apoio" tipo="color" valor=${r.cor_secundaria} @urbi:input-change=${(e: CustomEvent) => this.mudar('cor_secundaria', String(e.detail.valor))}></urbi-input>
           <urbi-select label="Estilo das artes" valor=${r.estilo} .opcoes=${ESTILOS} @urbi:select-change=${(e: CustomEvent) => this.mudar('estilo', String(e.detail.valor))}></urbi-select>
         </urbi-grid>
-        <urbi-prosa papel="fraco">Cor principal ${r.cor_primaria.toUpperCase()} · cor de apoio ${r.cor_secundaria.toUpperCase()}</urbi-prosa>
+        <urbi-prosa papel="dica">Cor principal ${r.cor_primaria.toUpperCase()} · cor de apoio ${r.cor_secundaria.toUpperCase()}</urbi-prosa>
         <urbi-input label="Assinatura curta (opcional)" valor=${r.assinatura} placeholder="Ex.: Seu corretor no Lago Sul"
           @urbi:input-change=${(e: CustomEvent) => this.mudar('assinatura', String(e.detail.valor ?? ''))}></urbi-input>
         <urbi-prosa papel="secao">Tom de voz (artes do Estúdio)</urbi-prosa>

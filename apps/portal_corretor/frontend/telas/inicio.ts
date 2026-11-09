@@ -396,7 +396,7 @@ function esquerda(d: DadosHoje, atualizar: () => void, atalhos: boolean, meio: u
       ${cabecalhoColuna('Hoje')}
       <urbi-chips-atalho .opcoes=${ABAS_INICIO.map((a) => ({ id: a.id, rotulo: a.label }))} ativo=${aba}
         @urbi:chip-atalho:click=${(e: CustomEvent) => mudarVisao(e.detail.id, atualizar)}></urbi-chips-atalho>
-      <urbi-prosa papel="fraco">${hojeExtenso()} · Mensageiro: ainda não disponível</urbi-prosa>
+      <urbi-prosa papel="dica">${hojeExtenso()} · Mensageiro: ainda não disponível</urbi-prosa>
     </urbi-stack>
     ${precisaDeVoce(d, atualizar)}
     ${meio}
@@ -407,7 +407,7 @@ function esquerda(d: DadosHoje, atualizar: () => void, atalhos: boolean, meio: u
             p.feito
               ? html`<urbi-linha>
                   <urbi-badge cor="sucesso">Feito</urbi-badge>
-                  <urbi-prosa papel="fraco">${p.rotulo}</urbi-prosa>
+                  <urbi-prosa papel="dica">${p.rotulo}</urbi-prosa>
                 </urbi-linha>`
               : html`<urbi-linha justificar="entre">
                   <urbi-prosa>${p.rotulo}</urbi-prosa>
@@ -468,7 +468,7 @@ function centro(d: DadosHoje, atualizar: () => void) {
     ${faixaIa}
     <urbi-linha justificar="entre">
       <urbi-prosa papel="secao">Fila do dia · ${d.fila.length}</urbi-prosa>
-      <urbi-prosa papel="fraco">Na ordem do mais urgente</urbi-prosa>
+      <urbi-prosa papel="dica">Na ordem do mais urgente</urbi-prosa>
     </urbi-linha>
     ${visiveis.map((i) => cartao(i, atualizar))}
     ${resto > 0
@@ -493,7 +493,7 @@ function direita(d: DadosHoje, atualizar: () => void) {
         ${d.agenda_hoje.length
           ? html`<urbi-lista separador .itens=${d.agenda_hoje} .render_item=${(a: Compromisso) => html`<urbi-stack>
               <urbi-prosa>${hora(a.quando)} · ${a.titulo}</urbi-prosa>
-              ${a.contato_nome ? html`<urbi-prosa papel="fraco">${a.contato_nome}</urbi-prosa>` : nothing}
+              ${a.contato_nome ? html`<urbi-prosa papel="dica">${a.contato_nome}</urbi-prosa>` : nothing}
             </urbi-stack>`}></urbi-lista>`
           : html`<urbi-prosa papel="dica">Nada marcado para hoje.</urbi-prosa>`}
         <urbi-linha>
@@ -525,7 +525,7 @@ function direita(d: DadosHoje, atualizar: () => void) {
             : html`<urbi-botao icone="fa-solid fa-comments" ?desabilitado=${semIa} title=${semIa ? DICA_IA_INDISPONIVEL : nothing}
                 @click=${() => abrirAssistenteCom(dica.texto)}>Perguntar ao Assistente</urbi-botao>`}
         </urbi-linha>
-        ${semIa && !dica.acao ? html`<urbi-prosa papel="fraco">${DICA_IA_INDISPONIVEL}.</urbi-prosa>` : nothing}
+        ${semIa && !dica.acao ? html`<urbi-prosa papel="dica">${DICA_IA_INDISPONIVEL}.</urbi-prosa>` : nothing}
       </urbi-stack>
     </urbi-card>
   </urbi-stack>`;

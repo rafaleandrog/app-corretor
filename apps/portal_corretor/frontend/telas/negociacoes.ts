@@ -596,7 +596,7 @@ export class PcNegociacoesLista extends LitElement {
       </urbi-linha>
       <urbi-prosa papel="secundario" truncar>${n.imovel_titulo ?? n.imovel_codigo ?? n.codigo ?? ''}</urbi-prosa>
       <urbi-prosa papel="secundario" truncar>${n.ultima_oferta_c ? `${reaisCurtos(n.ultima_oferta_c)}${n.preco_pedido_c ? ` × ${reaisCurtos(n.preco_pedido_c)}` : ''}${dif ? ` · ${dif}` : ''}` : 'sem oferta'}</urbi-prosa>
-      <urbi-prosa papel="fraco" truncar>${quemConduz(n)}${n.ultima_rodada_em ? ` · ${haQuanto(n.ultima_rodada_em)}` : ''}</urbi-prosa>
+      <urbi-prosa papel="dica" truncar>${quemConduz(n)}${n.ultima_rodada_em ? ` · ${haQuanto(n.ultima_rodada_em)}` : ''}</urbi-prosa>
     </urbi-stack>`;
   }
 
@@ -655,7 +655,7 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
         ? html`<urbi-prosa papel="secundario"><urbi-badge cor="sucesso">ZOPA estimada</urbi-badge> entre o seu ponto de recuo e ~${reais(d.teto_estimado_comprador_c)} (o teto estimado do comprador).</urbi-prosa>`
         : zopa === 'nao'
           ? html`<urbi-prosa papel="secundario"><urbi-badge cor="erro">Sem ZOPA</urbi-badge> o teto estimado do comprador está abaixo do seu ponto de recuo.</urbi-prosa>`
-          : html`<urbi-prosa papel="fraco">A ZOPA aparece com o mandato e o teto estimado do comprador.</urbi-prosa>`}
+          : html`<urbi-prosa papel="dica">A ZOPA aparece com o mandato e o teto estimado do comprador.</urbi-prosa>`}
     </urbi-card>`;
   }
 
@@ -680,7 +680,7 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
               <urbi-prosa truncar>R${p.rodada} · ${p.quem}</urbi-prosa>
               <urbi-prosa><strong>${p.valor}</strong></urbi-prosa>
             </urbi-linha>
-            <urbi-prosa papel="fraco">${[p.condicoes !== '—' ? p.condicoes : null, p.concessao !== '—' ? `${p.concessao} ↔ ${p.contrapartida}` : null, p.canal, p.quando].filter(Boolean).join(' · ')}</urbi-prosa>
+            <urbi-prosa papel="dica">${[p.condicoes !== '—' ? p.condicoes : null, p.concessao !== '—' ? `${p.concessao} ↔ ${p.contrapartida}` : null, p.canal, p.quando].filter(Boolean).join(' · ')}</urbi-prosa>
           </urbi-stack>`}></urbi-lista>`
         : html`<urbi-prosa papel="dica">Nenhuma proposta ainda. Registre a oferta do cliente para começar.</urbi-prosa>`}
       <urbi-linha quebrar>
@@ -696,7 +696,7 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
       return html`<urbi-linha quebrar>
         <urbi-botao icone="fa-solid fa-wand-magic-sparkles" ?desabilitado=${ia === false || this.n!.s.ocupado} ?carregando=${this.n!.s.ocupado}
           title=${ia === false ? 'IA indisponível agora' : nothing} @click=${() => void this.n!.pedirSugestao()}>Pedir sugestão</urbi-botao>
-        ${ia === false ? html`<urbi-prosa papel="fraco">IA indisponível agora: registre as propostas à mão; o mandato continua valendo.</urbi-prosa>` : ''}
+        ${ia === false ? html`<urbi-prosa papel="dica">IA indisponível agora: registre as propostas à mão; o mandato continua valendo.</urbi-prosa>` : ''}
       </urbi-linha>`;
     }
     const r = s.resposta ?? {};
@@ -706,8 +706,8 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
       ${cp?.valor_c
         ? html`<urbi-prosa><strong>${reais(cp.valor_c)}</strong>${cp.condicoes ? ` · ${cp.condicoes}` : ''}${cp.concessao ? ` · ${cp.concessao} ↔ ${cp.contrapartida ?? ''}` : ''}</urbi-prosa>`
         : ''}
-      ${r.mensagem ? html`<urbi-prosa papel="fraco">Rascunho do Negociador (não sai como está):</urbi-prosa><urbi-prosa pre>${r.mensagem}</urbi-prosa>` : ''}
-      <urbi-prosa papel="fraco">${(s.validacoes ?? []).map((v: Linha) => `${v.ok ? 'ok' : 'falhou'}: ${v.descricao}`).join(' · ')}</urbi-prosa>
+      ${r.mensagem ? html`<urbi-prosa papel="dica">Rascunho do Negociador (não sai como está):</urbi-prosa><urbi-prosa pre>${r.mensagem}</urbi-prosa>` : ''}
+      <urbi-prosa papel="dica">${(s.validacoes ?? []).map((v: Linha) => `${v.ok ? 'ok' : 'falhou'}: ${v.descricao}`).join(' · ')}</urbi-prosa>
       ${bloqueada ? html`<urbi-banner variante="alerta">Bloqueada pelas regras do mandato: edite antes de enviar, ou descarte.</urbi-banner>` : ''}
       <urbi-linha quebrar>
         ${cp?.valor_c
@@ -750,7 +750,7 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
     return html`<urbi-stack>
       <urbi-stack>
         <urbi-prosa papel="titulo">${titulo}</urbi-prosa>
-        <urbi-prosa papel="fraco">${d.codigo}${d.imovel_codigo ? ` · ${d.imovel_codigo}` : ''} · rodada ${d.rodadas ?? 0}${resumo?.rodadas_max ? ` de ${resumo.rodadas_max}` : ''}</urbi-prosa>
+        <urbi-prosa papel="dica">${d.codigo}${d.imovel_codigo ? ` · ${d.imovel_codigo}` : ''} · rodada ${d.rodadas ?? 0}${resumo?.rodadas_max ? ` de ${resumo.rodadas_max}` : ''}</urbi-prosa>
       </urbi-stack>
       <urbi-linha quebrar>
         <urbi-badge cor=${COR_ESTADO[d.estado] ?? ''}>${ROTULO_ESTADO[d.estado] ?? d.estado}</urbi-badge>
@@ -768,10 +768,10 @@ export class PcNegociacaoFoco extends ColunaDaNegociacao {
         : html`<urbi-linha quebrar>
             <urbi-botao variante="secundario" icone="fa-solid fa-reply" ?desabilitado=${this.n!.s.ocupado || !m}
               title=${m ? nothing : 'Defina o mandato antes'} @click=${() => void this.n!.novaContraproposta()}>Nova contraproposta</urbi-botao>
-            ${m ? '' : html`<urbi-prosa papel="fraco">Sem mandato, nenhuma contraproposta sai: defina o mandato à direita.</urbi-prosa>`}
+            ${m ? '' : html`<urbi-prosa papel="dica">Sem mandato, nenhuma contraproposta sai: defina o mandato à direita.</urbi-prosa>`}
           </urbi-linha>`}
       ${this.escada(d)}
-      ${d.ultima_fala ? html`<urbi-card titulo="Última fala do cliente" icone="fa-solid fa-comment"><urbi-prosa pre>${d.ultima_fala.texto}</urbi-prosa><urbi-prosa papel="fraco">${dataHora(d.ultima_fala.em)}</urbi-prosa></urbi-card>` : ''}
+      ${d.ultima_fala ? html`<urbi-card titulo="Última fala do cliente" icone="fa-solid fa-comment"><urbi-prosa pre>${d.ultima_fala.texto}</urbi-prosa><urbi-prosa papel="dica">${dataHora(d.ultima_fala.em)}</urbi-prosa></urbi-card>` : ''}
     </urbi-stack>`;
   }
 }
@@ -811,8 +811,8 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
       <urbi-prosa>Recuo ${this.sigilo('recuo', reais(m.recuo_c))}</urbi-prosa>
       ${m.batna_vendedor ? html`<urbi-prosa>BATNA do vendedor ${this.sigilo('batna', m.batna_vendedor)}</urbi-prosa>` : ''}
       <urbi-prosa papel="secundario">${concessoes.length ? `Concessões: ${concessoes.map((c) => `${c.item} ↔ ${c.contrapartida}`).join('; ')}` : 'Sem concessões além do preço.'}</urbi-prosa>
-      <urbi-prosa papel="fraco">Até ${m.rodadas_max} rodadas · passo de até ${Math.round(Number(m.passo_max_pct) * 100)}% · ${AUTONOMIA[m.autonomia] ?? m.autonomia} · válido até ${data(`${m.validade}T12:00:00`)}</urbi-prosa>
-      <urbi-prosa papel="fraco">Recuo e BATNA são sigilosos: o cliente nunca os vê.</urbi-prosa>
+      <urbi-prosa papel="dica">Até ${m.rodadas_max} rodadas · passo de até ${Math.round(Number(m.passo_max_pct) * 100)}% · ${AUTONOMIA[m.autonomia] ?? m.autonomia} · válido até ${data(`${m.validade}T12:00:00`)}</urbi-prosa>
+      <urbi-prosa papel="dica">Recuo e BATNA são sigilosos: o cliente nunca os vê.</urbi-prosa>
       ${leitura ? nothing : html`<urbi-botao pequeno variante="secundario" icone="fa-solid fa-pen" @click=${() => (this.editando = true)}>Editar mandato</urbi-botao>`}
     </urbi-card>`;
   }
@@ -931,9 +931,9 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
           : html`<urbi-prosa papel="dica">Peça uma sugestão ao Negociador no centro, ou registre a oferta do cliente.</urbi-prosa>`}
       ${podePassar
         ? html`<urbi-botao variante="secundario" icone="fa-solid fa-handshake" ?desabilitado=${this.n!.s.ocupado} @click=${() => void this.n!.passarAoProprietario()}>Passar ao proprietário</urbi-botao>
-            <urbi-prosa papel="fraco">Aceitar a oferta de ${reais(oferta!.valor_c)} é sempre seu: o Negociador nunca fecha o acordo.</urbi-prosa>`
+            <urbi-prosa papel="dica">Aceitar a oferta de ${reais(oferta!.valor_c)} é sempre seu: o Negociador nunca fecha o acordo.</urbi-prosa>`
         : soNegociador() && oferta && !['aguardando_proprietario', 'ganha', 'perdida'].includes(d.estado)
-          ? html`<urbi-prosa papel="fraco">Aceitar o acordo é do corretor: quando o comprador topar, avise o corretor.</urbi-prosa>`
+          ? html`<urbi-prosa papel="dica">Aceitar o acordo é do corretor: quando o comprador topar, avise o corretor.</urbi-prosa>`
           : ''}
     </urbi-card>`;
   }

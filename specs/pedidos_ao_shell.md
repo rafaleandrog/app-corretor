@@ -213,13 +213,24 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** `req.ia.uso({ de, ate, slot?, conta_id? })` → `{ chamadas, tokens_entrada, tokens_saida, custo_estimado? }` da própria app, filtrável pela conta do request (o `log_ia` precisaria guardar a conta de escrita da chamada).
 
-## 28. Superfície branca para as colunas do painel (#176, etapa 4, grupo 5)
+## 28. Superfície branca para as colunas do painel e contraste do texto dos primitivos (#176, etapa 4, grupo 5; medido de novo no grupo A)
 
 **Por quê:** o guia do Padrão B pede colunas e cartões brancos sobre um fundo claro, com texto secundário a 4,5:1 ou mais. No shell 0.56.37 a área de trabalho sai cinza: o `urbi-inbox` pinta `div.layout` com `rgba(13, 27, 42, 0.04)` e `section.detail-pane` com `rgba(13, 27, 42, 0.05)` (estilo computado no QA de 07/11), e o texto secundário da lista de Clientes medido sobre esse véu ficou em ~2,9:1. O véu é do primitivo; o contrato (`ui.md`, regra 10) proíbe a tela de escrever CSS, e os tokens de superfície (`--cor-superficie`, `--cor-superficie-elevada`) só são consumidos pelo primitivo, não escolhidos pela tela. O app já não usa `urbi-inbox` (a moldura é `urbi-3-colunas` com `urbi-hospedeiro`, D-114), mas a conferência visual mostra o mesmo cinza nas colunas.
 
-**Até lá:** o app não compensa com CSS; usa `urbi-card` (superfície do tema) para os blocos de conteúdo e `papel="fraco"`/`"secundario"` como o primitivo os pinta. Exceção não registrada, porque não há o que a app possa fazer sem violar a regra 10.
+**Medido de novo em 09/11 (app 0.1.51, shell 0.56.37, `specs/prints/issue-176/`; estilos computados, alfas compostos sobre o fundo efetivo, tema claro do usuário e escuro trocado só no navegador):** o véu do `urbi-inbox` saiu da tela com ele. O `urbi-3-colunas` e o `urbi-hospedeiro` não pintam; as colunas mostram o `div.conteudo` do `urbi-shell-page`, opaco, com `--cor-fundo` (`#F2F4F7` no claro, `#0D1B2A` no escuro). O `urbi-card` pinta `--cor-superficie` (`rgba(13,27,42,.04)`), e o cartão sai **mais escuro** que a coluna (`#E9EBEF`): o contrário do guia, que pede coluna e cartão brancos. Texto abaixo de 4,5:1 no tema claro, por quem escolhe a cor:
 
-**Proposta mínima:** um atributo nos primitivos de painel (`urbi-3-colunas`, `urbi-hospedeiro`, `urbi-inbox`) que troque o véu translúcido por `--cor-superficie` (ex.: `superficie`), ou um token próprio de fundo de coluna (`--cor-fundo-coluna`) que o tema claro defina branco; e a medição de contraste do texto secundário sobre ele em `contraste-temas.test.ts`.
+| Diferença | Causa | Decisão (D-124) |
+|---|---|---|
+| Coluna `#F2F4F7` e cartão `#E9EBEF` contra coluna e cartão `#FFFFFF` sobre `#F4F3EF` (guia § 1) | O tema claro define `--cor-superficie` como véu escuro translúcido, e a coluna não tem superfície própria | Usa-se o primitivo como é; nenhuma cor na tela. Pedido abaixo (a) |
+| `urbi-prosa papel="fraco"` a 3,04 (cartão) e 3,10 (coluna); 3,70 e 3,78 no escuro | `--cor-texto-fraco` (`rgba(13,27,42,.48)`) é o token de meta, placeholder e desabilitado (`ui.md` § Tokens), e o app o usava para texto de apoio | **Corrigido no app (0.1.58):** `papel="dica"` (mesmo tamanho, `--cor-texto-sec`): 4,60 e 4,74 no claro, 4,97 e 5,18 no escuro. `testes/contraste.test.ts` impede a volta |
+| `urbi-chips-atalho` ativo a 4,05 (texto 12 px/600 em `--cor-primaria-solida` sobre `--cor-primaria-fundo`) | Cor do primitivo | Fica; pedido (b) |
+| `urbi-badge` de estado a 3,69 a 4,08 no claro (Quente, Morno, Frio, Feito, link ativo, Abordagem atrasada) e 3,74 no escuro (Quente) | Cor saturada do estado sobre a tinta `-fundo`, composta sobre o cartão | Fica: trocar a variante tira a temperatura (decisão de produto). Pedido (b) |
+| Iniciais do `urbi-avatar` a 3,76 a 4,05; rótulo do `urbi-kpi` a 4,47; submensagem do `urbi-estado-vazio` a 3,10; versão na barra a 3,16 | Cor do primitivo e do shell | Fica; pedido (b) |
+| Menu da app (o `nav`, 11,83:1) e secundário da ficha (`secundario`, 4,60) | — | Passam; o "rótulo do trilho" da issue não existe mais (D-114) |
+
+**Até lá:** o app não compensa com CSS: coluna e cartão ficam como o tema os pinta. O texto de apoio usa `papel="dica"` ou `"secundario"`, nunca `"fraco"`. Não é exceção nomeada (spec 11.9), porque o app não escreve HTML nem cor fora dos primitivos; é diferença de primitivo e tema (D-124).
+
+**Proposta mínima:** (a) um atributo nos primitivos de painel (`urbi-3-colunas`, `urbi-2x1`, `urbi-hospedeiro`) que pinte a coluna com uma superfície opaca (ex.: `superficie`), ou um token próprio de fundo de coluna (`--cor-fundo-coluna`) que o tema claro defina branco, com o `urbi-card` claro sobre ele; (b) piso de 4,5:1 em `contraste-temas.test.ts` para o texto dos primitivos sobre a composição real em que aparecem (coluna e cartão): estado do `urbi-badge`, `urbi-chips-atalho` ativo, iniciais do `urbi-avatar`, rótulo do `urbi-kpi` e submensagem do `urbi-estado-vazio` (que usa `--cor-texto-fraco`).
 
 ## 29. Nome acessível nos campos do `formulario`, rádio e busca sem resultado vazio (#192, #182, etapa 4, grupo 5)
 

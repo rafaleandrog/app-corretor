@@ -229,7 +229,7 @@ export class PcTelaConta extends LitElement {
             ${campo('WhatsApp', 'telefone', { placeholder: '(61) 99999-9999', tipo: 'tel', desabilitado: bloqueado })}
             ${campo('Regiões que atende', 'regioes', { placeholder: 'Ex.: Lago Sul, Sudoeste, Jardim Botânico', desabilitado: bloqueado })}
           </urbi-grid>
-          <urbi-prosa papel="fraco">A foto do perfil fica em Sua marca, logo abaixo, e aparece na sua página, nas seleções e no portal do cliente.</urbi-prosa>
+          <urbi-prosa papel="dica">A foto do perfil fica em Sua marca, logo abaixo, e aparece na sua página, nas seleções e no portal do cliente.</urbi-prosa>
         </urbi-stack>
       </urbi-card>
       <urbi-card titulo="Conta" icone="fa-solid fa-building">

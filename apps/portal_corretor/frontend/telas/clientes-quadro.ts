@@ -111,7 +111,7 @@ export class PcClientesFunilFiltros extends LitElement {
         ]}
         ativo=${pronto === 'quentes' ? 'quente' : temperatura || 'todas'}
         @urbi:chip-atalho:click=${(e: CustomEvent) => this.filtrar({ temperatura: e.detail.id === 'todas' ? '' : e.detail.id })}></urbi-chips-atalho>
-      <urbi-prosa papel="fraco">${DEFINICAO_TEMPERATURA}</urbi-prosa>
+      <urbi-prosa papel="dica">${DEFINICAO_TEMPERATURA}</urbi-prosa>
     </urbi-stack>`;
   }
 }
@@ -215,7 +215,7 @@ export class PcClientesQuadro extends LitElement {
     return html`<urbi-stack>
       <urbi-prosa>${n.contato_nome}</urbi-prosa>
       <urbi-prosa papel="secundario">${n.titulo}${n.valor_estimado_c ? ` · ${reais(n.valor_estimado_c)}` : ''}</urbi-prosa>
-      ${sinal?.texto ? html`<urbi-prosa papel="fraco" truncar>${sinal.texto}</urbi-prosa>` : nothing}
+      ${sinal?.texto ? html`<urbi-prosa papel="dica" truncar>${sinal.texto}</urbi-prosa>` : nothing}
       <urbi-linha quebrar>
         ${chip('temperatura', n.temperatura, n.temperatura_motivo)}
         ${n.abordagem_vencida ? html`<urbi-badge cor="alerta">Abordagem atrasada</urbi-badge>` : nothing}

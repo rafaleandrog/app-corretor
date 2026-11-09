@@ -133,7 +133,7 @@ export function renderAjustes(atualizar: () => void) {
       .indicador=${(s: (typeof ABAS_AJUSTES)[number]) => (s.id === aba ? 'var(--cor-primaria)' : '')}
       .render_item=${(s: (typeof ABAS_AJUSTES)[number]) => html`<urbi-linha alinhar="centro"><urbi-icone classe=${s.icone}></urbi-icone><urbi-stack>
         <urbi-prosa>${s.label}</urbi-prosa>
-        <urbi-prosa papel="fraco">${linhaDeEstado(s.id, estadoMenu.dados)}</urbi-prosa>
+        <urbi-prosa papel="dica">${linhaDeEstado(s.id, estadoMenu.dados)}</urbi-prosa>
       </urbi-stack></urbi-linha>`}
       @urbi:lista-click=${(e: CustomEvent) => escolher(String(e.detail.item?.id))}></urbi-lista>
   </urbi-stack>`;
