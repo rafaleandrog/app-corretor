@@ -457,8 +457,9 @@ export class Estudio {
    * O POST que cria as peças, dentro do formulário (#187): a recusa volta a ele, que reabre com o digitado.
    * A rota cria uma peça por formato, sem chave de idempotência, e a IA pode passar do tempo do caminho:
    * na falha AMBÍGUA (rede, 5xx) a lista é relida antes de deixar reenviar. Apareceram peças novas deste
-   * imóvel e objetivo: elas são o resultado (`conferida`), e nada é reenviado. Nenhuma: a falha volta (o
-   * reenvio é seguro). Só parte do conjunto pedido: a frase de criação parcial, e o formulário reabre. A releitura
+   * imóvel e objetivo: elas são o resultado (`conferida`), e nada é reenviado. Nenhuma: a falha volta
+   * e o formulário reabre, mas a releitura vazia NÃO prova que nada foi criado (a rota pode ainda estar
+   * criando, ou a lista não refletir ainda): reenviar pode repetir peças, e isso é uma limitação aceita. Só parte do conjunto pedido: a frase de criação parcial, e o formulário reabre. A releitura
    * falhou: a frase da dúvida, e o corretor decide.
    */
   private async enviarCriacao(rota: string, corpo: Record<string, unknown>): Promise<RespostaCriar> {

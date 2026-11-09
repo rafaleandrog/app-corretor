@@ -1519,3 +1519,43 @@ test('Estúdio no Chromium (#187): falha ambígua (PLATAFORMA_REINICIOU) relê; 
     await navegador.close();
   }
 });
+
+test('Estúdio no Chromium (#187): Pacote de lançamento (/estudio/pacote) com falha ambígua: parcial reabre avisando, completo fecha sem reenviar', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const { navegador, pagina } = await montar(pw);
+  try {
+    await pagina.goto(`${ORIGEM}/portal_corretor/estudio`);
+    await pagina.waitForTimeout(150);
+    const nova = (formato: string, id: number) => ({ id, pedido: 'Lançamento', imovel_id: 5, objetivo: 'novo_imovel', formato, estado: 'rascunho', arquivos: [], criado_em: new Date().toISOString() });
+    const rodar = (linhas: any[], fila: any[]) =>
+      pagina.evaluate(async ({ js, linhas, fila }: { js: string; linhas: any[]; fila: any[] }) => {
+        const w = window as any;
+        new Function(js)();
+        w.CRIADAS ??= [];
+        w.avisos = [];
+        w.fila = fila;
+        w.FALHA_CRIAR = [() => {
+          for (const l of linhas) w.CRIADAS.push({ ...w.PECAS[0], ...l });
+          throw new TypeError('Failed to fetch');
+        }];
+        await w.estudio.criarRapido('lancamento').catch((e: Error) => { if (e.message !== 'cancelado') throw e; });
+        return { n: w.forms.length, mensagem: w.forms[1]?.mensagem, avisos: w.avisos.slice(), posts: w.chamadas.filter((c: string) => c === 'POST /estudio/pacote').length };
+      }, { js: formularioDeFila, linhas, fila });
+
+    // Só post e carrossel criados (falta o story): não é sucesso; reabre com a frase de parcial.
+    let r: any = await rodar([nova('post_1x1', 980), nova('carrossel', 981)], [{ imovel_id: '5', pedido: 'Lançamento' }, null]);
+    assert.equal(r.n, 2, 'reabriu');
+    assert.match(r.mensagem, /Algumas peças já foram criadas; confira em Peças antes de pedir de novo\./);
+    assert.deepEqual(r.avisos, [], 'sem aviso de sucesso');
+    assert.equal(r.posts, 1);
+
+    // Os três formatos: fecha como criado, sem reenviar.
+    r = await rodar([nova('post_1x1', 990), nova('carrossel', 991), nova('story', 992)], [{ imovel_id: '5', pedido: 'Lançamento' }]);
+    assert.equal(r.n, 1, 'não reabriu');
+    assert.match(r.avisos.at(-1), /A resposta demorou, mas 3 peça\(s\) foram criadas/);
+    assert.equal(r.posts, 2, 'um envio por criação, nenhum reenvio');
+  } finally {
+    await navegador.close();
+  }
+});

@@ -333,6 +333,25 @@ test('Registrar oferta, Pedir sugestão, Encerrar e Atribuir (#187): reabrem com
     assert.equal(r.n, 2);
     assert.equal(r.f.valores.mensagem_cliente, 'Consigo 1,33 à vista');
     assert.match(r.f.mensagem, /A IA não respondeu agora/);
+    // A rede cai e a releitura vem sem mudança: não prova que nada foi feito; frase de dúvida (sem convite a reenviar).
+    await pagina.evaluate(() => {
+      const w = window as any;
+      w.zerar();
+      w.rotas = (m: string, c: string) => {
+        if (m !== 'POST' || c !== '/negociacoes/1/sugestao') return undefined;
+        throw Object.assign(new Error('Gateway Timeout'), { status: 504 });
+      };
+      w.fila = [{ mensagem_cliente: 'Sem mudança' }, null];
+      w.clicar('pc-negociacao-foco', 'Pedir sugestão');
+    });
+    await esperar();
+    r = await pagina.evaluate(() => {
+      const w = window as any;
+      return { posts: w.posts('/negociacoes/1/sugestao'), n: w.forms.length, f: w.form(1) };
+    });
+    assert.equal(r.posts, 1);
+    assert.equal(r.n, 2, 'reabriu com a dúvida');
+    assert.match(r.f.mensagem, /o pedido pode ter chegado ao Negociador\. Cancele e confira a negociação antes de pedir de novo\./);
     await pagina.evaluate(() => {
       const w = window as any;
       w.zerar();

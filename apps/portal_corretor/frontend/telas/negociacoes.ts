@@ -475,7 +475,9 @@ class NegociacaoAberta {
               if (this.vida.encerrado(e2)) throw e2;
               throw new Error(FRASE_SUGESTAO_EM_DUVIDA);
             }
-            if (marcaDaNegociacao(depois) === antes) throw e;
+            // Sem mudança na releitura não prova que nada foi feito (o Negociador pode ainda estar rodando ou a
+            // marca não mudar): frase de dúvida, nunca o convite a reenviar.
+            if (marcaDaNegociacao(depois) === antes) throw new Error(FRASE_SUGESTAO_EM_DUVIDA);
             return { conferida: true } as Linha;
           }
         }),
