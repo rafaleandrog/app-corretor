@@ -167,7 +167,8 @@ const estiloSelecao = css`
   /* Conversa como chat (M4): balões do corretor à esquerda e do cliente à direita, cartões de imóvel e o
      compositor de uma linha fixo no pé da tela. */
   .chat { display: flex; flex-direction: column; gap: 10px; padding-bottom: 84px; }
-  .balao { max-width: 78%; padding: 10px 12px; border-radius: 12px; background: var(--papel); border: 1px solid var(--linha); font-size: 14px; line-height: 20px; white-space: pre-line; }
+  .balao { max-width: 78%; padding: 10px 12px; border-radius: 12px; background: var(--papel); border: 1px solid var(--linha); font-size: 14px; line-height: 20px; }
+  .balao .texto-balao { white-space: pre-line; }
   .balao.voce { align-self: flex-end; background: var(--ok-fundo); border-color: var(--ok-fundo); }
   .balao .autor { font-size: 11px; line-height: 16px; font-weight: 700; color: var(--acento); }
   .balao .hora { display: block; margin-top: 4px; font-size: 11px; line-height: 15px; color: var(--suave); text-align: right; }
@@ -659,12 +660,9 @@ export class PcPortalCliente extends LitElement {
         ? `Separei ${m.selecao?.quantidade ? `${m.selecao.quantidade} imóve${m.selecao.quantidade > 1 ? 'is' : 'l'}` : 'imóveis'} para você${m.selecao?.titulo ? `: ${m.selecao.titulo}` : ''}.`
         : (m.texto ?? '');
     if (!texto) return nothing;
-    return html`<div class="balao ${voce ? 'voce' : ''}">
-      ${voce ? nothing : html`<div class="autor">${corretor}</div>`}
-      ${texto}
-      ${m.tipo === 'selecao' ? html`<div><button class="botao claro" type="button" @click=${() => this.irPara('imoveis')}>Ver imóveis</button></div>` : nothing}
-      <span class="hora">${this.horaDoBalao(m.em)}</span>
-    </div>`;
+    // Sem espaço em branco entre os filhos: o `white-space: pre-line` do texto contaria cada quebra de linha do
+    // modelo como linha em branco dentro do balão.
+    return html`<div class="balao ${voce ? 'voce' : ''}">${voce ? nothing : html`<div class="autor">${corretor}</div>`}<div class="texto-balao">${texto}</div>${m.tipo === 'selecao' ? html`<div><button class="botao claro" type="button" @click=${() => this.irPara('imoveis')}>Ver imóveis</button></div>` : nothing}<span class="hora">${this.horaDoBalao(m.em)}</span></div>`;
   }
 
   /** Envio pelo compositor: vai ao `acao_cliente` (tipo `mensagem`); aparece na hora e a tela relê. */
@@ -726,13 +724,14 @@ export class PcPortalCliente extends LitElement {
     return html`
       ${recados.length
         ? html`<section>
-            <h2>${recados.length > 1 ? 'Suas seleções' : 'Sua seleção'}</h2>
-            ${recados.map((r) => html`${r.titulo ? html`<h3>${r.titulo}</h3>` : nothing}${r.mensagem ? html`<p class="texto">${r.mensagem}</p>` : nothing}`)}
+            ${recados.length === 1
+              ? html`<h2>${recados[0].titulo || 'Sua seleção'}</h2>${recados[0].mensagem ? html`<p class="texto">${recados[0].mensagem}</p>` : nothing}`
+              : html`<h2>Suas seleções</h2>${recados.map((r) => html`${r.titulo ? html`<h3>${r.titulo}</h3>` : nothing}${r.mensagem ? html`<p class="texto">${r.mensagem}</p>` : nothing}`)}`}
           </section>`
         : nothing}
       ${atual
         ? html`<section>
-            <p class="suave">${primeiroNome(p.corretor?.nome)} escolheu para você${atual.selecao.titulo ? html` · da seleção <strong>${atual.selecao.titulo}</strong>` : nothing}${atual.imovel.fotos?.length > 1 ? ' · deslize as fotos' : ''}</p>
+            <p class="suave">${primeiroNome(p.corretor?.nome)} escolheu para você${recados.length > 1 && atual.selecao.titulo ? html` · da seleção <strong>${atual.selecao.titulo}</strong>` : nothing}${atual.imovel.fotos?.length > 1 ? ' · deslize as fotos' : ''}</p>
             ${itemSelecao(atual.imovel, this.reacoes, {
               reagir: (codigo, reacao) => enviarReacao(atual.selecao, codigo, reacao, this.reacoes, atualizar),
               comentar: (codigo, texto) => enviarComentario(atual.selecao, codigo, texto, p.url_acoes ?? null, this.reacoes, atualizar),
