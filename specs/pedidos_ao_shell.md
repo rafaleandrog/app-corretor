@@ -197,6 +197,14 @@ Com Início, Clientes, Imóveis e Ajustes em abas, a aba ativa precisa sobrevive
 
 **Proposta mínima:** cada item do `nav` aceitar `papeis: ["corretor"]` (slugs de `roles`/`roles_externos`); sem o campo, o item vale para todos. E o contrato do `nav` (itens, níveis, ícone, rota `/`, visibilidade para o externo) entrar no bundle do SDK (`apps-em-repo-proprio.md`), que hoje remete a um documento que não vem no bundle.
 
+## 26. Meta tags por página pública (prévia do link no WhatsApp e no Instagram) (#181, etapa 4, grupo 4)
+
+**Por quê:** o corretor manda o link da Minha Página, da ficha de um imóvel, da seleção e do portal pelo WhatsApp. Quem gera a prévia do link (WhatsApp, Instagram, Facebook) lê só o HTML servido, sem rodar JavaScript. Hoje o HTML de `/portal_corretor/p?c=…` tem só o `<title>` da instância ("Pinguim Homolog"), sem `description` nem `og:*`: todo link sai com o nome da instância, sem o nome do corretor, a foto ou o imóvel. `paginas-publicas.md` (SDK 100) só fala do `titulo` fixo do manifesto e do `document.title`.
+
+**Até lá:** o app escreve o `document.title` certo depois de carregar ("Nome · Corretor de imóveis"; na ficha, "Título do imóvel · Nome"), o que vale para a aba do navegador, não para a prévia do link.
+
+**Proposta mínima:** cada entrada de `paginas_publicas` aceitar `meta: "/rota-publica"`: ao servir o documento da página, o shell chama a rota pública da app (`GET /api/pub/{app}/{rota}` com a mesma query) e escreve no `<head>` o que ela devolver em `{ titulo, descricao, imagem }` (texto puro, com tamanho máximo, imagem só `https` ou URL assinada de arquivo da app), como `<title>`, `meta name="description"` e `og:title`/`og:description`/`og:image`. Sem resposta em tempo curto (ex.: 300 ms), fica o `titulo` do manifesto.
+
 ## Se o shell não puder atender 1 e 2 a tempo
 
 Usar um parceiro de soluções da Meta já aprovado (caminho B da spec 9.0) como ponte: ele recebe da Meta e reenvia por `POST` simples para o `wh` do app, sem desafio e com autenticação própria. Custo e dependência a decidir com o dono.

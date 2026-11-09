@@ -77,7 +77,19 @@ sua marca ([Ajustes › Conta e marca](conta-e-ajustes.md#a-marca)) e acompanha 
 publicada antes de a capa ter foto mostra as iniciais até o próximo **Atualizar agora**.
 
 O CRECI é opcional (D-93): sem ele, a capa mostra só "Corretor de imóveis", e nada deixa de
-funcionar. Os cartões dos imóveis (na página inteira) também ganham o botão **Quero saber mais**.
+funcionar.
+
+**Como a página aparece para o visitante** (celular primeiro):
+
+- **Capa** compacta: a foto (ou as iniciais), o nome, a linha "Corretor de imóveis · CRECI …" e o
+  botão **Falar no WhatsApp**. A apresentação vem logo abaixo, como primeiro bloco; o Instagram, no
+  fim da página.
+- **Cartões dos imóveis:** foto baixa, o título, a linha de dados ("320 m² · 4 qts · 3 vagas") e,
+  na mesma linha, o preço à esquerda e **Quero saber mais** à direita, que abre o seu WhatsApp
+  citando o imóvel (sem WhatsApp, abre a ficha). No celular cabem dois imóveis na primeira tela. No
+  computador os cartões ficam lado a lado com o botão alinhado.
+- O imóvel em destaque não se repete em "Imóveis à venda", que mostra só os outros (e some quando
+  todos estão em destaque).
 
 O CRECI é opcional: a página publica sem ele, e a apresentação só mostra o CRECI se ele existir.
 Sem o seu CRECI nesta conta e sem o CRECI jurídico dela, o editor mostra o aviso discreto *"Adicione seu CRECI ao perfil para que ele apareça nos
@@ -86,8 +98,10 @@ anúncios"*, com o atalho **Ajustes › Conta e marca**.
 O link da página tem a forma `https://<instância>/portal_corretor/p?c=<endereço>`. **Copiar link**
 copia o endereço completo.
 
-Ainda não há prévia do link no WhatsApp (a foto e o título que aparecem ao colar um link). Isso
-fica para uma versão futura (P-37).
+Ainda não há prévia do link no WhatsApp (a foto e o título que aparecem ao colar um link): quem
+monta a prévia lê só o endereço servido, e a plataforma ainda não deixa a app escrever essas
+informações nele (pedido ao shell 26). A aba do navegador já mostra o seu nome ("Nome · Corretor
+de imóveis") e, na ficha, o título do imóvel.
 
 ## Que imóvel aparece
 
