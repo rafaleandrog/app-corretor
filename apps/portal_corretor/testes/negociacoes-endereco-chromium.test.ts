@@ -25,7 +25,7 @@ window.urbiVerso = {
   escutarRota: (cb) => ((aoMudarRota = cb), () => (aoMudarRota = null)),
   navegarSub: (s) => { history.pushState(null, '', '/portal_corretor' + s); aoMudarRota?.(s.split('?')[0]); },
   usuario: () => ({ id: 1, nome: 'Marina' }),
-  contexto: () => ({ carregado: true, nivel: window.NIVEL ?? 'usuario', roles: window.ROLES, conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'Conta 100' }], contaEscrita: 100 } }),
+  contexto: () => ({ carregado: window.CARREGADO ?? true, nivel: window.NIVEL ?? 'usuario', roles: window.ROLES, conta: { resolucao: 'escopado', contas: [{ id: 100, nome: 'Conta 100' }], contaEscrita: 100 } }),
   notificar: () => {},
   alertar: async () => {},
   confirmar: async () => true,
@@ -50,7 +50,7 @@ window.textos = () => {
 };
 `;
 
-async function abrir(pw: any, endereco: string, roles: string[], nivel = 'usuario') {
+async function abrir(pw: any, endereco: string, roles: string[], nivel = 'usuario', depois?: string[]) {
   const pacote = await build({
     stdin: { contents: ENTRADA, resolveDir: process.cwd(), loader: 'ts' },
     bundle: true,
@@ -64,12 +64,23 @@ async function abrir(pw: any, endereco: string, roles: string[], nivel = 'usuari
   const navegador = await pw.chromium.launch();
   const pagina = await navegador.newPage({ viewport: { width: 1440, height: 900 } });
   await pagina.route(`${ORIGEM}/**`, (r: any) => r.fulfill({ contentType: 'text/html', body: html }));
-  await pagina.addInitScript(([r, n]: [string[], string]) => {
+  await pagina.addInitScript(([r, n, tardio]: [string[], string, boolean]) => {
     (window as any).ROLES = r;
     (window as any).NIVEL = n;
-  }, [roles, nivel]);
+    (window as any).CARREGADO = !tardio;
+  }, [roles, nivel, !!depois]);
   await pagina.goto(`${ORIGEM}/portal_corretor${endereco}`);
   await pagina.waitForTimeout(300);
+  if (depois) {
+    // Carregamento tardio, como o SDK: o contexto chega depois com os papéis reais.
+    await pagina.evaluate((r: string[]) => {
+      const w = window as any;
+      w.ROLES = r;
+      w.CARREGADO = true;
+      window.dispatchEvent(new CustomEvent('urbi:contexto-app', { detail: { ...w.urbiVerso.contexto(), appId: 'portal_corretor' } }));
+    }, depois);
+    await pagina.waitForTimeout(300);
+  }
   const estado = await pagina.evaluate(() => ({
     caminho: location.pathname + location.search,
     textos: (window as any).textos() as string[],
@@ -109,4 +120,17 @@ test('P15: o negociador humano (só o papel negociador) continua em /negociacoes
   assert.ok(e.textos.includes('Negociações atribuídas a você'));
   assert.ok(!e.textos.includes('Nova proposta'));
   assert.equal(e.alternador, false);
+});
+
+test('P15, contexto tardio (carregado:false, roles:[]): o negociador humano termina em /negociacoes e o corretor em Clientes', async (t) => {
+  const pw = playwright();
+  if (!pw) return t.skip('Playwright não instalado neste ambiente');
+  const neg = await abrir(pw, '/negociacoes?item=1', [], 'usuario', ['negociador']);
+  assert.equal(neg.caminho, '/portal_corretor/negociacoes?item=1');
+  assert.ok(neg.textos.includes('Negociações atribuídas a você'));
+  assert.equal(neg.alternador, false);
+  const cor = await abrir(pw, '/negociacoes?item=1', [], 'usuario', ['corretor']);
+  assert.equal(cor.caminho, '/portal_corretor/clientes?visao=negociacoes&item=1');
+  assert.ok(cor.textos.includes('Nova proposta'));
+  assert.equal(cor.alternador, true);
 });

@@ -139,8 +139,12 @@ export function fichaCanonica(sub: string, busca = ''): string | null {
  */
 export function negociacoesCanonica(sub: string, busca = ''): string | null {
   if (normalizar(sub) !== '/negociacoes') return null;
-  const item = Number(new URLSearchParams(busca).get('item'));
-  return `?visao=negociacoes${Number.isInteger(item) && item > 0 ? `&item=${item}` : ''}`;
+  const q = new URLSearchParams(busca);
+  const out = new URLSearchParams({ visao: 'negociacoes' });
+  for (const [k, v] of q) if (k !== 'visao' && k !== 'item') out.append(k, v); // demais filtros seguem
+  const item = Number(q.get('item'));
+  if (Number.isInteger(item) && item > 0) out.set('item', String(item));
+  return `?${out}`;
 }
 
 /**

@@ -106,6 +106,7 @@ test('P15 (D-96): /negociacoes do corretor vira Clientes › Negociações, com 
   assert.equal(negociacoesCanonica('/negociacoes', '?item=5'), '?visao=negociacoes&item=5');
   assert.equal(negociacoesCanonica('/negociacoes', '?item=abc'), '?visao=negociacoes');
   assert.equal(negociacoesCanonica('/negociacoes', '?item=0'), '?visao=negociacoes');
+  assert.equal(negociacoesCanonica('/negociacoes', '?item=5&q=ana'), '?visao=negociacoes&q=ana&item=5');
   assert.equal(negociacoesCanonica('/clientes', '?visao=negociacoes'), null);
   assert.equal(negociacoesCanonica('/negociacoes/9', ''), null);
 });
