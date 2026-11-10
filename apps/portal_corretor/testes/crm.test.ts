@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas } from '../backend/rotas';
-import { instanteDaUrl, limiteParado, normalizarPapeis, parametrosDoPronto, reaisParaCentavos, validarEtapas, ETAPAS_PADRAO } from '../comum/crm';
+import { instanteDaUrl, limiteParado, normalizarPapeis, parametrosDoPronto, temperaturaVisivel, reaisParaCentavos, validarEtapas, ETAPAS_PADRAO } from '../comum/crm';
 import { gerarCsv, lerCsv, mapearPorModelo, MODELOS_IMPORTACAO, sugerirMapeamento } from '../comum/csv';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
@@ -21,6 +21,16 @@ test('regras puras: papéis, dinheiro, etapas e CSV', () => {
   assert.deepEqual(lerCsv('a,b\r\n"x ""y""",2'), [['a', 'b'], ['x "y"', '2']]);
   assert.equal(gerarCsv(['N'], [['=SOMA(1)'], ['a;b']]), '﻿N\r\n\'=SOMA(1)\r\n"a;b"\r\n');
   assert.deepEqual(sugerirMapeamento(['Nome do cliente', 'Celular', 'E-mail']), { nome: 0, telefone: 1, email: 2, papeis: null, observacoes: null });
+});
+
+test('temperatura só aparece para quem tem intenção de compra: proprietário puro fica sem chip', () => {
+  assert.equal(temperaturaVisivel('proprietario', 'morno'), null);
+  assert.equal(temperaturaVisivel('Proprietário', 'quente'), null);
+  assert.equal(temperaturaVisivel('comprador', 'morno'), 'morno');
+  assert.equal(temperaturaVisivel('comprador,proprietario', 'morno'), 'morno');
+  assert.equal(temperaturaVisivel('proprietario,investidor', 'frio'), 'frio');
+  assert.equal(temperaturaVisivel('', 'frio'), 'frio');
+  assert.equal(temperaturaVisivel('proprietario', null), null);
 });
 
 test('modelos de importação pré-preenchem o mapeamento; sem modelo, nada muda', () => {
