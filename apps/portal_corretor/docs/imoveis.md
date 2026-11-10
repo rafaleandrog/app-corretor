@@ -72,6 +72,10 @@ o conteúdo e, embaixo, **Voltar**, **Salvar rascunho** e **Próximo** (no últi
    marcada **Capa sugerida** (se nenhuma foto do envio pôde ser lida, a ordem fica como estava e não
    há sugestão). Cada foto tem as setas **Mover para antes** e **Mover para depois** (a primeira é a
    capa) e **Apagar**. Dá para seguir sem fotos e voltar depois.
+   **No celular (M3)** o passo 1 traz tudo numa tela, nesta ordem: **Tirar fotos ou escolher da
+   galeria**, a grade de miniaturas (3 colunas), **A IA já entendeu**, **Ditar o resto** e o rodapé
+   **Salvar rascunho** · **Continuar**; o ditado preenche os mesmos campos e, no celular, não aparece
+   mais no passo Dados. No computador a ordem segue a de cima, com o botão **Próximo: dados**.
 2. **Dados.** Tipo, bairro, cidade, UF, quartos, suítes, banheiros, vagas, área útil, preço,
    condomínio, título e características. Preço, condomínio e área se escrevem como de costume, com
    ponto de milhar e vírgula decimal ("1.450.000", "120,5"). **Tipo e cidade são obrigatórios**: o

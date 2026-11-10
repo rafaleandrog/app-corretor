@@ -22,10 +22,12 @@ import {
   corQualidade,
   data,
   enviar,
+  escutarCelular,
   filtrosDaUrl,
   filtrosNaUrl,
   gesto,
   mensagemDeErro,
+  noCelular,
   opcoes,
   reais,
   ROTULO_AMBIENTE,
@@ -717,10 +719,20 @@ export class PcNovoImovelPassos extends ColunaNovoImovel {
 // Centro (P07 e M3): o passo, com "Passo n de 4" e o rodapé [Voltar] [Salvar rascunho] [Próximo].
 @customElement('pc-novo-imovel-passo')
 export class PcNovoImovelPasso extends ColunaNovoImovel {
+  private desligarCelular: (() => void) | null = null;
+
   connectedCallback() {
     atual = new NovoImovel();
     super.connectedCallback();
     void atual.abrir();
+    // Mesma tela nos dois layouts: a ordem do passo 1 (M3) só vale no celular, e redesenha ao cruzar os 900 px.
+    this.desligarCelular = escutarCelular(() => this.requestUpdate());
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.desligarCelular?.();
+    this.desligarCelular = null;
   }
 
   /** Tipo e cidade: obrigatórios; o "Obrigatório" só depois de mexer no campo ou de tentar avançar (#182, item 4). */
@@ -736,10 +748,34 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
       @urbi:input-change=${(ev: CustomEvent) => e.editar('cidade', ev.detail.valor)}></urbi-input>`;
   }
 
+  /** "A IA já entendeu: …" (os ambientes lidos das fotos). */
+  private entendeu() {
+    const lidas = this.estado.fotos().filter((m) => m.ia_ambiente);
+    return lidas.length
+      ? html`<urbi-banner variante="info">A IA já entendeu: ${[...new Set(lidas.map((m) => (ROTULO_AMBIENTE[m.ia_ambiente] ?? m.ia_ambiente).toLowerCase()))].join(', ')}.</urbi-banner>`
+      : nothing;
+  }
+
+  /** "Ditar o resto": no computador (P07) fica junto de Dados; no celular (M3) vem no passo 1, depois de "A IA já entendeu". */
+  private ditar() {
+    const e = this.estado;
+    return e.ia.conteudo
+      ? html`<urbi-card titulo="Ditar o resto" icone="fa-solid fa-microphone">
+          <urbi-stack>
+            <urbi-prosa papel="dica">Fale (ou escreva) o que falta: "apartamento de 3 quartos no Sudoeste, 120 metros, um milhão e quatrocentos, condomínio de 1.200". A IA preenche os campos que você ainda não mexeu.</urbi-prosa>
+            <urbi-redator audio placeholder="Toque no microfone ou escreva…" chave-audio="novo-imovel-ditado" ?upload-em-andamento=${e.ditando}
+              @urbi:redator-enviar=${(ev: CustomEvent) => void e.ditar(String(ev.detail.texto ?? ''))}></urbi-redator>
+            ${e.ditando ? html`<urbi-prosa papel="secundario">A IA está preenchendo…</urbi-prosa>` : nothing}
+          </urbi-stack>
+        </urbi-card>`
+      : html`<urbi-prosa papel="dica">Ditar os dados pede a IA de conteúdo, que não está disponível agora: preencha à mão.</urbi-prosa>`;
+  }
+
   private fotos() {
     const e = this.estado;
     const fotos = e.fotos();
-    const lidas = fotos.filter((m) => m.ia_ambiente);
+    // Celular (M3): fotos, grade de 3 colunas, "A IA já entendeu" e "Ditar o resto", nesta ordem (specs/layout).
+    const celular = noCelular();
     // O cadastro começa pelas fotos (P07 e M3): o rascunho nasce com a primeira, sem pedir tipo nem
     // cidade (que vêm no passo 2). O botão grande vem no topo.
     return html`<urbi-stack>
@@ -749,11 +785,9 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
       <urbi-prosa papel="secundario">${e.ia.fotos
         ? 'Envie as fotos de uma vez: a IA lê cada uma, diz o ambiente e põe a melhor de capa. Depois você muda a ordem com as setas.'
         : 'Envie as fotos de uma vez. A primeira é a capa; mude a ordem com as setas.'}</urbi-prosa>
-      ${lidas.length
-        ? html`<urbi-banner variante="info">A IA já entendeu: ${[...new Set(lidas.map((m) => (ROTULO_AMBIENTE[m.ia_ambiente] ?? m.ia_ambiente).toLowerCase()))].join(', ')}.</urbi-banner>`
-        : nothing}
+      ${celular ? nothing : this.entendeu()}
       ${fotos.length
-        ? html`<urbi-grid min="128px" gap="12px">
+        ? html`<urbi-grid min=${celular ? '100px' : '128px'} gap="12px">
             ${fotos.map(
               (m, i) => html`<urbi-stack>
                 <urbi-avatar nome=${m.legenda ?? 'Foto'} foto=${m.url ?? ''} tamanho="112"></urbi-avatar>
@@ -773,6 +807,8 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
             )}
           </urbi-grid>`
         : html`<urbi-prosa papel="dica">Sem fotos ainda. Pode seguir sem elas e voltar depois: o rascunho guarda o que já foi feito.</urbi-prosa>`}
+      ${celular ? this.entendeu() : nothing}
+      ${celular ? this.ditar() : nothing}
       ${e.id
         ? nothing
         : html`<urbi-input label="Seu código (opcional)" valor=${e.form.codigo} placeholder="Em branco: IM-0001, IM-0002…"
@@ -799,16 +835,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
       <urbi-prosa papel="secundario">${e.sugeridasPelasFotos().length
         ? 'A IA leu as fotos e preencheu o que elas mostram. Confira e complete o resto.'
         : 'Confira e complete. Só tipo e cidade são obrigatórios; o resto conta para a qualidade do anúncio.'}</urbi-prosa>
-      ${e.ia.conteudo
-        ? html`<urbi-card titulo="Ditar o resto" icone="fa-solid fa-microphone">
-            <urbi-stack>
-              <urbi-prosa papel="dica">Fale (ou escreva) o que falta: "apartamento de 3 quartos no Sudoeste, 120 metros, um milhão e quatrocentos, condomínio de 1.200". A IA preenche os campos que você ainda não mexeu.</urbi-prosa>
-              <urbi-redator audio placeholder="Toque no microfone ou escreva…" chave-audio="novo-imovel-ditado" ?upload-em-andamento=${e.ditando}
-                @urbi:redator-enviar=${(ev: CustomEvent) => void e.ditar(String(ev.detail.texto ?? ''))}></urbi-redator>
-              ${e.ditando ? html`<urbi-prosa papel="secundario">A IA está preenchendo…</urbi-prosa>` : nothing}
-            </urbi-stack>
-          </urbi-card>`
-        : html`<urbi-prosa papel="dica">Ditar os dados pede a IA de conteúdo, que não está disponível agora: preencha à mão.</urbi-prosa>`}
+      ${noCelular() ? nothing : this.ditar()}
       <urbi-grid min="180px" gap="12px">
         ${this.campoTipo()}
         ${texto('bairro', 'Bairro')}
@@ -894,7 +921,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
     const i = indicePasso(e.passo);
     const passo = PASSOS_NOVO_IMOVEL[i];
     const ultimo = i === PASSOS_NOVO_IMOVEL.length - 1;
-    const proximo = ultimo ? 'Concluir' : `Próximo: ${PASSOS_NOVO_IMOVEL[i + 1].rotulo.toLowerCase()}`;
+    const proximo = ultimo ? 'Concluir' : noCelular() ? 'Continuar' : `Próximo: ${PASSOS_NOVO_IMOVEL[i + 1].rotulo.toLowerCase()}`;
     const conteudo = { fotos: () => this.fotos(), dados: () => this.dados(), autorizacao: () => this.autorizacao(), onde: () => this.onde() }[e.passo]();
     return html`<urbi-stack>
       <urbi-linha justificar="entre" quebrar>
