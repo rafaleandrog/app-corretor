@@ -292,7 +292,7 @@ test('#40: importação em lotes que cabem no corpo do shell, com o número da l
   assert.match(fonte, /escolhaUnica\(REPETIDOS/);
   assert.doesNotMatch(fonte, /Em breve|urbi-chips-atalho|\bpequeno\b/);
   assert.doesNotMatch(fonte, /Outro CRM, direto|fase 2|fase2|id: 'crm'/);
-  assert.match(fonte, /Vem de outro CRM\? Exporte os clientes em CSV/);
+  assert.match(fonte, /Vem de outro CRM\? Exporte os clientes em CSV, escolha Planilha e confira as colunas\./);
 });
 
 test('P17: Ligado · Pausar no cabeçalho; estilo em cartões; Testar em bolhas com o selo; auditável ao salvar os ajustes', async () => {

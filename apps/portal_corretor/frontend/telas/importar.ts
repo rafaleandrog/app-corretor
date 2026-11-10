@@ -155,7 +155,7 @@ export class PcImportarFontes extends ColunaImportar {
           </urbi-stack>
         </urbi-linha>`}
         @urbi:lista-click=${(e: CustomEvent) => this.escolher(String(e.detail.item?.id))}></urbi-lista>
-      <urbi-prosa papel="dica">Vem de outro CRM? Exporte os clientes em CSV, escolha Planilha e diga de qual CRM ela veio, para o app sugerir as colunas.</urbi-prosa>
+      <urbi-prosa papel="dica">Vem de outro CRM? Exporte os clientes em CSV, escolha Planilha e confira as colunas.</urbi-prosa>
     </urbi-stack>`;
   }
 }
