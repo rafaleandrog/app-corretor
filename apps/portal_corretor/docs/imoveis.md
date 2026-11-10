@@ -121,6 +121,7 @@ Autorização; senão, Onde aparece). O endereço com o número de um imóvel de
 - Valores em reais vão até **R$ 21.474.836,47** (o que a coluna guarda). Acima disso o app recusa
   com "Preço inválido" (ou o nome do campo), em vez de erro interno. O mesmo vale para condomínio,
   IPTU, preço autorizado e o valor estimado do negócio.
+- **Preço anterior:** ao baixar o preço, o app guarda o valor de antes (só para a arte "Baixou o preço" do Estúdio); ao subir ou apagar o preço, ele é apagado; salvar com o mesmo preço o mantém. Não vai para a página pública, a vitrine nem o portal.
 
 ### A ficha do imóvel
 
