@@ -592,6 +592,7 @@ test('formulário: ip_hash é HMAC com o segredo do parâmetro, e o limite por m
   assert.equal((await chamarWebhook('formulario_lead', 100, corpo, ip, 'segredo-um')).status, 200);
   assert.equal((await chamarWebhook('formulario_lead', 100, corpo, ip, 'segredo-um')).status, 200);
   assert.equal((await chamarWebhook('formulario_lead', 100, corpo, ip, 'segredo-um')).status, 429, 'o quarto no minuto é barrado');
+  assert.equal((await chamarWebhook('formulario_lead', 100, corpo, '10.0.0.8', 'segredo-um')).status, 200, 'outra origem segue: o limite não vira global');
   // Sem segredo (ausente ou vazio): o formulário funciona, não grava a origem e o limite continua por IP.
   for (const sem of [undefined, '']) {
     limparLimites();

@@ -160,7 +160,7 @@ Quem preenche o formulário vira cliente em **Clientes**:
   versão do texto (`formulario-v1`) e uma versão embaralhada do endereço de internet de quem enviou
   (um HMAC-SHA-256 do endereço com um segredo do app, do qual o app guarda só os primeiros 16
   caracteres hexadecimais; sem o segredo, não dá para recuperar o endereço testando os possíveis, mas
-  trate-o como dado pessoal), ligada ao pedido na linha do tempo. **O cliente
+  trate-o como dado pessoal; só é guardada enquanto o parâmetro `ip_hash_segredo` estiver preenchido, sem ele o campo fica em branco), ligada ao pedido na linha do tempo. **O cliente
   só fica com consentimento quando você confirma** na ficha (Cadastro › Confirmar); até lá, a ficha
   mostra "Declarou consentimento no formulário…" em vez de "consentimento registrado". Isso muda só o
   que a ficha mostra: hoje nada no app deixa o atendimento automático mais restrito por causa dele.
@@ -173,7 +173,7 @@ Quem preenche o formulário vira cliente em **Clientes**:
   cada servidor do app (com mais de um servidor, o limite vale por servidor). Para contar, o app usa
   uma versão embaralhada do endereço (o mesmo HMAC, cortado nos primeiros 16 caracteres
   hexadecimais; se o segredo não estiver preenchido, a contagem usa uma chave só da memória do
-  servidor). Essa mesma versão embaralhada (nunca o endereço de verdade) também fica guardada junto
+  servidor). Essa mesma versão embaralhada (nunca o endereço de verdade) também fica guardada, enquanto o parâmetro `ip_hash_segredo` estiver preenchido (sem ele o campo fica em branco), junto
   com a declaração de consentimento de quem enviou o formulário.
 - **Segredo da origem (passo do administrador do app):** em **Configurações › Parâmetros**, preencha
   `ip_hash_segredo` com um texto longo e aleatório. **Enquanto estiver vazio, o app não guarda a

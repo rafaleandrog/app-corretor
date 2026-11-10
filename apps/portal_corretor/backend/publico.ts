@@ -226,24 +226,27 @@ const hmac16 = (chave: string | Buffer, ip: string) => createHmac('sha256', chav
 export const hashDaOrigem = (ip: string, segredo: string) => hmac16(segredo, ip);
 
 /**
- * Origem do envio: `req.ip` (o primeiro X-Forwarded-For é do cliente e se falsifica). Se o shell não
- * declarar o proxy confiável, `req.ip` é o do balanceador e o limite passa a valer por conta —
- * confirmação pedida em specs/pedidos_ao_shell.md.
- *
- * `limite` é a chave em memória (usa o segredo se houver, senão a chave do processo); `gravar` é o que vai
- * ao evento e ao banco: HMAC com o segredo do parâmetro, ou `null` quando ele não está preenchido (degrade
- * explícito: sem segredo nada recuperável por força bruta é gravado; o formulário segue funcionando).
+ * Origem do envio para o limite por minuto: `req.ip` (o primeiro X-Forwarded-For é do cliente e se falsifica)
+ * embaralhado com a chave do processo, só em memória. Se o shell não declarar o proxy confiável, `req.ip` é o
+ * do balanceador e o limite passa a valer por conta — confirmação pedida em specs/pedidos_ao_shell.md.
  */
-async function origem(req: Request): Promise<{ limite: string; gravar: string | null }> {
-  const ip = req.ip || 'desconhecido';
-  let segredo: string | null = null;
+function origem(req: Request): string {
+  return hmac16(chaveDoProcesso, req.ip || 'desconhecido');
+}
+
+/**
+ * O que vai ao evento e ao banco: HMAC com o segredo do parâmetro, ou `null` quando ele não está preenchido
+ * (degrade explícito: sem segredo nada recuperável por força bruta é gravado; o formulário segue funcionando).
+ * Leitura que falha avisa no log (sem o valor) e também degrada para `null`.
+ */
+async function origemGravada(req: Request): Promise<string | null> {
   try {
     const v = await req.parametros?.obter<string>(PARAMETRO_SEGREDO_ORIGEM);
-    segredo = typeof v === 'string' && v.trim() ? v : null;
+    return typeof v === 'string' && v.trim() ? hashDaOrigem(req.ip || 'desconhecido', v) : null;
   } catch {
-    segredo = null;
+    console.warn('[portal_corretor] ip_hash_segredo ilegível: o ip_hash não será gravado');
+    return null;
   }
-  return segredo ? { limite: hashDaOrigem(ip, segredo), gravar: hashDaOrigem(ip, segredo) } : { limite: hmac16(chaveDoProcesso, ip), gravar: null };
 }
 
 const REACOES = ['gostei', 'nao_gostei', 'quero_visitar', 'conversar_preco'];
@@ -269,8 +272,7 @@ export const webhooks = {
     const corpo = (req.body ?? {}) as Record<string, unknown>;
     // Robô preencheu o campo escondido: responde como sucesso e não faz nada.
     if (typeof corpo.site === 'string' && corpo.site.trim()) return res.json({ ok: true });
-    const orig = await origem(req);
-    if (!dentroDoLimite(`lead:${conta}:${orig.limite}`, 3)) {
+    if (!dentroDoLimite(`lead:${conta}:${origem(req)}`, 3)) {
       return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitos envios seguidos. Espere um minuto e tente de novo.' });
     }
     const v = validarLead(corpo);
@@ -278,7 +280,7 @@ export const webhooks = {
     await req.eventos!.publicar(
       'lead_recebido',
       // `ip_hash`: a origem do envio como HMAC com segredo (nunca o IP; `null` sem o segredo configurado), guardada com a declaração de consentimento (D-129).
-      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null, ip_hash: orig.gravar },
+      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null, ip_hash: await origemGravada(req) },
       { conta_id: conta },
     );
     res.json({ ok: true });
