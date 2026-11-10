@@ -381,9 +381,13 @@ async function marcarProprietario(dados: HelperDados, contato?: Record<string, a
   if (!papeis.includes('proprietario')) await dados.atualizar('contatos', contato.id, { papeis: normalizarPapeis([...papeis, 'proprietario']).join(',') });
 }
 
-/** `preco_anterior_c`: o preço de antes quando o novo é menor; null quando sobe, é igual, ou não há um dos dois. */
-export function precoAnteriorAoMudar(antes: unknown, depois: unknown): number | null {
-  return typeof antes === 'number' && typeof depois === 'number' && depois < antes && antes > 0 ? antes : null;
+/** `preco_anterior_c`: o de antes quando o novo é menor; preço igual mantém o que já existe (o formulário sempre manda o preço); sobe ou some, null. */
+export function precoAnteriorAoMudar(antes: unknown, depois: unknown, anteriorAtual: unknown = null): number | null {
+  if (typeof antes === 'number' && typeof depois === 'number') {
+    if (depois < antes && antes > 0) return antes;
+    if (depois === antes) return typeof anteriorAtual === 'number' ? anteriorAtual : null;
+  }
+  return null;
 }
 
 imoveisRotas.patch(
@@ -426,8 +430,8 @@ imoveisRotas.patch(
         return erro(res, 409, 'SEM_AUTORIZACAO', 'Para anunciar, anexe a autorização de venda assinada e dentro da vigência.');
       }
     }
-    // Preço anterior (só para a arte "Baixou o preço"): guarda o valor de antes quando o preço cai; limpa quando sobe, fica igual ou some.
-    if ('preco_c' in mudar) mudar.preco_anterior_c = precoAnteriorAoMudar(atual.preco_c, mudar.preco_c);
+    // Preço anterior (só para a arte "Baixou o preço"): guarda o valor de antes quando o preço cai; limpa quando sobe ou some; igual mantém.
+    if ('preco_c' in mudar) mudar.preco_anterior_c = precoAnteriorAoMudar(atual.preco_c, mudar.preco_c, atual.preco_anterior_c);
     try {
       const imovel = await dados.atualizar('imoveis', iid!, mudar);
       if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');

@@ -110,7 +110,7 @@ primeiros, a descrição pede um selo na arte. "Vendido" não mostra o preço.
 
 **Baixou o preço:** quando o preço do imóvel cai, o app guarda o preço de antes (no cadastro, só
 para o seu uso). A arte, a legenda e o pedido à IA passam a dizer "de R$ X por R$ Y". Se o preço
-subir, ficar igual ou nunca tiver caído, esse valor some e o texto traz só o preço atual, sem "de".
+subir, ou se o preço for apagado, esse valor some (salvar sem mudar o preço o mantém) e o texto traz só o preço atual, sem "de".
 O preço de antes não aparece na sua página, na vitrine nem no portal do cliente.
 
 **Os textos:**
