@@ -284,13 +284,15 @@ test('#40: importação em lotes que cabem no corpo do shell, com o número da l
   // Baixar relatório: a linha rejeitada com o motivo e as células originais.
   const csv = csvDasRejeitadas([{ linha: 3, motivo: 'Informe o nome.' }], ['Nome', 'Telefone'], [['Ana', '61 1'], ['', '61 2']]);
   assert.match(csv, /Linha;Motivo;Nome;Telefone\r\n3;Informe o nome\.;;61 2\r\n/);
-  // A tela: fontes com vCard ativo e o outro CRM na fase 2; repetidos como escolha única com explicação.
+  // A tela: fontes só com planilha e vCard (sem 'Outro CRM', decisão do dono de 10/11/2026) e a dica de CSV; repetidos como escolha única com explicação.
   const fonte = readFileSync(resolve(RAIZ, 'frontend/telas/importar.ts'), 'utf8');
   assert.match(fonte, /dividirEmLotes\(convertidas\(\)\)/);
   assert.match(fonte, /primeira_linha: lote\.inicio \+ 2/);
   assert.match(fonte, />Baixar relatório<\/urbi-botao>/);
   assert.match(fonte, /escolhaUnica\(REPETIDOS/);
   assert.doesNotMatch(fonte, /Em breve|urbi-chips-atalho|\bpequeno\b/);
+  assert.doesNotMatch(fonte, /Outro CRM, direto|fase 2|fase2|id: 'crm'/);
+  assert.match(fonte, /Vem de outro CRM\? Exporte os clientes em CSV, escolha Planilha e confira as colunas\./);
 });
 
 test('P17: Ligado · Pausar no cabeçalho; estilo em cartões; Testar em bolhas com o selo; auditável ao salvar os ajustes', async () => {

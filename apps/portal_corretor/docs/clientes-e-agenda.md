@@ -201,8 +201,8 @@ O lembrete para o cliente, pelo WhatsApp, chega com o Mensageiro.
 arquivo vCard (`.vcf`) dos contatos do celular. A tela tem três colunas: à esquerda, de onde vêm os
 contatos; no meio, o arquivo, as colunas e a prévia; à direita, as regras.
 
-- **Fontes (esquerda).** **Planilha ou CSV** e **Contatos do celular** (vCard). **Outro CRM, direto**
-  aparece como "fase 2", sem ação: a planilha exportada de outro CRM já entra pela planilha.
+- **Fontes (esquerda).** **Planilha ou CSV** e **Contatos do celular** (vCard). Não há fonte "Outro CRM": uma
+  dica abaixo das fontes manda exportar os clientes do outro CRM em CSV e escolher Planilha.
 - **Contatos do celular.** Exporte os contatos como vCard (no iPhone, em iCloud › Contatos ›
   Exportar vCard; no Android, em Contatos › Exportar) e escolha o arquivo. O app lê o arquivo no
   navegador e transforma cada contato numa linha com **Nome**, **Telefone** (o celular, se houver
