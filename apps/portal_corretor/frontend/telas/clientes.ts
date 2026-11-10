@@ -114,7 +114,12 @@ export function renderClientes(atualizar: () => void) {
   };
   const novo = () => void novoContato(escolher).then((r) => r?.id && escolher(r.id));
   if (visao === 'negociacoes') {
-    const topo = html`${topoClientes(visao, trocarVisao, novo)}`;
+    // P15: título 'Clientes', 'Nova proposta' na linha do título e o alternador logo abaixo (sem Importar nem Novo).
+    const topo = (nova: () => void) => html`${cabecalhoColuna(
+        'Clientes',
+        html`<urbi-botao icone="fa-solid fa-file-signature" @click=${nova}>Nova proposta</urbi-botao>`,
+      )}
+      <urbi-chips-atalho .opcoes=${VISOES} ativo=${visao} @urbi:chip-atalho:click=${(e: CustomEvent) => trocarVisao(e.detail.id)}></urbi-chips-atalho>`;
     return molduraNegociacoes(atualizar, topo, '/clientes');
   }
   if (visao === 'funil') {
@@ -155,20 +160,17 @@ export function renderClientes(atualizar: () => void) {
 
 /**
  * P15 (M8 no celular): a lista à esquerda, a negociação escolhida (`?item=<negociacao>`) no centro e o
- * mandato à direita. Em Clientes › Negociações e no endereço `/negociacoes`, que é o menu do negociador
+ * mandato à direita. Em Clientes › Negociações (corretor) e no endereço `/negociacoes`, que é o menu do negociador
  * humano (D7): para ele, sem "Nova proposta" (abrir negociação é do corretor) e só as atribuídas.
  */
-function molduraNegociacoes(atualizar: () => void, topo: unknown, menu: string) {
+function molduraNegociacoes(atualizar: () => void, topo: (nova: () => void) => unknown, menu: string) {
   const item = Number(filtrosDaUrl().get('item')) || null;
   const escolherNegociacao = (n: number) => {
     itemNaUrl(n);
     atualizar();
   };
   const esquerda = html`<urbi-stack>
-    ${topo}
-    ${soNegociador()
-      ? nothing
-      : html`<urbi-botao icone="fa-solid fa-file-signature" @click=${() => void novaProposta().then((n) => n && escolherNegociacao(n))}>Nova proposta</urbi-botao>`}
+    ${topo(() => void novaProposta().then((n) => n && escolherNegociacao(n)))}
     <pc-negociacoes-lista atalhos .selecionado=${item} .aoEscolher=${escolherNegociacao}></pc-negociacoes-lista>
   </urbi-stack>`;
   const centro = item
@@ -183,10 +185,10 @@ function molduraNegociacoes(atualizar: () => void, topo: unknown, menu: string) 
   );
 }
 
-/** O endereço `/negociacoes` (menu do negociador humano, D7): só a visão Negociações, sem o resto de Clientes. */
+/** O endereço `/negociacoes` (menu do negociador humano, D7, D-125): só as atribuídas, sem Nova proposta. O corretor usa Clientes › Negociações. */
 export function renderNegociacoes(atualizar: () => void) {
-  const topo = cabecalhoColuna(soNegociador() ? 'Negociações atribuídas a você' : 'Negociações');
-  return molduraNegociacoes(atualizar, topo, soNegociador() ? '/negociacoes' : '/clientes');
+  const topo = () => cabecalhoColuna('Negociações atribuídas a você');
+  return molduraNegociacoes(atualizar, topo, '/negociacoes');
 }
 
 const OPCOES_ORIGEM_NOVO = [

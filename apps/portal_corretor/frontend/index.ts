@@ -16,7 +16,7 @@ import './telas/previa-pagina.js';
 import { renderEstudio } from './telas/estudio.js';
 import { aoAbrirAjustes, renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, contaDoAssistente, lembrarTela } from './telas/assistente.js';
-import { destinoDoNegociador, fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
+import { destinoDoNegociador, fichaCanonica, negociacoesCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
 import { botaoAssistente, menuCriar } from './criar.js';
 import { instalarAtalhos } from './atalhos.js';
@@ -183,6 +183,13 @@ export class AppPortalCorretor extends LitElement {
       if (destino) {
         history.replaceState(history.state, '', `${urbiVerso.href('/negociacoes')}${destino.slice('/negociacoes'.length)}`);
         sub = '/negociacoes';
+      }
+    } else {
+      // P15 (D-96): para o corretor, `/negociacoes` é a visão Negociações de Clientes.
+      const neg = negociacoesCanonica(sub, window.location.search);
+      if (neg) {
+        history.replaceState(history.state, '', `${urbiVerso.href('/clientes')}${neg}`);
+        sub = '/clientes';
       }
     }
     this.sub = sub;
