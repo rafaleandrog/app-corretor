@@ -31,7 +31,7 @@ type Papel = 'corretor' | 'operacao' | 'negociador';
 interface Tela {
   titulo: string;
   papel: Papel;
-  /** Outros papéis que também abrem a tela (o negociador humano em Hoje e Negociações, D7). */
+  /** Outros papéis que também abrem a tela (o negociador humano só em Negociações, D-125). */
   tambem?: Papel[];
   /**
    * `app` é o componente raiz: telas montadas direto no body da página pedem redesenho a ele. `chave` lê a
