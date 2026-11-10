@@ -349,7 +349,7 @@ Esboço do conteúdo. A forma exata é a do SDK instalado; a implementação esc
 
 **Apelidos (o SDK não redireciona):** as rotas de antes continuam abrindo a tela nova na aba ou visão certa — Início → Hoje; Desempenho → Números; Minha página → Página; Funil → Clientes › Funil; Agenda → Hoje › Agenda; Assistente → Hoje com o Assistente aberto na coluna de contexto; as abas antigas de Ajustes → o item correspondente do menu de Ajustes.
 
-Negociador humano (role `negociador`, D-108): **Hoje · Clientes › Negociações** (só as atribuídas) e, quando houver WhatsApp, **Conversas** dessas negociações.
+Negociador humano (role `negociador`, D-108): **Negociações** (só as atribuídas; D-125) e, quando houver WhatsApp, **Conversas** dessas negociações.
 
 **Menu da 1.1 (D-81), substituído pelos nomes acima:** Início · Clientes · Imóveis · Estúdio · Minha página · Desempenho · Assistente · Ajustes. O texto a seguir fica como registro:
 
@@ -1682,7 +1682,7 @@ Movida para `specs/horizonte.md` (D-88).
 
 ### 11.6 O que o negociador humano vê (role `negociador`)
 
-Pessoa convidada pelo corretor para conduzir negociações (ex.: um sócio ou um especialista). **Convite sem CRECI (D-94)**; só existe com a política "permite contas multi-usuário" ligada na instância (D-108). **Vê apenas as negociações atribuídas a ela** (`atribuicoes_negociacao`): menu reduzido a **Hoje · Clientes › Negociações** (e Conversas dessas negociações, quando houver WhatsApp); P15 completo, inclusive o mandato em leitura **completo, com recuo, alvo e BATNA (D-112)**; não vê carteira, Estúdio, Página, Números gerais nem Ajustes. O que ela envia sai pelo portal ou pelo "Fazer agora" do próprio celular, com o rótulo "Negociador" na linha do tempo do app (o cliente vê a assinatura configurada, ex.: "Rafael · equipe de negociação").
+Pessoa convidada pelo corretor para conduzir negociações (ex.: um sócio ou um especialista). **Convite sem CRECI (D-94)**; só existe com a política "permite contas multi-usuário" ligada na instância (D-108). **Vê apenas as negociações atribuídas a ela** (`atribuicoes_negociacao`): menu reduzido a **Negociações** (D-125) (e Conversas dessas negociações, quando houver WhatsApp); P15 completo, inclusive o mandato em leitura **completo, com recuo, alvo e BATNA (D-112)**; não vê carteira, Estúdio, Página, Números gerais nem Ajustes. O que ela envia sai pelo portal ou pelo "Fazer agora" do próprio celular, com o rótulo "Negociador" na linha do tempo do app (o cliente vê a assinatura configurada, ex.: "Rafael · equipe de negociação").
 
 ### 11.7 Menu Criar e comandos globais
 
@@ -1784,7 +1784,7 @@ Declarados em `manifesto.eventos` com `campos`, `conteudo`, `api` e `rota`, todo
 | Convite de conexão, proposta de parceria | Membro | No app |
 | Relatório semanal | Proprietário | E-mail ou WhatsApp (modelo de utilidade) |
 
-**Canal no MVP (D-57):** "no app" é a tela Hoje e "push" vira e-mail; a coluna acima fica como desenho. **Notificações da negociação (1.2):** contraproposta aguardando aprovação (corretor ou negociador humano; Hoje + e-mail, com atalho para P15/M8); oferta recebida, inclusive pelo portal (corretor); passagem do Negociador (topo de Hoje); acordo proposto aguardando decisão (corretor); mandato vencendo em 24 h (corretor).
+**Canal no MVP (D-57):** "no app" é a tela Hoje e "push" vira e-mail; a coluna acima fica como desenho. **Notificações da negociação (1.2):** contraproposta aguardando aprovação (corretor ou negociador humano; Hoje + e-mail para o corretor, e para o negociador humano o e-mail e o aviso que abrem `/negociacoes?item=`, D-125; com atalho para P15/M8); oferta recebida, inclusive pelo portal (corretor); passagem do Negociador (topo de Hoje); acordo proposto aguardando decisão (corretor); mandato vencendo em 24 h (corretor).
 
 ## 14. Permissões e papéis
 

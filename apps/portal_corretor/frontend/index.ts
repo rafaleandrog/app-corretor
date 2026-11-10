@@ -6,7 +6,6 @@ import { aoAbrirHoje, renderHoje } from './telas/inicio.js';
 import './telas/corretores.js';
 import { renderClientes, renderNegociacoes } from './telas/clientes.js';
 import { renderConversas } from './telas/conversas.js';
-import { renderHojeNegociador } from './telas/negociacoes.js';
 import { aoAbrirImportar, renderImportar } from './telas/importar.js';
 import { renderImoveis } from './telas/imoveis.js';
 import { renderNovoImovel } from './telas/novo-imovel.js';
@@ -49,9 +48,8 @@ interface Tela {
 // Uma entrada por tela; os endereços (com os apelidos antigos) estão em `enderecos.ts`. A tela só
 // abre para quem tem o papel; o backend barra de novo.
 const TELAS: Record<ChaveTela, Tela> = {
-  // O negociador humano (D7, spec 11.6) tem o seu Hoje: as negociações atribuídas a ele.
-  hoje: { titulo: 'Hoje', papel: 'corretor', moldura: true, aoAbrir: aoAbrirHoje, tambem: ['negociador'],
-    render: (_p, app) => (soNegociador() ? renderHojeNegociador(() => app?.requestUpdate()) : renderHoje(() => app?.requestUpdate())) },
+  // Hoje é só do corretor: o negociador humano entra direto nas Negociações (D-125).
+  hoje: { titulo: 'Hoje', papel: 'corretor', moldura: true, aoAbrir: aoAbrirHoje, render: (_p, app) => renderHoje(() => app?.requestUpdate()) },
   negociacoes: { titulo: 'Negociações', papel: 'corretor', tambem: ['negociador'], moldura: true, render: (_p, app) => renderNegociacoes(() => app?.requestUpdate()) },
   // Conversas (P02, D-116): a caixa de conversas do corretor; o item fica em `?item=`.
   conversas: { titulo: 'Conversas', papel: 'corretor', moldura: true, render: (_p, app) => renderConversas(() => app?.requestUpdate()) },
