@@ -3,7 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 import type { CampoFormulario, UrbiVersoAPI } from '@urbiverso/sdk';
 import { CONFIGURACOES_PADRAO } from '../../comum/conta';
-import { DIAS_NOVOS, FILTROS_PRONTOS, formatarTelefone, parametrosDoPronto, type FiltroPronto } from '../../comum/crm';
+import { DIAS_NOVOS, FILTROS_PRONTOS, formatarTelefone, parametrosDoPronto, temperaturaVisivel, type FiltroPronto } from '../../comum/crm';
 import {
   abaDaUrl,
   abaNaUrl,
@@ -383,7 +383,7 @@ export class PcTelaClientes extends LitElement {
       <urbi-stack expandir>
         <urbi-linha justificar="entre">
           <urbi-prosa truncar>${c.nome}</urbi-prosa>
-          ${c.temperatura ? chip('temperatura', c.temperatura) : nothing}
+          ${chip('temperatura', temperaturaVisivel(c.papeis, c.temperatura))}
         </urbi-linha>
         <urbi-linha quebrar>
           ${c.etapa_nome ? html`<urbi-badge quebra-linha>${c.etapa_nome}</urbi-badge>` : nothing}

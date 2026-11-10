@@ -24,6 +24,21 @@ desliga o filtro):
   andamento no funil. A contagem não muda com os filtros; tocar numa delas filtra o quadro. Embaixo,
   a regra em uma linha: quente é quem tem proposta, visita marcada ou gostou da visita; morno,
   quem conversou nos últimos 7 dias; frio, quem está há mais de 7 dias sem contato.
+  Contato recém-cadastrado, sem mensagem, nota, tarefa feita nem outro registro, fica morno com o
+  motivo "Novo, sem conversa registrada" (a data de último contato é a do cadastro, de propósito, para
+  o filtro "parados há N dias"; o texto "Conversou hoje" só aparece com conversa de fato).
+- **Quem é só proprietário não mostra chip nem motivo de temperatura** na Lista de Clientes, na
+  ficha, no quadro do Funil, na fila de Hoje e em Conversas: a temperatura mede a intenção de
+  compra. Quem também é comprador (ou tem outro papel) mantém o chip. O que **segue pelo valor
+  gravado**, sem mudança: os filtros e as contagens por temperatura, a entrada na fila do dia como
+  "quente sem resposta" (o cartão sai sem chip e com o texto "Sem contato há mais de um dia"), o
+  Assistente do dia e a coluna Temperatura da exportação em planilha.
+- O lead que chega pela página (`lead.recebido`) sai como "Conversou hoje, sem visita marcada", não
+  como "Novo, sem conversa registrada": ele pediu contato e o app já registra isso na linha do tempo e
+  cria a tarefa de retorno.
+- Para decidir "sem conversa registrada", a reclassificação de um contato ainda sem nenhum registro
+  consulta tarefas feitas, mensagens e linha do tempo (três leituras); contato que já tem registro
+  não paga isso.
 
 Não há listas salvas: os filtros prontos ocupam o lugar delas. Tudo o que você escolhe fica no
 endereço da página.
