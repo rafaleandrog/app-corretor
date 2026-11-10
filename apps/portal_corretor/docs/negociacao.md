@@ -645,7 +645,7 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
    papel mas perdeu o acesso ao app (ou quando a plataforma não consegue confirmar o acesso agora).
 3. Na negociação (Clientes › Negociações), o cartão **Quem negocia**, à direita, tem **Atribuir a um
    negociador** (escolha a pessoa) e, com uma atribuída, **Trocar negociador** e **Retirar do
-   negociador**. Atribuir faz a pessoa conduzir a negociação; retirar a devolve a você. Uma pessoa
+   negociador**. Atribuir faz a pessoa conduzir a negociação; retirar a devolve a você. Ao atribuir, a pessoa passa a ver o recuo, o alvo e a BATNA do vendedor (só para ler). Uma pessoa
    por negociação: atribuir a outra tira a anterior.
 4. Para que toda negociação nova já nasça com ela, escolha a pessoa em **Ajustes › Negociador ›
    Quem negocia por padrão › Conduz as negociações novas**. Só aparecem ali as pessoas marcadas
