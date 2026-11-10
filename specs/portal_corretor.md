@@ -1682,7 +1682,7 @@ Movida para `specs/horizonte.md` (D-88).
 
 ### 11.6 O que o negociador humano vê (role `negociador`)
 
-Pessoa convidada pelo corretor para conduzir negociações (ex.: um sócio ou um especialista). **Convite sem CRECI (D-94)**; só existe com a política "permite contas multi-usuário" ligada na instância (D-108). **Vê apenas as negociações atribuídas a ela** (`atribuicoes_negociacao`): menu reduzido a **Hoje · Clientes › Negociações** (e Conversas dessas negociações, quando houver WhatsApp); P15 completo, inclusive o mandato em leitura **completo, com recuo, alvo e BATNA (D-112)**; não vê carteira, Estúdio, Página, Números gerais nem Ajustes. O que ela envia sai pelo portal ou pelo "Fazer agora" do próprio celular, com o rótulo "Negociador" na linha do tempo do app (o cliente vê a assinatura configurada, ex.: "Rafael · equipe de negociação").
+Pessoa convidada pelo corretor para conduzir negociações (ex.: um sócio ou um especialista). **Convite sem CRECI (D-94)**; só existe com a política "permite contas multi-usuário" ligada na instância (D-108). **Vê apenas as negociações atribuídas a ela** (`atribuicoes_negociacao`): menu reduzido a **Negociações** (D-125) (e Conversas dessas negociações, quando houver WhatsApp); P15 completo, inclusive o mandato em leitura **completo, com recuo, alvo e BATNA (D-112)**; não vê carteira, Estúdio, Página, Números gerais nem Ajustes. O que ela envia sai pelo portal ou pelo "Fazer agora" do próprio celular, com o rótulo "Negociador" na linha do tempo do app (o cliente vê a assinatura configurada, ex.: "Rafael · equipe de negociação").
 
 ### 11.7 Menu Criar e comandos globais
 

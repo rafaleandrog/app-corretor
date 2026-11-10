@@ -74,8 +74,10 @@ test('menu do app (nav, D-114): as oito telas do corretor na ordem de 11.0.1 e E
 
 test('Hoje não é declarado para o negociador humano (D-125): só Negociações', () => {
   const fonte = readFileSync(new URL('../frontend/index.ts', import.meta.url), 'utf8');
-  const hoje = fonte.split('\n').find((l) => l.trimStart().startsWith('hoje:')) ?? '';
-  assert.ok(hoje && !hoje.includes('negociador'), 'a entrada de Hoje não lista o papel negociador');
+  const ini = fonte.indexOf('  hoje: {');
+  const fim = fonte.indexOf('\n  negociacoes: {', ini);
+  assert.ok(ini >= 0 && fim > ini, 'achou o bloco da entrada Hoje');
+  assert.ok(!fonte.slice(ini, fim).includes('negociador'), 'a entrada de Hoje não lista o papel negociador');
   assert.ok(!fonte.includes('renderHojeNegociador'));
 });
 
