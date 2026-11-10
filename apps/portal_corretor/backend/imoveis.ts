@@ -381,6 +381,11 @@ async function marcarProprietario(dados: HelperDados, contato?: Record<string, a
   if (!papeis.includes('proprietario')) await dados.atualizar('contatos', contato.id, { papeis: normalizarPapeis([...papeis, 'proprietario']).join(',') });
 }
 
+/** `preco_anterior_c`: o preço de antes quando o novo é menor; null quando sobe, é igual, ou não há um dos dois. */
+export function precoAnteriorAoMudar(antes: unknown, depois: unknown): number | null {
+  return typeof antes === 'number' && typeof depois === 'number' && depois < antes && antes > 0 ? antes : null;
+}
+
 imoveisRotas.patch(
   '/imoveis/:id',
   assincrono(async (req, res) => {
@@ -421,6 +426,8 @@ imoveisRotas.patch(
         return erro(res, 409, 'SEM_AUTORIZACAO', 'Para anunciar, anexe a autorização de venda assinada e dentro da vigência.');
       }
     }
+    // Preço anterior (só para a arte "Baixou o preço"): guarda o valor de antes quando o preço cai; limpa quando sobe, fica igual ou some.
+    if ('preco_c' in mudar) mudar.preco_anterior_c = precoAnteriorAoMudar(atual.preco_c, mudar.preco_c);
     try {
       const imovel = await dados.atualizar('imoveis', iid!, mudar);
       if (!imovel) return erro(res, 404, 'NAO_ENCONTRADO', 'Imóvel não encontrado.');
