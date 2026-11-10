@@ -17,11 +17,10 @@ const CAMPOS: { id: string; rotulo: string }[] = [
 ];
 const LIMITE = LIMITE_LINHAS_IMPORTACAO;
 const LINHAS_PREVIA = 10;
-/** Fontes da coluna da esquerda (P14): planilha e vCard funcionam; outro CRM direto é da fase 2. */
+/** Fontes da coluna da esquerda (P14): planilha e vCard. Outro CRM direto não tem uso (spec 15.9): a dica manda exportar em CSV. */
 export const FONTES = [
-  { id: 'csv', rotulo: 'Planilha ou CSV', detalhe: 'Excel, Google Planilhas', icone: 'fa-solid fa-file-csv', fase2: false },
-  { id: 'vcard', rotulo: 'Contatos do celular', detalhe: 'arquivo vCard (.vcf)', icone: 'fa-solid fa-address-book', fase2: false },
-  { id: 'crm', rotulo: 'Outro CRM, direto', detalhe: 'Kenlo, Jetimob, Imobzi · fase 2', icone: 'fa-solid fa-plug', fase2: true },
+  { id: 'csv', rotulo: 'Planilha ou CSV', detalhe: 'Excel, Google Planilhas', icone: 'fa-solid fa-file-csv' },
+  { id: 'vcard', rotulo: 'Contatos do celular', detalhe: 'arquivo vCard (.vcf)', icone: 'fa-solid fa-address-book' },
 ] as const;
 type Fonte = 'csv' | 'vcard';
 const ORIGENS = [...MODELOS_IMPORTACAO.map((m) => ({ valor: m.id, rotulo: m.rotulo })), { valor: 'outra', rotulo: 'Outra' }];
@@ -128,7 +127,7 @@ export function renderImportar(atualizar: () => void) {
 }
 
 // Esquerda (P14): de onde vêm os contatos. Planilha e vCard funcionam (o vCard vira as mesmas linhas da
-// planilha no navegador); "Outro CRM, direto" é da fase 2, à vista e desligado, com o caminho de hoje.
+// planilha no navegador). Vem de outro CRM? A dica manda exportar em CSV.
 @customElement('pc-importar-fontes')
 export class PcImportarFontes extends ColunaImportar {
   private escolher(id: string) {
@@ -156,7 +155,7 @@ export class PcImportarFontes extends ColunaImportar {
           </urbi-stack>
         </urbi-linha>`}
         @urbi:lista-click=${(e: CustomEvent) => this.escolher(String(e.detail.item?.id))}></urbi-lista>
-      <urbi-prosa papel="dica">Outro CRM, por enquanto: exporte os clientes em CSV, escolha Planilha e diga de qual CRM ela veio, para o app sugerir as colunas.</urbi-prosa>
+      <urbi-prosa papel="dica">Vem de outro CRM? Exporte os clientes em CSV, escolha Planilha e diga de qual CRM ela veio, para o app sugerir as colunas.</urbi-prosa>
     </urbi-stack>`;
   }
 }
