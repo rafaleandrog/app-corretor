@@ -668,6 +668,13 @@
             "max": 2147483647
           }
         },
+        "preco_anterior_c": {
+          "tipo": "inteiro",
+          "intervalo": {
+            "min": 0,
+            "max": 2147483647
+          }
+        },
         "condominio_c": {
           "tipo": "inteiro",
           "intervalo": {
