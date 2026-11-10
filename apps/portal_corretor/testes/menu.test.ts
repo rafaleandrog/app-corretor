@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { destinoDoNegociador, MENU, MENU_NEGOCIADOR, resolverEndereco, type ChaveTela } from '../frontend/enderecos';
+import { destinoDoNegociador, negociacoesCanonica, MENU, MENU_NEGOCIADOR, resolverEndereco, type ChaveTela } from '../frontend/enderecos';
 import { irPara } from '../frontend/atalhos';
 
 // Menu do app pelo shell (D-114, que revê D-113 e o #166): o `nav` do manifesto traz as telas do
@@ -99,4 +99,14 @@ test('a equipe da plataforma continua chegando a Corretores pelo menu do app', (
   assert.deepEqual(grupo.itens, [{ titulo: 'Corretores', rota: '/corretores' }]);
   assert.equal(resolverEndereco('/corretores').chave, 'corretores');
   assert.ok(![...MENU, ...MENU_NEGOCIADOR].some((m) => m.rota === '/corretores'));
+});
+
+test('P15 (D-96): /negociacoes do corretor vira Clientes › Negociações, com o item válido; outros caminhos ficam', () => {
+  assert.equal(negociacoesCanonica('/negociacoes', ''), '?visao=negociacoes');
+  assert.equal(negociacoesCanonica('/negociacoes', '?item=5'), '?visao=negociacoes&item=5');
+  assert.equal(negociacoesCanonica('/negociacoes', '?item=abc'), '?visao=negociacoes');
+  assert.equal(negociacoesCanonica('/negociacoes', '?item=0'), '?visao=negociacoes');
+  assert.equal(negociacoesCanonica('/negociacoes', '?item=5&q=ana'), '?visao=negociacoes&q=ana&item=5');
+  assert.equal(negociacoesCanonica('/clientes', '?visao=negociacoes'), null);
+  assert.equal(negociacoesCanonica('/negociacoes/9', ''), null);
 });

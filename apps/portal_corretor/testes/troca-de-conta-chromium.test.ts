@@ -185,7 +185,7 @@ async function montar(pw: any) {
 const TELAS: { nome: string; endereco: string; mostra: boolean }[] = [
   { nome: 'Hoje', endereco: '/', mostra: true },
   { nome: 'Hoje › Agenda', endereco: '/agenda', mostra: false },
-  { nome: 'Negociações', endereco: '/negociacoes', mostra: true },
+  { nome: 'Clientes › Negociações', endereco: '/clientes?visao=negociacoes', mostra: true },
   { nome: 'Clientes (Lista)', endereco: '/clientes', mostra: true },
   { nome: 'Clientes (Funil)', endereco: '/clientes?visao=quadro', mostra: true },
   { nome: 'Importar contatos', endereco: '/clientes/importar', mostra: false },

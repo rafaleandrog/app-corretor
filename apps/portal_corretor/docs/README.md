@@ -55,7 +55,7 @@ as colunas viram abas, como antes (exceção: Hoje, que tem uma só rolagem e s�
 | Conversas | Menu › **Conversas** | `/conversas?item=<número>` | [Conversas](conversas.md) |
 | Clientes › Lista e ficha | Menu › **Clientes** › escolha um cliente | `/clientes?item=<número>` | [Clientes, negócios e agenda](clientes-e-agenda.md) |
 | Clientes › Funil | Menu › **Clientes** › botão **Funil** | `/clientes?visao=funil` (ou `/funil`) | [Funil, temperatura e fila do dia](funil.md) |
-| Clientes › Negociações | Menu › **Clientes** › botão **Negociações** | `/clientes?visao=negociacoes&item=<número>` (ou `/negociacoes`) | [Negociação e mandato](negociacao.md) |
+| Clientes › Negociações | Menu › **Clientes** › botão **Negociações** | `/clientes?visao=negociacoes&item=<número>` | [Negociação e mandato](negociacao.md) |
 | Mandato do vendedor | Clientes › Negociações › negociação › **Editar mandato** | (janela sobre a negociação) | [Negociação e mandato](negociacao.md#o-formulário-do-mandato) |
 | Importar contatos (planilha ou vCard do celular) | Menu › **Clientes** › **Importar** | `/clientes/importar` | [Clientes, negócios e agenda](clientes-e-agenda.md) |
 | Imóveis (Carteira e Empreendimentos) | Menu › **Imóveis** | `/imoveis` (ou `/empreendimentos`) | [Imóveis e empreendimentos](imoveis.md) |

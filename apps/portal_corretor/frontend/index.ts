@@ -16,7 +16,7 @@ import './telas/previa-pagina.js';
 import { renderEstudio } from './telas/estudio.js';
 import { aoAbrirAjustes, renderAjustes } from './telas/ajustes.js';
 import { abrirAssistente, aoMudarAssistente, contaDoAssistente, lembrarTela } from './telas/assistente.js';
-import { destinoDoNegociador, fichaCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
+import { destinoDoNegociador, fichaCanonica, negociacoesCanonica, normalizar, resolverEndereco, type ChaveTela } from './enderecos.js';
 import { comAssistente } from './moldura.js';
 import { botaoAssistente, menuCriar } from './criar.js';
 import { instalarAtalhos } from './atalhos.js';
@@ -102,12 +102,15 @@ export class AppPortalCorretor extends LitElement {
   // Contexto chega assíncrono: até `carregado`, roles vazias são falta de resposta, não de acesso.
   private aoMudarContexto = () => {
     const ctx = urbiVerso.contexto();
+    const eraCarregado = this.carregado;
     this.carregado = ctx.carregado ?? false;
     // Admin do app vale por todos os papéis (o SDK não os entrega a ele): precisa ver e configurar tudo.
     this.papeis = ctx.nivel === 'admin' ? ['corretor', 'operacao'] : (ctx.roles ?? []);
     this.contas = contasDoUsuario();
     this.semConta = semConta();
     this.mudarConta();
+    // O endereço foi decidido sem os papéis (negociador × corretor): decide de novo com os reais.
+    if (this.carregado && !eraCarregado) this.chegar(normalizar(urbiVerso.subRota()));
   };
 
   // Só o contexto DESTE app (`detail.appId`): o de outra app, ou o de fora de app, não troca a conta daqui.
@@ -183,6 +186,14 @@ export class AppPortalCorretor extends LitElement {
       if (destino) {
         history.replaceState(history.state, '', `${urbiVerso.href('/negociacoes')}${destino.slice('/negociacoes'.length)}`);
         sub = '/negociacoes';
+      }
+    } else if (urbiVerso.contexto?.().carregado) {
+      // P15 (D-96): para o corretor, `/negociacoes` é a visão Negociações de Clientes. Só com o contexto
+      // carregado: antes, os papéis vêm vazios e o negociador humano seria confundido com corretor.
+      const neg = negociacoesCanonica(sub, window.location.search);
+      if (neg) {
+        history.replaceState(history.state, '', `${urbiVerso.href('/clientes')}${neg}`);
+        sub = '/clientes';
       }
     }
     this.sub = sub;
