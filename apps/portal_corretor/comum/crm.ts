@@ -105,6 +105,17 @@ export function normalizarPapeis(v: unknown): string[] {
   return PAPEIS.filter((p) => pedidos.has(p));
 }
 
+/**
+ * Temperatura que aparece na tela. Ela mede a intenção de compra: quem é SÓ proprietário não mostra
+ * chip (quem também é comprador, ou tem outro papel, mantém). O valor gravado e os filtros não mudam;
+ * toda tela e rota que desenha o chip passa por aqui.
+ */
+export function temperaturaVisivel(papeis: unknown, temperatura: string | null | undefined): string | null {
+  if (!temperatura) return null;
+  const p = normalizarPapeis(papeis);
+  return p.length === 1 && p[0] === 'proprietario' ? null : temperatura;
+}
+
 export interface DadosContato {
   nome: string;
   telefone: string | null;

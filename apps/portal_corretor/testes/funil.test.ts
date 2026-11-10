@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas, rotinas } from '../backend/rotas';
-import { classificar, deveTrocar, ordenarFila, taxasDePassagem, venceEm } from '../comum/funil';
+import { classificar, deveTrocar, MOTIVO_SEM_CONVERSA, semAtividadeRegistrada, ordenarFila, taxasDePassagem, venceEm } from '../comum/funil';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
 const UNICOS = { contatos: ['telefone'], etapas_funil: ['pipeline+nome'], playbook_funil: ['etapa_id+temperatura'], visitas: ['atividade_id'] };
@@ -10,6 +10,18 @@ const B: Ator = { usuario: 2, conta: 200, papeis: ['corretor'] };
 const DIA = 86400e3;
 const antes = (dias: number) => new Date(Date.now() - dias * DIA).toISOString();
 const depois = (horas: number) => new Date(Date.now() + horas * 3600e3).toISOString();
+
+test('contato novo (último contato = criação) diz "Novo, sem conversa registrada"; com atividade, o texto de antes', () => {
+  const base = { agora: '2026-10-20T12:00:00.000Z', ultimo_contato_em: '2026-10-20T11:00:00.000Z', visita_marcada: false, nota_visita: null, em_proposta: false };
+  assert.equal(semAtividadeRegistrada('2026-10-20T11:00:00.000Z', '2026-10-20T11:00:01.000Z'), true);
+  assert.equal(semAtividadeRegistrada('2026-10-20T10:00:00.000Z', '2026-10-20T11:00:00.000Z'), false, 'houve registro depois da criação');
+  const novo = classificar({ ...base, sem_atividade: true });
+  assert.equal(novo.motivo, MOTIVO_SEM_CONVERSA);
+  assert.equal(novo.motivo, 'Novo, sem conversa registrada');
+  assert.equal(novo.temperatura, 'morno');
+  assert.equal(classificar({ ...base, sem_atividade: false }).motivo, 'Conversou hoje, sem visita marcada');
+  assert.equal(classificar(base).motivo, 'Conversou hoje, sem visita marcada');
+});
 
 test('regras puras: temperatura com motivo, sinal forte, vencimento e ordem da fila', () => {
   const base = { agora: '2026-10-20T12:00:00.000Z', ultimo_contato_em: '2026-10-19T12:00:00.000Z', visita_marcada: false, nota_visita: null, em_proposta: false };
@@ -132,6 +144,33 @@ test('quadro por etapa com temperatura e alerta; filtros de temperatura e parado
     assert.equal((await chamar('GET', '/funil/quadro?temperatura=quente')).corpo.negocios.length, 0);
     assert.equal((await chamar('GET', '/funil/quadro?parado_dias=7')).corpo.negocios.length, 0);
     assert.equal((await chamar('GET', '/funil/quadro?pipeline=venda_captacao')).corpo.etapas.length, 7);
+  });
+});
+
+test('quadro: proprietário puro sem chip de temperatura (o filtro segue o valor gravado); contato novo diz "Novo, sem conversa registrada"', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const ids: Record<string, number> = {};
+    let tel = 61933330000;
+    for (const [nome, papeis] of [['Pura', 'proprietario'], ['Compra', 'comprador'], ['Ambos', 'comprador,proprietario']] as const) {
+      const c = (await chamar('POST', '/contatos', { nome, papeis, telefone: String(tel++) })).corpo;
+      ids[nome] = c.id;
+      await chamar('POST', '/negocios', { contato_id: c.id, titulo: `Negócio ${nome}` });
+    }
+    const q = (await chamar('GET', '/funil/quadro?pipeline=compra')).corpo;
+    const de = (nome: string) => q.negocios.find((n: any) => n.contato_id === ids[nome]);
+    assert.equal(de('Pura').temperatura, null, 'só proprietário: sem chip');
+    assert.equal(de('Pura').temperatura_motivo, null);
+    assert.equal(de('Compra').temperatura, 'morno');
+    assert.equal(de('Ambos').temperatura, 'morno', 'proprietário e comprador mantém o chip');
+    assert.equal(de('Compra').temperatura_motivo, 'Novo, sem conversa registrada');
+    // O valor gravado e o filtro não mudam.
+    const mornos = (await chamar('GET', '/funil/quadro?pipeline=compra&temperatura=morno')).corpo.negocios;
+    assert.equal(mornos.length, 3);
+    // Contato com atividade registrada depois da criação: o texto de antes.
+    await chamar('POST', `/contatos/${ids.Compra}/notas`, { texto: 'Conversamos por telefone' });
+    const depois = (await chamar('GET', '/funil/quadro?pipeline=compra')).corpo.negocios.find((n: any) => n.contato_id === ids.Compra);
+    assert.equal(depois.temperatura_motivo, 'Conversou hoje, sem visita marcada');
   });
 });
 

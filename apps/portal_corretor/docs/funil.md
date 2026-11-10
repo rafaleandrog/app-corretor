@@ -24,6 +24,13 @@ desliga o filtro):
   andamento no funil. A contagem não muda com os filtros; tocar numa delas filtra o quadro. Embaixo,
   a regra em uma linha: quente é quem tem proposta, visita marcada ou gostou da visita; morno,
   quem conversou nos últimos 7 dias; frio, quem está há mais de 7 dias sem contato.
+  Contato recém-cadastrado, sem mensagem, nota, tarefa feita nem outro registro, fica morno com o
+  motivo "Novo, sem conversa registrada" (a data de último contato é a do cadastro, de propósito, para
+  o filtro "parados há N dias"; o texto "Conversou hoje" só aparece com conversa de fato).
+- **Quem é só proprietário não mostra chip de temperatura**, em nenhuma tela (Clientes, quadro,
+  ficha, Conversas, fila de Hoje): a temperatura mede a intenção de compra. Quem também é comprador
+  (ou tem outro papel) mantém o chip. O valor gravado e os filtros e contagens por temperatura não
+  mudam; só o chip e o motivo deixam de aparecer.
 
 Não há listas salvas: os filtros prontos ocupam o lugar delas. Tudo o que você escolhe fica no
 endereço da página.
