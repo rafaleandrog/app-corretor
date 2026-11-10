@@ -174,6 +174,26 @@ test('quadro: proprietário puro sem chip de temperatura (o filtro segue o valor
   });
 });
 
+test('fila do dia: proprietário puro entra por "quente sem resposta" mas sem chip de temperatura; quem compra mantém', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const ids: Record<string, number> = {};
+    let tel = 61944440000;
+    for (const [nome, papeis] of [['Pura', 'proprietario'], ['Compra', 'comprador'], ['Ambos', 'comprador,proprietario']] as const) {
+      const c = (await chamar('POST', '/contatos', { nome, papeis, telefone: String(tel++), temperatura: 'quente' })).corpo;
+      ids[nome] = c.id;
+      banco.linhas('contatos').find((l) => l.id === c.id)!.ultimo_contato_em = antes(3);
+    }
+    const fila = (await chamar('GET', '/inicio')).corpo.fila as any[];
+    const item = (nome: string) => fila.find((i) => i.contato_id === ids[nome]);
+    assert.equal(item('Pura').tipo, 'quente_sem_resposta', 'a entrada na fila segue o valor gravado');
+    assert.equal(item('Pura').temperatura, null);
+    assert.equal(item('Pura').texto, 'Sem contato há mais de um dia');
+    assert.equal(item('Compra').temperatura, 'quente');
+    assert.equal(item('Ambos').temperatura, 'quente');
+  });
+});
+
 test('taxa de passagem entre etapas: confere com a conta à mão sobre um conjunto fixo (P03)', () => {
   const etapas = [
     { id: 1, nome: 'Novo', tipo: 'aberta' },
