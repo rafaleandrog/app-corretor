@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rotas, rotasPublicas, webhooks, reagir } from '../backend/rotas';
-import { limparLimites } from '../backend/publico';
+import { createHash } from 'node:crypto';
+import { hashDaOrigem, limparLimites } from '../backend/publico';
 import { blocosPadrao, imovelPublico, sugerirEndereco, validarLead, validarPagina } from '../comum/pagina';
 import { BancoFalso, comServidor, type Ator } from './apoio';
 
@@ -55,7 +56,7 @@ function resposta() {
   return r;
 }
 
-function chamarWebhook(nome: keyof typeof webhooks, conta: number | null, corpo: unknown, ip = '10.0.0.1') {
+function chamarWebhook(nome: keyof typeof webhooks, conta: number | null, corpo: unknown, ip = '10.0.0.1', segredo?: string) {
   const publicados: { tipo: string; payload: any; opcoes: any }[] = [];
   const r = resposta();
   const req: any = {
@@ -64,6 +65,7 @@ function chamarWebhook(nome: keyof typeof webhooks, conta: number | null, corpo:
     ip,
     wh: { webhook: nome, modo: 'recorrente', ingresso_id: 1, contexto: conta ? { conta_id: conta } : null, contador_usos: 0, criado_por: 1 },
     eventos: { publicar: async (tipo: string, payload: any, opcoes: any) => publicados.push({ tipo, payload, opcoes }) },
+    parametros: segredo === undefined ? { obter: async () => null } : { obter: async (slug: string) => (slug === 'ip_hash_segredo' ? segredo : null) },
   };
   return webhooks[nome](req, r.res).then(() => ({ ...r, publicados }));
 }
@@ -218,7 +220,7 @@ test('formulário: valida, barra robô e excesso, e publica o lead só na conta 
   assert.equal(ok.publicados[0].tipo, 'lead_recebido');
   assert.deepEqual(ok.publicados[0].opcoes, { conta_id: 100 });
   assert.deepEqual(Object.keys(ok.publicados[0].payload).sort(), ['email', 'imovel_codigo', 'ip_hash', 'mensagem', 'nome', 'origem', 'responsavel_id', 'telefone']);
-  assert.match(ok.publicados[0].payload.ip_hash, /^[0-9a-f]{16}$/, 'a origem vai embaralhada, nunca o IP');
+  assert.equal(ok.publicados[0].payload.ip_hash, null, 'sem o segredo configurado, a origem não é gravada (o formulário segue)');
   assert.equal(ok.publicados[0].payload.origem, 'ficha_imovel');
   // Conta no corpo não vale nada: a conta é sempre a do ingresso.
   const forjado = await chamarWebhook('formulario_lead', 100, { nome: 'Eva', email: 'eva@exemplo.com', consentimento: true, conta_id: 200 }, '10.0.0.9');
@@ -575,4 +577,28 @@ test('corrida: dois leads idênticos do mesmo contato existente gravam uma vez (
   assert.equal(pedidos().length, 1);
   assert.equal(banco.linhas('consentimentos').filter((c) => c.contato_id === anaId).length, 1);
   assert.equal(banco.linhas('atividades').filter((a) => a.contato_id === anaId && a.tipo === 'tarefa').length, 1);
+});
+
+test('formulário: ip_hash é HMAC com o segredo do parâmetro, e o limite por minuto segue valendo', async () => {
+  const ip = '10.0.0.7';
+  const corpo = { nome: 'Ana', telefone: '61999991111', consentimento: true };
+  limparLimites();
+  const a = await chamarWebhook('formulario_lead', 100, corpo, ip, 'segredo-um');
+  const hash = a.publicados[0].payload.ip_hash;
+  assert.match(hash, /^[0-9a-f]{16}$/);
+  assert.equal(hash, hashDaOrigem(ip, 'segredo-um'), 'determinístico com o mesmo segredo');
+  assert.notEqual(hash, hashDaOrigem(ip, 'segredo-dois'), 'outro segredo, outro hash');
+  assert.notEqual(hash, createHash('sha256').update(ip).digest('hex').slice(0, 16), 'nunca o SHA-256 puro do IP');
+  assert.equal((await chamarWebhook('formulario_lead', 100, corpo, ip, 'segredo-um')).status, 200);
+  assert.equal((await chamarWebhook('formulario_lead', 100, corpo, ip, 'segredo-um')).status, 200);
+  assert.equal((await chamarWebhook('formulario_lead', 100, corpo, ip, 'segredo-um')).status, 429, 'o quarto no minuto é barrado');
+  // Sem segredo (ausente ou vazio): o formulário funciona, não grava a origem e o limite continua por IP.
+  for (const sem of [undefined, '']) {
+    limparLimites();
+    const r = await chamarWebhook('formulario_lead', 100, corpo, ip, sem);
+    assert.deepEqual([r.status, r.publicados[0].payload.ip_hash], [200, null]);
+    await chamarWebhook('formulario_lead', 100, corpo, ip, sem);
+    await chamarWebhook('formulario_lead', 100, corpo, ip, sem);
+    assert.equal((await chamarWebhook('formulario_lead', 100, corpo, ip, sem)).status, 429);
+  }
 });

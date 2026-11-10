@@ -158,10 +158,9 @@ Quem preenche o formulário vira cliente em **Clientes**:
 - **Consentimento declarado:** a autorização de contato é obrigatória no formulário, mas é uma
   **declaração** de quem preencheu, não a prova de que foi o cliente. Ela fica guardada com a data, a
   versão do texto (`formulario-v1`) e uma versão embaralhada do endereço de internet de quem enviou
-  (um resumo SHA-256 do endereço, sem segredo misturado, do qual o app guarda só os primeiros 16
-  caracteres hexadecimais: não mostra o endereço à primeira vista, mas
-  quem tiver acesso ao banco consegue recuperá-lo testando os endereços possíveis, que no IPv4 são
-  poucos; trate-o como dado pessoal), ligada ao pedido na linha do tempo. **O cliente
+  (um HMAC-SHA-256 do endereço com um segredo do app, do qual o app guarda só os primeiros 16
+  caracteres hexadecimais; sem o segredo, não dá para recuperar o endereço testando os possíveis, mas
+  trate-o como dado pessoal), ligada ao pedido na linha do tempo. **O cliente
   só fica com consentimento quando você confirma** na ficha (Cadastro › Confirmar); até lá, a ficha
   mostra "Declarou consentimento no formulário…" em vez de "consentimento registrado". Isso muda só o
   que a ficha mostra: hoje nada no app deixa o atendimento automático mais restrito por causa dele.
@@ -172,10 +171,16 @@ Quem preenche o formulário vira cliente em **Clientes**:
 **Proteções:**
 - No máximo 3 envios por minuto vindos de um mesmo endereço de internet, contados em memória em
   cada servidor do app (com mais de um servidor, o limite vale por servidor). Para contar, o app usa
-  uma versão embaralhada do endereço (o mesmo resumo SHA-256, sem segredo, cortado nos primeiros 16
-  caracteres hexadecimais). Essa mesma versão
-  embaralhada (nunca o endereço de verdade) também fica guardada junto com a declaração de
-  consentimento de quem enviou o formulário; como ela não leva segredo, não é anônima.
+  uma versão embaralhada do endereço (o mesmo HMAC, cortado nos primeiros 16 caracteres
+  hexadecimais; se o segredo não estiver preenchido, a contagem usa uma chave só da memória do
+  servidor). Essa mesma versão embaralhada (nunca o endereço de verdade) também fica guardada junto
+  com a declaração de consentimento de quem enviou o formulário.
+- **Segredo da origem (passo do administrador do app):** em **Configurações › Parâmetros**, preencha
+  `ip_hash_segredo` com um texto longo e aleatório. **Enquanto estiver vazio, o app não guarda a
+  origem do envio** (o campo fica em branco no consentimento); o formulário, o limite por minuto e o
+  pedido funcionam normalmente. O valor nunca aparece em tela, registro nem resposta. Trocar o segredo
+  faz os envios novos não casarem com os antigos, e as origens guardadas antes da 0.1.61 (SHA-256 sem
+  segredo) também não casam com as novas.
 - Um campo escondido barra robôs: quem o preenche recebe "enviado" e nada é gravado.
 
 Nome, telefone, e-mail e mensagem são marcados para **nunca ficar no registro de chamadas** da

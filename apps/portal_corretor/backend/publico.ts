@@ -1,7 +1,7 @@
 import '@urbiverso/sdk/express';
 import { fusoValido } from '../comum/assistente';
 import { Router, type Request, type Response } from 'express';
-import { createHash } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { CENTAVOS_MAXIMO, ETAPAS_PADRAO } from '../comum/crm';
 import { iso, MARCO_PADRAO } from '../comum/funil';
@@ -200,7 +200,7 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
 
 // ---------- Webhooks ----------
 
-/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Chave só com a origem embaralhada (hash), nunca o IP; o limite em si não grava nada. O mesmo hash segue no payload do `lead_recebido` e é gravado em `consentimentos.ip_hash` (D-129). */
+/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Chave só com a origem embaralhada (HMAC), nunca o IP; o limite em si não grava nada. O HMAC com o segredo do app (ou `null`, sem segredo) segue no payload do `lead_recebido` e é gravado em `consentimentos.ip_hash` (D-129). */
 const janelas = new Map<string, number[]>();
 export function dentroDoLimite(chave: string, maximo: number, agora = Date.now()): boolean {
   const recentes = (janelas.get(chave) ?? []).filter((t) => agora - t < 60_000);
@@ -217,13 +217,33 @@ export function limparLimites() {
   janelas.clear();
 }
 
+/** Parâmetro `secret` do manifesto com o segredo do HMAC da origem (P-48). Quem o preenche é o administrador do app, em Config › Parâmetros. */
+export const PARAMETRO_SEGREDO_ORIGEM = 'ip_hash_segredo';
+/** Chave só da memória deste processo: serve ao limite por minuto quando não há segredo configurado; nunca é gravada nem sai daqui. */
+const chaveDoProcesso = randomBytes(32);
+const hmac16 = (chave: string | Buffer, ip: string) => createHmac('sha256', chave).update(ip || 'desconhecido').digest('hex').slice(0, 16);
+/** HMAC-SHA-256 do IP com o segredo, nos primeiros 16 caracteres hexadecimais (P-48). Puro, para teste. */
+export const hashDaOrigem = (ip: string, segredo: string) => hmac16(segredo, ip);
+
 /**
  * Origem do envio: `req.ip` (o primeiro X-Forwarded-For é do cliente e se falsifica). Se o shell não
  * declarar o proxy confiável, `req.ip` é o do balanceador e o limite passa a valer por conta —
  * confirmação pedida em specs/pedidos_ao_shell.md.
+ *
+ * `limite` é a chave em memória (usa o segredo se houver, senão a chave do processo); `gravar` é o que vai
+ * ao evento e ao banco: HMAC com o segredo do parâmetro, ou `null` quando ele não está preenchido (degrade
+ * explícito: sem segredo nada recuperável por força bruta é gravado; o formulário segue funcionando).
  */
-function origem(req: Request): string {
-  return createHash('sha256').update(req.ip || 'desconhecido').digest('hex').slice(0, 16);
+async function origem(req: Request): Promise<{ limite: string; gravar: string | null }> {
+  const ip = req.ip || 'desconhecido';
+  let segredo: string | null = null;
+  try {
+    const v = await req.parametros?.obter<string>(PARAMETRO_SEGREDO_ORIGEM);
+    segredo = typeof v === 'string' && v.trim() ? v : null;
+  } catch {
+    segredo = null;
+  }
+  return segredo ? { limite: hashDaOrigem(ip, segredo), gravar: hashDaOrigem(ip, segredo) } : { limite: hmac16(chaveDoProcesso, ip), gravar: null };
 }
 
 const REACOES = ['gostei', 'nao_gostei', 'quero_visitar', 'conversar_preco'];
@@ -249,15 +269,16 @@ export const webhooks = {
     const corpo = (req.body ?? {}) as Record<string, unknown>;
     // Robô preencheu o campo escondido: responde como sucesso e não faz nada.
     if (typeof corpo.site === 'string' && corpo.site.trim()) return res.json({ ok: true });
-    if (!dentroDoLimite(`lead:${conta}:${origem(req)}`, 3)) {
+    const orig = await origem(req);
+    if (!dentroDoLimite(`lead:${conta}:${orig.limite}`, 3)) {
       return res.status(429).json({ erro: true, codigo: 'MUITAS_TENTATIVAS', mensagem: 'Muitos envios seguidos. Espere um minuto e tente de novo.' });
     }
     const v = validarLead(corpo);
     if (!v.ok) return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: 'Confira o formulário.', detalhes: v.erros });
     await req.eventos!.publicar(
       'lead_recebido',
-      // `ip_hash`: a origem do envio embaralhada (nunca o IP), guardada com a declaração de consentimento (D-129).
-      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null, ip_hash: origem(req) },
+      // `ip_hash`: a origem do envio como HMAC com segredo (nunca o IP; `null` sem o segredo configurado), guardada com a declaração de consentimento (D-129).
+      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null, ip_hash: orig.gravar },
       { conta_id: conta },
     );
     res.json({ ok: true });
