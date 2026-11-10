@@ -105,6 +105,8 @@ test('M3 (celular), passo 1: fotos, grade, "A IA já entendeu", "Ditar o resto",
   // Computador (P07): o banner continua antes da grade e o ditado fica em Dados.
   assert.ok(fotos.indexOf('${celular ? nothing : this.entendeu()}') < fotos.indexOf('<urbi-grid min='), 'P07: banner antes da grade');
   assert.match(corte('  private dados() {', '  private autorizacao() {'), /\$\{noCelular\(\) \? nothing : this\.ditar\(\)\}/, 'P07: Ditar fica em Dados; no celular sai de lá');
+  assert.match(fotos, /gap=\$\{celular \? '6px' : '12px'\}/, 'celular: grade com gap 6');
+  assert.match(tela, /\$\{i === 0 && noCelular\(\) \? nothing : html`<urbi-botao variante="texto"[^`]*>Voltar<\/urbi-botao>`\}/, 'celular, passo 1: sem Voltar');
   // Rodapé: "Continuar" no celular, "Próximo: …" no computador.
   assert.match(tela, /noCelular\(\) \? 'Continuar' : `Próximo: \$\{PASSOS_NOVO_IMOVEL\[i \+ 1\]\.rotulo\.toLowerCase\(\)\}`/);
 });

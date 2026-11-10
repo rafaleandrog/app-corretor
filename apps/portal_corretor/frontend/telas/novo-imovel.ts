@@ -787,7 +787,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
         : 'Envie as fotos de uma vez. A primeira é a capa; mude a ordem com as setas.'}</urbi-prosa>
       ${celular ? nothing : this.entendeu()}
       ${fotos.length
-        ? html`<urbi-grid min=${celular ? '100px' : '128px'} gap="12px">
+        ? html`<urbi-grid min=${celular ? '100px' : '128px'} gap=${celular ? '6px' : '12px'}>
             ${fotos.map(
               (m, i) => html`<urbi-stack>
                 <urbi-avatar nome=${m.legenda ?? 'Foto'} foto=${m.url ?? ''} tamanho="112"></urbi-avatar>
@@ -931,7 +931,7 @@ export class PcNovoImovelPasso extends ColunaNovoImovel {
       ${conteudo}
       ${e.ocupado ? html`<urbi-prosa papel="secundario">${e.ocupado}</urbi-prosa>` : nothing}
       <urbi-linha justificar="entre" quebrar>
-        <urbi-botao variante="texto" icone="fa-solid fa-arrow-left" ?desabilitado=${i === 0 || !!e.ocupado} @click=${() => e.voltar()}>Voltar</urbi-botao>
+        ${i === 0 && noCelular() ? nothing : html`<urbi-botao variante="texto" icone="fa-solid fa-arrow-left" ?desabilitado=${i === 0 || !!e.ocupado} @click=${() => e.voltar()}>Voltar</urbi-botao>`}
         <urbi-linha quebrar>
           <urbi-botao variante="secundario" ?desabilitado=${!!e.ocupado} @click=${() => e.salvarRascunho()}>Salvar rascunho</urbi-botao>
           <urbi-botao ?desabilitado=${!!e.ocupado} @click=${() => e.proximo()}>${proximo}</urbi-botao>
