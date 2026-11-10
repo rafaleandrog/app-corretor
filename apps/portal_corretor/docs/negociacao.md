@@ -694,7 +694,7 @@ O mesmo vale para os demais eventos da conta (clientes, visitas, negócios, imó
   plataforma ainda não deixa o app gravar na conta antes de publicar. O dado chega ao app só pelo
   evento, e o negociador também o lê:
   - `lead_recebido`: nome, telefone, e-mail e mensagem de quem pediu contato pela página, e a versão
-    embaralhada do endereço de internet do envio (`ip_hash`);
+    embaralhada do endereço de internet do envio (`ip_hash`, só enquanto o parâmetro `ip_hash_segredo` estiver preenchido; sem ele o campo fica em branco);
   - `reacao_recebida`: o comentário do cliente na reação a um imóvel da seleção;
   - `acao_cliente_recebida`: o texto da mensagem que o cliente mandou pelo portal (e o valor de uma
     oferta, que não é dado pessoal).
