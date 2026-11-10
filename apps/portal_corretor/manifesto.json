@@ -1,6 +1,6 @@
 {
   "nome": "Portal do Corretor",
-  "versao": "0.1.60",
+  "versao": "0.1.62",
   "descricao": "CRM, funil com IA, WhatsApp, conteúdo para Instagram, página própria e portal do cliente para corretores de imóveis",
   "identidade": "rafaleandrog/app-corretor::portal_corretor",
   "shell_min": "0.56.37",
@@ -887,6 +887,12 @@
       "secret": true,
       "nullable": true,
       "descricao": "Chave secreta do app da Meta (troca e renovação de tokens do Instagram)"
+    },
+    "ip_hash_segredo": {
+      "tipo": "string",
+      "secret": true,
+      "nullable": true,
+      "descricao": "Segredo do HMAC que embaralha o endereço de internet de quem envia o formulário da página (guardado com o consentimento declarado). Qualquer texto longo e aleatório. Sem ele, o app não guarda a origem do envio. Trocar o valor faz os envios novos não casarem com os antigos"
     }
   }
 }

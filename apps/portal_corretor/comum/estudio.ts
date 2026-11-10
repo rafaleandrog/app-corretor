@@ -90,6 +90,8 @@ export interface ImovelArte {
   titulo: string | null;
   tipo: string;
   preco_c: number | null;
+  /** Só quando o preço caiu; sem ele a arte "Baixou o preço" não cita o valor de antes. */
+  preco_anterior_c: number | null;
   bairro: string | null;
   cidade: string | null;
   quartos: number | null;
@@ -106,6 +108,7 @@ export function imovelParaArte(im: Record<string, any>): ImovelArte {
     titulo: im.titulo ?? null,
     tipo: im.tipo,
     preco_c: im.preco_c ?? null,
+    preco_anterior_c: typeof im.preco_anterior_c === 'number' && typeof im.preco_c === 'number' && im.preco_anterior_c > im.preco_c ? im.preco_anterior_c : null,
     bairro: nivel === 'regiao' ? null : (im.bairro ?? null),
     cidade: im.cidade ?? null,
     quartos: im.quartos ?? null,
@@ -114,6 +117,13 @@ export function imovelParaArte(im: Record<string, any>): ImovelArte {
     area_m2: im.area_util_m2 ?? im.area_total_m2 ?? null,
     caracteristicas: listaDeCaracteristicas(im.caracteristicas, 12),
   };
+}
+
+/** "de R$ X por R$ Y" quando é "Baixou o preço" e há o preço anterior; senão só o preço atual (nunca inventa o "de"). */
+export function textoPreco(im: ImovelArte | null, objetivo: Objetivo): string | null {
+  if (!im?.preco_c || objetivo === 'vendido') return null;
+  const atual = reaisCurto(im.preco_c);
+  return objetivo === 'baixou_preco' && im.preco_anterior_c ? `de ${reaisCurto(im.preco_anterior_c)} por ${atual}` : atual;
 }
 
 export const reaisCurto = (c: number | null | undefined) => (c ? (c / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : null);
@@ -146,7 +156,7 @@ export function textosPadrao(im: ImovelArte | null, objetivo: Objetivo, creci: s
     destaque: 'Fale comigo e agende sua visita.',
   };
   const titulo = (im?.titulo || `${tipo}${onde ? ` em ${onde}` : ''}`).slice(0, 70);
-  const preco = im ? reaisCurto(im.preco_c) : null;
+  const preco = im ? textoPreco(im, objetivo) : null;
   const legenda = [
     `${SELO[objetivo] ? `${SELO[objetivo]}: ` : ''}${titulo}.`,
     destaques.length ? destaques.join(' · ') + '.' : null,
@@ -189,7 +199,7 @@ export function contextoPeca(pedido: string, im: ImovelArte | null, objetivo: Ob
     `Formato: ${ROTULO_FORMATO[formato]}`,
     im ? `Imóvel: ${ROTULO_TIPO[im.tipo] ?? 'Imóvel'}${im.titulo ? ` — ${im.titulo}` : ''}` : 'Peça institucional, sem imóvel.',
     im ? `Localização: ${[im.bairro, im.cidade].filter(Boolean).join(', ') || 'não informada'}` : null,
-    im?.preco_c && objetivo !== 'vendido' ? `Preço: ${reaisCurto(im.preco_c)}` : null,
+    textoPreco(im, objetivo) ? `Preço: ${textoPreco(im, objetivo)}` : null,
     im?.area_m2 ? `Área: ${im.area_m2} m²` : null,
     im?.quartos ? `Quartos: ${im.quartos}${im.suites ? ` (${im.suites} suíte${im.suites > 1 ? 's' : ''})` : ''}` : null,
     im?.vagas ? `Vagas: ${im.vagas}` : null,
@@ -257,7 +267,7 @@ export function promptFerramenta(
   const refs = p.referencias ?? [];
   const slides = Math.min(Math.max(p.fotos, 2), MAX_SLIDES);
   const peca = p.formato === 'carrossel' ? `Instagram carousel with ${slides} slides` : p.formato === 'story' ? 'Instagram story' : 'Instagram post';
-  const preco = im?.preco_c && p.objetivo !== 'vendido' ? reaisCurto(im.preco_c) : null;
+  const preco = textoPreco(im, p.objetivo);
   const local = im ? [im.bairro, im.cidade].filter(Boolean).join(', ') : '';
   const rodape = [marca.nome, marca.creci ? `CRECI ${marca.creci}` : null, marca.assinatura].filter(Boolean).join(' · ');
   const item = (rotulo: string, valor: string | null | undefined) => (valor ? `- ${rotulo}: "${valor}"` : null);
