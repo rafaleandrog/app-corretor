@@ -5,7 +5,7 @@ import { CANAIS_ABORDAGEM, iso, ordenarFila, taxasDePassagem, TEMPERATURAS, ulti
 import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { registrar } from './crm';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
-import { limiteParado } from '../comum/crm';
+import { limiteParado, temperaturaVisivel } from '../comum/crm';
 import { etapasPorId, funilPrecisaPreparo, playbookDaConta, prepararFunil, proximaAbordagem, reclassificar } from './inteligencia';
 import { numerosDaSemana } from './numeros';
 import { contaDoRequest, paginaDaConta } from './vitrine';
@@ -112,8 +112,8 @@ funilRotas.get(
           valor_estimado_c: n.valor_estimado_c ?? null,
           contato_id: n.contato_id,
           contato_nome: c.nome ?? n.contato_nome ?? '',
-          temperatura: c.temperatura ?? null,
-          temperatura_motivo: c.temperatura_motivo ?? null,
+          temperatura: temperaturaVisivel(c.papeis, c.temperatura),
+          temperatura_motivo: temperaturaVisivel(c.papeis, c.temperatura) ? (c.temperatura_motivo ?? null) : null,
           ultimo_contato_em: c.ultimo_contato_em ?? null,
           etapa_desde: n.etapa_desde ?? null,
           abordagem_vencida: !!abordagem?.vencida,
@@ -121,7 +121,7 @@ funilRotas.get(
           ultimo_sinal: ultimoSinal(ultimaLinha.get(Number(n.contato_id)), ultimoEnvio.get(Number(n.contato_id))),
         };
       })
-      .filter((k) => (!temperatura || k.temperatura === temperatura) && (!parado || (iso(k.ultimo_contato_em) ?? '') < parado));
+      .filter((k) => (!temperatura || porContato.get(k.contato_id)?.temperatura === temperatura) && (!parado || (iso(k.ultimo_contato_em) ?? '') < parado));
     res.json({ pipeline, etapas: daqui, negocios: cartoes, funis, temperaturas, passagem, preparar: !etapas.size || !playbook.length });
   }),
 );
@@ -279,22 +279,22 @@ export async function filaDoDia(dados: HelperDados, fuso: string): Promise<ItemF
   const contatos = idsContato.length ? await dados.varrerTudo('contatos', { filtros: { id: idsContato.join(',') }, maximo: 5000 }) : [];
   const itens: ItemFila[] = [];
   for (const c of quentes.dados) {
-    itens.push({ tipo: 'quente_sem_resposta', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura, quando: c.ultimo_contato_em, texto: c.temperatura_motivo ?? 'Quente e sem contato há mais de um dia' });
+    itens.push({ tipo: 'quente_sem_resposta', contato_id: c.id, contato_nome: c.nome, temperatura: temperaturaVisivel(c.papeis, c.temperatura), quando: c.ultimo_contato_em, texto: temperaturaVisivel(c.papeis, c.temperatura) ? (c.temperatura_motivo ?? 'Quente e sem contato há mais de um dia') : 'Sem contato há mais de um dia' });
   }
   const porId = new Map(contatos.map((c) => [c.id, c]));
   for (const c of contatos) {
     const a = proximaAbordagem(c, abertos.filter((n) => n.contato_id === c.id), etapas, playbook);
-    if (a?.vencida) itens.push({ tipo: 'abordagem_vencida', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: a.vence_em, texto: a.abordagem });
+    if (a?.vencida) itens.push({ tipo: 'abordagem_vencida', contato_id: c.id, contato_nome: c.nome, temperatura: temperaturaVisivel(c.papeis, c.temperatura), quando: a.vence_em, texto: a.abordagem });
   }
   for (const v of visitas.dados) {
     if (!v.contato_id) continue;
     itens.push({
-      tipo: 'visita', contato_id: v.contato_id, contato_nome: porId.get(v.contato_id)?.nome ?? v.contato_nome ?? '', temperatura: porId.get(v.contato_id)?.temperatura ?? null, quando: v.quando,
+      tipo: 'visita', contato_id: v.contato_id, contato_nome: porId.get(v.contato_id)?.nome ?? v.contato_nome ?? '', temperatura: temperaturaVisivel(porId.get(v.contato_id)?.papeis, porId.get(v.contato_id)?.temperatura), quando: v.quando,
       texto: `${(iso(v.quando) ?? '') < hoje.fim ? 'Hoje' : 'Amanhã'}: ${v.titulo}${v.local ? ` · ${v.local}` : ''}`, atividade_id: v.id,
     });
   }
   for (const c of passos.dados) {
-    itens.push({ tipo: 'proximo_passo', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: c.proximo_passo_em, texto: c.proximo_passo ?? 'Próximo passo combinado' });
+    itens.push({ tipo: 'proximo_passo', contato_id: c.id, contato_nome: c.nome, temperatura: temperaturaVisivel(c.papeis, c.temperatura), quando: c.proximo_passo_em, texto: c.proximo_passo ?? 'Próximo passo combinado' });
   }
   itens.push(...(await propostasRecebidas(dados, porId)), ...(await pecasAguardando(dados, fuso)), ...(await autorizacoesVencendo(dados, fuso)));
   // "Agora não" (`POST /abordagens/:contato/adiar`) tira o contato da fila pelo resto do dia, no fuso da
@@ -329,7 +329,7 @@ async function propostasRecebidas(dados: HelperDados, contatos: Map<number, Linh
     if (!p || p.direcao !== 'comprador' || !['registrada', 'enviada'].includes(String(p.estado))) continue;
     const c = contatos.get(Number(n.contato_id));
     itens.push({
-      tipo: 'proposta_recebida', contato_id: n.contato_id ?? null, contato_nome: c?.nome ?? 'Cliente', temperatura: c?.temperatura ?? null, quando: iso(p.criado_em),
+      tipo: 'proposta_recebida', contato_id: n.contato_id ?? null, contato_nome: c?.nome ?? 'Cliente', temperatura: temperaturaVisivel(c?.papeis, c?.temperatura), quando: iso(p.criado_em),
       texto: `Ofereceu ${reaisPt(Number(p.valor_c))}${n.codigo ? ` (${n.codigo})` : ''}: responda ou registre a contraproposta`, negociacao_id: Number(n.id),
     });
   }

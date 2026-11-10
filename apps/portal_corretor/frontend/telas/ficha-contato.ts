@@ -7,7 +7,7 @@ import { abrirAssistenteSobre, lembrarContato } from './assistente.js';
 import { OBJETIVOS_MENSAGEM } from '../../comum/mensagens';
 import { tarefaDaAbordagem } from '../../comum/funil';
 import { avisoDeEntrada } from '../../comum/negociador-gatilhos';
-import { chipsDoPerfilBusca, PAPEIS_NA_TELA } from '../../comum/crm';
+import { chipsDoPerfilBusca, PAPEIS_NA_TELA, temperaturaVisivel } from '../../comum/crm';
 import { linkWhatsapp } from '../../comum/pagina';
 import { abaDaUrl, abaNaUrl, chamarApi, chamarFetch, chip, contaDeTrabalho, seNaoContaTrocada, data, dataHora, enviar, filtrosDaUrl, filtrosNaUrl, formularioEnviar, formularioQueSalva, duplicataDeContato, gesto, juntarDataHora, mensagemDeErro, opcoes, opcoesChip, reais, rotuloChip, ROTULO_MOTIVO_PERDA, ROTULO_PAPEL, ROTULO_TIPO_ATIVIDADE, lerPreparandoFunil } from '../apoio.js';
 import { formatarTelefone } from '../../comum/crm';
@@ -562,7 +562,7 @@ export class FichaContato {
   /** Uma linha sob os chips: o motivo da temperatura e o último contato. */
   private linhaDoTopo(): string {
     const c = this.s.ficha!.contato;
-    const partes = [c.temperatura_motivo, `último contato ${c.ultimo_contato_em ? `em ${data(c.ultimo_contato_em)}` : 'nunca'}`].filter(Boolean);
+    const partes = [temperaturaVisivel(c.papeis, c.temperatura) ? c.temperatura_motivo : null, `último contato ${c.ultimo_contato_em ? `em ${data(c.ultimo_contato_em)}` : 'nunca'}`].filter(Boolean);
     const texto = partes.join(' · ');
     return `${texto.charAt(0).toUpperCase()}${texto.slice(1)}.`;
   }
@@ -685,7 +685,7 @@ export class FichaContato {
           </urbi-stack>
         </urbi-linha>
         <urbi-linha quebrar>
-          ${chip('temperatura', c.temperatura, c.temperatura_motivo)}
+          ${chip('temperatura', temperaturaVisivel(c.papeis, c.temperatura), c.temperatura_motivo)}
           ${chip('etapa', this.etapaAtual())}
           ${chip('origem', c.origem_canal)}
         </urbi-linha>
@@ -903,16 +903,17 @@ export class FichaContato {
     const { ficha, falha } = this.s;
     if (!ficha) return falha ? estadoDaFalha(falha, () => void this.carregar()) : estadoTela('carregando');
     const c = ficha.contato;
+    const temperatura = temperaturaVisivel(c.papeis, c.temperatura);
     const abertos = ficha.negocios.filter((n) => n.etapa_tipo === 'aberta');
     const temTelefone = !!linkWhatsapp(c.telefone, '-');
     return html`<urbi-stack>
       <urbi-prosa papel="titulo">${c.nome}</urbi-prosa>
       <urbi-linha quebrar>
-        ${chip('temperatura', c.temperatura)}
+        ${chip('temperatura', temperatura)}
         ${abertos.map((n) => chip('etapa', n.etapa_nome ? { nome: n.etapa_nome, tipo: n.etapa_tipo } : null))}
       </urbi-linha>
-      ${c.temperatura && c.temperatura_motivo
-        ? html`<urbi-prosa papel="secundario">Por que ${rotuloChip('temperatura', c.temperatura).rotulo.toLowerCase()}: ${c.temperatura_motivo}.</urbi-prosa>`
+      ${temperatura && c.temperatura_motivo
+        ? html`<urbi-prosa papel="secundario">Por que ${rotuloChip('temperatura', temperatura).rotulo.toLowerCase()}: ${c.temperatura_motivo}.</urbi-prosa>`
         : ''}
       ${this.cartaoProximoPasso('Mensagem pronta')}
       <urbi-linha quebrar>
