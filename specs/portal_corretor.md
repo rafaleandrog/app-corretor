@@ -349,7 +349,7 @@ Esboço do conteúdo. A forma exata é a do SDK instalado; a implementação esc
 
 **Apelidos (o SDK não redireciona):** as rotas de antes continuam abrindo a tela nova na aba ou visão certa — Início → Hoje; Desempenho → Números; Minha página → Página; Funil → Clientes › Funil; Agenda → Hoje › Agenda; Assistente → Hoje com o Assistente aberto na coluna de contexto; as abas antigas de Ajustes → o item correspondente do menu de Ajustes.
 
-Negociador humano (role `negociador`, D-108): **Hoje · Clientes › Negociações** (só as atribuídas) e, quando houver WhatsApp, **Conversas** dessas negociações.
+Negociador humano (role `negociador`, D-108): **Negociações** (só as atribuídas; D-125) e, quando houver WhatsApp, **Conversas** dessas negociações.
 
 **Menu da 1.1 (D-81), substituído pelos nomes acima:** Início · Clientes · Imóveis · Estúdio · Minha página · Desempenho · Assistente · Ajustes. O texto a seguir fica como registro:
 
@@ -1784,7 +1784,7 @@ Declarados em `manifesto.eventos` com `campos`, `conteudo`, `api` e `rota`, todo
 | Convite de conexão, proposta de parceria | Membro | No app |
 | Relatório semanal | Proprietário | E-mail ou WhatsApp (modelo de utilidade) |
 
-**Canal no MVP (D-57):** "no app" é a tela Hoje e "push" vira e-mail; a coluna acima fica como desenho. **Notificações da negociação (1.2):** contraproposta aguardando aprovação (corretor ou negociador humano; Hoje + e-mail, com atalho para P15/M8); oferta recebida, inclusive pelo portal (corretor); passagem do Negociador (topo de Hoje); acordo proposto aguardando decisão (corretor); mandato vencendo em 24 h (corretor).
+**Canal no MVP (D-57):** "no app" é a tela Hoje e "push" vira e-mail; a coluna acima fica como desenho. **Notificações da negociação (1.2):** contraproposta aguardando aprovação (corretor ou negociador humano; Hoje + e-mail para o corretor, e para o negociador humano o e-mail e o aviso que abrem `/negociacoes?item=`, D-125; com atalho para P15/M8); oferta recebida, inclusive pelo portal (corretor); passagem do Negociador (topo de Hoje); acordo proposto aguardando decisão (corretor); mandato vencendo em 24 h (corretor).
 
 ## 14. Permissões e papéis
 
