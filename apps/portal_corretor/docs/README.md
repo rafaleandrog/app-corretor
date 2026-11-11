@@ -200,10 +200,13 @@ conexões com a Meta, quando elas chegarem.
   rastreado — ver [Página, ficha pública e link rastreado](minha-pagina.md#para-o-administrador-da-instância);
   a seleção e o portal do cliente — ver [Seleções e Portal do Cliente](selecoes-e-portal.md#para-o-administrador-da-instância).
 
-- **Aviso de cores na instalação:** instalar ou atualizar o app mostra o aviso `[tokens] 14 literais
-  de cor fora de token no bundle — frontend/index.js`. É esperado: são as cores fixas das páginas
-  públicas, que por regra da plataforma não usam o tema (o visitante não está logado). O aviso não
-  impede a instalação e não indica problema nas telas do corretor.
+- **Cores das páginas públicas e o aviso `[tokens]`:** as páginas públicas não usam o tema (o visitante
+  não está logado), então têm paleta própria em `frontend/publico/estilo.ts`. Essa paleta não tem
+  nenhum literal de cor (`#hex`, `rgb()`): cada cor é uma mistura de cores nomeadas do CSS por
+  `color-mix()`. Por isso a instalação e a atualização não mostram mais o aviso `[tokens] N literais de
+  cor fora de token no bundle` (eram 14, desde a 0.1.45). Os tons são aproximados dos anteriores (até
+  uns 5 pontos por canal; o azul padrão, uns 13). A cor de destaque escolhida pelo corretor continua
+  valendo por cima do padrão.
 
 - **Instagram:** o app da Meta, os parâmetros `meta_app_id` e `meta_app_secret` e as contas de
   teste — ver [Conexões (Instagram)](conexoes.md#para-a-equipe-da-plataforma-antes-do-primeiro-corretor).

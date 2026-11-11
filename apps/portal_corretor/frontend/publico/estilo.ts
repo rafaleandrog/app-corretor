@@ -1,27 +1,28 @@
 import { css } from 'lit';
 
 // Visual fixo das páginas públicas (paginas-publicas.md): sem tokens de tema, porque o visitante é
-// anônimo e o SDK 100 ainda não tem vocabulário de marca. A paleta é escrita aqui, uma vez, em literais
-// de cor declarados como tais; o resto do CSS usa `var(--nome)`. O empacotador conta estes literais no
-// aviso `[tokens]` (heurística, sem marcação de exceção): é a exceção nomeada "paleta das páginas
-// públicas" da spec 11.9, com o pedido ao shell 23. A cor de destaque é dado da página do corretor,
-// aplicada em `--acento` por cima do padrão abaixo.
+// anônimo e o SDK 100 ainda não tem vocabulário de marca. A paleta é escrita aqui, uma vez, e o resto
+// do CSS usa `var(--nome)`. Nenhuma cor é literal (`#hex`, `rgb()`): cada uma é uma mistura de cores
+// nomeadas do CSS por `color-mix()`, que é o que o aviso `[tokens]` do empacotador procura (heurística
+// sem marcação de exceção). É a exceção nomeada "paleta das páginas públicas" da spec 11.9, com o
+// pedido ao shell 23. Os valores aproximam a paleta anterior (até ~5 por canal; o azul padrão, ~13). A
+// cor de destaque é dado da página do corretor, aplicada em `--acento` por cima do padrão abaixo.
 export const estiloPublico = css`
   :host {
-    --acento: #0b5394;
-    --texto: #1d2329;
-    --suave: #5b6670;
-    --linha: #e3e7eb;
-    --fundo: #f6f7f9;
-    --papel: #ffffff;
-    --foto-vazia: #dde3e8;
-    --borda-campo: #c4ccd3;
-    --verde: #18733f;
-    --ok-fundo: #eef6f0;
-    --ok-texto: #1d5c34;
-    --erro-fundo: #fbeeee;
-    --erro-texto: #8a1f1f;
-    --veu: rgb(0 0 0 / 0.92);
+    --acento: color-mix(in srgb, mediumblue 35%, teal);
+    --texto: color-mix(in srgb, black 75%, lightslategray);
+    --suave: color-mix(in srgb, black 20%, slategray);
+    --linha: color-mix(in srgb, aliceblue 55%, lightgray);
+    --fundo: color-mix(in srgb, ghostwhite 35%, whitesmoke);
+    --papel: white;
+    --foto-vazia: color-mix(in srgb, aliceblue 85%, dimgray);
+    --borda-campo: color-mix(in srgb, slategray 40%, white);
+    --verde: color-mix(in srgb, darkgreen 65%, steelblue);
+    --ok-fundo: color-mix(in srgb, lightcyan 55%, mistyrose);
+    --ok-texto: color-mix(in srgb, darkslategray 65%, green);
+    --erro-fundo: color-mix(in srgb, firebrick 5%, snow);
+    --erro-texto: color-mix(in srgb, lightgray 15%, maroon);
+    --veu: color-mix(in srgb, black 92%, transparent);
     display: block;
     min-height: 100vh;
     background: var(--fundo);
