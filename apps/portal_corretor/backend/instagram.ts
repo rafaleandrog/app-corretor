@@ -2,7 +2,8 @@ import '@urbiverso/sdk/express';
 import { Router, type Request } from 'express';
 import type { ContextoListener, HelperDados, ParametroHelper } from '@urbiverso/sdk';
 import { checarPeca, legendaComCreci } from '../comum/estudio';
-import { autorizacaoVigente, type Autorizacao } from '../comum/imoveis';
+import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
+import { fusoValido } from '../comum/assistente';
 import { iso } from '../comum/funil';
 import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { contaDoRequest } from './vitrine';
@@ -118,6 +119,21 @@ interface Ambiente {
   shell: { urlApp(sub: string): string };
   /** Publica os eventos da publicação (13.1): na rota pela conta do request, no listener pela conta do evento. */
   publicar?: (tipo: string, payload: Record<string, unknown>) => Promise<unknown>;
+  /** Fuso da conta para a data civil da vigência (#232): o do request, ou o gravado no agendamento. */
+  fuso?: string;
+}
+
+/** Data civil de hoje no fuso da conta (Brasília sem fuso válido), como a aprovação usa. */
+const hojeNoFuso = (fuso?: string) => new Date().toLocaleDateString('sv-SE', { timeZone: fusoValido(fuso) });
+
+/**
+ * O imóvel da peça ainda pode ser anunciado (#232)? `buscar` não devolve imóvel removido; vendido,
+ * suspenso ou encerrado também não anuncia. Peça sem imóvel passa.
+ */
+async function imovelAnunciavel(dados: HelperDados, imovelId: unknown): Promise<boolean> {
+  if (!imovelId) return true;
+  const im = await dados.buscar('imoveis', Number(imovelId));
+  return !!im && SITUACOES_ANUNCIADAS.includes(String(im.situacao));
 }
 
 async function creciDaConta(dados: HelperDados, conta: number, usuario: number | null): Promise<string | null> {
@@ -158,8 +174,10 @@ export async function publicarPeca(amb: Ambiente, conta: number, pecaId: number,
     let vigente = false;
     if (p.imovel_id) {
       const auts = await dados.varrerTudo('autorizacoes_venda', { filtros: { conta_id: conta, imovel_id: p.imovel_id }, maximo: 200 });
-      const hoje = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
+      const hoje = hojeNoFuso(amb.fuso);
       vigente = auts.some((a) => autorizacaoVigente(a as Autorizacao, hoje));
+      // Imóvel removido ou fora de anúncio depois da aprovação não vai ao Instagram (#232).
+      if (!(await imovelAnunciavel(dados, p.imovel_id))) return recusar('Não publicada: o imóvel foi removido ou não está mais à venda.');
     }
     // CRECI na legenda (10.5) só se couber no limite (D-93): se não couber, sai sem ele, nunca
     // recusa. A checagem roda sobre o texto que vai ser publicado: nada é cortado depois.
@@ -356,7 +374,7 @@ instagramRotas.post(
     if (!(p.estado === 'aprovada' || (p.estado === 'erro' && p.aprovada_em))) return erro(res, 409, 'ESTADO_INVALIDO', 'Aprove a peça antes de publicar.');
     const dados = req.dados!;
     // Cada fase numa transação: falha depois da reserva a desfaz, e a peça não fica presa em "publicando".
-    const r = await publicarPeca({ abrir: (fn) => dados.transaction(fn), arquivos: req.arquivos, shell: req.shell!, publicar: (tipo, payload) => publicarEvento(req, tipo, payload) }, contaDoRequest(req), p.id, req.contexto!.usuario.id, { estado: p.estado });
+    const r = await publicarPeca({ abrir: (fn) => dados.transaction(fn), arquivos: req.arquivos, shell: req.shell!, publicar: (tipo, payload) => publicarEvento(req, tipo, payload), fuso: req.contexto?.fuso }, contaDoRequest(req), p.id, req.contexto!.usuario.id, { estado: p.estado });
     if (!r) return erro(res, 409, 'PECA_MUDOU', 'A peça mudou ou já está sendo publicada. Atualize a tela.');
     if (r.estado !== 'publicada') return erro(res, 422, 'NAO_PUBLICADA', r.erro ?? 'Não foi possível publicar.');
     res.json(r);
@@ -383,7 +401,7 @@ instagramRotas.post(
     if (!(await conexao(dados, contaDoRequest(req)))) {
       return erro(res, 409, 'INSTAGRAM_DESCONECTADO', 'Conecte o Instagram (Ajustes › Conexões) para agendar no app. Sem conexão, baixe a arte e agende no Instagram.');
     }
-    const r = await req.eventos!.agendar('publicacao_programada', { peca_id: p.id, agendada_para: quando.toISOString() }, { em: quando });
+    const r = await req.eventos!.agendar('publicacao_programada', { peca_id: p.id, agendada_para: quando.toISOString(), fuso: req.contexto?.fuso ?? null }, { em: quando });
     // Grava só se a peça não mudou desde a leitura (outra aba publicou ou agendou): senão desfaz o agendamento.
     const gravada = await dados.atualizarSe('pecas', p.id, { estado: 'agendada', agendada_para: quando.toISOString(), agendamento_id: Number(r.id), erro: null }, { estado: p.estado });
     if (!gravada) {
@@ -440,6 +458,12 @@ instagramRotas.post(
     const p = await pecaDaConta(req);
     if (!p) return erro(res, 404, 'NAO_ENCONTRADO', 'Peça não encontrada.');
     if (p.estado === 'publicada') return erro(res, 409, 'ESTADO_INVALIDO', 'A peça já está publicada.');
+    // "Publiquei por fora" registra o que foi aprovado (#232): rascunho e rejeitada pedem o Aprovar,
+    // que roda as checagens; imóvel removido ou fora de anúncio não é registrado como publicado.
+    if (!p.aprovada_em || !['aprovada', 'agendada', 'erro'].includes(p.estado)) {
+      return erro(res, 409, 'ESTADO_INVALIDO', 'Aprove a peça antes de marcá-la como publicada.');
+    }
+    if (!(await imovelAnunciavel(dados, p.imovel_id))) return erro(res, 422, 'CHECAGEM_PENDENTE', 'O imóvel desta peça foi removido ou não está mais à venda.');
     const link = typeof req.body?.link === 'string' ? req.body.link.trim() : '';
     if (link && !/^https:\/\/(www\.)?instagram\.com\//.test(link)) return erro(res, 422, 'DADOS_INVALIDOS', 'Cole o link do post do Instagram (https://www.instagram.com/…).');
     const marcada = await dados.atualizarSe('pecas', p.id, { estado: 'publicada', publicada_em: new Date().toISOString(), permalink: link.slice(0, 300) || null, publicada_por: 'fora', agendamento_id: null, erro: null }, { estado: p.estado });
@@ -478,7 +502,7 @@ export async function aoPublicacaoProgramada(evento: EventoConta, ctx: ContextoL
     await comConta(conta, (trx) => trx.atualizarSe('pecas', p.id, { estado: 'erro', erro: 'Não publicada na hora marcada (o sistema estava fora do ar). Publique agora ou agende de novo.', agendamento_id: null, agendada_para: null }, { estado: 'agendada', agendamento_id: p.agendamento_id }));
     return;
   }
-  await publicarPeca({ abrir: (fn) => comConta(conta, fn), arquivos: ctx.arquivos, shell: ctx.shell, publicar: (tipo, payload) => publicarDoSistema(ctx, conta, tipo, payload) }, conta, p.id, null, { estado: 'agendada', agendamento_id: Number(p.agendamento_id) });
+  await publicarPeca({ abrir: (fn) => comConta(conta, fn), arquivos: ctx.arquivos, shell: ctx.shell, publicar: (tipo, payload) => publicarDoSistema(ctx, conta, tipo, payload), fuso: typeof evento.payload?.fuso === 'string' ? evento.payload.fuso : undefined }, conta, p.id, null, { estado: 'agendada', agendamento_id: Number(p.agendamento_id) });
 }
 
 /** Renova os tokens que vencem em até 10 dias (o de longa duração vale 60 e renova enquanto válido). */

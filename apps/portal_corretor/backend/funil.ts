@@ -97,7 +97,8 @@ funilRotas.get(
       if (t && t in temperaturas) temperaturas[t]++;
     }
     // Taxa de passagem entre etapas vizinhas, sobre os negócios do quadro (sem os filtros).
-    const passagem = taxasDePassagem(daqui as { id: number; nome: string; tipo: string; marco?: string | null }[], visiveis.map((n) => ({ ...n, pipeline }) as unknown as NegocioNum));
+    // Só as etapas ativas: a coluna de uma etapa tirada do funil não é degrau da taxa de passagem.
+    const passagem = taxasDePassagem(ativas as { id: number; nome: string; tipo: string; marco?: string | null }[], visiveis.map((n) => ({ ...n, pipeline }) as unknown as NegocioNum));
     // Filtros: temperatura, "parado há" e os dos filtros prontos (os mesmos parâmetros de GET /contatos).
     const temperatura = typeof req.query.temperatura === 'string' && (TEMPERATURAS as readonly string[]).includes(req.query.temperatura) ? req.query.temperatura : null;
     const parado = limiteParado(req.query.parado_dias);
@@ -156,7 +157,11 @@ funilRotas.get(
       .filter((p) => p.ativa)
       .sort((a, b) => a.ordem - b.ordem || TEMPERATURAS.indexOf((b as Linha).temperatura) - TEMPERATURAS.indexOf((a as Linha).temperatura));
     // Etapas em andamento sem abordagem (criadas pelo corretor): a tela oferece cadastrar.
-    const semAbordagem = [...etapas.values()].filter((e) => e.ativa && e.tipo === 'aberta' && !playbook.some((p) => p.etapa_id === e.id));
+    // A abordagem é por (etapa, temperatura): a etapa segue oferecida enquanto faltar alguma das três (#233).
+    const semAbordagem = [...etapas.values()]
+      .filter((e) => e.ativa && e.tipo === 'aberta')
+      .map((e) => ({ ...e, temperaturas_faltando: TEMPERATURAS.filter((t) => !playbook.some((p) => p.etapa_id === e.id && p.temperatura === t)) }))
+      .filter((e) => e.temperaturas_faltando.length > 0);
     // Conta ainda sem etapas ou sem abordagens (criada depois do último início do app): a tela pede
     // `POST /funil/preparar`, que semeia o padrão (issue #32: o GET não grava).
     res.json({ abordagens: linhas, etapas_sem_abordagem: semAbordagem, preparar: !etapas.size || !playbook.length });

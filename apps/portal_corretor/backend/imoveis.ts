@@ -574,6 +574,8 @@ imoveisRotas.post(
     await dados.transaction(async (trx) => {
       for (const [i, mid] of ordem.entries()) await trx.atualizar('imovel_midias', mid, { ordem: i });
     });
+    // A nova capa e a nova ordem chegam à página pública e às seleções, como no PUT da ordem (#234).
+    await tentarSincronizar(req, imovel.id);
     res.json({ ids: ordem });
   }),
 );

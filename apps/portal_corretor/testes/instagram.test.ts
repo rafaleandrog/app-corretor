@@ -151,7 +151,7 @@ test('agendar: só peça aprovada agenda; o listener publica na conta certa', as
     const ag = await chamar('POST', `/estudio/pecas/${p.id}/agendar`, { quando });
     assert.equal(ag.status, 200, JSON.stringify(ag.corpo));
     assert.equal(ev.agendados[0].tipo, 'publicacao_programada');
-    assert.deepEqual(ev.agendados[0].payload, { peca_id: p.id, agendada_para: quando });
+    assert.deepEqual(ev.agendados[0].payload, { peca_id: p.id, agendada_para: quando, fuso: null });
     assert.equal(ev.agendados[0].em.toISOString(), quando);
     assert.equal(banco.linhas('pecas').find((x) => x.id === p.id)!.estado, 'agendada');
     assert.equal((await chamar('PATCH', `/estudio/pecas/${p.id}`, { titulo: 'x' })).status, 409, 'agendada não muda');

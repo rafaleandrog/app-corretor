@@ -34,7 +34,9 @@ export function temByteNulo(...valores: unknown[]): boolean {
 
 /** Middleware das rotas autenticadas: corpo ou query com byte nulo responde 422. */
 export const semByteNulo: RequestHandler = (req, res, next) => {
-  if (temByteNulo(req.body, req.query, req.params)) return erro(res, 422, 'TEXTO_INVALIDO', 'Um dos campos tem um caractere inválido.');
+  // Os parâmetros do caminho (`:id`) ainda não existem aqui, antes do casamento da rota: eles passam
+  // pelo `id()` de cada rota, e o que escapar cai na rede de segurança do `assincrono`.
+  if (temByteNulo(req.body, req.query)) return erro(res, 422, 'TEXTO_INVALIDO', 'Um dos campos tem um caractere inválido.');
   next();
 };
 

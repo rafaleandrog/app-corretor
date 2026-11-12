@@ -113,7 +113,12 @@ export async function publicarSelecao(dados: HelperDados, conta: number, selecao
     corretor: await comMarca(dados, conta, corretor ?? (atual?.dados as Linha | undefined)?.corretor),
     itens: itens
       .filter((i) => porId.has(i.imovel_id))
-      .map((i) => ({ ...imovelPublico(porId.get(i.imovel_id)!, midias.filter((m) => m.imovel_id === i.imovel_id)), reacao: i.reacao ?? null })),
+      .map((i) => ({
+        ...imovelPublico(porId.get(i.imovel_id)!, midias.filter((m) => m.imovel_id === i.imovel_id)),
+        reacao: i.reacao ?? null,
+        // Último dia de autorização vigente: a leitura pública tira o item que venceu sem ninguém editar (#234).
+        vigente_ate: autorizacoes.filter((a) => a.imovel_id === i.imovel_id && autorizacaoVigente(a as Autorizacao, dia)).map((a) => String(a.fim ?? '')).filter(Boolean).sort().pop() ?? null,
+      })),
   });
 }
 

@@ -57,9 +57,14 @@ export async function registrar(
   req: Request,
   evento: { tipo: string; alvo_tipo: 'contato' | 'negocio' | 'atividade'; alvo_id: number; contato_id: number | null; resumo: string; dados?: unknown },
 ) {
+  // O resumo da linha do tempo cabe em 300; texto maior (nota, abordagem) vai inteiro em `dados.texto`,
+  // que a ficha mostra no lugar do resumo, em vez de ser cortado em silêncio (#233).
+  const longo = evento.resumo.length > 300;
+  const extra = evento.dados && typeof evento.dados === 'object' && !Array.isArray(evento.dados) ? (evento.dados as Record<string, unknown>) : null;
   await dados.criar('linha_do_tempo', {
     ...evento,
-    resumo: evento.resumo.slice(0, 300),
+    ...(longo ? { dados: { ...(extra ?? {}), texto: evento.resumo.slice(0, 5000) } } : {}),
+    resumo: longo ? `${evento.resumo.slice(0, 299)}…` : evento.resumo,
     autor_id: eu(req),
     autor_papel: 'corretor',
     ocorrido_em: agora(),
@@ -286,6 +291,8 @@ crmRotas.post(
           // A data da importação conta como último contato, para o filtro "parados há N dias" o alcançar.
           const c = await dados.criar('contatos', { papeis: 'comprador', ...v.dados, responsavel_id: eu(req), origem_id, ultimo_contato_em: agora() });
           await registrar(dados, req, { tipo: 'contato.importado', alvo_tipo: 'contato', alvo_id: c.id, contato_id: c.id, resumo: `Importado de ${arquivo ?? 'planilha'}` });
+          // Como no cadastro: sem temperatura na planilha, a regra classifica (frio, morno, quente, com motivo; #233).
+          if (!v.dados.temperatura) await reclassificar(dados, c.id);
           relatorio.criados++;
         } else if (modo === 'pular') {
           relatorio.pulados++;
@@ -347,6 +354,9 @@ crmRotas.patch(
     if (!atual) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     const v = validarContato(req.body ?? {}, true);
     if (!v.ok) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira o contato.', v.erros);
+    // A edição não deixa o contato sem meio de contato (#233): vale o estado final, atual + mudança.
+    const fica = (c: 'telefone' | 'email') => (c in v.dados ? v.dados[c] : atual[c]);
+    if (('telefone' in v.dados || 'email' in v.dados) && !fica('telefone') && !fica('email')) return erro(res, 422, 'DADOS_INVALIDOS', 'Confira o contato.', ['Informe telefone ou e-mail.']);
     if (v.dados.telefone && v.dados.telefone !== atual.telefone) {
       const outro = await primeiro(dados, 'contatos', { telefone: v.dados.telefone });
       if (outro) return erro(res, 409, 'DUPLICATA', `Já existe um contato com este telefone: ${outro.nome}.`, [String(outro.id)]);
@@ -405,6 +415,7 @@ crmRotas.post(
     const dados = req.dados!;
     const texto = typeof req.body?.texto === 'string' ? req.body.texto.trim() : '';
     if (!texto) return erro(res, 422, 'DADOS_INVALIDOS', 'Escreva a nota.');
+    if (texto.length > 5000) return erro(res, 422, 'DADOS_INVALIDOS', 'A nota passou de 5.000 caracteres: divida em duas.');
     if (!cid || !(await dados.buscar('contatos', cid))) return erro(res, 404, 'NAO_ENCONTRADO', 'Contato não encontrado.');
     await registrar(dados, req, { tipo: 'contato.nota', alvo_tipo: 'contato', alvo_id: cid, contato_id: cid, resumo: texto });
     await dados.atualizar('contatos', cid, { ultimo_contato_em: agora() });
@@ -451,6 +462,10 @@ crmRotas.post(
     const cid = id(req.body?.contato_id);
     const contato = cid ? await dados.buscar('contatos', cid) : null;
     if (!contato) return erro(res, 422, 'DADOS_INVALIDOS', 'Escolha o contato do negócio.');
+    // Funil que veio e não existe é recusado, em vez de virar "compra" em silêncio (#233).
+    if (req.body?.pipeline !== undefined && req.body?.pipeline !== null && !(PIPELINES as readonly string[]).includes(req.body.pipeline)) {
+      return erro(res, 422, 'DADOS_INVALIDOS', 'Funil inválido.');
+    }
     const pipeline = (PIPELINES as readonly string[]).includes(req.body?.pipeline) ? (req.body.pipeline as Pipeline) : 'compra';
     const contaFunil = req.contexto?.contaEscrita;
     await prepararFunil(dados, contaFunil ? { conta_id: contaFunil } : {});
@@ -518,6 +533,8 @@ crmRotas.patch(
     let resumo: string | null = null;
     let etapa: Record<string, any> | null = null;
     const etapaId = id(req.body?.etapa_id);
+    // Etapa que veio e não é um id válido (texto, 0, acima do teto) é recusada, não ignorada (#233).
+    if (req.body?.etapa_id !== undefined && req.body?.etapa_id !== null && !etapaId) return erro(res, 422, 'DADOS_INVALIDOS', 'Etapa de outro funil.');
     if (etapaId && etapaId !== atual.etapa_id) {
       etapa = await dados.buscar('etapas_funil', etapaId);
       if (!etapa || etapa.pipeline !== atual.pipeline) return erro(res, 422, 'DADOS_INVALIDOS', 'Etapa de outro funil.');
@@ -751,11 +768,25 @@ crmRotas.post(
     const dados = req.dados!;
     const atividade = aid ? await dados.buscar('atividades', aid) : null;
     const visita = atividade ? await primeiro(dados, 'visitas', { atividade_id: aid }) : null;
-    if (!atividade || !visita) return erro(res, 404, 'NAO_ENCONTRADO', 'Visita não encontrada.');
+    if (!atividade || (!visita && atividade.tipo !== 'visita')) return erro(res, 404, 'NAO_ENCONTRADO', 'Visita não encontrada.');
     const nota = req.body?.nota === undefined || req.body?.nota === null || req.body?.nota === '' ? null : Number(req.body.nota);
     if (nota !== null && !(Number.isInteger(nota) && nota >= 1 && nota <= 5)) return erro(res, 422, 'DADOS_INVALIDOS', 'Nota de 1 a 5.');
     const texto = typeof req.body?.texto === 'string' ? req.body.texto.trim().slice(0, 4000) || null : null;
     if (nota === null && !texto) return erro(res, 422, 'DADOS_INVALIDOS', 'Dê uma nota ou escreva o retorno do cliente.');
+    // Visita marcada sem imóvel (#233): não há linha em `visitas` (o imóvel é obrigatório nela), então o
+    // retorno vai para a linha do tempo do cliente e a visita fica feita.
+    if (!visita) {
+      if (atividade.status === 'pendente') await dados.atualizar('atividades', aid!, { status: 'feita' });
+      if (atividade.contato_id) {
+        await registrar(dados, req, {
+          tipo: 'visita.feedback', alvo_tipo: 'atividade', alvo_id: aid!, contato_id: atividade.contato_id,
+          resumo: `Retorno da visita${nota ? ` (nota ${nota})` : ''}${texto ? `: ${texto}` : ''}`,
+        });
+        await dados.atualizar('contatos', atividade.contato_id, { ultimo_contato_em: agora() });
+        await reclassificar(dados, atividade.contato_id);
+      }
+      return res.json({ atividade_id: aid, feedback_nota: nota, feedback_texto: texto, sem_imovel: true });
+    }
     const compartilhar = req.body?.compartilhar === undefined ? visita.compartilhar_com_proprietario : req.body.compartilhar === true;
     const salva = await dados.atualizar('visitas', visita.id, { feedback_nota: nota, feedback_texto: texto, compartilhar_com_proprietario: compartilhar, feedback_em: agora() });
     // Registrar o retorno é sinal de que a visita aconteceu.
@@ -807,25 +838,34 @@ crmRotas.put(
     // Negócios não ficam órfãos nem incoerentes (#230):
     // - etapa com negócio em andamento não sai do funil (sumiria do quadro);
     // - etapa com negócio não troca de tipo (ganho_em/perdido_em ficariam errados nos números).
-    const quantos = async (etapaId: number, soAbertos: boolean) =>
-      (await dados.listar('negocios', { filtros: { etapa_id: etapaId, ...(soAbertos ? { 'ganho_em[nulo]': 'true', 'perdido_em[nulo]': 'true' } : {}) }, por_pagina: 1 })).total ?? 0;
-    const bloqueios: string[] = [];
-    for (const e of atuais) {
-      if (!e.ativa) continue;
-      if (!mantidas.has(e.id)) {
+    // A contagem roda na mesma transação da gravação, com a etapa travada (`travar`), e conta também
+    // negócio removido no caso do tipo (uma restauração cairia na etapa trocada).
+    class Bloqueio extends Error {
+      constructor(readonly motivos: string[]) {
+        super('ETAPA_COM_NEGOCIOS');
+      }
+    }
+    try {
+    await dados.transaction(async (trx) => {
+      const quantos = async (etapaId: number, soAbertos: boolean) => {
+        await trx.buscar('etapas_funil', etapaId, { travar: true });
+        const filtros = { etapa_id: etapaId, ...(soAbertos ? { 'ganho_em[nulo]': 'true', 'perdido_em[nulo]': 'true' } : {}) };
+        return (await trx.listar('negocios', { filtros, por_pagina: 1, ...(soAbertos ? {} : { removidos: 'incluir' as const }) })).total ?? 0;
+      };
+      const bloqueios: string[] = [];
+      for (const e of atuais) {
+        if (!e.ativa || mantidas.has(e.id)) continue;
         const n = await quantos(e.id, true);
         if (n) bloqueios.push(`"${e.nome}" tem ${n} negócio(s) em andamento: mova-os para outra etapa antes de tirá-la.`);
       }
-    }
-    for (const e of v.dados) {
-      const antes = e.id ? porId.get(e.id) : undefined;
-      if (antes && antes.tipo !== e.tipo) {
-        const n = await quantos(e.id!, false);
-        if (n) bloqueios.push(`"${antes.nome}" tem ${n} negócio(s): o tipo dela não muda. Crie uma etapa nova com o tipo que quer.`);
+      for (const e of v.dados) {
+        const antes = e.id ? porId.get(e.id) : undefined;
+        if (antes && antes.tipo !== e.tipo) {
+          const n = await quantos(e.id!, false);
+          if (n) bloqueios.push(`"${antes.nome}" tem ${n} negócio(s): o tipo dela não muda. Crie uma etapa nova com o tipo que quer.`);
+        }
       }
-    }
-    if (bloqueios.length) return erro(res, 422, 'ETAPA_COM_NEGOCIOS', 'Estas etapas têm negócios.', bloqueios);
-    await dados.transaction(async (trx) => {
+      if (bloqueios.length) throw new Bloqueio(bloqueios);
       // Etapa que saiu da lista não é apagada (pode haver negócio nela): fica inativa, com nome livre.
       for (const e of atuais) {
         if (!mantidas.has(e.id) && e.ativa) await trx.atualizar('etapas_funil', e.id, { ativa: false, nome: `${e.nome} (inativa ${e.id})`.slice(0, 60), ordem: 999 });
@@ -838,6 +878,10 @@ crmRotas.put(
         else await trx.criar('etapas_funil', { ...linha, pipeline });
       }
     });
+    } catch (e) {
+      if (e instanceof Bloqueio) return erro(res, 422, 'ETAPA_COM_NEGOCIOS', 'Estas etapas têm negócios.', e.motivos);
+      throw e;
+    }
     res.json({ etapas: await etapasDaConta(dados, pipeline) });
   }),
 );

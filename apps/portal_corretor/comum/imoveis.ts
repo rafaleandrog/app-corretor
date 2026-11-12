@@ -171,7 +171,9 @@ export function validarAutorizacao(corpo: Record<string, unknown>, parcial = fal
   const data = (c: string, rotulo: string) => {
     const t = texto(corpo[c]);
     // `Date` aceita dia que não existe ('2026-02-31' vira 3 de março): a data só vale se voltar igual (#229).
-    const dia = /^\d{4}-\d{2}-\d{2}$/.test(t) && !t.startsWith('0000') ? new Date(`${t}T12:00:00Z`) : null;
+    // Ano entre 1900 e 2100: 0001 ou 9999 é digitação errada, não vigência (#233).
+    const ano = Number(t.slice(0, 4));
+    const dia = /^\d{4}-\d{2}-\d{2}$/.test(t) && ano >= 1900 && ano <= 2100 ? new Date(`${t}T12:00:00Z`) : null;
     if (!dia || Number.isNaN(dia.getTime()) || dia.toISOString().slice(0, 10) !== t) erros.push(`${rotulo}: data inválida.`);
     else d[c] = t;
   };
@@ -185,7 +187,9 @@ export function validarAutorizacao(corpo: Record<string, unknown>, parcial = fal
   }
   if (tem('preco_autorizado')) {
     const c = reaisParaCentavos(corpo.preco_autorizado);
-    if (c === null || c === undefined || Number.isNaN(c)) erros.push('Informe o preço autorizado.');
+    // Vazio pede o valor; valor que veio e não cabe (negativo, texto, acima de R$ 21.474.836,47) diz isso (#233).
+    if (c === null || c === undefined) erros.push('Informe o preço autorizado.');
+    else if (Number.isNaN(c)) erros.push('Preço autorizado inválido: use um valor de R$ 0 a R$ 21.474.836,47.');
     else d.preco_autorizado_c = c;
   }
   for (const b of ['exclusiva', 'permite_parceria', 'permite_placa', 'permite_portais']) {

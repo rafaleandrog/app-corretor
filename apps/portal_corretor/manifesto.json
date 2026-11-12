@@ -326,7 +326,8 @@
       "descricao": "Chegou a hora de publicar uma peça agendada no Instagram.",
       "campos": [
         "peca_id",
-        "agendada_para"
+        "agendada_para",
+        "fuso"
       ],
       "conteudo": "Publicação agendada do Estúdio",
       "api": "estudio/pecas/{peca_id}",
