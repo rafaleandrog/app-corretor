@@ -521,6 +521,8 @@ crmRotas.patch(
     if (etapaId && etapaId !== atual.etapa_id) {
       etapa = await dados.buscar('etapas_funil', etapaId);
       if (!etapa || etapa.pipeline !== atual.pipeline) return erro(res, 422, 'DADOS_INVALIDOS', 'Etapa de outro funil.');
+      // Etapa tirada do funil não recebe negócio: ele sumiria do quadro (#230).
+      if (etapa.ativa === false) return erro(res, 422, 'ETAPA_INATIVA', 'Essa etapa foi tirada do funil.');
       const motivo = req.body?.motivo_perda;
       if (etapa.tipo === 'perdida' && !(MOTIVOS_PERDA as readonly string[]).includes(motivo)) {
         return erro(res, 422, 'MOTIVO_OBRIGATORIO', 'Informe o motivo da perda.');
@@ -802,6 +804,27 @@ crmRotas.put(
     const ids = v.dados.map((e) => e.id).filter(Boolean);
     if (new Set(ids).size !== ids.length) return erro(res, 422, 'DADOS_INVALIDOS', 'A mesma etapa aparece duas vezes.');
     const mantidas = new Set(v.dados.map((e) => e.id).filter(Boolean));
+    // Negócios não ficam órfãos nem incoerentes (#230):
+    // - etapa com negócio em andamento não sai do funil (sumiria do quadro);
+    // - etapa com negócio não troca de tipo (ganho_em/perdido_em ficariam errados nos números).
+    const quantos = async (etapaId: number, soAbertos: boolean) =>
+      (await dados.listar('negocios', { filtros: { etapa_id: etapaId, ...(soAbertos ? { 'ganho_em[nulo]': 'true', 'perdido_em[nulo]': 'true' } : {}) }, por_pagina: 1 })).total ?? 0;
+    const bloqueios: string[] = [];
+    for (const e of atuais) {
+      if (!e.ativa) continue;
+      if (!mantidas.has(e.id)) {
+        const n = await quantos(e.id, true);
+        if (n) bloqueios.push(`"${e.nome}" tem ${n} negócio(s) em andamento: mova-os para outra etapa antes de tirá-la.`);
+      }
+    }
+    for (const e of v.dados) {
+      const antes = e.id ? porId.get(e.id) : undefined;
+      if (antes && antes.tipo !== e.tipo) {
+        const n = await quantos(e.id!, false);
+        if (n) bloqueios.push(`"${antes.nome}" tem ${n} negócio(s): o tipo dela não muda. Crie uma etapa nova com o tipo que quer.`);
+      }
+    }
+    if (bloqueios.length) return erro(res, 422, 'ETAPA_COM_NEGOCIOS', 'Estas etapas têm negócios.', bloqueios);
     await dados.transaction(async (trx) => {
       // Etapa que saiu da lista não é apagada (pode haver negócio nela): fica inativa, com nome livre.
       for (const e of atuais) {

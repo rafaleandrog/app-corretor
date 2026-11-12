@@ -6,7 +6,7 @@ import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { CENTAVOS_MAXIMO, ETAPAS_PADRAO } from '../comum/crm';
 import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
-import { id } from './acesso';
+import { id, temByteNulo } from './acesso';
 import { reclassificar } from './inteligencia';
 import { lerVitrine, MARCA_AVISO_OFERTA, publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 import { semSigilo } from '../comum/negociacao';
@@ -31,6 +31,9 @@ type Linha = Record<string, any>;
 const TTL_FOTO = 6 * 3600;
 
 export const rotasPublicas: Router = Router();
+
+// Endereço com byte nulo não existe: 404 antes de consultar o banco (#229).
+rotasPublicas.use((req, res, next) => (temByteNulo(req.query, req.params) ? naoEncontrado(res) : next()));
 
 async function vitrine(dados: HelperDados, filtros: Record<string, unknown>) {
   const r = await dados.listar('vitrine_publica', { filtros, por_pagina: 1 });
@@ -264,7 +267,7 @@ const contaDoIngresso = (req: Request) => {
   return Number.isInteger(c) && c > 0 ? c : null;
 };
 
-export const webhooks = {
+const webhooksBrutos = {
   /** Formulário da página e da ficha (7.3): honeypot `site`, limite por IP, consentimento obrigatório. */
   formulario_lead: async (req: Request, res: Response) => {
     const conta = contaDoIngresso(req);
@@ -376,6 +379,15 @@ export const webhooks = {
     res.json({ ok: true });
   },
 };
+
+/** Webhooks com a mesma trava das rotas: corpo com byte nulo responde 422, sem publicar evento (#229). */
+export const webhooks = Object.fromEntries(
+  Object.entries(webhooksBrutos).map(([nome, fn]) => [
+    nome,
+    (req: Request, res: Response) =>
+      temByteNulo(req.body) ? res.status(422).json({ erro: true, codigo: 'TEXTO_INVALIDO', mensagem: 'Um dos campos tem um caractere inválido.' }) : fn(req, res),
+  ]),
+) as typeof webhooksBrutos;
 
 // ---------- Listeners ----------
 

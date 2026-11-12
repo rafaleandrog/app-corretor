@@ -192,6 +192,8 @@ function dataHora(v: unknown, campo: string, erros: string[]): string | null {
  * não é tocado. Telefone sai em E.164 e é a chave de duplicidade na conta.
  */
 export function validarContato(corpo: Record<string, unknown>, parcial = false): Resultado<Partial<DadosContato>> {
+  // Linha de importação que não é objeto ("abc", 5, lista) é recusada aqui, não derruba o lote (#229).
+  if (typeof corpo !== 'object' || corpo === null || Array.isArray(corpo)) return { ok: false, erros: ['A linha não tem os campos do contato.'] };
   const erros: string[] = [];
   for (const c of ['nome', 'telefone', 'email', 'observacoes', 'temperatura', 'proximo_passo', 'proximo_passo_em', 'proximo_passo_cliente']) {
     const v = corpo[c];
@@ -301,7 +303,11 @@ export function validarEtapas(pipeline: Pipeline, lista: unknown): Resultado<(Et
     nomes.add(nome.toLowerCase());
     if (!['aberta', 'ganha', 'perdida'].includes(tipo)) erros.push(`Etapa "${nome}": tipo inválido.`);
     if (!(probabilidade >= 0 && probabilidade <= 1)) erros.push(`Etapa "${nome}": probabilidade entre 0 e 1 (0 a 100%).`);
-    const id = Number.isInteger(e.id) ? (e.id as number) : undefined;
+    // Id chega como número ou texto numérico ("113"); id que veio e não é número inteiro é recusado,
+    // em vez de virar etapa nova e desativar a antiga (#230).
+    const bruto = e.id === undefined || e.id === null || e.id === '' ? undefined : Number(e.id);
+    const id = bruto !== undefined && Number.isInteger(bruto) && bruto > 0 ? bruto : undefined;
+    if (bruto !== undefined && id === undefined) erros.push(`Etapa "${nome}": identificador inválido.`);
     return { id, pipeline, nome, tipo, ordem, probabilidade: Math.round(probabilidade * 100) / 100 };
   });
   const conta = (t: string) => etapas.filter((e) => e.tipo === t).length;

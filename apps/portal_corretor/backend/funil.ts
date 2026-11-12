@@ -45,7 +45,6 @@ funilRotas.get(
     const pipeline = req.query.pipeline === 'venda_captacao' ? 'venda_captacao' : 'compra';
     const dados = req.dados!;
     const etapas = await etapasPorId(dados);
-    const daqui = [...etapas.values()].filter((e) => e.pipeline === pipeline && e.ativa).sort((a, b) => a.ordem - b.ordem);
     // Os dois funis: as contagens da coluna da esquerda (P03) contam os negócios abertos de cada um.
     // Contagem pelo `total` do listar (uma linha lida), sem varrer: não cria teto novo para a rota.
     const aberto = (n: Linha) => etapas.get(n.etapa_id)?.tipo === 'aberta';
@@ -65,6 +64,13 @@ funilRotas.get(
       if (!e || n.pipeline !== pipeline) return false;
       return e.tipo === 'aberta' || (iso(n.etapa_desde) ?? '') >= corte;
     });
+    // Colunas: as etapas ativas e, antes das finais, as tiradas do funil que ainda têm negócio no
+    // quadro — sem coluna, o negócio sumiria da tela (#230).
+    const ativas = [...etapas.values()].filter((e) => e.pipeline === pipeline && e.ativa).sort((a, b) => a.ordem - b.ordem);
+    const comNegocio = new Set(visiveis.map((n) => n.etapa_id));
+    const inativas = [...etapas.values()].filter((e) => e.pipeline === pipeline && !e.ativa && comNegocio.has(e.id)).sort((a, b) => a.id - b.id);
+    const primeiraFinal = ativas.findIndex((e) => e.tipo !== 'aberta');
+    const daqui = primeiraFinal < 0 ? [...ativas, ...inativas] : [...ativas.slice(0, primeiraFinal), ...inativas, ...ativas.slice(primeiraFinal)];
     const contatos = visiveis.length
       ? await dados.varrerTudo('contatos', { filtros: { id: [...new Set(visiveis.map((n) => n.contato_id))].join(',') }, maximo: 5000 })
       : [];

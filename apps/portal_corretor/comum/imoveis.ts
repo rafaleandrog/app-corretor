@@ -150,13 +150,29 @@ export function autorizacaoVigente(a: Autorizacao, hoje: string): boolean {
   return a.situacao === 'assinada' && !!a.documento_midia_id && a.inicio <= hoje && hoje <= a.fim;
 }
 
+/**
+ * Endereço gravado (`imoveis.endereco`, JSON `{logradouro, numero, complemento, cep}`) em uma linha de
+ * texto para o que é publicado: ficha pública, portal e calendário (#231). Texto antigo passa como veio.
+ */
+export function enderecoEmTexto(v: unknown): string | null {
+  if (typeof v === 'string') return v.trim() || null;
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const e = v as Record<string, unknown>;
+  const parte = (k: string) => (typeof e[k] === 'string' || typeof e[k] === 'number' ? String(e[k]).trim() : '');
+  const rua = [parte('logradouro'), parte('numero')].filter(Boolean).join(', ');
+  const linha = [rua, parte('complemento'), parte('cep') && `CEP ${parte('cep')}`].filter(Boolean).join(' - ');
+  return linha || null;
+}
+
 export function validarAutorizacao(corpo: Record<string, unknown>, parcial = false): Resultado<Record<string, unknown>> {
   const erros: string[] = [];
   const tem = (c: string) => !parcial || c in corpo;
   const d: Record<string, unknown> = {};
   const data = (c: string, rotulo: string) => {
     const t = texto(corpo[c]);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(t) || Number.isNaN(new Date(`${t}T12:00:00Z`).getTime())) erros.push(`${rotulo}: data inválida.`);
+    // `Date` aceita dia que não existe ('2026-02-31' vira 3 de março): a data só vale se voltar igual (#229).
+    const dia = /^\d{4}-\d{2}-\d{2}$/.test(t) && !t.startsWith('0000') ? new Date(`${t}T12:00:00Z`) : null;
+    if (!dia || Number.isNaN(dia.getTime()) || dia.toISOString().slice(0, 10) !== t) erros.push(`${rotulo}: data inválida.`);
     else d[c] = t;
   };
   if (tem('inicio')) data('inicio', 'Início');

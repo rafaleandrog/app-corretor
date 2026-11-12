@@ -1,7 +1,7 @@
 // Minha Página, ficha pública e formulário de contato (bloco 5, spec 6.15, 7.2, 7.3, 11.3).
 // Puro: validação da página, o que de um imóvel pode ir a público e a validação do formulário.
 import { emailValido, normalizarTelefone, telefoneValido } from './conta';
-import { listaDeCaracteristicas } from './imoveis';
+import { enderecoEmTexto, listaDeCaracteristicas } from './imoveis';
 
 export const TIPOS_BLOCO = ['apresentacao', 'destaques', 'imoveis', 'sobre', 'bairros', 'formulario', 'contato'] as const;
 export type TipoBloco = (typeof TIPOS_BLOCO)[number];
@@ -155,7 +155,7 @@ export function imovelPublico(im: Record<string, any>, midias: Record<string, an
     bairro: nivel === 'regiao' ? null : (im.bairro ?? null),
     cidade: im.cidade ?? null,
     uf: im.uf ?? null,
-    endereco: nivel === 'completo' ? (im.endereco ?? null) : null,
+    endereco: nivel === 'completo' ? enderecoEmTexto(im.endereco) : null,
     caracteristicas: listaDeCaracteristicas(im.caracteristicas, 40),
     descricao: typeof im.descricao === 'string' ? im.descricao.slice(0, 8000) : null,
     fotos,
