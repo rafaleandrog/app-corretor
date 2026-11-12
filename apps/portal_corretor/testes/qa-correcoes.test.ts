@@ -108,8 +108,7 @@ test('#233: funil e visita recusam ou tratam o que antes era ignorado; playbook 
     const pb = (await chamar('GET', '/funil/playbook')).corpo;
     const ainda = pb.etapas_sem_abordagem.find((e: any) => e.id === nova.id);
     assert.ok(ainda, 'etapa segue oferecida');
-    assert.deepEqual(ainda.temperaturas_faltando, ['frio', 'quente'].filter((t) => ainda.temperaturas_faltando.includes(t)));
-    assert.ok(!ainda.temperaturas_faltando.includes('morno'));
+    assert.deepEqual([...ainda.temperaturas_faltando].sort(), ['frio', 'quente']);
   });
 });
 
@@ -166,5 +165,18 @@ test('#234: item da seleção cuja autorização venceu sem edição sai da leit
     assert.ok(!('vigente_ate' in antes.itens[0]), 'o prazo não vai ao visitante');
     linha.dados.itens[0].vigente_ate = dia(-1); // a autorização venceu ontem, ninguém editou nada
     assert.equal((await chamar('GET', `/vitrine/selecao?t=${token}`)).corpo.selecao.itens.length, 0);
+  });
+});
+
+test('#232: "Publiquei por fora" recusa peça em rascunho', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, {}, async (chamar) => {
+    const im = (await chamar('POST', '/imoveis', { tipo: 'apartamento', cidade: 'Brasília', titulo: 'qa-peca' })).corpo;
+    const pedido = await chamar('POST', '/estudio/pedido', { imovel_id: im.id, objetivo: 'novo_imovel', formatos: ['post_1x1'] });
+    assert.equal(pedido.status, 201, JSON.stringify(pedido.corpo));
+    const peca = pedido.corpo.pecas[0];
+    const r = await chamar('POST', `/estudio/pecas/${peca.id}/publicada-fora`, {});
+    assert.deepEqual([r.status, r.corpo.codigo], [409, 'ESTADO_INVALIDO']);
+    assert.equal(banco.linhas('pecas').find((p) => p.id === peca.id)!.estado, 'rascunho');
   });
 });

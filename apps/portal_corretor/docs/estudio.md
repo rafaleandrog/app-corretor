@@ -197,7 +197,7 @@ No **Mais**, conforme a situação:
 | **Trocar a arte** | Abre o envio para pôr outra arte no lugar da atual |
 | **Usar outra ferramenta** | Ver acima |
 | **Voltar a rascunho** | Tira a aprovação de uma peça aprovada (ou com erro depois de aprovada) |
-| **Publiquei por fora** | Registra que você publicou pelo Instagram, com o link do post se quiser. Só para peça aprovada (rascunho e rejeitada pedem **Aprovar** antes) e com o imóvel ainda à venda |
+| **Publiquei por fora** | Registra que você publicou pelo Instagram, com o link do post se quiser. Só para peça aprovada, inclusive a agendada, a que deu erro e a presa em "publicando" (rascunho e rejeitada pedem **Aprovar** antes), e com o imóvel ainda à venda |
 | **Copiar legenda** | Copia a legenda com as hashtags |
 | **Remover** | Tira a peça do Estúdio. O pedido continua aberto com as peças que sobraram; se era a única, o Estúdio fica sem pedido aberto |
 
@@ -220,7 +220,7 @@ O botão **Publicar** de uma peça aprovada pergunta como:
 
 | Escolha | Como funciona |
 |---|---|
-| **Publicar agora** | A peça vai na hora para o Instagram conectado. O app confere a peça de novo (autorização vigente no fuso da conta, imóvel ainda à venda e não removido, arte, limites) antes de publicar; o agendamento confere o mesmo na hora marcada |
+| **Publicar agora** | A peça vai na hora para o Instagram conectado. O app confere a peça de novo (autorização vigente, imóvel ainda à venda e não removido, arte, limites) antes de publicar; o agendamento confere o mesmo na hora marcada |
 | **Agendar** | Escolha dia e hora, de 5 minutos a 90 dias à frente. Na hora, o app confere e publica. **Cancelar agendamento** devolve a peça para aprovada |
 | **Baixar** | Abre as imagens para salvar e copia a legenda. Publique pelo Instagram ou pelo Meta Business Suite (que agendam por conta própria) e depois use **Mais › Publiquei por fora** |
 

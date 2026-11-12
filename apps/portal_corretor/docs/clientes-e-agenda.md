@@ -102,7 +102,8 @@ ficha abre na **Linha do tempo**; a aba aberta fica no endereço (`?secao=`) e v
   - **Cadastro:** origem e campanha, data de cadastro, observações e o **consentimento** numa linha
     (registrado em … · revogar, ou registrar). Quem pediu contato pelo formulário da página aparece
     com "Declarou consentimento no formulário…" e o botão **Confirmar**: a declaração não vale como
-    consentimento até você confirmar com o cliente. O lápis edita o contato.
+    consentimento até você confirmar com o cliente. O lápis edita o contato; a edição não deixa o
+    contato sem telefone e sem e-mail ao mesmo tempo.
 - **Linha do tempo:** **Registrar contato** (nota livre, até 5.000 caracteres, guardada inteira) e **Registrar envio** no topo (por e-mail ou pessoalmente, o registro não exige imóvel anunciável; só o cartão pelo WhatsApp exige); abaixo, tudo o
   que aconteceu com o contato, com autor e hora.
 - **Enviados:** imóveis, arquivos e mensagens registrados, com os cliques no link; o **+** registra um

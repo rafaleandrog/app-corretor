@@ -26,7 +26,7 @@ const eventos = manifesto.eventos as Record<string, { campos: string[]; segregad
 /** Campos que são identificadores (número de registro da conta). */
 const eh_id = (c: string) => c.endsWith('_id') || ['negociacao', 'proposta', 'visita', 'tarefa'].includes(c);
 /** Campos que não identificam pessoa: códigos do app, rótulos fechados, datas e o valor da oferta. */
-const NAO_PESSOAIS = new Set(['codigo', 'imovel_codigo', 'reacao', 'tipo', 'origem', 'agendada_para', 'fuso', 'quando', 'valor_c', 'rede', 'total', 'novos', 'atualizados', 'ignorados', 'motivo_perda']);
+const NAO_PESSOAIS = new Set(['codigo', 'imovel_codigo', 'reacao', 'tipo', 'origem', 'agendada_para', 'quando', 'valor_c', 'rede', 'total', 'novos', 'atualizados', 'ignorados', 'motivo_perda']);
 /**
  * Tipo auditável (auditoria.md): a trilha da plataforma exige `ator.desc` não vazio, então o nome de quem agiu vai no
  * payload desses tipos e só deles. É o corretor (ator), não o cliente; o teste confere que o tipo declara `auditavel`.
