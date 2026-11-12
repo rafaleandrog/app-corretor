@@ -821,7 +821,7 @@ export class FichaContato {
         <urbi-botao variante="secundario" icone="fa-solid fa-paper-plane" @click=${() => void this.registrarEnvio()}>Registrar envio</urbi-botao>
       </urbi-linha>
       ${linha_do_tempo.length
-        ? html`<urbi-lista separador .itens=${linha_do_tempo} .render_item=${(l: Linha) => html`<urbi-prosa>${l.resumo}</urbi-prosa>
+        ? html`<urbi-lista separador .itens=${linha_do_tempo} .render_item=${(l: Linha) => html`<urbi-prosa>${typeof l.dados?.texto === 'string' ? l.dados.texto : l.resumo}</urbi-prosa>
               <urbi-prosa papel="dica">${dataHora(l.ocorrido_em)} · ${l.autor_nome ?? 'sistema'}</urbi-prosa>`}></urbi-lista>`
         : html`<urbi-prosa papel="dica">Nada registrado ainda. Anote cada conversa em Registrar contato.</urbi-prosa>`}
     </urbi-card>`;

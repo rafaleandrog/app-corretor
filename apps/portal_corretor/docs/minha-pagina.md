@@ -64,7 +64,7 @@ diz que ela pode estar desatualizada.
 | Sobre mim | Um texto mais longo |
 | Bairros que atendo | Uma lista de bairros ou regiões |
 | Formulário de contato | Nome, telefone, e-mail, mensagem e a autorização de contato |
-| WhatsApp e Instagram | Liga ou desliga o botão do WhatsApp da capa e informa o Instagram, que aparece no fim da página |
+| WhatsApp e Instagram | Liga ou desliga o botão do WhatsApp da capa e informa o Instagram, que aparece no fim da página. Com o bloco oculto, o botão do WhatsApp sai da capa e das fichas, e o Instagram não aparece |
 
 - **Refazer a página com IA** sugere a apresentação e o "sobre mim" a partir do que o corretor contar e
   das regiões dos imóveis. A IA não inventa prêmios, anos de experiência nem números. O corretor

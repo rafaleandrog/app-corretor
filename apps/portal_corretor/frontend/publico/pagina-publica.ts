@@ -179,6 +179,15 @@ export class PcPaginaPublica extends LitElement {
     return this.pagina?.blocos.find((b) => b.tipo === tipo);
   }
 
+  /**
+   * Bloco "WhatsApp e Instagram" ligado (#234). A página publicada só traz os blocos ativos: sem ele,
+   * o botão do WhatsApp sai da capa e das fichas, e o Instagram some.
+   */
+  private contato() {
+    const b = this.bloco('contato');
+    return b && b.ativo !== false ? b : null;
+  }
+
   private urlImovel(codigo: string) {
     return `/portal_corretor/p?c=${encodeURIComponent(this.pagina!.endereco)}&i=${encodeURIComponent(codigo)}`;
   }
@@ -236,8 +245,8 @@ export class PcPaginaPublica extends LitElement {
 
   /** "Quero saber mais" (M6): abre o WhatsApp do corretor citando o imóvel; sem WhatsApp, a ficha. */
   private querSaberMais(i: Cartao) {
-    const contato = this.bloco('contato');
-    const zap = contato?.whatsapp !== false ? linkWhatsapp(this.pagina!.telefone, `Olá! Quero saber mais sobre o imóvel ${i.codigo}${i.titulo ? ` (${i.titulo})` : ''}.`) : null;
+    const contato = this.contato();
+    const zap = contato && contato.whatsapp !== false ? linkWhatsapp(this.pagina!.telefone, `Olá! Quero saber mais sobre o imóvel ${i.codigo}${i.titulo ? ` (${i.titulo})` : ''}.`) : null;
     return zap
       ? html`<a class="botao" href=${zap} target="_blank" rel="noopener">Quero saber mais</a>`
       : html`<a class="botao" href=${this.urlImovel(i.codigo)}>Quero saber mais</a>`;
@@ -272,8 +281,8 @@ export class PcPaginaPublica extends LitElement {
   /** Capa (M6): só avatar, nome, a linha do CRECI (quando houver, D-93) e Falar no WhatsApp. */
   private topo() {
     const p = this.pagina!;
-    const contato = this.bloco('contato');
-    const zap = contato?.whatsapp !== false ? linkWhatsapp(p.telefone, this.imovel ? `Olá! Vi o imóvel ${this.imovel.codigo} na sua página.` : 'Olá! Vi sua página e quero falar sobre imóveis.') : null;
+    const contato = this.contato();
+    const zap = contato && contato.whatsapp !== false ? linkWhatsapp(p.telefone, this.imovel ? `Olá! Vi o imóvel ${this.imovel.codigo} na sua página.` : 'Olá! Vi sua página e quero falar sobre imóveis.') : null;
     return html`<header class="topo ${this.destaque('contato')}">
       <div class="conteudo">
         ${p.foto_url ? html`<img class="foto-corretor" src=${p.foto_url} alt=${`Foto de ${p.nome}`} />` : html`<span class="iniciais" aria-hidden="true">${iniciais(p.nome)}</span>`}
@@ -286,7 +295,7 @@ export class PcPaginaPublica extends LitElement {
 
   /** Instagram (bloco "WhatsApp e Instagram"): fora da capa, no fim da página. */
   private instagram() {
-    const ig = this.bloco('contato')?.instagram;
+    const ig = this.contato()?.instagram;
     if (!ig || !/^[A-Za-z0-9._]{1,30}$/.test(ig)) return nothing;
     return html`<section class=${this.destaque('contato')}><a class="botao claro" href="https://instagram.com/${encodeURIComponent(ig)}" target="_blank" rel="noopener">@${ig} no Instagram</a></section>`;
   }

@@ -479,7 +479,9 @@ test('em execução: todos os eventos do app, pelos caminhos reais, com dado pes
     await ok(chamar('POST', `/estudio/pecas/${peca.id}/aprovar`), 'aprovar peça'); // peca_pronta
     await ok(chamar('POST', '/conexoes/instagram/retorno', { code: 'x' }), 'instagram'); // canal_conectado (auditável)
     await ok(chamar('POST', `/estudio/pecas/${peca.id}/agendar`, { quando: new Date(Date.now() + 2 * 3600e3).toISOString() }), 'agendar');
-    // publicacao_feita: a segunda peça foi publicada por fora do app.
+    // publicacao_feita: a segunda peça (aprovada, #232) foi publicada por fora do app.
+    await ok(chamar('PUT', `/estudio/pecas/${pecas[1].id}/arquivos`, { upload_ids: [12], motor: 'canva_ia' }), 'arte 2');
+    await ok(chamar('POST', `/estudio/pecas/${pecas[1].id}/aprovar`), 'aprovar peça 2');
     await ok(chamar('POST', `/estudio/pecas/${pecas[1].id}/publicada-fora`, {}), 'publicada por fora');
     // publicacao_falhou e integracao_erro: na hora marcada, o Instagram falso recusa a publicação.
     const agendada = banco.linhas('pecas').find((x) => x.id === peca.id)!;

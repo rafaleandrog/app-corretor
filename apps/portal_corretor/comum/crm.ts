@@ -305,9 +305,11 @@ export function validarEtapas(pipeline: Pipeline, lista: unknown): Resultado<(Et
     if (!(probabilidade >= 0 && probabilidade <= 1)) erros.push(`Etapa "${nome}": probabilidade entre 0 e 1 (0 a 100%).`);
     // Id chega como número ou texto numérico ("113"); id que veio e não é número inteiro é recusado,
     // em vez de virar etapa nova e desativar a antiga (#230).
-    const bruto = e.id === undefined || e.id === null || e.id === '' ? undefined : Number(e.id);
-    const id = bruto !== undefined && Number.isInteger(bruto) && bruto > 0 ? bruto : undefined;
-    if (bruto !== undefined && id === undefined) erros.push(`Etapa "${nome}": identificador inválido.`);
+    // Só número inteiro ou texto só de dígitos: `true`, "1e2" ou [5] não viram id por coerção.
+    const veio = e.id !== undefined && e.id !== null && e.id !== '';
+    const bruto = typeof e.id === 'number' ? e.id : typeof e.id === 'string' && /^\d+$/.test(e.id) ? Number(e.id) : NaN;
+    const id = veio && Number.isInteger(bruto) && bruto > 0 ? bruto : undefined;
+    if (veio && id === undefined) erros.push(`Etapa "${nome}": identificador inválido.`);
     return { id, pipeline, nome, tipo, ordem, probabilidade: Math.round(probabilidade * 100) / 100 };
   });
   const conta = (t: string) => etapas.filter((e) => e.tipo === t).length;

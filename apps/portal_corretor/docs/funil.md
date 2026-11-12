@@ -54,7 +54,8 @@ temperatura e o aviso de **abordagem atrasada**.
   seguinte. Ela usa a etapa mais avançada a que cada negócio chegou, como em
   [Números](desempenho.md): quem voltou ou foi perdido conta até onde foi, e o ganho passou por
   todas. A conta é sobre os negócios do quadro (os em andamento e os ganhos e perdidos dos últimos
-  30 dias), sem os filtros. Uma etapa que você criou em Ajustes › Funil não tem taxa.
+  30 dias), sem os filtros. Uma etapa que você criou em Ajustes › Funil não tem taxa, e uma etapa
+  tirada do funil que ainda tem negócio aparece como coluna, mas não entra na conta.
 - **Arraste** o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
   motivo, nada é gravado e o cartão volta. Ao soltar um negócio de compra com imóvel em
   **Proposta**, o Negociador entra: a negociação nasce e a tela avisa com o código dela (ver
@@ -135,7 +136,8 @@ No menu **Mais** da ficha:
 
 Abaixo das etapas, a tabela de abordagens por etapa e temperatura. O app semeia uma abordagem
 para cada etapa da semente e cada temperatura; toque numa linha para mudar o texto, o canal e o
-prazo. Etapas criadas pelo corretor começam sem abordagem: use **Nova abordagem**.
+prazo. Etapas criadas pelo corretor começam sem abordagem: use **Nova abordagem**. A etapa continua
+na lista de **Nova abordagem** enquanto faltar alguma das três temperaturas; quando ela já tem alguma, o nome diz quais faltam.
 
 **Quando as etapas e abordagens padrão entram na conta.** Ao iniciar, o app prepara toda conta ativa
 que ainda não tem etapas nem abordagens. A conta criada depois disso é preparada na primeira vez que

@@ -33,7 +33,7 @@ const TTL_FOTO = 6 * 3600;
 export const rotasPublicas: Router = Router();
 
 // Endereço com byte nulo não existe: 404 antes de consultar o banco (#229).
-rotasPublicas.use((req, res, next) => (temByteNulo(req.query, req.params) ? naoEncontrado(res) : next()));
+rotasPublicas.use((req, res, next) => (temByteNulo(req.query) ? naoEncontrado(res) : next()));
 
 async function vitrine(dados: HelperDados, filtros: Record<string, unknown>) {
   const r = await dados.listar('vitrine_publica', { filtros, por_pagina: 1 });
@@ -154,8 +154,9 @@ async function selecaoPublica(req: Request, conta: number, selecaoId: number) {
   if (!linha) return null;
   const s = linha.dados as Linha;
   if (s.expira_em && String(s.expira_em) <= new Date().toISOString()) return null;
+  // Item cuja autorização venceu desde a publicação sai, como na Minha Página (#234); o prazo não vai ao visitante.
   const itens = await Promise.all(
-    (s.itens ?? []).map(async (i: Linha) => ({
+    (s.itens ?? []).filter((i: Linha) => noPrazo({ dados: i })).map(async ({ vigente_ate: _prazo, ...i }: Linha) => ({
       ...i,
       fotos: (await Promise.all((i.fotos ?? []).map(async (f: Linha) => ({ url: await urlFoto(req, f.arquivo), legenda: f.legenda ?? null })))).filter((f) => f.url),
     })),
