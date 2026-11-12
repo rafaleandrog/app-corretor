@@ -162,8 +162,11 @@ Cada funil tem a sua lista de etapas, na ordem, com a chance de fechar (de 0 a 1
 previsões. O corretor pode renomear, reordenar, criar e tirar etapas, e salva um funil por vez.
 
 Regras: ao menos uma etapa em andamento, exatamente uma de ganho e uma de perda, que ficam no fim
-do funil, e nomes sem repetição. Etapa tirada do funil não some dos negócios que estão nela: fica inativa e deixa de
-aparecer para os negócios novos.
+do funil, e nomes sem repetição. Etapa com negócio em andamento não sai do funil: mova os negócios para
+outra etapa antes. Etapa que já tem negócios também não troca de tipo (em andamento, ganho ou perda): crie
+uma etapa nova com o tipo que quer. Etapa tirada do funil fica inativa, não recebe negócio e deixa de
+aparecer para os negócios novos; se ainda houver negócio nela, ela continua como coluna no quadro, antes
+das etapas de ganho e perda, até ele sair.
 
 ## Agenda
 

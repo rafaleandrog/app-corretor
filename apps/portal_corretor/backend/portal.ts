@@ -1,7 +1,7 @@
 import type { HelperDados } from '@urbiverso/sdk';
 import { fusoValido } from '../comum/assistente';
 import { iso } from '../comum/funil';
-import { autorizacaoVigente, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
+import { autorizacaoVigente, enderecoEmTexto, SITUACOES_ANUNCIADAS, type Autorizacao } from '../comum/imoveis';
 import { MARCA_PADRAO } from '../comum/estudio';
 import { imovelPublico } from '../comum/pagina';
 import { negociacaoPublica } from '../comum/portal-cliente';
@@ -218,7 +218,7 @@ export async function sincronizarPortal(dados: HelperDados, conta: number, conta
   const imovel = new Map(imoveis.map((i) => [i.id, i]));
   // Do imóvel, só o que pode aparecer num anúncio (o endereço segue `endereco_publico`).
   const imovelPublicoDe = (im: Linha | undefined) =>
-    im ? { codigo: im.codigo, titulo: im.titulo ?? null, bairro: im.endereco_publico === 'regiao' ? null : (im.bairro ?? null), cidade: im.cidade ?? null, endereco: im.endereco_publico === 'completo' ? (im.endereco ?? null) : null } : null;
+    im ? { codigo: im.codigo, titulo: im.titulo ?? null, bairro: im.endereco_publico === 'regiao' ? null : (im.bairro ?? null), cidade: im.cidade ?? null, endereco: im.endereco_publico === 'completo' ? enderecoEmTexto(im.endereco) : null } : null;
   const ontem = new Date(Date.now() - 86400e3).toISOString();
   const agenda = atividades
     .filter((a) => a.status === 'pendente' && (iso(a.quando) ?? '') >= ontem)

@@ -4,6 +4,7 @@ import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import type { Bloco } from '../../comum/pagina';
 import { linkWhatsapp } from '../../comum/pagina';
 import { iniciais } from '../../comum/portal-cliente';
+import { enderecoEmTexto } from '../../comum/imoveis';
 import { ROTULO_TIPO_IMOVEL } from '../apoio';
 import { estiloPublico } from './estilo';
 import { iconesImovel } from './icones';
@@ -359,7 +360,7 @@ export class PcPaginaPublica extends LitElement {
           <div class="suave">${im.codigo} · ${ROTULO_TIPO_IMOVEL[im.tipo] ?? im.tipo}${im.situacao === 'reservado' ? ' · Reservado' : ''}</div>
           <h2>${im.titulo ?? ROTULO_TIPO_IMOVEL[im.tipo] ?? 'Imóvel'}</h2>
           <div class="preco">${reais(im.preco_c)}</div>
-          <div class="suave">${[im.endereco, local(im), im.uf].filter(Boolean).join(' · ')}</div>
+          <div class="suave">${[enderecoEmTexto(im.endereco), local(im), im.uf].filter(Boolean).join(' · ')}</div>
           ${iconesImovel(im)}
           ${detalhes.length ? html`<div class="suave">${detalhes.join(' · ')}</div>` : nothing}
           ${custos.length ? html`<div class="suave">${custos.join(' · ')}</div>` : nothing}

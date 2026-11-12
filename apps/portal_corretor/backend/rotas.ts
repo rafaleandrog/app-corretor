@@ -22,6 +22,7 @@ import { negociadorHumanoRotas } from './negociador-humano';
 import { buscaRotas } from './busca';
 import { conversasRotas } from './conversas';
 import { escopoDeConta } from './escopo';
+import { semByteNulo } from './acesso';
 
 export { aoIniciar } from './semente';
 // Páginas públicas, webhooks de entrada e listeners do bloco 5.
@@ -35,6 +36,9 @@ export const rotinas = {
 };
 
 export const rotas: Router = Router();
+
+// Byte nulo no corpo ou na query não chega ao banco: 422 antes de qualquer rota (#229).
+rotas.use(semByteNulo);
 
 // Montada pelo shell em /api/portal_corretor/status. A rota é relativa: nunca escreva o prefixo.
 // Esqueleto do bloco 0: confirma que backend e tela conversam na instância.

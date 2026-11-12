@@ -19,6 +19,25 @@ export const id = (v: unknown): number | null => {
   return Number.isInteger(n) && n > 0 && n <= ID_MAXIMO ? n : null;
 };
 
+/**
+ * Byte nulo (`\u0000`) em corpo ou parâmetro: o PostgreSQL recusa em coluna de texto, e a gravação
+ * viraria 500 (#229). Quem chama recusa antes de tocar o banco.
+ */
+export function temByteNulo(...valores: unknown[]): boolean {
+  const tem = (v: unknown, fundo: number): boolean => {
+    if (typeof v === 'string') return v.includes('\u0000');
+    if (!v || typeof v !== 'object' || fundo > 20) return false;
+    return Object.entries(v).some(([k, x]) => k.includes('\u0000') || tem(x, fundo + 1));
+  };
+  return valores.some((v) => tem(v, 0));
+}
+
+/** Middleware das rotas autenticadas: corpo ou query com byte nulo responde 422. */
+export const semByteNulo: RequestHandler = (req, res, next) => {
+  if (temByteNulo(req.body, req.query, req.params)) return erro(res, 422, 'TEXTO_INVALIDO', 'Um dos campos tem um caractere inválido.');
+  next();
+};
+
 export function erro(res: Response, status: number, codigo: string, mensagem: string, detalhes?: string[]) {
   return res.status(status).json({ erro: true, codigo, mensagem, ...(detalhes ? { detalhes } : {}) });
 }
@@ -146,6 +165,11 @@ export function assincrono(fn: (req: Request, res: Response) => Promise<unknown>
       }
       // Violação de CHECK (`formato`/`intervalo` do schema) chega crua do banco.
       if (falha?.code === '23514') return erro(res, 422, 'DADOS_INVALIDOS', 'Um dos valores está fora do formato aceito.');
+      // Rede de segurança (#229): valor que o banco não aceita (data inexistente, número fora da faixa,
+      // texto com byte inválido) é erro de quem enviou, não do servidor.
+      if (typeof falha?.code === 'string' && ['22003', '22007', '22008', '22021', '22P02', '22P05'].includes(falha.code)) {
+        return erro(res, 422, 'DADOS_INVALIDOS', 'Um dos valores não é aceito.');
+      }
       next(e);
     });
   };
