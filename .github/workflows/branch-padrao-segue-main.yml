@@ -7,7 +7,17 @@
 #
 # O que faz: a cada push na `main`, avança a branch padrão até a `main`, só por
 # avanço simples (fast-forward). Nunca força, nunca apaga. Se a branch padrão já
-# for a `main`, não faz nada. Não é do kit: o `npx @urbiverso/kit-apps` não o reescreve.
+# for a `main` ou já estiver igual a ela, não faz nada. Se a branch padrão tiver
+# commits que a `main` não tem, falha sem empurrar. Não é do kit: o
+# `npx @urbiverso/kit-apps` não o reescreve.
+#
+# Exceção: o GITHUB_TOKEN do Actions não pode criar nem alterar arquivos em
+# `.github/workflows/` (recusa do GitHub, sem como conceder essa permissão a ele).
+# Se algum commit entre a branch padrão e a `main` mexer nesse caminho, o job NÃO
+# tenta o push: emite um aviso e termina verde. Quem cobre esse avanço é a sessão
+# de despacho da rotina "rumo ao Estado da Arte", no próximo disparo agendado, com
+# a credencial dela. Se o push for recusado por outro motivo (proteção da branch
+# padrão ou permissão), o job falha com um erro apontando essas causas prováveis.
 name: Branch padrão segue a main
 
 on:
@@ -45,5 +55,16 @@ jobs:
             echo "::error::A branch padrão ($PADRAO) tem commits que a main não tem; não avanço por segurança."
             exit 1
           fi
-          git push origin "HEAD:refs/heads/$PADRAO"
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$PADRAO")" ]; then
+            echo "A branch padrão ($PADRAO) já está igual à main; nada a fazer."
+            exit 0
+          fi
+          if [ -n "$(git log --full-history -m --name-only --format= "origin/$PADRAO..HEAD" -- .github/workflows/)" ]; then
+            echo "::warning::Avanço da branch padrão ($PADRAO) pulado: há mudança em .github/workflows/ entre ela e a main e o token do Actions não pode gravar mudança de workflow. A sessão de despacho da rotina rumo ao Estado da Arte cobre o avanço no próximo disparo."
+            exit 0
+          fi
+          if ! git push origin "HEAD:refs/heads/$PADRAO"; then
+            echo "::error::Push recusado na branch padrão ($PADRAO). Causa provável: proteção da branch padrão (exigir PR, assinatura ou checks) ou falta de permissão do token."
+            exit 1
+          fi
           echo "Branch padrão ($PADRAO) agora em $(git rev-parse --short HEAD)."
