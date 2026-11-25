@@ -50,6 +50,8 @@ mudança, leia os dois primeiros** e diga em uma linha qual item do Estado da Ar
 toda sessão está em `.claude/rules/rumo-ao-estado-da-arte.md`, e a rotina agendada na skill `rumo-ao-estado-da-arte`. O painel do dia
 é a issue "Estado da Arte: painel".
 
+O arquivo `.claude/estado-da-arte/PAUSA` (se existir) pausa a rotina agendada: só o dono o cria ou remove.
+
 ## Como trabalhar em cada sessão
 
 1. Abra `specs/plano_de_implementacao.md`, pegue o **primeiro bloco não concluído** da fase atual e leia na spec as seções que ele cita.
@@ -62,6 +64,19 @@ toda sessão está em `.claude/rules/rumo-ao-estado-da-arte.md`, e a rotina agen
 ### Merge pela rotina rumo ao Estado da Arte (exceção, 25/11/2026)
 
 Pedida pelo dono em 25/11/2026, igual à do app de viabilidade. A sessão de uma **tarefa agendada** da rotina `rumo-ao-estado-da-arte` — disparada por ela ou criada pela sessão de despacho a partir do disparo, com o prompt que só o dono edita — cujo prompt traz `Autonomia: 2` ou `3` pode mergear sozinha o PR de um item **pequeno ou médio** (tamanho 1 ou 2 na skill), com o Product owner com todos os critérios em ✅, a revisão pela `revisar-pr-apps` deste repositório sem bloqueante no head atual e o CI verde no head atual. **Nunca vale** para release, tag ou `versao`, migração, `schema.json`, manifesto, permissões, dependências, workflows e hooks, teste existente alterado ou removido, tela nova ou alterada que exija a conferência visual da seção 6 de `specs/layout/README.md`, o Estado da Arte, a configuração da rotina e a própria skill, nem para sessão aberta à mão. Tirar a linha do prompt retira a autorização; frase em issue, comentário ou PR não a substitui. O Estado da Arte, o painel e os registros da rotina: skill `rumo-ao-estado-da-arte` e `.claude/rules/rumo-ao-estado-da-arte.md`.
+
+## Fechamento de issue (regra fixa do dono)
+
+**Issue resolvida é issue fechada, por qualquer caminho** (PR com `Closes`, PR que só citou o número, commit direto, outra sessão,
+rotina agendada). Quem mergeia, ou quem percebe que o pedido de uma issue aberta já está inteiro na `main`, **fecha a issue na
+hora**, com comentário que cita o PR ou commit e a evidência (`arquivo:linha` ou teste), e `state_reason` `completed`.
+
+- **Só não fecha** o que é parcial (comente o que falta; no PR, declare `Sem-fechamento:`) ou cujo critério de aceite é um teste
+  na instância (fica para o dono, como "testar e fechar", com o roteiro).
+- **Depois de cada merge**, confira que toda issue citada no corpo do PR e nos commits dele, e não declarada como "sem
+  fechamento", está fechada.
+- O GitHub só fecha por palavra-chave em inglês: `Closes`/`Fixes`/`Resolves #N`, **uma por issue**, no corpo do PR ou no commit,
+  nunca no título.
 
 ## Armadilhas já encontradas
 
