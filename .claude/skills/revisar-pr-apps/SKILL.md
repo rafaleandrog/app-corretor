@@ -192,7 +192,7 @@ segundos e os agentes levam minutos: se discordar, ele interrompe, e isso é gr�
 
 ```
 Revisando o PR #<n> (rodada <N>). <N> arquivos, +<x>/−<y>, <áreas>.
-Esforço <nível>: <N> lentes, motor <composição — Codex+Kimi, ou o que sobrou, com motivo>. Início <timestamp>.
+Esforço <nível>: <N> lentes, motor decidido pelo preflight do 2.2 (declarado no relatório). Início <timestamp>.
 Modo <revisão fria (rodada única) | ciclo, até <R> rodadas, conserto delegado>.
 ```
 
@@ -228,7 +228,7 @@ sendo revisado. O motor viaja dentro da skill; não mora no repo revisado e não
 - **Superfície de docs do briefing de contratos:** `node_modules/@urbiverso/sdk/docs/`, lido
   **por inteiro** — nunca `docs/shell/` do monorepo. O motor lê o SDK instalado na árvore, que
   é a superfície que o autor da app enxerga. Ver *Superfície de leitura*, no topo.
-- **Faixas que sobem para `gpt-6-sol` no Profundo:** migração, `schema.json`,
+- **Faixas que sobem para `gpt-6.1-sol` no Profundo:** migração, `schema.json`,
   `manifesto.json`, permissões, contas, auditoria.
 - **`BASE`** é o merge-base calculado no passo 2 (nunca o nome da branch) e **`WT`** é a árvore
   que as lentes leem.
@@ -512,7 +512,7 @@ achado, porque o comentário é o registro de que a revisão rodou e do que foi 
 
 Estrutura do comentário:
 
-- Uma linha de cabeçalho: `Revisão de app — rodada <N> · head <sha curto> · motor <Codex+Kimi | o que sobrou>`.
+- Uma linha de cabeçalho: `Revisão de app — rodada <N> · head <sha curto> · motor <resumo do quadro de execução: Codex | Codex, com Kimi em <k> lentes | o que sobrou; motor FORA no preflight com modelo e motivo>`.
   É por ela que a rodada seguinte se localiza, e o `<sha>` é o que você **de fato** revisou.
 - **Qual superfície de leitura foi usada**, logo no começo: bundle do SDK instalado (**com a
   versão**, e se ela é a mais nova publicada) ou nenhuma (e então quais lentes de contrato não
@@ -534,10 +534,14 @@ Estrutura do comentário:
 
   | Lente | Motor | Tier | Esforço | Duração | Veredito |
   |---|---|---|---|---|---|
-  | L2 · comportamento removido | Codex | `gpt-5.6-terra` | medium | 2m10s | 0 achados |
-  | contratos · permissoes | Kimi | `kimi-k3` | high | 3m02s | 1 achado |
-  | contratos · contas | Kimi→Codex | `gpt-6-sol` | high | 4m18s | 0 achados |
-  | S3 · UI | Codex | `gpt-5.6-terra` | medium | — | **não executada** (timeout nos dois motores) |
+  | L2 · comportamento removido | Codex | `gpt-6.1-terra` | medium | 2m10s | 0 achados |
+  | contratos · permissoes | Codex | `gpt-6.1-sol` | high | 3m02s | 1 achado |
+  | contratos · contas | Codex→Kimi | `kimi-k3.1-pro` | high | 4m18s | 0 achados |
+  | S3 · UI | Codex | `gpt-6.1-terra` | medium | — | **não executada** (timeout nos dois motores) |
+
+  **A coluna Motor usa a legenda da seção *Como o relatório declara o motor* do motor de revisão, lido acima:**
+  `Codex`, `Kimi` (o preflight já reprovou o Codex), `Codex→Kimi` (falhou na execução e
+  cruzou), `nativo`, `não executada`. É aqui que o cruzamento por lente é registrado.
 
   **Lente não executada aparece nesse quadro com o motivo** — motor indisponível, tempo
   estourado, saída inválida. Sumir do relatório é pior que aparecer como falha: quem lê presume

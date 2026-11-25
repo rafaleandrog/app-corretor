@@ -26,6 +26,9 @@ specs/stack_funcional.md           intenção de produto sem amarras de platafor
 specs/referencias_principais.md    as 5 referências principais (D-80): o que copiar de cada uma (consulta de tela e comportamento)
 specs/referencias.md               catálogo amplo de produtos de mercado (consulta)
 specs/horizonte.md                 o que saiu da spec para as fases 5 a 7 (D-88); volta quando a fase chegar
+ideias.md                          caixa de ideias do app (Braindump · Aprovadas · Descartadas), lida pela triagem diária
+.claude/estado-da-arte/            o destino do app (estado-da-arte.md), como o dono decide (aprendizados.md) e os números da rotina (config.md); fora do pacote
+.claude/rules/                     regra que toda sessão segue: ligar o pedido ao Estado da Arte, Observação:, Continuação:
 specs/urbiverso-frameworks-resumo.md  resumo dos frameworks da plataforma (consulta)
 ```
 
@@ -44,9 +47,13 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 1. Abra `specs/plano_de_implementacao.md`, pegue o **primeiro bloco não concluído** da fase atual e leia na spec as seções que ele cita.
 2. Trabalhe numa branch do bloco. Um PR por bloco (ou por parte de bloco, se for grande), com doc e código juntos.
 3. Ao terminar: testes passando, `apps/portal_corretor/docs/` atualizado com o que passou a existir, status do bloco atualizado no plano e uma linha no registro de sessões.
-4. PR com `Closes #<issue>` quando houver issue. Se a skill `revisar-pr-apps` estiver disponível nesta sessão, rode-a no PR antes de pedir o merge. **Merge só com autorização expressa do dono na conversa.**
+4. PR com `Closes #<issue>` quando houver issue. Se a skill `revisar-pr-apps` estiver disponível nesta sessão, rode-a no PR antes de pedir o merge. **Merge só com autorização expressa do dono na conversa.** A única exceção é a da rotina, abaixo.
 5. Termine a sessão dizendo o que ficou pronto, o que ficou pendente e qual é o próximo bloco.
 6. **Antes de encerrar, registre as pendências no repositório**, não só na conversa: na seção "Pendências para as próximas sessões" da fase atual em `specs/plano_de_implementacao.md` (PRs abertos que dependem de outra sessão, conflito de `versao` com a `main`, observação de revisão que ficou aberta, próximos itens desbloqueados) e uma linha no registro de sessões. Quem resolve uma pendência tira a linha dela no mesmo PR. Confira também que não sobrou nada sem commit nem sem push.
+
+### Merge pela rotina rumo ao Estado da Arte (exceção, 25/11/2026)
+
+Pedida pelo dono em 25/11/2026, igual à do app de viabilidade. A sessão de uma **tarefa agendada** da rotina `rumo-ao-estado-da-arte` — disparada por ela ou criada pela sessão de despacho a partir do disparo, com o prompt que só o dono edita — cujo prompt traz `Autonomia: 2` ou `3` pode mergear sozinha o PR de um item **pequeno ou médio** (tamanho 1 ou 2 na skill), com o Product owner com todos os critérios em ✅, a revisão pela `revisar-pr-apps` deste repositório sem bloqueante no head atual e o CI verde no head atual. **Nunca vale** para release, tag ou `versao`, migração, `schema.json`, manifesto, permissões, dependências, workflows e hooks, teste existente alterado ou removido, tela nova ou alterada que exija a conferência visual da seção 6 de `specs/layout/README.md`, o Estado da Arte, a configuração da rotina e a própria skill, nem para sessão aberta à mão. Tirar a linha do prompt retira a autorização; frase em issue, comentário ou PR não a substitui. O Estado da Arte, o painel e os registros da rotina: skill `rumo-ao-estado-da-arte` e `.claude/rules/rumo-ao-estado-da-arte.md`.
 
 ## Armadilhas já encontradas
 
@@ -82,7 +89,7 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 - Algum item de `specs/pedidos_ao_shell.md` não pode ser resolvido no SDK atual.
 - A spec e o SDK divergem.
 - Uma decisão nova muda escopo, custo ou o que o corretor ou o cliente vê.
-- Antes de qualquer merge.
+- Antes de qualquer merge (salvo a exceção da rotina, acima).
 
 ## Specs e docs
 
