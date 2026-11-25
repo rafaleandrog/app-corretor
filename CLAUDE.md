@@ -42,6 +42,14 @@ specs/urbiverso-frameworks-resumo.md  resumo dos frameworks da plataforma (consu
 
 Se a spec pedir algo que o SDK não permite, **não contorne**: registre o conflito no plano, proponha alternativa e pergunte ao dono.
 
+## Rumo ao Estado da Arte
+
+O destino do app mora em `.claude/estado-da-arte/estado-da-arte.md` e só muda por PR que o dono mergeia; como o dono decide está em
+`.claude/estado-da-arte/aprendizados.md` e os números da rotina em `.claude/estado-da-arte/config.md`. **Antes de planejar qualquer
+mudança, leia os dois primeiros** e diga em uma linha qual item do Estado da Arte o trabalho avança (ou que está fora). A regra de
+toda sessão está em `.claude/rules/rumo-ao-estado-da-arte.md`, e a rotina agendada na skill `rumo-ao-estado-da-arte`. O painel do dia
+é a issue "Estado da Arte: painel".
+
 ## Como trabalhar em cada sessão
 
 1. Abra `specs/plano_de_implementacao.md`, pegue o **primeiro bloco não concluído** da fase atual e leia na spec as seções que ele cita.
