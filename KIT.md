@@ -1,6 +1,6 @@
 # KIT.md — regras deste repositório
 
-Kit `100.3.17` · SDK 100 · `@urbiverso/sdk` `100.0.0` · shell `0.56.37` · `urbiverso/urbiverso@54f64b1a`
+Kit `101.3.17` · SDK 101 · `@urbiverso/sdk` `101.0.0` · shell `0.56.37` · `urbiverso/urbiverso@ba0196d7`
 
 ## O kit, e como instalar ou atualizar
 
