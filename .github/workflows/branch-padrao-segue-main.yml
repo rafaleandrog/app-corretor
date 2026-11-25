@@ -1,0 +1,71 @@
+# Mantém a branch padrão do repositório igual à main (pedido do dono, 25/11/2026).
+#
+# Por quê: a branch padrão deste repositório no GitHub não é a `main` (é a branch
+# em que o repositório nasceu). Toda sessão nova do Claude Code clona a branch
+# padrão; sem isto, ela nasce num commit antigo. No app de viabilidade a padrão é
+# a própria `main`; aqui, este workflow só faz a branch padrão apontar para o mesmo
+# commit da `main`. Não a torna a `main` e não muda qual é a branch padrão.
+#
+# O que faz: a cada push na `main`, avança a branch padrão até a `main`, só por
+# avanço simples (fast-forward). Nunca força, nunca apaga. Se a branch padrão já
+# for a `main` ou já estiver igual a ela, não faz nada. Se a branch padrão tiver
+# commits que a `main` não tem, falha sem empurrar. Não é do kit: o
+# `npx @urbiverso/kit-apps` não o reescreve.
+#
+# Exceção: o GITHUB_TOKEN do Actions não pode criar nem alterar arquivos em
+# `.github/workflows/` (recusa do GitHub, sem como conceder essa permissão a ele).
+# Se algum commit entre a branch padrão e a `main` mexer nesse caminho, o job NÃO
+# tenta o push: emite um aviso e termina verde. Quem cobre esse avanço é a sessão
+# de despacho da rotina "rumo ao Estado da Arte", no próximo disparo agendado, com
+# a credencial dela. Se o push for recusado por outro motivo (proteção da branch
+# padrão ou permissão), o job falha com um erro apontando essas causas prováveis.
+name: Branch padrão segue a main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: branch-padrao-segue-main
+  cancel-in-progress: false
+
+jobs:
+  avancar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Avançar a branch padrão até a main
+        env:
+          PADRAO: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          if [ "$PADRAO" = "main" ]; then
+            echo "A branch padrão já é a main; nada a fazer."
+            exit 0
+          fi
+          git fetch origin "$PADRAO"
+          if ! git merge-base --is-ancestor "origin/$PADRAO" HEAD; then
+            echo "::error::A branch padrão ($PADRAO) tem commits que a main não tem; não avanço por segurança."
+            exit 1
+          fi
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse "origin/$PADRAO")" ]; then
+            echo "A branch padrão ($PADRAO) já está igual à main; nada a fazer."
+            exit 0
+          fi
+          if [ -n "$(git log --full-history -m --name-only --format= "origin/$PADRAO..HEAD" -- .github/workflows/)" ]; then
+            echo "::warning::Avanço da branch padrão ($PADRAO) pulado: há mudança em .github/workflows/ entre ela e a main e o token do Actions não pode gravar mudança de workflow. A sessão de despacho da rotina rumo ao Estado da Arte cobre o avanço no próximo disparo."
+            exit 0
+          fi
+          if ! git push origin "HEAD:refs/heads/$PADRAO"; then
+            echo "::error::Push recusado na branch padrão ($PADRAO). Causa provável: proteção da branch padrão (exigir PR, assinatura ou checks) ou falta de permissão do token."
+            exit 1
+          fi
+          echo "Branch padrão ($PADRAO) agora em $(git rev-parse --short HEAD)."
