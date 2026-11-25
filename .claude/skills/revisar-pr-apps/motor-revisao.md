@@ -8,24 +8,29 @@ As lentes dos passos 3 e 4 rodam **fora da conta Anthropic**, em dois motores ex
 revisor lê muito e escreve pouco — uma lente engole um doc inteiro, o diff e o código em volta
 para devolver 400 palavras —, então o custo mora no input, e é ali que o motor externo paga.
 
-**São dois motores, escolhidos por preço no papel da lente, com fallback cruzado.** Codex
-(`gpt-6-luna`/`gpt-5.6-terra`) nas lentes baratas e nas de meio; Kimi (`kimi-k3`) nas de contrato
-sensível, onde o tier equivalente seria o `gpt-6-sol` e o Kimi custa 40% menos no input e
-metade no output. Medido em agosto de 2026 (geração 5.6, antes de `luna` e `sol` irem para 6), por milhão de tokens: `luna` $0,20/$1,20 ·
-`terra` $2/$12 · `sol` $5/$0,50 em cache/$30 · `kimi-k3` $3/$0,30 em cache/$15. Kimi é mais
-barato que exatamente **um** dos três tiers, e é nesse que ele entra — nos outros dois ele
-custaria 1,5× (`terra`) e 15× (`luna`).
+**São dois motores: Codex roda tudo, Kimi é o fallback.** Codex (`gpt-6-luna`/`gpt-6.1-terra`/
+`gpt-6.1-sol`) é o default nas três linhas da tabela de tier; Kimi (`kimi-k3.1-pro`) só entra quando
+o Codex falha numa lente ou cai inteiro. Até novembro de 2026 o Kimi era o default da linha de
+contrato sensível, e o motivo era preço: custava 40% menos que o `gpt-5.6-sol` no input
+($3 contra $5/M) e metade no output. A geração 6.1 acabou com isso — `gpt-6.1-sol` e
+`kimi-k3.1-pro` custam o mesmo —, e o que sobrou foi a diferença de relógio, contra o Kimi: no
+PR #3043 a lente de contrato em `kimi-k3` (geração anterior à `kimi-k3.1-pro`) fez 642s, 548s e 881s em
+`max` e estourou o teto de 900s em `high`, enquanto o `gpt-5.6-sol` fechou o mesmo alvo em 508s e
+283s. Esses tempos são das gerações anteriores e não foram refeitos com `kimi-k3.1-pro` e `gpt-6.1-sol`. Preço por milhão de tokens (entrada/saída),
+conferido em novembro de 2026: `luna` $0,20/$1,20 (medido na geração 5.6; não saiu `luna` 6.1) ·
+`gpt-6.1-terra` $1/$5 · `gpt-6.1-sol` $2/$10 · `kimi-k3.1-pro` $2/$10.
 
 **Quem falha cai no outro; só se os dois caírem é que vai para o nativo.** Não existe pergunta
 ao usuário no meio: os preflights tentam, cada lente sabe qual é o seu motor alternativo, e
-toda troca é **declarada** no relatório e na linha de anúncio. O que nunca acontece é lente
+toda troca é **declarada** no relatório. O que nunca acontece é lente
 sumir porque um motor caiu.
 
-**O ganho da mistura não é só preço — é opinião independente.** Medido no piloto do PR #2608:
-a fan-out em Kimi devolveu um bloqueante provável por execução que a passagem no motor nativo
-não pegou, e sobre o qual o relatório nativo tinha escrito o contrário em "confrontado e
-passou". Motor único erra junto consigo mesmo; é por isso que a cascata cruza em vez de
-degradar sempre para o mesmo lugar.
+**O que se perdeu ao tirar o Kimi do default foi a opinião independente.** No piloto do
+PR #2608 a fan-out em Kimi devolveu um bloqueante provável por execução que a passagem no motor
+nativo não pegou, e sobre o qual o relatório nativo tinha escrito o contrário em "confrontado e
+passou". Motor único erra junto consigo mesmo. A troca foi feita sabendo disso, porque a lente
+lenta custava mais que a diversidade valia. A cascata continua cruzando, em vez de cair sempre
+no mesmo lugar, para que a falha de um motor não leve a revisão inteira com ele.
 
 ## Entradas que a skill chamadora fornece
 
@@ -38,7 +43,7 @@ resolvido antes de despachar**:
 | `BASE` — o merge-base, nunca o nome da branch | passo 2 da skill |
 | Lentes, com id, tier e esforço | passos 2.1, 3 e 4 da skill |
 | **Superfície de docs** do briefing de contratos | a skill: `docs/shell/<f>.md` no shell, `node_modules/@urbiverso/sdk/docs/` na app |
-| Faixas de **contrato sensível** (as que rodam em Kimi) | a skill: no shell migração/`sdk/`/auth/permissões/contas/auditoria; na app migração/`schema.json`/`manifesto.json`/permissões/contas/auditoria |
+| Faixas de **contrato sensível** (as que sobem para `gpt-6.1-sol`) | a skill: no shell migração/`sdk/`/auth/permissões/contas/auditoria; na app migração/`schema.json`/`manifesto.json`/permissões/contas/auditoria |
 
 ## Preflight — uma vez por sessão, antes de qualquer lente
 
@@ -60,26 +65,46 @@ command -v codex >/dev/null 2>&1 || npm i -g @openai/codex >/dev/null 2>&1
 codex login status >/dev/null 2>&1 || printenv OPENAI_API_KEY | codex login --with-api-key
 codex login status        # tem que dizer "Logged in using an API key"
 
-# Smoke test: um turno de verdade no modelo do tier barato. `login status` prova a chave,
-# NÃO que ela alcança o modelo nem que o CLI o conhece.
-smoke_codex() {
+# Smoke test: um turno de verdade em CADA modelo que a tabela de tier manda ao Codex.
+# `login status` prova a chave, NÃO que ela alcança o modelo nem que o CLI o conhece.
+# MODELOS_CODEX espelha a coluna Codex da tabela de tier: quem troca modelo lá troca aqui.
+MODELOS_CODEX="gpt-6-luna gpt-6.1-terra gpt-6.1-sol"
+smoke_codex() {   # $1 = modelo; deixa o resultado em $OUT/smoke-codex-$1.jsonl
   timeout 120 codex exec -s read-only --ephemeral -c model_reasoning_effort=low --json \
-    -m gpt-6-luna "responda apenas OK" </dev/null >"$OUT/smoke-codex.jsonl" 2>"$OUT/smoke-codex.err"
+    -m "$1" "responda apenas OK" </dev/null >"$OUT/smoke-codex-$1.jsonl" 2>"$OUT/smoke-codex-$1.err"
 }
-smoke_codex; rc=$?
-# CLI mais velho que o modelo: roda, mas com metadados genéricos. Atualiza uma vez e refaz.
-if jq -e 'select(.item.type=="error" and (.item.message|test("Model metadata")))' \
-     "$OUT/smoke-codex.jsonl" >/dev/null 2>&1; then
-  npm i -g @openai/codex@latest >/dev/null 2>&1 && { smoke_codex; rc=$?; }
-fi
-if [ "$rc" = 0 ] \
-   && ! jq -e 'select(.type=="turn.failed" or .type=="error")' "$OUT/smoke-codex.jsonl" >/dev/null 2>&1 \
-   && jq -e 'select(.item.type=="agent_message")' "$OUT/smoke-codex.jsonl" >/dev/null 2>&1; then
-  echo "CODEX OK ($(codex --version))"
-else
-  echo "CODEX FORA:"; jq -r 'select(.type=="turn.failed" or .type=="error") | (.error.message // .message)' \
-    "$OUT/smoke-codex.jsonl" 2>/dev/null | head -2; head -4 "$OUT/smoke-codex.err"
-fi
+metadados_velhos() {   # CLI mais velho que o modelo: roda, mas com metadados genéricos
+  jq -e 'select(.item.type=="error" and (.item.message|test("Model metadata")))' \
+    "$OUT/smoke-codex-$1.jsonl" >/dev/null 2>&1
+}
+atualizou=0; falhou=""   # atualizou: 0 não tentou · 1 tentou e a instalação falhou · 2 atualizou
+for m in $MODELOS_CODEX; do
+  smoke_codex "$m"; rc=$?
+  # Atualiza para @latest no máximo UMA vez no preflight inteiro e refaz esse modelo.
+  if metadados_velhos "$m" && [ "$atualizou" = 0 ]; then
+    atualizou=1
+    if npm i -g @openai/codex@latest >/dev/null 2>&1; then
+      atualizou=2; smoke_codex "$m"; rc=$?
+    else
+      echo "ATUALIZACAO FALHOU: npm i -g @openai/codex@latest nao instalou; os modelos seguintes rodam no CLI que ja estava ($(codex --version))"
+    fi
+  fi
+  if [ "$rc" = 0 ] \
+     && ! jq -e 'select(.type=="turn.failed" or .type=="error")' "$OUT/smoke-codex-$m.jsonl" >/dev/null 2>&1 \
+     && jq -e 'select(.item.type=="agent_message")' "$OUT/smoke-codex-$m.jsonl" >/dev/null 2>&1 \
+     && ! metadados_velhos "$m"; then :
+  else
+    falhou="$falhou $m"
+    echo "CODEX FORA em $m (rc=$rc; 124 = timeout):"   # rc sempre aparece: timeout com saida vazia nao tem outro motivo
+    # O sinal de metadados não é turn.failed nem error de primeiro nível: sem esta linha
+    # o modelo reprovado por ele sairia sem motivo nenhum.
+    metadados_velhos "$m" && echo "  motivo: sinal 'Model metadata ... not found' (CLI antigo demais para este modelo; atualizacao: $([ "$atualizou" = 2 ] && echo 'feita e o sinal persiste' || echo 'falhou'))"
+    jq -r 'select(.type=="turn.failed" or .type=="error") | (.error.message // .message)' \
+      "$OUT/smoke-codex-$m.jsonl" 2>/dev/null | head -2; head -4 "$OUT/smoke-codex-$m.err"
+  fi
+done
+# Um modelo reprovado derruba o Codex INTEIRO (motor é binário; ver "O que cada resultado decide").
+[ -z "$falhou" ] && echo "CODEX OK ($(codex --version))" || echo "CODEX FORA — derrubado por:$falhou (de: $MODELOS_CODEX)"
 ```
 
 - **O CLI pode não estar instalado**, e instalar é rápido (medido: 7s num container limpo).
@@ -89,15 +114,34 @@ fi
   primeiro nível **e** um `agent_message` —, pela mesma razão do Kimi abaixo: é a pergunta
   "este motor completa um turno?" feita uma vez, antes de decidir. Ele pega o que o
   `login status` não vê: chave sem acesso ao modelo (a lente morreria uma a uma, sem aviso
-  prévio) e CLI mais velho que o modelo. Testa só o tier barato (`gpt-6-luna`); acesso ao
-  `gpt-6-sol` continua sendo descoberto lente a lente, e aí vale o fallback cruzado.
+  prévio) e CLI mais velho que o modelo. **Roda um turno por modelo da coluna Codex da tabela de
+  tier** (`MODELOS_CODEX`, em esforço `low`, então o custo segue baixo). **No smoke**, um modelo
+  com o sinal `Model metadata ... not found` conta como falha mesmo com o turno completo
+  (`! metadados_velhos` na guarda do bloco). A lista é cópia da
+  tabela: **quem troca modelo na tabela atualiza `MODELOS_CODEX` no mesmo commit**, senão o modelo
+  novo roda sem smoke. **Disponível e indisponível são estados do motor, nunca do modelo:** o laço
+  testa todos os modelos (para o diagnóstico completo), mas **qualquer um reprovado derruba o
+  Codex inteiro** — a saída traz `CODEX FORA em <modelo>` com o código de saída do smoke (`rc`, 124 é timeout) e, quando houver, o motivo, e a última linha do bloco
+  diz `CODEX OK` ou `CODEX FORA`. Modelo mal formado ou aposentado na tabela é edge case, e
+  derrubar o motor por ele é desenho, não lacuna: o conserto é corrigir `MODELOS_CODEX` e a tabela
+  de tier, nunca rotear lente por modelo. O modelo que derrubou e o motivo vão declarados no
+  relatório (e numa linha ao usuário logo após o preflight).
 - **CLI velho não quebra, degrada.** Um `codex` anterior ao modelo roda o turno, mas emite
   `item.completed` com `item.type=="error"` e a mensagem `Model metadata for ... not found`, e
   usa metadados genéricos (janela de contexto, entre outros). Esse evento é aninhado, não o
-  `error` de primeiro nível que a guarda procura — não é falha, e não conta como uma. O
-  preflight trata o sinal atualizando para `@latest` **uma vez**; onde o setup script do
-  ambiente fixa versão, a atualização vale só para a sessão, e o conserto duradouro é subir a
-  versão fixada lá.
+  `error` de primeiro nível que a guarda procura. **Na colheita das lentes ele não é falha e não
+  conta como uma**: a colheita só olha `turn.failed`/`error` de primeiro nível, e a lente com o
+  sinal entrega o achado normalmente, com metadados genéricos. **No smoke do preflight é falha**,
+  porque ali a pergunta é se o CLI conhece o modelo, e o laço o checa por `metadados_velhos`. O
+  preflight trata o sinal atualizando para `@latest` **uma vez** (na primeira ocorrência, em qualquer
+  modelo) e refazendo o smoke daquele modelo. Instalou, os modelos seguintes rodam no CLI novo;
+  a instalação falhou, o bloco imprime `ATUALIZACAO FALHOU` e eles seguem no CLI antigo — cada
+  um que emitir o sinal derruba o Codex, com o motivo escrito na saída. No monorepo isso nem deve
+  acontecer: o `.claude/preparar-sessao.sh` instala o piso `CODEX_PISO` no início da sessão, e
+  **quem troca modelo na tabela de tier sobe o piso no mesmo commit** — versionado no
+  repositório, chega a toda sessão pelo clone, sem editar o setup script de ambiente nenhum.
+  No repositório do cliente não há piso: o preflight instala sem versão (a mais nova), e o
+  laço acima, que confere cada modelo da tabela, cobre o que sobrar.
 - **`OPENAI_API_KEY` vem do ambiente.** Container com a chave no ambiente e nenhuma sessão do
   `codex` é o estado normal: aí o CLI não manda o header de autorização e **toda** chamada volta
   `401 Missing bearer` — as lentes somem em bloco e o sintoma não parece de credencial.
@@ -121,7 +165,7 @@ command -v kimi >/dev/null 2>&1 || npm i -g @moonshot-ai/kimi-code@0.38.0 >/dev/
 # Provedor sintetizado na hora. NAME e API_KEY são o mínimo viável; as outras três são
 # opcionais — mas PROVIDER_TYPE, se você escrever, tem que ser exatamente `kimi`
 # (nem `kimi-code`, nem `moonshot` — ver "A armadilha do provedor" abaixo).
-export KIMI_MODEL_NAME=kimi-k3
+export KIMI_MODEL_NAME=kimi-k3.1-pro
 export KIMI_MODEL_API_KEY="$MOONSHOT_API_KEY"
 export KIMI_MODEL_PROVIDER_TYPE=kimi
 export KIMI_MODEL_BASE_URL=https://api.moonshot.ai/v1
@@ -202,6 +246,9 @@ ele que a coluna *Kimi* da tabela de tier alimenta.
 
 ### O que cada resultado decide
 
+Cada motor tem dois estados, **ok** ou **falhou**. O Codex só é **ok** quando todos os modelos de
+`MODELOS_CODEX` passaram no smoke; um reprovado basta para ele ser **falhou**.
+
 | Codex | Kimi | Efeito |
 |---|---|---|
 | ok | ok | tabela de tier abaixo, cada lente no seu motor default |
@@ -209,8 +256,12 @@ ele que a coluna *Kimi* da tabela de tier alimenta.
 | falhou | ok | **tudo em Kimi**, pela coluna *Kimi* da tabela |
 | falhou | falhou | **motor nativo** para a revisão inteira (seção final) |
 
+Nenhuma lente fica sem destino nem some: toda linha acima manda cada lente para um motor. O
+destino é decidido só pelo resultado **por motor**, nunca pelo modelo da lente.
+
 Não pergunte, não pare, não repita o preflight lente a lente: decidiu uma vez, vale para a
-revisão inteira, e o motivo entra no anúncio do passo 2.1 e no quadro de execução da §7.
+revisão inteira (a escada de "Falha é falha" só muda o destino por falha **durante** a execução),
+e o resultado entra no cabeçalho do relatório e, por lente, no quadro de execução da §7.
 
 ## Tier por papel
 
@@ -221,9 +272,9 @@ caiu":
 
 | Papel | Default | Codex | Kimi | Nativo |
 |---|---|---|---|---|
-| L1 varredura, L5 armadilhas de linguagem, S1 documentação, e a camada de contratos de PR **só de doc** | Codex | `gpt-6-luna` · medium | `kimi-k3` · low | `sonnet` |
-| L2 comportamento removido, L3 rastreador, L4 concorrência, T1–T3, S2, S3, e a camada de contratos em geral | Codex | `gpt-5.6-terra` · medium | `kimi-k3` · high | `sonnet` |
-| Contratos de framework sensível no **Profundo** (as faixas que a skill chamadora listou) | **Kimi** | `gpt-6-sol` · high | `kimi-k3` · high | `opus` |
+| L1 varredura, L5 armadilhas de linguagem, S1 documentação, e a camada de contratos de PR **só de doc** | Codex | `gpt-6-luna` · medium | `kimi-k3.1-pro` · low | `sonnet` |
+| L2 comportamento removido, L3 rastreador, L4 concorrência, T1–T3, S2, S3, e a camada de contratos em geral | Codex | `gpt-6.1-terra` · medium | `kimi-k3.1-pro` · high | `sonnet` |
+| Contratos de framework sensível no **Profundo** (as faixas que a skill chamadora listou) | Codex | `gpt-6.1-sol` · high | `kimi-k3.1-pro` · high | `opus` |
 
 A camada de contratos fica na linha do meio por padrão de propósito: a §4 manda cortar da camada
 adversarial antes de cortar dela, então ela não é o lugar de economizar. A primeira linha só
@@ -232,12 +283,12 @@ quando o PR é doc puro; a terceira só nas faixas em que contrato perdido custa
 **O eixo de esforço não é o mesmo nos dois.** Codex aceita `low|medium|high`
 (`-c model_reasoning_effort=`); Kimi aceita `low|high|max` (`KIMI_MODEL_THINKING_EFFORT`), sempre
 pensa e assume `max` se ninguém disser nada — **fixe sempre o valor**, porque o default caro
-infla o output, que é o lado de $15/M. A tabela acima já traz o par por linha; ao cruzar de
+infla o output, que é o lado de $10/M. A tabela acima já traz o par por linha; ao cruzar de
 motor, use o valor da coluna de destino, nunca o da origem.
 
 **O eixo do modelo também não.** No Codex o tier é o argumento `-m` do `codex exec review`. No
 Kimi **não existe argumento**: o tier alimenta `KIMI_MODEL_NAME`, e passar `-m` derruba o CLI
-(ver *A armadilha do provedor*). A coluna *Kimi* da tabela nomeia `kimi-k3` porque é o valor
+(ver *A armadilha do provedor*). A coluna *Kimi* da tabela nomeia `kimi-k3.1-pro` porque é o valor
 dessa variável, não porque é uma flag.
 
 > **A linha sensível desceu de `max` para `high`, e a aferição está feita.** No piloto do PR #2608
@@ -451,8 +502,9 @@ ${COMUM}" </dev/null ) > "$OUT/$id.jsonl" 2> "$OUT/$id.err" || rc=$?
   echo "$id exit=$rc motor=$motor tier=$tier esforco=$esf dur=$(( $(date +%s) - ini ))s" >> "$OUT/execucao.txt"
 }
 
-lente L2 codex gpt-5.6-terra medium "<briefing da L2>" &
-lente T1 kimi  kimi-k3       high   "<briefing da T1>" &
+lente L2 codex gpt-6.1-terra medium "<briefing da L2>" &
+lente C1 codex gpt-6.1-sol   high   "<briefing de contratos · permissoes>" &
+# fallback cruzado de uma lente: lente L2 kimi kimi-k3.1-pro high "<briefing da L2>"
 # … uma linha por lente do orçamento do passo 2.1
 wait
 cat "$OUT/execucao.txt"
@@ -548,12 +600,15 @@ A escada tem três degraus, e **cada troca é declarada**:
 
 1. **Re-despache uma vez, no mesmo motor.** Falha isolada costuma ser transitória.
 2. **Persistindo numa lente só → troque de motor**, para a coluna cruzada da tabela de tier
-   (default Codex cai em Kimi; default Kimi cai em Codex), com o esforço da coluna de destino.
-   Re-despache uma vez lá. Falhou de novo, ela entra no comentário do PR como **não executada**,
-   com os dois motivos.
+   (Codex cai em Kimi; Kimi, quando é ele que está rodando a lente, cai em Codex), com o esforço
+   da coluna de destino. Re-despache uma vez lá. Só se cruza para motor **disponível**, ou seja, que
+   não falhou no preflight nem caiu em bloco. Sem motor cruzado disponível, ou falhando de novo
+   nele, a lente entra no comentário do PR como **não executada**, com os motivos. Lente avulsa
+   **nunca** vai ao nativo.
 3. **Persistindo em bloco — todas as lentes daquele motor falhando igual** — isso é o motor
    caindo no meio. Refaça o preflight **daquele motor** uma vez; não voltou, **mova todas as
-   lentes dele para o outro motor** e siga. Os dois fora → termine no motor nativo.
+   lentes dele para o outro motor** e siga. O outro motor também indisponível (no preflight
+   ou em bloco) → os dois estão fora, e as lentes que restam vão para o nativo (coluna *Nativo*). Com uma lente só no motor, o degrau 3 não se distingue de falha de lente, e vale o 2.
 
 O relatório diz quais lentes trocaram de motor e por quê. **Fallback silencioso é laudo limpo
 falso com outro nome** — e agora existem dois caminhos de silêncio, não um.
@@ -592,9 +647,10 @@ propósito e confirme que fica vermelho — foi assim que as cinco atuais foram 
 
 ## Motor nativo — o fallback do fallback
 
-Vale só quando **os dois** motores externos falharam no preflight, ou quando os dois caíram em
-bloco no meio da revisão. Não é mais o primeiro fallback de nada: lente que perde o motor
-default tenta o motor cruzado antes de chegar aqui. Mesmas lentes, mesmos briefings, mesmo
+Vale só quando **os dois** motores externos estão indisponíveis: falharam no preflight, ou
+caíram em bloco no meio da revisão. Serve às lentes que restam, nunca a lente avulsa. Não é o
+primeiro fallback de nada: lente que perde o motor default tenta o motor cruzado disponível
+antes de chegar aqui. Mesmas lentes, mesmos briefings, mesmo
 orçamento: muda o veículo.
 
 - **Subagente por lente**, todos numa mensagem só, `subagent_type: "general-purpose"`.
@@ -618,8 +674,8 @@ orçamento: muda o veículo.
 - **A instrução mais importante continua sendo a de não inventar:** sem material para concluir,
   `NAO_EXECUTADA` e o motivo cru. Subagente que "resume o que provavelmente teria sido achado"
   transforma falha em laudo.
-- O quadro de execução da §7 mostra `nativo` na coluna Motor, e o anúncio do passo 2.1 diz que
-  **nenhum dos dois** motores externos estava disponível — com o motivo de cada um. Fallback
+- O quadro de execução da §7 mostra `nativo` na coluna Motor, e o cabeçalho do relatório diz que, para essas
+  lentes, **nenhum dos dois** motores externos estava disponível, com o motivo de cada um. Fallback
   silencioso é o mesmo laudo limpo falso com outro nome.
 
 **Este bloco de formato é o mesmo que o briefing do Kimi impõe** (ver "A colheita"), e não é
@@ -628,17 +684,24 @@ ser comparável sem retrabalho.
 
 ## Como o relatório declara o motor
 
-O quadro de execução da §7 ganha um valor por lente na coluna *Motor*, e a troca fica visível:
+O quadro de execução da §7 ganha um valor por lente na coluna *Motor*, e a troca fica visível.
+É **aqui**, lente a lente e depois da execução, que o cruzamento é registrado:
 
 | Valor | Significa |
 |---|---|
-| `Codex` / `Kimi` | rodou no motor default daquela linha da tabela de tier |
-| `Kimi→Codex` / `Codex→Kimi` | o default falhou, o cruzado entregou |
-| `nativo` | os dois externos indisponíveis |
+| `Codex` | a lente rodou no Codex |
+| `Kimi` | rodou no Kimi desde o início, porque o preflight já reprovou o Codex (o cabeçalho diz qual modelo e por quê) |
+| `Codex→Kimi` | o Codex falhou **durante a execução** nessa lente e o Kimi entregou |
+| `nativo` | foi para o subagente nativo: os dois externos fora |
 | `não executada` | esgotou a escada; o motivo vai junto |
 
-A linha de anúncio do passo 2.1 diz a composição da rodada, não um motor só — por exemplo
-`motor Codex+Kimi`, ou `motor Codex (Kimi indisponível: sem MOONSHOT_API_KEY)`.
+**O anúncio do passo 2.1 sai antes do preflight do 2.2 e, por isso, não declara o resultado
+dele.** A declaração mora em dois outros lugares: uma linha ao usuário logo depois do preflight,
+quando um motor sai `FORA` (qual motor, qual modelo derrubou e o motivo), e o cabeçalho do
+relatório, escrito depois da execução. O cabeçalho resume o que os preflights e o quadro
+registraram — por exemplo `motor Codex`, `motor Codex, com Kimi em <k> lentes` ou `motor Kimi
+(Codex FORA: gpt-6.1-sol reprovado, <motivo>)` — sem declarar nada que o quadro não mostre. Falha
+durante a execução entra no quadro de execução da §7, nunca "no anúncio".
 
 ## O que nunca sai daqui
 

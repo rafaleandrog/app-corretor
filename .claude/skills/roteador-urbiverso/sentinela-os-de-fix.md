@@ -5,7 +5,7 @@ mãos. Aceite, recusa (`sentinela-os.md` § 5) e entrega (§ 6) são os de lá.
 
 ## 1. O conserto
 
-1. Branch `claude/sentinela-os-<id>` a partir de `origin/<branch_default>`;
+1. Branch `claude/sentinela-os-<id>` a partir da branch default do clone (`origin/HEAD`);
    `git branch --unset-upstream` logo depois.
 2. Conserto **mínimo** para o problema relatado. Correção que já está no HEAD, problema que não se
    reproduz ou comportamento by-design: recuse com a evidência.
@@ -13,7 +13,7 @@ mãos. Aceite, recusa (`sentinela-os.md` § 5) e entrega (§ 6) são os de lá.
    depois o empacotador limpo, na ordem em que o CI roda (app: `pnpm -r empacotar`; módulo: `urbi-empacotar`, KIT.md § Ciclo).
    Reprovação que você não conserta: recuse.
 4. `git push -u origin claude/sentinela-os-<id>` e abra o PR em `payload.repo` contra
-   `branch_default`. Corpo: o que mudou e por quê, a suíte rodada com o resultado real, e o
+   essa mesma branch default. Corpo: o que mudou e por quê, a suíte rodada com o resultado real, e o
    vínculo — `Closes #<numero>` quando `issue_github.repo == payload.repo`,
    `Closes <issue_github.repo>#<numero>` quando difere, e, sem `issue_github`, "Caso #<caso_id>
    do Sentinela, OS #<id>" (sem keyword). Footer de atribuição no fim.
