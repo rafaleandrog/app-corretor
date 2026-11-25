@@ -3,7 +3,8 @@
 # Por quê: a branch padrão deste repositório no GitHub não é a `main` (é a branch
 # em que o repositório nasceu). Toda sessão nova do Claude Code clona a branch
 # padrão; sem isto, ela nasce num commit antigo. No app de viabilidade a padrão é
-# a própria `main`, e este workflow reproduz isso aqui.
+# a própria `main`; aqui, este workflow só faz a branch padrão apontar para o mesmo
+# commit da `main`. Não a torna a `main` e não muda qual é a branch padrão.
 #
 # O que faz: a cada push na `main`, avança a branch padrão até a `main`, só por
 # avanço simples (fast-forward). Nunca força, nunca apaga. Se a branch padrão já
