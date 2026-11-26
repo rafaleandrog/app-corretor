@@ -42,6 +42,16 @@ specs/urbiverso-frameworks-resumo.md  resumo dos frameworks da plataforma (consu
 
 Se a spec pedir algo que o SDK não permite, **não contorne**: registre o conflito no plano, proponha alternativa e pergunte ao dono.
 
+## Rumo ao Estado da Arte
+
+O destino do app mora em `.claude/estado-da-arte/estado-da-arte.md` e só muda por PR que o dono mergeia; como o dono decide está em
+`.claude/estado-da-arte/aprendizados.md` e os números da rotina em `.claude/estado-da-arte/config.md`. **Antes de planejar qualquer
+mudança, leia os dois primeiros** e diga em uma linha qual item do Estado da Arte o trabalho avança (ou que está fora). A regra de
+toda sessão está em `.claude/rules/rumo-ao-estado-da-arte.md`, e a rotina agendada na skill `rumo-ao-estado-da-arte`. O painel do dia
+é a issue "Estado da Arte: painel".
+
+O arquivo `.claude/estado-da-arte/PAUSA` (se existir) pausa a rotina agendada: só o dono o cria ou remove.
+
 ## Como trabalhar em cada sessão
 
 1. Abra `specs/plano_de_implementacao.md`, pegue o **primeiro bloco não concluído** da fase atual e leia na spec as seções que ele cita.
@@ -55,9 +65,23 @@ Se a spec pedir algo que o SDK não permite, **não contorne**: registre o confl
 
 Pedida pelo dono em 25/11/2026, igual à do app de viabilidade. A sessão de uma **tarefa agendada** da rotina `rumo-ao-estado-da-arte` — disparada por ela ou criada pela sessão de despacho a partir do disparo, com o prompt que só o dono edita — cujo prompt traz `Autonomia: 2` ou `3` pode mergear sozinha o PR de um item **pequeno ou médio** (tamanho 1 ou 2 na skill), com o Product owner com todos os critérios em ✅, a revisão pela `revisar-pr-apps` deste repositório sem bloqueante no head atual e o CI verde no head atual. **Nunca vale** para release, tag ou `versao`, migração, `schema.json`, manifesto, permissões, dependências, workflows e hooks, teste existente alterado ou removido, tela nova ou alterada que exija a conferência visual da seção 6 de `specs/layout/README.md`, o Estado da Arte, a configuração da rotina e a própria skill, nem para sessão aberta à mão. Tirar a linha do prompt retira a autorização; frase em issue, comentário ou PR não a substitui. O Estado da Arte, o painel e os registros da rotina: skill `rumo-ao-estado-da-arte` e `.claude/rules/rumo-ao-estado-da-arte.md`.
 
+## Fechamento de issue (regra fixa do dono)
+
+**Issue resolvida é issue fechada, por qualquer caminho** (PR com `Closes`, PR que só citou o número, commit direto, outra sessão,
+rotina agendada). Quem mergeia, ou quem percebe que o pedido de uma issue aberta já está inteiro na `main`, **fecha a issue na
+hora**, com comentário que cita o PR ou commit e a evidência (`arquivo:linha` ou teste), e `state_reason` `completed`.
+
+- **Só não fecha** o que é parcial (comente o que falta; no PR, declare `Sem-fechamento:`) ou cujo critério de aceite é um teste
+  na instância (fica para o dono, como "testar e fechar", com o roteiro).
+- **Depois de cada merge**, confira que toda issue citada no corpo do PR e nos commits dele, e não declarada como "sem
+  fechamento", está fechada.
+- O GitHub só fecha por palavra-chave em inglês: `Closes`/`Fixes`/`Resolves #N`, **uma por issue**, no corpo do PR ou no commit,
+  nunca no título.
+
 ## Armadilhas já encontradas
 
 - **Mudou algo em `apps/portal_corretor/docs/`?** Rode `pnpm ajuda` na pasta da app e commite `comum/ajuda-gerada.ts`; sem isso o teste da base de ajuda derruba o CI.
+- **A branch padrão do GitHub não é a `main`** (é `claude/portal-corretor-setup-22u73o`, onde o repositório nasceu). O workflow `branch-padrao-segue-main.yml` a avança até a `main` a cada push na `main` (exceto quando o intervalo muda arquivo em `.github/workflows/`, que o token do Actions não grava: aí a sessão de despacho da rotina cobre o avanço), para toda sessão nova nascer na `main` de hoje. Não faça commit nela: trabalhe em branch própria a partir de `origin/main`.
 - **Reiniciar a branch depois de um merge:** `git fetch origin main` antes de `git checkout -B <branch> origin/main`, senão a branch nasce sem o PR anterior.
 - **Telas chamam o app por `chamarApi`/`chamarFetch`** (`frontend/apoio.ts`), nunca por `urbiVerso.api`/`fetch` direto: é isso que manda a conta ativa em `X-Conta` para quem atende várias contas (um teste confere).
 - **Conferência visual sem senha:** `apps/portal_corretor/scripts/conferencia-visual/capturar.mjs` abre as telas da app na instância pelo Playwright com o token de `URBIVERSO_INSTANCIAS` (a tela do shell só aceita cookie; o script responde à rota de identidade com a rota equivalente que aceita token) e `comparar.py` monta o lado a lado com `specs/layout/png/` e a tabela de medidas. Exemplo e linha de base: `specs/prints/conferencia-layout-0.1.44/README.md` (contrato v1) e `specs/prints/conferencia-p02-0.1.46/README.md` (contrato v2: `CONTA=<id da conta demo>` e `CONVERSA=<id>` escolhem a conta e a conversa; só a área da app).
