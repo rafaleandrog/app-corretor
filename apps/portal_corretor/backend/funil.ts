@@ -23,6 +23,10 @@ guardarCorretor(funilRotas, ['/funil', '/inicio', '/abordagens']);
 type Linha = Record<string, any>;
 const DIA = 86400e3;
 const agora = () => new Date().toISOString();
+// Com `distinto`, o teto do `varrerTudo` pode contar as linhas brutas do recorte (`banco-de-dados.md` do SDK), e
+// o que fica em memória é uma linha por chave, cujo número já é limitado pela leitura das chaves (contatos do
+// quadro ≤ 5000; negociações ≤ 50 e ≤ 20). Por isso o teto não pode cortar nada, nem lançar em conta grande.
+const SEM_TETO_DISTINTO = Number.MAX_SAFE_INTEGER;
 const ROTULO_CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 
 /** Início e fim do dia no fuso da conta, como instantes ISO. */
@@ -78,13 +82,14 @@ funilRotas.get(
     const playbook = await playbookDaConta(dados, etapas);
     // Último sinal de cada cliente do quadro (P03): o item mais recente da linha do tempo e o último
     // clique num envio. Uma leitura por tabela, pelo `varrerTudo` com `distinto: 'contato_id'` (a linha mais
-    // recente de cada contato, sem página única que esconda um contato atrás de outro; passar do `maximo` lança):
+    // recente de cada contato, sem página única que esconda um contato atrás de outro; o teto é `SEM_TETO_DISTINTO`, pois o volume já é
+    // uma linha por contato):
     // a primeira linha de cada contato é a que vale.
     const idsContatos = [...porContato.keys()];
     const [linhas, enviosAbertos] = idsContatos.length
       ? await Promise.all([
-          dados.varrerTudo('linha_do_tempo', { filtros: { contato_id: idsContatos.join(',') }, distinto: 'contato_id', ordenar: 'ocorrido_em', ordem: 'desc', maximo: 5000 }),
-          dados.varrerTudo('envios', { filtros: { contato_id: idsContatos.join(','), 'primeiro_clique_em[nulo]': 'false' }, distinto: 'contato_id', ordenar: 'primeiro_clique_em', ordem: 'desc', maximo: 5000 }),
+          dados.varrerTudo('linha_do_tempo', { filtros: { contato_id: idsContatos.join(',') }, distinto: 'contato_id', ordenar: 'ocorrido_em', ordem: 'desc', maximo: SEM_TETO_DISTINTO }),
+          dados.varrerTudo('envios', { filtros: { contato_id: idsContatos.join(','), 'primeiro_clique_em[nulo]': 'false' }, distinto: 'contato_id', ordenar: 'primeiro_clique_em', ordem: 'desc', maximo: SEM_TETO_DISTINTO }),
         ])
       : [[] as Linha[], [] as Linha[]];
     const ultimaLinha = new Map<number, Linha>();
@@ -330,7 +335,7 @@ async function propostasRecebidas(dados: HelperDados, contatos: Map<number, Linh
   const r = await dados.listar('negociacoes', { filtros: { estado: 'ativa,aguardando_cliente' }, ordenar: 'atualizado_em', ordem: 'desc', por_pagina: 50 });
   const vivas = (r.dados as Linha[]).filter((n) => !encerrada(n));
   if (!vivas.length) return [];
-  const propostas = await dados.varrerTudo('propostas', { filtros: { negociacao_id: vivas.map((n) => n.id).join(',') }, distinto: 'negociacao_id', ordenar: 'id', ordem: 'desc', maximo: 5000 });
+  const propostas = await dados.varrerTudo('propostas', { filtros: { negociacao_id: vivas.map((n) => n.id).join(',') }, distinto: 'negociacao_id', ordenar: 'id', ordem: 'desc', maximo: SEM_TETO_DISTINTO });
   const ultima = new Map<number, Linha>();
   for (const p of propostas as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
   const faltam = vivas.map((n) => n.contato_id).filter((cid) => cid && !contatos.has(Number(cid)));
@@ -392,7 +397,7 @@ async function passagens(dados: HelperDados) {
     ids.length ? dados.varrerTudo('contatos', { filtros: { id: ids.join(',') }, maximo: 100 }) : [],
     // A conversa do cliente que o Negociador atende: Assumir abre a P02 já assumida (spec 11.1 P01).
     ids.length ? dados.varrerTudo('conversas', { filtros: { contato_id: ids.join(','), atendido_por: 'agente' }, maximo: 100 }) : [],
-    r.dados.length ? dados.varrerTudo('propostas', { filtros: { negociacao_id: r.dados.map((n) => n.id).join(',') }, distinto: 'negociacao_id', ordenar: 'id', ordem: 'desc', maximo: 5000 }) : [],
+    r.dados.length ? dados.varrerTudo('propostas', { filtros: { negociacao_id: r.dados.map((n) => n.id).join(',') }, distinto: 'negociacao_id', ordenar: 'id', ordem: 'desc', maximo: SEM_TETO_DISTINTO }) : [],
   ]);
   const nome = new Map(contatos.map((c) => [c.id, c.nome]));
   const conversa = new Map(conversas.map((c) => [Number(c.contato_id), Number(c.id)]));
