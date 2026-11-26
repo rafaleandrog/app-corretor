@@ -14,8 +14,9 @@ da coluna da esquerda). O endereço é `/clientes?visao=funil`; os endereços an
 A coluna da direita mostra uma dica enquanto nenhum cartão foi escolhido; ao tocar num cartão, ela
 abre com o cliente.
 
-**Esquerda: o que mostrar.** Tudo em chips, com **Todas** primeiro em cada linha (é o chip que
-desliga o filtro):
+**Esquerda: o que mostrar.** Tudo em chips. **Todas** vem primeiro em Filtros prontos e Por
+temperatura (é o chip que desliga o filtro); em Funis um funil fica sempre escolhido, e Compra é
+o padrão:
 
 - **Funis**: "Compra" e "Venda e captação", cada um com quantos negócios estão em andamento.
 - **Filtros prontos**: Novos, Sem contato, Quentes e Retorno vencido, os mesmos da Lista ("Sem
