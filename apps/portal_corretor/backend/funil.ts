@@ -77,19 +77,20 @@ funilRotas.get(
     const porContato = new Map(contatos.map((c) => [c.id, c]));
     const playbook = await playbookDaConta(dados, etapas);
     // Último sinal de cada cliente do quadro (P03): o item mais recente da linha do tempo e o último
-    // clique num envio. Uma leitura por tabela, pelo `listar` (teto obedecido, sem lançar), da mais recente
-    // para a mais antiga: a primeira linha de cada contato é a que vale.
+    // clique num envio. Uma leitura por tabela, pelo `varrerTudo` com `distinto: 'contato_id'` (a linha mais
+    // recente de cada contato, sem página única que esconda um contato atrás de outro; passar do `maximo` lança):
+    // a primeira linha de cada contato é a que vale.
     const idsContatos = [...porContato.keys()];
     const [linhas, enviosAbertos] = idsContatos.length
       ? await Promise.all([
-          dados.listar('linha_do_tempo', { filtros: { contato_id: idsContatos.join(',') }, ordenar: 'ocorrido_em', ordem: 'desc', por_pagina: 1000 }),
-          dados.listar('envios', { filtros: { contato_id: idsContatos.join(','), 'primeiro_clique_em[nulo]': 'false' }, ordenar: 'primeiro_clique_em', ordem: 'desc', por_pagina: 1000 }),
+          dados.varrerTudo('linha_do_tempo', { filtros: { contato_id: idsContatos.join(',') }, distinto: 'contato_id', ordenar: 'ocorrido_em', ordem: 'desc', maximo: 5000 }),
+          dados.varrerTudo('envios', { filtros: { contato_id: idsContatos.join(','), 'primeiro_clique_em[nulo]': 'false' }, distinto: 'contato_id', ordenar: 'primeiro_clique_em', ordem: 'desc', maximo: 5000 }),
         ])
-      : [{ dados: [] as Linha[] }, { dados: [] as Linha[] }];
+      : [[] as Linha[], [] as Linha[]];
     const ultimaLinha = new Map<number, Linha>();
-    for (const l of linhas.dados as Linha[]) if (!ultimaLinha.has(Number(l.contato_id))) ultimaLinha.set(Number(l.contato_id), l);
+    for (const l of linhas as Linha[]) if (!ultimaLinha.has(Number(l.contato_id))) ultimaLinha.set(Number(l.contato_id), l);
     const ultimoEnvio = new Map<number, Linha>();
-    for (const e of enviosAbertos.dados as Linha[]) if (!ultimoEnvio.has(Number(e.contato_id))) ultimoEnvio.set(Number(e.contato_id), e);
+    for (const e of enviosAbertos as Linha[]) if (!ultimoEnvio.has(Number(e.contato_id))) ultimoEnvio.set(Number(e.contato_id), e);
     // Contagem por temperatura: clientes (uma vez cada) com negócio aberto neste funil, antes dos filtros.
     const temperaturas = { quente: 0, morno: 0, frio: 0 };
     for (const cid of new Set(visiveis.filter(aberto).map((n) => n.contato_id))) {
@@ -329,9 +330,9 @@ async function propostasRecebidas(dados: HelperDados, contatos: Map<number, Linh
   const r = await dados.listar('negociacoes', { filtros: { estado: 'ativa,aguardando_cliente' }, ordenar: 'atualizado_em', ordem: 'desc', por_pagina: 50 });
   const vivas = (r.dados as Linha[]).filter((n) => !encerrada(n));
   if (!vivas.length) return [];
-  const propostas = await dados.listar('propostas', { filtros: { negociacao_id: vivas.map((n) => n.id).join(',') }, ordenar: 'id', ordem: 'desc', por_pagina: 1000 });
+  const propostas = await dados.varrerTudo('propostas', { filtros: { negociacao_id: vivas.map((n) => n.id).join(',') }, distinto: 'negociacao_id', ordenar: 'id', ordem: 'desc', maximo: 5000 });
   const ultima = new Map<number, Linha>();
-  for (const p of propostas.dados as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
+  for (const p of propostas as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
   const faltam = vivas.map((n) => n.contato_id).filter((cid) => cid && !contatos.has(Number(cid)));
   if (faltam.length) for (const c of await dados.varrerTudo('contatos', { filtros: { id: [...new Set(faltam)].join(',') }, maximo: 100 })) contatos.set(Number(c.id), c);
   const itens: ItemFila[] = [];
@@ -391,12 +392,12 @@ async function passagens(dados: HelperDados) {
     ids.length ? dados.varrerTudo('contatos', { filtros: { id: ids.join(',') }, maximo: 100 }) : [],
     // A conversa do cliente que o Negociador atende: Assumir abre a P02 já assumida (spec 11.1 P01).
     ids.length ? dados.varrerTudo('conversas', { filtros: { contato_id: ids.join(','), atendido_por: 'agente' }, maximo: 100 }) : [],
-    r.dados.length ? dados.listar('propostas', { filtros: { negociacao_id: r.dados.map((n) => n.id).join(',') }, ordenar: 'id', ordem: 'desc', por_pagina: 500 }) : { dados: [] as Linha[] },
+    r.dados.length ? dados.varrerTudo('propostas', { filtros: { negociacao_id: r.dados.map((n) => n.id).join(',') }, distinto: 'negociacao_id', ordenar: 'id', ordem: 'desc', maximo: 5000 }) : [],
   ]);
   const nome = new Map(contatos.map((c) => [c.id, c.nome]));
   const conversa = new Map(conversas.map((c) => [Number(c.contato_id), Number(c.id)]));
   const ultima = new Map<number, Linha>();
-  for (const p of propostas.dados as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
+  for (const p of propostas as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
   return semSigilo(
     r.dados.map((n) => {
       const p = ultima.get(Number(n.id));
