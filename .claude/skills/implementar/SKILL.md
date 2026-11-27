@@ -111,6 +111,12 @@ Estão todos no `KIT.md`; estes são os que quebram calado, e é por isso que es
 - **UI e API andam juntas, no mesmo PR.** Capacidade que existe na rota existe na tela, e
   vice-versa. Parâmetro que a tela não expõe é feature invisível: ninguém descobre, ninguém testa,
   e ela apodrece divergindo. Se não merece tela, não deve existir na rota — tire as duas.
+- **Rota nova nasce declarada no bloco `rotas` do manifesto** — é o que a torna ferramenta MCP
+  no endereço da app. Ferramenta: nome `recurso_acao`, `descricao` para um modelo (o caso normal, o
+  que altera, quando recusa; nada de prometer borda) e `campos` com tudo o que a rota lê; senão a
+  classe (`auxiliar_de_tela`, `coberta_por`, `transporte`) e o motivo. Permissão não se declara: o
+  handler decide. Rota que muda de entrada muda os `campos` no mesmo PR. Ver `mcp.md` § Rotas
+  próprias das apps.
 - **Permissão só por `req.contexto.nivelApp` e `rolesApp`.** Nunca por tipo de usuário, nunca por
   natureza, nunca por uma lista de e-mails no código.
 - **Banco só por `req.dados` e `schema.json`.** Sem SQL cru, em nenhuma hipótese.
@@ -146,8 +152,10 @@ valem, com estas trocas — e o `modulos-autoria.md` do bundle é quem manda qua
 - **A pasta.** `modulos/<slug>/` com `manifesto.json` (identidade, versão, `entidades`,
   `expostas`, `dependencias`), `schema.json`, `migracoes/` (só dado), `backend/` (o pacote do
   workspace: fonte em `backend/src/`, e o `backend/modulo.js` que o build gera), `frontend/`
-  opcional (`index.ts` → `frontend/modulo.js`, também gerado) e `docs/` opcional. Os dois
-  `modulo.js` saem do `pnpm -r build` e não se commitam; não edite as flags de esbuild deles.
+  opcional (`index.ts` → `frontend/modulo.js`, também gerado), `funcoes/` opcional (as funções
+  puras: `index.ts` → `funcoes/modulo.js`, esbuild `--platform=neutral`, sem import nenhum) e
+  `docs/` opcional. Os `modulo.js` saem do `pnpm -r build` e não se commitam; não edite as
+  flags de esbuild deles.
 - **Sem SQL próprio.** O módulo lê e grava só pelo executor que recebe em `inicializar` — nunca
   DDL, nunca conexão própria, nunca import do código de outro módulo. Estrutura se declara no
   `schema.json`; migração só move dado.
