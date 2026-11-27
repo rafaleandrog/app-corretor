@@ -90,6 +90,27 @@ test('/imoveis/novo abre o Novo imóvel; o Criar, o [Novo] e o primeiro passo de
   }
 });
 
+test('M3 (celular), passo 1: fotos, grade, "A IA já entendeu", "Ditar o resto", rodapé; a P07 (computador) fica como era', () => {
+  const tela = raiz('frontend/telas/novo-imovel.ts');
+  const corte = (de: string, ate: string) => {
+    const i = tela.indexOf(de);
+    const j = tela.indexOf(ate, i + de.length);
+    assert.ok(i >= 0 && j > i, de);
+    return tela.slice(i, j);
+  };
+  const fotos = corte('  private fotos() {', '  private dados() {');
+  const ordem = ['urbi-seletor-arquivo', '<urbi-grid min=', '${celular ? this.entendeu() : nothing}', '${celular ? this.ditar() : nothing}'].map((t) => fotos.indexOf(t));
+  assert.ok(ordem.every((n) => n >= 0), 'os quatro blocos estão no passo 1');
+  assert.deepEqual([...ordem].sort((a, b) => a - b), ordem, 'celular: seletor, grade, A IA já entendeu, Ditar o resto');
+  // Computador (P07): o banner continua antes da grade e o ditado fica em Dados.
+  assert.ok(fotos.indexOf('${celular ? nothing : this.entendeu()}') < fotos.indexOf('<urbi-grid min='), 'P07: banner antes da grade');
+  assert.match(corte('  private dados() {', '  private autorizacao() {'), /\$\{noCelular\(\) \? nothing : this\.ditar\(\)\}/, 'P07: Ditar fica em Dados; no celular sai de lá');
+  assert.match(fotos, /gap=\$\{celular \? '6px' : '12px'\}/, 'celular: grade com gap 6');
+  assert.match(tela, /\$\{i === 0 && noCelular\(\) \? nothing : html`<urbi-botao variante="texto"[^`]*>Voltar<\/urbi-botao>`\}/, 'celular, passo 1: sem Voltar');
+  // Rodapé: "Continuar" no celular, "Próximo: …" no computador.
+  assert.match(tela, /noCelular\(\) \? 'Continuar' : `Próximo: \$\{PASSOS_NOVO_IMOVEL\[i \+ 1\]\.rotulo\.toLowerCase\(\)\}`/);
+});
+
 test('o caminho da tela: rascunho na primeira foto, dados salvos por passo, autorização opcional, público só com ela', async () => {
   const banco = new BancoFalso(UNICOS);
   await comServidor(rotas, A, banco, {}, async (chamar) => {
