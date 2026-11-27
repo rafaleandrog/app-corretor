@@ -99,14 +99,14 @@ const TELAS = [
   ['P12-Conexoes', 'desk', '/portal_corretor/ajustes/conexoes'],
   ['P13-Conta', 'desk', '/portal_corretor/ajustes/conta'],
   ['P14-Importar', 'desk', '/portal_corretor/clientes/importar'],
-  ['P15-Negociacoes', 'desk', '/portal_corretor/negociacoes'],
+  ['P15-Negociacoes', 'desk', '/portal_corretor/clientes?visao=negociacoes'],
   ['P17-Negociador', 'desk', '/portal_corretor/ajustes/negociador'],
   ['M1-Hoje', 'cel', '/portal_corretor/'],
   ['M3-Novo-imovel', 'cel', '/portal_corretor/imoveis/novo'],
   ['M4-Portal', 'cel', a.portal],
   ['M5-Portal-imoveis', 'cel', a.portal, 'aba-imoveis'],
   ['M6-Pagina-publica', 'cel', a.pagina && `/portal_corretor/p?c=${a.pagina}`],
-  ['M8-Aprovar-negociacao', 'cel', '/portal_corretor/negociacoes'],
+  ['M8-Aprovar-negociacao', 'cel', '/portal_corretor/clientes?visao=negociacoes'],
 ];
 const querTela = filtro ? new Set(filtro.split(',').map((s) => s.trim())) : null;
 const resumo = [];
