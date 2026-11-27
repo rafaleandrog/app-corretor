@@ -42,6 +42,8 @@ export const crmRotas: Router = Router();
 // As guardas valem só nos prefixos do CRM: o router é montado na raiz junto com os outros.
 guardarCorretor(crmRotas, ['/contatos', '/negocios', '/atividades', '/funil', '/visitas']);
 
+// Com `distinto`, o `varrerTudo` não pode cortar por teto (`banco-de-dados.md` do SDK; #246): fica uma linha por contato da página (≤ 50).
+const SEM_TETO_DISTINTO = Number.MAX_SAFE_INTEGER;
 const POR_PAGINA = 50;
 const LIMITE_IMPORTACAO = LIMITE_LINHAS_IMPORTACAO;
 /** Linhas aceitas na prévia da importação (`simular`): a tela manda 10. */
@@ -173,10 +175,15 @@ crmRotas.get(
     });
     // A etapa do negócio em andamento de cada contato da página (P04: lista com etapa, origem e temperatura).
     const ids = r.dados.map((c) => c.id);
-    const negocios = ids.length ? await req.dados!.listar('negocios', { filtros: { contato_id: ids.join(',') }, ordenar: 'etapa_desde', ordem: 'desc', por_pagina: 500 }) : { dados: [] as Record<string, any>[] };
     const etapas = await etapasPorId(req.dados!);
+    const idsAbertas = [...etapas.values()].filter((e) => e.tipo === 'aberta').map((e) => e.id);
+    // Só negócios em etapa aberta, um por contato (o de `etapa_desde` mais recente), sem página única que esconda um contato
+    // atrás de outro; com `distinto` o teto do `varrerTudo` pode contar linhas brutas (`banco-de-dados.md` do SDK, #246).
+    const negocios = ids.length && idsAbertas.length
+      ? await req.dados!.varrerTudo('negocios', { filtros: { contato_id: ids.join(','), etapa_id: idsAbertas.join(',') }, distinto: 'contato_id', ordenar: 'etapa_desde', ordem: 'desc', maximo: SEM_TETO_DISTINTO })
+      : [];
     const etapaDe = new Map<number, string>();
-    for (const n of negocios.dados) {
+    for (const n of negocios) {
       const e = etapas.get(n.etapa_id);
       if (e?.tipo === 'aberta' && !etapaDe.has(Number(n.contato_id))) etapaDe.set(Number(n.contato_id), String(e.nome));
     }
