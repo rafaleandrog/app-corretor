@@ -117,7 +117,7 @@ export function renderClientes(atualizar: () => void) {
     // P15: título 'Clientes', 'Nova proposta' na linha do título e o alternador logo abaixo (sem Importar nem Novo).
     const topo = (nova: () => void) => html`${cabecalhoColuna(
         'Clientes',
-        html`<urbi-botao icone="fa-solid fa-file-signature" @click=${nova}>Nova proposta</urbi-botao>`,
+        html`<urbi-botao variante="secundario" icone="fa-solid fa-file-signature" @click=${nova}>Nova proposta</urbi-botao>`,
       )}
       <urbi-chips-atalho .opcoes=${VISOES} ativo=${visao} @urbi:chip-atalho:click=${(e: CustomEvent) => trocarVisao(e.detail.id)}></urbi-chips-atalho>`;
     return molduraNegociacoes(atualizar, topo, '/clientes');
