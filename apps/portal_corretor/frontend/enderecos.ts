@@ -134,6 +134,20 @@ export function fichaCanonica(sub: string, busca = ''): string | null {
 }
 
 /**
+ * P15 (D-96): o endereço `/negociacoes` aberto pelo corretor é apelido da visão Negociações de Clientes
+ * (`/clientes?visao=negociacoes&item=<id>`). Devolve a query nova, ou `null` se não é `/negociacoes`.
+ */
+export function negociacoesCanonica(sub: string, busca = ''): string | null {
+  if (normalizar(sub) !== '/negociacoes') return null;
+  const q = new URLSearchParams(busca);
+  const out = new URLSearchParams({ visao: 'negociacoes' });
+  for (const [k, v] of q) if (k !== 'visao' && k !== 'item') out.append(k, v); // demais filtros seguem
+  const item = Number(q.get('item'));
+  if (Number.isInteger(item) && item > 0) out.set('item', String(item));
+  return `?${out}`;
+}
+
+/**
  * Menu do corretor com os nomes do Padrão B (D-103), na ordem de 11.0.1: é o menu da moldura.
  * Espelha o `nav` do manifesto (D-114; testes/menu.test.ts confere que são os mesmos itens); o `nav` traz
  * a mais só Equipe da plataforma › Corretores, que não tem outro caminho.
