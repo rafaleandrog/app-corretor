@@ -1,12 +1,12 @@
 import '@urbiverso/sdk/express';
 import { fusoValido } from '../comum/assistente';
 import { Router, type Request, type Response } from 'express';
-import { createHash } from 'node:crypto';
+import { createHmac, randomBytes } from 'node:crypto';
 import type { ContextoListener, HelperDados } from '@urbiverso/sdk';
 import { CENTAVOS_MAXIMO, ETAPAS_PADRAO } from '../comum/crm';
 import { iso, MARCO_PADRAO } from '../comum/funil';
 import { validarLead } from '../comum/pagina';
-import { id } from './acesso';
+import { id, temByteNulo } from './acesso';
 import { reclassificar } from './inteligencia';
 import { lerVitrine, MARCA_AVISO_OFERTA, publicarSelecao, selecaoValida, sincronizarPortal } from './portal';
 import { semSigilo } from '../comum/negociacao';
@@ -31,6 +31,9 @@ type Linha = Record<string, any>;
 const TTL_FOTO = 6 * 3600;
 
 export const rotasPublicas: Router = Router();
+
+// Endereço com byte nulo não existe: 404 antes de consultar o banco (#229).
+rotasPublicas.use((req, res, next) => (temByteNulo(req.query) ? naoEncontrado(res) : next()));
 
 async function vitrine(dados: HelperDados, filtros: Record<string, unknown>) {
   const r = await dados.listar('vitrine_publica', { filtros, por_pagina: 1 });
@@ -151,8 +154,9 @@ async function selecaoPublica(req: Request, conta: number, selecaoId: number) {
   if (!linha) return null;
   const s = linha.dados as Linha;
   if (s.expira_em && String(s.expira_em) <= new Date().toISOString()) return null;
+  // Item cuja autorização venceu desde a publicação sai, como na Minha Página (#234); o prazo não vai ao visitante.
   const itens = await Promise.all(
-    (s.itens ?? []).map(async (i: Linha) => ({
+    (s.itens ?? []).filter((i: Linha) => noPrazo({ dados: i })).map(async ({ vigente_ate: _prazo, ...i }: Linha) => ({
       ...i,
       fotos: (await Promise.all((i.fotos ?? []).map(async (f: Linha) => ({ url: await urlFoto(req, f.arquivo), legenda: f.legenda ?? null })))).filter((f) => f.url),
     })),
@@ -200,7 +204,7 @@ rotasPublicas.get('/vitrine/portal', async (req, res, next) => {
 
 // ---------- Webhooks ----------
 
-/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Chave só com a origem embaralhada (hash), nunca o IP; o limite em si não grava nada. O mesmo hash segue no payload do `lead_recebido` e é gravado em `consentimentos.ip_hash` (D-129). */
+/** Limite por origem em memória (7.3: 3 envios por minuto por IP). Chave só com a origem embaralhada (HMAC), nunca o IP; o limite em si não grava nada. O HMAC com o segredo do app (ou `null`, sem segredo) segue no payload do `lead_recebido` e é gravado em `consentimentos.ip_hash` (D-129). */
 const janelas = new Map<string, number[]>();
 export function dentroDoLimite(chave: string, maximo: number, agora = Date.now()): boolean {
   const recentes = (janelas.get(chave) ?? []).filter((t) => agora - t < 60_000);
@@ -217,13 +221,36 @@ export function limparLimites() {
   janelas.clear();
 }
 
+/** Parâmetro `secret` do manifesto com o segredo do HMAC da origem (P-48). Quem o preenche é o administrador do app, em Config › Parâmetros. */
+export const PARAMETRO_SEGREDO_ORIGEM = 'ip_hash_segredo';
+/** Chave só da memória deste processo: serve ao limite por minuto quando não há segredo configurado; nunca é gravada nem sai daqui. */
+const chaveDoProcesso = randomBytes(32);
+const hmac16 = (chave: string | Buffer, ip: string) => createHmac('sha256', chave).update(ip || 'desconhecido').digest('hex').slice(0, 16);
+/** HMAC-SHA-256 do IP com o segredo, nos primeiros 16 caracteres hexadecimais (P-48). Puro, para teste. */
+export const hashDaOrigem = (ip: string, segredo: string) => hmac16(segredo, ip);
+
 /**
- * Origem do envio: `req.ip` (o primeiro X-Forwarded-For é do cliente e se falsifica). Se o shell não
- * declarar o proxy confiável, `req.ip` é o do balanceador e o limite passa a valer por conta —
- * confirmação pedida em specs/pedidos_ao_shell.md.
+ * Origem do envio para o limite por minuto: `req.ip` (o primeiro X-Forwarded-For é do cliente e se falsifica)
+ * embaralhado com a chave do processo, só em memória. Se o shell não declarar o proxy confiável, `req.ip` é o
+ * do balanceador e o limite passa a valer por conta — confirmação pedida em specs/pedidos_ao_shell.md.
  */
 function origem(req: Request): string {
-  return createHash('sha256').update(req.ip || 'desconhecido').digest('hex').slice(0, 16);
+  return hmac16(chaveDoProcesso, req.ip || 'desconhecido');
+}
+
+/**
+ * O que vai ao evento e ao banco: HMAC com o segredo do parâmetro, ou `null` quando ele não está preenchido
+ * (degrade explícito: sem segredo nada recuperável por força bruta é gravado; o formulário segue funcionando).
+ * Leitura que falha avisa no log (sem o valor) e também degrada para `null`.
+ */
+async function origemGravada(req: Request): Promise<string | null> {
+  try {
+    const v = await req.parametros?.obter<string>(PARAMETRO_SEGREDO_ORIGEM);
+    return typeof v === 'string' && v.trim() ? hashDaOrigem(req.ip || 'desconhecido', v) : null;
+  } catch {
+    console.warn('[portal_corretor] ip_hash_segredo ilegível: o ip_hash não será gravado');
+    return null;
+  }
 }
 
 const REACOES = ['gostei', 'nao_gostei', 'quero_visitar', 'conversar_preco'];
@@ -241,7 +268,7 @@ const contaDoIngresso = (req: Request) => {
   return Number.isInteger(c) && c > 0 ? c : null;
 };
 
-export const webhooks = {
+const webhooksBrutos = {
   /** Formulário da página e da ficha (7.3): honeypot `site`, limite por IP, consentimento obrigatório. */
   formulario_lead: async (req: Request, res: Response) => {
     const conta = contaDoIngresso(req);
@@ -256,8 +283,8 @@ export const webhooks = {
     if (!v.ok) return res.status(422).json({ erro: true, codigo: 'DADOS_INVALIDOS', mensagem: 'Confira o formulário.', detalhes: v.erros });
     await req.eventos!.publicar(
       'lead_recebido',
-      // `ip_hash`: a origem do envio embaralhada (nunca o IP), guardada com a declaração de consentimento (D-129).
-      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null, ip_hash: origem(req) },
+      // `ip_hash`: a origem do envio como HMAC com segredo (nunca o IP; `null` sem o segredo configurado), guardada com a declaração de consentimento (D-129).
+      { ...v.dados, origem: v.dados.imovel_codigo ? 'ficha_imovel' : 'pagina', responsavel_id: req.wh?.criado_por ?? null, ip_hash: await origemGravada(req) },
       { conta_id: conta },
     );
     res.json({ ok: true });
@@ -353,6 +380,15 @@ export const webhooks = {
     res.json({ ok: true });
   },
 };
+
+/** Webhooks com a mesma trava das rotas: corpo com byte nulo responde 422, sem publicar evento (#229). */
+export const webhooks = Object.fromEntries(
+  Object.entries(webhooksBrutos).map(([nome, fn]) => [
+    nome,
+    (req: Request, res: Response) =>
+      temByteNulo(req.body) ? res.status(422).json({ erro: true, codigo: 'TEXTO_INVALIDO', mensagem: 'Um dos campos tem um caractere inválido.' }) : fn(req, res),
+  ]),
+) as typeof webhooksBrutos;
 
 // ---------- Listeners ----------
 

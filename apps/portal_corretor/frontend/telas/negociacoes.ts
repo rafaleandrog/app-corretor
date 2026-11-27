@@ -997,7 +997,7 @@ export class PcNegociacaoContexto extends ColunaDaNegociacao {
     await formularioQueSalva({
       titulo: 'Atribuir a um negociador',
       gesto: n.vida,
-      mensagem: 'A pessoa passa a conduzir esta negociação, dentro do mandato. Ela não vê o recuo, o alvo nem a BATNA do vendedor e não aceita o acordo final.',
+      mensagem: 'A pessoa passa a conduzir esta negociação, dentro do mandato. Ela passa a ver o recuo, o alvo e a BATNA do vendedor, só para ler: não os muda, não aceita o acordo final e nunca envia abaixo do recuo.',
       campos: [{ nome: 'usuario_id', tipo: 'selecao', rotulo: 'Negociador', obrigatorio: true, opcoes: prontas.map((p) => ({ valor: String(p.usuario_id), rotulo: p.email })) }],
       rotuloConfirmar: 'Atribuir',
       aviso: 'Negociação atribuída.',
@@ -1291,21 +1291,4 @@ export class PcNegociacoesDoCliente extends LitElement {
       </urbi-linha>
     </urbi-card>`;
   }
-}
-
-/**
- * Hoje do negociador humano (D7, spec 11.6): as negociações atribuídas a ele, com os mesmos filtros da
- * lista. Escolher uma abre a negociação em Negociações (`/negociacoes?item=`).
- */
-export function renderHojeNegociador(atualizar: () => void) {
-  const abrir = (id: number) => {
-    history.pushState(history.state, '', `${urbiVerso.href('/negociacoes')}?item=${id}`);
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  };
-  const centro = html`<urbi-stack>
-    <urbi-prosa papel="titulo">Suas negociações</urbi-prosa>
-    <urbi-prosa papel="secundario">As negociações que o corretor atribuiu a você. Você conduz dentro do mandato; aceitar o acordo é sempre do corretor.</urbi-prosa>
-    <pc-negociacoes-lista .aoEscolher=${abrir}></pc-negociacoes-lista>
-  </urbi-stack>`;
-  return moldura({ menu: '/', centro }, atualizar);
 }

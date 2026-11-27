@@ -108,6 +108,11 @@ O Criar rápido é para imóvel ativo ou reservado.
 **Objetivos:** novo imóvel, baixou o preço, vendido, visita aberta e destaque. Nos quatro
 primeiros, a descrição pede um selo na arte. "Vendido" não mostra o preço.
 
+**Baixou o preço:** quando o preço do imóvel cai, o app guarda o preço de antes (no cadastro, só
+para o seu uso). A arte, a legenda e o pedido à IA passam a dizer "de R$ X por R$ Y". Se o preço
+subir, ou se o preço for apagado, esse valor some (salvar sem mudar o preço o mantém) e o texto traz só o preço atual, sem "de".
+O preço de antes não aparece na sua página, na vitrine nem no portal do cliente.
+
 **Os textos:**
 - Cada peça recebe título, chamada, até 4 destaques, legenda e hashtags. Com a IA liberada pelo
   administrador, ela escreve a partir do seu pedido e dos dados públicos do imóvel.
@@ -192,7 +197,7 @@ No **Mais**, conforme a situação:
 | **Trocar a arte** | Abre o envio para pôr outra arte no lugar da atual |
 | **Usar outra ferramenta** | Ver acima |
 | **Voltar a rascunho** | Tira a aprovação de uma peça aprovada (ou com erro depois de aprovada) |
-| **Publiquei por fora** | Registra que você publicou pelo Instagram, com o link do post se quiser |
+| **Publiquei por fora** | Registra que você publicou pelo Instagram, com o link do post se quiser. Só para peça aprovada, inclusive a agendada, a que deu erro e a presa em "publicando" (rascunho e rejeitada pedem **Aprovar** antes), e com o imóvel ainda à venda |
 | **Copiar legenda** | Copia a legenda com as hashtags |
 | **Remover** | Tira a peça do Estúdio. O pedido continua aberto com as peças que sobraram; se era a única, o Estúdio fica sem pedido aberto |
 
@@ -215,7 +220,7 @@ O botão **Publicar** de uma peça aprovada pergunta como:
 
 | Escolha | Como funciona |
 |---|---|
-| **Publicar agora** | A peça vai na hora para o Instagram conectado. O app confere a peça de novo (autorização vigente, arte, limites) antes de publicar |
+| **Publicar agora** | A peça vai na hora para o Instagram conectado. O app confere a peça de novo (autorização vigente, imóvel ainda à venda e não removido, arte, limites) antes de publicar; o agendamento confere o mesmo na hora marcada |
 | **Agendar** | Escolha dia e hora, de 5 minutos a 90 dias à frente. Na hora, o app confere e publica. **Cancelar agendamento** devolve a peça para aprovada |
 | **Baixar** | Abre as imagens para salvar e copia a legenda. Publique pelo Instagram ou pelo Meta Business Suite (que agendam por conta própria) e depois use **Mais › Publiquei por fora** |
 

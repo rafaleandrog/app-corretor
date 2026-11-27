@@ -6,6 +6,7 @@ import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { registrar } from './crm';
 import { reclassificar } from './inteligencia';
 import { tentarPortal } from './portal';
+import { temperaturaVisivel } from '../comum/crm';
 import { linkWhatsapp } from '../comum/pagina';
 import {
   type CanalMensagem,
@@ -236,7 +237,7 @@ conversasRotas.get(
       id: c.id,
       contato_id: c.contato_id,
       contato_nome: contatoDe(c).nome ?? c.contato_nome ?? null,
-      contato_temperatura: contatoDe(c).temperatura ?? null,
+      contato_temperatura: temperaturaVisivel(contatoDe(c).papeis, contatoDe(c).temperatura),
       origem_canal: origemDe(c),
       canal: c.canal,
       estado: c.estado,
@@ -287,8 +288,8 @@ conversasRotas.get(
     res.json({
       conversa: { ...conversa, ultima_mensagem_em: iso(conversa.ultima_mensagem_em), ...atendimentoDe(negociacao) },
       contato: {
-        id: contato.id, nome: contato.nome, telefone: contato.telefone ?? null, temperatura: contato.temperatura ?? null,
-        temperatura_motivo: contato.temperatura_motivo ?? null, perfil_busca: contato.perfil_busca ?? null,
+        id: contato.id, nome: contato.nome, telefone: contato.telefone ?? null, temperatura: temperaturaVisivel(contato.papeis, contato.temperatura),
+        temperatura_motivo: temperaturaVisivel(contato.papeis, contato.temperatura) ? (contato.temperatura_motivo ?? null) : null, perfil_busca: contato.perfil_busca ?? null,
         origem_canal: contato.origem_canal ?? null, origem_campanha: contato.origem_campanha ?? null, proximo_passo: contato.proximo_passo ?? null,
       },
       mensagens: (mensagens.dados as Linha[]).reverse().map((m) => ({ ...m, em: iso(m.em) })),

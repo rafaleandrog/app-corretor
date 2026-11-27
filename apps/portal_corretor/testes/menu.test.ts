@@ -58,7 +58,7 @@ test('menu do app (nav, D-114): as oito telas do corretor na ordem de 11.0.1 e E
   const folhas = manifesto.nav.filter((n: { rota?: string }) => n.rota).map((n: { titulo: string; rota: string }) => [n.titulo, n.rota]);
   assert.deepEqual(folhas, OITO.map(([t, r]) => [t, r]));
   assert.deepEqual(rotasDoNav(manifesto.nav), [...OITO.map(([, r]) => r), '/corretores']);
-  // O `MENU` da app (busca, Criar, celular) é o mesmo do `nav`; o negociador humano vê só Hoje e Negociações.
+  // O `MENU` da app (busca, Criar, celular) é o mesmo do `nav`; o negociador humano vê só Negociações.
   assert.deepEqual(MENU.map((m) => [m.titulo, m.rota]), OITO.map(([t, r]) => [t, r]));
   assert.deepEqual(MENU_NEGOCIADOR.map((m) => m.rota), ['/negociacoes']);
   // D-125: qualquer outra rota leva às Negociações; a notificação leva à mesma negociação.
@@ -70,6 +70,15 @@ test('menu do app (nav, D-114): as oito telas do corretor na ordem de 11.0.1 e E
   assert.equal(destinoDoNegociador('/assistente', ''), '/negociacoes');
   // Nenhum item do nav aponta para uma tela que não existe.
   for (const rota of rotasDoNav(manifesto.nav)) assert.ok(resolverEndereco(rota).chave, `${rota} abre uma tela`);
+});
+
+test('Hoje não é declarado para o negociador humano (D-125): só Negociações', () => {
+  const fonte = readFileSync(new URL('../frontend/index.ts', import.meta.url), 'utf8');
+  const ini = fonte.indexOf('  hoje: {');
+  const fim = fonte.indexOf('\n  negociacoes: {', ini);
+  assert.ok(ini >= 0 && fim > ini, 'achou o bloco da entrada Hoje');
+  assert.ok(!fonte.slice(ini, fim).includes('negociador'), 'a entrada de Hoje não lista o papel negociador');
+  assert.ok(!fonte.includes('renderHojeNegociador'));
 });
 
 test('cada tela do menu abre por endereço direto', () => {

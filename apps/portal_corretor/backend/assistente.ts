@@ -15,7 +15,7 @@ import {
   type Achado,
 } from '../comum/assistente';
 import { iso } from '../comum/funil';
-import { assincrono, erro, guardarCorretor, primeiro } from './acesso';
+import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { filaDoDia } from './funil';
 import { prepararFunil } from './inteligencia';
 
@@ -122,7 +122,7 @@ assistenteRotas.post(
 
     const dados = req.dados!;
     const fuso = fusoValido(req.contexto?.fuso);
-    const contatoId = Number.isInteger(req.body?.contato_id) ? (req.body.contato_id as number) : null;
+    const contatoId = id(req.body?.contato_id);
     // POST pode gravar (o GET não): conta criada depois do último aoIniciar ainda não tem etapas nem
     // playbook, e a fila sairia vazia. Falha ao preparar não derruba a resposta.
     const contaFunil = req.contexto?.contaEscrita;

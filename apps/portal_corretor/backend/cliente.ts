@@ -68,7 +68,8 @@ clienteRotas.post(
       return !im || !publicavel({ ...im, publicado_pagina: true }, autorizacoes.filter((a) => a.imovel_id === i), dia);
     });
     if (fora.length) return erro(res, 422, 'IMOVEL_NAO_ANUNCIAVEL', 'Só vão na seleção imóveis ativos ou reservados, com autorização de venda vigente.');
-    const config = await primeiro(dados, 'configuracoes_conta', { chave: 'conta' });
+    // Validade da conta em que a seleção nasce: quem é membro de várias contas lê todas (#234).
+    const config = await primeiro(dados, 'configuracoes_conta', { chave: 'conta', conta_id: contaDoRequest(req) });
     const dias = Number(config?.validade_selecao_dias) || 14;
     const expira = new Date(Date.now() + dias * 86400e3);
     const agora = new Date().toISOString();

@@ -5,7 +5,7 @@ import { CANAIS_ABORDAGEM, iso, ordenarFila, taxasDePassagem, TEMPERATURAS, ulti
 import { assincrono, erro, guardarCorretor, id, primeiro } from './acesso';
 import { registrar } from './crm';
 import { payloadDaMensagem, registrarMensagem } from './conversas';
-import { limiteParado } from '../comum/crm';
+import { limiteParado, temperaturaVisivel } from '../comum/crm';
 import { etapasPorId, funilPrecisaPreparo, playbookDaConta, prepararFunil, proximaAbordagem, reclassificar } from './inteligencia';
 import { numerosDaSemana } from './numeros';
 import { contaDoRequest, paginaDaConta } from './vitrine';
@@ -23,6 +23,10 @@ guardarCorretor(funilRotas, ['/funil', '/inicio', '/abordagens']);
 type Linha = Record<string, any>;
 const DIA = 86400e3;
 const agora = () => new Date().toISOString();
+// Com `distinto`, o teto do `varrerTudo` pode contar as linhas brutas do recorte (`banco-de-dados.md` do SDK), e
+// o que fica em memória é uma linha por chave, cujo número já é limitado pela leitura das chaves (contatos do
+// quadro ≤ 5000; negociações ≤ 50 e ≤ 20). Por isso o teto não pode cortar nada, nem lançar em conta grande.
+const SEM_TETO_DISTINTO = Number.MAX_SAFE_INTEGER;
 const ROTULO_CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 
 /** Início e fim do dia no fuso da conta, como instantes ISO. */
@@ -45,7 +49,6 @@ funilRotas.get(
     const pipeline = req.query.pipeline === 'venda_captacao' ? 'venda_captacao' : 'compra';
     const dados = req.dados!;
     const etapas = await etapasPorId(dados);
-    const daqui = [...etapas.values()].filter((e) => e.pipeline === pipeline && e.ativa).sort((a, b) => a.ordem - b.ordem);
     // Os dois funis: as contagens da coluna da esquerda (P03) contam os negócios abertos de cada um.
     // Contagem pelo `total` do listar (uma linha lida), sem varrer: não cria teto novo para a rota.
     const aberto = (n: Linha) => etapas.get(n.etapa_id)?.tipo === 'aberta';
@@ -65,25 +68,34 @@ funilRotas.get(
       if (!e || n.pipeline !== pipeline) return false;
       return e.tipo === 'aberta' || (iso(n.etapa_desde) ?? '') >= corte;
     });
+    // Colunas: as etapas ativas e, antes das finais, as tiradas do funil que ainda têm negócio no
+    // quadro — sem coluna, o negócio sumiria da tela (#230).
+    const ativas = [...etapas.values()].filter((e) => e.pipeline === pipeline && e.ativa).sort((a, b) => a.ordem - b.ordem);
+    const comNegocio = new Set(visiveis.map((n) => n.etapa_id));
+    const inativas = [...etapas.values()].filter((e) => e.pipeline === pipeline && !e.ativa && comNegocio.has(e.id)).sort((a, b) => a.id - b.id);
+    const primeiraFinal = ativas.findIndex((e) => e.tipo !== 'aberta');
+    const daqui = primeiraFinal < 0 ? [...ativas, ...inativas] : [...ativas.slice(0, primeiraFinal), ...inativas, ...ativas.slice(primeiraFinal)];
     const contatos = visiveis.length
       ? await dados.varrerTudo('contatos', { filtros: { id: [...new Set(visiveis.map((n) => n.contato_id))].join(',') }, maximo: 5000 })
       : [];
     const porContato = new Map(contatos.map((c) => [c.id, c]));
     const playbook = await playbookDaConta(dados, etapas);
     // Último sinal de cada cliente do quadro (P03): o item mais recente da linha do tempo e o último
-    // clique num envio. Uma leitura por tabela, pelo `listar` (teto obedecido, sem lançar), da mais recente
-    // para a mais antiga: a primeira linha de cada contato é a que vale.
+    // clique num envio. Uma leitura por tabela, pelo `varrerTudo` com `distinto: 'contato_id'` (a linha mais
+    // recente de cada contato, sem página única que esconda um contato atrás de outro; o teto é `SEM_TETO_DISTINTO`, pois o volume já é
+    // uma linha por contato):
+    // a primeira linha de cada contato é a que vale.
     const idsContatos = [...porContato.keys()];
     const [linhas, enviosAbertos] = idsContatos.length
       ? await Promise.all([
-          dados.listar('linha_do_tempo', { filtros: { contato_id: idsContatos.join(',') }, ordenar: 'ocorrido_em', ordem: 'desc', por_pagina: 1000 }),
-          dados.listar('envios', { filtros: { contato_id: idsContatos.join(','), 'primeiro_clique_em[nulo]': 'false' }, ordenar: 'primeiro_clique_em', ordem: 'desc', por_pagina: 1000 }),
+          dados.varrerTudo('linha_do_tempo', { filtros: { contato_id: idsContatos.join(',') }, distinto: 'contato_id', ordenar: 'ocorrido_em', ordem: 'desc', maximo: SEM_TETO_DISTINTO }),
+          dados.varrerTudo('envios', { filtros: { contato_id: idsContatos.join(','), 'primeiro_clique_em[nulo]': 'false' }, distinto: 'contato_id', ordenar: 'primeiro_clique_em', ordem: 'desc', maximo: SEM_TETO_DISTINTO }),
         ])
-      : [{ dados: [] as Linha[] }, { dados: [] as Linha[] }];
+      : [[] as Linha[], [] as Linha[]];
     const ultimaLinha = new Map<number, Linha>();
-    for (const l of linhas.dados as Linha[]) if (!ultimaLinha.has(Number(l.contato_id))) ultimaLinha.set(Number(l.contato_id), l);
+    for (const l of linhas as Linha[]) if (!ultimaLinha.has(Number(l.contato_id))) ultimaLinha.set(Number(l.contato_id), l);
     const ultimoEnvio = new Map<number, Linha>();
-    for (const e of enviosAbertos.dados as Linha[]) if (!ultimoEnvio.has(Number(e.contato_id))) ultimoEnvio.set(Number(e.contato_id), e);
+    for (const e of enviosAbertos as Linha[]) if (!ultimoEnvio.has(Number(e.contato_id))) ultimoEnvio.set(Number(e.contato_id), e);
     // Contagem por temperatura: clientes (uma vez cada) com negócio aberto neste funil, antes dos filtros.
     const temperaturas = { quente: 0, morno: 0, frio: 0 };
     for (const cid of new Set(visiveis.filter(aberto).map((n) => n.contato_id))) {
@@ -91,7 +103,8 @@ funilRotas.get(
       if (t && t in temperaturas) temperaturas[t]++;
     }
     // Taxa de passagem entre etapas vizinhas, sobre os negócios do quadro (sem os filtros).
-    const passagem = taxasDePassagem(daqui as { id: number; nome: string; tipo: string; marco?: string | null }[], visiveis.map((n) => ({ ...n, pipeline }) as unknown as NegocioNum));
+    // Só as etapas ativas: a coluna de uma etapa tirada do funil não é degrau da taxa de passagem.
+    const passagem = taxasDePassagem(ativas as { id: number; nome: string; tipo: string; marco?: string | null }[], visiveis.map((n) => ({ ...n, pipeline }) as unknown as NegocioNum));
     // Filtros: temperatura, "parado há" e os dos filtros prontos (os mesmos parâmetros de GET /contatos).
     const temperatura = typeof req.query.temperatura === 'string' && (TEMPERATURAS as readonly string[]).includes(req.query.temperatura) ? req.query.temperatura : null;
     const parado = limiteParado(req.query.parado_dias);
@@ -112,8 +125,8 @@ funilRotas.get(
           valor_estimado_c: n.valor_estimado_c ?? null,
           contato_id: n.contato_id,
           contato_nome: c.nome ?? n.contato_nome ?? '',
-          temperatura: c.temperatura ?? null,
-          temperatura_motivo: c.temperatura_motivo ?? null,
+          temperatura: temperaturaVisivel(c.papeis, c.temperatura),
+          temperatura_motivo: temperaturaVisivel(c.papeis, c.temperatura) ? (c.temperatura_motivo ?? null) : null,
           ultimo_contato_em: c.ultimo_contato_em ?? null,
           etapa_desde: n.etapa_desde ?? null,
           abordagem_vencida: !!abordagem?.vencida,
@@ -121,7 +134,7 @@ funilRotas.get(
           ultimo_sinal: ultimoSinal(ultimaLinha.get(Number(n.contato_id)), ultimoEnvio.get(Number(n.contato_id))),
         };
       })
-      .filter((k) => (!temperatura || k.temperatura === temperatura) && (!parado || (iso(k.ultimo_contato_em) ?? '') < parado));
+      .filter((k) => (!temperatura || porContato.get(k.contato_id)?.temperatura === temperatura) && (!parado || (iso(k.ultimo_contato_em) ?? '') < parado));
     res.json({ pipeline, etapas: daqui, negocios: cartoes, funis, temperaturas, passagem, preparar: !etapas.size || !playbook.length });
   }),
 );
@@ -150,7 +163,11 @@ funilRotas.get(
       .filter((p) => p.ativa)
       .sort((a, b) => a.ordem - b.ordem || TEMPERATURAS.indexOf((b as Linha).temperatura) - TEMPERATURAS.indexOf((a as Linha).temperatura));
     // Etapas em andamento sem abordagem (criadas pelo corretor): a tela oferece cadastrar.
-    const semAbordagem = [...etapas.values()].filter((e) => e.ativa && e.tipo === 'aberta' && !playbook.some((p) => p.etapa_id === e.id));
+    // A abordagem é por (etapa, temperatura): a etapa segue oferecida enquanto faltar alguma das três (#233).
+    const semAbordagem = [...etapas.values()]
+      .filter((e) => e.ativa && e.tipo === 'aberta')
+      .map((e) => ({ ...e, temperaturas_faltando: TEMPERATURAS.filter((t) => !playbook.some((p) => p.etapa_id === e.id && p.temperatura === t)) }))
+      .filter((e) => e.temperaturas_faltando.length > 0);
     // Conta ainda sem etapas ou sem abordagens (criada depois do último início do app): a tela pede
     // `POST /funil/preparar`, que semeia o padrão (issue #32: o GET não grava).
     res.json({ abordagens: linhas, etapas_sem_abordagem: semAbordagem, preparar: !etapas.size || !playbook.length });
@@ -279,22 +296,22 @@ export async function filaDoDia(dados: HelperDados, fuso: string): Promise<ItemF
   const contatos = idsContato.length ? await dados.varrerTudo('contatos', { filtros: { id: idsContato.join(',') }, maximo: 5000 }) : [];
   const itens: ItemFila[] = [];
   for (const c of quentes.dados) {
-    itens.push({ tipo: 'quente_sem_resposta', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura, quando: c.ultimo_contato_em, texto: c.temperatura_motivo ?? 'Quente e sem contato há mais de um dia' });
+    itens.push({ tipo: 'quente_sem_resposta', contato_id: c.id, contato_nome: c.nome, temperatura: temperaturaVisivel(c.papeis, c.temperatura), quando: c.ultimo_contato_em, texto: temperaturaVisivel(c.papeis, c.temperatura) ? (c.temperatura_motivo ?? 'Quente e sem contato há mais de um dia') : 'Sem contato há mais de um dia' });
   }
   const porId = new Map(contatos.map((c) => [c.id, c]));
   for (const c of contatos) {
     const a = proximaAbordagem(c, abertos.filter((n) => n.contato_id === c.id), etapas, playbook);
-    if (a?.vencida) itens.push({ tipo: 'abordagem_vencida', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: a.vence_em, texto: a.abordagem });
+    if (a?.vencida) itens.push({ tipo: 'abordagem_vencida', contato_id: c.id, contato_nome: c.nome, temperatura: temperaturaVisivel(c.papeis, c.temperatura), quando: a.vence_em, texto: a.abordagem });
   }
   for (const v of visitas.dados) {
     if (!v.contato_id) continue;
     itens.push({
-      tipo: 'visita', contato_id: v.contato_id, contato_nome: porId.get(v.contato_id)?.nome ?? v.contato_nome ?? '', temperatura: porId.get(v.contato_id)?.temperatura ?? null, quando: v.quando,
+      tipo: 'visita', contato_id: v.contato_id, contato_nome: porId.get(v.contato_id)?.nome ?? v.contato_nome ?? '', temperatura: temperaturaVisivel(porId.get(v.contato_id)?.papeis, porId.get(v.contato_id)?.temperatura), quando: v.quando,
       texto: `${(iso(v.quando) ?? '') < hoje.fim ? 'Hoje' : 'Amanhã'}: ${v.titulo}${v.local ? ` · ${v.local}` : ''}`, atividade_id: v.id,
     });
   }
   for (const c of passos.dados) {
-    itens.push({ tipo: 'proximo_passo', contato_id: c.id, contato_nome: c.nome, temperatura: c.temperatura ?? null, quando: c.proximo_passo_em, texto: c.proximo_passo ?? 'Próximo passo combinado' });
+    itens.push({ tipo: 'proximo_passo', contato_id: c.id, contato_nome: c.nome, temperatura: temperaturaVisivel(c.papeis, c.temperatura), quando: c.proximo_passo_em, texto: c.proximo_passo ?? 'Próximo passo combinado' });
   }
   itens.push(...(await propostasRecebidas(dados, porId)), ...(await pecasAguardando(dados, fuso)), ...(await autorizacoesVencendo(dados, fuso)));
   // "Agora não" (`POST /abordagens/:contato/adiar`) tira o contato da fila pelo resto do dia, no fuso da
@@ -318,9 +335,9 @@ async function propostasRecebidas(dados: HelperDados, contatos: Map<number, Linh
   const r = await dados.listar('negociacoes', { filtros: { estado: 'ativa,aguardando_cliente' }, ordenar: 'atualizado_em', ordem: 'desc', por_pagina: 50 });
   const vivas = (r.dados as Linha[]).filter((n) => !encerrada(n));
   if (!vivas.length) return [];
-  const propostas = await dados.listar('propostas', { filtros: { negociacao_id: vivas.map((n) => n.id).join(',') }, ordenar: 'id', ordem: 'desc', por_pagina: 1000 });
+  const propostas = await dados.varrerTudo('propostas', { filtros: { negociacao_id: vivas.map((n) => n.id).join(',') }, distinto: 'negociacao_id', ordenar: 'id', ordem: 'desc', maximo: SEM_TETO_DISTINTO });
   const ultima = new Map<number, Linha>();
-  for (const p of propostas.dados as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
+  for (const p of propostas as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
   const faltam = vivas.map((n) => n.contato_id).filter((cid) => cid && !contatos.has(Number(cid)));
   if (faltam.length) for (const c of await dados.varrerTudo('contatos', { filtros: { id: [...new Set(faltam)].join(',') }, maximo: 100 })) contatos.set(Number(c.id), c);
   const itens: ItemFila[] = [];
@@ -329,7 +346,7 @@ async function propostasRecebidas(dados: HelperDados, contatos: Map<number, Linh
     if (!p || p.direcao !== 'comprador' || !['registrada', 'enviada'].includes(String(p.estado))) continue;
     const c = contatos.get(Number(n.contato_id));
     itens.push({
-      tipo: 'proposta_recebida', contato_id: n.contato_id ?? null, contato_nome: c?.nome ?? 'Cliente', temperatura: c?.temperatura ?? null, quando: iso(p.criado_em),
+      tipo: 'proposta_recebida', contato_id: n.contato_id ?? null, contato_nome: c?.nome ?? 'Cliente', temperatura: temperaturaVisivel(c?.papeis, c?.temperatura), quando: iso(p.criado_em),
       texto: `Ofereceu ${reaisPt(Number(p.valor_c))}${n.codigo ? ` (${n.codigo})` : ''}: responda ou registre a contraproposta`, negociacao_id: Number(n.id),
     });
   }
@@ -380,12 +397,12 @@ async function passagens(dados: HelperDados) {
     ids.length ? dados.varrerTudo('contatos', { filtros: { id: ids.join(',') }, maximo: 100 }) : [],
     // A conversa do cliente que o Negociador atende: Assumir abre a P02 já assumida (spec 11.1 P01).
     ids.length ? dados.varrerTudo('conversas', { filtros: { contato_id: ids.join(','), atendido_por: 'agente' }, maximo: 100 }) : [],
-    r.dados.length ? dados.listar('propostas', { filtros: { negociacao_id: r.dados.map((n) => n.id).join(',') }, ordenar: 'id', ordem: 'desc', por_pagina: 500 }) : { dados: [] as Linha[] },
+    r.dados.length ? dados.varrerTudo('propostas', { filtros: { negociacao_id: r.dados.map((n) => n.id).join(',') }, distinto: 'negociacao_id', ordenar: 'id', ordem: 'desc', maximo: SEM_TETO_DISTINTO }) : [],
   ]);
   const nome = new Map(contatos.map((c) => [c.id, c.nome]));
   const conversa = new Map(conversas.map((c) => [Number(c.contato_id), Number(c.id)]));
   const ultima = new Map<number, Linha>();
-  for (const p of propostas.dados as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
+  for (const p of propostas as Linha[]) if (!ultima.has(Number(p.negociacao_id))) ultima.set(Number(p.negociacao_id), p);
   return semSigilo(
     r.dados.map((n) => {
       const p = ultima.get(Number(n.id));

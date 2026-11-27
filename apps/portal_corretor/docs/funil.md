@@ -14,8 +14,9 @@ da coluna da esquerda). O endereço é `/clientes?visao=funil`; os endereços an
 A coluna da direita mostra uma dica enquanto nenhum cartão foi escolhido; ao tocar num cartão, ela
 abre com o cliente.
 
-**Esquerda: o que mostrar.** Tudo em chips, com **Todas** primeiro em cada linha (é o chip que
-desliga o filtro):
+**Esquerda: o que mostrar.** Tudo em chips. **Todas** vem primeiro em Filtros prontos e Por
+temperatura (é o chip que desliga o filtro); em Funis um funil fica sempre escolhido, e Compra é
+o padrão:
 
 - **Funis**: "Compra" e "Venda e captação", cada um com quantos negócios estão em andamento.
 - **Filtros prontos**: Novos, Sem contato, Quentes e Retorno vencido, os mesmos da Lista ("Sem
@@ -24,6 +25,21 @@ desliga o filtro):
   andamento no funil. A contagem não muda com os filtros; tocar numa delas filtra o quadro. Embaixo,
   a regra em uma linha: quente é quem tem proposta, visita marcada ou gostou da visita; morno,
   quem conversou nos últimos 7 dias; frio, quem está há mais de 7 dias sem contato.
+  Contato recém-cadastrado, sem mensagem, nota, tarefa feita nem outro registro, fica morno com o
+  motivo "Novo, sem conversa registrada" (a data de último contato é a do cadastro, de propósito, para
+  o filtro "parados há N dias"; o texto "Conversou hoje" só aparece com conversa de fato).
+- **Quem é só proprietário não mostra chip nem motivo de temperatura** na Lista de Clientes, na
+  ficha, no quadro do Funil, na fila de Hoje e em Conversas: a temperatura mede a intenção de
+  compra. Quem também é comprador (ou tem outro papel) mantém o chip. O que **segue pelo valor
+  gravado**, sem mudança: os filtros e as contagens por temperatura, a entrada na fila do dia como
+  "quente sem resposta" (o cartão sai sem chip e com o texto "Sem contato há mais de um dia"), o
+  Assistente do dia e a coluna Temperatura da exportação em planilha.
+- O lead que chega pela página (`lead.recebido`) sai como "Conversou hoje, sem visita marcada", não
+  como "Novo, sem conversa registrada": ele pediu contato e o app já registra isso na linha do tempo e
+  cria a tarefa de retorno.
+- Para decidir "sem conversa registrada", a reclassificação de um contato ainda sem nenhum registro
+  consulta tarefas feitas, mensagens e linha do tempo (três leituras); contato que já tem registro
+  não paga isso.
 
 Não há listas salvas: os filtros prontos ocupam o lugar delas. Tudo o que você escolhe fica no
 endereço da página.
@@ -39,7 +55,8 @@ temperatura e o aviso de **abordagem atrasada**.
   seguinte. Ela usa a etapa mais avançada a que cada negócio chegou, como em
   [Números](desempenho.md): quem voltou ou foi perdido conta até onde foi, e o ganho passou por
   todas. A conta é sobre os negócios do quadro (os em andamento e os ganhos e perdidos dos últimos
-  30 dias), sem os filtros. Uma etapa que você criou em Ajustes › Funil não tem taxa.
+  30 dias), sem os filtros. Uma etapa que você criou em Ajustes › Funil não tem taxa, e uma etapa
+  tirada do funil que ainda tem negócio aparece como coluna, mas não entra na conta.
 - **Arraste** o cartão para mudar de etapa. Ao soltar em **Perdido**, o app pergunta o motivo; sem
   motivo, nada é gravado e o cartão volta. Ao soltar um negócio de compra com imóvel em
   **Proposta**, o Negociador entra: a negociação nasce e a tela avisa com o código dela (ver
@@ -120,7 +137,8 @@ No menu **Mais** da ficha:
 
 Abaixo das etapas, a tabela de abordagens por etapa e temperatura. O app semeia uma abordagem
 para cada etapa da semente e cada temperatura; toque numa linha para mudar o texto, o canal e o
-prazo. Etapas criadas pelo corretor começam sem abordagem: use **Nova abordagem**.
+prazo. Etapas criadas pelo corretor começam sem abordagem: use **Nova abordagem**. A etapa continua
+na lista de **Nova abordagem** enquanto faltar alguma das três temperaturas; quando ela já tem alguma, o nome diz quais faltam.
 
 **Quando as etapas e abordagens padrão entram na conta.** Ao iniciar, o app prepara toda conta ativa
 que ainda não tem etapas nem abordagens. A conta criada depois disso é preparada na primeira vez que

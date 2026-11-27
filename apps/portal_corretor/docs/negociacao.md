@@ -645,7 +645,7 @@ alguém da equipe dele. É opcional: o padrão continua sendo o Negociador IA. A
    papel mas perdeu o acesso ao app (ou quando a plataforma não consegue confirmar o acesso agora).
 3. Na negociação (Clientes › Negociações), o cartão **Quem negocia**, à direita, tem **Atribuir a um
    negociador** (escolha a pessoa) e, com uma atribuída, **Trocar negociador** e **Retirar do
-   negociador**. Atribuir faz a pessoa conduzir a negociação; retirar a devolve a você. Uma pessoa
+   negociador**. Atribuir faz a pessoa conduzir a negociação; retirar a devolve a você. Ao atribuir, a pessoa passa a ver o recuo, o alvo e a BATNA do vendedor (só para ler). Uma pessoa
    por negociação: atribuir a outra tira a anterior.
 4. Para que toda negociação nova já nasça com ela, escolha a pessoa em **Ajustes › Negociador ›
    Quem negocia por padrão › Conduz as negociações novas**. Só aparecem ali as pessoas marcadas
@@ -694,7 +694,7 @@ O mesmo vale para os demais eventos da conta (clientes, visitas, negócios, imó
   plataforma ainda não deixa o app gravar na conta antes de publicar. O dado chega ao app só pelo
   evento, e o negociador também o lê:
   - `lead_recebido`: nome, telefone, e-mail e mensagem de quem pediu contato pela página, e a versão
-    embaralhada do endereço de internet do envio (`ip_hash`);
+    embaralhada do endereço de internet do envio (`ip_hash`, só enquanto o parâmetro `ip_hash_segredo` estiver preenchido; sem ele o campo fica em branco);
   - `reacao_recebida`: o comentário do cliente na reação a um imóvel da seleção;
   - `acao_cliente_recebida`: o texto da mensagem que o cliente mandou pelo portal (e o valor de uma
     oferta, que não é dado pessoal).
