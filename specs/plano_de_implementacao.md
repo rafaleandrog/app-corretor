@@ -151,13 +151,13 @@ Em 10/11/2026 o dono respondeu "todas como sugerido" às 17 decisões abertas. E
 | 2 | P-47: o controle de consentimento entra só com o Mensageiro (bloco 7); até lá fica a frase honesta (D-135) | Decidido |
 | 3 | P-48: `ip_hash` com HMAC e segredo (D-134) | Feito (#220, 0.1.61). Passo do dono: preencher `ip_hash_segredo` |
 | 4 | D-129 mantida | Decidido |
-| 5 | P15 igual à referência (D-136) | PR #225 aberto, aguarda a conferência visual |
+| 5 | P15 igual à referência (D-136) | PR #225; conferência visual feita em 27/11/2026 (`specs/prints/conferencia-previa-225-226-0.1.64/`) |
 | 6 | Menu do usuário externo | Continua com o dono (ver "Decisões que são do dono") |
 | 7 | "Outro CRM" fora do Importar (D-139) | Feito (#224). A referência P14 e `specs/telas_padrao_b.md:175` serão regeneradas com autorização |
 | 8 | Chip de temperatura só para quem não é só proprietário (D-137) | Feito (#222) |
 | 9 | Contato novo: "Novo, sem conversa registrada" (D-137) | Feito (#222) |
 | 10 | `preco_anterior_c` (D-138) | Feito (#221, 0.1.62) |
-| 11 | Ordem do M3 igual à referência no celular (D-139) | PR #226 aberto, aguarda a conferência visual |
+| 11 | Ordem do M3 igual à referência no celular (D-139) | PR #226; conferência visual feita em 27/11/2026 (`specs/prints/conferencia-previa-225-226-0.1.64/`) |
 | 12 | Coluna #F2F4F7 e cartão mais escuro aceitos até o pedido 28 ao shell | Decidido |
 | 13 | Contraste dos selos aceito até o pedido 28 (a temperatura sempre traz o texto, não depende só da cor) | Decidido |
 | 14 | Hoje do negociador humano removido (D-125) | Feito (#223) |

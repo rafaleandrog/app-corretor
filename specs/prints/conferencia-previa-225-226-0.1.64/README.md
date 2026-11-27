@@ -14,7 +14,7 @@ Conferência da seção 6 de `specs/layout/README.md` (contrato versão 2), pedi
 
 Arquivos: `<tela>.png` (lado a lado), `<tela>.app.png` (a captura da app sozinha), `<tela>.app.json` (as medidas extraídas do DOM) e `medidas.md`.
 
-**Resultado:** nenhuma diferença estrutural nova. O que cada PR promete aparece na tela. As diferenças que sobram são as que já estavam registradas na 0.1.49 (primitivos, D-124 e 11.9) ou vêm do estado da conta demo.
+**Resultado:** os PRs não introduzem diferença estrutural, e o que cada um promete aparece na tela. As diferenças que sobram ou já estavam registradas na 0.1.49 (primitivos, D-124 e 11.9), ou vêm do estado da conta demo, ou são **anteriores aos PRs**. Uma delas é de bloco e fica para o dono: o cartão "Última oferta" do M8, que só agora pôde ser visto (pendência 1). No M3, o campo "Seu código (opcional)" é um bloco a mais que já existia no P07. Ele não falta, não está fora de ordem nem na coluna errada, mas fica listado.
 
 ## P15 Negociações dentro de Clientes (PR #225, computador)
 
@@ -37,7 +37,7 @@ Arquivos: `<tela>.png` (lado a lado), `<tela>.app.png` (a captura da app sozinha
 | 1. Fotos | Botão grande "Tirar fotos ou escolher da galeria" | `urbi-seletor-arquivo` com o botão "Tirar fotos ou escolher da galeria" | Caixa do primitivo | `urbi-seletor-arquivo` | Registrada (D-124) |
 | 2. Grade de ambientes e "A IA já entendeu" | Grade 3 colunas e cartão | Não aparecem | — | Sem foto na conta demo (estado vazio) | Estado |
 | 3. Ditar o resto | Botão de microfone **no passo 1**, depois da grade | **Cartão "Ditar o resto" no passo 1**, depois das fotos | Cartão com campo em vez de botão | `urbi-redator` (o microfone só aparece com o slot de áudio da IA) | **Resolvido pelo #226** (na 0.1.49 ficava no passo 2) |
-| Seu código (opcional) | Não aparece | Campo entre "Ditar o resto" e o rodapé | Bloco a mais | Mesmo campo do P07 (código próprio do imóvel) | Manter; não é diferença de estrutura |
+| Seu código (opcional) | Não aparece | Campo entre "Ditar o resto" e o rodapé | Bloco a mais | Mesmo campo do P07 (código próprio do imóvel) | Manter (bloco a mais, anterior ao #226; o dono pode pedir para tirá-lo do celular) |
 | 4. Rodapé | Salvar rascunho · **Continuar**, fixos | Salvar rascunho · **Continuar** no fim da coluna (y = 874, logo abaixo da dobra) | Não fixos | Não há primitivo de rodapé fixo | Registrada (11.9); **o texto "Continuar" foi resolvido pelo #226** (era "Próximo: dados") |
 
 ## P07 Novo imóvel no computador (o #226 não deve mudá-lo)
