@@ -423,6 +423,19 @@ Estas falham em silêncio e por isso quase nunca aparecem sozinhas:
   completa (`Closes <owner>/<repo>#308`).
 - **UI e API andam juntas.** Capacidade na API sem controle correspondente na tela é feature
   invisível. Se não merece UI, não deve existir na API.
+- **Rota de app nova ou alterada está declarada no bloco `rotas` do manifesto** (se a app já
+  declara o bloco, ou o PR o introduz): rota sem declaração, declaração para rota que não existe e
+  `campos` que não fecham com o que o handler lê são achados. A **qualidade da descrição** é
+  achado também, porque um modelo escolhe a ferramenta por ela: tem de dizer o caso normal, o que
+  altera e quando recusa, sem prometer borda nem repetir o que o schema já diz; `destrutiva` em
+  rota que apaga ou tem efeito sem desfazer; categoria coerente com a vizinhança. Contrato no
+  `mcp.md` do bundle (§ Rotas próprias das apps).
+- **Rota não declarada é bloqueante a partir do `erro_apos` da obsolescência
+  `rota-nao-declarada`**, leia a data no `obsolescencias.json` do bundle. Vale para toda rota do
+  `rotas` e do `rotasPessoais` da app e do `rotas` do módulo, em qualquer profundidade de
+  sub-router, mesmo que a app ainda não declare o bloco. Rota que não se declara (caminho por
+  expressão, curinga, `:param?`) conta como não declarada. Antes do `erro_apos` é observação. O
+  empacotador reprova no mesmo degrau, e a instalação recusa o pacote a partir do `gate_apos`.
 - **Doc no mesmo PR.** Mudou a app → os docs da app.
 - **Telas usam os primitivos de UI** — ver S3.
 - **Permissão usa `nivelApp`/`rolesApp`**, nunca `usuario.tipo` — em app; módulo é da alçada

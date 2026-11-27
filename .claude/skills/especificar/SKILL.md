@@ -115,6 +115,7 @@ lê **agora**, antes de decidir.
 | "uma app avisa a outra" | barramento de eventos | `barramento.md` |
 | "anexar arquivo", "subir documento" | arquivos e configuração por app | `config-app.md` |
 | qualquer tela | componentes `urbi-*` já registrados | `ui.md`, `ui-componentes-*.md` |
+| "um agente/assistente consegue fazer isso", qualquer ação nova | a rota vira ferramenta MCP pelo bloco `rotas` do manifesto — a spec diz que ferramentas a app ganha e em que categoria | `mcp.md` |
 | pessoas, empresas e imóveis que várias apps compartilham | módulos (`dependencias` no manifesto, `req.modulos`, `urbiVerso.modulo`) | `modulos.md` (acesso), `nucleo.md` (modelo) |
 | um cadastro novo que várias apps vão compartilhar | escrever um **módulo** (§ 2.1): `entidades`, `expostas`, `dependencias`, tela sob `nucleo` | `modulos-autoria.md` |
 

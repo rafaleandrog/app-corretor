@@ -5,3 +5,4 @@ apps/*/frontend/index.js
 modulos/*/backend/modulo.js
 modulos/*/frontend/modulo.js
 apps/*/.teste/
+modulos/*/funcoes/modulo.js

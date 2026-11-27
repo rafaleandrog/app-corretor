@@ -1,6 +1,6 @@
 # KIT.md — regras deste repositório
 
-Kit `101.3.17` · SDK 101 · `@urbiverso/sdk` `101.0.0` · shell `0.56.37` · `urbiverso/urbiverso@ba0196d7`
+Kit `103.3.17` · SDK 103 · `@urbiverso/sdk` `103.0.0` · shell `0.56.40` · `urbiverso/urbiverso@c9018783`
 
 ## O kit, e como instalar ou atualizar
 
@@ -57,9 +57,9 @@ Este repositório tem **apps** e/ou **módulos**; a plataforma (**shell**) não 
 
 - Módulo em `modulos/<slug>/`; o pacote do workspace é o `backend/`. slug = pasta = schema, em `snake_case`.
 - `identidade`: `{owner}/{repo}::{slug}`, permanente.
-- `sdk_min` ≥ o maior entre 96, 98 (com `frontend` ou `requer_extensoes`) e o piso do vocabulário do `schema.json`.
-- Evolução só aditiva: versão nova não tira entidade, flag nem coluna exposta de que alguém dependa. O `schema.json` é reconciliado a cada boot e o que ele deixa de pedir é podado — coluna com dado pede migração que a esvazie.
-- Pacote `<slug>-<versao>.urbimod.tgz`, forma fechada: `manifesto.json`, `schema.json`, `backend/modulo.js`; `migracoes/`, `docs/` e `frontend/` opcionais. Nunca `backend/package.json` nem `.ts`. Confira pelo empacotador (§ Ciclo).
+- `sdk_min` ≥ o maior de 96, 98 (`frontend`, `requer_extensoes`), 102 (`rotas`), 103 (`funcoes`, `entidades: {}`) e o piso do vocabulário do schema.
+- Evolução só aditiva: não tira entidade, flag nem coluna exposta de que alguém dependa. O `schema.json` é reconciliado a cada boot e o que ele deixa de pedir é podado — coluna com dado pede migração que a esvazie.
+- Pacote `<slug>-<versao>.urbimod.tgz`, forma fechada: `manifesto.json`, `schema.json`, `backend/modulo.js`; `migracoes/`, `docs/`, `frontend/` e `funcoes/` opcionais. Nunca `backend/package.json` nem `.ts`. Confira pelo empacotador (§ Ciclo).
 - Tag `<slug>-m<versao>_<sha8>`; instala em Admin › Instaláveis › Módulos.
 
 ## Banco de teste
