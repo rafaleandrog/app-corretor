@@ -102,8 +102,9 @@ ficha abre na **Linha do tempo**; a aba aberta fica no endereço (`?secao=`) e v
   - **Cadastro:** origem e campanha, data de cadastro, observações e o **consentimento** numa linha
     (registrado em … · revogar, ou registrar). Quem pediu contato pelo formulário da página aparece
     com "Declarou consentimento no formulário…" e o botão **Confirmar**: a declaração não vale como
-    consentimento até você confirmar com o cliente. O lápis edita o contato.
-- **Linha do tempo:** **Registrar contato** (nota livre) e **Registrar envio** no topo (por e-mail ou pessoalmente, o registro não exige imóvel anunciável; só o cartão pelo WhatsApp exige); abaixo, tudo o
+    consentimento até você confirmar com o cliente. O lápis edita o contato; a edição não deixa o
+    contato sem telefone e sem e-mail ao mesmo tempo.
+- **Linha do tempo:** **Registrar contato** (nota livre, até 5.000 caracteres, guardada inteira) e **Registrar envio** no topo (por e-mail ou pessoalmente, o registro não exige imóvel anunciável; só o cartão pelo WhatsApp exige); abaixo, tudo o
   que aconteceu com o contato, com autor e hora.
 - **Enviados:** imóveis, arquivos e mensagens registrados, com os cliques no link; o **+** registra um
   envio (ver [Enviados ao cliente](desempenho.md#enviados-ao-cliente)).
@@ -162,8 +163,11 @@ Cada funil tem a sua lista de etapas, na ordem, com a chance de fechar (de 0 a 1
 previsões. O corretor pode renomear, reordenar, criar e tirar etapas, e salva um funil por vez.
 
 Regras: ao menos uma etapa em andamento, exatamente uma de ganho e uma de perda, que ficam no fim
-do funil, e nomes sem repetição. Etapa tirada do funil não some dos negócios que estão nela: fica inativa e deixa de
-aparecer para os negócios novos.
+do funil, e nomes sem repetição. Etapa com negócio em andamento não sai do funil: mova os negócios para
+outra etapa antes. Etapa que já tem negócios também não troca de tipo (em andamento, ganho ou perda): crie
+uma etapa nova com o tipo que quer. Etapa tirada do funil fica inativa, não recebe negócio e deixa de
+aparecer para os negócios novos; se ainda houver negócio nela, ela continua como coluna no quadro, antes
+das etapas de ganho e perda, até ele sair.
 
 ## Agenda
 
@@ -178,13 +182,14 @@ com o cliente; feita, cancelada e "não compareceu" vão para a linha do tempo. 
 botão **Abrir Clientes** leva à lista para agendar pela ficha.
 
 Cada linha mostra o cliente e, nas visitas, o código do imóvel. O detalhe da visita (retorno do
-cliente) fica na ficha do imóvel.
+cliente) fica na ficha do imóvel; numa visita marcada sem imóvel, o retorno vai para a linha do tempo
+do cliente.
 
 **Para quem desenvolve:** `GET /atividades?status=&de=&ate=&contato_id=` devolve cada atividade com
 `contato_nome` e, na visita, `imovel_id` e `imovel_codigo`; `contato_id` que não é um id responde 422.
 
 **Lembrete de visita:** um dia antes de cada visita pendente (ou no prazo escolhido em Ajustes ›
-Atendimento), você recebe uma notificação na plataforma com a visita, a hora, o
+Horário de atendimento), você recebe uma notificação na plataforma com a visita, a hora, o
 cliente e o local. Clicar nela abre Hoje na agenda dos próximos 14 dias.
 - Visita feita, cancelada ou removida antes da hora não gera lembrete.
 - Visita marcada para dali a menos tempo que o prazo também não gera.
@@ -201,8 +206,8 @@ O lembrete para o cliente, pelo WhatsApp, chega com o Mensageiro.
 arquivo vCard (`.vcf`) dos contatos do celular. A tela tem três colunas: à esquerda, de onde vêm os
 contatos; no meio, o arquivo, as colunas e a prévia; à direita, as regras.
 
-- **Fontes (esquerda).** **Planilha ou CSV** e **Contatos do celular** (vCard). **Outro CRM, direto**
-  aparece como "fase 2", sem ação: a planilha exportada de outro CRM já entra pela planilha.
+- **Fontes (esquerda).** **Planilha ou CSV** e **Contatos do celular** (vCard). Não há fonte "Outro CRM": uma
+  dica abaixo das fontes manda exportar os clientes do outro CRM em CSV e escolher Planilha.
 - **Contatos do celular.** Exporte os contatos como vCard (no iPhone, em iCloud › Contatos ›
   Exportar vCard; no Android, em Contatos › Exportar) e escolha o arquivo. O app lê o arquivo no
   navegador e transforma cada contato numa linha com **Nome**, **Telefone** (o celular, se houver
@@ -228,7 +233,9 @@ No meio:
 5. **Importar N contatos** (N são as linhas com nome) e o relatório: quantos foram criados, unidos a
    contatos existentes, pulados e rejeitados, com a linha da planilha (contando o cabeçalho como
    linha 1) e o motivo de cada rejeição. Uma linha que esbarra no telefone de outro contato (por
-   exemplo, cadastrado ao mesmo tempo) é rejeitada, e as demais seguem. **Baixar relatório** baixa
+   exemplo, cadastrado ao mesmo tempo) é rejeitada, e as demais seguem; o mesmo vale para uma linha
+   sem os campos do contato (vazia ou mal formada no arquivo). Contato criado sem temperatura na
+   planilha ganha a da regra, com o motivo, como no cadastro. **Baixar relatório** baixa
    uma planilha com as linhas rejeitadas: o número da linha, o motivo e as células originais, para
    corrigir e importar de novo. **Cancelar** limpa o arquivo e recomeça.
 

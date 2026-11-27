@@ -55,7 +55,7 @@ aceita sem uma das duas** — se o trabalho der errado em qualquer ponto, recuse
 
 ## 3. O repositório
 
-A OS traz em `payload` o `repo` (`owner/nome`), `branch_default`, `tag_instalada`,
+A OS traz em `payload` o `repo` (`owner/nome`), `tag_instalada`,
 `issue_github` (`{repo, numero}` ou `null`), `corpo_curado` e `notas_triagem`, e na raiz o
 `prompt`. Procure nesta sessão um clone cujo `origin` seja `payload.repo` — normalmente este
 repositório de apps, onde a rotina roda. **Não há: recuse** (§ 5) — é o caso de uma app que

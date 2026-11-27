@@ -55,7 +55,11 @@ export class PcPlaybook extends LitElement {
     void formularioEnviar(
       'Nova abordagem',
       [
-        { nome: 'etapa_id', tipo: 'selecao', rotulo: 'Etapa', obrigatorio: true, opcoes: etapas.map((e) => ({ valor: String(e.id), rotulo: e.nome })) },
+        {
+          nome: 'etapa_id', tipo: 'selecao', rotulo: 'Etapa', obrigatorio: true,
+          // A etapa aparece enquanto faltar abordagem para alguma temperatura; o rótulo diz quais.
+          opcoes: etapas.map((e) => ({ valor: String(e.id), rotulo: Array.isArray(e.temperaturas_faltando) && e.temperaturas_faltando.length < 3 ? `${e.nome} (falta: ${e.temperaturas_faltando.map((t: string) => temperatura(t)).join(', ')})` : e.nome })),
+        },
         { nome: 'temperatura', tipo: 'selecao', rotulo: 'Temperatura', valor: 'morno', opcoes: opcoesChip('temperatura').reverse() },
         ...this.campos(),
       ],

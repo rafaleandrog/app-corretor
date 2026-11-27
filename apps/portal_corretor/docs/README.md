@@ -8,11 +8,12 @@ descricao: O escritório digital do corretor de imóveis — o que já existe ne
 App do corretor de imóveis. Cada corretor tem a **própria conta**: nenhum corretor vê nada de outro,
 e a garantia é do banco de dados da plataforma, não só das telas.
 
-## O que existe nesta versão (0.1.53; a 0.1.0 foi a primeira)
+## O que existe nesta versão (0.1.64; a 0.1.0 foi a primeira)
 
 | Para quem | Tela | O que faz |
 |---|---|---|
 | Corretor | **Hoje** (antes, Início) | Em três colunas: as abas **Hoje · Agenda**, **Precisa de você** (as negociações que o Negociador passou a você, com **Assumir**) e **Primeiros passos** (x de 5, sem o CRECI); a **fila do dia** em cartões (quentes sem resposta, abordagens atrasadas, visitas, propostas recebidas, retornos vencidos, peças sem data, autorizações a vencer), cada um com um botão principal e, quando o cartão tem um cliente, um secundário e **Agora não** (os de peça e de autorização só têm o principal); e, à direita, a agenda de hoje (com **Ver agenda**), **Sua semana** e a **Dica do Assistente**, que propõe uma ação e a executa depois da sua confirmação. No celular, sem abas e numa só rolagem: a linha de atalhos do dia, Precisa de você, a fila e, embaixo, a agenda, a semana e a Dica — ver [Funil, temperatura e fila do dia](funil.md) |
+| Corretor | **Conversas** | A caixa de conversas, uma por cliente: o que ele escreve pelo Portal do Cliente e o que você manda (texto, imóvel, seleção, localização, visita e link do portal; o arquivo que você mandou pelo seu WhatsApp fica só registrado, e **Proposta** abre a negociação em Clientes › Negociações), com busca, filtros (Minha vez, Mensageiro, Negociador, Aguardando, Não lidas, Arquivadas) e, à direita, a próxima abordagem, o que foi enviado e os imóveis que combinam. O WhatsApp ainda não está ligado: o que você escreve fica registrado aqui e abre o WhatsApp do seu celular com a mensagem pronta (cliente sem WhatsApp cadastrado: só fica registrado), e o Mensageiro e os modelos de mensagem chegam com a conexão — ver [Conversas](conversas.md) |
 | Corretor | **Números** (antes, Desempenho) | No desenho novo: à esquerda, os relatórios (Resumo, Funil e conversão, Origem dos contatos, Conteúdo e Negociação; abre em Funil e conversão); no centro, o relatório com período, **Comparar**, origem e quatro números numa linha; à direita, **O que melhorar** (com **Ver os N clientes**), as melhores origens e **Exportar CSV** — ver [Números, envios e dados de demonstração](desempenho.md) |
 | Corretor | **Clientes** | Em três colunas: a lista (visões **Funil · Lista · Negociações**, busca por nome ou telefone, chips de papel e os filtros prontos Novos · Sem contato · Quentes · Retorno vencido, o botão **Filtros** com temperatura e origem, e **Mostrar mais** de 50 em 50), a **ficha** do cliente escolhido (cabeçalho com **Conversa**, que abre a conversa dele, e **Resumir**; abas Resumo · **Linha do tempo** (a que abre) · Enviados · Negócios, com a contagem) e, à direita, o perfil de busca com **Editar perfil**, o portal do cliente com o último acesso e a privacidade; importar e exportar planilha — ver [Clientes, negócios e agenda](clientes-e-agenda.md) e [Funil, temperatura e fila do dia](funil.md) |
 | Corretor | **Imóveis** | No desenho novo: à esquerda, as abas **Carteira** (lista com miniatura, busca e chips de situação Todas · Ativos · Rascunhos · Vendidos e de visibilidade Todas · Públicos · Privados) e **Empreendimentos**; no centro, a ficha (**O que falta**, grade de fotos, dados, quem vê, descrição com IA, autorização e visitas); à direita, a qualidade com o que falta, o **Mandato** resumido (com negociação em andamento), os números de 30 dias e os clientes que combinam. **Novo imóvel** em 4 passos (Fotos · Dados · Autorização · Onde aparece), com rascunho salvo em cada passo, a IA lendo as fotos e nenhum passo pedindo CRECI — ver [Imóveis e empreendimentos](imoveis.md#novo-imóvel-em-4-passos) |
@@ -200,10 +201,13 @@ conexões com a Meta, quando elas chegarem.
   rastreado — ver [Página, ficha pública e link rastreado](minha-pagina.md#para-o-administrador-da-instância);
   a seleção e o portal do cliente — ver [Seleções e Portal do Cliente](selecoes-e-portal.md#para-o-administrador-da-instância).
 
-- **Aviso de cores na instalação:** instalar ou atualizar o app mostra o aviso `[tokens] 14 literais
-  de cor fora de token no bundle — frontend/index.js`. É esperado: são as cores fixas das páginas
-  públicas, que por regra da plataforma não usam o tema (o visitante não está logado). O aviso não
-  impede a instalação e não indica problema nas telas do corretor.
+- **Cores das páginas públicas e o aviso `[tokens]`:** as páginas públicas não usam o tema (o visitante
+  não está logado), então têm paleta própria em `frontend/publico/estilo.ts`. Essa paleta não tem
+  nenhum literal de cor (`#hex`, `rgb()`): cada cor é uma mistura de cores nomeadas do CSS por
+  `color-mix()`. Por isso a instalação e a atualização não mostram mais o aviso `[tokens] N literais de
+  cor fora de token no bundle` (eram 14, desde a 0.1.45). Os tons são aproximados dos anteriores (até
+  uns 5 pontos por canal; o azul padrão, uns 13). A cor de destaque escolhida pelo corretor continua
+  valendo por cima do padrão.
 
 - **Instagram:** o app da Meta, os parâmetros `meta_app_id` e `meta_app_secret` e as contas de
   teste — ver [Conexões (Instagram)](conexoes.md#para-a-equipe-da-plataforma-antes-do-primeiro-corretor).

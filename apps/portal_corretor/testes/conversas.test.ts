@@ -28,6 +28,28 @@ const A: Ator = { usuario: 1, conta: 100, papeis: ['corretor'], extras: { evento
 const B: Ator = { usuario: 2, conta: 200, papeis: ['corretor'], extras: { eventos: evB.eventos } };
 const semShell = {};
 
+test('Conversas: proprietário puro sem chip de temperatura na lista e no detalhe; comprador mantém', async () => {
+  const banco = new BancoFalso(UNICOS);
+  await comServidor(rotas, A, banco, semShell, async (chamar) => {
+    const conversas: Record<string, number> = {};
+    let tel = 61955550000;
+    for (const [nome, papeis] of [['Pura', 'proprietario'], ['Compra', 'comprador']] as const) {
+      const c = (await chamar('POST', '/contatos', { nome, papeis, telefone: String(tel++), temperatura: 'morno', temperatura_motivo: 'Combinado' })).corpo;
+      conversas[nome] = (await chamar('POST', '/conversas', { contato_id: c.id })).corpo.conversa.id;
+    }
+    const lista = (await chamar('GET', '/conversas')).corpo.dados as any[];
+    const linha = (nome: string) => lista.find((c) => c.id === conversas[nome]);
+    assert.equal(linha('Pura').contato_temperatura, null);
+    assert.equal(linha('Compra').contato_temperatura, 'morno');
+    const pura = (await chamar('GET', `/conversas/${conversas.Pura}`)).corpo.contato;
+    assert.equal(pura.temperatura, null);
+    assert.equal(pura.temperatura_motivo, null);
+    const compra = (await chamar('GET', `/conversas/${conversas.Compra}`)).corpo.contato;
+    assert.equal(compra.temperatura, 'morno');
+    assert.ok(compra.temperatura_motivo);
+  });
+});
+
 test('corretor: nova conversa, texto pelo WhatsApp do celular, envio de imóvel como cartão, assumir e arquivar', async () => {
   const banco = new BancoFalso(UNICOS);
   evA.publicados.length = 0;

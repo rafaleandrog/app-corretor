@@ -2,6 +2,7 @@ import { LitElement, html, nothing, type TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import type { UrbiVersoAPI } from '@urbiverso/sdk';
 import { linkWhatsapp } from '../../comum/pagina';
+import { enderecoEmTexto } from '../../comum/imoveis';
 import {
   abaDoEndereco,
   abasDoPortal,
@@ -555,7 +556,7 @@ export class PcPortalCliente extends LitElement {
     const fim = new Date(inicio.getTime() + 3600e3);
     const f = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
     const titulo = `Visita: ${v.imovel?.titulo ?? v.imovel?.codigo ?? 'imóvel'}`.replace(/[,;\n]/g, ' ');
-    const lugar = [v.imovel?.endereco, v.imovel?.bairro, v.imovel?.cidade].filter(Boolean).join(' - ').replace(/[,;\n]/g, ' ');
+    const lugar = [enderecoEmTexto(v.imovel?.endereco), v.imovel?.bairro, v.imovel?.cidade].filter(Boolean).join(' - ').replace(/[,;\n]/g, ' ');
     // Horários em UTC (sufixo Z): o calendário do celular converte para o fuso dele.
     const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Portal do Corretor//PT', 'BEGIN:VEVENT', `UID:visita-${v.ref}@portal-corretor`, `DTSTAMP:${f(new Date())}`, `DTSTART:${f(inicio)}`, `DTEND:${f(fim)}`, `SUMMARY:${titulo}`, lugar ? `LOCATION:${lugar}` : '', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean).join('\r\n') + '\r\n';
     return `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`;
@@ -569,7 +570,7 @@ export class PcPortalCliente extends LitElement {
       ${numero ? html`<span class="numero" aria-label=${`Parada ${numero}`}>${numero}</span>` : nothing}
       <strong>${numero ? hora(v.quando) : diaHora(v.quando)}</strong>
       <div>${v.imovel?.titulo ?? v.imovel?.codigo ?? 'Visita'}</div>
-      <div class="suave">${[v.imovel?.endereco, v.imovel?.bairro, v.imovel?.cidade].filter(Boolean).join(' · ')}</div>
+      <div class="suave">${[enderecoEmTexto(v.imovel?.endereco), v.imovel?.bairro, v.imovel?.cidade].filter(Boolean).join(' · ')}</div>
       <div class="acoes">
         ${chegar ? html`<a class="botao claro" href=${chegar} target="_blank" rel="noopener">${lugar?.exato ? 'Como chegar' : 'Ver o bairro no mapa'}</a>` : nothing}
         <a class="botao claro" href=${this.calendario(v)} download="visita.ics">Adicionar ao calendário</a>

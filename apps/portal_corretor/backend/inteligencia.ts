@@ -1,12 +1,13 @@
 import type { HelperDados } from '@urbiverso/sdk';
 import { ETAPAS_PADRAO } from '../comum/crm';
-import { classificar, deveTrocar, iso as instante, MARCO_PADRAO, PLAYBOOK_PADRAO, venceEm, type Classificacao, type Temperatura } from '../comum/funil';
+import { classificar, deveTrocar, iso as instante, MARCO_PADRAO, PLAYBOOK_PADRAO, semAtividadeRegistrada, venceEm, type Classificacao, type Temperatura } from '../comum/funil';
 
 // Inteligência do Funil por regras (bloco 4): reclassifica a temperatura a cada sinal e aponta a
 // próxima abordagem pelo playbook da conta. Só lê por id ou com filtro explícito, para servir
 // também à rotina diária (contexto SISTEMA, que enxerga todas as contas).
 
 type Linha = Record<string, any>;
+const EVENTOS_DE_CRIACAO = /^(contato\.criado|contato\.importado|negocio\.criado|consentimento\..*)$/;
 const DIA = 86400e3;
 
 /** Etapas por id, com o marco preenchido pelo nome quando a conta foi semeada antes dele. */
@@ -48,6 +49,18 @@ export async function sinaisDoContato(dados: HelperDados, contato: Linha, agora 
       }
     }
   }
+  // Só olha o histórico quando a data de último contato ainda é a da criação (o caso comum de contato antigo sai antes).
+  let semAtividade = semAtividadeRegistrada(contato.criado_em, contato.ultimo_contato_em);
+  if (semAtividade) {
+    const [feitas, mensagens, linha] = await Promise.all([
+      dados.listar('atividades', { filtros: { contato_id: contato.id, status: 'feita' }, por_pagina: 1 }),
+      dados.listar('mensagens', { filtros: { contato_id: contato.id }, por_pagina: 1 }),
+      dados.listar('linha_do_tempo', { filtros: { contato_id: contato.id }, por_pagina: 50 }),
+    ]);
+    // Cadastro, importação, negócio aberto e consentimento são a criação; o resto (nota, mensagem, tarefa) é registro.
+    const registro = (linha.dados as Linha[]).some((e) => !EVENTOS_DE_CRIACAO.test(String(e.tipo)));
+    semAtividade = !feitas.dados.length && !mensagens.dados.length && !registro;
+  }
   return {
     agora: iso,
     ultimo_contato_em: instante(contato.ultimo_contato_em),
@@ -57,6 +70,7 @@ export async function sinaisDoContato(dados: HelperDados, contato: Linha, agora 
     proposta_desde: maisRecente(emPropostaLista.map((n) => n.etapa_desde)),
     visita_marcada_em: maisRecente(marcadas.map((a) => a.criado_em)),
     nota_visita_em: notaVisitaEm,
+    sem_atividade: semAtividade,
   };
 }
 

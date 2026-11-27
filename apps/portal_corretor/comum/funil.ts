@@ -99,6 +99,21 @@ export interface Sinais {
   proposta_desde?: string | null;
   visita_marcada_em?: string | null;
   nota_visita_em?: string | null;
+  /** O último contato é o da criação do cadastro: nenhuma mensagem, tarefa feita ou retorno registrado depois. */
+  sem_atividade?: boolean;
+}
+
+export const MOTIVO_SEM_CONVERSA = 'Novo, sem conversa registrada';
+
+/** Tolerância entre `criado_em` e a data de último contato gravada na criação (segundos de diferença entre relógios). */
+const TOLERANCIA_CRIACAO_MS = 5000;
+
+/** Sem atividade: a data de último contato é a da criação do cadastro (qualquer registro posterior a move para frente). */
+export function semAtividadeRegistrada(criadoEm: unknown, ultimoContatoEm: unknown): boolean {
+  const c = iso(criadoEm);
+  const u = iso(ultimoContatoEm);
+  if (!c || !u) return false;
+  return Math.abs(new Date(u).getTime() - new Date(c).getTime()) <= TOLERANCIA_CRIACAO_MS;
 }
 
 export interface Classificacao {
@@ -131,6 +146,8 @@ export function classificar(s: Sinais): Classificacao {
   const parado = dias(s.ultimo_contato_em, s.agora);
   if (parado > 7) return { temperatura: 'frio', motivo: `Sem contato há ${Math.floor(parado)} dias`, forte: false };
   if (s.nota_visita !== null && s.nota_visita <= 2) return { temperatura: 'morno', motivo: `Não gostou da visita (nota ${s.nota_visita})`, forte: true, forte_desde: s.nota_visita_em ?? null };
+  // A data de último contato é gravada na criação (filtro "parados há N dias"): sem nada registrado depois dela, não é conversa.
+  if (s.sem_atividade) return { temperatura: 'morno', motivo: MOTIVO_SEM_CONVERSA, forte: false };
   return { temperatura: 'morno', motivo: parado < 1 ? 'Conversou hoje, sem visita marcada' : `Conversou há ${Math.ceil(parado)} dia(s), sem visita marcada`, forte: false };
 }
 
