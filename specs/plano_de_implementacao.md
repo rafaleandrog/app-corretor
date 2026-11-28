@@ -270,6 +270,7 @@ Agente de voz que liga; anúncios pagos; adiantamento de comissão e crédito; r
 
 | Data | Bloco | O que foi feito | PR | Próximo passo |
 |---|---|---|---|---|
+| 28/11/2026 | Rotina · Construtor | Comentário do teto do `varrerTudo` com `distinto` em `backend/funil.ts` (#252): deixa de atribuir ao `banco-de-dados.md` do SDK a contagem de linhas brutas, que o SDK não define; só texto, sem mudança de comportamento. | PR de #252 | Merge da rotina |
 | 27/11/2026 | Conferência visual #225 e #226 | Por ordem do dono: pré-release da `main` com os dois PRs no pinguim, capturas de P15, M8, M3 e P07 e lado a lado em `specs/prints/conferencia-previa-225-226-0.1.64/`; sem diferença estrutural nova; "Nova proposta" secundário na P15 | #225, #226 | Merge do #225 e do #226; decisão do dono sobre o cartão "Última oferta" do M8 |
 | 27/11/2026 | Release 0.1.64 | Por ordem do dono: `versao` 0.1.63 → 0.1.64 no manifesto e no `package.json`, título de "O que existe nesta versão" e `ajuda-gerada.ts`; release pelo `release.yml` e instalação no pinguim | este PR | Conferências pós-release (pendência "Release da main") |
 | 27/11/2026 | Rotina · Construtor | Etapa do negócio aberto na lista de Clientes (#248): `GET /contatos` lê só negócios de etapa aberta por `varrerTudo` com `distinto`, sem página única de 500; três testes novos (`testes/clientes-etapa-por-contato.test.ts`). | PR de #248 | Merge da rotina |
