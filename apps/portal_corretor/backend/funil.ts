@@ -23,9 +23,10 @@ guardarCorretor(funilRotas, ['/funil', '/inicio', '/abordagens']);
 type Linha = Record<string, any>;
 const DIA = 86400e3;
 const agora = () => new Date().toISOString();
-// Com `distinto`, o teto do `varrerTudo` pode contar as linhas brutas do recorte (`banco-de-dados.md` do SDK), e
-// o que fica em memória é uma linha por chave, cujo número já é limitado pela leitura das chaves (contatos do
-// quadro ≤ 5000; negociações ≤ 50 e ≤ 20). Por isso o teto não pode cortar nada, nem lançar em conta grande.
+// O SDK não define se, com `distinto`, o `maximo` do `varrerTudo` conta as linhas brutas do recorte ou as
+// devolvidas. O que fica em memória é uma linha por chave, cujo número já é limitado pela leitura das chaves
+// (contatos do quadro ≤ 5000; negociações ≤ 50 e ≤ 20). Por isso o teto não pode cortar nada, nem lançar em conta
+// grande.
 const SEM_TETO_DISTINTO = Number.MAX_SAFE_INTEGER;
 const ROTULO_CANAL: Record<string, string> = { whatsapp: 'WhatsApp', ligacao: 'ligação', email: 'e-mail', visita: 'visita' };
 
